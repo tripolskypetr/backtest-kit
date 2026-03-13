@@ -25,6 +25,7 @@ import {
 import { makeStyles } from "../../../styles";
 import {
     AccountBalanceWalletTwoTone,
+    AdfScannerTwoTone,
     CircleNotificationsTwoTone,
     Dashboard,
     InsertChartTwoTone,
@@ -241,9 +242,19 @@ const live_routes: IRoute[] = [
     },
 ];
 
+const other_routes: IRoute[] = [
+    {
+        label: "Markdown Reports",
+        to: `/report`,
+        color: "#0090FF",
+        icon: AdfScannerTwoTone,
+    },
+];
+
 const fields: TypedField[] = [
     createGroup("Application", application_routes),
     createGroup("Live", live_routes),
+    createGroup("Other", other_routes),
 ];
 
 export const MainPage = () => {

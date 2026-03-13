@@ -115,6 +115,32 @@ declare class StatusMockService {
     }>;
 }
 
+declare class MarkdownMockService {
+    private readonly loggerService;
+    getBacktestData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getBacktestReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getLiveData: (symbol: string, strategyName: string, exchangeName: string) => Promise<unknown>;
+    getLiveReport: (symbol: string, strategyName: string, exchangeName: string) => Promise<string>;
+    getBreakevenData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getBreakevenReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getRiskData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getRiskReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getPartialData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getPartialReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getHighestProfitData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getHighestProfitReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getScheduleData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getScheduleReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getPerformanceData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getPerformanceReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getSyncData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getSyncReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getHeatData: (strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getHeatReport: (strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getWalkerData: (symbol: string, walkerName: string) => Promise<unknown>;
+    getWalkerReport: (symbol: string, walkerName: string) => Promise<string>;
+}
+
 declare class NotificationViewService {
     private readonly loggerService;
     private readonly notificationMockService;
@@ -182,6 +208,33 @@ declare class LogViewService {
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
+declare class MarkdownViewService {
+    private readonly loggerService;
+    private readonly markdownMockService;
+    getBacktestData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getBacktestReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
+    getLiveData: (symbol: string, strategyName: string, exchangeName: string) => Promise<unknown>;
+    getLiveReport: (symbol: string, strategyName: string, exchangeName: string) => Promise<string>;
+    getBreakevenData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getBreakevenReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getRiskData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getRiskReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getPartialData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getPartialReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getHighestProfitData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getHighestProfitReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getScheduleData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getScheduleReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getPerformanceData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getPerformanceReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getSyncData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getSyncReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getHeatData: (strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getHeatReport: (strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
+    getWalkerData: (symbol: string, walkerName: string) => Promise<unknown>;
+    getWalkerReport: (symbol: string, walkerName: string) => Promise<string>;
+}
+
 declare class SymbolConnectionService {
     private readonly loggerService;
     getSymbolList: (() => Promise<{
@@ -231,18 +284,45 @@ declare class PriceConnectionService {
     getSignalPendingPrice: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<number>;
 }
 
+declare class LiveMetaService {
+    private readonly loggerService;
+    list: () => Promise<{
+        id: string;
+        symbol: string;
+        strategyName: string;
+        exchangeName: string;
+        status: string;
+    }[]>;
+}
+
+declare class BacktestMetaService {
+    private readonly loggerService;
+    list: () => Promise<{
+        id: string;
+        symbol: string;
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+        status: string;
+    }[]>;
+}
+
 declare const ioc: {
     notificationViewService: NotificationViewService;
     storageViewService: StorageViewService;
     exchangeViewService: ExchangeViewService;
     logViewService: LogViewService;
     statusViewService: StatusViewService;
+    markdownViewService: MarkdownViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
     logMockService: LogMockService;
     statusMockService: StatusMockService;
+    markdownMockService: MarkdownMockService;
+    liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
+    backtestMetaService: BacktestMetaService;
     symbolConnectionService: SymbolConnectionService;
     priceConnectionService: PriceConnectionService;
     loggerService: LoggerService;
