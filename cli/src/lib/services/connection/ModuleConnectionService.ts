@@ -40,7 +40,8 @@ const LOAD_MODULE_MODULE_FN = async (
         return true;
       }
     } catch {
-      console.warn(`Module module import failed for file: ${filePath}`);
+      console.warn(`Module module import failed filePath=${filePath} baseDir=${baseDir}`);
+      process.exit(-1);
     }
   }
   return false;
