@@ -302,11 +302,11 @@ Requires `CC_TELEGRAM_TOKEN` and `CC_TELEGRAM_CHANNEL` in your environment.
 
 The CLI supports **mode-specific module files** that are loaded as side-effect imports before the strategy starts. Each file is expected to call `Broker.useBrokerAdapter()` from `backtest-kit` to register a broker adapter.
 
-| Mode          | Module file                     | Loaded before               |
-|---------------|---------------------------------|-----------------------------|
-| `--live`      | `./modules/live.module.mjs`     | `Live.background()`         |
-| `--paper`     | `./modules/paper.module.mjs`    | `Live.background()` (paper) |
-| `--backtest`  | `./modules/backtest.module.mjs` | `Backtest.background()`     |
+| Command Line Args | Module file                     | Loaded before               |
+|-------------------|---------------------------------|-----------------------------|
+| `--live`          | `./modules/live.module.mjs`     | `Live.background()`         |
+| `--paper`         | `./modules/paper.module.mjs`    | `Live.background()` (paper) |
+| `--backtest`      | `./modules/backtest.module.mjs` | `Backtest.background()`     |
 
 > File is resolved relative to `cwd` (the strategy directory). All of `.mjs`, `.cjs`, `.ts` extensions are tried automatically. Missing module is a soft warning — not an error.
 
