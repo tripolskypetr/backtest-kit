@@ -24,6 +24,11 @@ export class ResolveService {
     public readonly OVERRIDE_TEMPLATE_DIR = path.resolve(process.cwd(), 'template');
     public readonly OVERRIDE_MODULES_DIR = path.resolve(process.cwd(), 'modules');
 
+    public getIsLaunched = () => {
+        this.loggerService.log("resolveService getIsLaunched");
+        return _is_launched;
+    }
+
     public attachEntryPoint = async (entryPoint: string) => {
         this.loggerService.log("resolveService attachEntryPoint");
         if (_is_launched) {

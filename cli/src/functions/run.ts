@@ -18,6 +18,9 @@ type Args =
 let _is_started = false;
 
 export async function run(mode: Mode, args: Args) {
+  if (cli.resolveService.getIsLaunched()) {
+    throw new Error("Entry point is already attached. Multiple entry points are not allowed.");
+  }
   {
     if (_is_started) {
         throw new Error("Should be called only once");
