@@ -117,6 +117,8 @@ declare class StatusMockService {
 
 declare class MarkdownMockService {
     private readonly loggerService;
+    getStrategyData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
+    getStrategyReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
     getBacktestData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
     getBacktestReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
     getLiveData: (symbol: string, strategyName: string, exchangeName: string) => Promise<unknown>;
@@ -211,6 +213,8 @@ declare class LogViewService {
 declare class MarkdownViewService {
     private readonly loggerService;
     private readonly markdownMockService;
+    getStrategyData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<unknown>;
+    getStrategyReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
     getBacktestData: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<unknown>;
     getBacktestReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string) => Promise<string>;
     getLiveData: (symbol: string, strategyName: string, exchangeName: string) => Promise<unknown>;

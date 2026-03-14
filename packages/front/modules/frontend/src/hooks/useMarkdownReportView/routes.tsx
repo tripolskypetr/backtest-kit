@@ -9,6 +9,7 @@ import ScheduleView from "./view/ScheduleView";
 import PerformanceView from "./view/PerformanceView";
 import SyncView from "./view/SyncView";
 import HeatView from "./view/HeatView";
+import StrategyView from "./view/StrategyView";
 
 export const routes: IOutletModal[] = [
     {
@@ -60,6 +61,11 @@ export const routes: IOutletModal[] = [
         id: "heat",
         element: HeatView,
         isActive: (pathname) => pathname.includes("/markdown_report/heat"),
+    },
+    {
+        id: "strategy",
+        element: StrategyView,
+        isActive: (pathname) => pathname.includes("/markdown_report/strategy"),
     },
 ];
 

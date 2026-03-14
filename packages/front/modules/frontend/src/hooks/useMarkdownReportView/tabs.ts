@@ -12,6 +12,10 @@ export const tabs: ITabsStep[] = [
         isVisible: ({ type }) => type === "live",
     },
     {
+        id: "strategy",
+        label: "Strategy",
+    },
+    {
         id: "breakeven",
         label: "Breakeven",
     },
