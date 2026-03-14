@@ -14,6 +14,7 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in highest profit markdown reports.
@@ -52,8 +53,6 @@ const CREATE_FILE_NAME_FN = (
   return `${parts.join("_")}-${timestamp}.md`;
 };
 
-/** Maximum number of events to store per combination */
-const MAX_EVENTS = 250;
 
 /**
  * Accumulates highest profit events per symbol-strategy-exchange-frame combination.
@@ -91,7 +90,7 @@ class ReportStorage {
       backtest,
     });
 
-    if (this._eventList.length > MAX_EVENTS) {
+    if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS) {
       this._eventList.pop();
     }
   }

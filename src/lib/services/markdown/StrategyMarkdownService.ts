@@ -25,6 +25,7 @@ import {
   TrailingTakeCommit,
 } from "../../../contract/StrategyCommit.contract";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in strategy markdown reports.
@@ -86,17 +87,11 @@ const CREATE_FILE_NAME_FN = (
   return `${parts.join("_")}-${timestamp}.md`;
 };
 
-/**
- * Maximum number of events to store per symbol-strategy pair.
- * Older events are discarded when this limit is exceeded.
- * @internal
- */
-const MAX_EVENTS = 250;
 
 /**
  * In-memory storage for accumulating strategy events per symbol-strategy pair.
  *
- * Maintains a rolling window of the most recent events (up to MAX_EVENTS),
+ * Maintains a rolling window of the most recent events (up to GLOBAL_CONFIG.CC_MAX_STRATEGY_MARKDOWN_ROWS),
  * with newer events added to the front of the list. Provides methods to:
  * - Add new events (FIFO queue with max size)
  * - Retrieve aggregated statistics
@@ -127,13 +122,13 @@ class ReportStorage {
    * Adds a new event to the storage.
    *
    * Events are added to the front of the list (most recent first).
-   * If the list exceeds MAX_EVENTS, the oldest event is removed.
+   * If the list exceeds GLOBAL_CONFIG.CC_MAX_STRATEGY_MARKDOWN_ROWS, the oldest event is removed.
    *
    * @param event - The strategy event to store
    */
   public addEvent(event: StrategyEvent) {
     this._eventList.unshift(event);
-    if (this._eventList.length > MAX_EVENTS) {
+    if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_STRATEGY_MARKDOWN_ROWS) {
       this._eventList.pop();
     }
   }

@@ -15,6 +15,7 @@ import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { Markdown } from "../../../classes/Markdown";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in backtest markdown reports.
@@ -114,8 +115,6 @@ function isUnsafe(value: number | null): boolean {
   return false;
 }
 
-/** Maximum number of signals to store in backtest reports */
-const MAX_EVENTS = 250;
 
 /**
  * Storage class for accumulating closed signals per strategy.
@@ -140,8 +139,8 @@ class ReportStorage {
   public addSignal(data: IStrategyTickResultClosed) {
     this._signalList.unshift(data);
 
-    // Trim queue if exceeded MAX_EVENTS
-    if (this._signalList.length > MAX_EVENTS) {
+    // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_BACKTEST_MARKDOWN_ROWS
+    if (this._signalList.length > GLOBAL_CONFIG.CC_MAX_BACKTEST_MARKDOWN_ROWS) {
       this._signalList.pop();
     }
   }

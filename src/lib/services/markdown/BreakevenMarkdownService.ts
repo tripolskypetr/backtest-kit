@@ -14,6 +14,7 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in breakeven markdown reports.
@@ -88,8 +89,6 @@ const CREATE_FILE_NAME_FN = (
   return `${parts.join("_")}-${timestamp}.md`;
 };
 
-/** Maximum number of events to store in breakeven reports */
-const MAX_EVENTS = 250;
 
 /**
  * Storage class for accumulating breakeven events per symbol-strategy pair.
@@ -143,8 +142,8 @@ class ReportStorage {
       backtest,
     });
 
-    // Trim queue if exceeded MAX_EVENTS
-    if (this._eventList.length > MAX_EVENTS) {
+    // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_BREAKEVEN_MARKDOWN_ROWS
+    if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_BREAKEVEN_MARKDOWN_ROWS) {
       this._eventList.pop();
     }
   }

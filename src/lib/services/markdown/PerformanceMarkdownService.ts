@@ -15,6 +15,7 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in performance metrics markdown reports.
@@ -120,8 +121,6 @@ function percentile(sortedArray: number[], p: number): number {
   return sortedArray[Math.max(0, index)];
 }
 
-/** Maximum number of performance events to store per strategy */
-const MAX_EVENTS = 10000;
 
 /**
  * Storage class for accumulating performance metrics per strategy.
@@ -146,8 +145,8 @@ class PerformanceStorage {
   public addEvent(event: PerformanceContract) {
     this._events.unshift(event);
 
-    // Trim queue if exceeded MAX_EVENTS (keep most recent)
-    if (this._events.length > MAX_EVENTS) {
+    // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_PERFORMANCE_MARKDOWN_ROWS (keep most recent)
+    if (this._events.length > GLOBAL_CONFIG.CC_MAX_PERFORMANCE_MARKDOWN_ROWS) {
       this._events.pop();
     }
   }

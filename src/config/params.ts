@@ -155,6 +155,85 @@ export const GLOBAL_CONFIG = {
   CC_AGGREGATED_TRADES_MAX_MINUTES: 60,
 
   /**
+   * Maximum number of events to keep in backtest markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_BACKTEST_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in breakeven markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_BREAKEVEN_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in heatmap markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_HEATMAP_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in highest profit markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in live markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_LIVE_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in partial markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_PARTIAL_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in risk markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_RISK_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in schedule markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_SCHEDULE_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in strategy markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_STRATEGY_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of events to keep in sync markdown report storage.
+   * Older events are removed (FIFO) when this limit is exceeded.
+   *
+   * Default: 250 events
+   */
+  CC_MAX_SYNC_MARKDOWN_ROWS: 250,
+  /**
+   * Maximum number of performance metric events to keep in storage.
+   * Older events are removed when this limit is exceeded.
+   * Higher than other report event limits because performance metrics are lightweight
+   * and benefit from larger sample sizes for accurate statistical analysis.
+   *
+   * Default: 10000 events
+   */
+  CC_MAX_PERFORMANCE_MARKDOWN_ROWS: 10_000,
+  /**
    * Maximum number of notifications to keep in storage.
    * Older notifications are removed when this limit is exceeded.
    *

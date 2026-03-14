@@ -12,6 +12,7 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 import { syncSubject } from "../../../config/emitters";
 import SignalSyncContract from "../../../contract/SignalSync.contract";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in sync markdown reports.
@@ -55,8 +56,6 @@ const CREATE_FILE_NAME_FN = (
   return `${parts.join("_")}-${timestamp}.md`;
 };
 
-/** Maximum number of events to store in sync reports */
-const MAX_EVENTS = 250;
 
 /**
  * Storage class for accumulating signal sync events per symbol-strategy-exchange-frame-backtest combination.
@@ -74,7 +73,7 @@ class ReportStorage {
 
   public addEvent(event: SyncEvent) {
     this._eventList.unshift(event);
-    if (this._eventList.length > MAX_EVENTS) {
+    if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_SYNC_MARKDOWN_ROWS) {
       this._eventList.pop();
     }
   }

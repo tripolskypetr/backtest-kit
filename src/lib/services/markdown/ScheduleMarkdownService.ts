@@ -17,6 +17,7 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in scheduled events markdown reports.
@@ -97,8 +98,6 @@ const CREATE_FILE_NAME_FN = (
   return `${parts.join("_")}-${timestamp}.md`;
 };
 
-/** Maximum number of events to store in schedule reports */
-const MAX_EVENTS = 250;
 
 /**
  * Storage class for accumulating scheduled signal events per strategy.
@@ -142,8 +141,8 @@ class ReportStorage {
       scheduledAt: data.signal.scheduledAt,
     });
 
-    // Trim queue if exceeded MAX_EVENTS
-    if (this._eventList.length > MAX_EVENTS) {
+    // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_SCHEDULE_MARKDOWN_ROWS
+    if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_SCHEDULE_MARKDOWN_ROWS) {
       this._eventList.pop();
     }
   }
@@ -182,8 +181,8 @@ class ReportStorage {
 
     this._eventList.unshift(newEvent);
 
-    // Trim queue if exceeded MAX_EVENTS
-    if (this._eventList.length > MAX_EVENTS) {
+    // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_SCHEDULE_MARKDOWN_ROWS
+    if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_SCHEDULE_MARKDOWN_ROWS) {
       this._eventList.pop();
     }
   }
@@ -224,8 +223,8 @@ class ReportStorage {
 
     this._eventList.unshift(newEvent);
 
-    // Trim queue if exceeded MAX_EVENTS
-    if (this._eventList.length > MAX_EVENTS) {
+    // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_SCHEDULE_MARKDOWN_ROWS
+    if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_SCHEDULE_MARKDOWN_ROWS) {
       this._eventList.pop();
     }
   }

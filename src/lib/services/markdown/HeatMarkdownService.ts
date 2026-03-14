@@ -16,6 +16,7 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Type alias for column configuration used in heatmap markdown reports.
@@ -109,8 +110,6 @@ function isUnsafe(value: number | null): boolean {
   return false;
 }
 
-/** Maximum number of signals to store per symbol in heatmap reports */
-const MAX_EVENTS = 250;
 
 /**
  * Storage class for accumulating closed signals per strategy and generating heatmap.
@@ -141,8 +140,8 @@ class HeatmapStorage {
     const signals = this.symbolData.get(symbol)!;
     signals.unshift(data);
 
-    // Trim queue if exceeded MAX_EVENTS per symbol
-    if (signals.length > MAX_EVENTS) {
+    // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_HEATMAP_MARKDOWN_ROWS per symbol
+    if (signals.length > GLOBAL_CONFIG.CC_MAX_HEATMAP_MARKDOWN_ROWS) {
       signals.pop();
     }
   }
