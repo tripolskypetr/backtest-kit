@@ -49,6 +49,14 @@ position: "long" | "short"
 
 Position direction
 
+### pnl
+
+```ts
+pnl: IStrategyPnL
+```
+
+Unrealized PNL at the time the record was set
+
 ### currentPrice
 
 ```ts
