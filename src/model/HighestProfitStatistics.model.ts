@@ -1,4 +1,4 @@
-import { IPublicSignalRow } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, IStrategyPnL } from "../interfaces/Strategy.interface";
 
 /**
  * Single highest profit event recorded for a position.
@@ -14,6 +14,8 @@ export interface HighestProfitEvent {
   signalId: string;
   /** Position direction */
   position: IPublicSignalRow["position"];
+  /** Unrealized PNL at the time the record was set */
+  pnl: IStrategyPnL;
   /** Record price reached in the profit direction */
   currentPrice: number;
   /** Effective entry price at the time of the update */

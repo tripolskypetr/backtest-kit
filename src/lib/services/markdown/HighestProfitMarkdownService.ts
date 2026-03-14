@@ -83,6 +83,7 @@ class ReportStorage {
       strategyName: data.strategyName,
       signalId: data.id,
       position: data.position,
+      pnl: data.pnl,
       currentPrice,
       priceOpen: data.priceOpen,
       priceTakeProfit: data.priceTakeProfit,
