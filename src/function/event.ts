@@ -1247,6 +1247,15 @@ export function listenStrategyCommitOnce(
  */
 export function listenSync(fn: (event: SignalSyncContract) => void) {
   backtest.loggerService.log(LISTEN_SYNC_METHOD_NAME);
+
+  {
+    console.error("listenSync is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+    console.error("If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() in addActionSchema handler");
+    console.error("If listenSync throws the exchange will not execute the order!");
+    console.error("");
+    console.error("You have been warned!");
+  }
+
   return syncSubject.subscribe(queued(async (event) => fn(event)));
 }
 
@@ -1263,6 +1272,15 @@ export function listenSyncOnce(
   fn: (event: SignalSyncContract) => void
 ) {
   backtest.loggerService.log(LISTEN_SYNC_ONCE_METHOD_NAME);
+
+  {
+    console.error("listenSyncOnce is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+    console.error("If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() in addActionSchema handler");
+    console.error("If listenSyncOnce throws the exchange WILL EXECUTE the order!");
+    console.error("");
+    console.error("You have been warned!");
+  }
+
   return syncSubject.filter(filterFn).once(fn);
 }
 
