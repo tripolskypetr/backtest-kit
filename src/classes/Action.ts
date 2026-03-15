@@ -15,7 +15,7 @@ import {
 } from "../interfaces/Action.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import backtest from "../lib";
-import { makeExtendable, trycatch, errorData, getErrorMessage } from "functools-kit";
+import { makeExtendable, trycatch, errorData, getErrorMessage, not } from "functools-kit";
 import { errorEmitter } from "../config/emitters";
 
 const METHOD_NAME_INIT = "ActionBase.init";
@@ -207,9 +207,25 @@ const CALL_PARTIAL_LOSS_AVAILABLE_FN = trycatch(
  */
 const CALL_PING_SCHEDULED_FN = trycatch(
   async (event: SchedulePingContract, self: ActionProxy): Promise<void> => {
-    if (self._target.pingScheduled) {
-      return await self._target.pingScheduled(event);
+    if (!self._target.pingScheduled) {
+      return;
     }
+    if (
+      await not(
+        backtest.strategyCoreService.hasScheduledSignal(
+          event.backtest,
+          event.symbol,
+          {
+            strategyName: event.data.strategyName,
+            exchangeName: event.data.exchangeName,
+            frameName: event.data.frameName,
+          },
+        )
+      )
+    ) {
+      return;
+    }
+    return await self._target.pingScheduled(event);
   },
   {
     fallback: (error) => {
@@ -231,9 +247,25 @@ const CALL_PING_SCHEDULED_FN = trycatch(
  */
 const CALL_PING_ACTIVE_FN = trycatch(
   async (event: ActivePingContract, self: ActionProxy): Promise<void> => {
-    if (self._target.pingActive) {
-      return await self._target.pingActive(event);
+    if (!self._target.pingActive) {
+      return;
     }
+    if (
+      await not(
+        backtest.strategyCoreService.hasPendingSignal(
+          event.backtest,
+          event.symbol,
+          {
+            strategyName: event.data.strategyName,
+            exchangeName: event.data.exchangeName,
+            frameName: event.data.frameName,
+          },
+        )
+      )
+    ) {
+      return;
+    }
+    return await self._target.pingActive(event);
   },
   {
     fallback: (error) => {
