@@ -276,7 +276,7 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
     symbol: string,
     strategyName: StrategyName,
     exchangeName: ExchangeName,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     backtest: boolean,
     timestamp: number

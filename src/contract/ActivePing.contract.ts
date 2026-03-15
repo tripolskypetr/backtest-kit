@@ -1,5 +1,5 @@
 import { ExchangeName } from "../interfaces/Exchange.interface";
-import { ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, StrategyName } from "../interfaces/Strategy.interface";
 
 /**
  * Contract for active ping events during active pending signal monitoring.
@@ -55,7 +55,7 @@ export interface ActivePingContract {
    * Complete pending signal row data.
    * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
    */
-  data: ISignalRow;
+  data: IPublicSignalRow;
 
   /**
    * Current market price of the symbol at the time of the ping.

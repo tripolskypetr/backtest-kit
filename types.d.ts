@@ -1021,7 +1021,7 @@ interface ActivePingContract {
      * Complete pending signal row data.
      * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
      */
-    data: ISignalRow;
+    data: IPublicSignalRow;
     /**
      * Current market price of the symbol at the time of the ping.
      * Useful for users to implement custom management logic based on price conditions.
