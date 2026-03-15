@@ -842,7 +842,24 @@ export function listenValidation(fn: (error: Error) => void) {
  */
 export function listenPartialProfitAvailable(fn: (event: PartialProfitContract) => void) {
   backtest.loggerService.log(LISTEN_PARTIAL_PROFIT_METHOD_NAME);
-  return partialProfitSubject.subscribe(queued(async (event) => fn(event)));
+
+  const wrappedFn = async (event: PartialProfitContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return partialProfitSubject.subscribe(queued(wrappedFn));
 }
 
 /**
@@ -919,7 +936,24 @@ export function listenPartialProfitAvailableOnce(
  */
 export function listenPartialLossAvailable(fn: (event: PartialLossContract) => void) {
   backtest.loggerService.log(LISTEN_PARTIAL_LOSS_METHOD_NAME);
-  return partialLossSubject.subscribe(queued(async (event) => fn(event)));
+
+  const wrappedFn = async (event: PartialLossContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return partialLossSubject.subscribe(queued(wrappedFn));
 }
 
 /**
@@ -998,7 +1032,24 @@ export function listenPartialLossAvailableOnce(
  */
 export function listenBreakevenAvailable(fn: (event: BreakevenContract) => void) {
   backtest.loggerService.log(LISTEN_BREAKEVEN_METHOD_NAME);
-  return breakevenSubject.subscribe(queued(async (event) => fn(event)));
+
+  const wrappedFn = async (event: BreakevenContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return breakevenSubject.subscribe(queued(wrappedFn));
 }
 
 /**
@@ -1359,7 +1410,32 @@ export function listenActivePingOnce(
  */
 export function listenStrategyCommit(fn: (event: StrategyCommitContract) => void) {
   backtest.loggerService.log(LISTEN_STRATEGY_COMMIT_METHOD_NAME);
-  return strategyCommitSubject.subscribe(queued(async (event) => fn(event)));
+
+  const wrappedFn = async (event: StrategyCommitContract) => {
+    if (event.action === "cancel-scheduled") {
+      await fn(event);
+      return;
+    }
+    if (event.action === "close-pending") {
+      await fn(event);
+      return;
+    }
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return strategyCommitSubject.subscribe(queued(wrappedFn));
 }
 
 /**
@@ -1479,7 +1555,24 @@ export function listenSyncOnce(
  */
 export function listenHighestProfit(fn: (event: HighestProfitContract) => void) {
   backtest.loggerService.log(LISTEN_HIGHEST_PROFIT_METHOD_NAME);
-  return highestProfitSubject.subscribe(queued(async (event) => fn(event)));
+
+  const wrappedFn = async (event: HighestProfitContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return highestProfitSubject.subscribe(queued(wrappedFn));
 }
 
 /**
