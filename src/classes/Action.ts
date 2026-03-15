@@ -134,9 +134,25 @@ const CALL_SIGNAL_BACKTEST_FN = trycatch(
  */
 const CALL_BREAKEVEN_AVAILABLE_FN = trycatch(
   async (event: BreakevenContract, self: ActionProxy): Promise<void> => {
-    if (self._target.breakevenAvailable) {
-      return await self._target.breakevenAvailable(event);
+    if (!self._target.breakevenAvailable) {
+      return;
     }
+    if (
+      await not(
+        backtest.strategyCoreService.hasPendingSignal(
+          event.backtest,
+          event.symbol,
+          {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+          },
+        )
+      )
+    ) {
+      return;
+    }
+    return await self._target.breakevenAvailable(event);
   },
   {
     fallback: (error) => {
@@ -158,9 +174,25 @@ const CALL_BREAKEVEN_AVAILABLE_FN = trycatch(
  */
 const CALL_PARTIAL_PROFIT_AVAILABLE_FN = trycatch(
   async (event: PartialProfitContract, self: ActionProxy): Promise<void> => {
-    if (self._target.partialProfitAvailable) {
-      return await self._target.partialProfitAvailable(event);
+    if (!self._target.partialProfitAvailable) {
+      return;
     }
+    if (
+      await not(
+        backtest.strategyCoreService.hasPendingSignal(
+          event.backtest,
+          event.symbol,
+          {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+          },
+        )
+      )
+    ) {
+      return;
+    }
+    return await self._target.partialProfitAvailable(event);
   },
   {
     fallback: (error) => {
@@ -182,9 +214,25 @@ const CALL_PARTIAL_PROFIT_AVAILABLE_FN = trycatch(
  */
 const CALL_PARTIAL_LOSS_AVAILABLE_FN = trycatch(
   async (event: PartialLossContract, self: ActionProxy): Promise<void> => {
-    if (self._target.partialLossAvailable) {
-      return await self._target.partialLossAvailable(event);
+    if (!self._target.partialLossAvailable) {
+      return;
     }
+    if (
+      await not(
+        backtest.strategyCoreService.hasPendingSignal(
+          event.backtest,
+          event.symbol,
+          {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+          },
+        )
+      )
+    ) {
+      return;
+    }
+    return await self._target.partialLossAvailable(event);
   },
   {
     fallback: (error) => {
