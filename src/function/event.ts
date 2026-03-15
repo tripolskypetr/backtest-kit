@@ -125,7 +125,17 @@ export function listenSignalOnce(
   fn: (event: IStrategyTickResult) => void
 ) {
   backtest.loggerService.log(LISTEN_SIGNAL_ONCE_METHOD_NAME);
-  return signalEmitter.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: IStrategyTickResult) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSignal(wrappedFn);
 }
 
 /**
@@ -179,7 +189,17 @@ export function listenSignalLiveOnce(
   fn: (event: IStrategyTickResult) => void
 ) {
   backtest.loggerService.log(LISTEN_SIGNAL_LIVE_ONCE_METHOD_NAME);
-  return signalLiveEmitter.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: IStrategyTickResult) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSignalLive(wrappedFn);
 }
 
 /**
@@ -233,7 +253,17 @@ export function listenSignalBacktestOnce(
   fn: (event: IStrategyTickResult) => void
 ) {
   backtest.loggerService.log(LISTEN_SIGNAL_BACKTEST_ONCE_METHOD_NAME);
-  return signalBacktestEmitter.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: IStrategyTickResult) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSignalBacktest(wrappedFn);
 }
 
 /**
@@ -357,7 +387,17 @@ export function listenDoneLiveOnce(
   fn: (event: DoneContract) => void
 ) {
   backtest.loggerService.log(LISTEN_DONE_LIVE_ONCE_METHOD_NAME);
-  return doneLiveSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: DoneContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenDoneLive(wrappedFn);
 }
 
 /**
@@ -425,7 +465,17 @@ export function listenDoneBacktestOnce(
   fn: (event: DoneContract) => void
 ) {
   backtest.loggerService.log(LISTEN_DONE_BACKTEST_ONCE_METHOD_NAME);
-  return doneBacktestSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: DoneContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenDoneBacktest(wrappedFn);
 }
 
 /**
@@ -489,7 +539,17 @@ export function listenDoneWalkerOnce(
   fn: (event: DoneContract) => void
 ) {
   backtest.loggerService.log(LISTEN_DONE_WALKER_ONCE_METHOD_NAME);
-  return doneWalkerSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: DoneContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenDoneWalker(wrappedFn);
 }
 
 /**
@@ -678,7 +738,17 @@ export function listenWalkerOnce(
   fn: (event: WalkerContract) => void
 ) {
   backtest.loggerService.log(LISTEN_WALKER_ONCE_METHOD_NAME);
-  return walkerEmitter.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: WalkerContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenWalker(wrappedFn);
 }
 
 /**
@@ -810,7 +880,17 @@ export function listenPartialProfitAvailableOnce(
   fn: (event: PartialProfitContract) => void
 ) {
   backtest.loggerService.log(LISTEN_PARTIAL_PROFIT_ONCE_METHOD_NAME);
-  return partialProfitSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: PartialProfitContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenPartialProfitAvailable(wrappedFn);
 }
 
 /**
@@ -877,7 +957,17 @@ export function listenPartialLossAvailableOnce(
   fn: (event: PartialLossContract) => void
 ) {
   backtest.loggerService.log(LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME);
-  return partialLossSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: PartialLossContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenPartialLossAvailable(wrappedFn);
 }
 
 /**
@@ -946,7 +1036,17 @@ export function listenBreakevenAvailableOnce(
   fn: (event: BreakevenContract) => void
 ) {
   backtest.loggerService.log(LISTEN_BREAKEVEN_ONCE_METHOD_NAME);
-  return breakevenSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: BreakevenContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenBreakevenAvailable(wrappedFn);
 }
 
 /**
@@ -1020,7 +1120,17 @@ export function listenRiskOnce(
   fn: (event: RiskContract) => void
 ) {
   backtest.loggerService.log(LISTEN_RISK_ONCE_METHOD_NAME);
-  return riskSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: RiskContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenRisk(wrappedFn);
 }
 
 /**
@@ -1048,7 +1158,24 @@ export function listenRiskOnce(
  */
 export function listenSchedulePing(fn: (event: SchedulePingContract) => void) {
   backtest.loggerService.log(LISTEN_SCHEDULE_PING_METHOD_NAME);
-  return schedulePingSubject.subscribe(queued(async (event) => fn(event)));
+
+  const wrappedFn = async (event: SchedulePingContract) => {
+    if (
+      await backtest.strategyCoreService.hasScheduledSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.data.strategyName,
+          exchangeName: event.data.exchangeName,
+          frameName: event.data.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return schedulePingSubject.subscribe(queued(wrappedFn));
 }
 
 /**
@@ -1086,7 +1213,17 @@ export function listenSchedulePingOnce(
   fn: (event: SchedulePingContract) => void
 ) {
   backtest.loggerService.log(LISTEN_SCHEDULE_PING_ONCE_METHOD_NAME);
-  return schedulePingSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: SchedulePingContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSchedulePing(wrappedFn);
 }
 
 /**
@@ -1118,7 +1255,24 @@ export function listenSchedulePingOnce(
  */
 export function listenActivePing(fn: (event: ActivePingContract) => void) {
   backtest.loggerService.log(LISTEN_ACTIVE_PING_METHOD_NAME);
-  return activePingSubject.subscribe(queued(async (event) => fn(event)));
+
+  const wrappedFn = async (event: ActivePingContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.data.strategyName,
+          exchangeName: event.data.exchangeName,
+          frameName: event.data.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return activePingSubject.subscribe(queued(wrappedFn));
 }
 
 /**
@@ -1156,7 +1310,17 @@ export function listenActivePingOnce(
   fn: (event: ActivePingContract) => void
 ) {
   backtest.loggerService.log(LISTEN_ACTIVE_PING_ONCE_METHOD_NAME);
-  return activePingSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: ActivePingContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenActivePing(wrappedFn)
 }
 
 /**
@@ -1233,7 +1397,17 @@ export function listenStrategyCommitOnce(
   fn: (event: StrategyCommitContract) => void
 ) {
   backtest.loggerService.log(LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME);
-  return strategyCommitSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: StrategyCommitContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenStrategyCommit(wrappedFn);
 }
 
 /**
@@ -1276,12 +1450,21 @@ export function listenSyncOnce(
   {
     console.error("listenSyncOnce is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
     console.error("If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() in addActionSchema handler");
-    console.error("If listenSyncOnce throws the exchange WILL EXECUTE the order!");
+    console.error("If listenSyncOnce throws the exchange will not execute the order!");
     console.error("");
     console.error("You have been warned!");
   }
 
-  return syncSubject.filter(filterFn).once(fn);
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: SignalSyncContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSync(wrappedFn);
 }
 
 /**
@@ -1313,6 +1496,16 @@ export function listenHighestProfitOnce(
   fn: (event: HighestProfitContract) => void
 ) {
   backtest.loggerService.log(LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME);
-  return highestProfitSubject.filter(filterFn).once(fn);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: HighestProfitContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenHighestProfit(wrappedFn);
 }
 

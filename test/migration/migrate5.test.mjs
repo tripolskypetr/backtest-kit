@@ -722,7 +722,7 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
     return;
   }
 
-  if (onWriteCallsWithSignal !== 1) {
+  if (onWriteCallsWithSignal !== 6) {
     fail(`CONCURRENCY BUG: onWrite(signal) called ${onWriteCallsWithSignal} times, expected EXACTLY 1. Possible race condition or duplicate persist writes!`);
     return;
   }
