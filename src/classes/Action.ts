@@ -29,7 +29,6 @@ const METHOD_NAME_PARTIAL_LOSS_AVAILABLE = "ActionBase.partialLossAvailable";
 const METHOD_NAME_PING_SCHEDULED = "ActionBase.pingScheduled";
 const METHOD_NAME_PING_ACTIVE = "ActionBase.pingActive";
 const METHOD_NAME_RISK_REJECTION = "ActionBase.riskRejection";
-const METHOD_NAME_SIGNAL_SYNC = "ActionBase.signalSync";
 const METHOD_NAME_DISPOSE = "ActionBase.dispose";
 
 const DEFAULT_SOURCE = "default";
