@@ -26,6 +26,7 @@ import "./e2e/risk.test.mjs";
 import "./e2e/scheduled.test.mjs";
 import "./e2e/config.test.mjs";
 import "./e2e/columns.test.mjs";
+import "./e2e/candle_cache.test.mjs";
 
 import "./spec/live.test.mjs";
 import "./spec/scheduled.test.mjs";
@@ -44,6 +45,7 @@ import "./spec/backtest.test.mjs";
 import "./spec/pnl.test.mjs";
 import "./spec/dca.test.mjs";
 import "./spec/config.test.mjs"
+import "./spec/candle_cache.test.mjs"
 import "./spec/columns.test.mjs"
 import "./spec/lookahead.test.mjs";
 
