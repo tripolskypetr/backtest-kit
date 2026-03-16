@@ -614,7 +614,6 @@ test("HOLD: Infinity LONG — 10 calendar days processed, closes by stop_loss", 
     exchangeName: "binance-hold-10days-sl",
     getCandles: async (_symbol, _interval, since, limit) => {
       getCandlesCallCount++;
-      console.log(`[getCandles] call #${getCandlesCallCount} since=${since.toISOString()} limit=${limit}`);
       const alignedSince = alignTimestamp(since.getTime(), 1);
       const result = [];
       for (let i = 0; i < limit; i++) {
@@ -715,3 +714,109 @@ test("HOLD: Infinity LONG — 10 calendar days processed, closes by stop_loss", 
   pass(`HOLD 10-DAYS SL: closed by stop_loss at day ~${closeDays}. getCandles called ${getCandlesCallCount}x (≥15 verified). PNL: ${finalResult.pnl.pnlPercentage.toFixed(2)}%`);
 });
 
+/**
+ * ТЕСТ #8: minuteEstimatedTime как число — таймаут (time_expired) работает
+ *
+ * Сценарий:
+ * - minuteEstimatedTime: 30 (число, не Infinity)
+ * - Активация на минуте 5, ни TP ни SL не достигаются за 30 минут
+ * - Должен закрыться по time_expired (closeReason = "closed")
+ */
+test("HOLD: finite minuteEstimatedTime — signal closes by time_expired", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T07:00:00Z").getTime();
+  const intervalMs = 60_000;
+
+  let signalGenerated = false;
+  let finalResult = null;
+  let errorCaught = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-hold-timeout",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const m = (timestamp - startTime) / intervalMs;
+        if (timestamp < startTime) {
+          // VWAP буфер: выше priceOpen
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m < 5) {
+          // Scheduled ожидание: выше priceOpen
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m === 5) {
+          // Активация: low = priceOpen = 42000
+          result.push({ timestamp, open: 42100, high: 42200, low: 42000, close: 42100, volume: 100 });
+        } else {
+          // Нейтраль: TP=43000 не задет, SL=41000 не задет
+          result.push({ timestamp, open: 42100, high: 42200, low: 42050, close: 42100, volume: 100 });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-hold-timeout",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        priceOpen: 42000,
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 30,
+      };
+    },
+    callbacks: {},
+  });
+
+  addFrameSchema({
+    frameName: "5m-hold-timeout",
+    interval: "1m",
+    startDate: new Date("2024-01-01T07:00:00Z"),
+    endDate: new Date("2024-01-01T07:05:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") finalResult = result;
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-hold-timeout",
+    exchangeName: "binance-hold-timeout",
+    frameName: "5m-hold-timeout",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!finalResult) {
+    fail("Signal was NOT closed!");
+    return;
+  }
+
+  if (finalResult.closeReason !== "time_expired") {
+    fail(`Expected "time_expired", got "${finalResult.closeReason}"`);
+    return;
+  }
+
+  const closeMinute = Math.round((finalResult.closeTimestamp - startTime) / intervalMs);
+  pass(`HOLD TIMEOUT: finite minuteEstimatedTime=30 signal closed by time_expired at minute ~${closeMinute}.`);
+});
