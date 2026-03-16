@@ -94,33 +94,4 @@ export class Lock {
   public releaseLock = async () => {
     await this[RELEASE_LOCK_SYMBOL]();
   };
-
-  /**
-   * Creates a disposable {@link Resource} that ties the lock lifecycle to
-   * the `using` statement (Explicit Resource Management, TC39 proposal).
-   * The lock is acquired synchronously in the `Resource` constructor and
-   * released automatically when the block exits via `[Symbol.dispose]`.
-   *
-   * @returns {{ [Symbol.dispose](): void }} A disposable resource object.
-   *
-   * @example
-   * // Lock is held for the duration of the `using` block,
-   * // then released automatically — even if an exception is thrown.
-   * {
-   *   using _lock = lock.obtain();
-   *   // critical section
-   * }
-   */
-  public obtain = () => {
-
-    const on = () => this.acquireLock();
-    const un = () => this.releaseLock();
-
-    class Resource {
-      constructor() { on(); }
-      [Symbol.dispose]() { un(); }
-    }
-
-    return new Resource();
-  };
 }
