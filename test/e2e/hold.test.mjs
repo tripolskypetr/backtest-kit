@@ -1203,6 +1203,6 @@ test("HOLD: scheduled signal cancelled via commitCancelScheduled in listenSchedu
     return;
   }
 
-  const cancelMinute = Math.round((finalResult.signal.cancelledAt - startTime) / intervalMs);
+  const cancelMinute = Math.round((finalResult.signal.timestamp - startTime) / intervalMs);
   pass(`HOLD CANCEL SCHEDULED: signal cancelled via commitCancelScheduled at minute ~${cancelMinute}.`);
 });
