@@ -22,7 +22,7 @@ import ActionCoreService from "../../core/ActionCoreService";
 const ACTIVE_CANDLE_INCLUDED = 1;
 const SCHEDULE_ACTIVATION_CANDLE_SKIP = 1;
 
-const SYMBOL_FN_ERROR = Symbol("__error__");
+const SYMBOL_FN_ERROR = Symbol("backtest-fn-error");
 
 /**
  * Returned by helper FNs when a sub-operation fails.
