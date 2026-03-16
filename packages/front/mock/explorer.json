@@ -1,0 +1,97 @@
+[
+  {
+    "path": "dump",
+    "label": "dump",
+    "type": "directory",
+    "nodes": [
+      {
+        "path": "dump\\data",
+        "label": "data",
+        "type": "directory",
+        "nodes": [
+          {
+            "path": "dump\\data\\notification",
+            "label": "notification",
+            "type": "directory",
+            "nodes": [
+              {
+                "path": "dump\\data\\notification\\live",
+                "label": "live",
+                "type": "directory",
+                "nodes": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": "dump\\log",
+        "label": "log",
+        "type": "directory",
+        "nodes": [
+          {
+            "path": "dump\\log\\log.jsonl",
+            "label": "log.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          }
+        ]
+      },
+      {
+        "path": "dump\\report",
+        "label": "report",
+        "type": "directory",
+        "nodes": [
+          {
+            "path": "dump\\report\\backtest.jsonl",
+            "label": "backtest.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "path": "dump\\report\\breakeven.jsonl",
+            "label": "breakeven.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "path": "dump\\report\\heat.jsonl",
+            "label": "heat.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "path": "dump\\report\\highest_profit.jsonl",
+            "label": "highest_profit.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "path": "dump\\report\\partial.jsonl",
+            "label": "partial.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "path": "dump\\report\\performance.jsonl",
+            "label": "performance.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "path": "dump\\report\\schedule.jsonl",
+            "label": "schedule.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "path": "dump\\report\\strategy.jsonl",
+            "label": "strategy.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          }
+        ]
+      }
+    ]
+  }
+]
