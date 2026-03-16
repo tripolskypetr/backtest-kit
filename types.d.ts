@@ -2122,8 +2122,9 @@ interface ISignalDto {
     /**
      * Expected duration in minutes before time_expired.
      * Use `Infinity` for no timeout — position stays open until TP/SL or explicit closePending().
+     * Default: GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES
      */
-    minuteEstimatedTime: number;
+    minuteEstimatedTime?: number;
     /** Cost of this entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
     cost?: number;
 }
@@ -2138,6 +2139,8 @@ interface ISignalRow extends ISignalDto {
     cost: number;
     /** Entry price for the position */
     priceOpen: number;
+    /** Expected duration in minutes before time_expired (required in row, defaults applied in ClientStrategy) */
+    minuteEstimatedTime: number;
     /** Unique exchange identifier for execution */
     exchangeName: ExchangeName;
     /** Unique strategy identifier for execution */
@@ -5519,8 +5522,10 @@ declare const GLOBAL_CONFIG: {
      */
     CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
     /**
-     * Maximum signal lifetime in minutes
-     * Prevents eternal signals that block risk limits for weeks/months
+     * Maximum signal lifetime in minutes.
+     * Also used as the default when minuteEstimatedTime is not provided in ISignalDto.
+     * Prevents eternal signals that block risk limits for weeks/months.
+     * Use Infinity to allow signals to live indefinitely (until TP/SL or explicit close).
      * Default: 1440 minutes (1 day)
      */
     CC_MAX_SIGNAL_LIFETIME_MINUTES: number;

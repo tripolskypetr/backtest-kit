@@ -790,6 +790,11 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
       );
     }
+    if (signal.minuteEstimatedTime === Infinity && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES !== Infinity) {
+      errors.push(
+        `minuteEstimatedTime cannot be Infinity when CC_MAX_SIGNAL_LIFETIME_MINUTES is not Infinity`
+      );
+    }
     if (signal.minuteEstimatedTime !== Infinity && !Number.isInteger(signal.minuteEstimatedTime)) {
       errors.push(
         `minuteEstimatedTime must be an integer (whole number), got ${signal.minuteEstimatedTime}`
@@ -799,16 +804,14 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
 
   // ЗАЩИТА ОТ ВЕЧНЫХ СИГНАЛОВ: ограничиваем максимальное время жизни сигнала
   {
-    if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES && signal.minuteEstimatedTime !== Infinity) {
-      if (signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
-        const days = (signal.minuteEstimatedTime / 60 / 24).toFixed(1);
-        const maxDays = (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES / 60 / 24).toFixed(0);
-        errors.push(
-          `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
-            `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
-            `Eternal signals block risk limits and prevent new trades.`
-        );
-      }
+    if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES !== Infinity && signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
+      const days = (signal.minuteEstimatedTime / 60 / 24).toFixed(1);
+      const maxDays = (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES / 60 / 24).toFixed(0);
+      errors.push(
+        `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
+          `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
+          `Eternal signals block risk limits and prevent new trades.`
+      );
     }
   }
 

@@ -13,6 +13,7 @@ import {
   getPositionHighestProfitBreakeven,
   commitClosePending,
   commitCancelScheduled,
+  setConfig,
 } from "../../build/index.mjs";
 
 import { Subject } from "functools-kit";
@@ -32,6 +33,11 @@ const alignTimestamp = (timestampMs, intervalMinutes) => {
  * - Должен закрыться по stop_loss в первом чанке
  */
 test("HOLD: Infinity LONG closes by stop_loss within first chunk", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60_000;
   // bufferMinutes = CC_AVG_PRICE_CANDLES_COUNT - 1 = 4
@@ -149,6 +155,10 @@ test("HOLD: Infinity LONG closes by stop_loss within first chunk", async ({ pass
  * - Должен закрыться по take_profit в первом чанке
  */
 test("HOLD: Infinity LONG closes by take_profit within first chunk", async ({ pass, fail }) => {
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+ 
   const startTime = new Date("2024-01-01T01:00:00Z").getTime();
   const intervalMs = 60_000;
 
@@ -263,6 +273,12 @@ test("HOLD: Infinity LONG closes by take_profit within first chunk", async ({ pa
  * - Тест проверяет механизм итерационного дозапроса чанков
  */
 test("HOLD: Infinity LONG closes by take_profit after 1200 minutes (cross-chunk)", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
+  
   const startTime = new Date("2024-01-01T02:00:00Z").getTime();
   const intervalMs = 60_000;
 
@@ -380,6 +396,12 @@ test("HOLD: Infinity LONG closes by take_profit after 1200 minutes (cross-chunk)
  * - Тест считает вызовы getCandles и проверяет, что их ≥ 2
  */
 test("HOLD: Infinity LONG — 2nd chunk request triggered (TP at minute 1200)", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
+  
   const startTime = new Date("2024-01-01T03:00:00Z").getTime();
   const intervalMs = 60_000;
 
@@ -495,6 +517,11 @@ test("HOLD: Infinity LONG — 2nd chunk request triggered (TP at minute 1200)", 
  * - Тест считает вызовы getCandles и проверяет, что их ≥ 3
  */
 test("HOLD: Infinity LONG — 3rd chunk request triggered (TP at minute 2300)", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T04:00:00Z").getTime();
   const intervalMs = 60_000;
 
@@ -607,6 +634,11 @@ test("HOLD: Infinity LONG — 3rd chunk request triggered (TP at minute 2300)", 
  * - Ожидается ≥15 вызовов getCandles, closeReason = "stop_loss", PNL < 0
  */
 test("HOLD: Infinity LONG — 10 calendar days processed, closes by stop_loss", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T06:00:00Z").getTime();
   const intervalMs = 60_000;
   const SL_MINUTE = 14_400; // 10 days * 24h * 60min
@@ -729,6 +761,11 @@ test("HOLD: Infinity LONG — 10 calendar days processed, closes by stop_loss", 
  * - Должен закрыться по time_expired (closeReason = "closed")
  */
 test("HOLD: finite minuteEstimatedTime — signal closes by time_expired", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T07:00:00Z").getTime();
   const intervalMs = 60_000;
 
@@ -837,6 +874,11 @@ test("HOLD: finite minuteEstimatedTime — signal closes by time_expired", async
  * - Ожидается closeReason = "committed" (ручное закрытие)
  */
 test("HOLD: Infinity LONG 5 days — closes via commitClosePending when breakeven reached in onActivePing", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T08:00:00Z").getTime();
   const intervalMs = 60_000;
   // Breakeven: +0.6% от priceOpen = 42000 * 1.006 = 42252
@@ -975,6 +1017,11 @@ test("HOLD: Infinity LONG 5 days — closes via commitClosePending when breakeve
  * - Ожидается closeReason = "committed"
  */
 test("HOLD: Infinity SHORT 5 days — closes via commitClosePending when breakeven reached in onActivePing", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T09:00:00Z").getTime();
   const intervalMs = 60_000;
   // SHORT breakeven: -0.6% от priceOpen = 42000 * 0.994 = 41748
@@ -1113,6 +1160,11 @@ test("HOLD: Infinity SHORT 5 days — closes via commitClosePending when breakev
  * - Ожидается action === "cancelled"
  */
 test("HOLD: scheduled signal cancelled via commitCancelScheduled in listenSchedulePing", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T10:00:00Z").getTime();
   const intervalMs = 60_000;
 
@@ -1208,6 +1260,11 @@ test("HOLD: scheduled signal cancelled via commitCancelScheduled in listenSchedu
 });
 
 test("HOLD: pending signal closed via commitClosePending in listenActivePing", async ({ pass, fail }) => {
+  
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true)
+  
   const startTime = new Date("2024-01-01T10:00:00Z").getTime();
   const intervalMs = 60_000;
 
