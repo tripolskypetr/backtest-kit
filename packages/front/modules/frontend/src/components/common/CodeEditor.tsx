@@ -3,7 +3,7 @@ import { SxProps } from "@mui/material";
 
 import Box from "@mui/material/Box";
 
-import * as Ace from "../../types/ace@1.4.12";
+import type * as Ace from "../../types/ace@1.4.12";
 
 interface ICodeEditorProps {
     className?: string;
