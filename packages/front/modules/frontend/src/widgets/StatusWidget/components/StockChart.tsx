@@ -270,8 +270,7 @@ export const StockChart = ({
                 text: "Entry",
             });
 
-            const lastTimestamp = visibleItems[visibleItems.length - 1]?.timestamp ?? 0;
-            if (lastTimestamp >= exitAt) {
+            if (status === "closed") {
                 markers.push({
                     time: alignToInterval(exitAt) as Time,
                     position: position === "short" ? "belowBar" : "aboveBar",
