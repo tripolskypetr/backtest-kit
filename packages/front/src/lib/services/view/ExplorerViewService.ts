@@ -10,8 +10,6 @@ import { ExplorerDirectory, ExplorerNode } from "../../../model/Explorer.model";
 import { CC_ENABLE_MOCK } from "../../../config/params";
 import ExplorerMockService from "../mock/ExplorerMockService";
 
-const DUMP_DIR = path.join(process.cwd(), "dump");
-
 const buildTree = async (
   dir: string,
   visited: Set<string>,
@@ -51,27 +49,42 @@ export class ExplorerViewService {
     TYPES.explorerMockService,
   );
 
+  private getDir = singleshot(async () => {
+    this.loggerService.log("explorerViewService getDir");
+    const dir = path.join(process.cwd(), "dump");
+    await fs.mkdir(dir, { recursive: true });
+    return dir;
+  });
+
+  public getNode = async (nodePath: string): Promise<string> => {
+    this.loggerService.log("explorerViewService getNode", {
+      nodePath,
+    });
+    if (CC_ENABLE_MOCK) {
+      return await this.explorerMockService.getNode(nodePath);
+    }
+    const dir = await this.getDir();
+    const absPath = path.resolve(process.cwd(), nodePath);
+    if (!absPath.startsWith(dir + path.sep) && absPath !== dir) {
+      throw new Error(`Path is outside of dump dir: ${nodePath}`);
+    }
+    return await fs.readFile(absPath, "utf-8");
+  };
+
   public getTree = async (): Promise<ExplorerNode[]> => {
     this.loggerService.log("explorerViewService getTree");
     if (CC_ENABLE_MOCK) {
       return await this.explorerMockService.getTree();
     }
+    const dir = await this.getDir();
     const rootNode: ExplorerDirectory = {
-      path: path.relative(process.cwd(), DUMP_DIR),
-      label: path.basename(DUMP_DIR),
+      path: path.relative(process.cwd(), dir),
+      label: path.basename(dir),
       type: "directory",
-      nodes: await buildTree(DUMP_DIR, new Set()),
+      nodes: await buildTree(dir, new Set()),
     };
     return [rootNode];
   };
-
-  protected init = singleshot(async () => {
-    this.loggerService.log("explorerViewService init");
-    if (CC_ENABLE_MOCK) {
-      return;
-    }
-    await fs.mkdir(DUMP_DIR, { recursive: true });
-  });
 }
 
 export default ExplorerViewService;

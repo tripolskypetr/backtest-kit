@@ -13,6 +13,7 @@ import StorageMockService from "../services/mock/StorageMockService";
 import LogMockService from "../services/mock/LogMockService";
 import StatusMockService from "../services/mock/StatusMockService";
 import MarkdownMockService from "../services/mock/MarkdownMockService";
+import ExplorerMockService from "../services/mock/ExplorerMockService";
 
 import ExchangeViewService from "../services/view/ExchangeViewService";
 import NotificationViewService from "../services/view/NotificationViewService";
@@ -20,6 +21,7 @@ import StorageViewService from "../services/view/StorageViewService";
 import LogViewService from "../services/view/LogViewService";
 import StatusViewService from "../services/view/StatusViewService";
 import MarkdownViewService from "../services/view/MarkdownViewService";
+import ExplorerViewService from "../services/view/ExplorerViewService";
 import SymbolGlobalService from "../services/global/SymbolGlobalService";
 import PriceGlobalService from "../services/global/PriceGlobalService";
 import BacktestGlobalService from "../services/global/BacktestGlobalService";
@@ -47,6 +49,7 @@ import LiveGlobalService from "../services/global/LiveGlobalService";
     provide(TYPES.logMockService, () => new LogMockService());
     provide(TYPES.statusMockService, () => new StatusMockService());
     provide(TYPES.markdownMockService, () => new MarkdownMockService());
+    provide(TYPES.explorerMockService, () => new ExplorerMockService());
 }
 
 {
@@ -56,4 +59,5 @@ import LiveGlobalService from "../services/global/LiveGlobalService";
     provide(TYPES.logViewService, () => new LogViewService());
     provide(TYPES.statusViewService, () => new StatusViewService());
     provide(TYPES.markdownViewService, () => new MarkdownViewService());
+    provide(TYPES.explorerViewService, () => new ExplorerViewService());
 }
