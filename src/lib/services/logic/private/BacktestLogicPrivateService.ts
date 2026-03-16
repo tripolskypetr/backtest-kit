@@ -148,23 +148,15 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   let lastChunkCandles: ICandleData[] = [];
   let chunkStart = new Date(initialResult._backtestLastTimestamp + 60_000 - bufferMs);
 
-  console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] start signalId=${signalId} initialLastTs=${initialResult._backtestLastTimestamp} chunkStart=${chunkStart.toISOString()} bufferMs=${bufferMs}`);
-
   while (backtestResult.action === "active") {
-    console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] requesting chunk chunkStart=${chunkStart.toISOString()} CHUNK=${CHUNK}`);
     const chunkCandles = await GET_CANDLES_FN(self, symbol, CHUNK, chunkStart, { signalId });
     if (chunkCandles === null) {
-      console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] GET_CANDLES_FN returned null (error), returning null`);
       return null;
     }
 
-    console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] got ${chunkCandles.length} candles`);
-
     if (!chunkCandles.length) {
-      console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] empty chunk — end of frame. lastChunkCandles.length=${lastChunkCandles.length}`);
       await self.strategyCoreService.closePending(true, symbol, context);
       const result = await BACKTEST_FN(self, symbol, lastChunkCandles, when, context, { signalId });
-      console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] closePending backtest result action=${result?.action}`);
       if (result === null) {
         return null;
       }
@@ -178,7 +170,6 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
     });
 
     const chunkResult = await BACKTEST_FN(self, symbol, chunkCandles, when, context, { signalId });
-    console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] backtest result action=${chunkResult?.action} closeReason=${(chunkResult as any)?.closeReason} _backtestLastTimestamp=${(chunkResult as any)?._backtestLastTimestamp}`);
     if (chunkResult === null) {
       return null;
     }
@@ -190,7 +181,6 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
     lastChunkCandles = chunkCandles;
     backtestResult = chunkResult;
     chunkStart = new Date(chunkResult._backtestLastTimestamp + 60_000 - bufferMs);
-    console.log(`[RUN_INFINITY_CHUNK_LOOP_FN] still active, next chunkStart=${chunkStart.toISOString()}`);
   }
 
   return null;
@@ -264,10 +254,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async (
     : signal.minuteEstimatedTime;
   const candlesNeeded = bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP;
 
-  console.log(`[PROCESS_SCHEDULED_SIGNAL_FN] when=${when.toISOString()} bufferMinutes=${bufferMinutes} bufferStartTime=${bufferStartTime.toISOString()} pendingPhaseMinutes=${pendingPhaseMinutes} CC_SCHEDULE_AWAIT_MINUTES=${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES} candlesNeeded=${candlesNeeded}`);
-
   const candles = await GET_CANDLES_FN(self, symbol, candlesNeeded, bufferStartTime, { signalId: signal.id, candlesNeeded, bufferMinutes });
-  console.log(`[PROCESS_SCHEDULED_SIGNAL_FN] GET_CANDLES_FN returned ${candles?.length ?? 'null'} candles`);
   if (candles === null) {
     return { iNext: true, previousEventTimestamp };
   }
@@ -321,7 +308,6 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async (
 
   try {
     const firstResult = await BACKTEST_FN(self, symbol, candles, when, context, { signalId: signal.id });
-    console.log(`[PROCESS_SCHEDULED_SIGNAL_FN] BACKTEST_FN firstResult action=${firstResult?.action} closeReason=${(firstResult as any)?.closeReason}`);
     if (firstResult === null) {
       return { iNext: true, previousEventTimestamp };
     }
@@ -330,12 +316,9 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async (
     unScheduleOpen && unScheduleOpen();
   }
 
-  console.log(`[PROCESS_SCHEDULED_SIGNAL_FN] firstResult action=${backtestResult.action} minuteEstimatedTime=${signal.minuteEstimatedTime} isInfinity=${signal.minuteEstimatedTime === Infinity}`);
-
   if (backtestResult.action === "active" && signal.minuteEstimatedTime === Infinity) {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, backtestResult, bufferMs, signal.id);
-    console.log(`[PROCESS_SCHEDULED_SIGNAL_FN] RUN_INFINITY_CHUNK_LOOP_FN returned action=${chunkResult?.action}`);
     if (chunkResult === null) {
       return { iNext: true, previousEventTimestamp };
     }
@@ -550,18 +533,13 @@ export class BacktestLogicPrivateService {
       symbol,
     });
 
-    console.log(`[run] start symbol=${symbol}`);
-
     const backtestStartTime = performance.now();
 
-    console.log(`[run] calling getTimeframe frameName=${this.methodContextService.context.frameName}`);
     const timeframes = await this.frameCoreService.getTimeframe(
       symbol,
       this.methodContextService.context.frameName
     );
-    console.log(`[run] getTimeframe done`);
     const totalFrames = timeframes.length;
-    console.log(`[run] totalFrames=${totalFrames} first=${timeframes[0]?.toISOString()} last=${timeframes[totalFrames - 1]?.toISOString()}`);
 
     let i = 0;
     let previousEventTimestamp: number | null = null;
@@ -576,9 +554,7 @@ export class BacktestLogicPrivateService {
         break;
       }
 
-      console.log(`[run] i=${i} when=${when.toISOString()} calling TICK_FN`);
       const result = await TICK_FN(this, symbol, when);
-      console.log(`[run] i=${i} TICK_FN result=${result?.action ?? 'null'}`);
       if (result === null) {
         i++;
         continue;
