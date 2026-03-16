@@ -1,7 +1,7 @@
 import { inject } from "../../../core/di";
 import LoggerService from "../../base/LoggerService";
 import TYPES from "../../../core/types";
-import { IStrategyBacktestResult, IStrategyTickResult, IStrategyTickResultOpened } from "../../../../interfaces/Strategy.interface";
+import { IStrategyTickResult, IStrategyTickResultOpened, IStrategyTickResultClosed, IStrategyTickResultCancelled, IStrategyTickResultActive } from "../../../../interfaces/Strategy.interface";
 import { ICandleData } from "../../../../interfaces/Exchange.interface";
 import StrategyCoreService from "../../core/StrategyCoreService";
 import ExchangeCoreService from "../../core/ExchangeCoreService";
@@ -197,7 +197,10 @@ export class BacktestLogicPrivateService {
         // - +1 потому что when включается как первая свеча
         const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - ACTIVE_CANDLE_INCLUDED;
         const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
-        const candlesNeeded = bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime + SCHEDULE_ACTIVATION_CANDLE_SKIP;
+        const pendingPhaseMinutes = signal.minuteEstimatedTime === Infinity
+          ? GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST
+          : signal.minuteEstimatedTime;
+        const candlesNeeded = bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP;
 
         let candles: ICandleData[];
         try {
@@ -242,7 +245,7 @@ export class BacktestLogicPrivateService {
 
         // backtest() сам обработает scheduled signal: найдет активацию/отмену
         // и если активируется - продолжит с TP/SL мониторингом
-        let backtestResult: IStrategyBacktestResult;
+        let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive;
 
         let unScheduleOpen: Function;
         let scheduleOpenResult: IStrategyTickResultOpened;
@@ -272,20 +275,22 @@ export class BacktestLogicPrivateService {
           });
         }
 
+        const context = {
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          frameName: this.methodContextService.context.frameName,
+        };
+
         try {
           backtestResult = await this.strategyCoreService.backtest(
             symbol,
             candles,
             when,
             true,
-            {
-              strategyName: this.methodContextService.context.strategyName,
-              exchangeName: this.methodContextService.context.exchangeName,
-              frameName: this.methodContextService.context.frameName,
-            }
+            context
           );
         } catch (error) {
-          console.warn(`backtestLogicPrivateService backtest failed for scheduled signal when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`);
+          console.warn(`backtestLogicPrivateService backtest failed for scheduled signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
           this.loggerService.warn(
             "backtestLogicPrivateService backtest failed for scheduled signal",
             {
@@ -299,6 +304,110 @@ export class BacktestLogicPrivateService {
           continue;
         } finally {
           unScheduleOpen && unScheduleOpen();
+        }
+
+        // Infinity signal: если сигнал активировался но свечи кончились — дозапрашиваем чанками
+        if (backtestResult.action === "active" && signal.minuteEstimatedTime === Infinity) {
+          const CHUNK = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
+          const bufferMs = bufferMinutes * 60_000;
+          let lastChunkCandles = candles;
+          let chunkStart = new Date(backtestResult.lastTimestamp + 60_000 - bufferMs);
+
+          chunkLoop: while (backtestResult.action === "active") {
+            let chunkCandles: ICandleData[];
+            try {
+              chunkCandles = await this.exchangeCoreService.getNextCandles(
+                symbol,
+                "1m",
+                CHUNK,
+                chunkStart,
+                true
+              );
+            } catch (error) {
+              console.warn(`backtestLogicPrivateService getNextCandles failed for scheduled signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+              this.loggerService.warn(
+                "backtestLogicPrivateService getNextCandles failed for scheduled signal",
+                {
+                  symbol,
+                  signalId: signal.id,
+                  bufferMinutes,
+                  error: errorData(error), message: getErrorMessage(error),
+                }
+              );
+              await errorEmitter.next(error);
+              i++;
+              break chunkLoop;
+            }
+
+            if (!chunkCandles.length) {
+              // Конец фрейма — принудительно закрываем через closePending + backtest
+              await this.strategyCoreService.closePending(true, symbol, context);
+              try {
+                backtestResult = await this.strategyCoreService.backtest(
+                  symbol,
+                  lastChunkCandles,
+                  when,
+                  true,
+                  context
+                );
+              } catch (error) {
+                console.warn(`backtestLogicPrivateService backtest failed for scheduled signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+                this.loggerService.warn(
+                  "backtestLogicPrivateService backtest failed for scheduled signal",
+                  {
+                    symbol,
+                    signalId: signal.id,
+                    error: errorData(error), message: getErrorMessage(error),
+                  }
+                );
+                await errorEmitter.next(error);
+                i++;
+              }
+              break chunkLoop;
+            }
+
+            this.loggerService.info(
+              "backtestLogicPrivateService candles fetched for scheduled",
+              {
+                symbol,
+                signalId: signal.id,
+                candlesCount: chunkCandles.length,
+              }
+            );
+
+            try {
+              backtestResult = await this.strategyCoreService.backtest(
+                symbol,
+                chunkCandles,
+                when,
+                true,
+                context
+              );
+            } catch (error) {
+              console.warn(`backtestLogicPrivateService backtest failed for scheduled signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+              this.loggerService.warn(
+                "backtestLogicPrivateService backtest failed for scheduled signal",
+                {
+                  symbol,
+                  signalId: signal.id,
+                  error: errorData(error), message: getErrorMessage(error),
+                }
+              );
+              await errorEmitter.next(error);
+              i++;
+              break chunkLoop;
+            }
+
+            lastChunkCandles = chunkCandles;
+            if (backtestResult.action === "active") {
+              chunkStart = new Date(backtestResult.lastTimestamp + 60_000 - bufferMs);
+            }
+          }
+        }
+
+        if (backtestResult.action === "active") {
+          // Error was handled in the chunk loop (i++ and continue already done via break)
+          continue;
         }
 
         this.loggerService.info(
@@ -385,75 +494,191 @@ export class BacktestLogicPrivateService {
 
         // КРИТИЧНО: Получаем свечи включая буфер для VWAP
         // Сдвигаем начало назад на CC_AVG_PRICE_CANDLES_COUNT-1 минут для буфера VWAP
-        // Запрашиваем minuteEstimatedTime + буфер свечей одним запросом
         const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - ACTIVE_CANDLE_INCLUDED;
         const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
-        const totalCandles = signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+        const context = {
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          frameName: this.methodContextService.context.frameName,
+        };
 
-        let candles: ICandleData[];
-        try {
-          candles = await this.exchangeCoreService.getNextCandles(
-            symbol,
-            "1m",
-            totalCandles,
-            bufferStartTime,
-            true
-          );
-        } catch (error) {
-          console.warn(`backtestLogicPrivateService getNextCandles failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`);
-          this.loggerService.warn(
-            "backtestLogicPrivateService getNextCandles failed for opened signal",
-            {
+        let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive | undefined;
+
+        if (signal.minuteEstimatedTime !== Infinity) {
+          // Finite signal: запрашиваем minuteEstimatedTime + буфер свечей одним запросом
+          const totalCandles = signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+
+          let candles: ICandleData[];
+          try {
+            candles = await this.exchangeCoreService.getNextCandles(
               symbol,
-              signalId: signal.id,
+              "1m",
               totalCandles,
-              bufferMinutes,
-              error: errorData(error), message: getErrorMessage(error),
-            }
-          );
-          await errorEmitter.next(error);
-          i++;
-          continue;
-        }
+              bufferStartTime,
+              true
+            );
+          } catch (error) {
+            console.warn(`backtestLogicPrivateService getNextCandles failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+            this.loggerService.warn(
+              "backtestLogicPrivateService getNextCandles failed for opened signal",
+              {
+                symbol,
+                signalId: signal.id,
+                totalCandles,
+                bufferMinutes,
+                error: errorData(error), message: getErrorMessage(error),
+              }
+            );
+            await errorEmitter.next(error);
+            i++;
+            continue;
+          }
 
-        if (!candles.length) {
-          i++;
-          continue;
-        }
+          if (!candles.length) {
+            i++;
+            continue;
+          }
 
-        this.loggerService.info("backtestLogicPrivateService candles fetched", {
-          symbol,
-          signalId: signal.id,
-          candlesCount: candles.length,
-        });
-
-        // Вызываем backtest - всегда возвращает closed
-        let backtestResult: IStrategyBacktestResult;
-        try {
-          backtestResult = await this.strategyCoreService.backtest(
+          this.loggerService.info("backtestLogicPrivateService candles fetched", {
             symbol,
-            candles,
-            when,
-            true,
-            {
-              strategyName: this.methodContextService.context.strategyName,
-              exchangeName: this.methodContextService.context.exchangeName,
-              frameName: this.methodContextService.context.frameName,
+            signalId: signal.id,
+            candlesCount: candles.length,
+          });
+
+          try {
+            backtestResult = await this.strategyCoreService.backtest(
+              symbol,
+              candles,
+              when,
+              true,
+              context
+            );
+          } catch (error) {
+            console.warn(`backtestLogicPrivateService backtest failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+            this.loggerService.warn(
+              "backtestLogicPrivateService backtest failed for opened signal",
+              {
+                symbol,
+                signalId: signal.id,
+                error: errorData(error), message: getErrorMessage(error),
+              }
+            );
+            await errorEmitter.next(error);
+            i++;
+            continue;
+          }
+        } else {
+          // Infinity signal: итерационный дозапрос чанками
+          const CHUNK = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
+          const bufferMs = bufferMinutes * 60_000;
+          let chunkStart = bufferStartTime;
+          let lastChunkCandles: ICandleData[] = [];
+
+          chunkLoop: while (true) {
+            let chunkCandles: ICandleData[];
+            try {
+              chunkCandles = await this.exchangeCoreService.getNextCandles(
+                symbol,
+                "1m",
+                CHUNK,
+                chunkStart,
+                true
+              );
+            } catch (error) {
+              console.warn(`backtestLogicPrivateService getNextCandles failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+              this.loggerService.warn(
+                "backtestLogicPrivateService getNextCandles failed for opened signal",
+                {
+                  symbol,
+                  signalId: signal.id,
+                  bufferMinutes,
+                  error: errorData(error), message: getErrorMessage(error),
+                }
+              );
+              await errorEmitter.next(error);
+              i++;
+              break chunkLoop;
             }
-          );
-        } catch (error) {
-          console.warn(`backtestLogicPrivateService backtest failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`);
-          this.loggerService.warn(
-            "backtestLogicPrivateService backtest failed for opened signal",
-            {
+
+            if (!chunkCandles.length) {
+              if (!lastChunkCandles.length) {
+                i++;
+                break chunkLoop;
+              }
+              // Конец фрейма — принудительно закрываем через closePending + backtest
+              await this.strategyCoreService.closePending(true, symbol, context);
+              try {
+                backtestResult = await this.strategyCoreService.backtest(
+                  symbol,
+                  lastChunkCandles,
+                  when,
+                  true,
+                  context
+                );
+              } catch (error) {
+                console.warn(`backtestLogicPrivateService backtest failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+                this.loggerService.warn(
+                  "backtestLogicPrivateService backtest failed for opened signal",
+                  {
+                    symbol,
+                    signalId: signal.id,
+                    error: errorData(error), message: getErrorMessage(error),
+                  }
+                );
+                await errorEmitter.next(error);
+                i++;
+              }
+              break chunkLoop;
+            }
+
+            this.loggerService.info("backtestLogicPrivateService candles fetched", {
               symbol,
               signalId: signal.id,
-              error: errorData(error), message: getErrorMessage(error),
+              candlesCount: chunkCandles.length,
+            });
+
+            let chunkResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive;
+            try {
+              chunkResult = await this.strategyCoreService.backtest(
+                symbol,
+                chunkCandles,
+                when,
+                true,
+                context
+              );
+            } catch (error) {
+              console.warn(`backtestLogicPrivateService backtest failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+              this.loggerService.warn(
+                "backtestLogicPrivateService backtest failed for opened signal",
+                {
+                  symbol,
+                  signalId: signal.id,
+                  error: errorData(error), message: getErrorMessage(error),
+                }
+              );
+              await errorEmitter.next(error);
+              i++;
+              break chunkLoop;
             }
-          );
-          await errorEmitter.next(error);
-          i++;
+
+            if (chunkResult.action !== "active") {
+              backtestResult = chunkResult;
+              break chunkLoop;
+            }
+
+            lastChunkCandles = chunkCandles;
+            chunkStart = new Date(chunkResult.lastTimestamp + 60_000 - bufferMs);
+          }
+        }
+
+        if (backtestResult === undefined) {
           continue;
+        }
+
+        if (backtestResult.action === "active") {
+          throw new Error(
+            `backtestLogicPrivateService: unexpected active result for signal ${signal.id} — infinite chunk loop logic error`
+          );
         }
 
         this.loggerService.info("backtestLogicPrivateService signal closed", {
@@ -470,9 +695,9 @@ export class BacktestLogicPrivateService {
           previousTimestamp: previousEventTimestamp,
           metricType: "backtest_signal",
           duration: signalEndTime - signalStartTime,
-          strategyName: this.methodContextService.context.strategyName,
-          exchangeName: this.methodContextService.context.exchangeName,
-          frameName: this.methodContextService.context.frameName,
+          strategyName: context.strategyName,
+          exchangeName: context.exchangeName,
+          frameName: context.frameName,
           symbol,
           backtest: true,
         });
@@ -493,11 +718,7 @@ export class BacktestLogicPrivateService {
           await this.strategyCoreService.getStopped(
             true,
             symbol,
-            {
-              strategyName: this.methodContextService.context.strategyName,
-              exchangeName: this.methodContextService.context.exchangeName,
-              frameName: this.methodContextService.context.frameName,
-            }
+            context
           )
         ) {
           this.loggerService.info(

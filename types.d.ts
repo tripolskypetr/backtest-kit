@@ -2119,7 +2119,10 @@ interface ISignalDto {
     priceTakeProfit: number;
     /** Stop loss exit price (must be < priceOpen for long, > priceOpen for short) */
     priceStopLoss: number;
-    /** Expected duration in minutes before time_expired */
+    /**
+     * Expected duration in minutes before time_expired.
+     * Use `Infinity` for no timeout — position stays open until TP/SL or explicit closePending().
+     */
     minuteEstimatedTime: number;
     /** Cost of this entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
     cost?: number;
@@ -2679,6 +2682,8 @@ interface IStrategyTickResultActive {
     backtest: boolean;
     /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
     createdAt: number;
+    /** Unix timestamp in milliseconds of the last processed candle. Used by BacktestLogicPrivateService to advance chunkStart for the next chunk request. */
+    lastTimestamp: number;
 }
 /**
  * Tick result: signal closed with PNL.
@@ -2748,9 +2753,10 @@ interface IStrategyTickResultCancelled {
  */
 type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultScheduled | IStrategyTickResultWaiting | IStrategyTickResultOpened | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
- * Backtest returns closed result (TP/SL or time_expired) or cancelled result (scheduled signal never activated).
+ * Backtest returns closed result (TP/SL or time_expired), cancelled result (scheduled signal never activated),
+ * or active result (candles exhausted but signal still open — only for minuteEstimatedTime = Infinity).
  */
-type IStrategyBacktestResult = IStrategyTickResultOpened | IStrategyTickResultScheduled | IStrategyTickResultClosed | IStrategyTickResultCancelled;
+type IStrategyBacktestResult = IStrategyTickResultOpened | IStrategyTickResultScheduled | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
  * Strategy interface implemented by ClientStrategy.
  * Defines core strategy execution methods.
@@ -22532,7 +22538,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, candles: ICandleData[]) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled>;
+    }, candles: ICandleData[]) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
     /**
      * Stops the specified strategy from generating new signals.
      *
@@ -23932,7 +23938,7 @@ declare class StrategyCoreService implements TStrategy {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled>;
+    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
     /**
      * Stops the strategy from generating new signals.
      *

@@ -39,7 +39,10 @@ export interface ISignalDto {
   priceTakeProfit: number;
   /** Stop loss exit price (must be < priceOpen for long, > priceOpen for short) */
   priceStopLoss: number;
-  /** Expected duration in minutes before time_expired */
+  /**
+   * Expected duration in minutes before time_expired.
+   * Use `Infinity` for no timeout — position stays open until TP/SL or explicit closePending().
+   */
   minuteEstimatedTime: number;
   /** Cost of this entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
   cost?: number;
@@ -701,6 +704,8 @@ export interface IStrategyTickResultActive {
   backtest: boolean;
   /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
   createdAt: number;
+  /** Unix timestamp in milliseconds of the last processed candle. Used by BacktestLogicPrivateService to advance chunkStart for the next chunk request. */
+  lastTimestamp: number;
 }
 
 /**
@@ -781,9 +786,10 @@ export type IStrategyTickResult =
   | IStrategyTickResultCancelled;
 
 /**
- * Backtest returns closed result (TP/SL or time_expired) or cancelled result (scheduled signal never activated).
+ * Backtest returns closed result (TP/SL or time_expired), cancelled result (scheduled signal never activated),
+ * or active result (candles exhausted but signal still open — only for minuteEstimatedTime = Infinity).
  */
-export type IStrategyBacktestResult = IStrategyTickResultOpened | IStrategyTickResultScheduled | IStrategyTickResultClosed | IStrategyTickResultCancelled;
+export type IStrategyBacktestResult = IStrategyTickResultOpened | IStrategyTickResultScheduled | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
 
 /**
  * Strategy interface implemented by ClientStrategy.
