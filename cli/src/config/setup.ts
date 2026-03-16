@@ -64,6 +64,10 @@ setConfig({
 })
 
 setConfig({
+  CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+})
+
+setConfig({
   CC_WALKER_MARKDOWN_TOP_N: 10,
 })
 

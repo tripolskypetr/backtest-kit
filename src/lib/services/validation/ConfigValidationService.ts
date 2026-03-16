@@ -124,9 +124,12 @@ export class ConfigValidationService {
       );
     }
 
-    if (!Number.isInteger(GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) || GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES <= 0) {
+    if (
+      GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES !== Infinity &&
+      (!Number.isInteger(GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) || GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES <= 0)
+    ) {
       errors.push(
-        `CC_MAX_SIGNAL_LIFETIME_MINUTES must be a positive integer, got ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES}`
+        `CC_MAX_SIGNAL_LIFETIME_MINUTES must be a positive integer or Infinity, got ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES}`
       );
     }
 

@@ -16,6 +16,7 @@ type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
   strategyCoreService: never;
   exchangeCoreService: never;
   frameCoreService: never;
+  actionCoreService: never;
   methodContextService: never;
 }>;
 

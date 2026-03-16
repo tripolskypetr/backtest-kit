@@ -2119,8 +2119,12 @@ interface ISignalDto {
     priceTakeProfit: number;
     /** Stop loss exit price (must be < priceOpen for long, > priceOpen for short) */
     priceStopLoss: number;
-    /** Expected duration in minutes before time_expired */
-    minuteEstimatedTime: number;
+    /**
+     * Expected duration in minutes before time_expired.
+     * Use `Infinity` for no timeout — position stays open until TP/SL or explicit closePending().
+     * Default: GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES
+     */
+    minuteEstimatedTime?: number;
     /** Cost of this entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
     cost?: number;
 }
@@ -2135,6 +2139,8 @@ interface ISignalRow extends ISignalDto {
     cost: number;
     /** Entry price for the position */
     priceOpen: number;
+    /** Expected duration in minutes before time_expired (required in row, defaults applied in ClientStrategy) */
+    minuteEstimatedTime: number;
     /** Unique exchange identifier for execution */
     exchangeName: ExchangeName;
     /** Unique strategy identifier for execution */
@@ -2679,6 +2685,8 @@ interface IStrategyTickResultActive {
     backtest: boolean;
     /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
     createdAt: number;
+    /** Unix timestamp in milliseconds of the last processed candle. Used by BacktestLogicPrivateService to advance chunkStart for the next chunk request. */
+    _backtestLastTimestamp: number;
 }
 /**
  * Tick result: signal closed with PNL.
@@ -2748,9 +2756,10 @@ interface IStrategyTickResultCancelled {
  */
 type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultScheduled | IStrategyTickResultWaiting | IStrategyTickResultOpened | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
- * Backtest returns closed result (TP/SL or time_expired) or cancelled result (scheduled signal never activated).
+ * Backtest returns closed result (TP/SL or time_expired), cancelled result (scheduled signal never activated),
+ * or active result (candles exhausted but signal still open — only for minuteEstimatedTime = Infinity).
  */
-type IStrategyBacktestResult = IStrategyTickResultOpened | IStrategyTickResultScheduled | IStrategyTickResultClosed | IStrategyTickResultCancelled;
+type IStrategyBacktestResult = IStrategyTickResultOpened | IStrategyTickResultScheduled | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
  * Strategy interface implemented by ClientStrategy.
  * Defines core strategy execution methods.
@@ -5513,8 +5522,10 @@ declare const GLOBAL_CONFIG: {
      */
     CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
     /**
-     * Maximum signal lifetime in minutes
-     * Prevents eternal signals that block risk limits for weeks/months
+     * Maximum signal lifetime in minutes.
+     * Also used as the default when minuteEstimatedTime is not provided in ISignalDto.
+     * Prevents eternal signals that block risk limits for weeks/months.
+     * Use Infinity to allow signals to live indefinitely (until TP/SL or explicit close).
      * Default: 1440 minutes (1 day)
      */
     CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
@@ -12236,7 +12247,7 @@ declare class BacktestUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
     /**
      * Runs backtest in background without yielding results.
      *
@@ -22532,7 +22543,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, candles: ICandleData[]) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled>;
+    }, candles: ICandleData[]) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
     /**
      * Stops the specified strategy from generating new signals.
      *
@@ -23932,7 +23943,7 @@ declare class StrategyCoreService implements TStrategy {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled>;
+    }) => Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive>;
     /**
      * Stops the strategy from generating new signals.
      *
@@ -25091,12 +25102,14 @@ declare class WalkerSchemaService {
  * Supports early termination via break in consumer.
  */
 declare class BacktestLogicPrivateService {
-    private readonly loggerService;
-    private readonly strategyCoreService;
-    private readonly exchangeCoreService;
-    private readonly frameCoreService;
-    private readonly methodContextService;
-    private readonly actionCoreService;
+    readonly loggerService: LoggerService;
+    readonly strategyCoreService: StrategyCoreService;
+    readonly exchangeCoreService: ExchangeCoreService;
+    readonly frameCoreService: FrameCoreService;
+    readonly methodContextService: {
+        readonly context: IMethodContext;
+    };
+    readonly actionCoreService: ActionCoreService;
     /**
      * Runs backtest for a symbol, streaming closed signals as async generator.
      *
@@ -25111,7 +25124,7 @@ declare class BacktestLogicPrivateService {
      * }
      * ```
      */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
+    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
 }
 
 /**
@@ -25168,6 +25181,7 @@ type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
     strategyCoreService: never;
     exchangeCoreService: never;
     frameCoreService: never;
+    actionCoreService: never;
     methodContextService: never;
 }>;
 /**
@@ -25218,7 +25232,7 @@ declare class BacktestLogicPublicService implements TBacktestLogicPrivateService
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
 }
 
 /**
@@ -25357,7 +25371,7 @@ declare class BacktestCommandService implements TBacktestLogicPublicService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
 }
 
 /**

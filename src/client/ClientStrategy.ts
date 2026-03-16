@@ -790,30 +790,28 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
       );
     }
-    if (!Number.isInteger(signal.minuteEstimatedTime)) {
+    if (signal.minuteEstimatedTime === Infinity && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES !== Infinity) {
       errors.push(
-        `minuteEstimatedTime must be an integer (whole number), got ${signal.minuteEstimatedTime}`
+        `minuteEstimatedTime cannot be Infinity when CC_MAX_SIGNAL_LIFETIME_MINUTES is not Infinity`
       );
     }
-    if (!isFinite(signal.minuteEstimatedTime)) {
+    if (signal.minuteEstimatedTime !== Infinity && !Number.isInteger(signal.minuteEstimatedTime)) {
       errors.push(
-        `minuteEstimatedTime must be a finite number, got ${signal.minuteEstimatedTime}`
+        `minuteEstimatedTime must be an integer (whole number), got ${signal.minuteEstimatedTime}`
       );
     }
   }
 
   // ЗАЩИТА ОТ ВЕЧНЫХ СИГНАЛОВ: ограничиваем максимальное время жизни сигнала
   {
-    if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
-      if (signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
-        const days = (signal.minuteEstimatedTime / 60 / 24).toFixed(1);
-        const maxDays = (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES / 60 / 24).toFixed(0);
-        errors.push(
-          `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
-            `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
-            `Eternal signals block risk limits and prevent new trades.`
-        );
-      }
+    if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES !== Infinity && signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
+      const days = (signal.minuteEstimatedTime / 60 / 24).toFixed(1);
+      const maxDays = (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES / 60 / 24).toFixed(0);
+      errors.push(
+        `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
+          `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
+          `Eternal signals block risk limits and prevent new trades.`
+      );
     }
   }
 
@@ -922,7 +920,7 @@ const GET_SIGNAL_FN = trycatch(
           note: toPlainString(signal.note),
           priceTakeProfit: signal.priceTakeProfit,
           priceStopLoss: signal.priceStopLoss,
-          minuteEstimatedTime: signal.minuteEstimatedTime,
+          minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
           symbol: self.params.execution.context.symbol,
           exchangeName: self.params.method.context.exchangeName,
           strategyName: self.params.method.context.strategyName,
@@ -950,7 +948,7 @@ const GET_SIGNAL_FN = trycatch(
         note: toPlainString(signal.note),
         priceTakeProfit: signal.priceTakeProfit,
         priceStopLoss: signal.priceStopLoss,
-        minuteEstimatedTime: signal.minuteEstimatedTime,
+        minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
         symbol: self.params.execution.context.symbol,
         exchangeName: self.params.method.context.exchangeName,
         strategyName: self.params.method.context.strategyName,
@@ -975,6 +973,7 @@ const GET_SIGNAL_FN = trycatch(
       priceOpen: currentPrice,
       ...structuredClone(signal),
       note: toPlainString(signal.note),
+      minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
       strategyName: self.params.method.context.strategyName,
@@ -3251,6 +3250,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
     pnl,
     backtest: self.params.execution.context.backtest,
     createdAt: currentTime,
+    _backtestLastTimestamp: currentTime,
   };
 
   await CALL_TICK_CALLBACKS_FN(
@@ -3976,7 +3976,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   self: ClientStrategy,
   signal: ISignalRow,
   candles: ICandleData[]
-): Promise<IStrategyTickResultClosed> => {
+): Promise<IStrategyTickResultClosed | IStrategyTickResultActive> => {
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
 
@@ -4208,6 +4208,25 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const lastCandles = candles.slice(-GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
   const lastPrice = GET_AVG_PRICE_FN(lastCandles);
   const closeTimestamp = lastCandles[lastCandles.length - 1].timestamp;
+
+  if (signal.minuteEstimatedTime === Infinity) {
+    const result: IStrategyTickResultActive = {
+      action: "active",
+      signal: TO_PUBLIC_SIGNAL(signal, lastPrice),
+      currentPrice: lastPrice,
+      strategyName: self.params.method.context.strategyName,
+      exchangeName: self.params.method.context.exchangeName,
+      frameName: self.params.method.context.frameName,
+      symbol: self.params.execution.context.symbol,
+      percentTp: 0,
+      percentSl: 0,
+      pnl: toProfitLossDto(signal, lastPrice),
+      backtest: self.params.execution.context.backtest,
+      createdAt: closeTimestamp,
+      _backtestLastTimestamp: closeTimestamp,
+    };
+    return result;
+  }
 
   const signalTime = signal.pendingAt;
   const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
@@ -5484,7 +5503,7 @@ export class ClientStrategy implements IStrategy {
     symbol: string,
     strategyName: StrategyName,
     candles: ICandleData[]
-  ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled> {
+  ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive> {
     this.params.logger.debug("ClientStrategy backtest", {
       symbol,
       strategyName,

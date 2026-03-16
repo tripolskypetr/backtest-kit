@@ -48,8 +48,10 @@ export const GLOBAL_CONFIG = {
    */
   CC_MAX_STOPLOSS_DISTANCE_PERCENT: 20,
   /**
-   * Maximum signal lifetime in minutes
-   * Prevents eternal signals that block risk limits for weeks/months
+   * Maximum signal lifetime in minutes.
+   * Also used as the default when minuteEstimatedTime is not provided in ISignalDto.
+   * Prevents eternal signals that block risk limits for weeks/months.
+   * Use Infinity to allow signals to live indefinitely (until TP/SL or explicit close).
    * Default: 1440 minutes (1 day)
    */
   CC_MAX_SIGNAL_LIFETIME_MINUTES: 1_440,
