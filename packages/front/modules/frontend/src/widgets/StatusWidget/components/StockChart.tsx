@@ -143,7 +143,7 @@ export const StockChart = ({
     useLayoutEffect(() => {
         const { current: chartElement } = elementRef;
 
-        const exitAt = status === "closed" ? updatedAt : timestamp;
+        const exitAt = updatedAt;
         const visibleItems = items.filter(
             (c) => c.timestamp >= pendingAt && c.timestamp <= exitAt,
         );

@@ -3,6 +3,7 @@ import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { Exchange, IPublicSignalRow, lib, Live } from "backtest-kit";
 import StatusMockService from "../mock/StatusMockService";
+import SignalViewService from "./SignalViewService";
 import { CC_ENABLE_MOCK } from "../../../config/params";
 
 export class StatusViewService {
@@ -10,6 +11,7 @@ export class StatusViewService {
   private readonly statusMockService = inject<StatusMockService>(
     TYPES.statusMockService,
   );
+  private readonly signalViewService = inject<SignalViewService>(TYPES.signalViewService);
 
   public getStatusList = async () => {
     this.loggerService.log("statusViewService getStatusList");
@@ -88,6 +90,7 @@ export class StatusViewService {
       },
       false,
     );
+    const updatedAt = await this.signalViewService.getLastUpdateTimestamp(pendingSignal.id);
     return {
       signalId: pendingSignal.id,
       position: pendingSignal.position,
@@ -109,6 +112,7 @@ export class StatusViewService {
       pendingAt: pendingSignal.pendingAt,
       minuteEstimatedTime: pendingSignal.minuteEstimatedTime,
       timestamp,
+      updatedAt,
       positionEntries,
       positionLevels,
       positionPartials,

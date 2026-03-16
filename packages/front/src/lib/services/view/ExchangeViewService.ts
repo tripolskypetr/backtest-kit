@@ -5,6 +5,7 @@ import { CandleInterval, alignToInterval } from "backtest-kit";
 import StorageViewService from "./StorageViewService";
 import ExchangeService from "../base/ExchangeService";
 import ExchangeMockService from "../mock/ExchangeMockService";
+import SignalViewService from "./SignalViewService";
 import { CC_ENABLE_MOCK } from "../../../config/params";
 
 export class ExchangeViewService {
@@ -16,6 +17,7 @@ export class ExchangeViewService {
     TYPES.exchangeService,
   );
   private readonly exchangeMockService = inject<ExchangeMockService>(TYPES.exchangeMockService);
+  private readonly signalViewService = inject<SignalViewService>(TYPES.signalViewService);
 
   public getSignalCandles = async (signalId: string, interval: CandleInterval) => {
     this.loggerService.log("exchangeViewService getCandles", {
@@ -58,11 +60,12 @@ export class ExchangeViewService {
     }
     const { pendingAt, scheduledAt } = signal;
     const eventAt = pendingAt || scheduledAt;
+    const updatedAt = await this.signalViewService.getLastUpdateTimestamp(signalId);
     return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
       signalStartTime: eventAt,
-      signalStopTime: alignToInterval(new Date(), interval).getTime(),
+      signalStopTime: alignToInterval(new Date(updatedAt), interval).getTime(),
       interval,
     });
   };

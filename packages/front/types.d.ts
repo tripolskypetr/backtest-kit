@@ -87,6 +87,7 @@ declare class LogMockService {
 
 declare class StatusMockService {
     private readonly loggerService;
+    private readonly signalMockService;
     getStatusList: () => Promise<any>;
     getStatusMap: () => Promise<any>;
     getStatusOne: (id: string) => Promise<{
@@ -110,6 +111,7 @@ declare class StatusMockService {
         minuteEstimatedTime: any;
         pendingAt: any;
         timestamp: any;
+        updatedAt: number;
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
@@ -164,6 +166,11 @@ declare class ExplorerMockService {
     getTree: () => Promise<ExplorerNode[]>;
 }
 
+declare class SignalMockService {
+    private readonly loggerService;
+    getLastUpdateTimestamp: (signalId: string) => Promise<number>;
+}
+
 declare class NotificationViewService {
     private readonly loggerService;
     private readonly notificationMockService;
@@ -176,6 +183,7 @@ declare class NotificationViewService {
 declare class StatusViewService {
     private readonly loggerService;
     private readonly statusMockService;
+    private readonly signalViewService;
     getStatusList: () => Promise<any>;
     getStatusMap: () => Promise<any>;
     getStatusOne: (id: string) => Promise<{
@@ -199,6 +207,7 @@ declare class StatusViewService {
         minuteEstimatedTime: any;
         pendingAt: any;
         timestamp: any;
+        updatedAt: number;
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
@@ -219,6 +228,7 @@ declare class ExchangeViewService {
     private readonly storageViewService;
     private readonly exchangeService;
     private readonly exchangeMockService;
+    private readonly signalViewService;
     getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
     getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
 }
@@ -267,6 +277,11 @@ declare class ExplorerViewService {
     private getDir;
     getNode: (nodePath: string) => Promise<string>;
     getTree: () => Promise<ExplorerNode[]>;
+}
+
+declare class SignalViewService {
+    private readonly loggerService;
+    getLastUpdateTimestamp: (signalId: string) => Promise<number>;
 }
 
 declare class SymbolConnectionService {
@@ -349,6 +364,7 @@ declare const ioc: {
     statusViewService: StatusViewService;
     markdownViewService: MarkdownViewService;
     explorerViewService: ExplorerViewService;
+    signalViewService: SignalViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
@@ -356,6 +372,7 @@ declare const ioc: {
     statusMockService: StatusMockService;
     markdownMockService: MarkdownMockService;
     explorerMockService: ExplorerMockService;
+    signalMockService: SignalMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
     backtestMetaService: BacktestMetaService;
