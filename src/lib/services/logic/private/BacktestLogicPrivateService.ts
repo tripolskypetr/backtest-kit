@@ -90,7 +90,7 @@ const TICK_FN = async (
       error: errorData(error), message: getErrorMessage(error),
     });
     await errorEmitter.next(error);
-    return { type: "error", reason: "TICK_FN", message: getErrorMessage(error) };
+    return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "TICK_FN", message: getErrorMessage(error) };
   }
 };
 
@@ -112,7 +112,7 @@ const GET_CANDLES_FN = async (
       ...logMeta,
     });
     await errorEmitter.next(error);
-    return { type: "error", reason: "GET_CANDLES_FN", message: getErrorMessage(error) };
+    return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "GET_CANDLES_FN", message: getErrorMessage(error) };
   }
 };
 
@@ -134,7 +134,7 @@ const BACKTEST_FN = async (
       ...logMeta,
     });
     await errorEmitter.next(error);
-    return { type: "error", reason: "BACKTEST_FN", message: getErrorMessage(error) };
+    return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "BACKTEST_FN", message: getErrorMessage(error) };
   }
 };
 
@@ -154,21 +154,21 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
 
   while (backtestResult.action === "active") {
     const chunkCandles = await GET_CANDLES_FN(self, symbol, CHUNK, chunkStart, { signalId });
-    if (!Array.isArray(chunkCandles)) {
+    if ("__error__" in chunkCandles) {
       return chunkCandles;
     }
 
     if (!chunkCandles.length) {
       await self.strategyCoreService.closePending(true, symbol, context);
       const result = await BACKTEST_FN(self, symbol, lastChunkCandles, when, context, { signalId });
-      if ("type" in result) {
+      if ("__error__" in result) {
         return result;
       }
       if (result.action === "active") {
         const message = `signal ${signalId} still active after closePending`;
         console.error(`backtestLogicPrivateService RUN_INFINITY_CHUNK_LOOP_FN: ${message} symbol=${symbol}`);
         await errorEmitter.next(new Error(message));
-        return { type: "error", reason: "RUN_INFINITY_CHUNK_LOOP_FN", message };
+        return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "RUN_INFINITY_CHUNK_LOOP_FN", message };
       }
       return result;
     }
@@ -180,7 +180,7 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
     });
 
     const chunkResult = await BACKTEST_FN(self, symbol, chunkCandles, when, context, { signalId });
-    if ("type" in chunkResult) {
+    if ("__error__" in chunkResult) {
       return chunkResult;
     }
 
@@ -284,7 +284,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   const candlesNeeded = bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + pendingPhaseMinutes + SCHEDULE_ACTIVATION_CANDLE_SKIP;
 
   const candles = await GET_CANDLES_FN(self, symbol, candlesNeeded, bufferStartTime, { signalId: signal.id, candlesNeeded, bufferMinutes });
-  if (!Array.isArray(candles)) {
+  if ("__error__" in candles) {
     console.error(`backtestLogicPrivateService scheduled signal: getCandles failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${candles.reason} message=${candles.message}`);
     return candles;
   }
@@ -338,7 +338,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
 
   try {
     const firstResult = await BACKTEST_FN(self, symbol, candles, when, context, { signalId: signal.id });
-    if ("type" in firstResult) {
+    if ("__error__" in firstResult) {
       console.error(`backtestLogicPrivateService scheduled signal: backtest failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${firstResult.reason} message=${firstResult.message}`);
       return firstResult;
     }
@@ -350,7 +350,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   if (backtestResult.action === "active" && signal.minuteEstimatedTime === Infinity) {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, backtestResult, bufferMs, signal.id);
-    if ("type" in chunkResult) {
+    if ("__error__" in chunkResult) {
       console.error(`backtestLogicPrivateService scheduled signal: infinity chunk loop failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${chunkResult.reason} message=${chunkResult.message}`);
       return chunkResult;
     }
@@ -401,7 +401,7 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
 
   while (true) {
     const chunkCandles = await GET_CANDLES_FN(self, symbol, CHUNK, chunkStart, { signalId, bufferMs });
-    if (!Array.isArray(chunkCandles)) {
+    if ("__error__" in chunkCandles) {
       return chunkCandles;
     }
 
@@ -415,11 +415,11 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
           bufferStartTime,
         });
         await errorEmitter.next(new Error(message));
-        return { type: "error", reason: "RUN_OPENED_CHUNK_LOOP_FN", message };
+        return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "RUN_OPENED_CHUNK_LOOP_FN", message };
       }
       await self.strategyCoreService.closePending(true, symbol, context);
       const result = await BACKTEST_FN(self, symbol, lastChunkCandles, when, context, { signalId });
-      if ("type" in result) {
+      if ("__error__" in result) {
         return result;
       }
       if (result.action === "active") {
@@ -430,7 +430,7 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
           signalId,
         });
         await errorEmitter.next(new Error(message));
-        return { type: "error", reason: "RUN_OPENED_CHUNK_LOOP_FN", message };
+        return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "RUN_OPENED_CHUNK_LOOP_FN", message };
       }
       return result;
     }
@@ -442,7 +442,7 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
     });
 
     const chunkResult = await BACKTEST_FN(self, symbol, chunkCandles, when, context, { signalId });
-    if ("type" in chunkResult) {
+    if ("__error__" in chunkResult) {
       return chunkResult;
     }
 
@@ -488,7 +488,7 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
     const totalCandles = signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
 
     const candles = await GET_CANDLES_FN(self, symbol, totalCandles, bufferStartTime, { signalId: signal.id, totalCandles, bufferMinutes });
-    if (!Array.isArray(candles)) {
+    if ("__error__" in candles) {
       console.error(`backtestLogicPrivateService opened signal: getCandles failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${candles.reason} message=${candles.message}`);
       return candles;
     }
@@ -504,7 +504,7 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
     });
 
     const firstResult = await BACKTEST_FN(self, symbol, candles, when, context, { signalId: signal.id });
-    if ("type" in firstResult) {
+    if ("__error__" in firstResult) {
       console.error(`backtestLogicPrivateService opened signal: backtest failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${firstResult.reason} message=${firstResult.message}`);
       return firstResult;
     }
@@ -512,7 +512,7 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
   } else {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_OPENED_CHUNK_LOOP_FN(self, symbol, when, context, bufferStartTime, bufferMs, signal.id);
-    if ("type" in chunkResult) {
+    if ("__error__" in chunkResult) {
       console.error(`backtestLogicPrivateService opened signal: chunk loop failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${chunkResult.reason} message=${chunkResult.message}`);
       return chunkResult;
     }
@@ -617,7 +617,7 @@ export class BacktestLogicPrivateService {
       }
 
       const result = await TICK_FN(this, symbol, when);
-      if ("type" in result) {
+      if ("__error__" in result) {
         break;
       }
 
