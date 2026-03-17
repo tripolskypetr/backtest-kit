@@ -1,8 +1,9 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Exchange, IPublicSignalRow, Live } from "backtest-kit";
+import { Exchange, IPublicSignalRow, lib, Live } from "backtest-kit";
 import StatusMockService from "../mock/StatusMockService";
+import SignalViewService from "./SignalViewService";
 import { CC_ENABLE_MOCK } from "../../../config/params";
 
 export class StatusViewService {
@@ -10,6 +11,7 @@ export class StatusViewService {
   private readonly statusMockService = inject<StatusMockService>(
     TYPES.statusMockService,
   );
+  private readonly signalViewService = inject<SignalViewService>(TYPES.signalViewService);
 
   public getStatusList = async () => {
     this.loggerService.log("statusViewService getStatusList");
@@ -79,6 +81,16 @@ export class StatusViewService {
     if (!positionPartials) {
       return null;
     }
+    const timestamp = await lib.timeMetaService.getTimestamp(
+      pendingSignal.symbol,
+      {
+        strategyName: pendingSignal.strategyName,
+        exchangeName: pendingSignal.exchangeName,
+        frameName: pendingSignal.frameName,
+      },
+      false,
+    );
+    const updatedAt = await this.signalViewService.getLastUpdateTimestamp(pendingSignal.id);
     return {
       signalId: pendingSignal.id,
       position: pendingSignal.position,
@@ -99,6 +111,8 @@ export class StatusViewService {
       partialExecuted: pendingSignal.partialExecuted,
       pendingAt: pendingSignal.pendingAt,
       minuteEstimatedTime: pendingSignal.minuteEstimatedTime,
+      timestamp,
+      updatedAt,
       positionEntries,
       positionLevels,
       positionPartials,

@@ -41,7 +41,7 @@ import NotificationView from "./NotificationView";
 const LOADER_HEIGHT = 4;
 
 const LOGO_SRC = "/logo/icon512_maskable.png";
-const LOGO_CLASS = "tradegpt-logo";
+const LOGO_CLASS = "backtest-kit-logo";
 const LOGO_SIDE = 32;
 
 const useStyles = makeStyles()((theme) => ({

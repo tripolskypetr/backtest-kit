@@ -122,6 +122,7 @@ export const StatusWidget = ({
                         pendingAt={data.pendingAt}
                         updatedAt={data.updatedAt}
                         priceOpen={data.priceOpen}
+                        timestamp={data.timestamp}
                         priceStopLoss={data.priceStopLoss}
                         priceTakeProfit={data.priceTakeProfit}
                         originalPriceOpen={data.originalPriceOpen}

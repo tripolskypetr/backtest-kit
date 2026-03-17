@@ -4,6 +4,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
+import SignalMockService from "./SignalMockService";
 
 const MOCK_PATH = "./mock/status.json";
 
@@ -16,6 +17,7 @@ const READ_STATUS_LIST_FN = singleshot(
 
 export class StatusMockService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly signalMockService = inject<SignalMockService>(TYPES.signalMockService);
 
   public getStatusList = async () => {
     this.loggerService.log("statusMockService getStatusList");
@@ -38,33 +40,36 @@ export class StatusMockService {
   public getStatusOne = async (id: string) => {
     this.loggerService.log("statusMockService getStatusOne", { id });
     const list = await READ_STATUS_LIST_FN();
-    const signal = list.find((s) => s.id === id);
-    if (!signal) {
+    const status = list.find((s) => s.id === id);
+    if (!status) {
       return null;
     }
-    const positionEntries = signal._entry ?? [];
+    const updatedAt = await this.signalMockService.getLastUpdateTimestamp(status.signalId);
+    const positionEntries = status._entry ?? [];
     const positionLevels = positionEntries.map((e) => e.price);
-    const positionPartials = signal._partial ?? [];
+    const positionPartials = status._partial ?? [];
     return {
-      signalId: signal.signalId,
-      position: signal.position,
-      symbol: signal.symbol,
-      exchangeName: signal.exchangeName,
-      strategyName: signal.strategyName,
-      totalEntries: signal.totalEntries,
-      totalPartials: signal.totalPartials,
-      originalPriceStopLoss: signal.originalPriceStopLoss,
-      originalPriceTakeProfit: signal.originalPriceTakeProfit,
-      originalPriceOpen: signal.originalPriceOpen,
-      priceOpen: signal.priceOpen,
-      priceTakeProfit: signal.priceTakeProfit,
-      priceStopLoss: signal.priceStopLoss,
-      pnlPercentage: signal.pnl.pnlPercentage,
-      pnlCost: signal.pnl.pnlCost,
-      pnlEntries: signal.pnl.pnlEntries,
-      partialExecuted: signal.partialExecuted,
-      minuteEstimatedTime: signal.minuteEstimatedTime,
-      pendingAt: signal.pendingAt,
+      signalId: status.signalId,
+      position: status.position,
+      symbol: status.symbol,
+      exchangeName: status.exchangeName,
+      strategyName: status.strategyName,
+      totalEntries: status.totalEntries,
+      totalPartials: status.totalPartials,
+      originalPriceStopLoss: status.originalPriceStopLoss,
+      originalPriceTakeProfit: status.originalPriceTakeProfit,
+      originalPriceOpen: status.originalPriceOpen,
+      priceOpen: status.priceOpen,
+      priceTakeProfit: status.priceTakeProfit,
+      priceStopLoss: status.priceStopLoss,
+      pnlPercentage: status.pnl.pnlPercentage,
+      pnlCost: status.pnl.pnlCost,
+      pnlEntries: status.pnl.pnlEntries,
+      partialExecuted: status.partialExecuted,
+      minuteEstimatedTime: status.minuteEstimatedTime,
+      pendingAt: status.pendingAt,
+      timestamp: status.timestamp,
+      updatedAt,
       positionLevels,
       positionEntries,
       positionPartials,

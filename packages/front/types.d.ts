@@ -87,6 +87,7 @@ declare class LogMockService {
 
 declare class StatusMockService {
     private readonly loggerService;
+    private readonly signalMockService;
     getStatusList: () => Promise<any>;
     getStatusMap: () => Promise<any>;
     getStatusOne: (id: string) => Promise<{
@@ -109,6 +110,8 @@ declare class StatusMockService {
         partialExecuted: any;
         minuteEstimatedTime: any;
         pendingAt: any;
+        timestamp: any;
+        updatedAt: number;
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
@@ -143,6 +146,33 @@ declare class MarkdownMockService {
     getWalkerReport: (symbol: string, walkerName: string) => Promise<string>;
 }
 
+interface ExplorerFile {
+    id: string;
+    path: string;
+    label: string;
+    type: "file";
+    mimeType: string;
+}
+interface ExplorerDirectory {
+    id: string;
+    path: string;
+    label: string;
+    type: "directory";
+    nodes: ExplorerNode[];
+}
+type ExplorerNode = ExplorerFile | ExplorerDirectory;
+
+declare class ExplorerMockService {
+    private readonly loggerService;
+    getNode: (nodePath: string) => Promise<string>;
+    getTree: () => Promise<ExplorerNode[]>;
+}
+
+declare class SignalMockService {
+    private readonly loggerService;
+    getLastUpdateTimestamp: (signalId: string) => Promise<number>;
+}
+
 declare class NotificationViewService {
     private readonly loggerService;
     private readonly notificationMockService;
@@ -155,6 +185,7 @@ declare class NotificationViewService {
 declare class StatusViewService {
     private readonly loggerService;
     private readonly statusMockService;
+    private readonly signalViewService;
     getStatusList: () => Promise<any>;
     getStatusMap: () => Promise<any>;
     getStatusOne: (id: string) => Promise<{
@@ -177,6 +208,8 @@ declare class StatusViewService {
         partialExecuted: any;
         minuteEstimatedTime: any;
         pendingAt: any;
+        timestamp: any;
+        updatedAt: number;
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
@@ -197,6 +230,7 @@ declare class ExchangeViewService {
     private readonly storageViewService;
     private readonly exchangeService;
     private readonly exchangeMockService;
+    private readonly signalViewService;
     getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
     getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
 }
@@ -237,6 +271,19 @@ declare class MarkdownViewService {
     getHeatReport: (strategyName: string, exchangeName: string, frameName: string, backtest?: boolean) => Promise<string>;
     getWalkerData: (symbol: string, walkerName: string) => Promise<unknown>;
     getWalkerReport: (symbol: string, walkerName: string) => Promise<string>;
+}
+
+declare class ExplorerViewService {
+    private readonly loggerService;
+    private readonly explorerMockService;
+    private getDir;
+    getNode: (nodePath: string) => Promise<string>;
+    getTree: () => Promise<ExplorerNode[]>;
+}
+
+declare class SignalViewService {
+    private readonly loggerService;
+    getLastUpdateTimestamp: (signalId: string) => Promise<number>;
 }
 
 declare class SymbolConnectionService {
@@ -318,12 +365,16 @@ declare const ioc: {
     logViewService: LogViewService;
     statusViewService: StatusViewService;
     markdownViewService: MarkdownViewService;
+    explorerViewService: ExplorerViewService;
+    signalViewService: SignalViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
     logMockService: LogMockService;
     statusMockService: StatusMockService;
     markdownMockService: MarkdownMockService;
+    explorerMockService: ExplorerMockService;
+    signalMockService: SignalMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
     backtestMetaService: BacktestMetaService;

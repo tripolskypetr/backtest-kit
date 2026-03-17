@@ -1,0 +1,138 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "path": "dump",
+    "label": "dump",
+    "type": "directory",
+    "nodes": [
+      {
+        "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "path": "dump/log",
+        "label": "log",
+        "type": "directory",
+        "nodes": [
+          {
+            "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+            "path": "dump/log/log.jsonl",
+            "label": "log1.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"ts\":1704067200000,\"level\":\"info\",\"msg\":\"Backtest started\",\"symbol\":\"BTCUSDT\"}\n{\"ts\":1704067260000,\"level\":\"info\",\"msg\":\"Signal activated\",\"price\":42150.5}\n{\"ts\":1704067320000,\"level\":\"info\",\"msg\":\"Partial close\",\"percent\":50,\"pnl\":1.24}\n"
+          },
+          {
+            "id": "c3d4e5f6-a7b8-9012-cdef-123456712311",
+            "path": "dump/log/log.jsonl",
+            "label": "log2.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"ts\":1704153600000,\"level\":\"info\",\"msg\":\"Backtest started\",\"symbol\":\"ETHUSDT\"}\n{\"ts\":1704153660000,\"level\":\"warn\",\"msg\":\"DCA rejected\",\"reason\":\"price above entry\"}\n{\"ts\":1704153720000,\"level\":\"info\",\"msg\":\"Position closed\",\"pnl\":-0.87}\n"
+          }
+        ]
+      },
+      {
+        "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "path": "dump/report",
+        "label": "report",
+        "type": "directory",
+        "nodes": [
+          {
+            "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+            "path": "dump/report/backtest.jsonl",
+            "label": "backtest.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"symbol\":\"BTCUSDT\",\"side\":\"LONG\",\"entryPrice\":42150.5,\"exitPrice\":43200.0,\"pnl\":2.49,\"duration\":3600}\n{\"symbol\":\"ETHUSDT\",\"side\":\"LONG\",\"entryPrice\":2250.0,\"exitPrice\":2198.5,\"pnl\":-2.29,\"duration\":1800}\n"
+          },
+          {
+            "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+            "path": "dump/report/breakeven.jsonl",
+            "label": "breakeven.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"symbol\":\"BTCUSDT\",\"ts\":1704067260000,\"breakevenPrice\":42150.5}\n{\"symbol\":\"BTCUSDT\",\"ts\":1704067320000,\"breakevenPrice\":42100.0}\n"
+          },
+          {
+            "id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+            "path": "dump/report/heat.jsonl",
+            "label": "heat.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"hour\":0,\"day\":\"Mon\",\"winRate\":0.62}\n{\"hour\":1,\"day\":\"Mon\",\"winRate\":0.55}\n{\"hour\":2,\"day\":\"Tue\",\"winRate\":0.70}\n"
+          },
+          {
+            "id": "b8c9d0e1-f2a3-4567-bcde-678901234567",
+            "path": "dump/report/highest_profit.jsonl",
+            "label": "highest_profit.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"symbol\":\"BTCUSDT\",\"ts\":1704067400000,\"price\":43500.0,\"unrealizedPnl\":3.20}\n{\"symbol\":\"ETHUSDT\",\"ts\":1704153800000,\"price\":2310.0,\"unrealizedPnl\":2.67}\n"
+          },
+          {
+            "id": "c9d0e1f2-a3b4-5678-cdef-789012345678",
+            "path": "dump/report/partial.jsonl",
+            "label": "partial.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"symbol\":\"BTCUSDT\",\"ts\":1704067320000,\"percent\":50,\"price\":43200.0,\"realizedPnl\":1.24}\n{\"symbol\":\"BTCUSDT\",\"ts\":1704067380000,\"percent\":25,\"price\":43350.0,\"realizedPnl\":0.71}\n"
+          },
+          {
+            "id": "d0e1f2a3-b4c5-6789-defa-890123456789",
+            "path": "dump/report/performance.jsonl",
+            "label": "performance.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"symbol\":\"BTCUSDT\",\"trades\":28,\"winRate\":0.64,\"netPnl\":18.4,\"maxDrawdown\":-5.2,\"sharpe\":1.87}\n{\"symbol\":\"ETHUSDT\",\"trades\":14,\"winRate\":0.57,\"netPnl\":6.1,\"maxDrawdown\":-3.8,\"sharpe\":1.42}\n"
+          },
+          {
+            "id": "e1f2a3b4-c5d6-7890-efab-901234567890",
+            "path": "dump/report/schedule.jsonl",
+            "label": "schedule.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"symbol\":\"BTCUSDT\",\"entryTs\":1704067260000,\"exitTs\":1704070860000,\"entryPrice\":42150.5,\"exitPrice\":43200.0}\n{\"symbol\":\"ETHUSDT\",\"entryTs\":1704153660000,\"exitTs\":1704155460000,\"entryPrice\":2250.0,\"exitPrice\":2198.5}\n"
+          },
+          {
+            "id": "f2a3b4c5-d6e7-8901-fabc-012345678901",
+            "path": "dump/report/strategy.jsonl",
+            "label": "strategy.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream",
+            "content": "{\"strategyName\":\"dca-v2\",\"exchangeName\":\"binance\",\"interval\":\"1m\",\"tp\":2.5,\"sl\":1.5,\"dcaSteps\":3}\n"
+          },
+          {
+            "id": "a3b4c5d6-e7f8-9012-abcd-123456789abc",
+            "path": "dump/report/README.md",
+            "label": "README.md",
+            "type": "file",
+            "mimeType": "text/markdown",
+            "content": "# Backtest Report\n\nThis directory contains backtest output files.\n\n## Files\n\n- `backtest.jsonl` — full trade history\n- `performance.jsonl` — performance metrics per symbol\n- `schedule.jsonl` — entry/exit schedule\n- `strategy.jsonl` — strategy configuration snapshot\n- `heat.jsonl` — heatmap data\n- `partial.jsonl` — partial close events\n- `breakeven.jsonl` — breakeven price history\n- `highest_profit.jsonl` — peak profit snapshots\n"
+          },
+          {
+            "id": "b4c5d6e7-f8a9-0123-bcde-234567890bcd",
+            "path": "dump/report/SUMMARY.md",
+            "label": "SUMMARY.md",
+            "type": "file",
+            "mimeType": "text/markdown",
+            "content": "# Summary\n\n## Run info\n\n- **Symbol:** BTCUSDT\n- **Interval:** 1m\n- **Period:** 2024-01-01 – 2024-03-01\n\n## Results\n\n| Metric | Value |\n|---|---|\n| Total trades | 42 |\n| Win rate | 61.9% |\n| Net PnL | +18.4% |\n| Max drawdown | -5.2% |\n"
+          }
+        ]
+      },
+      {
+        "id": "c5d6e7f8-a9b0-1234-cdef-345678901cde",
+        "path": "dump/docs",
+        "label": "docs",
+        "type": "directory",
+        "nodes": [
+          {
+            "id": "d6e7f8a9-b0c1-2345-defa-456789012def",
+            "path": "dump/docs/CHANGELOG.md",
+            "label": "CHANGELOG.md",
+            "type": "file",
+            "mimeType": "text/markdown",
+            "content": "# Changelog\n\n## [1.2.0] - 2024-03-01\n\n### Added\n- Partial close support with DCA blending\n- Breakeven tracking per symbol\n\n### Fixed\n- Effective price calculation for multi-entry positions\n\n## [1.1.0] - 2024-01-15\n\n### Added\n- Heatmap report generation\n- Schedule export\n"
+          }
+        ]
+      }
+    ]
+  }
+]

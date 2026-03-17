@@ -28,6 +28,7 @@ import {
     AdfScannerTwoTone,
     CircleNotificationsTwoTone,
     Dashboard,
+    FilePresentTwoTone,
     InsertChartTwoTone,
     KeyboardArrowLeft,
     NotificationsActive,
@@ -240,13 +241,19 @@ const live_routes: IRoute[] = [
         color: "#6F42C1",
         icon: PlayCircleFilledWhiteTwoTone,
     },
+    {
+        label: "Dump Explorer",
+        to: `/dump`,
+        color: "#0090FF",
+        icon: FilePresentTwoTone,
+    },
 ];
 
 const other_routes: IRoute[] = [
     {
         label: "Markdown Reports",
         to: `/report`,
-        color: "#0090FF",
+        color: "#009688",
         icon: AdfScannerTwoTone,
     },
 ];

@@ -48,6 +48,7 @@ interface IChartProps {
     pendingAt: number;
     updatedAt: number;
     priceOpen: number;
+    timestamp: number;
     priceStopLoss: number;
     priceTakeProfit: number;
     originalPriceOpen: number;
@@ -131,6 +132,7 @@ export const StockChart = ({
     originalPriceStopLoss,
     originalPriceTakeProfit,
     minuteEstimatedTime,
+    timestamp,
     positionEntries,
     positionPartials,
 }: IChartProps) => {
@@ -141,7 +143,7 @@ export const StockChart = ({
     useLayoutEffect(() => {
         const { current: chartElement } = elementRef;
 
-        const exitAt = status === "closed" ? updatedAt : pendingAt + minuteEstimatedTime * MS_PER_MINUTE;
+        const exitAt = updatedAt;
         const visibleItems = items.filter(
             (c) => c.timestamp >= pendingAt && c.timestamp <= exitAt,
         );
@@ -268,8 +270,7 @@ export const StockChart = ({
                 text: "Entry",
             });
 
-            const lastTimestamp = visibleItems[visibleItems.length - 1]?.timestamp ?? 0;
-            if (lastTimestamp >= exitAt) {
+            if (status === "closed") {
                 markers.push({
                     time: alignToInterval(exitAt) as Time,
                     position: position === "short" ? "belowBar" : "aboveBar",
@@ -345,6 +346,7 @@ export const StockChart = ({
         status,
         pendingAt,
         updatedAt,
+        timestamp,
         priceOpen,
         priceStopLoss,
         priceTakeProfit,

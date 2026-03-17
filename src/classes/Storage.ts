@@ -1,5 +1,7 @@
 import { compose, singleshot } from "functools-kit";
-import { signalBacktestEmitter, signalLiveEmitter } from "../config/emitters";
+import { activePingSubject, schedulePingSubject, signalBacktestEmitter, signalLiveEmitter } from "../config/emitters";
+import { ActivePingContract } from "../contract/ActivePing.contract";
+import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import {
   IStorageSignalRow,
   IStrategyTickResultCancelled,
@@ -42,6 +44,15 @@ const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULED = "StorageMemoryLiveUtils
 const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CANCELLED = "StorageMemoryLiveUtils.handleCancelled";
 const STORAGE_MEMORY_LIVE_METHOD_NAME_FIND_BY_ID = "StorageMemoryLiveUtils.findById";
 const STORAGE_MEMORY_LIVE_METHOD_NAME_LIST = "StorageMemoryLiveUtils.list";
+
+const STORAGE_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING = "StoragePersistBacktestUtils.handleActivePing";
+const STORAGE_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING = "StoragePersistBacktestUtils.handleSchedulePing";
+const STORAGE_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING = "StoragePersistLiveUtils.handleActivePing";
+const STORAGE_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING = "StoragePersistLiveUtils.handleSchedulePing";
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING = "StorageMemoryBacktestUtils.handleActivePing";
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING = "StorageMemoryBacktestUtils.handleSchedulePing";
+const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING = "StorageMemoryLiveUtils.handleActivePing";
+const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING = "StorageMemoryLiveUtils.handleSchedulePing";
 
 const STORAGE_ADAPTER_METHOD_NAME_ENABLE = "StorageAdapter.enable";
 const STORAGE_ADAPTER_METHOD_NAME_DISABLE = "StorageAdapter.disable";
@@ -101,6 +112,18 @@ export interface IStorageUtils {
    * @returns Array of all signal rows
    */
   list(): Promise<IStorageSignalRow[]>;
+  /**
+   * Handles active ping event for opened signals.
+   * Updates updatedAt for the signal if it is currently opened.
+   * @param event - The active ping event data
+   */
+  handleActivePing(event: ActivePingContract): Promise<void>;
+  /**
+   * Handles schedule ping event for scheduled signals.
+   * Updates updatedAt for the signal if it is currently scheduled.
+   * @param event - The schedule ping event data
+   */
+  handleSchedulePing(event: SchedulePingContract): Promise<void>;
 }
 
 /**
@@ -295,6 +318,53 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
     await this.waitForInit();
     return Array.from(this._signals.values());
   };
+
+  public handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
+      signalId: event.data.id,
+    });
+    await this.waitForInit();
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "opened") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      pnl: event.data.pnl,
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+    await this._updateStorage();
+  };
+
+  public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+      signalId: event.data.id,
+    });
+    await this.waitForInit();
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "scheduled") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+    await this._updateStorage();
+  };
 }
 
 /**
@@ -436,6 +506,49 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
     backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_LIST);
     return Array.from(this._signals.values());
   };
+
+  public handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
+      signalId: event.data.id,
+    });
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "opened") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      pnl: event.data.pnl,
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+  };
+
+  public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+      signalId: event.data.id,
+    });
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "scheduled") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+  };
 }
 
 /**
@@ -491,6 +604,14 @@ export class StorageDummyBacktestUtils implements IStorageUtils {
    */
   public list = async (): Promise<IStorageSignalRow[]> => {
     return [];
+  };
+
+  public handleActivePing = async (): Promise<void> => {
+    void 0;
+  };
+
+  public handleSchedulePing = async (): Promise<void> => {
+    void 0;
   };
 }
 
@@ -680,6 +801,53 @@ export class StoragePersistLiveUtils implements IStorageUtils {
     await this.waitForInit();
     return Array.from(this._signals.values());
   };
+
+  public handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
+      signalId: event.data.id,
+    });
+    await this.waitForInit();
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "opened") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      pnl: event.data.pnl,
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+    await this._updateStorage();
+  };
+
+  public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+      signalId: event.data.id,
+    });
+    await this.waitForInit();
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "scheduled") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+    await this._updateStorage();
+  };
 }
 
 /**
@@ -821,6 +989,49 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
     backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_LIST);
     return Array.from(this._signals.values());
   };
+
+  public handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
+      signalId: event.data.id,
+    });
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "opened") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      pnl: event.data.pnl,
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+  };
+
+  public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+      signalId: event.data.id,
+    });
+    const lastStorage = this._signals.get(event.data.id);
+    if (!lastStorage || lastStorage.status !== "scheduled") {
+      return;
+    }
+    if (lastStorage.updatedAt >= event.timestamp) {
+      return;
+    }
+    this._signals.set(event.data.id, {
+      ...lastStorage,
+      ...event.data,
+      status: lastStorage.status,
+      priority: Date.now(),
+      createdAt: lastStorage.createdAt,
+      updatedAt: event.timestamp,
+    });
+  };
 }
 
 /**
@@ -876,6 +1087,14 @@ export class StorageDummyLiveUtils implements IStorageUtils {
    */
   public list = async (): Promise<IStorageSignalRow[]> => {
     return [];
+  };
+
+  public handleActivePing = async (): Promise<void> => {
+    void 0;
+  };
+
+  public handleSchedulePing = async (): Promise<void> => {
+    void 0;
   };
 }
 
@@ -945,6 +1164,14 @@ export class StorageBacktestAdapter implements IStorageUtils {
    */
   list = async (): Promise<IStorageSignalRow[]> => {
     return await this._signalBacktestUtils.list();
+  };
+
+  handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    return await this._signalBacktestUtils.handleActivePing(event);
+  };
+
+  handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
+    return await this._signalBacktestUtils.handleSchedulePing(event);
   };
 
   /**
@@ -1054,6 +1281,14 @@ export class StorageLiveAdapter implements IStorageUtils {
     return await this._signalLiveUtils.list();
   };
 
+  handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    return await this._signalLiveUtils.handleActivePing(event);
+  };
+
+  handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
+    return await this._signalLiveUtils.handleSchedulePing(event);
+  };
+
   /**
    * Sets the storage adapter constructor.
    * All future storage operations will use this adapter.
@@ -1139,11 +1374,21 @@ export class StorageAdapter {
           StorageBacktest.handleCancelled(tick),
         );
 
+      const unBacktestPingActive = activePingSubject
+        .filter(({ backtest }) => backtest)
+        .connect((event) => StorageBacktest.handleActivePing(event));
+
+      const unBacktestPingSchedule = schedulePingSubject
+        .filter(({ backtest }) => backtest)
+        .connect((event) => StorageBacktest.handleSchedulePing(event));
+
       unBacktest = compose(
         () => unBacktestOpen(),
         () => unBacktestClose(),
         () => unBacktestScheduled(),
         () => unBacktestCancelled(),
+        () => unBacktestPingActive(),
+        () => unBacktestPingSchedule(),
       );
     }
 
@@ -1172,11 +1417,21 @@ export class StorageAdapter {
           StorageLive.handleCancelled(tick),
         );
 
+      const unLivePingActive = activePingSubject
+        .filter(({ backtest }) => !backtest)
+        .connect((event) => StorageLive.handleActivePing(event));
+
+      const unLivePingSchedule = schedulePingSubject
+        .filter(({ backtest }) => !backtest)
+        .connect((event) => StorageLive.handleSchedulePing(event));
+
       unLive = compose(
         () => unLiveOpen(),
         () => unLiveClose(),
         () => unLiveScheduled(),
         () => unLiveCancelled(),
+        () => unLivePingActive(),
+        () => unLivePingSchedule(),
       );
     }
 

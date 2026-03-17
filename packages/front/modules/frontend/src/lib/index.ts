@@ -14,6 +14,7 @@ import StorageMockService from "./services/mock/StorageMockService";
 import LogMockService from "./services/mock/LogMockService";
 import StatusMockService from "./services/mock/StatusMockService";
 import MarkdownMockService from "./services/mock/MarkdownMockService";
+import ExplorerMockService from "./services/mock/ExplorerMockService";
 
 import ExchangeViewService from "./services/view/ExchangeViewService";
 import NotificationViewService from "./services/view/NotificationViewService";
@@ -21,6 +22,7 @@ import StorageViewService from "./services/view/StorageViewService";
 import LogViewService from "./services/view/LogViewService";
 import StatusViewService from "./services/view/StatusViewService";
 import MarkdownViewService from "./services/view/MarkdownViewService";
+import ExplorerViewService from "./services/view/ExplorerViewService";
 
 import SymbolGlobalService from "./services/global/SymbolGlobalService";
 import PriceGlobalService from "./services/global/PriceGlobalService";
@@ -28,6 +30,7 @@ import BacktestGlobalService from "./services/global/BacktestGlobalService";
 import LiveGlobalService from "./services/global/LiveGlobalService";
 
 import TYPES from "./core/TYPES";
+import ExplorerHelperService from "./services/helpers/ExplorerHelperService";
 
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
@@ -44,6 +47,10 @@ const globalServices = {
   liveGlobalService: inject<LiveGlobalService>(TYPES.liveGlobalService),
 }
 
+const helperServices = {
+  explorerHelperService: inject<ExplorerHelperService>(TYPES.explorerHelperService),
+}
+
 const mockServices = {
   exchangeMockService: inject<ExchangeMockService>(TYPES.exchangeMockService),
   notificationMockService: inject<NotificationMockService>(TYPES.notificationMockService),
@@ -51,6 +58,7 @@ const mockServices = {
   logMockService: inject<LogMockService>(TYPES.logMockService),
   statusMockService: inject<StatusMockService>(TYPES.statusMockService),
   markdownMockService: inject<MarkdownMockService>(TYPES.markdownMockService),
+  explorerMockService: inject<ExplorerMockService>(TYPES.explorerMockService),
 };
 
 const viewServices = {
@@ -60,11 +68,13 @@ const viewServices = {
   logViewService: inject<LogViewService>(TYPES.logViewService),
   statusViewService: inject<StatusViewService>(TYPES.statusViewService),
   markdownViewService: inject<MarkdownViewService>(TYPES.markdownViewService),
+  explorerViewService: inject<ExplorerViewService>(TYPES.explorerViewService),
 };
 
 export const ioc = {
   ...baseServices,
   ...globalServices,
+  ...helperServices,
   ...mockServices,
   ...viewServices,
 };
