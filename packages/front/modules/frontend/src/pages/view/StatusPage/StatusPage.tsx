@@ -10,13 +10,11 @@ const routes: IOutlet[] = [
         id: "status",
         element: StatusView,
         isActive: (pathname) => hasRouteMatch(["/status/:id"], pathname),
-        isAvailable: () => false,
     },
     {
         id: "main",
         element: MainView,
         isActive: (pathname) => hasRouteMatch(["/status"], pathname),
-        isAvailable: () => false,
     },
 ];
 

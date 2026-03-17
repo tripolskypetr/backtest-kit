@@ -9,7 +9,6 @@ const routes: IOutlet[] = [
         id: "main",
         element: MainView,
         isActive: (pathname) => hasRouteMatch(["/report"], pathname),
-        isAvailable: () => false,
     },
 ];
 
