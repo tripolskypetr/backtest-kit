@@ -43,6 +43,9 @@ export class LayoutService {
     public readonly pickCancelScheduledSubject = new Subject<string>();
     public readonly pickClosePendingSubject = new Subject<string>();
 
+    // File content subject
+    public readonly pickFileContentSubject = new Subject<string>();
+
     public readonly reloadOutletSubject = new Subject<void>();
 
     public readonly openDocumentSubject = new Subject<{
@@ -212,6 +215,11 @@ export class LayoutService {
 
     pickClosePending = async (notificationId: string) => {
         await this.pickClosePendingSubject.next(notificationId);
+    };
+
+    // File content method
+    pickFileContent = async (fileId: string) => {
+        await this.pickFileContentSubject.next(fileId);
     };
 }
 

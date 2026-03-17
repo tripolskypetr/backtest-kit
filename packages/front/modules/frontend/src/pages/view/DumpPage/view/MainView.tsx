@@ -29,6 +29,7 @@ import {
 import { set } from "lodash";
 import { useMemo } from "react";
 import ioc from "../../../../lib";
+import useFileContentView from "../../../../hooks/useFileContentView";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import {
     ExplorerData,
@@ -109,7 +110,7 @@ export const MainView = () => {
     };
 
     const handleOpen = (id: string) => {
-        alert(id);
+        ioc.layoutService.pickFileContent(id);
     };
 
     const renderInner = () => {

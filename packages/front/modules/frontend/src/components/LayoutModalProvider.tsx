@@ -45,6 +45,9 @@ import useSignalSyncCloseView from "../hooks/useSignalSyncCloseView";
 import useCancelScheduledView from "../hooks/useCancelScheduledView";
 import useClosePendingView from "../hooks/useClosePendingView";
 
+// File content hook
+import useFileContentView from "../hooks/useFileContentView";
+
 interface ILayoutModalProviderProps {
     children: React.ReactNode;
 }
@@ -123,6 +126,9 @@ export const LayoutModalProvider = ({
     const pickCancelScheduled = useCancelScheduledView();
     const pickClosePending = useClosePendingView();
 
+    // File content hook
+    const pickFileContent = useFileContentView();
+
     useOnce(() =>
         ioc.layoutService.promptOutgoing.subscribe(async ({ title, value }) => {
             const result = await pickPrompt({ title, value }).toPromise();
@@ -183,6 +189,9 @@ export const LayoutModalProvider = ({
     // Cancel scheduled / close pending subscriptions
     useOnce(() => ioc.layoutService.pickCancelScheduledSubject.subscribe(pickCancelScheduled));
     useOnce(() => ioc.layoutService.pickClosePendingSubject.subscribe(pickClosePending));
+
+    // File content subscription
+    useOnce(() => ioc.layoutService.pickFileContentSubject.subscribe(pickFileContent));
 
     return (
         <>
