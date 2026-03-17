@@ -6,8 +6,9 @@ import {
     InsertDriveFile,
     Refresh,
 } from "@mui/icons-material";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, ButtonBase, Stack, Typography } from "@mui/material";
 import {
+    ActionButton,
     Breadcrumbs2,
     Breadcrumbs2Type,
     Center,
@@ -91,6 +92,10 @@ export const MainView = () => {
         }
     };
 
+    const handleOpen = (id: string) => {
+        alert(id);
+    };
+
     const renderInner = () => {
         if (loading || !data) {
             return (
@@ -135,7 +140,7 @@ export const MainView = () => {
                     );
                 }}
                 EmptyItem={() => <span>No files</span>}
-                CustomItem={({ itemKey }) => {
+                CustomItem={({ itemKey, index, withDarkParent }) => {
                     const node = data$.current.map[itemKey];
                     if (!node) {
                         return null;
@@ -143,15 +148,35 @@ export const MainView = () => {
                     if (node.type !== "file") {
                         return null;
                     }
+                    const fill = withDarkParent ? "#fff6" : "#ccc6";
                     return (
-                        <Stack
-                            direction="row"
-                            alignItems="center"
-                            gap={1}
-                            mb={0.5}
+                        <ButtonBase
+                            sx={{
+                                width: "100%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "stretch",
+                                direction: "row",
+                                background: index % 2 === 0 ? "transparent" : fill,
+                                gap: 1,
+                                p: 1,
+                                mt: index === 0 ? 1 : 0,
+                            }}
+                            onClick={() => handleOpen(itemKey)}
                         >
                             {getFileIcon(node)}
-                            <Stack>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "stretch",
+                                    justifyContent: "stretch",
+                                    "& > *": {
+                                        width: "100%",
+                                        textAlign: "start",
+                                    },
+                                }}
+                            >
                                 <Typography variant="body2">
                                     {node.label}
                                 </Typography>
@@ -161,9 +186,12 @@ export const MainView = () => {
                                 >
                                     {node.mimeType}
                                 </Typography>
-                            </Stack>
+                            </Box>
                             <Box sx={{ flex: 1 }} />
-                        </Stack>
+                            <ActionButton sx={{ mr: 2, pointerEvents: "none" }} variant="text">
+                                Open
+                            </ActionButton>
+                        </ButtonBase>
                     );
                 }}
                 data={data.record}

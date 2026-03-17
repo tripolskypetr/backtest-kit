@@ -14,7 +14,14 @@
           {
             "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
             "path": "dump/log/log.jsonl",
-            "label": "log.jsonl",
+            "label": "log1.jsonl",
+            "type": "file",
+            "mimeType": "application/octet-stream"
+          },
+          {
+            "id": "c3d4e5f6-a7b8-9012-cdef-123456712311",
+            "path": "dump/log/log.jsonl",
+            "label": "log2.jsonl",
             "type": "file",
             "mimeType": "application/octet-stream"
           }
