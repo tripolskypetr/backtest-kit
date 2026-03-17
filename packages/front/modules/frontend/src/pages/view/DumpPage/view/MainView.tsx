@@ -218,8 +218,10 @@ export const MainView = () => {
                 actions={actions}
                 onAction={handleAction}
             />
-            <ScrollView hideOverflowX sx={{ height: "calc(100vh - 150px)" }}>
-                {renderInner()}
+            <ScrollView withScrollbar hideOverflowX sx={{ height: "calc(100vh - 150px)" }}>
+                <Box pr={2} pl={2}>
+                    {renderInner()}
+                </Box>
             </ScrollView>
             <Background />
         </>
