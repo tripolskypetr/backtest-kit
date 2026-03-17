@@ -50,22 +50,27 @@ export class ExplorerViewService {
         },
     );
 
-    public getTree = async (): Promise<ExplorerData> => {
-        this.loggerService.log("explorerViewService getTree");
-        if (CC_ENABLE_MOCK) {
-            return await this.explorerMockService.getTree();
-        }
-        const raw = await this.getTreeRaw();
-        return {
-            record: this.explorerHelperService.treeToRecord(raw),
-            map: this.explorerHelperService.treeToMap(raw),
-        };
-    };
+    public getTree = ttl(
+        async (): Promise<ExplorerData> => {
+            this.loggerService.log("explorerViewService getTree");
+            if (CC_ENABLE_MOCK) {
+                return await this.explorerMockService.getTree();
+            }
+            const raw = await this.getTreeRaw();
+            return {
+                record: this.explorerHelperService.treeToRecord(raw),
+                map: this.explorerHelperService.treeToMap(raw),
+            };
+        },
+        {
+            timeout: TTL_TIMEOUT,
+        },
+    );
 
-    public getNode = async (path: string): Promise<string> => {
-        this.loggerService.log("explorerViewService getNode", { path });
+    public getContent = async (path: string): Promise<string> => {
+        this.loggerService.log("explorerViewService getContent", { path });
         if (CC_ENABLE_MOCK) {
-            return await this.explorerMockService.getNode(path);
+            return await this.explorerMockService.getContent(path);
         }
         const { data, error } = await fetchApi("/api/v1/explorer_view/node", {
             method: "POST",
@@ -81,6 +86,15 @@ export class ExplorerViewService {
             throw new Error(error);
         }
         return data;
+    };
+
+    public clear = () => {
+        this.loggerService.log("explorerViewService clear");
+        if (CC_ENABLE_MOCK) {
+            this.explorerMockService.clear();
+        }
+        this.getTreeRaw.clear();
+        this.getTree.clear();
     };
 }
 

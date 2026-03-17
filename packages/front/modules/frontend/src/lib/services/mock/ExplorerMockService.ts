@@ -42,17 +42,22 @@ export class ExplorerMockService {
         },
     );
 
-    public getTree = async (): Promise<ExplorerData> => {
-        this.loggerService.log("explorerMockService getTree");
-        const raw = await this.getTreeRaw();
-        return {
-            record: this.explorerHelperService.treeToRecord(raw),
-            map: this.explorerHelperService.treeToMap(raw),
-        };
-    };
+    public getTree = ttl(
+        async (): Promise<ExplorerData> => {
+            this.loggerService.log("explorerMockService getTree");
+            const raw = await this.getTreeRaw();
+            return {
+                record: this.explorerHelperService.treeToRecord(raw),
+                map: this.explorerHelperService.treeToMap(raw),
+            };
+        },
+        {
+            timeout: TTL_TIMEOUT,
+        },
+    );
 
-    public getNode = async (path: string): Promise<string> => {
-        this.loggerService.log("explorerMockService getNode", { path });
+    public getContent = async (path: string): Promise<string> => {
+        this.loggerService.log("explorerMockService getContent", { path });
         const { data, error } = await fetchApi("/api/v1/explorer_mock/node", {
             method: "POST",
             body: JSON.stringify({
@@ -67,6 +72,14 @@ export class ExplorerMockService {
             throw new Error(error);
         }
         return data;
+    };
+
+    public clear = () => {
+        this.loggerService.log("explorerMockService clear");
+        {
+            this.getTreeRaw.clear();
+            this.getTree.clear();
+        }
     };
 }
 
