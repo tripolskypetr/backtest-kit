@@ -23,7 +23,7 @@ import { set } from "lodash";
 import { useMemo } from "react";
 import ioc from "../../../../lib";
 import IconWrapper from "../../../../components/common/IconWrapper";
-import { ExplorerFile, ExplorerNodeDict } from "../../../../model/Explorer.model";
+import { ExplorerFile, ExplorerNode } from "../../../../model/Explorer.model";
 
 interface IRecord {
     [key: string]: IRecord | string | null;
@@ -113,10 +113,10 @@ export const MainView = () => {
 
     const { recordData, nodeMap } = useMemo(() => {
         if (!tree) {
-            return { recordData: {}, nodeMap: new Map<string, ExplorerNodeDict>() };
+            return { recordData: {}, nodeMap: new Map<string, ExplorerNode>() };
         }
         const topRecord: IRecord = {};
-        const nodeMap = new Map<string, ExplorerNodeDict>();
+        const nodeMap = new Map<string, ExplorerNode>();
         for (const node of tree) {
             if (node.type === "directory") {
                 topRecord[node.path] = buildRecord(node.nodes);
