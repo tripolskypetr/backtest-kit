@@ -6,6 +6,7 @@ import {
     useActualRef,
     ActionIcon,
     Async,
+    useSinglerunAction,
 } from "react-declarative";
 import { ArrowBack, Close, Download, Print } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
@@ -85,7 +86,10 @@ export const useFileContentView = () => {
             <Stack direction="row" gap={1}>
                 <Async>
                     {async () => {
-                        const { mimeType } = await ioc.explorerViewService.getFileInfo(id$.current);
+                        const { mimeType } =
+                            await ioc.explorerViewService.getFileInfo(
+                                id$.current,
+                            );
                         if (mimeType !== "text/markdown") {
                             return null;
                         }
@@ -96,7 +100,7 @@ export const useFileContentView = () => {
                             >
                                 <Print />
                             </ActionIcon>
-                        )
+                        );
                     }}
                 </Async>
                 <CopyIcon
@@ -127,12 +131,16 @@ export const useFileContentView = () => {
         },
     });
 
-    return (id: string) => {
+    const { execute: handleOpen } = useSinglerunAction(async (id: string) => {
+        const { mimeType } = await ioc.explorerViewService.getFileInfo(id);
         push({
             id: "file_content_modal",
             render,
             onInit: () => {
-                const initialPath = "/file_content/content";
+                const initialPath =
+                    mimeType === "text/markdown"
+                        ? "/file_content/markdown"
+                        : "/file_content/content";
                 history.push(initialPath);
                 setPathname(initialPath);
             },
@@ -141,7 +149,12 @@ export const useFileContentView = () => {
                 pickData();
             },
         });
-    };
+    }, {
+        onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
+        onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
+    });
+
+    return handleOpen;
 };
 
 export default useFileContentView;
