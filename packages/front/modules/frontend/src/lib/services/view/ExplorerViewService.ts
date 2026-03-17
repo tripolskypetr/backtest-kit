@@ -8,7 +8,7 @@ import {
   CC_USER_ID,
 } from "../../../config/params";
 import ExplorerMockService from "../mock/ExplorerMockService";
-import { ExplorerNode, ExplorerNodeDict } from "../../../model/Explorer.model";
+import { ExplorerNode } from "../../../model/Explorer.model";
 
 export class ExplorerViewService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -34,22 +34,10 @@ export class ExplorerViewService {
     return data;
   };
 
-  public getTree = async (): Promise<ExplorerNodeDict[]> => {
+  public getTree = async (): Promise<ExplorerNode[]> => {
     this.loggerService.log("explorerViewService getTree");
     const raw = await this.getTreeRaw();
-    const toDict = (nodes: ExplorerNode[]): ExplorerNodeDict[] =>
-      nodes.map((node) => {
-        if (node.type === "file") {
-          return node;
-        }
-        return {
-          ...node,
-          nodes: Object.fromEntries(
-            toDict(node.nodes).map((child) => [child.label, child]),
-          ),
-        };
-      });
-    return toDict(raw);
+    return raw;
   };
 
   public getNode = async (path: string): Promise<string> => {

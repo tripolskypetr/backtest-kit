@@ -169,8 +169,12 @@ export const MainView = () => {
                 keyWidth={3}
                 valueWidth={9}
                 EmptyItem={() => <span>No files</span>}
-                CustomItem={({ itemKey }) => {
+                CustomItem={({ itemKey, value }) => {
                     const node = nodeMap.get(itemKey);
+                    console.log(recordData)
+                    if (!value) {
+                        debugger
+                    }
                     return (
                         <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
                             {node?.type === "file" && getFileIcon(node)}
