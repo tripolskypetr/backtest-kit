@@ -1,14 +1,16 @@
 import fs from "fs/promises";
 import path from "path";
 import mime from "mime-types";
-import { randomString, singleshot } from "functools-kit";
-
+import { createHash } from "crypto";
+import { singleshot } from "functools-kit";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { inject } from "../../../lib/core/di";
 import { ExplorerDirectory, ExplorerNode } from "../../../model/Explorer.model";
 import { CC_ENABLE_MOCK } from "../../../config/params";
 import ExplorerMockService from "../mock/ExplorerMockService";
+
+const pathId = (p: string) => createHash("sha1").update(p).digest("hex").slice(0, 16);
 
 const buildTree = async (
   dir: string,
@@ -26,7 +28,7 @@ const buildTree = async (
     const childRelPath = path.relative(process.cwd(), childPath).replace(/\\/g, "/");
     if (entry.isDirectory()) {
       nodes.push({
-        id: randomString(),
+        id: pathId(childRelPath),
         path: childRelPath,
         label: entry.name,
         type: "directory",
@@ -34,7 +36,7 @@ const buildTree = async (
       });
     } else {
       nodes.push({
-        id: randomString(),
+        id: pathId(childRelPath),
         path: childRelPath,
         label: entry.name,
         type: "file",
@@ -79,10 +81,11 @@ export class ExplorerViewService {
       return await this.explorerMockService.getTree();
     }
     const dir = await this.getDir();
+    const root = path.relative(process.cwd(), dir).replace(/\\/g, "/");
     const rootNode: ExplorerDirectory = {
-      id: randomString(),
-      path: path.relative(process.cwd(), dir).replace(/\\/g, "/"),
-      label: path.basename(dir),
+      id: pathId(root),
+      path: root,
+      label: path.basename(root),
       type: "directory",
       nodes: await buildTree(dir, new Set([path.join(dir, "data")])),
     };
