@@ -26,11 +26,11 @@ export class ExplorerViewService {
         TYPES.explorerHelperService,
     );
 
-    private getTreeRaw = ttl(
+    private getFolderTreeRaw = ttl(
         async (): Promise<ExplorerNode[]> => {
-            this.loggerService.log("explorerViewService getTreeRaw");
+            this.loggerService.log("explorerViewService getFolderTreeRaw");
             if (CC_ENABLE_MOCK) {
-                return await this.explorerMockService.getTreeRaw();
+                return await this.explorerMockService.getFolderTreeRaw();
             }
             const { data, error } = await fetchApi(
                 "/api/v1/explorer_view/tree",
@@ -54,13 +54,13 @@ export class ExplorerViewService {
         },
     );
 
-    public getTree = ttl(
+    public getFolderTree = ttl(
         async (): Promise<ExplorerData> => {
-            this.loggerService.log("explorerViewService getTree");
+            this.loggerService.log("explorerViewService getFolderTree");
             if (CC_ENABLE_MOCK) {
-                return await this.explorerMockService.getTree();
+                return await this.explorerMockService.getFolderTree();
             }
-            const raw = await this.getTreeRaw();
+            const raw = await this.getFolderTreeRaw();
             return {
                 record: this.explorerHelperService.treeToRecord(raw),
                 map: this.explorerHelperService.treeToMap(raw),
@@ -99,7 +99,7 @@ export class ExplorerViewService {
         if (CC_ENABLE_MOCK) {
             return await this.explorerMockService.getFileInfo(id);
         }
-        const { map } = await this.getTree();
+        const { map } = await this.getFolderTree();
         const value = map[id];
         if (!value) {
             throw new Error(
@@ -119,8 +119,8 @@ export class ExplorerViewService {
         if (CC_ENABLE_MOCK) {
             this.explorerMockService.clear();
         }
-        this.getTreeRaw.clear();
-        this.getTree.clear();
+        this.getFolderTreeRaw.clear();
+        this.getFolderTree.clear();
     };
 }
 

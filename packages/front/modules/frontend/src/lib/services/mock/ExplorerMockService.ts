@@ -21,9 +21,9 @@ export class ExplorerMockService {
         TYPES.explorerHelperService,
     );
 
-    public getTreeRaw = ttl(
+    public getFolderTreeRaw = ttl(
         async (): Promise<ExplorerNode[]> => {
-            this.loggerService.log("explorerMockService getTreeRaw");
+            this.loggerService.log("explorerMockService getFolderTreeRaw");
             const { data, error } = await fetchApi(
                 "/api/v1/explorer_mock/tree",
                 {
@@ -46,10 +46,10 @@ export class ExplorerMockService {
         },
     );
 
-    public getTree = ttl(
+    public getFolderTree = ttl(
         async (): Promise<ExplorerData> => {
-            this.loggerService.log("explorerMockService getTree");
-            const raw = await this.getTreeRaw();
+            this.loggerService.log("explorerMockService getFolderTree");
+            const raw = await this.getFolderTreeRaw();
             return {
                 record: this.explorerHelperService.treeToRecord(raw),
                 map: this.explorerHelperService.treeToMap(raw),
@@ -82,7 +82,7 @@ export class ExplorerMockService {
         this.loggerService.log("explorerMockService getFileInfo", {
             id,
         });
-        const { map } = await this.getTree();
+        const { map } = await this.getFolderTree();
         const value = map[id];
         if (!value) {
             throw new Error(
@@ -100,8 +100,8 @@ export class ExplorerMockService {
     public clear = () => {
         this.loggerService.log("explorerMockService clear");
         {
-            this.getTreeRaw.clear();
-            this.getTree.clear();
+            this.getFolderTreeRaw.clear();
+            this.getFolderTree.clear();
         }
     };
 }
