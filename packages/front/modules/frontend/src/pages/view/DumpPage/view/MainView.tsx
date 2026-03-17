@@ -4,9 +4,10 @@ import {
     Folder,
     Image,
     InsertDriveFile,
+    KeyboardArrowLeft,
     Refresh,
 } from "@mui/icons-material";
-import { Box, ButtonBase, Stack, Typography } from "@mui/material";
+import { Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
 import {
     ActionButton,
     Breadcrumbs2,
@@ -14,6 +15,7 @@ import {
     Center,
     IBreadcrumbs2Action,
     IBreadcrumbs2Option,
+    PaperView,
     RECORD_NEVER_VALUE,
     RecordView,
     ScrollView,
@@ -32,8 +34,14 @@ import {
     ExplorerNode,
     ExplorerRecord,
 } from "../../../../model/Explorer.model";
+import { Background } from "../../../../components/common/Background";
 
 const options: IBreadcrumbs2Option[] = [
+    {
+        type: Breadcrumbs2Type.Link,
+        action: "back-action",
+        label: <KeyboardArrowLeft sx={{ display: "block" }} />,
+    },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
@@ -42,7 +50,7 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "File Explorer",
+        label: "Dump Explorer",
     },
 ];
 
@@ -109,11 +117,13 @@ export const MainView = () => {
 
         return (
             <RecordView
+                component={Paper}
                 key={reloadTrigger}
                 withExpandRoot
                 sx={{
                     background: (theme) => theme.palette.background.default,
                     minHeight: "300px",
+                    p: 1,
                 }}
                 formatSearch={(key) => {
                     const node = data$.current.map[key];
@@ -208,9 +218,10 @@ export const MainView = () => {
                 actions={actions}
                 onAction={handleAction}
             />
-            <ScrollView hideOverflowX sx={{ height: "calc(100vh - 140px)" }}>
+            <ScrollView hideOverflowX sx={{ height: "calc(100vh - 150px)" }}>
                 {renderInner()}
             </ScrollView>
+            <Background />
         </>
     );
 };
