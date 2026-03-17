@@ -19,8 +19,11 @@ import {
     RECORD_NEVER_VALUE,
     RecordView,
     ScrollView,
+    Subject,
+    useActualState,
     useActualValue,
     useAsyncValue,
+    useOnce,
     useReloadTrigger,
 } from "react-declarative";
 import { set } from "lodash";
@@ -75,19 +78,23 @@ const getFileIcon = (node: ExplorerFile) => {
     return <InsertDriveFile sx={{ color: "#546e7a", fontSize: 20 }} />;
 };
 
-export const MainView = () => {
-    const { reloadTrigger, doReload } = useReloadTrigger();
+const reloadSubject = new Subject<void>();
 
-    const [data, { loading }] = useAsyncValue(
+export const MainView = () => {
+
+    const [search$, setSearch] = useActualState("");
+
+    const [data, { loading, execute }] = useAsyncValue(
         async () => {
             return await ioc.explorerViewService.getFolderTree();
         },
         {
             onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
             onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
-            deps: [reloadTrigger],
         },
     );
+
+    useOnce(() => reloadSubject.subscribe(execute));
 
     const data$ = useActualValue<ExplorerData>(data!);
 
@@ -96,7 +103,8 @@ export const MainView = () => {
             ioc.routerService.push("/");
         }
         if (action === "update-now") {
-            doReload();
+            ioc.explorerViewService.clear();
+            reloadSubject.next();
         }
     };
 
@@ -118,11 +126,12 @@ export const MainView = () => {
         return (
             <RecordView
                 component={Paper}
-                key={reloadTrigger}
                 withExpandRoot
+                search={search$.current}
+                onSearchChanged={(search) => setSearch(search)}
                 sx={{
                     background: (theme) => theme.palette.background.default,
-                    minHeight: "300px",
+                    minHeight: "calc(100vh - 160px)",
                     p: 1,
                 }}
                 formatSearch={(key) => {
