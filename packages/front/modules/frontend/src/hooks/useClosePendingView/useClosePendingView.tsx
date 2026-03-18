@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -17,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { ClosePendingCommitNotification } from "backtest-kit";
+import close_pending_commit_fields from "../../assets/close_pending_commit_fields";
 
 const DEFAULT_PATH = "/close_pending_commit";
 const CACHE_TTL = 45_000;
@@ -171,6 +172,25 @@ export const useClosePendingView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+          {async () => {
+              const { close_pending_commit } = await fetchData(id$.current);
+              if (!close_pending_commit) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => ioc.markdownHelperService.printFields(
+                          close_pending_commit_fields,
+                          close_pending_commit,
+                      )}
+                  >
+                      <Print />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
         <Async>
           {async () => {
               const { close_pending_commit } = await fetchData(id$.current);

@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -17,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { ActivateScheduledCommitNotification } from "backtest-kit";
+import activate_scheduled_fields from "../../assets/activate_scheduled_fields";
 
 const DEFAULT_PATH = "/activate_scheduled";
 const CACHE_TTL = 45_000;
@@ -171,6 +172,25 @@ export const useActivateScheduledView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+          {async () => {
+              const { activate_scheduled } = await fetchData(id$.current);
+              if (!activate_scheduled) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => ioc.markdownHelperService.printFields(
+                          activate_scheduled_fields,
+                          activate_scheduled,
+                      )}
+                  >
+                      <Print />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
         <Async>
           {async () => {
               const { activate_scheduled } = await fetchData(id$.current);

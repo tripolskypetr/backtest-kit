@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -17,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { SignalClosedNotification } from "backtest-kit";
+import signal_closed_fields from "../../assets/signal_closed_fields";
 
 const DEFAULT_PATH = "/signal_closed";
 const CACHE_TTL = 45_000;
@@ -171,6 +172,25 @@ export const useSignalClosedView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+            {async () => {
+                const { signal_closed } = await fetchData(id$.current);
+                if (!signal_closed) {
+                    return null;
+                }
+                return (
+                    <ActionIcon
+                        sx={{ mr: "10px" }}
+                        onClick={() => ioc.markdownHelperService.printFields(
+                            signal_closed_fields,
+                            signal_closed,
+                        )}
+                    >
+                        <Print />
+                    </ActionIcon>
+                );
+            }}
+        </Async>
         <Async>
             {async () => {
                 const { signal_closed } = await fetchData(id$.current);

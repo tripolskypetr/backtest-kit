@@ -31,6 +31,7 @@ import LiveGlobalService from "./services/global/LiveGlobalService";
 
 import TYPES from "./core/TYPES";
 import ExplorerHelperService from "./services/helpers/ExplorerHelperService";
+import MarkdownHelperService from "./services/helpers/MarkdownHelperService";
 
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
@@ -49,6 +50,7 @@ const globalServices = {
 
 const helperServices = {
   explorerHelperService: inject<ExplorerHelperService>(TYPES.explorerHelperService),
+  markdownHelperService: inject<MarkdownHelperService>(TYPES.markdownHelperService),
 }
 
 const mockServices = {
