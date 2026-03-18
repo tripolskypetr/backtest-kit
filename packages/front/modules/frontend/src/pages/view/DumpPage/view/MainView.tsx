@@ -15,6 +15,7 @@ import {
     Center,
     IBreadcrumbs2Action,
     IBreadcrumbs2Option,
+    IOutletProps,
     PaperView,
     RECORD_NEVER_VALUE,
     RecordView,
@@ -80,9 +81,11 @@ const getFileIcon = (node: ExplorerFile) => {
 
 const reloadSubject = new Subject<void>();
 
-export const MainView = () => {
+export const MainView = ({
+    params,
+}: IOutletProps) => {
 
-    const [search$, setSearch] = useActualState("");
+    const [search$, setSearch] = useActualState(params.search);
 
     const [data, { loading, execute }] = useAsyncValue(
         async () => {
