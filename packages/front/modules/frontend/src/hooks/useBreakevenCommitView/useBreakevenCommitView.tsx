@@ -6,8 +6,9 @@ import {
   useActualRef,
   ActionIcon,
   ttl,
+  Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -16,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { BreakevenCommitNotification } from "backtest-kit";
+import breakeven_commit_fields from "../../assets/breakeven_commit_fields";
 
 const DEFAULT_PATH = "/breakeven_commit";
 const CACHE_TTL = 45_000;
@@ -170,6 +172,46 @@ export const useBreakevenCommitView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+          {async () => {
+              const { breakeven_commit } = await fetchData(id$.current);
+              if (!breakeven_commit) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => ioc.markdownHelperService.printFields(
+                          breakeven_commit_fields,
+                          breakeven_commit,
+                      )}
+                  >
+                      <Print />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
+        <Async>
+          {async () => {
+              const { breakeven_commit } = await fetchData(id$.current);
+              if (!breakeven_commit?.signalId) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => {
+                          ctx.clear();
+                          ioc.routerService.push(
+                              `/dump/${breakeven_commit.signalId}`,
+                          );
+                      }}
+                  >
+                      <Search />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
         <CopyIcon
           onClick={async (_, onCopy) => {
             await handleCopy(pathname$.current, id$.current, onCopy)

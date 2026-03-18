@@ -6,8 +6,9 @@ import {
   useActualRef,
   ActionIcon,
   ttl,
+  Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -16,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { PartialLossAvailableNotification } from "backtest-kit";
+import partial_loss_available_fields from "../../assets/partial_loss_available_fields";
 
 const DEFAULT_PATH = "/partial_loss_available";
 const CACHE_TTL = 45_000;
@@ -170,6 +172,46 @@ export const usePartialLossAvailableView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+          {async () => {
+              const { partial_loss_available } = await fetchData(id$.current);
+              if (!partial_loss_available) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => ioc.markdownHelperService.printFields(
+                          partial_loss_available_fields,
+                          partial_loss_available,
+                      )}
+                  >
+                      <Print />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
+        <Async>
+          {async () => {
+              const { partial_loss_available } = await fetchData(id$.current);
+              if (!partial_loss_available?.signalId) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => {
+                          ctx.clear();
+                          ioc.routerService.push(
+                              `/dump/${partial_loss_available.signalId}`,
+                          );
+                      }}
+                  >
+                      <Search />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
         <CopyIcon
           onClick={async (_, onCopy) => {
             await handleCopy(pathname$.current, id$.current, onCopy)

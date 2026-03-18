@@ -6,8 +6,9 @@ import {
   useActualRef,
   ActionIcon,
   ttl,
+  Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -16,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { SignalSyncCloseNotification } from "backtest-kit";
+import signal_sync_close_fields from "../../assets/signal_sync_close_fields";
 
 const DEFAULT_PATH = "/signal_sync_close";
 const CACHE_TTL = 45_000;
@@ -170,6 +172,46 @@ export const useSignalSyncCloseView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+            {async () => {
+                const { signal_sync_close } = await fetchData(id$.current);
+                if (!signal_sync_close) {
+                    return null;
+                }
+                return (
+                    <ActionIcon
+                        sx={{ mr: "10px" }}
+                        onClick={() => ioc.markdownHelperService.printFields(
+                            signal_sync_close_fields,
+                            signal_sync_close,
+                        )}
+                    >
+                        <Print />
+                    </ActionIcon>
+                );
+            }}
+        </Async>
+        <Async>
+            {async () => {
+                const { signal_sync_close } = await fetchData(id$.current);
+                if (!signal_sync_close?.signalId) {
+                    return null;
+                }
+                return (
+                    <ActionIcon
+                        sx={{ mr: "10px" }}
+                        onClick={() => {
+                            ctx.clear();
+                            ioc.routerService.push(
+                                `/dump/${signal_sync_close.signalId}`,
+                            );
+                        }}
+                    >
+                        <Search />
+                    </ActionIcon>
+                );
+            }}
+        </Async>
         <CopyIcon
           onClick={async (_, onCopy) => {
             await handleCopy(pathname$.current, id$.current, onCopy)

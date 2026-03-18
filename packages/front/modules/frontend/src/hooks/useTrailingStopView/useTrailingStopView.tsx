@@ -6,8 +6,9 @@ import {
   useActualRef,
   ActionIcon,
   ttl,
+  Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -16,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { TrailingStopCommitNotification } from "backtest-kit";
+import trailing_stop_fields from "../../assets/trailing_stop_fields";
 
 const DEFAULT_PATH = "/trailing_stop";
 const CACHE_TTL = 45_000;
@@ -170,6 +172,46 @@ export const useTrailingStopView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+            {async () => {
+                const { trailing_stop } = await fetchData(id$.current);
+                if (!trailing_stop) {
+                    return null;
+                }
+                return (
+                    <ActionIcon
+                        sx={{ mr: "10px" }}
+                        onClick={() => ioc.markdownHelperService.printFields(
+                            trailing_stop_fields,
+                            trailing_stop,
+                        )}
+                    >
+                        <Print />
+                    </ActionIcon>
+                );
+            }}
+        </Async>
+        <Async>
+            {async () => {
+                const { trailing_stop } = await fetchData(id$.current);
+                if (!trailing_stop?.signalId) {
+                    return null;
+                }
+                return (
+                    <ActionIcon
+                        sx={{ mr: "10px" }}
+                        onClick={() => {
+                            ctx.clear();
+                            ioc.routerService.push(
+                                `/dump/${trailing_stop.signalId}`,
+                            );
+                        }}
+                    >
+                        <Search />
+                    </ActionIcon>
+                );
+            }}
+        </Async>
         <CopyIcon
           onClick={async (_, onCopy) => {
             await handleCopy(pathname$.current, id$.current, onCopy)

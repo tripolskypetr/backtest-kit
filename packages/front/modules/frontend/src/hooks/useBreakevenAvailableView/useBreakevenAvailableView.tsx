@@ -6,8 +6,9 @@ import {
   useActualRef,
   ActionIcon,
   ttl,
+  Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -16,6 +17,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { BreakevenAvailableNotification } from "backtest-kit";
+import breakeven_available_fields from "../../assets/breakeven_available_fields";
 
 const DEFAULT_PATH = "/breakeven_available";
 const CACHE_TTL = 45_000;
@@ -170,6 +172,46 @@ export const useBreakevenAvailableView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+          {async () => {
+              const { breakeven_available } = await fetchData(id$.current);
+              if (!breakeven_available) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => ioc.markdownHelperService.printFields(
+                          breakeven_available_fields,
+                          breakeven_available,
+                      )}
+                  >
+                      <Print />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
+        <Async>
+          {async () => {
+              const { breakeven_available } = await fetchData(id$.current);
+              if (!breakeven_available?.signalId) {
+                  return null;
+              }
+              return (
+                  <ActionIcon
+                      sx={{ mr: "10px" }}
+                      onClick={() => {
+                          ctx.clear();
+                          ioc.routerService.push(
+                              `/dump/${breakeven_available.signalId}`,
+                          );
+                      }}
+                  >
+                      <Search />
+                  </ActionIcon>
+              );
+          }}
+        </Async>
         <CopyIcon
           onClick={async (_, onCopy) => {
             await handleCopy(pathname$.current, id$.current, onCopy)
