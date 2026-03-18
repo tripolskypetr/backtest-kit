@@ -308,6 +308,18 @@ export const signal_cancelled_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) => obj.cancelReason || "Not specified",
                     },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "6",
+                        tabletColumns: "6",
+                        phoneColumns: "12",
+                        name: "cancelId",
+                        title: "Cancel ID",
+                        readonly: true,
+                        isVisible: (obj) => !!obj.cancelId,
+                        compute: (obj) => obj.cancelId || "Not specified",
+                    },
                 ],
             },
             {

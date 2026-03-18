@@ -328,6 +328,18 @@ export const signal_closed_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.totalPartials && obj.totalPartials > 0,
                         compute: (obj) => String(obj.totalPartials),
                     },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "closeId",
+                        title: "Close ID",
+                        readonly: true,
+                        isVisible: (obj) => !!obj.closeId,
+                        compute: (obj) => obj.closeId || "Not specified",
+                    },
                 ],
             },
             {

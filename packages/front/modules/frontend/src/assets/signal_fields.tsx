@@ -99,6 +99,17 @@ export const signal_fields: TypedField[] = [
                             obj.minuteEstimatedTime?.toString() ||
                             "Not specified",
                     },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "id",
+                        title: "Signal ID",
+                        readonly: true,
+                        compute: (obj) => obj.id || "Not specified",
+                    },
                 ],
             },
             {
