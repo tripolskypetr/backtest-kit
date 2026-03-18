@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -18,6 +18,7 @@ import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { ClosePendingCommitNotification } from "backtest-kit";
 import close_pending_commit_fields from "../../assets/close_pending_commit_fields";
+import MenuIcon from "./components/MenuIcon";
 
 const DEFAULT_PATH = "/close_pending_commit";
 const CACHE_TTL = 45_000;
@@ -62,7 +63,7 @@ const fetchData = ttl(async (id: string) => {
   key: ([id]) => `${id}`,
 });
 
-const handleDownload = async (pathname: string, id: string) => {
+const handleDownloadJson = async (pathname: string, id: string) => {
 
   const { candle_15m, candle_1h, candle_1m, close_pending_commit } = await fetchData(id);
 
@@ -218,9 +219,16 @@ export const useClosePendingView = () => {
           }}
           sx={{ mr: "10px", mt: "2.5px" }}
         />
-        <ActionIcon onClick={() => handleDownload(pathname$.current, id$.current)}>
-          <Download />
-        </ActionIcon>
+        <MenuIcon
+          sx={{ mr: "10px", mt: "0.5px" }}
+          onDownloadJson={() => handleDownloadJson(pathname$.current, id$.current)}
+          onDownloadPdf={async () => {
+              const { close_pending_commit } = await fetchData(id$.current);
+              if (close_pending_commit) {
+                  ioc.markdownHelperService.printFields(close_pending_commit_fields, close_pending_commit);
+              }
+          }}
+        />
         <ActionIcon onClick={onClose}>
           <Close />
         </ActionIcon>

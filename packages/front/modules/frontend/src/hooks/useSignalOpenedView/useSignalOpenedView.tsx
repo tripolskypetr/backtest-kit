@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -18,6 +18,7 @@ import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { SignalOpenedNotification } from "backtest-kit";
 import signal_opened_fields from "../../assets/signal_opened_fields";
+import MenuIcon from "./components/MenuIcon";
 
 const DEFAULT_PATH = "/signal_opened";
 const CACHE_TTL = 45_000;
@@ -61,7 +62,7 @@ const fetchData = ttl(async (id: string) => {
   key: ([id]) => `${id}`,
 });
 
-const handleDownload = async (pathname: string, id: string) => {
+const handleDownloadJson = async (pathname: string, id: string) => {
   const { candle_15m, candle_1h, candle_1m, signal_opened } = await fetchData(id);
 
   if (pathname.includes("/signal_opened")) {
@@ -215,9 +216,16 @@ export const useSignalOpenedView = () => {
           }}
           sx={{ mr: "10px", mt: "2.5px" }}
         />
-        <ActionIcon onClick={() => handleDownload(pathname$.current, id$.current)}>
-          <Download />
-        </ActionIcon>
+        <MenuIcon
+          sx={{ mr: "10px", mt: "0.5px" }}
+          onDownloadJson={() => handleDownloadJson(pathname$.current, id$.current)}
+          onDownloadPdf={async () => {
+              const { signal_opened } = await fetchData(id$.current);
+              if (signal_opened) {
+                  ioc.markdownHelperService.printFields(signal_opened_fields, signal_opened);
+              }
+          }}
+        />
         <ActionIcon onClick={onClose}>
           <Close />
         </ActionIcon>

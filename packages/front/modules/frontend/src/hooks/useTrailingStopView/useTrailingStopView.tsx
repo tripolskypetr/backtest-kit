@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -18,6 +18,7 @@ import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { TrailingStopCommitNotification } from "backtest-kit";
 import trailing_stop_fields from "../../assets/trailing_stop_fields";
+import MenuIcon from "./components/MenuIcon";
 
 const DEFAULT_PATH = "/trailing_stop";
 const CACHE_TTL = 45_000;
@@ -62,7 +63,7 @@ const fetchData = ttl(async (id: string) => {
   key: ([id]) => `${id}`,
 });
 
-const handleDownload = async (pathname: string, id: string) => {
+const handleDownloadJson = async (pathname: string, id: string) => {
 
   const { candle_15m, candle_1h, candle_1m, trailing_stop } = await fetchData(id);
 
@@ -218,9 +219,16 @@ export const useTrailingStopView = () => {
           }}
           sx={{ mr: "10px", mt: "2.5px" }}
         />
-        <ActionIcon onClick={() => handleDownload(pathname$.current, id$.current)}>
-          <Download />
-        </ActionIcon>
+        <MenuIcon
+          sx={{ mr: "10px", mt: "0.5px" }}
+          onDownloadJson={() => handleDownloadJson(pathname$.current, id$.current)}
+          onDownloadPdf={async () => {
+              const { trailing_stop } = await fetchData(id$.current);
+              if (trailing_stop) {
+                  ioc.markdownHelperService.printFields(trailing_stop_fields, trailing_stop);
+              }
+          }}
+        />
         <ActionIcon onClick={onClose}>
           <Close />
         </ActionIcon>

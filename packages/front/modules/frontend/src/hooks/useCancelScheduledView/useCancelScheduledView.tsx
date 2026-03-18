@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -18,6 +18,7 @@ import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { CancelScheduledCommitNotification } from "backtest-kit";
 import cancel_scheduled_commit_fields from "../../assets/cancel_scheduled_commit_fields";
+import MenuIcon from "./components/MenuIcon";
 
 const DEFAULT_PATH = "/cancel_scheduled_commit";
 const CACHE_TTL = 45_000;
@@ -62,7 +63,7 @@ const fetchData = ttl(async (id: string) => {
   key: ([id]) => `${id}`,
 });
 
-const handleDownload = async (pathname: string, id: string) => {
+const handleDownloadJson = async (pathname: string, id: string) => {
 
   const { candle_15m, candle_1h, candle_1m, cancel_scheduled_commit } = await fetchData(id);
 
@@ -218,9 +219,16 @@ export const useCancelScheduledView = () => {
           }}
           sx={{ mr: "10px", mt: "2.5px" }}
         />
-        <ActionIcon onClick={() => handleDownload(pathname$.current, id$.current)}>
-          <Download />
-        </ActionIcon>
+        <MenuIcon
+          sx={{ mr: "10px", mt: "0.5px" }}
+          onDownloadJson={() => handleDownloadJson(pathname$.current, id$.current)}
+          onDownloadPdf={async () => {
+              const { cancel_scheduled_commit } = await fetchData(id$.current);
+              if (cancel_scheduled_commit) {
+                  ioc.markdownHelperService.printFields(cancel_scheduled_commit_fields, cancel_scheduled_commit);
+              }
+          }}
+        />
         <ActionIcon onClick={onClose}>
           <Close />
         </ActionIcon>

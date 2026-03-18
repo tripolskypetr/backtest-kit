@@ -8,7 +8,7 @@ import {
   ttl,
   Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Print, Search } from "@mui/icons-material";
+import { ArrowBack, Close, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -18,6 +18,7 @@ import ioc from "../../lib";
 import CopyIcon from "./components/CopyIcon";
 import { SignalSyncCloseNotification } from "backtest-kit";
 import signal_sync_close_fields from "../../assets/signal_sync_close_fields";
+import MenuIcon from "./components/MenuIcon";
 
 const DEFAULT_PATH = "/signal_sync_close";
 const CACHE_TTL = 45_000;
@@ -62,7 +63,7 @@ const fetchData = ttl(async (id: string) => {
   key: ([id]) => `${id}`,
 });
 
-const handleDownload = async (pathname: string, id: string) => {
+const handleDownloadJson = async (pathname: string, id: string) => {
 
   const { candle_15m, candle_1h, candle_1m, signal_sync_close } = await fetchData(id);
 
@@ -218,9 +219,16 @@ export const useSignalSyncCloseView = () => {
           }}
           sx={{ mr: "10px", mt: "2.5px" }}
         />
-        <ActionIcon onClick={() => handleDownload(pathname$.current, id$.current)}>
-          <Download />
-        </ActionIcon>
+        <MenuIcon
+          sx={{ mr: "10px", mt: "0.5px" }}
+          onDownloadJson={() => handleDownloadJson(pathname$.current, id$.current)}
+          onDownloadPdf={async () => {
+              const { signal_sync_close } = await fetchData(id$.current);
+              if (signal_sync_close) {
+                  ioc.markdownHelperService.printFields(signal_sync_close_fields, signal_sync_close);
+              }
+          }}
+        />
         <ActionIcon onClick={onClose}>
           <Close />
         </ActionIcon>
