@@ -6,8 +6,9 @@ import {
   useActualRef,
   ActionIcon,
   ttl,
+  Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -194,6 +195,27 @@ export const useSignalView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+            {async () => {
+                const { signal } = await fetchData(id$.current);
+                if (!signal?.id) {
+                    return null;
+                }
+                return (
+                    <ActionIcon
+                        sx={{ mr: "10px" }}
+                        onClick={() => {
+                            ctx.clear();
+                            ioc.routerService.push(
+                                `/dump/${signal.id}`,
+                            );
+                        }}
+                    >
+                        <Search />
+                    </ActionIcon>
+                );
+            }}
+        </Async>
         <CopyIcon
           onClick={async (_, onCopy) => {
             await handleCopy(pathname$.current, id$.current, onCopy)

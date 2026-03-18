@@ -6,8 +6,9 @@ import {
   useActualRef,
   ActionIcon,
   ttl,
+  Async,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -170,6 +171,27 @@ export const usePartialLossCommitView = () => {
     },
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
+        <Async>
+            {async () => {
+                const { partial_loss_commit } = await fetchData(id$.current);
+                if (!partial_loss_commit?.signalId) {
+                    return null;
+                }
+                return (
+                    <ActionIcon
+                        sx={{ mr: "10px" }}
+                        onClick={() => {
+                            ctx.clear();
+                            ioc.routerService.push(
+                                `/dump/${partial_loss_commit.signalId}`,
+                            );
+                        }}
+                    >
+                        <Search />
+                    </ActionIcon>
+                );
+            }}
+        </Async>
         <CopyIcon
           onClick={async (_, onCopy) => {
             await handleCopy(pathname$.current, id$.current, onCopy)
