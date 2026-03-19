@@ -92,7 +92,7 @@ export const ThirdView = ({ params }: IOutletProps) => {
                 interval={payload.interval}
                 reloadSubject={reloadSubject}
                 downloadSubject={downloadSubject}
-                sx={{ height: "calc(100dvh - 100px)" }}
+                sx={{ height: "calc(100dvh - 165px)" }}
             />
         </Container>
     );
