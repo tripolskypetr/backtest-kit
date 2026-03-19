@@ -18,6 +18,7 @@ import {
   randomString,
   Async,
   IGridAction,
+  ActionButton,
 } from "react-declarative";
 import { Button, darken, IconButton, Paper, Stack, SxProps } from "@mui/material";
 import { useMemo } from "react";
@@ -382,6 +383,14 @@ export const SignalGridWidget = ({
     title: "Info",
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={2}>
+        <ActionButton
+            onClick={() =>
+                ioc.layoutService.pickSignal(selectedRow$.current!.id)
+            }
+            variant="outlined"
+        >
+            Show Details
+        </ActionButton>
         <IconButton size="small" onClick={onClose}>
           <Close />
         </IconButton>
