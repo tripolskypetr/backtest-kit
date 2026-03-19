@@ -1,9 +1,11 @@
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { inject } from "../../../lib/core/di";
-import { CandleInterval, alignToInterval } from "backtest-kit";
+import { Backtest, CandleInterval, Live, alignToInterval, listExchangeSchema } from "backtest-kit";
 import StorageMockService from "./StorageMockService";
 import ExchangeService from "../base/ExchangeService";
+
+const HISTORY_LAST_CANDLES_LIMIT = 200;
 
 export class ExchangeMockService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -56,6 +58,48 @@ export class ExchangeMockService {
       signalStopTime: alignToInterval(new Date(updatedAt), interval).getTime(),
       interval,
     });
+  };
+
+  
+  public getLastCandles = async (symbol: string, interval: CandleInterval) => {
+    this.loggerService.log("exchangeMockService getLastCandles", {
+      symbol,
+      interval,
+    });
+
+    const [backtestItem] = await Backtest.list();
+    const [liveItem] = await Live.list();
+
+    const [exchangeItem] = await listExchangeSchema();
+
+    if (backtestItem) {
+      return await this.exchangeService.getLastCandles({
+        symbol,
+        limit: HISTORY_LAST_CANDLES_LIMIT,
+        exchangeName: backtestItem.exchangeName,
+        interval,
+      });
+    }
+
+    if (liveItem) {
+      return await this.exchangeService.getLastCandles({
+        symbol,
+        limit: HISTORY_LAST_CANDLES_LIMIT,
+        exchangeName: liveItem.exchangeName,
+        interval,
+      });
+    }
+
+    if (exchangeItem) {
+      return await this.exchangeService.getLastCandles({
+        symbol,
+        limit: HISTORY_LAST_CANDLES_LIMIT,
+        exchangeName: exchangeItem.exchangeName,
+        interval,
+      });
+    }
+
+    throw new Error(`exchangeMockService getLastCandles no pending strategy symbol=${symbol} interval=${interval}`);
   };
 }
 

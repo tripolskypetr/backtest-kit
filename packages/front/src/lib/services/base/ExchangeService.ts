@@ -102,6 +102,25 @@ export class ExchangeService {
       eDate,
     );
   }
+
+  public getLastCandles = async (dto: {
+    symbol: string;
+    interval: CandleInterval;
+    exchangeName: ExchangeName;
+    limit: number;
+  }) => {
+    this.loggerService.log("exchangeService getLastCandles", {
+      dto,
+    })
+        return await Exchange.getCandles(
+      dto.symbol,
+      dto.interval,
+      dto.limit,
+      {
+        exchangeName: dto.exchangeName,
+      },
+    );
+  }
 }
 
 export default ExchangeService;
