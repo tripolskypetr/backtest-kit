@@ -33,7 +33,9 @@ import TYPES from "./core/TYPES";
 import ExplorerHelperService from "./services/helpers/ExplorerHelperService";
 import MarkdownHelperService from "./services/helpers/MarkdownHelperService";
 import SignalViewService from "./services/view/SignalViewService";
+import HeatViewService from "./services/view/HeatViewService";
 import SignalMockService from "./services/mock/SignalMockService";
+import HeatMockService from "./services/mock/HeatMockService";
 
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
@@ -64,6 +66,7 @@ const mockServices = {
   markdownMockService: inject<MarkdownMockService>(TYPES.markdownMockService),
   explorerMockService: inject<ExplorerMockService>(TYPES.explorerMockService),
   signalMockService: inject<SignalMockService>(TYPES.signalMockService),
+  heatMockService: inject<HeatMockService>(TYPES.heatMockService),
 };
 
 const viewServices = {
@@ -75,6 +78,7 @@ const viewServices = {
   markdownViewService: inject<MarkdownViewService>(TYPES.markdownViewService),
   explorerViewService: inject<ExplorerViewService>(TYPES.explorerViewService),
   signalViewService: inject<SignalViewService>(TYPES.signalViewService),
+  heatViewService: inject<HeatViewService>(TYPES.heatViewService),
 };
 
 export const ioc = {

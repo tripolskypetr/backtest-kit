@@ -1,0 +1,44 @@
+{
+  "symbols": [
+    {
+      "symbol": "BTCUSDT",
+      "totalPnl": 8.21,
+      "sharpeRatio": 1.74,
+      "maxDrawdown": -4.52,
+      "totalTrades": 11,
+      "winCount": 8,
+      "lossCount": 3,
+      "winRate": 72.73,
+      "avgPnl": 0.75,
+      "stdDev": 1.12,
+      "profitFactor": 2.14,
+      "avgWin": 1.83,
+      "avgLoss": -0.97,
+      "maxWinStreak": 4,
+      "maxLossStreak": 2,
+      "expectancy": 0.61
+    },
+    {
+      "symbol": "ETHUSDT",
+      "totalPnl": 4.26,
+      "sharpeRatio": 1.21,
+      "maxDrawdown": -6.31,
+      "totalTrades": 7,
+      "winCount": 4,
+      "lossCount": 3,
+      "winRate": 57.14,
+      "avgPnl": 0.61,
+      "stdDev": 1.44,
+      "profitFactor": 1.47,
+      "avgWin": 1.95,
+      "avgLoss": -1.21,
+      "maxWinStreak": 3,
+      "maxLossStreak": 2,
+      "expectancy": 0.38
+    }
+  ],
+  "totalSymbols": 2,
+  "portfolioTotalPnl": 12.47,
+  "portfolioSharpeRatio": 1.83,
+  "portfolioTotalTrades": 18
+}

@@ -12,7 +12,7 @@ export interface StatusInfoModel {
     context: {
         strategyName: string;
         exchangeName: string;
-        frameName?: string;
+        frameName: string;
     };
     portfolioTotalPnl: number | null;
     portfolioSharpeRatio: number | null;

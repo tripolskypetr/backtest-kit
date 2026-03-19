@@ -180,6 +180,7 @@ export class StatusViewService {
           context: {
             strategyName: liveTarget.strategyName,
             exchangeName: liveTarget.exchangeName,
+            frameName: "",
           },
           portfolioTotalPnl: currentHeat.portfolioTotalPnl,
           portfolioSharpeRatio: currentHeat.portfolioSharpeRatio,

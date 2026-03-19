@@ -8,6 +8,7 @@ import StatusMockService from "../services/mock/StatusMockService";
 import MarkdownMockService from "../services/mock/MarkdownMockService";
 import ExplorerMockService from "../services/mock/ExplorerMockService";
 import SignalMockService from "../services/mock/SignalMockService";
+import HeatMockService from "../services/mock/HeatMockService";
 import NotificationViewService from "../services/view/NotificationViewService";
 import StorageViewService from "../services/view/StorageViewService";
 import ExchangeViewService from "../services/view/ExchangeViewService";
@@ -16,6 +17,7 @@ import StatusViewService from "../services/view/StatusViewService";
 import MarkdownViewService from "../services/view/MarkdownViewService";
 import ExplorerViewService from "../services/view/ExplorerViewService";
 import SignalViewService from "../services/view/SignalViewService";
+import HeatViewService from "../services/view/HeatViewService";
 import { provide } from "./di";
 import { TYPES } from "./types";
 import SymbolConnectionService from "../services/connection/SymbolConnectionService";
@@ -49,6 +51,7 @@ import LiveMetaService from "../services/meta/LiveMetaService";
   provide(TYPES.markdownMockService, () => new MarkdownMockService());
   provide(TYPES.explorerMockService, () => new ExplorerMockService());
   provide(TYPES.signalMockService, () => new SignalMockService());
+  provide(TYPES.heatMockService, () => new HeatMockService());
 }
 
 {
@@ -60,4 +63,5 @@ import LiveMetaService from "../services/meta/LiveMetaService";
  provide(TYPES.markdownViewService, () => new MarkdownViewService());
  provide(TYPES.explorerViewService, () => new ExplorerViewService());
  provide(TYPES.signalViewService, () => new SignalViewService());
+ provide(TYPES.heatViewService, () => new HeatViewService());
 }
