@@ -7,6 +7,7 @@ import {
     ChartOptions,
     CrosshairMode,
     Time,
+    LineStyle,
 } from "lightweight-charts";
 
 import { createChart } from "lightweight-charts";
@@ -20,6 +21,10 @@ interface IChartProps {
     height: number;
     width: number;
     items: ICandleData[];
+    position: "long" | "short" | null;
+    priceOpen: number;
+    priceStopLoss: number;
+    priceTakeProfit: number;
 }
 
 const useStyles = makeStyles()({
@@ -80,7 +85,7 @@ const chartOptions: DeepPartial<ChartOptions> = {
 
 type Ref = React.MutableRefObject<HTMLDivElement>;
 
-export const StockChart = ({ height, width, items }: IChartProps) => {
+export const StockChart = ({ height, width, items, position, priceOpen, priceStopLoss, priceTakeProfit }: IChartProps) => {
     const { classes } = useStyles();
     const elementRef: Ref = useRef<HTMLDivElement>(undefined as never);
     const [tooltipDate, setTooltipDate] = useState<string | null>(null);
@@ -127,6 +132,40 @@ export const StockChart = ({ height, width, items }: IChartProps) => {
         }));
 
         series.setData(data);
+
+        if (position && priceOpen) {
+            const entryColor = position === "long" ? colors.blue[700] : colors.orange[700];
+            series.createPriceLine({
+                price: priceOpen,
+                color: entryColor,
+                lineWidth: 2,
+                lineStyle: LineStyle.Solid,
+                axisLabelVisible: true,
+                title: position === "long" ? "LONG Entry" : "SHORT Entry",
+            });
+        }
+
+        if (priceStopLoss) {
+            series.createPriceLine({
+                price: priceStopLoss,
+                color: colors.red[500],
+                lineWidth: 2,
+                lineStyle: LineStyle.Solid,
+                axisLabelVisible: true,
+                title: "SL",
+            });
+        }
+
+        if (priceTakeProfit) {
+            series.createPriceLine({
+                price: priceTakeProfit,
+                color: colors.green[500],
+                lineWidth: 2,
+                lineStyle: LineStyle.Solid,
+                axisLabelVisible: true,
+                title: "TP",
+            });
+        }
 
         chart.subscribeCrosshairMove((param) => {
             if (param.time) {

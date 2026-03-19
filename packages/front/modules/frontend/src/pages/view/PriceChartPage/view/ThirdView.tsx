@@ -15,6 +15,7 @@ import {
 import ioc from "../../../../lib";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import PriceChartWidget from "../components/PriceChartWidget";
+import { useMemo } from "react";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -93,6 +94,34 @@ export const ThirdView = ({ params }: IOutletProps) => {
         }
     };
 
+    const priceTakeProfit = useMemo(() => {
+        if (pendingSignal) {
+            return pendingSignal.priceTakeProfit;
+        }
+        return 0;
+    }, [pendingSignal]);
+
+    const priceStopLoss = useMemo(() => {
+        if (pendingSignal) {
+            return pendingSignal.priceStopLoss;
+        }
+        return 0;
+    }, [pendingSignal]);
+
+    const priceOpen = useMemo(() => {
+        if (pendingSignal) {
+            return pendingSignal.priceOpen;
+        }
+        return 0;
+    }, [pendingSignal]);
+
+    const position = useMemo(() => {
+        if (pendingSignal) {
+            return pendingSignal.position;
+        }
+        return null;
+    }, [pendingSignal]);
+
     const handleOpen = useActualCallback(async () => {
 
     })
@@ -109,6 +138,10 @@ export const ThirdView = ({ params }: IOutletProps) => {
                 reloadSubject={reloadSubject}
                 downloadSubject={downloadSubject}
                 onInfoClick={handleOpen}
+                position={position}
+                priceOpen={priceOpen}
+                priceStopLoss={priceStopLoss}
+                priceTakeProfit={priceTakeProfit}
                 sx={{ height: "calc(100dvh - 165px)" }}
             />
         )

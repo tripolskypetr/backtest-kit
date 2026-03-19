@@ -1,4 +1,4 @@
-import { Paper, Box, Typography, Divider, SxProps } from "@mui/material";
+import { Paper, Box, Typography, Divider, SxProps, Chip } from "@mui/material";
 import {
     ActionIcon,
     AutoSizer,
@@ -41,6 +41,10 @@ interface IPriceChartWidgetProps {
     reloadSubject: TSubject<void>;
     downloadSubject: TSubject<void>;
     onInfoClick: () => void;
+    position: "long" | "short" | null;
+    priceOpen: number;
+    priceStopLoss: number;
+    priceTakeProfit: number;
     sx?: SxProps;
 }
 
@@ -51,6 +55,10 @@ export const PriceChartWidget = ({
     downloadSubject,
     onInfoClick,
     disableInfo,
+    position,
+    priceOpen,
+    priceStopLoss,
+    priceTakeProfit,
     sx,
 }: IPriceChartWidgetProps) => {
     const [candles, { loading, execute }] = useAsyncValue(
@@ -93,6 +101,10 @@ export const PriceChartWidget = ({
                             items={candles}
                             height={height}
                             width={width}
+                            position={position}
+                            priceOpen={priceOpen}
+                            priceStopLoss={priceStopLoss}
+                            priceTakeProfit={priceTakeProfit}
                         />
                     )}
                 </AutoSizer>
@@ -122,10 +134,18 @@ export const PriceChartWidget = ({
             >
                 <Typography
                     variant="h6"
-                    sx={{ color: "white", fontWeight: "bold" }}
+                    sx={{ color: "white", fontWeight: "bold", mr: 1 }}
                 >
                     {titleMap[interval] || interval}
                 </Typography>
+                {!!position && (
+                    <Chip
+                        variant="filled"
+                        sx={{ color: "white" }}
+                        color={position === "short" ? "warning" : "success"}
+                        label={String(position).toUpperCase()}
+                    />
+                )}
                 <Box sx={{ flex: 1 }} />
                 <ActionIcon disabled={disableInfo} onClick={onInfoClick}>
                     <Info
