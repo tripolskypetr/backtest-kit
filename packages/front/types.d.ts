@@ -54,6 +54,12 @@ declare class ExchangeService {
         exchangeName: ExchangeName$1;
         currentTime: number;
     }) => Promise<backtest_kit.ICandleData[]>;
+    getLastCandles: (dto: {
+        symbol: string;
+        interval: CandleInterval;
+        exchangeName: ExchangeName$1;
+        limit: number;
+    }) => Promise<any>;
 }
 
 declare class NotificationMockService {
@@ -76,6 +82,7 @@ declare class ExchangeMockService {
     private readonly exchangeService;
     getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
     getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    getLastCandles: (symbol: string, interval: CandleInterval) => Promise<any>;
 }
 
 declare class LogMockService {
@@ -233,6 +240,7 @@ declare class ExchangeViewService {
     private readonly signalViewService;
     getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
     getLiveCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    getLastCandles: (symbol: string, interval: CandleInterval) => Promise<any>;
 }
 
 declare class LogViewService {

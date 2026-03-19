@@ -62,6 +62,14 @@ const dashboardRoutes: IRouteItem[] = [
         path: "/dump/:search",
         element: heavy(() => import("../pages/view/DumpPage")),
     },
+    {
+        path: "/price_chart",
+        element: heavy(() => import("../pages/view/ChartsPage")),
+    },
+    {
+        path: "/price_chart/:symbol",
+        element: heavy(() => import("../pages/view/ChartsPage")),
+    },
 ];
 
 export const routes: IRouteItem[] = [
