@@ -19,7 +19,9 @@ import {
     IBreadcrumbs2Action,
     IBreadcrumbs2Option,
     IOutletProps,
+    LoaderView,
     One,
+    sleep,
     TypedField,
     typo,
 } from "react-declarative";
@@ -258,6 +260,8 @@ const fields: TypedField[] = [
     createGroup("Other", other_routes),
 ];
 
+const StatusLoader = () => <LoaderView sx={{ width: "100%", height: "75px" }} />
+
 export const MainPage = () => {
     const { classes } = useStyles();
 
@@ -268,6 +272,10 @@ export const MainPage = () => {
         if (action === "status-action") {
             ioc.routerService.push("/status");
         }
+        if (action === "update-now") {
+            ioc.statusViewService.getStatusInfo.clear();
+            reloadSubject.next();
+        }
     };
 
     return (
@@ -277,7 +285,7 @@ export const MainPage = () => {
                 actions={actions}
                 onAction={handleAction}
             />
-            <Async reloadSubject={reloadSubject}>
+            <Async Loader={StatusLoader} reloadSubject={reloadSubject}>
                 {async () => {
                     const statusInfo = await ioc.statusViewService.getStatusInfo();
                     if (!statusInfo) {

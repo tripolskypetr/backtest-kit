@@ -1,6 +1,6 @@
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/TYPES";
-import { fetchApi, inject, randomString } from "react-declarative";
+import { fetchApi, inject, randomString, ttl } from "react-declarative";
 import {
     CC_CLIENT_ID,
     CC_ENABLE_MOCK,
@@ -10,6 +10,8 @@ import {
 import StatusMockService from "../mock/StatusMockService";
 import StatusModel from "../../../model/Status.model";
 import StatusInfoModel from "../../../model/StatusInfo.model";
+
+const TTL_TIMEOUT = 45_000;
 
 export class StatusViewService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -72,7 +74,7 @@ export class StatusViewService {
         return data;
     };
 
-    public getStatusInfo = async (): Promise<StatusInfoModel> => {
+    public getStatusInfo = ttl(async (): Promise<StatusInfoModel> => {
         this.loggerService.log("statusViewService getStatusInfo");
         if (CC_ENABLE_MOCK) {
             return await this.statusMockService.getStatusInfo();
@@ -90,7 +92,9 @@ export class StatusViewService {
             throw new Error(error);
         }
         return data;
-    };
+    }, {
+        timeout: TTL_TIMEOUT,
+    });
 }
 
 export default StatusViewService;

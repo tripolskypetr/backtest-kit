@@ -111,6 +111,12 @@ export const LOCALE: Record<string, string> = {
   "15 minutes": "15 minutes",
   "1 hour": "1 hour",
   "Chart": "Chart",
+  // StatusInfo
+  "Backtest": "Backtest",
+  "Live": "Live",
+  "Total PNL": "Total PNL",
+  "Total trades": "Total trades",
+  "Trades": "Trades",
   // ErrorView
   "Data is outdated. Please refresh the page": "Data is outdated. Please refresh the page",
   "Disconnected from server": "Disconnected from server",

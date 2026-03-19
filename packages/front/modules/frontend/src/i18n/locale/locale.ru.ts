@@ -111,6 +111,12 @@ export const LOCALE: Record<string, string> = {
   "15 minutes": "15 минут",
   "1 hour": "1 час",
   "Chart": "График",
+  // StatusInfo
+  "Backtest": "Бектест",
+  "Live": "Лайв",
+  "Total PNL": "Итоговый PNL",
+  "Total trades": "Всего сделок",
+  "Trades": "Сделок",
   // ErrorView
   "Data is outdated. Please refresh the page": "Данные устарели. Обновите страницу",
   "Disconnected from server": "Отключен от сервера",

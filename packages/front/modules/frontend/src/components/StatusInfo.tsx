@@ -36,18 +36,21 @@ const useStyles = makeStyles()((theme) => ({
 const fmt = (v: number | null, suffix = "%") =>
     v === null ? "—" : `${v.toFixed(2)}${suffix}`;
 
+const t = (key: string) =>
+    window.Translate ? window.Translate.translateText(key) : key;
+
 const toMarkdown = (data: StatusInfoModel): string => {
     const { context, portfolioTotalPnl, portfolioSharpeRatio, portfolioTotalTrades, symbols, backtest } = data;
 
-    const mode = backtest ? "Бектест" : "Лайв";
+    const mode = backtest ? t("Backtest") : t("Live");
     const frame = context.frameName ? ` / ${context.frameName}` : "";
 
     const lines: string[] = [
         `## ${mode}: ${context.strategyName} / ${context.exchangeName}${frame}`,
         "",
-        `**Итоговый PNL:** ${fmt(portfolioTotalPnl)}  `,
+        `**${t("Total PNL")}:** ${fmt(portfolioTotalPnl)}  `,
         `**Sharpe Ratio:** ${fmt(portfolioSharpeRatio, "")}  `,
-        `**Всего сделок:** ${portfolioTotalTrades}`,
+        `**${t("Total trades")}:** ${portfolioTotalTrades}`,
         "",
     ];
 
@@ -60,7 +63,7 @@ const toMarkdown = (data: StatusInfoModel): string => {
             `**Profit Factor:** ${fmt(s.profitFactor, "")}  `,
             `**Max Drawdown:** ${fmt(s.maxDrawdown)}  `,
             `**Expectancy:** ${fmt(s.expectancy)}  `,
-            `**Сделок:** ${s.totalTrades}`,
+            `**${t("Trades")}:** ${s.totalTrades}`,
             "",
         );
     }
@@ -137,7 +140,7 @@ export const StatusInfo = ({ data }: IStatusInfoProps) => {
                     alignItems="flex-start"
                     justifyContent="center"
                 >
-                    {data.backtest ? "Бектест" : "Лайв"}: {data.context.strategyName}
+                    {data.backtest ? "Backtest" : "Live"}: {data.context.strategyName}
                 </Typography>
 
                 <Collapse in={expanded} timeout="auto" unmountOnExit>
