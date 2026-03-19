@@ -3,7 +3,7 @@ import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { Backtest, Exchange, Live, StorageBacktest, StorageLive } from "backtest-kit";
 import SignalMockService from "../mock/SignalMockService";
-import { CC_ENABLE_MOCK } from "src/config/params";
+import { CC_ENABLE_MOCK } from "../../../config/params";
 
 export class SignalViewService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
