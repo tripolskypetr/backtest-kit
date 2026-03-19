@@ -1,4 +1,4 @@
-import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
+import { Download, KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import { Container } from "@mui/material";
 import {
     Breadcrumbs2,
@@ -43,6 +43,14 @@ const options: IBreadcrumbs2Option[] = [
 
 const actions: IBreadcrumbs2Action[] = [
     {
+        action: "download-now",
+        label: "Download",
+        icon: () => <IconWrapper icon={Download} color="#4caf50" />,
+    },
+    {
+        divider: true,
+    },
+    {
         action: "update-now",
         label: "Refresh",
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
@@ -50,6 +58,8 @@ const actions: IBreadcrumbs2Action[] = [
 ];
 
 const reloadSubject = new Subject<void>();
+
+const downloadSubject = new Subject<void>();
 
 export const ThirdView = ({ params }: IOutletProps) => {
     const payload = useSingleton(() => ({
@@ -63,6 +73,9 @@ export const ThirdView = ({ params }: IOutletProps) => {
         }
         if (action === "update-now") {
             await reloadSubject.next();
+        }
+        if (action === "download-now") {
+            await downloadSubject.next();
         }
     };
 
@@ -78,6 +91,7 @@ export const ThirdView = ({ params }: IOutletProps) => {
                 symbol={payload.symbol}
                 interval={payload.interval}
                 reloadSubject={reloadSubject}
+                downloadSubject={downloadSubject}
                 sx={{ height: "calc(100dvh - 100px)" }}
             />
         </Container>

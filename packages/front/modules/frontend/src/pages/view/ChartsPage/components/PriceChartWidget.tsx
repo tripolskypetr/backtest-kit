@@ -3,6 +3,7 @@ import {
     AutoSizer,
     LoaderView,
     TSubject,
+    useActualValue,
     useAsyncValue,
     useOnce,
 } from "react-declarative";
@@ -22,10 +23,20 @@ const titleMap: Record<string, string> = {
     "1h": "1 hour",
 };
 
+function downloadJson(
+  jsonString: string,
+  fileName: string = "data.json"
+): void {
+  const blob = new Blob([jsonString], { type: "application/json" });
+  const url = window.URL.createObjectURL(blob);
+  ioc.layoutService.downloadFile(url, fileName);
+}
+
 interface IPriceChartWidgetProps {
     symbol: string;
     interval: CandleInterval;
     reloadSubject: TSubject<void>;
+    downloadSubject: TSubject<void>;
     sx?: SxProps;
 }
 
@@ -33,6 +44,7 @@ export const PriceChartWidget = ({
     symbol,
     interval,
     reloadSubject,
+    downloadSubject,
     sx,
 }: IPriceChartWidgetProps) => {
     const [candles, { loading, execute }] = useAsyncValue(
@@ -46,7 +58,17 @@ export const PriceChartWidget = ({
         },
     );
 
+    const candles$ = useActualValue(candles);
+
     useOnce(() => reloadSubject.subscribe(execute));
+
+    useOnce(() => downloadSubject.subscribe(() => {
+      const { current: candles } = candles$;
+      downloadJson(
+        JSON.stringify(candles, null, 2),
+        `${symbol}-${interval}.json`
+      );
+    }));
 
     const renderInner = () => {
         if (!candles || loading) {
