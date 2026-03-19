@@ -64,15 +64,15 @@ const dashboardRoutes: IRouteItem[] = [
     },
     {
         path: "/price_chart",
-        element: heavy(() => import("../pages/view/ChartsPage")),
+        element: heavy(() => import("../pages/view/PriceChartPage")),
     },
     {
         path: "/price_chart/:symbol",
-        element: heavy(() => import("../pages/view/ChartsPage")),
+        element: heavy(() => import("../pages/view/PriceChartPage")),
     },
     {
         path: "/price_chart/:symbol/:interval",
-        element: heavy(() => import("../pages/view/ChartsPage")),
+        element: heavy(() => import("../pages/view/PriceChartPage")),
     },
 ];
 
