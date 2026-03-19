@@ -185,7 +185,7 @@ const createFields = async (): Promise<TypedField[]> => {
     return [createGroup(routes)];
 };
 
-export const MainView = () => {
+export const FirstView = () => {
     const { classes } = useStyles();
     const { reloadTrigger, doReload } = useReloadTrigger();
 
@@ -254,4 +254,4 @@ export const MainView = () => {
     );
 };
 
-export default MainView;
+export default FirstView;

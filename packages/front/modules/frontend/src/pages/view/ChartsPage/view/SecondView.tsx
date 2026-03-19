@@ -133,7 +133,7 @@ const createGroup = (label: string, routes: IRoute[]): TypedField => ({
     ],
 });
 
-export const CoinView = ({ params }: IOutletProps) => {
+export const SecondView = ({ params }: IOutletProps) => {
     const { classes } = useStyles();
     const symbol = params.symbol;
 
@@ -170,4 +170,4 @@ export const CoinView = ({ params }: IOutletProps) => {
     );
 };
 
-export default CoinView;
+export default SecondView;

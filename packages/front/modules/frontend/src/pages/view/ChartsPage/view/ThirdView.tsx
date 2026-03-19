@@ -51,7 +51,7 @@ const actions: IBreadcrumbs2Action[] = [
 
 const reloadSubject = new Subject<void>();
 
-export const ChartView = ({ params }: IOutletProps) => {
+export const ThirdView = ({ params }: IOutletProps) => {
     const payload = useSingleton(() => ({
         symbol: String(params.symbol).toUpperCase(),
         interval: params.interval,
@@ -84,4 +84,4 @@ export const ChartView = ({ params }: IOutletProps) => {
     );
 };
 
-export default ChartView;
+export default ThirdView;
