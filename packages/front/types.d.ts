@@ -182,6 +182,11 @@ declare class SignalMockService {
     getPendingSignal: (symbol: string) => Promise<IPublicSignalRow>;
 }
 
+declare class HeatMockService {
+    private readonly loggerService;
+    getStrategyHeat: () => Promise<any>;
+}
+
 declare class NotificationViewService {
     private readonly loggerService;
     private readonly notificationMockService;
@@ -299,6 +304,12 @@ declare class SignalViewService {
     getPendingSignal: (symbol: string) => Promise<backtest_kit.IPublicSignalRow>;
 }
 
+declare class HeatViewService {
+    private readonly loggerService;
+    private readonly heatMockService;
+    getStrategyHeat: () => Promise<any>;
+}
+
 declare class SymbolConnectionService {
     private readonly loggerService;
     getSymbolList: (() => Promise<{
@@ -380,6 +391,7 @@ declare const ioc: {
     markdownViewService: MarkdownViewService;
     explorerViewService: ExplorerViewService;
     signalViewService: SignalViewService;
+    heatViewService: HeatViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
@@ -388,6 +400,7 @@ declare const ioc: {
     markdownMockService: MarkdownMockService;
     explorerMockService: ExplorerMockService;
     signalMockService: SignalMockService;
+    heatMockService: HeatMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
     backtestMetaService: BacktestMetaService;

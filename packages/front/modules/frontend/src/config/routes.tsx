@@ -63,6 +63,10 @@ const dashboardRoutes: IRouteItem[] = [
         element: heavy(() => import("../pages/view/DumpPage")),
     },
     {
+        path: "/heat",
+        element: heavy(() => import("../pages/view/HeatPage")),
+    },
+    {
         path: "/price_chart",
         element: heavy(() => import("../pages/view/PriceChartPage")),
     },
