@@ -1,3 +1,81 @@
+# Price Charts, Heatmap Page & Status Banner (v5.8, 20/03/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/5.8)
+
+## Frontend: Price Chart Page
+
+<img width="3932" height="1992" alt="image" src="https://github.com/user-attachments/assets/5246c443-6a45-470b-99f3-77065c9dfe2b" />
+
+A new `/price_chart` page with three-level navigation has been added for browsing candlestick data for any symbol in real time.
+
+### Route structure
+
+| Route | Component | Description |
+|---|---|---|
+| `/price_chart` | `FirstView` | Symbol button grid with coin icon and brand color |
+| `/price_chart/:symbol` | `SecondView` | Interval selector: 1m / 15m / 1h |
+| `/price_chart/:symbol/:interval` | `ThirdView` | Chart + signal info panel |
+
+## Frontend: Heatmap Page
+
+<img width="1920" height="951" alt="screenshot31" src="https://github.com/user-attachments/assets/24e31c11-a906-4ad8-a1d6-c1d8838328b0" />
+
+A new `/heat` page has been added showing a per-symbol performance heatmap for the active strategy.
+
+| Field | Description |
+|---|---|
+| Total PNL | Cumulative PNL in % |
+| Win Rate | Percentage of profitable trades |
+| Profit Factor | Ratio of gross profit to gross loss |
+| Max Drawdown | Maximum drawdown in % |
+| Expectancy | Expected profit per trade in % |
+| Trades | Total number of trades |
+
+Header shows the symbol ticker. Card body contains `IconPhoto` (128×128) and fields rendered via `OneTyped`.
+
+## Frontend: StatusInfo Banner on the Main Page
+
+<img width="1920" height="950" alt="screenshot19" src="https://github.com/user-attachments/assets/6c594757-109e-4a93-a9d3-3743d4cc8825" />
+
+A new `StatusInfo` component has been added to the main page (`MainPage`) — a collapsible info banner displaying portfolio-level statistics for the active strategy.
+
+### Behaviour
+
+- Collapsed and semi-transparent by default (opacity 0.35); becomes fully opaque on hover.
+- Clicking it expands to show a markdown rendering with:
+  - Strategy name, exchange, frame, and mode (Backtest / Live).
+  - Portfolio Total PNL, Sharpe Ratio, total trades.
+  - Per-symbol breakdown: PNL, Win Rate, Profit Factor, Max Drawdown, Expectancy, Trades.
+- The `Download` icon button downloads the markdown report without expanding the banner.
+- Refreshes via `reloadSubject` (shared with the Refresh action button).
+
+## Frontend: Main Menu Updates (MainPage)
+
+<img width="1920" height="950" alt="screenshot19" src="https://github.com/user-attachments/assets/5efc180c-0810-4215-ad44-1a92d95103ad" />
+
+### New navigation buttons
+
+Two new routes added to the **Other** group:
+
+| Button | Route | Icon | Color |
+|---|---|---|---|
+| Price Charts | `/price_chart` | `CandlestickChartTwoTone` | `#1565C0` |
+| Heatmap | `/heat` | `LeaderboardTwoTone` | `#8D6E63` |
+
+### Replaced breadcrumb actions
+
+The old `status-action` and `notification-action` entries have been replaced with heatmap export actions:
+
+| Action | Description |
+|---|---|
+| `download-json` | Download Heatmap JSON |
+| `download-markdown` | Download Heatmap Markdown |
+| `download-pdf` | Download Heatmap PDF |
+| `update-now` | Refresh (invalidates `statusViewService` cache) |
+
+
+
+
 # Hold Signals & Dump Explorer (v5.7, 18/03/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/5.7)
