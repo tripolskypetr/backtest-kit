@@ -18,7 +18,7 @@ export const IconPhoto: React.FC<IconPhotoProps> = ({ className, symbol, style, 
           const symbolMap = await ioc.symbolGlobalService.getSymbolMap();
           const symbolData = symbolMap[symbol];
 
-          const iconUrl = symbolData?.icon;
+          const iconUrl = symbolData?.logo || symbolData?.icon;
           const fallbackColor = symbolData?.color || "#ccc";
 
           return (

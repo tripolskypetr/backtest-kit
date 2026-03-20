@@ -33,6 +33,7 @@ const options: IBreadcrumbs2Option[] = [
     },
     {
         type: Breadcrumbs2Type.Link,
+        action: "back-action",
         label: "Heatmap",
     },
 ];

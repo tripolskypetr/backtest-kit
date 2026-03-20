@@ -121,7 +121,7 @@ export const HeatCard = ({ row }: IHeatCardProps) => {
             <div className={classes.container}>
                 <div className={classes.content}>
                     <div className={classes.avatar}>
-                        <IconPhoto symbol={row.symbol} />
+                        <IconPhoto symbol={row.symbol} sx={{ width: 128, height: 128 }} />
                     </div>
                     <OneTyped handler={() => row} fields={fields} sx={{ mb: 2 }} />
                 </div>
