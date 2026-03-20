@@ -1,4 +1,4 @@
-import { makeStyles } from "../../../../../styles";
+import { makeStyles } from "../../../../styles";
 
 import Paper from "@mui/material/Paper";
 
@@ -10,7 +10,7 @@ import {
 
 import { IHeatmapRow } from "backtest-kit";
 import { Typography } from "@mui/material";
-import IconPhoto from "../../../../../components/common/IconPhoto";
+import IconPhoto from "../../../../components/common/IconPhoto";
 
 const useStyles = makeStyles()((theme) => ({
     root: {

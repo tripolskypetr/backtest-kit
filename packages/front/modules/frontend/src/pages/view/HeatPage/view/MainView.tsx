@@ -17,7 +17,7 @@ import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import { IHeatmapRow } from "backtest-kit";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import { reloadSubject } from "../../../../config/emitters";
-import HeatCard from "./components/HeatCard";
+import HeatCard from "../components/HeatCard";
 import ioc from "../../../../lib";
 
 const options: IBreadcrumbs2Option[] = [
