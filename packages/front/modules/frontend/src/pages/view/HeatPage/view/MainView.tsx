@@ -97,6 +97,10 @@ export const MainView = () => {
             const heat = await ioc.heatViewService.getStrategyHeat();
             return createFields(heat.symbols);
         },
+        {
+            onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
+            onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
+        }
     );
 
     useOnce(() => reloadSubject.subscribe(execute));
