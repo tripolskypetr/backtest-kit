@@ -1,3 +1,235 @@
+# Hold Signals & Dump Explorer (v5.7, 18/03/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/5.7)
+
+## Frontend: Dump Explorer Page
+
+<img width="3992" height="2040" alt="image" src="https://github.com/user-attachments/assets/a5e979ba-f4b7-4e44-a39e-db6700e87bd9" />
+
+A new `/dump` route and `DumpPage` have been added to the frontend. The page renders a navigable file tree rooted at the `dump/` directory in the CLI working directory. Users can browse directories and open any file for inspection without leaving the UI.
+
+
+### `DumpPage` / `MainView`
+
+- `RecordView` from `react-declarative` renders the tree with expand/collapse and live search.
+- Directories show a folder icon; files show a type-specific icon (image, JSON, text, generic).
+- Clicking a file opens `useDumpContentView` modal.
+- A **Refresh** breadcrumb action clears the service cache and reloads the tree.
+
+### `useDumpContentView` — file content modal
+
+`useDumpContentView` (`useMarkdownReportView`-style tabbed modal) renders the content of any dump file:
+
+| MIME type | Rendered as |
+|---|---|
+| `text/markdown` | Markdown (existing renderer) |
+| `application/json` / code | Ace syntax-highlighted code editor |
+| Other text | Raw text via `CodeEditor` |
+
+Action buttons in the modal header:
+
+- **Copy** (`CopyIcon`) — copies raw text to clipboard.
+- **Download** — saves the file via browser download.
+- **Print** (markdown only) — renders markdown to PDF/print view.
+
+### `CodeEditor` component — Ace 1.4.12 bundled
+
+A new `CodeEditor` component (`packages/front/modules/frontend/src/components/common/CodeEditor.tsx`) embeds the Ace editor loaded from `/3rdparty/ace_1.4.12/`. Features:
+
+- Theme `chrome` (light) / `twilight` (dark-mode ready).
+- Mode `ace/mode/javascript` as default (JSON and markdown modes prepared but commented out until workers are tuned).
+- `Ctrl-F` / `Cmd-F` triggers a `layoutService.prompt("Find text")` dialog and jumps to the first occurrence.
+- Web workers disabled to avoid CSP issues in embedded mode.
+
+The Ace distribution (`ace.js`, `mode-javascript.js`, `worker-javascript.js`, `theme-chrome.js`, `theme-twilight.js`) is bundled under `packages/front/modules/frontend/public/3rdparty/ace_1.4.12/`.
+
+## Markdown Report View: strategy tab & JSON export
+
+`useMarkdownReportView` now fetches and displays a **Strategy** report tab alongside the existing backtest/live/performance/heat/sync/partial/breakeven/risk/schedule tabs.
+
+A **Download JSON** action was added to the modal (via the new `MenuIcon` component): it serialises the full raw signal dataset for the currently displayed report to a `.json` file and triggers a browser download.
+
+```
+MenuIcon (⋮ menu) exposes:
+  • Download Markdown  — existing behaviour
+  • Download JSON      — new: serialises report data to JSON
+```
+
+The `CopyIcon` component is now also available on the strategy tab — copies the JSON representation of the strategy statistics to clipboard.
+
+
+## Infinite-lifetime signals (`minuteEstimatedTime: Infinity`)
+
+`ISignalDto.minuteEstimatedTime` is now **optional**. When omitted it defaults to `GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES`. Setting it to `Infinity` removes the timeout entirely — the position stays open until TP/SL fires or `closePending()` is called explicitly.
+
+```typescript
+addStrategySchema({
+  strategyName: "hold-btc",
+  getSignal: async (symbol) => ({
+    priceOpen: 42000,
+    priceTakeProfit: 50000,
+    priceStopLoss: 38000,
+    minuteEstimatedTime: Infinity, // no expiry
+  }),
+});
+```
+
+## CLI: triple-path module resolution
+
+`ModuleConnectionService` now searches three locations in order when loading a hot-module file:
+
+1. `<cwd>/modules/<fileName>` — project-local override
+2. `<OVERRIDE_MODULES_DIR>/<fileName>` — package-level override directory
+3. `<DEFAULT_MODULES_DIR>/<fileName>` — built-in default modules
+
+Previously only two paths were checked (override + cwd/modules).
+
+## New tests
+
+- `test/e2e/hold.test.mjs` — end-to-end tests for `minuteEstimatedTime = Infinity` signals: activation, DCA, partial closes, SL/TP with infinite lifetime.
+- `test/e2e/candle_cache.test.mjs` — end-to-end tests for `PersistCandleAdapter` and `getCandles` / `getRawCandles` behaviour across cache boundaries.
+- `test/spec/candle_cache.test.mjs` — unit tests for candle cache correctness.
+
+
+
+
+
+# Highest Profit Tracking & Markdown Report Viewer (v5.6, 13/03/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/5.6)
+
+## Highest Profit Tracking
+
+A new real-time profit peak tracker has been added to both live and backtest engines. Every active signal now maintains a `_peak` record that is updated on each tick whenever price moves further in the profit direction:
+
+- **LONG**: tracks the highest VWAP price seen above the effective entry
+- **SHORT**: tracks the lowest VWAP price seen below the effective entry
+
+The record stores `{ price, timestamp, pnlPercentage, pnlCost }` and is initialised at position open with the entry price and `pendingAt` timestamp.
+
+### New query functions (callable from strategy callbacks)
+
+| Function | Returns |
+|---|---|
+| `getPositionHighestProfitPrice(symbol)` | Best price reached in profit direction |
+| `getPositionHighestProfitTimestamp(symbol)` | Unix timestamp when the peak was recorded |
+| `getPositionHighestPnlPercentage(symbol)` | PnL % at the peak price |
+| `getPositionHighestPnlCost(symbol)` | PnL in quote currency at the peak price |
+| `getPositionHighestProfitBreakeven(symbol)` | Whether breakeven was reachable at the peak |
+| `getPositionDrawdownMinutes(symbol)` | Minutes elapsed since the peak was recorded |
+| `getPositionEstimateMinutes(symbol)` | Original estimated hold duration (`minuteEstimatedTime`) |
+| `getPositionCountdownMinutes(symbol)` | Remaining minutes before the position expires (≥ 0) |
+
+All eight functions are also available on `Backtest.*` and `Live.*` class APIs with an explicit execution context parameter.
+
+### `highestProfitSubject` event emitter
+
+A new `highestProfitSubject` (type `Subject<HighestProfitContract>`) fires every time a new peak is recorded. The event payload carries `symbol`, `currentPrice`, `timestamp`, `strategyName`, `exchangeName`, `frameName`, `signal`, and a `backtest` flag.
+
+Two new listener helpers are exported:
+
+- `listenHighestProfit(fn)` — queued async subscription (events processed sequentially)
+- `listenHighestProfitOnce(filterFn, fn)` — one-shot listener with a filter predicate
+
+### `HighestProfit` utility class
+
+`HighestProfit` (singleton exported from `backtest-kit`) provides three methods for post-run analysis:
+
+- `HighestProfit.getData(symbol, context, backtest?)` — returns `HighestProfitStatisticsModel` with aggregated event history
+- `HighestProfit.getReport(symbol, context, backtest?, columns?)` — returns a markdown-formatted table string
+- `HighestProfit.dump(symbol, context, backtest?, path?, columns?)` — writes the report to `./dump/highest_profit/` (configurable)
+
+### New exports
+
+- `HighestProfitContract` — event contract interface
+- `HighestProfitStatisticsModel` — statistics model
+- `HighestProfitEvent` — individual event type
+- `HighestProfit` — utility singleton
+
+---
+
+## Markdown Report Viewer (frontend)
+
+The `packages/front` server now exposes two new REST route groups:
+
+- **`/api/v1/markdown_mock/*`** — serves pre-built mock JSON fixtures from `mock/markdown/data/` for UI development without a live backend
+- **`/api/v1/markdown_view/*`** — proxies real data from the running engine (falls back to mock when `MOCK=true`)
+
+Both route groups cover all report types: `backtest`, `live`, `breakeven`, `risk`, `partial`, `highest_profit`, `schedule`, `performance`, `sync`, `heat`, and `walker`.
+
+### `ReportPage` & `useMarkdownReportView` hook (frontend module)
+
+A new `/report` page has been added to the frontend. It renders a tabbed report viewer backed by `MarkdownViewService` (DI service). Each tab corresponds to one report type and is powered by a dedicated view component (`BacktestView`, `LiveView`, `PartialView`, `HighestProfitView`, etc.).
+
+The `useMarkdownReportView` hook manages tab state, route synchronisation, and lazy data fetching. A `CopyIcon` component is included to copy report markdown to the clipboard.
+
+
+
+# Minor Improvements (v5.5.2, 11/03/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/5.5.2)
+
+
+## Core: Live Timestamps Aligned to Candle Interval
+
+In live and paper trading the wall-clock `new Date()` was used directly as the tick timestamp (`when`), which caused the timestamp to fall between candle boundaries and produced mismatches when comparing live state to backtest replays. All four call sites now pass the current time through `alignToInterval(new Date(), "1m")` before using it as the execution context timestamp:
+
+- `Exchange.ts` — `GET_TIMESTAMP_FN` (used by `getAveragePrice` / `getCandles` outside backtest context)
+- `Log.ts` — `GET_DATE_FN` (timestamp written to each log entry)
+- `getContextTimestamp.ts` — helper consumed by strategy callbacks
+- `LiveLogicPrivateService.ts` — `when` variable that seeds the execution context on every live tick
+
+This ensures that timestamps emitted during live execution are always snapped to the start of the current 1-minute candle, matching the granularity used in backtests.
+
+## CLI: Extension Resolution Moved into ClientLoader
+
+Previously `ModuleConnectionService` contained its own `getExtVariants` helper and a `LOADER_FACTORY` loop that probed `.cjs / .mjs / .ts / .tsx / .js` variants by calling `fs.access` in sequence. The logic was fragile and duplicated resolution concerns that belong in the loader itself.
+
+The resolution is now centralised in `ClientLoader`:
+
+- `GET_EXT_VARIANTS_FN` — returns a priority-ordered list of candidate paths for a given filename, covering both the bare name and all known extensions.
+- `GET_RESOLVED_EXT_FN` — picks the first existing variant using `fs.existsSync`, called transparently at the top of `ENTRY_FACTORY` before attempting `require` or Babel eval.
+- `ClientLoader.check(filePath)` — new public method that resolves the path and returns `true` if any variant exists on disk, without actually importing the module. Exposed via `ILoader` interface and `LoaderService.check`.
+
+`ModuleConnectionService` was simplified to use `loaderService.check` + `loaderService.import` in sequence, removing the now-redundant `LOADER_FACTORY` function and `getArgs` import.
+
+## CLI: Module Entry-Point Convention Changed to `.module` Suffix
+
+The three main services now load the user's entry file with an explicit `.module` suffix:
+
+| Service | Before | After |
+|---|---|---|
+| `BacktestMainService` | `./backtest` | `./backtest.module` |
+| `LiveMainService` | `./live` | `./live.module` |
+| `PaperMainService` | `./paper` | `./paper.module` |
+
+This disambiguates the strategy entry point from other files in the working directory and makes the expected filename convention explicit.
+
+## CLI: Transpilation Errors Now Exit with a Diagnostic Message
+
+The `TRANSPILE_FN` inside `ClientLoader` previously let exceptions from `eval` propagate silently. It now wraps the `eval` call in a try/catch: on failure it prints a structured message containing the error text, `__filename`, and `__dirname`, then calls `process.exit(-1)` so the CLI terminates cleanly instead of hanging.
+
+## UI: Dashboard Number Formatting Fixes
+
+Two fields in the strategy status panel were displaying raw JavaScript numbers:
+
+- **Total Closed %** — was using `${partialExecuted}%`; now uses `${partialExecuted.toFixed(2)}%` for a consistent two-decimal display.
+- **Average Price** — was using `priceOpen.toLocaleString()` (locale-dependent, variable precision); now uses `priceOpen.toFixed(2)` for a stable two-decimal format.
+
+## Docs: New API Reference Pages
+
+Documentation added for recently introduced services and interfaces:
+
+- `PriceMetaService` — tracks the latest market price per symbol/strategy/exchange/frame key outside of a tick execution context.
+- `TimeMetaService` — analogous service for time metadata.
+- `ActivePingContract` / `SchedulePingContract` — callback contracts for active ping and scheduled ping lifecycle hooks.
+- `CancelScheduledCommitNotification` / `ClosePendingCommitNotification` — notification payload interfaces.
+- `IStrategy` expanded with new optional callback fields.
+- UML diagram (`docs/uml.puml` and `assets/uml.svg`) updated to reflect current architecture.
+
+
+
+
 # TypeScript Module Loader for Strategy Files (v5.5, 10/03/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/5.5)
