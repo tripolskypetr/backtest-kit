@@ -80,8 +80,10 @@ const createFields = (rows: IHeatmapRow[]): TypedField[] => {
             type: FieldType.Center,
             sx: (theme) => ({
                 [theme.breakpoints.up("lg")]: {
-                    height: "calc(100dvh - 116px)",
-                    transform: "translateY(-56px)",
+                    height: "calc(100dvh - 165px)",
+                    "& > *": {
+                        transform: "translateY(-56px)",
+                    }
                 },
             }),
             fields,
@@ -110,10 +112,10 @@ export const MainView = () => {
 
     const renderInner = () => {
         if (!fields || loading) {
-            return <LoaderView sx={{ height: "calc(100dvh - 116px)" }} />;
+            return <LoaderView sx={{ height: "calc(100dvh - 165px)" }} />;
         }
         return (
-            <ScrollView sx={{ height: "calc(100dvh - 116px)" }} hideOverflowX>
+            <ScrollView withScrollbar sx={{ height: "calc(100dvh - 165px)" }} hideOverflowX>
                 <One fields={fields} />
             </ScrollView>
         );
