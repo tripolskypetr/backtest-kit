@@ -13,12 +13,13 @@ import {
 } from "react-declarative";
 
 import { Container } from "@mui/material";
-import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
+import { DataObject, Description, KeyboardArrowLeft, PictureAsPdf, Refresh } from "@mui/icons-material";
 import { IHeatmapRow } from "backtest-kit";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import { reloadSubject } from "../../../../config/emitters";
 import HeatCard from "../components/HeatCard";
 import ioc from "../../../../lib";
+import downloadMarkdown from "../../../../utils/downloadMarkdown";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -36,9 +37,33 @@ const options: IBreadcrumbs2Option[] = [
         action: "back-action",
         label: "Heatmap",
     },
+    {
+        type: Breadcrumbs2Type.Button,
+        action: "download-pdf",
+        label: "Download PDF",
+        icon: PictureAsPdf,
+    },
 ];
 
 const actions: IBreadcrumbs2Action[] = [
+    {
+        action: "download-json",
+        label: "Download JSON",
+        icon: () => <IconWrapper icon={DataObject} color="#4caf50" />,
+    },
+    {
+        action: "download-markdown",
+        label: "Download Markdown",
+        icon: () => <IconWrapper icon={Description} color="#4caf50" />,
+    },
+    {
+        action: "download-pdf",
+        label: "Download PDF",
+        icon: () => <IconWrapper icon={PictureAsPdf} color="#4caf50" />,
+    },
+    {
+        divider: true,
+    },
     {
         action: "update-now",
         label: "Refresh",
@@ -91,6 +116,26 @@ const createFields = (rows: IHeatmapRow[]): TypedField[] => {
     ];
 };
 
+const handleDownloadMarkdown = async () => {
+    const content = await ioc.heatViewService.getStrategyHeatReport();
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    ioc.layoutService.downloadFile(url, `heat_${Date.now()}.md`);
+};
+
+const handleDownloadPdf = async () => {
+    const content = await ioc.heatViewService.getStrategyHeatReport();
+    await downloadMarkdown(content);
+};
+
+const handleDownloadJson = async () => {
+    const data = await ioc.heatViewService.getStrategyHeatData();
+    const content = JSON.stringify(data, null, 2);
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    ioc.layoutService.downloadFile(url, `heat_${Date.now()}.md`);
+}
+
 export const MainView = () => {
     const [fields, { loading, execute }] = useAsyncValue(
         async () => {
@@ -105,12 +150,21 @@ export const MainView = () => {
 
     useOnce(() => reloadSubject.subscribe(execute));
 
-    const handleAction = (action: string) => {
+    const handleAction = async (action: string) => {
         if (action === "back-action") {
             ioc.routerService.push("/");
         }
         if (action === "update-now") {
-            reloadSubject.next();
+            await reloadSubject.next();
+        }
+        if (action === "download-markdown") {
+            await handleDownloadMarkdown();
+        }
+        if (action === "download-pdf") {
+            await handleDownloadPdf();
+        }
+        if (action === "download-json") {
+            await handleDownloadJson();
         }
     };
 
