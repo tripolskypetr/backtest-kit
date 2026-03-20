@@ -33,7 +33,7 @@ import {
     CircleNotificationsTwoTone,
     Dashboard,
     FilePresentTwoTone,
-    GridViewTwoTone,
+    LeaderboardTwoTone,
     InsertChartTwoTone,
     KeyboardArrowLeft,
     NotificationsActive,
@@ -256,8 +256,8 @@ const other_routes: IRoute[] = [
     {
         label: "Heatmap",
         to: `/heat`,
-        color: "#FF6F00",
-        icon: GridViewTwoTone,
+        color: "#8D6E63",
+        icon: LeaderboardTwoTone,
     },
 ];
 
