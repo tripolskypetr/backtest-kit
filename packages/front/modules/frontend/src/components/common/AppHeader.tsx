@@ -3,7 +3,6 @@ import {
     Avatar,
     Box,
     darken,
-    lighten,
     LinearProgress,
     Tab,
     Tabs,
@@ -13,33 +12,16 @@ import { makeStyles } from "../../styles";
 import {
     ActionMenu,
     Center,
-    FieldType,
     IOption,
     openBlank,
-    reloadPage,
-    sleep,
-    TypedField,
-    useAlert,
-    useOne,
-    usePrompt,
-    useSinglerunAction,
 } from "react-declarative";
 import {
-    AccountBalance,
-    Announcement,
     GitHub,
-    Logout,
-    MonetizationOn,
-    Newspaper,
-    Refresh,
-    ShoppingCart,
-    Twitter,
 } from "@mui/icons-material";
 import { ioc } from "../../lib";
 import IconWrapper from "./IconWrapper";
-import { defaultSlots } from "../OneSlotFactory";
 import NotificationView from "./NotificationView";
-import { IRouteItem, ITab } from "../../config/routes";
+import { IRouteItem } from "../../config/routes";
 import { useMemo } from "react";
 
 const LOADER_HEIGHT = 4;
