@@ -145,6 +145,13 @@ export {
   hasTradeContext,
 } from "./function/exchange";
 export {
+  listMemory,
+  readMemory,
+  removeMemory,
+  searchMemory,
+  writeMemory,
+} from "./function/memory";
+export {
   dumpMessages,
 } from "./function/dump";
 
