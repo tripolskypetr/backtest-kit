@@ -29,7 +29,7 @@ export const Tooltip = ({ description, children }: ITooltipProps) => {
                       ]
                     : undefined,
             },
-            tooltip: { sx: { background: "black" } },
+            tooltip: { sx: { background: "black", p: 1.5, fontSize: "16px" } },
             arrow: { sx: { color: "black" } },
         }),
         [isDesktop],
