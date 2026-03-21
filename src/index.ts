@@ -352,6 +352,8 @@ export {
   PersistLogAdapter,
   MeasureData,
   PersistMeasureAdapter,
+  MemoryData,
+  PersistMemoryAdapter,
 } from "./classes/Persist";
 
 export {
