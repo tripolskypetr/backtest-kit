@@ -160,8 +160,6 @@ const PERSIST_MEMORY_UTILS_METHOD_NAME_LIST_DATA =
   "PersistMemoryUtils.listMemoryData";
 const PERSIST_MEMORY_UTILS_METHOD_NAME_HAS_DATA =
   "PersistMemoryUtils.hasMemoryData";
-const PERSIST_MEMORY_UTILS_METHOD_NAME_ITER_DATA =
-  "PersistMemoryUtils.iterMemoryData";
 
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
@@ -2254,7 +2252,7 @@ export class PersistMemoryUtils {
     signalId: string,
     bucketName: string
   ): AsyncGenerator<{ memoryId: string; data: MemoryData }> {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_ITER_DATA, {
+    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_LIST_DATA, {
       signalId,
       bucketName,
     });
@@ -2264,6 +2262,9 @@ export class PersistMemoryUtils {
     await stateStorage.waitForInit(isInitial);
     for await (const memoryId of stateStorage.keys()) {
       const data = await stateStorage.readValue(String(memoryId));
+      if (data === null) {
+        continue;
+      }
       yield { memoryId: String(memoryId), data };
     }
   };
