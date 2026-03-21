@@ -9,7 +9,6 @@ import {
     lighten,
     Paper,
     Stack,
-    Tooltip,
 } from "@mui/material";
 import {
     Async,
@@ -56,6 +55,7 @@ import { reloadSubject } from "../../../config/emitters";
 import StatusInfo from "../../../components/StatusInfo";
 import downloadMarkdown from "../../../utils/downloadMarkdown";
 import str from "../../../utils/src";
+import Tooltip from "../../../components/common/Tooltip";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
 const GROUP_ROOT = "backtest-kit__groupRoot";
@@ -140,15 +140,7 @@ const createButton = (
     fieldRightMargin: "1",
     fieldBottomMargin: "1",
     element: () => (
-        <Tooltip
-            title={description}
-            slotProps={{
-                popper: { sx: { pointerEvents: "none" } },
-                tooltip: { sx: { background: "black" } },
-                arrow: { sx: { color: "black" } },
-            }}
-            arrow
-        >
+        <Tooltip description={description}>
             <Button
                 component={ButtonBase}
                 onClick={() => {
