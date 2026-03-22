@@ -1,6 +1,8 @@
 const DEFAULT_BM25_K1 = 1.5;
 const DEFAULT_BM25_B = 0.75;
 
+const USE_FULL_RECOMPUTE = false;
+
 export type SearchSettings = {
   BM25_K1: number;
   BM25_B: number;
@@ -30,10 +32,23 @@ export const createSearchIndex = () => {
     string,
     { tf: Map<string, number>; len: number; content: object; priority: number }
   >();
+
   const recomputeDf = () => {
     df.clear();
     for (const doc of docs.values())
       doc.tf.forEach((_, term) => df.set(term, (df.get(term) ?? 0) + 1));
+  };
+
+  const addDf = (tf: Map<string, number>) => {
+    tf.forEach((_, term) => df.set(term, (df.get(term) ?? 0) + 1));
+  };
+
+  const subtractDf = (tf: Map<string, number>) => {
+    tf.forEach((_, term) => {
+      const count = (df.get(term) ?? 0) - 1;
+      if (count <= 0) df.delete(term);
+      else df.set(term, count);
+    });
   };
 
   const upsert = ({
@@ -47,18 +62,33 @@ export const createSearchIndex = () => {
     index?: string;
     priority?: number;
   }) => {
+    const existing = docs.get(id);
+    if (!USE_FULL_RECOMPUTE) {
+      existing && subtractDf(existing.tf);
+    }
     const tokens = tokenize(index);
     const tf = new Map<string, number>();
     for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
     docs.set(id, { tf, len: tokens.length, content, priority });
-    recomputeDf();
+    if (!USE_FULL_RECOMPUTE) {
+      addDf(tf);
+    }
+    if (USE_FULL_RECOMPUTE) {
+      recomputeDf();
+    }
   };
 
   const read = (id: string): object | undefined => docs.get(id)?.content;
 
   const remove = (id: string) => {
+    if (!USE_FULL_RECOMPUTE) {
+      const existing = docs.get(id);
+      existing && subtractDf(existing.tf);
+    }
     docs.delete(id);
-    recomputeDf();
+    if (USE_FULL_RECOMPUTE) {
+      recomputeDf();
+    }
   };
 
   const list = (): Array<{ id: string; content: object }> =>
