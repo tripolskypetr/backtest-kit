@@ -114,7 +114,7 @@ export type TMemoryInstanceCtor = new (
  * Public surface of MemoryAdapter — IMemoryInstance minus waitForInit.
  * waitForInit is managed internally by the adapter.
  */
-export type TMemoryIntance = Omit<
+export type TMemoryInstance = Omit<
   {
     [key in keyof IMemoryInstance]: any;
   },
@@ -243,7 +243,7 @@ export class MemoryLocalInstance implements IMemoryInstance {
  * The BM25 index is rebuilt from disk on waitForInit.
  *
  * Storage layout:
- *   ./dump/data/memory/<bucketName>/<signalId>/<memoryId>.json
+ *   ./dump/memory/<bucketName>/<signalId>/<memoryId>.json
  *
  * Features:
  * - Crash-safe atomic file writes
@@ -445,7 +445,7 @@ export class MemoryDummyInstance implements IMemoryInstance {
  * - Swappable backend via useLocal(), usePersist(), useDummy()
  * - Default backend: MemoryPersistInstance (in-memory BM25 + persist storage)
  */
-export class MemoryAdapter implements TMemoryIntance {
+export class MemoryAdapter implements TMemoryInstance {
   private MemoryFactory: TMemoryInstanceCtor = MemoryPersistInstance;
 
   private getInstance = memoize(
@@ -560,7 +560,7 @@ export class MemoryAdapter implements TMemoryIntance {
 
   /**
    * Switches to file-system backed adapter.
-   * Data is persisted to ./dump/data/memory/<bucketName>/<signalId>/.
+   * Data is persisted to ./dump/memory/<bucketName>/<signalId>/.
    */
   public usePersist = (): void => {
     swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_USE_PERSIST);

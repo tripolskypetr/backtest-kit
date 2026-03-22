@@ -2079,7 +2079,7 @@ export type MemoryData = {
  * - Atomic read/write/remove operations
  * - Async iteration over stored keys for index rebuilding
  *
- * Storage layout: ./dump/data/memory/<bucketName>/<signalId>/<memoryId>.json
+ * Storage layout: ./dump/memory/<bucketName>/<signalId>/<memoryId>.json
  *
  * Used by MemoryPersistInstance for crash-safe memory persistence.
  */

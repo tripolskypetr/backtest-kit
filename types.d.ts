@@ -1,6 +1,4 @@
 import * as di_scoped from 'di-scoped';
-import * as src_interfaces_Strategy_interface from 'src/interfaces/Strategy.interface';
-import { IPublicSignalRow as IPublicSignalRow$1 } from 'src/interfaces/Strategy.interface';
 import * as functools_kit from 'functools-kit';
 import { Subject } from 'functools-kit';
 import { WriteStream } from 'fs';
@@ -4885,7 +4883,7 @@ declare function getTotalCostClosed(symbol: string): Promise<number>;
  * }
  * ```
  */
-declare function getPendingSignal(symbol: string): Promise<IPublicSignalRow$1 | null>;
+declare function getPendingSignal(symbol: string): Promise<IPublicSignalRow | null>;
 /**
  * Returns the currently active scheduled signal for the strategy.
  * If no scheduled signal exists, returns null.
@@ -4905,7 +4903,7 @@ declare function getPendingSignal(symbol: string): Promise<IPublicSignalRow$1 | 
  * }
  * ```
  */
-declare function getScheduledSignal(symbol: string): Promise<src_interfaces_Strategy_interface.IScheduledSignalRow>;
+declare function getScheduledSignal(symbol: string): Promise<IScheduledSignalRow>;
 /**
  * Checks if breakeven threshold has been reached for the current pending signal.
  *
@@ -8406,6 +8404,8 @@ declare function getAggregatedTrades(symbol: string, limit?: number): Promise<IA
  * @param dto.value - Value to store
  * @returns Promise that resolves when write is complete
  *
+ * @deprecated Better use Memory.writeMemory with manual signalId argument
+ *
  * @example
  * ```typescript
  * import { writeMemory } from "backtest-kit";
@@ -8431,6 +8431,8 @@ declare function writeMemory<T extends object = object>(dto: {
  * @returns Promise resolving to stored value or null if no signal
  * @throws Error if entry not found within an active signal
  *
+ * @deprecated Better use Memory.readMemory with manual signalId argument
+ *
  * @example
  * ```typescript
  * import { readMemory } from "backtest-kit";
@@ -8453,6 +8455,8 @@ declare function readMemory<T extends object = object>(dto: {
  * @param dto.bucketName - Memory bucket name
  * @param dto.query - Search query string
  * @returns Promise resolving to matching entries sorted by relevance, or empty array if no signal
+ *
+ * @deprecated Better use Memory.searchMemory with manual signalId argument
  *
  * @example
  * ```typescript
@@ -8480,6 +8484,8 @@ declare function searchMemory<T extends object = object>(dto: {
  * @param dto.bucketName - Memory bucket name
  * @returns Promise resolving to all stored entries, or empty array if no signal
  *
+ * @deprecated Better use Memory.listMemory with manual signalId argument
+ *
  * @example
  * ```typescript
  * import { listMemory } from "backtest-kit";
@@ -8504,6 +8510,8 @@ declare function listMemory<T extends object = object>(dto: {
  * @param dto.bucketName - Memory bucket name
  * @param dto.memoryId - Unique memory entry identifier
  * @returns Promise that resolves when removal is complete
+ *
+ * @deprecated Better use Memory.removeMemory with manual signalId argument
  *
  * @example
  * ```typescript
@@ -11422,6 +11430,7 @@ declare const PersistMeasureAdapter: PersistMeasureUtils;
 type MemoryData = {
     priority: number;
     data: object;
+    removed: boolean;
 };
 /**
  * Utility class for managing memory entry persistence.
@@ -11432,7 +11441,7 @@ type MemoryData = {
  * - Atomic read/write/remove operations
  * - Async iteration over stored keys for index rebuilding
  *
- * Storage layout: ./dump/data/memory/<bucketName>/<signalId>/<memoryId>.json
+ * Storage layout: ./dump/memory/<bucketName>/<signalId>/<memoryId>.json
  *
  * Used by MemoryPersistInstance for crash-safe memory persistence.
  */
@@ -11492,7 +11501,7 @@ declare class PersistMemoryUtils {
      */
     writeMemoryData: (data: MemoryData, signalId: string, bucketName: string, memoryId: string) => Promise<void>;
     /**
-     * Removes a memory entry from disk.
+     * Marks a memory entry as removed (soft delete — file is kept on disk).
      *
      * @param signalId - Signal identifier
      * @param bucketName - Bucket name
@@ -11508,7 +11517,7 @@ declare class PersistMemoryUtils {
      * @param bucketName - Bucket name
      * @returns AsyncGenerator yielding memory entry IDs
      */
-    listMemoryData: (signalId: string, bucketName: string) => AsyncGenerator<{
+    listMemoryData(signalId: string, bucketName: string): AsyncGenerator<{
         memoryId: string;
         data: MemoryData;
     }>;
@@ -17967,6 +17976,11 @@ declare const NotificationLive: NotificationLiveAdapter;
  */
 declare const NotificationBacktest: NotificationBacktestAdapter;
 
+type SearchSettings = {
+    BM25_K1: number;
+    BM25_B: number;
+};
+
 /**
  * Interface for memory instance implementations.
  * Defines the contract for local, persist, and dummy backends.
@@ -17988,7 +18002,7 @@ interface IMemoryInstance {
      * @param query - Search query string
      * @returns Array of matching entries with scores
      */
-    searchMemory<T extends object = object>(query: string): Promise<Array<{
+    searchMemory<T extends object = object>(query: string, settings?: SearchSettings): Promise<Array<{
         memoryId: string;
         score: number;
         content: T;
@@ -18023,7 +18037,7 @@ type TMemoryInstanceCtor = new (signalId: string, bucketName: string) => IMemory
  * Public surface of MemoryAdapter — IMemoryInstance minus waitForInit.
  * waitForInit is managed internally by the adapter.
  */
-type TMemoryIntance = Omit<{
+type TMemoryInstance = Omit<{
     [key in keyof IMemoryInstance]: any;
 }, keyof {
     waitForInit: never;
@@ -18035,9 +18049,9 @@ type TMemoryIntance = Omit<{
  * Features:
  * - Memoized instances per (signalId, bucketName) pair
  * - Swappable backend via useLocal(), usePersist(), useDummy()
- * - Default backend: MemoryLocalInstance (in-memory BM25)
+ * - Default backend: MemoryPersistInstance (in-memory BM25 + persist storage)
  */
-declare class MemoryAdapter implements TMemoryIntance {
+declare class MemoryAdapter implements TMemoryInstance {
     private MemoryFactory;
     private getInstance;
     /**
@@ -18064,6 +18078,7 @@ declare class MemoryAdapter implements TMemoryIntance {
         query: string;
         signalId: string;
         bucketName: string;
+        settings?: SearchSettings;
     }) => Promise<{
         memoryId: string;
         score: number;
@@ -18113,7 +18128,7 @@ declare class MemoryAdapter implements TMemoryIntance {
     useLocal: () => void;
     /**
      * Switches to file-system backed adapter.
-     * Data is persisted to ./dump/data/memory/<bucketName>/<signalId>/.
+     * Data is persisted to ./dump/memory/<bucketName>/<signalId>/.
      */
     usePersist: () => void;
     /**
