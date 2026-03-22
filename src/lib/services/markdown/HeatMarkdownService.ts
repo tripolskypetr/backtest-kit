@@ -126,9 +126,13 @@ class HeatmapStorage {
   ) {}
 
   /**
-   * Adds a closed signal to the storage.
+   * Adds a closed signal to the per-symbol queue.
    *
-   * @param data - Closed signal data with PNL and symbol
+   * New signals are prepended (most recent first). Once the queue exceeds
+   * `GLOBAL_CONFIG.CC_MAX_HEATMAP_MARKDOWN_ROWS` (250) entries for a given
+   * symbol, the oldest entry is dropped from the tail to cap memory usage.
+   *
+   * @param data - Closed signal result containing `symbol` and `pnl.pnlPercentage`
    */
   public addSignal(data: IStrategyTickResultClosed) {
     const { symbol } = data;
@@ -148,11 +152,24 @@ class HeatmapStorage {
 
 
   /**
-   * Calculates statistics for a single symbol.
+   * Calculates all aggregated trading statistics for a single symbol.
    *
-   * @param symbol - Trading pair symbol
-   * @param signals - Array of closed signals for this symbol
-   * @returns Heatmap row with aggregated statistics
+   * Metrics computed (all guard-checked via `isUnsafe` — set to `null` on
+   * NaN / Infinity / non-number):
+   * - **totalPnl** — sum of `pnlPercentage` across all signals
+   * - **avgPnl** — arithmetic mean of `pnlPercentage`
+   * - **stdDev** — population standard deviation of `pnlPercentage`
+   * - **sharpeRatio** — `avgPnl / stdDev`; requires ≥ 2 signals and `stdDev > 0`
+   * - **maxDrawdown** — largest cumulative loss streak (absolute value of peak negative equity)
+   * - **profitFactor** — `sumWins / |sumLosses|`; requires at least one win and one loss
+   * - **avgWin / avgLoss** — mean of positive / negative trades respectively
+   * - **winRate** — `winCount / totalTrades * 100`
+   * - **maxWinStreak / maxLossStreak** — longest unbroken run of consecutive wins/losses
+   * - **expectancy** — `(winRate/100)*avgWin + (lossRate/100)*avgLoss`
+   *
+   * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+   * @param signals - Array of closed signals for this symbol (newest first)
+   * @returns `IHeatmapRow` with all aggregated statistics; unavailable metrics are `null`
    */
   private calculateSymbolStats(
     symbol: string,
@@ -313,9 +330,19 @@ class HeatmapStorage {
   }
 
   /**
-   * Gets aggregated portfolio heatmap statistics (Controller).
+   * Builds the full `HeatmapStatisticsModel` for this storage instance.
    *
-   * @returns Promise resolving to heatmap statistics with per-symbol and portfolio-wide metrics
+   * Steps:
+   * 1. Calls `calculateSymbolStats` for every tracked symbol.
+   * 2. Sorts symbols by `sharpeRatio` descending — best performers first,
+   *    symbols with `null` sharpeRatio placed at the end.
+   * 3. Computes portfolio-wide aggregates:
+   *    - `portfolioTotalPnl` — sum of all per-symbol `totalPnl` values (treats `null` as 0)
+   *    - `portfolioTotalTrades` — sum of all per-symbol `totalTrades`
+   *    - `portfolioSharpeRatio` — trade-count-weighted average of per-symbol sharpe ratios
+   *
+   * @returns Promise resolving to `HeatmapStatisticsModel` with per-symbol rows and
+   *   portfolio-wide `portfolioTotalPnl`, `portfolioSharpeRatio`, `portfolioTotalTrades`
    */
   public async getData(): Promise<HeatmapStatisticsModel> {
     const symbols: IHeatmapRow[] = [];
@@ -372,11 +399,27 @@ class HeatmapStorage {
   }
 
   /**
-   * Generates markdown report with portfolio heatmap table (View).
+   * Renders a markdown heatmap report for this storage instance.
    *
-   * @param strategyName - Strategy name for report title
-   * @param columns - Column configuration for formatting the table
-   * @returns Promise resolving to markdown formatted report string
+   * Output structure (when data is available):
+   * ```
+   * # Portfolio Heatmap: {strategyName}
+   *
+   * **Total Symbols:** N | **Portfolio PNL:** X% | **Portfolio Sharpe:** Y | **Total Trades:** Z
+   *
+   * | col1 | col2 | ... |
+   * | ---  | ---  | ... |
+   * | ...  | ...  | ... |
+   * ```
+   * When no signals have been recorded, returns a minimal header with `*No data available*`.
+   *
+   * Only columns whose `isVisible()` returns `true` are included in the table.
+   * Rows are ordered by `sharpeRatio` descending (same order as `getData()`).
+   *
+   * @param strategyName - Strategy name rendered in the `# Portfolio Heatmap:` heading
+   * @param columns - Column definitions controlling which fields appear and how they are
+   *   formatted; defaults to `COLUMN_CONFIG.heat_columns`
+   * @returns Promise resolving to the full markdown string
    */
   public async getReport(
     strategyName: StrategyName,
@@ -419,11 +462,20 @@ class HeatmapStorage {
   }
 
   /**
-   * Saves heatmap report to disk.
+   * Generates the markdown report and persists it via `Markdown.writeData`.
    *
-   * @param strategyName - Strategy name for filename
-   * @param path - Directory path to save report (default: "./dump/heatmap")
-   * @param columns - Column configuration for formatting the table
+   * The filename is built by `CREATE_FILE_NAME_FN`:
+   * - Backtest: `{strategyName}_{exchangeName}_{frameName}_backtest-{timestamp}.md`
+   * - Live:     `{strategyName}_{exchangeName}_live-{timestamp}.md`
+   *
+   * The timestamp comes from `getContextTimestamp()` — the backtest execution
+   * context clock when inside a backtest, or the real clock aligned to the
+   * nearest minute when running live.
+   *
+   * @param strategyName - Strategy name used in the report heading and filename
+   * @param path - Directory to write the file into; defaults to `"./dump/heatmap"`
+   * @param columns - Column definitions for table formatting;
+   *   defaults to `COLUMN_CONFIG.heat_columns`
    */
   public async dump(
     strategyName: StrategyName,
@@ -529,12 +581,15 @@ export class HeatMarkdownService {
   };
 
   /**
-   * Processes tick events and accumulates closed signals.
-   * Should be called from signal emitter subscription.
+   * Handles a single tick event emitted by `signalEmitter`.
    *
-   * Only processes closed signals - opened signals are ignored.
+   * Filters out every action except `"closed"` — idle, scheduled, waiting,
+   * opened, active, and cancelled ticks are silently ignored.
+   * For closed signals, routes the payload to the appropriate `HeatmapStorage`
+   * via `getStorage(exchangeName, frameName, backtest)` and calls `addSignal`.
    *
-   * @param data - Tick result from strategy execution (closed signals only)
+   * @param data - Union tick result from `signalEmitter`; only
+   *   `IStrategyTickResultClosed` payloads are processed
    */
   private tick = async (data: IStrategyTickResult) => {
     this.loggerService.log("heatMarkdownService tick", {
@@ -550,12 +605,19 @@ export class HeatMarkdownService {
   };
 
   /**
-   * Gets aggregated portfolio heatmap statistics.
+   * Returns aggregated portfolio heatmap statistics for the given context.
    *
-   * @param exchangeName - Exchange name
-   * @param frameName - Frame name
-   * @param backtest - True if backtest mode, false if live mode
-   * @returns Promise resolving to heatmap statistics with per-symbol and portfolio-wide metrics
+   * Delegates to the `HeatmapStorage` instance identified by
+   * `(exchangeName, frameName, backtest)`. If no signals have been accumulated
+   * yet for that combination, the returned `symbols` array will be empty and
+   * portfolio-level fields will be `null` / `0`.
+   *
+   * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+   * @param frameName - Backtest frame identifier (e.g. `"1m-btc"`)
+   * @param backtest - `true` for backtest mode, `false` for live mode
+   * @returns Promise resolving to `HeatmapStatisticsModel` with per-symbol rows
+   *   sorted by `sharpeRatio` descending and portfolio-wide aggregates
+   * @throws {Error} If `subscribe()` has not been called before this method
    *
    * @example
    * ```typescript
@@ -588,30 +650,34 @@ export class HeatMarkdownService {
   };
 
   /**
-   * Generates markdown report with portfolio heatmap table.
+   * Generates a markdown heatmap report for the given context.
    *
-   * @param strategyName - Strategy name for report title
-   * @param exchangeName - Exchange name
-   * @param frameName - Frame name
-   * @param backtest - True if backtest mode, false if live mode
-   * @param columns - Column configuration for formatting the table
-   * @returns Promise resolving to markdown formatted report string
+   * Delegates to `HeatmapStorage.getReport`. The resulting string includes a
+   * portfolio summary line followed by a markdown table with one row per
+   * symbol, ordered by `sharpeRatio` descending.
+   *
+   * @param strategyName - Strategy name rendered in the report heading
+   * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+   * @param frameName - Backtest frame identifier (e.g. `"1m-btc"`)
+   * @param backtest - `true` for backtest mode, `false` for live mode
+   * @param columns - Column definitions controlling the table layout;
+   *   defaults to `COLUMN_CONFIG.heat_columns`
+   * @returns Promise resolving to the full markdown string
+   * @throws {Error} If `subscribe()` has not been called before this method
    *
    * @example
    * ```typescript
    * const service = new HeatMarkdownService();
    * const markdown = await service.getReport("my-strategy", "binance", "frame1", true);
    * console.log(markdown);
-   * // Output:
    * // # Portfolio Heatmap: my-strategy
    * //
    * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Portfolio Sharpe:** 1.85 | **Total Trades:** 120
    * //
    * // | Symbol | Total PNL | Sharpe | Max DD | Trades |
-   * // |--------|-----------|--------|--------|--------|
-   * // | BTCUSDT | +15.5% | 2.10 | -2.5% | 45 |
-   * // | ETHUSDT | +12.3% | 1.85 | -3.1% | 38 |
-   * // ...
+   * // | ---    | ---       | ---    | ---    | ---    |
+   * // | BTCUSDT | +15.5%  | 2.10   | -2.5%  | 45     |
+   * // | ETHUSDT | +12.3%  | 1.85   | -3.1%  | 38     |
    * ```
    */
   public getReport = async (
@@ -635,26 +701,29 @@ export class HeatMarkdownService {
   };
 
   /**
-   * Saves heatmap report to disk.
+   * Generates the heatmap report and writes it to disk.
    *
-   * Creates directory if it doesn't exist.
-   * Default filename: {strategyName}.md
+   * Delegates to `HeatmapStorage.dump`. The filename follows the pattern:
+   * - Backtest: `{strategyName}_{exchangeName}_{frameName}_backtest-{timestamp}.md`
+   * - Live:     `{strategyName}_{exchangeName}_live-{timestamp}.md`
    *
-   * @param strategyName - Strategy name for report filename
-   * @param exchangeName - Exchange name
-   * @param frameName - Frame name
-   * @param backtest - True if backtest mode, false if live mode
-   * @param path - Optional directory path to save report (default: "./dump/heatmap")
-   * @param columns - Column configuration for formatting the table
+   * @param strategyName - Strategy name used in the report heading and filename
+   * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+   * @param frameName - Backtest frame identifier (e.g. `"1m-btc"`)
+   * @param backtest - `true` for backtest mode, `false` for live mode
+   * @param path - Directory to write the file into; defaults to `"./dump/heatmap"`
+   * @param columns - Column definitions for table formatting;
+   *   defaults to `COLUMN_CONFIG.heat_columns`
+   * @throws {Error} If `subscribe()` has not been called before this method
    *
    * @example
    * ```typescript
    * const service = new HeatMarkdownService();
    *
-   * // Save to default path: ./dump/heatmap/my-strategy.md
+   * // Save to default path
    * await service.dump("my-strategy", "binance", "frame1", true);
    *
-   * // Save to custom path: ./reports/my-strategy.md
+   * // Save to custom path
    * await service.dump("my-strategy", "binance", "frame1", true, "./reports");
    * ```
    */
@@ -681,20 +750,26 @@ export class HeatMarkdownService {
   };
 
   /**
-   * Clears accumulated heatmap data from storage.
-   * If payload is provided, clears only that exchangeName+frameName+backtest combination's data.
-   * If payload is omitted, clears all data.
+   * Evicts memoized `HeatmapStorage` instances, releasing all accumulated signal data.
    *
-   * @param payload - Optional payload with exchangeName, frameName, backtest to clear specific data
+   * - With `payload` — clears only the storage bucket identified by
+   *   `(payload.exchangeName, payload.frameName, payload.backtest)`;
+   *   subsequent calls to `getData` / `getReport` / `dump` for that combination
+   *   will start from an empty state.
+   * - Without `payload` — clears **all** storage buckets across every
+   *   exchange / frame / mode combination.
+   *
+   * Also called internally by the unsubscribe closure returned from `subscribe()`.
+   *
+   * @param payload - Optional scope to restrict which bucket is cleared;
+   *   omit to clear everything
    *
    * @example
    * ```typescript
-   * const service = new HeatMarkdownService();
-   *
-   * // Clear specific exchange+frame+backtest data
+   * // Clear one specific context
    * await service.clear({ exchangeName: "binance", frameName: "frame1", backtest: true });
    *
-   * // Clear all data
+   * // Clear all contexts
    * await service.clear();
    * ```
    */

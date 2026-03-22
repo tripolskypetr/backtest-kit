@@ -68,9 +68,18 @@ class ReportStorage {
     readonly symbol: string,
     readonly strategyName: StrategyName,
     readonly exchangeName: ExchangeName,
-    readonly frameName: FrameName
+    readonly frameName: FrameName,
+    readonly backtest: boolean
   ) {}
 
+  /**
+   * Prepends a sync event to the internal queue (most recent first).
+   *
+   * Once the queue exceeds `GLOBAL_CONFIG.CC_MAX_SYNC_MARKDOWN_ROWS` (250)
+   * entries, the oldest event is dropped from the tail to cap memory usage.
+   *
+   * @param event - Fully constructed `SyncEvent` to record
+   */
   public addEvent(event: SyncEvent) {
     this._eventList.unshift(event);
     if (this._eventList.length > GLOBAL_CONFIG.CC_MAX_SYNC_MARKDOWN_ROWS) {
@@ -78,6 +87,16 @@ class ReportStorage {
     }
   }
 
+  /**
+   * Builds `SyncStatisticsModel` from the accumulated event queue.
+   *
+   * Counts `"signal-open"` and `"signal-close"` actions separately.
+   * If no events have been recorded yet, returns an empty model with all
+   * counters set to `0`.
+   *
+   * @returns Promise resolving to `SyncStatisticsModel` with the full
+   *   event list and `totalEvents`, `openCount`, `closeCount` counters
+   */
   public async getData(): Promise<SyncStatisticsModel> {
     if (this._eventList.length === 0) {
       return {
@@ -103,6 +122,33 @@ class ReportStorage {
     };
   }
 
+  /**
+   * Renders a markdown sync report for this storage instance.
+   *
+   * Output structure (when events are available):
+   * ```
+   * # Signal Sync Report: {symbol}:{strategyName}
+   *
+   * | col1 | col2 | ... |
+   * | ---  | ---  | ... |
+   * | ...  | ...  | ... |
+   *
+   * **Total events:** N
+   * **Opens:** N
+   * **Closes:** N
+   * ```
+   * When no events have been recorded yet, returns a minimal header with
+   * `"No sync events recorded yet."`.
+   *
+   * Only columns whose `isVisible()` returns `true` are included.
+   * Rows are ordered newest-first (same order as the internal queue).
+   *
+   * @param symbol - Symbol rendered in the `# Signal Sync Report:` heading
+   * @param strategyName - Strategy name rendered in the heading
+   * @param columns - Column definitions controlling which fields appear and how
+   *   they are formatted; defaults to `COLUMN_CONFIG.sync_columns`
+   * @returns Promise resolving to the full markdown string
+   */
   public async getReport(
     symbol: string,
     strategyName: StrategyName,
@@ -146,6 +192,23 @@ class ReportStorage {
     ].join("\n");
   }
 
+  /**
+   * Generates the markdown report and persists it via `Markdown.writeData`.
+   *
+   * The filename is built by `CREATE_FILE_NAME_FN`:
+   * - Backtest: `{symbol}_{strategyName}_{exchangeName}_{frameName}_backtest-{timestamp}.md`
+   * - Live:     `{symbol}_{strategyName}_{exchangeName}_live-{timestamp}.md`
+   *
+   * The timestamp comes from `getContextTimestamp()` — the backtest execution
+   * context clock when inside a backtest, or the real clock aligned to the
+   * nearest minute when running live.
+   *
+   * @param symbol - Symbol used in the report heading and filename
+   * @param strategyName - Strategy name used in the heading and filename
+   * @param path - Directory to write the file into; defaults to `"./dump/sync"`
+   * @param columns - Column definitions for table formatting;
+   *   defaults to `COLUMN_CONFIG.sync_columns`
+   */
   public async dump(
     symbol: string,
     strategyName: StrategyName,
@@ -191,9 +254,28 @@ export class SyncMarkdownService {
 
   private getStorage = memoize<(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => ReportStorage>(
     ([symbol, strategyName, exchangeName, frameName, backtest]) => CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
-    (symbol, strategyName, exchangeName, frameName, backtest) => new ReportStorage(symbol, strategyName, exchangeName, frameName)
+    (symbol, strategyName, exchangeName, frameName, backtest) => new ReportStorage(symbol, strategyName, exchangeName, frameName, backtest)
   );
 
+  /**
+   * Subscribes to `syncSubject` to start receiving `SignalSyncContract` events.
+   * Protected against multiple subscriptions via `singleshot` — subsequent calls
+   * return the same unsubscribe function without re-subscribing.
+   *
+   * The returned unsubscribe function clears the `singleshot` state, evicts all
+   * memoized `ReportStorage` instances, and detaches from `syncSubject`.
+   *
+   * @returns Unsubscribe function; calling it tears down the subscription and
+   *   clears all accumulated data
+   *
+   * @example
+   * ```typescript
+   * const service = new SyncMarkdownService();
+   * const unsubscribe = service.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
+   */
   public subscribe = singleshot(() => {
     this.loggerService.log("syncMarkdownService init");
     const unsubscribe = syncSubject.subscribe(this.tick);
@@ -204,6 +286,20 @@ export class SyncMarkdownService {
     };
   });
 
+  /**
+   * Detaches from `syncSubject` and clears all accumulated data.
+   *
+   * Calls the unsubscribe closure returned by `subscribe()`.
+   * If `subscribe()` was never called, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const service = new SyncMarkdownService();
+   * service.subscribe();
+   * // ... later
+   * await service.unsubscribe();
+   * ```
+   */
   public unsubscribe = async () => {
     this.loggerService.log("syncMarkdownService unsubscribe");
     if (this.subscribe.hasValue()) {
@@ -212,6 +308,21 @@ export class SyncMarkdownService {
     }
   };
 
+  /**
+   * Handles a single `SignalSyncContract` event emitted by `syncSubject`.
+   *
+   * Maps the contract fields to a `SyncEvent`, enriching it with a
+   * `createdAt` ISO timestamp from `getContextTimestamp()` (backtest clock
+   * or real clock aligned to the nearest minute).
+   * For `"signal-close"` events, `closeReason` is preserved; for
+   * `"signal-open"` events it is set to `undefined`.
+   *
+   * Routes the constructed event to the appropriate `ReportStorage` bucket
+   * via `getStorage(symbol, strategyName, exchangeName, frameName, backtest)`.
+   *
+   * @param data - Discriminated union `SignalSyncContract`
+   *   (`SignalOpenContract | SignalCloseContract`)
+   */
   private tick = async (data: SignalSyncContract) => {
     this.loggerService.log("syncMarkdownService tick", { data });
 
@@ -246,6 +357,23 @@ export class SyncMarkdownService {
     storage.addEvent(event);
   };
 
+  /**
+   * Returns accumulated sync statistics for the given context.
+   *
+   * Delegates to the `ReportStorage` bucket identified by
+   * `(symbol, strategyName, exchangeName, frameName, backtest)`.
+   * If no events have been recorded yet for that combination, the returned
+   * model has an empty `eventList` and all counters set to `0`.
+   *
+   * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+   * @param frameName - Backtest frame identifier; empty string for live mode
+   * @param backtest - `true` for backtest mode, `false` for live mode
+   * @returns Promise resolving to `SyncStatisticsModel` with `eventList`,
+   *   `totalEvents`, `openCount`, `closeCount`
+   * @throws {Error} If `subscribe()` has not been called before this method
+   */
   public getData = async (
     symbol: string,
     strategyName: StrategyName,
@@ -261,6 +389,23 @@ export class SyncMarkdownService {
     return storage.getData();
   };
 
+  /**
+   * Generates a markdown sync report for the given context.
+   *
+   * Delegates to `ReportStorage.getReport`. The resulting string includes a
+   * markdown table (newest events first) followed by total / open / close
+   * counters.
+   *
+   * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+   * @param frameName - Backtest frame identifier; empty string for live mode
+   * @param backtest - `true` for backtest mode, `false` for live mode
+   * @param columns - Column definitions controlling the table layout;
+   *   defaults to `COLUMN_CONFIG.sync_columns`
+   * @returns Promise resolving to the full markdown string
+   * @throws {Error} If `subscribe()` has not been called before this method
+   */
   public getReport = async (
     symbol: string,
     strategyName: StrategyName,
@@ -277,6 +422,23 @@ export class SyncMarkdownService {
     return storage.getReport(symbol, strategyName, columns);
   };
 
+  /**
+   * Generates the sync report and writes it to disk.
+   *
+   * Delegates to `ReportStorage.dump`. The filename follows the pattern:
+   * - Backtest: `{symbol}_{strategyName}_{exchangeName}_{frameName}_backtest-{timestamp}.md`
+   * - Live:     `{symbol}_{strategyName}_{exchangeName}_live-{timestamp}.md`
+   *
+   * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+   * @param frameName - Backtest frame identifier; empty string for live mode
+   * @param backtest - `true` for backtest mode, `false` for live mode
+   * @param path - Directory to write the file into; defaults to `"./dump/sync"`
+   * @param columns - Column definitions for table formatting;
+   *   defaults to `COLUMN_CONFIG.sync_columns`
+   * @throws {Error} If `subscribe()` has not been called before this method
+   */
   public dump = async (
     symbol: string,
     strategyName: StrategyName,
@@ -294,6 +456,28 @@ export class SyncMarkdownService {
     await storage.dump(symbol, strategyName, path, columns);
   };
 
+  /**
+   * Evicts memoized `ReportStorage` instances, releasing all accumulated event data.
+   *
+   * - With `payload` — clears only the storage bucket identified by
+   *   `(symbol, strategyName, exchangeName, frameName, backtest)`;
+   *   subsequent calls for that combination start from an empty state.
+   * - Without `payload` — clears **all** storage buckets.
+   *
+   * Also called internally by the unsubscribe closure returned from `subscribe()`.
+   *
+   * @param payload - Optional scope to restrict which bucket is cleared;
+   *   omit to clear everything
+   *
+   * @example
+   * ```typescript
+   * // Clear one specific context
+   * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy", exchangeName: "binance", frameName: "1m-btc", backtest: true });
+   *
+   * // Clear all contexts
+   * await service.clear();
+   * ```
+   */
   public clear = async (payload?: { symbol: string; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }) => {
     this.loggerService.log("syncMarkdownService clear", { payload });
     if (payload) {

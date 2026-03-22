@@ -15853,21 +15853,31 @@ declare class HeatMarkdownService {
      */
     unsubscribe: () => Promise<void>;
     /**
-     * Processes tick events and accumulates closed signals.
-     * Should be called from signal emitter subscription.
+     * Handles a single tick event emitted by `signalEmitter`.
      *
-     * Only processes closed signals - opened signals are ignored.
+     * Filters out every action except `"closed"` — idle, scheduled, waiting,
+     * opened, active, and cancelled ticks are silently ignored.
+     * For closed signals, routes the payload to the appropriate `HeatmapStorage`
+     * via `getStorage(exchangeName, frameName, backtest)` and calls `addSignal`.
      *
-     * @param data - Tick result from strategy execution (closed signals only)
+     * @param data - Union tick result from `signalEmitter`; only
+     *   `IStrategyTickResultClosed` payloads are processed
      */
     private tick;
     /**
-     * Gets aggregated portfolio heatmap statistics.
+     * Returns aggregated portfolio heatmap statistics for the given context.
      *
-     * @param exchangeName - Exchange name
-     * @param frameName - Frame name
-     * @param backtest - True if backtest mode, false if live mode
-     * @returns Promise resolving to heatmap statistics with per-symbol and portfolio-wide metrics
+     * Delegates to the `HeatmapStorage` instance identified by
+     * `(exchangeName, frameName, backtest)`. If no signals have been accumulated
+     * yet for that combination, the returned `symbols` array will be empty and
+     * portfolio-level fields will be `null` / `0`.
+     *
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier (e.g. `"1m-btc"`)
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @returns Promise resolving to `HeatmapStatisticsModel` with per-symbol rows
+     *   sorted by `sharpeRatio` descending and portfolio-wide aggregates
+     * @throws {Error} If `subscribe()` has not been called before this method
      *
      * @example
      * ```typescript
@@ -15884,73 +15894,86 @@ declare class HeatMarkdownService {
      */
     getData: (exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<HeatmapStatisticsModel>;
     /**
-     * Generates markdown report with portfolio heatmap table.
+     * Generates a markdown heatmap report for the given context.
      *
-     * @param strategyName - Strategy name for report title
-     * @param exchangeName - Exchange name
-     * @param frameName - Frame name
-     * @param backtest - True if backtest mode, false if live mode
-     * @param columns - Column configuration for formatting the table
-     * @returns Promise resolving to markdown formatted report string
+     * Delegates to `HeatmapStorage.getReport`. The resulting string includes a
+     * portfolio summary line followed by a markdown table with one row per
+     * symbol, ordered by `sharpeRatio` descending.
+     *
+     * @param strategyName - Strategy name rendered in the report heading
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier (e.g. `"1m-btc"`)
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param columns - Column definitions controlling the table layout;
+     *   defaults to `COLUMN_CONFIG.heat_columns`
+     * @returns Promise resolving to the full markdown string
+     * @throws {Error} If `subscribe()` has not been called before this method
      *
      * @example
      * ```typescript
      * const service = new HeatMarkdownService();
      * const markdown = await service.getReport("my-strategy", "binance", "frame1", true);
      * console.log(markdown);
-     * // Output:
      * // # Portfolio Heatmap: my-strategy
      * //
      * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Portfolio Sharpe:** 1.85 | **Total Trades:** 120
      * //
      * // | Symbol | Total PNL | Sharpe | Max DD | Trades |
-     * // |--------|-----------|--------|--------|--------|
-     * // | BTCUSDT | +15.5% | 2.10 | -2.5% | 45 |
-     * // | ETHUSDT | +12.3% | 1.85 | -3.1% | 38 |
-     * // ...
+     * // | ---    | ---       | ---    | ---    | ---    |
+     * // | BTCUSDT | +15.5%  | 2.10   | -2.5%  | 45     |
+     * // | ETHUSDT | +12.3%  | 1.85   | -3.1%  | 38     |
      * ```
      */
     getReport: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$6[]) => Promise<string>;
     /**
-     * Saves heatmap report to disk.
+     * Generates the heatmap report and writes it to disk.
      *
-     * Creates directory if it doesn't exist.
-     * Default filename: {strategyName}.md
+     * Delegates to `HeatmapStorage.dump`. The filename follows the pattern:
+     * - Backtest: `{strategyName}_{exchangeName}_{frameName}_backtest-{timestamp}.md`
+     * - Live:     `{strategyName}_{exchangeName}_live-{timestamp}.md`
      *
-     * @param strategyName - Strategy name for report filename
-     * @param exchangeName - Exchange name
-     * @param frameName - Frame name
-     * @param backtest - True if backtest mode, false if live mode
-     * @param path - Optional directory path to save report (default: "./dump/heatmap")
-     * @param columns - Column configuration for formatting the table
+     * @param strategyName - Strategy name used in the report heading and filename
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier (e.g. `"1m-btc"`)
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param path - Directory to write the file into; defaults to `"./dump/heatmap"`
+     * @param columns - Column definitions for table formatting;
+     *   defaults to `COLUMN_CONFIG.heat_columns`
+     * @throws {Error} If `subscribe()` has not been called before this method
      *
      * @example
      * ```typescript
      * const service = new HeatMarkdownService();
      *
-     * // Save to default path: ./dump/heatmap/my-strategy.md
+     * // Save to default path
      * await service.dump("my-strategy", "binance", "frame1", true);
      *
-     * // Save to custom path: ./reports/my-strategy.md
+     * // Save to custom path
      * await service.dump("my-strategy", "binance", "frame1", true, "./reports");
      * ```
      */
     dump: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$6[]) => Promise<void>;
     /**
-     * Clears accumulated heatmap data from storage.
-     * If payload is provided, clears only that exchangeName+frameName+backtest combination's data.
-     * If payload is omitted, clears all data.
+     * Evicts memoized `HeatmapStorage` instances, releasing all accumulated signal data.
      *
-     * @param payload - Optional payload with exchangeName, frameName, backtest to clear specific data
+     * - With `payload` — clears only the storage bucket identified by
+     *   `(payload.exchangeName, payload.frameName, payload.backtest)`;
+     *   subsequent calls to `getData` / `getReport` / `dump` for that combination
+     *   will start from an empty state.
+     * - Without `payload` — clears **all** storage buckets across every
+     *   exchange / frame / mode combination.
+     *
+     * Also called internally by the unsubscribe closure returned from `subscribe()`.
+     *
+     * @param payload - Optional scope to restrict which bucket is cleared;
+     *   omit to clear everything
      *
      * @example
      * ```typescript
-     * const service = new HeatMarkdownService();
-     *
-     * // Clear specific exchange+frame+backtest data
+     * // Clear one specific context
      * await service.clear({ exchangeName: "binance", frameName: "frame1", backtest: true });
      *
-     * // Clear all data
+     * // Clear all contexts
      * await service.clear();
      * ```
      */
@@ -16604,12 +16627,129 @@ type Columns$4 = ColumnModel<HighestProfitEvent>;
 declare class HighestProfitMarkdownService {
     private readonly loggerService;
     private getStorage;
+    /**
+     * Subscribes to `highestProfitSubject` to start receiving `HighestProfitContract`
+     * events. Protected against multiple subscriptions via `singleshot` — subsequent
+     * calls return the same unsubscribe function without re-subscribing.
+     *
+     * The returned unsubscribe function clears the `singleshot` state, evicts all
+     * memoized `ReportStorage` instances, and detaches from `highestProfitSubject`.
+     *
+     * @returns Unsubscribe function; calling it tears down the subscription and
+     *   clears all accumulated data
+     *
+     * @example
+     * ```typescript
+     * const service = new HighestProfitMarkdownService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Detaches from `highestProfitSubject` and clears all accumulated data.
+     *
+     * Calls the unsubscribe closure returned by `subscribe()`.
+     * If `subscribe()` was never called, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new HighestProfitMarkdownService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
+    /**
+     * Handles a single `HighestProfitContract` event emitted by `highestProfitSubject`.
+     *
+     * Routes the payload to the appropriate `ReportStorage` bucket via
+     * `getStorage(symbol, strategyName, exchangeName, frameName, backtest)` —
+     * where `strategyName` is taken from `data.signal.strategyName` — and
+     * delegates event construction to `ReportStorage.addEvent`.
+     *
+     * @param data - `HighestProfitContract` payload containing `symbol`,
+     *   `signal`, `currentPrice`, `backtest`, `timestamp`, `exchangeName`,
+     *   `frameName`
+     */
     private tick;
+    /**
+     * Returns accumulated highest profit statistics for the given context.
+     *
+     * Delegates to the `ReportStorage` bucket identified by
+     * `(symbol, strategyName, exchangeName, frameName, backtest)`.
+     * If no events have been recorded yet for that combination, the returned
+     * model has an empty `eventList` and `totalEvents` of `0`.
+     *
+     * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @returns Promise resolving to `HighestProfitStatisticsModel` with
+     *   `eventList` (newest first) and `totalEvents`
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
     getData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<HighestProfitStatisticsModel>;
+    /**
+     * Generates a markdown highest profit report for the given context.
+     *
+     * Delegates to `ReportStorage.getReport`. The resulting string includes a
+     * markdown table (newest events first) followed by the total event count.
+     *
+     * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param columns - Column definitions controlling the table layout;
+     *   defaults to `COLUMN_CONFIG.highest_profit_columns`
+     * @returns Promise resolving to the full markdown string
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
     getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$4[]) => Promise<string>;
+    /**
+     * Generates the highest profit report and writes it to disk.
+     *
+     * Delegates to `ReportStorage.dump`. The filename follows the pattern:
+     * - Backtest: `{symbol}_{strategyName}_{exchangeName}_{frameName}_backtest-{timestamp}.md`
+     * - Live:     `{symbol}_{strategyName}_{exchangeName}_live-{timestamp}.md`
+     *
+     * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param path - Directory to write the file into; defaults to `"./dump/highest_profit"`
+     * @param columns - Column definitions for table formatting;
+     *   defaults to `COLUMN_CONFIG.highest_profit_columns`
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
     dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$4[]) => Promise<void>;
+    /**
+     * Evicts memoized `ReportStorage` instances, releasing all accumulated event data.
+     *
+     * - With `payload` — clears only the storage bucket identified by
+     *   `(symbol, strategyName, exchangeName, frameName, backtest)`;
+     *   subsequent calls for that combination start from an empty state.
+     * - Without `payload` — clears **all** storage buckets.
+     *
+     * Also called internally by the unsubscribe closure returned from `subscribe()`.
+     *
+     * @param payload - Optional scope to restrict which bucket is cleared;
+     *   omit to clear everything
+     *
+     * @example
+     * ```typescript
+     * // Clear one specific context
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy", exchangeName: "binance", frameName: "1m-btc", backtest: true });
+     *
+     * // Clear all contexts
+     * await service.clear();
+     * ```
+     */
     clear: (payload?: {
         symbol: string;
         strategyName: StrategyName;
@@ -17229,12 +17369,133 @@ type Columns$2 = ColumnModel<SyncEvent>;
 declare class SyncMarkdownService {
     private readonly loggerService;
     private getStorage;
+    /**
+     * Subscribes to `syncSubject` to start receiving `SignalSyncContract` events.
+     * Protected against multiple subscriptions via `singleshot` — subsequent calls
+     * return the same unsubscribe function without re-subscribing.
+     *
+     * The returned unsubscribe function clears the `singleshot` state, evicts all
+     * memoized `ReportStorage` instances, and detaches from `syncSubject`.
+     *
+     * @returns Unsubscribe function; calling it tears down the subscription and
+     *   clears all accumulated data
+     *
+     * @example
+     * ```typescript
+     * const service = new SyncMarkdownService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Detaches from `syncSubject` and clears all accumulated data.
+     *
+     * Calls the unsubscribe closure returned by `subscribe()`.
+     * If `subscribe()` was never called, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new SyncMarkdownService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
+    /**
+     * Handles a single `SignalSyncContract` event emitted by `syncSubject`.
+     *
+     * Maps the contract fields to a `SyncEvent`, enriching it with a
+     * `createdAt` ISO timestamp from `getContextTimestamp()` (backtest clock
+     * or real clock aligned to the nearest minute).
+     * For `"signal-close"` events, `closeReason` is preserved; for
+     * `"signal-open"` events it is set to `undefined`.
+     *
+     * Routes the constructed event to the appropriate `ReportStorage` bucket
+     * via `getStorage(symbol, strategyName, exchangeName, frameName, backtest)`.
+     *
+     * @param data - Discriminated union `SignalSyncContract`
+     *   (`SignalOpenContract | SignalCloseContract`)
+     */
     private tick;
+    /**
+     * Returns accumulated sync statistics for the given context.
+     *
+     * Delegates to the `ReportStorage` bucket identified by
+     * `(symbol, strategyName, exchangeName, frameName, backtest)`.
+     * If no events have been recorded yet for that combination, the returned
+     * model has an empty `eventList` and all counters set to `0`.
+     *
+     * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @returns Promise resolving to `SyncStatisticsModel` with `eventList`,
+     *   `totalEvents`, `openCount`, `closeCount`
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
     getData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<SyncStatisticsModel>;
+    /**
+     * Generates a markdown sync report for the given context.
+     *
+     * Delegates to `ReportStorage.getReport`. The resulting string includes a
+     * markdown table (newest events first) followed by total / open / close
+     * counters.
+     *
+     * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param columns - Column definitions controlling the table layout;
+     *   defaults to `COLUMN_CONFIG.sync_columns`
+     * @returns Promise resolving to the full markdown string
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
     getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$2[]) => Promise<string>;
+    /**
+     * Generates the sync report and writes it to disk.
+     *
+     * Delegates to `ReportStorage.dump`. The filename follows the pattern:
+     * - Backtest: `{symbol}_{strategyName}_{exchangeName}_{frameName}_backtest-{timestamp}.md`
+     * - Live:     `{symbol}_{strategyName}_{exchangeName}_live-{timestamp}.md`
+     *
+     * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier (e.g. `"binance"`)
+     * @param frameName - Backtest frame identifier; empty string for live mode
+     * @param backtest - `true` for backtest mode, `false` for live mode
+     * @param path - Directory to write the file into; defaults to `"./dump/sync"`
+     * @param columns - Column definitions for table formatting;
+     *   defaults to `COLUMN_CONFIG.sync_columns`
+     * @throws {Error} If `subscribe()` has not been called before this method
+     */
     dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+    /**
+     * Evicts memoized `ReportStorage` instances, releasing all accumulated event data.
+     *
+     * - With `payload` — clears only the storage bucket identified by
+     *   `(symbol, strategyName, exchangeName, frameName, backtest)`;
+     *   subsequent calls for that combination start from an empty state.
+     * - Without `payload` — clears **all** storage buckets.
+     *
+     * Also called internally by the unsubscribe closure returned from `subscribe()`.
+     *
+     * @param payload - Optional scope to restrict which bucket is cleared;
+     *   omit to clear everything
+     *
+     * @example
+     * ```typescript
+     * // Clear one specific context
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy", exchangeName: "binance", frameName: "1m-btc", backtest: true });
+     *
+     * // Clear all contexts
+     * await service.clear();
+     * ```
+     */
     clear: (payload?: {
         symbol: string;
         strategyName: StrategyName;
@@ -27382,8 +27643,57 @@ declare class SyncReportService {
  */
 declare class HighestProfitReportService {
     private readonly loggerService;
+    /**
+     * Handles a single `HighestProfitContract` event emitted by `highestProfitSubject`.
+     *
+     * Writes a JSONL record to the `"highest_profit"` report database via
+     * `Report.writeData`, capturing the full signal snapshot at the moment
+     * the new profit record was set:
+     * - `timestamp`, `symbol`, `strategyName`, `exchangeName`, `frameName`, `backtest`
+     * - `signalId`, `position`, `currentPrice`
+     * - `priceOpen`, `priceTakeProfit`, `priceStopLoss` (effective values from the signal)
+     *
+     * `strategyName` and signal-level fields are sourced from `data.signal`
+     * rather than the contract root.
+     *
+     * @param data - `HighestProfitContract` payload containing `symbol`,
+     *   `signal`, `currentPrice`, `backtest`, `timestamp`, `exchangeName`,
+     *   `frameName`
+     */
     private tick;
+    /**
+     * Subscribes to `highestProfitSubject` to start persisting profit records.
+     * Protected against multiple subscriptions via `singleshot` — subsequent
+     * calls return the same unsubscribe function without re-subscribing.
+     *
+     * The returned unsubscribe function clears the `singleshot` state and
+     * detaches from `highestProfitSubject`.
+     *
+     * @returns Unsubscribe function; calling it tears down the subscription
+     *
+     * @example
+     * ```typescript
+     * const service = new HighestProfitReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Detaches from `highestProfitSubject`, stopping further JSONL writes.
+     *
+     * Calls the unsubscribe closure returned by `subscribe()`.
+     * If `subscribe()` was never called, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new HighestProfitReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
