@@ -15,7 +15,7 @@ import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
 import { IPositionOverlapLadder, POSITION_OVERLAP_LADDER_DEFAULT } from "../config/ladder";
-import { IPublicSignalRow } from "src/interfaces/Strategy.interface";
+import { IPublicSignalRow } from "../interfaces/Strategy.interface";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
 const CLOSE_PENDING_METHOD_NAME = "strategy.commitClosePending";

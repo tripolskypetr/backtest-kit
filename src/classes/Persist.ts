@@ -148,6 +148,19 @@ const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY =
 const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER =
   "PersistMeasureUtils.usePersistMeasureAdapter";
 
+const PERSIST_MEMORY_UTILS_METHOD_NAME_USE_PERSIST_MEMORY_ADAPTER =
+  "PersistMemoryUtils.usePersistMemoryAdapter";
+const PERSIST_MEMORY_UTILS_METHOD_NAME_READ_DATA =
+  "PersistMemoryUtils.readMemoryData";
+const PERSIST_MEMORY_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistMemoryUtils.writeMemoryData";
+const PERSIST_MEMORY_UTILS_METHOD_NAME_REMOVE_DATA =
+  "PersistMemoryUtils.removeMemoryData";
+const PERSIST_MEMORY_UTILS_METHOD_NAME_LIST_DATA =
+  "PersistMemoryUtils.listMemoryData";
+const PERSIST_MEMORY_UTILS_METHOD_NAME_HAS_DATA =
+  "PersistMemoryUtils.hasMemoryData";
+
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
 const BASE_UNLINK_RETRY_COUNT = 5;
@@ -2046,3 +2059,240 @@ export class PersistMeasureUtils {
  * Used by Cache.file for persistent caching of external API responses.
  */
 export const PersistMeasureAdapter = new PersistMeasureUtils();
+
+/**
+ * Type for persisted memory entry data.
+ * Each memory entry is an arbitrary JSON-serializable object.
+ */
+export type MemoryData = {
+  priority: number;
+  data: object;
+  removed: boolean;
+};
+
+/**
+ * Utility class for managing memory entry persistence.
+ *
+ * Features:
+ * - Memoized storage instances per (signalId, bucketName) pair
+ * - Custom adapter support
+ * - Atomic read/write/remove operations
+ * - Async iteration over stored keys for index rebuilding
+ *
+ * Storage layout: ./dump/memory/<bucketName>/<signalId>/<memoryId>.json
+ *
+ * Used by MemoryPersistInstance for crash-safe memory persistence.
+ */
+export class PersistMemoryUtils {
+  private PersistMemoryFactory: TPersistBaseCtor<string, MemoryData> =
+    PersistBase;
+
+  private getMemoryStorage = memoize(
+    ([signalId, bucketName]: [string, string]): string =>
+      `${signalId}:${bucketName}`,
+    (signalId: string, bucketName: string): IPersistBase<MemoryData> =>
+      Reflect.construct(this.PersistMemoryFactory, [
+        signalId,
+        `./dump/memory/${bucketName}/`,
+      ])
+  );
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   *
+   * @example
+   * ```typescript
+   * class RedisPersist extends PersistBase {
+   *   async readValue(id) { return JSON.parse(await redis.get(id)); }
+   *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
+   * }
+   * PersistMemoryAdapter.usePersistMemoryAdapter(RedisPersist);
+   * ```
+   */
+  public usePersistMemoryAdapter(
+    Ctor: TPersistBaseCtor<string, MemoryData>
+  ): void {
+    swarm.loggerService.info(
+      PERSIST_MEMORY_UTILS_METHOD_NAME_USE_PERSIST_MEMORY_ADAPTER
+    );
+    this.PersistMemoryFactory = Ctor;
+  }
+
+  /**
+   * Initializes the storage for a given (signalId, bucketName) pair.
+   *
+   * @param signalId - Signal identifier (entity folder name)
+   * @param bucketName - Bucket name (subfolder under memory/)
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
+  public waitForInit = async (
+    signalId: string,
+    bucketName: string,
+    initial: boolean
+  ): Promise<void> => {
+    const key = `${signalId}:${bucketName}`;
+    const isInitial = initial && !this.getMemoryStorage.has(key);
+    const stateStorage = this.getMemoryStorage(signalId, bucketName);
+    await stateStorage.waitForInit(isInitial);
+  };
+
+  /**
+   * Reads a memory entry from persistence storage.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise resolving to entry data or null if not found
+   */
+  public readMemoryData = async (
+    signalId: string,
+    bucketName: string,
+    memoryId: string
+  ): Promise<MemoryData | null> => {
+    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_READ_DATA, {
+      signalId,
+      bucketName,
+      memoryId,
+    });
+    const key = `${signalId}:${bucketName}`;
+    const isInitial = !this.getMemoryStorage.has(key);
+    const stateStorage = this.getMemoryStorage(signalId, bucketName);
+    await stateStorage.waitForInit(isInitial);
+    if (await stateStorage.hasValue(memoryId)) {
+      const data = await stateStorage.readValue(memoryId);
+      return data.removed ? null : data;
+    }
+    return null;
+  };
+
+  /**
+   * Checks if a memory entry exists in persistence storage.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise resolving to true if entry exists
+   */
+  public hasMemoryData = async (
+    signalId: string,
+    bucketName: string,
+    memoryId: string
+  ): Promise<boolean> => {
+    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_HAS_DATA, {
+      signalId,
+      bucketName,
+      memoryId,
+    });
+    const key = `${signalId}:${bucketName}`;
+    const isInitial = !this.getMemoryStorage.has(key);
+    const stateStorage = this.getMemoryStorage(signalId, bucketName);
+    await stateStorage.waitForInit(isInitial);
+    return await stateStorage.hasValue(memoryId);
+  };
+
+  /**
+   * Writes a memory entry to disk with atomic file writes.
+   *
+   * @param data - Entry data to persist
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise that resolves when write is complete
+   */
+  public writeMemoryData = async (
+    data: MemoryData,
+    signalId: string,
+    bucketName: string,
+    memoryId: string
+  ): Promise<void> => {
+    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_WRITE_DATA, {
+      signalId,
+      bucketName,
+      memoryId,
+    });
+    const key = `${signalId}:${bucketName}`;
+    const isInitial = !this.getMemoryStorage.has(key);
+    const stateStorage = this.getMemoryStorage(signalId, bucketName);
+    await stateStorage.waitForInit(isInitial);
+    await stateStorage.writeValue(memoryId, data);
+  };
+
+  /**
+   * Marks a memory entry as removed (soft delete — file is kept on disk).
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise that resolves when removal is complete
+   */
+  public removeMemoryData = async (
+    signalId: string,
+    bucketName: string,
+    memoryId: string
+  ): Promise<void> => {
+    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_REMOVE_DATA, {
+      signalId,
+      bucketName,
+      memoryId,
+    });
+    const key = `${signalId}:${bucketName}`;
+    const isInitial = !this.getMemoryStorage.has(key);
+    const stateStorage = this.getMemoryStorage(signalId, bucketName);
+    await stateStorage.waitForInit(isInitial);
+    const data = await stateStorage.readValue(memoryId);
+    if (data) {
+      await stateStorage.writeValue(memoryId, Object.assign({}, data, { removed: true }));
+    }
+  };
+
+  /**
+   * Lists all memory entry IDs for a given (signalId, bucketName) pair.
+   * Used by MemoryPersistInstance to rebuild the BM25 index on init.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @returns AsyncGenerator yielding memory entry IDs
+   */
+  public async *listMemoryData(
+    signalId: string,
+    bucketName: string
+  ): AsyncGenerator<{ memoryId: string; data: MemoryData }> {
+    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_LIST_DATA, {
+      signalId,
+      bucketName,
+    });
+    const key = `${signalId}:${bucketName}`;
+    const isInitial = !this.getMemoryStorage.has(key);
+    const stateStorage = this.getMemoryStorage(signalId, bucketName);
+    await stateStorage.waitForInit(isInitial);
+    for await (const memoryId of stateStorage.keys()) {
+      const data = await stateStorage.readValue(String(memoryId));
+      if (data === null || data.removed) {
+        continue;
+      }
+      yield { memoryId: String(memoryId), data };
+    }
+  };
+
+}
+
+/**
+ * Global singleton instance of PersistMemoryUtils.
+ * Used by MemoryPersistInstance for crash-safe memory entry persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistMemoryAdapter.usePersistMemoryAdapter(RedisPersist);
+ *
+ * // Write entry
+ * await PersistMemoryAdapter.writeMemoryData({ foo: "bar" }, "sig-1", "strategy", "context");
+ *
+ * // Read entry
+ * const data = await PersistMemoryAdapter.readMemoryData("sig-1", "strategy", "context");
+ * ```
+ */
+export const PersistMemoryAdapter = new PersistMemoryUtils();

@@ -145,6 +145,13 @@ export {
   hasTradeContext,
 } from "./function/exchange";
 export {
+  listMemory,
+  readMemory,
+  removeMemory,
+  searchMemory,
+  writeMemory,
+} from "./function/memory";
+export {
   dumpMessages,
 } from "./function/dump";
 
@@ -352,6 +359,8 @@ export {
   PersistLogAdapter,
   MeasureData,
   PersistMeasureAdapter,
+  MemoryData,
+  PersistMemoryAdapter,
 } from "./classes/Persist";
 
 export {
@@ -403,6 +412,11 @@ export {
   INotificationUtils,
   TNotificationUtilsCtor,
 } from "./classes/Notification";
+export { 
+  Memory,
+  IMemoryInstance,
+  TMemoryInstanceCtor
+} from "./classes/Memory";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Breakeven } from "./classes/Breakeven";

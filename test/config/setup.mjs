@@ -9,6 +9,7 @@ import {
   PersistCandleAdapter,
   PersistBreakevenAdapter,
   PersistStorageAdapter,
+  PersistMemoryAdapter,
   Report,
   Markdown,
 } from "../../build/index.mjs";
@@ -33,6 +34,7 @@ import {
   PersistCandleAdapter.useDummy();
   PersistBreakevenAdapter.useDummy();
   PersistStorageAdapter.useDummy();
+  PersistMemoryAdapter.useDummy();
 }
 
 setConfig(

@@ -1,0 +1,579 @@
+import { memoize, singleshot } from "functools-kit";
+import createSearchIndex, { SearchSettings } from "../utils/createSearchIndex";
+import swarm from "../lib";
+import { PersistMemoryAdapter } from "./Persist";
+
+const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
+  `${signalId}-${bucketName}`;
+
+const LIST_MEMORY_FN = <T extends object = object>({ id, content }) => ({
+  memoryId: id,
+  content: <T>content,
+});
+
+const SEARCH_MEMORY_FN = <T extends object = object>({
+  id,
+  content,
+  score,
+}) => ({
+  memoryId: id,
+  content: <T>content,
+  score,
+});
+
+const MEMORY_LOCAL_INSTANCE_METHOD_NAME_WRITE = "MemoryLocalInstance.writeMemory";
+const MEMORY_LOCAL_INSTANCE_METHOD_NAME_READ = "MemoryLocalInstance.readMemory";
+const MEMORY_LOCAL_INSTANCE_METHOD_NAME_SEARCH = "MemoryLocalInstance.searchMemory";
+const MEMORY_LOCAL_INSTANCE_METHOD_NAME_LIST = "MemoryLocalInstance.listMemory";
+const MEMORY_LOCAL_INSTANCE_METHOD_NAME_REMOVE = "MemoryLocalInstance.removeMemory";
+
+const MEMORY_PERSIST_INSTANCE_METHOD_NAME_WAIT_FOR_INIT = "MemoryPersistInstance.waitForInit";
+const MEMORY_PERSIST_INSTANCE_METHOD_NAME_WRITE = "MemoryPersistInstance.writeMemory";
+const MEMORY_PERSIST_INSTANCE_METHOD_NAME_READ = "MemoryPersistInstance.readMemory";
+const MEMORY_PERSIST_INSTANCE_METHOD_NAME_SEARCH = "MemoryPersistInstance.searchMemory";
+const MEMORY_PERSIST_INSTANCE_METHOD_NAME_LIST = "MemoryPersistInstance.listMemory";
+const MEMORY_PERSIST_INSTANCE_METHOD_NAME_REMOVE = "MemoryPersistInstance.removeMemory";
+
+const MEMORY_ADAPTER_METHOD_NAME_USE_LOCAL = "MemoryAdapter.useLocal";
+const MEMORY_ADAPTER_METHOD_NAME_USE_PERSIST = "MemoryAdapter.usePersist";
+const MEMORY_ADAPTER_METHOD_NAME_USE_DUMMY = "MemoryAdapter.useDummy";
+
+/**
+ * Interface for memory instance implementations.
+ * Defines the contract for local, persist, and dummy backends.
+ */
+export interface IMemoryInstance {
+  /**
+   * Initialize the memory instance.
+   * @param initial - Whether this is the first initialization
+   */
+  waitForInit(initial: boolean): Promise<void>;
+
+  /**
+   * Write a value to memory.
+   * @param memoryId - Unique entry identifier
+   * @param value - Value to store
+   */
+  writeMemory<T extends object = object>(
+    memoryId: string,
+    value: T,
+  ): Promise<void>;
+
+  /**
+   * Search memory using BM25 full-text scoring.
+   * @param query - Search query string
+   * @returns Array of matching entries with scores
+   */
+  searchMemory<T extends object = object>(
+    query: string,
+    settings?: SearchSettings,
+  ): Promise<
+    Array<{
+      memoryId: string;
+      score: number;
+      content: T;
+    }>
+  >;
+
+  /**
+   * List all entries in memory.
+   * @returns Array of all stored entries
+   */
+  listMemory<T extends object = object>(): Promise<
+    Array<{
+      memoryId: string;
+      content: T;
+    }>
+  >;
+
+  /**
+   * Remove an entry from memory.
+   * @param memoryId - Unique entry identifier
+   */
+  removeMemory(memoryId: string): Promise<void>;
+
+  /**
+   * Read a single entry from memory.
+   * @param memoryId - Unique entry identifier
+   * @returns Entry value
+   * @throws Error if entry not found
+   */
+  readMemory<T extends object = object>(memoryId: string): Promise<T>;
+}
+
+/**
+ * Constructor type for memory instance implementations.
+ * Used for swapping backends via MemoryAdapter.
+ */
+export type TMemoryInstanceCtor = new (
+  signalId: string,
+  bucketName: string,
+) => IMemoryInstance;
+
+/**
+ * Public surface of MemoryAdapter — IMemoryInstance minus waitForInit.
+ * waitForInit is managed internally by the adapter.
+ */
+export type TMemoryInstance = Omit<
+  {
+    [key in keyof IMemoryInstance]: any;
+  },
+  keyof {
+    waitForInit: never;
+  }
+>;
+
+/**
+ * In-memory BM25 search index backed instance.
+ * All data lives in the process memory only — no disk persistence.
+ *
+ * Features:
+ * - Full-text BM25 search via createSearchIndex
+ * - Scoped per (signalId, bucketName) pair
+ */
+export class MemoryLocalInstance implements IMemoryInstance {
+  private _index = createSearchIndex();
+
+  constructor(
+    readonly signalId: string,
+    readonly bucketName: string,
+  ) {}
+
+  /**
+   * No-op initialization — local index needs no setup.
+   * @returns Promise that resolves immediately
+   */
+  public waitForInit = singleshot(async (_initial: boolean) => {
+    void 0;
+  });
+
+  /**
+   * Write a value into the BM25 index.
+   * @param memoryId - Unique entry identifier
+   * @param value - Value to store and index
+   */
+  public async writeMemory<T extends object = object>(
+    memoryId: string,
+    value: T,
+  ) {
+    swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_WRITE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      memoryId,
+    });
+    this._index.upsert({
+      id: memoryId,
+      content: value,
+      index: JSON.stringify(value),
+      priority: Date.now(),
+    });
+  }
+
+  /**
+   * Read a single entry from the in-memory index.
+   * @param memoryId - Unique entry identifier
+   * @returns Parsed entry value
+   * @throws Error if entry not found
+   */
+  public async readMemory<T extends object = object>(
+    memoryId: string,
+  ): Promise<T> {
+    swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_READ, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      memoryId,
+    });
+    const value = this._index.read(memoryId);
+    if (!value) {
+      throw new Error(`MemoryLocalInstance value not found memoryId=${memoryId}`);
+    }
+    return <T>value;
+  }
+
+  /**
+   * Search entries using BM25 full-text scoring.
+   * @param query - Search query string
+   * @returns Matching entries sorted by relevance score
+   */
+  public async searchMemory<T extends object = object>(query: string, settings?: SearchSettings) {
+    swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_SEARCH, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      query,
+    });
+    return this._index.search(query, settings).map<{
+      memoryId: string;
+      score: number;
+      content: T;
+    }>(SEARCH_MEMORY_FN);
+  }
+
+  /**
+   * List all entries stored in the in-memory index.
+   * @returns Array of all stored entries
+   */
+  public async listMemory<T extends object = object>() {
+    swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_LIST, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+    });
+    return this._index.list().map<{
+      memoryId: string;
+      content: T;
+    }>(LIST_MEMORY_FN);
+  }
+
+  /**
+   * Remove an entry from the in-memory index.
+   * @param memoryId - Unique entry identifier
+   */
+  public async removeMemory(memoryId: string) {
+    swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_REMOVE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      memoryId,
+    });
+    return this._index.remove(memoryId);
+  }
+}
+
+/**
+ * File-system backed instance with in-memory BM25 index.
+ * Data is persisted atomically to disk via PersistMemoryAdapter.
+ * The BM25 index is rebuilt from disk on waitForInit.
+ *
+ * Storage layout:
+ *   ./dump/memory/<bucketName>/<signalId>/<memoryId>.json
+ *
+ * Features:
+ * - Crash-safe atomic file writes
+ * - Full-text BM25 search (index rebuilt from disk on init)
+ * - Scoped per (signalId, bucketName) pair
+ */
+export class MemoryPersistInstance implements IMemoryInstance {
+  private _index = createSearchIndex();
+
+  constructor(
+    readonly signalId: string,
+    readonly bucketName: string,
+  ) {}
+
+  /**
+   * Initialize persistence storage and rebuild BM25 index from disk.
+   * @param initial - Whether this is the first initialization
+   */
+  public async waitForInit(initial: boolean): Promise<void> {
+    swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_WAIT_FOR_INIT, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      initial,
+    });
+    await PersistMemoryAdapter.waitForInit(this.signalId, this.bucketName, initial);
+    for await (const { memoryId, data: { data, priority } } of PersistMemoryAdapter.listMemoryData(this.signalId, this.bucketName)) {
+      this._index.upsert({
+        id: memoryId,
+        content: data,
+        index: JSON.stringify(data),
+        priority,
+      });
+    }
+  }
+
+  /**
+   * Write a value to disk and update the BM25 index.
+   * @param memoryId - Unique entry identifier
+   * @param value - Value to persist and index
+   */
+  public async writeMemory<T extends object = object>(
+    memoryId: string,
+    value: T,
+  ): Promise<void> {
+    swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_WRITE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      memoryId,
+    });
+    const priority = Date.now();
+    await PersistMemoryAdapter.writeMemoryData(
+      { data: value, priority, removed: false },
+      this.signalId,
+      this.bucketName,
+      memoryId,
+    );
+    this._index.upsert({
+      id: memoryId,
+      content: value,
+      index: JSON.stringify(value),
+      priority,
+    });
+  }
+
+  /**
+   * Read a single entry from disk.
+   * @param memoryId - Unique entry identifier
+   * @returns Entry value
+   * @throws Error if entry not found
+   */
+  public async readMemory<T extends object = object>(
+    memoryId: string,
+  ): Promise<T> {
+    swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_READ, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      memoryId,
+    });
+    const data = await PersistMemoryAdapter.readMemoryData(this.signalId, this.bucketName, memoryId);
+    if (!data) {
+      throw new Error(`MemoryPersistInstance value not found memoryId=${memoryId}`);
+    }
+    return <T>data.data;
+  }
+
+  /**
+   * Search entries using BM25 index rebuilt from disk on init.
+   * @param query - Search query string
+   * @returns Matching entries sorted by relevance score
+   */
+  public async searchMemory<T extends object = object>(query: string, settings?: SearchSettings) {
+    swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_SEARCH, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      query,
+    });
+    return this._index.search(query, settings).map<{
+      memoryId: string;
+      score: number;
+      content: T;
+    }>(SEARCH_MEMORY_FN);
+  }
+
+  /**
+   * List all entries from the in-memory index (populated from disk on init).
+   * @returns Array of all stored entries
+   */
+  public async listMemory<T extends object = object>() {
+    swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_LIST, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+    });
+    return this._index.list().map<{
+      memoryId: string;
+      content: T;
+    }>(LIST_MEMORY_FN);
+  }
+
+  /**
+   * Remove an entry from disk and from the BM25 index.
+   * @param memoryId - Unique entry identifier
+   */
+  public async removeMemory(memoryId: string): Promise<void> {
+    swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_REMOVE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      memoryId,
+    });
+    await PersistMemoryAdapter.removeMemoryData(this.signalId, this.bucketName, memoryId);
+    this._index.remove(memoryId);
+  }
+}
+
+/**
+ * No-op memory instance that discards all writes.
+ * Used for disabling memory in tests or dry-run scenarios.
+ */
+export class MemoryDummyInstance implements IMemoryInstance {
+  constructor(
+    readonly signalId: string,
+    readonly bucketName: string,
+  ) {}
+
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
+  public async waitForInit(): Promise<void> {
+    void 0;
+  }
+
+  /**
+   * No-op write — discards the value.
+   * @returns Promise that resolves immediately
+   */
+  public async writeMemory(): Promise<void> {
+    void 0;
+  }
+
+  /**
+   * No-op read — always throws.
+   * @throws Error always
+   */
+  public async readMemory<T extends object = object>(_memoryId: string): Promise<T> {
+    throw new Error("MemoryDummyInstance: readMemory not supported");
+  }
+
+  /**
+   * No-op search — returns empty array.
+   * @returns Empty array
+   */
+  public async searchMemory<T extends object = object>(): Promise<Array<{ memoryId: string; score: number; content: T }>> {
+    return [];
+  }
+
+  /**
+   * No-op list — returns empty array.
+   * @returns Empty array
+   */
+  public async listMemory<T extends object = object>(): Promise<Array<{ memoryId: string; content: T }>> {
+    return [];
+  }
+
+  /**
+   * No-op remove.
+   * @returns Promise that resolves immediately
+   */
+  public async removeMemory(): Promise<void> {
+    void 0;
+  }
+}
+
+/**
+ * Facade for memory instances scoped per (signalId, bucketName).
+ * Manages lazy initialization and instance lifecycle.
+ *
+ * Features:
+ * - Memoized instances per (signalId, bucketName) pair
+ * - Swappable backend via useLocal(), usePersist(), useDummy()
+ * - Default backend: MemoryPersistInstance (in-memory BM25 + persist storage)
+ */
+export class MemoryAdapter implements TMemoryInstance {
+  private MemoryFactory: TMemoryInstanceCtor = MemoryPersistInstance;
+
+  private getInstance = memoize(
+    ([signalId, bucketName]) => CREATE_KEY_FN(signalId, bucketName),
+    (signalId: string, bucketName: string) =>
+      Reflect.construct(this.MemoryFactory, [signalId, bucketName]),
+  );
+
+  /**
+   * Write a value to memory.
+   * @param dto.memoryId - Unique entry identifier
+   * @param dto.value - Value to store
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   */
+  public writeMemory = async <T extends object = object>(dto: {
+    memoryId: string;
+    value: T;
+    signalId: string;
+    bucketName: string;
+  }) => {
+    const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
+    const isInitial = !this.getInstance.has(key);
+    const instance = this.getInstance(dto.signalId, dto.bucketName);
+    await instance.waitForInit(isInitial);
+    return await instance.writeMemory<T>(dto.memoryId, dto.value);
+  };
+
+  /**
+   * Search memory using BM25 full-text scoring.
+   * @param dto.query - Search query string
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   * @returns Matching entries sorted by relevance score
+   */
+  public searchMemory = async <T extends object = object>(dto: {
+    query: string;
+    signalId: string;
+    bucketName: string;
+    settings?: SearchSettings;
+  }) => {
+    const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
+    const isInitial = !this.getInstance.has(key);
+    const instance = this.getInstance(dto.signalId, dto.bucketName);
+    await instance.waitForInit(isInitial);
+    return await instance.searchMemory<T>(dto.query, dto.settings);
+  };
+
+  /**
+   * List all entries in memory.
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   * @returns Array of all stored entries
+   */
+  public listMemory = async <T extends object = object>(dto: {
+    signalId: string;
+    bucketName: string;
+  }) => {
+    const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
+    const isInitial = !this.getInstance.has(key);
+    const instance = this.getInstance(dto.signalId, dto.bucketName);
+    await instance.waitForInit(isInitial);
+    return await instance.listMemory<T>();
+  };
+
+  /**
+   * Remove an entry from memory.
+   * @param dto.memoryId - Unique entry identifier
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   */
+  public removeMemory = async (dto: {
+    memoryId: string;
+    signalId: string;
+    bucketName: string;
+  }) => {
+    const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
+    const isInitial = !this.getInstance.has(key);
+    const instance = this.getInstance(dto.signalId, dto.bucketName);
+    await instance.waitForInit(isInitial);
+    return await instance.removeMemory(dto.memoryId);
+  };
+
+  /**
+   * Read a single entry from memory.
+   * @param dto.memoryId - Unique entry identifier
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   * @returns Entry value
+   * @throws Error if entry not found
+   */
+  public readMemory = async <T extends object = object>(dto: {
+    memoryId: string;
+    signalId: string;
+    bucketName: string;
+  }) => {
+    const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
+    const isInitial = !this.getInstance.has(key);
+    const instance = this.getInstance(dto.signalId, dto.bucketName);
+    await instance.waitForInit(isInitial);
+    return await instance.readMemory<T>(dto.memoryId);
+  };
+
+  /**
+   * Switches to in-memory BM25 adapter (default).
+   * All data lives in process memory only.
+   */
+  public useLocal = (): void => {
+    swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_USE_LOCAL);
+    this.MemoryFactory = MemoryLocalInstance;
+  };
+
+  /**
+   * Switches to file-system backed adapter.
+   * Data is persisted to ./dump/memory/<bucketName>/<signalId>/.
+   */
+  public usePersist = (): void => {
+    swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_USE_PERSIST);
+    this.MemoryFactory = MemoryPersistInstance;
+  };
+
+  /**
+   * Switches to dummy adapter that discards all writes.
+   */
+  public useDummy = (): void => {
+    swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_USE_DUMMY);
+    this.MemoryFactory = MemoryDummyInstance;
+  };
+}
+
+export const Memory = new MemoryAdapter();
