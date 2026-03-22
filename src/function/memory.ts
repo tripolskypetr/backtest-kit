@@ -23,6 +23,8 @@ const REMOVE_MEMORY_METHOD_NAME = "memory.removeMemory";
  * @param dto.value - Value to store
  * @returns Promise that resolves when write is complete
  *
+ * @deprecated Better use Memory.writeMemory with manual signalId argument
+ * 
  * @example
  * ```typescript
  * import { writeMemory } from "backtest-kit";
@@ -82,6 +84,8 @@ export async function writeMemory<T extends object = object>(dto: {
  * @returns Promise resolving to stored value or null if no signal
  * @throws Error if entry not found within an active signal
  *
+ * @deprecated Better use Memory.readMemory with manual signalId argument
+ * 
  * @example
  * ```typescript
  * import { readMemory } from "backtest-kit";
@@ -138,6 +142,8 @@ export async function readMemory<T extends object = object>(dto: {
  * @param dto.query - Search query string
  * @returns Promise resolving to matching entries sorted by relevance, or empty array if no signal
  *
+ * @deprecated Better use Memory.searchMemory with manual signalId argument
+ * 
  * @example
  * ```typescript
  * import { searchMemory } from "backtest-kit";
@@ -193,6 +199,8 @@ export async function searchMemory<T extends object = object>(dto: {
  * @param dto.bucketName - Memory bucket name
  * @returns Promise resolving to all stored entries, or empty array if no signal
  *
+ * @deprecated Better use Memory.listMemory with manual signalId argument
+ * 
  * @example
  * ```typescript
  * import { listMemory } from "backtest-kit";
@@ -246,6 +254,8 @@ export async function listMemory<T extends object = object>(dto: {
  * @param dto.memoryId - Unique memory entry identifier
  * @returns Promise that resolves when removal is complete
  *
+ * @deprecated Better use Memory.removeMemory with manual signalId argument
+ * 
  * @example
  * ```typescript
  * import { removeMemory } from "backtest-kit";
