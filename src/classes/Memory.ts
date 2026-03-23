@@ -1,7 +1,8 @@
-import { memoize, singleshot } from "functools-kit";
+import { compose, memoize, singleshot } from "functools-kit";
 import createSearchIndex, { SearchSettings } from "../utils/createSearchIndex";
 import swarm from "../lib";
 import { PersistMemoryAdapter } from "./Persist";
+import { signalEmitter } from "../config/emitters";
 
 const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
   `${signalId}-${bucketName}`;
@@ -34,6 +35,14 @@ const MEMORY_PERSIST_INSTANCE_METHOD_NAME_SEARCH = "MemoryPersistInstance.search
 const MEMORY_PERSIST_INSTANCE_METHOD_NAME_LIST = "MemoryPersistInstance.listMemory";
 const MEMORY_PERSIST_INSTANCE_METHOD_NAME_REMOVE = "MemoryPersistInstance.removeMemory";
 
+const MEMORY_ADAPTER_METHOD_NAME_ENABLE = "MemoryAdapter.enable";
+const MEMORY_ADAPTER_METHOD_NAME_DISABLE = "MemoryAdapter.disable";
+const MEMORY_ADAPTER_METHOD_NAME_DISPOSE = "MemoryAdapter.dispose";
+const MEMORY_ADAPTER_METHOD_NAME_WRITE = "MemoryAdapter.writeMemory";
+const MEMORY_ADAPTER_METHOD_NAME_SEARCH = "MemoryAdapter.searchMemory";
+const MEMORY_ADAPTER_METHOD_NAME_LIST = "MemoryAdapter.listMemory";
+const MEMORY_ADAPTER_METHOD_NAME_REMOVE = "MemoryAdapter.removeMemory";
+const MEMORY_ADAPTER_METHOD_NAME_READ = "MemoryAdapter.readMemory";
 const MEMORY_ADAPTER_METHOD_NAME_USE_LOCAL = "MemoryAdapter.useLocal";
 const MEMORY_ADAPTER_METHOD_NAME_USE_PERSIST = "MemoryAdapter.usePersist";
 const MEMORY_ADAPTER_METHOD_NAME_USE_DUMMY = "MemoryAdapter.useDummy";
@@ -101,6 +110,10 @@ export interface IMemoryInstance {
    * @throws Error if entry not found
    */
   readMemory<T extends object = object>(memoryId: string): Promise<T>;
+  /**
+   * Releases any resources held by this instance.
+   */
+  dispose(): void;
 }
 
 /**
@@ -238,6 +251,14 @@ export class MemoryLocalInstance implements IMemoryInstance {
       memoryId,
     });
     return this._index.remove(memoryId);
+  }
+
+  /** Releases resources held by this instance. */
+  public dispose(): void {
+    swarm.loggerService.debug(MEMORY_ADAPTER_METHOD_NAME_DISPOSE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+    });
   }
 }
 
@@ -381,6 +402,18 @@ export class MemoryPersistInstance implements IMemoryInstance {
     await PersistMemoryAdapter.removeMemoryData(this.signalId, this.bucketName, memoryId);
     this._index.remove(memoryId);
   }
+
+  /** Releases resources held by this instance. */
+  public dispose(): void {
+    swarm.loggerService.debug(MEMORY_ADAPTER_METHOD_NAME_DISPOSE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+    });
+    PersistMemoryAdapter.clear(
+      this.signalId,
+      this.bucketName,
+    );
+  }
 }
 
 /**
@@ -440,6 +473,11 @@ export class MemoryDummyInstance implements IMemoryInstance {
   public async removeMemory(): Promise<void> {
     void 0;
   }
+
+  /** No-op. */
+  public dispose(): void {
+    void 0;
+  }
 }
 
 /**
@@ -461,6 +499,53 @@ export class MemoryAdapter implements TMemoryInstance {
   );
 
   /**
+   * Activates the adapter by subscribing to signal lifecycle events.
+   * Clears memoized instances for a signalId when it is cancelled or closed,
+   * preventing stale instances from accumulating in memory.
+   * Idempotent — subsequent calls return the same subscription handle.
+   * Must be called before any memory method is used.
+   */
+  public enable = singleshot(() => {
+    swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_ENABLE);
+
+    const handleDispose = (signalId: string) => {
+      const prefix = CREATE_KEY_FN(signalId, "");
+      for (const key of this.getInstance.keys()) {
+        if (key.startsWith(prefix)) {
+          const instance = this.getInstance.get(key);
+          instance && instance.dispose();
+          this.getInstance.clear(key);
+        }
+      }
+    };
+
+    const unCancel = signalEmitter
+      .filter(({ action }) => action === "cancelled")
+      .connect(({ signal }) => handleDispose(signal.id));
+
+    const unClose = signalEmitter
+      .filter(({ action }) => action === "closed")
+      .connect(({ signal }) => handleDispose(signal.id));
+
+    return compose(
+      () => unCancel(),
+      () => unClose(),
+    );
+  });
+
+  /**
+   * Deactivates the adapter by unsubscribing from signal lifecycle events.
+   * No-op if enable() was never called.
+   */
+  public disable = () => {
+    swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_DISABLE);
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+    }
+  };
+
+  /**
    * Write a value to memory.
    * @param dto.memoryId - Unique entry identifier
    * @param dto.value - Value to store
@@ -475,6 +560,14 @@ export class MemoryAdapter implements TMemoryInstance {
     bucketName: string;
     index?: string;
   }) => {
+    if (!this.enable.hasValue()) {
+      throw new Error("MemoryAdapter is not enabled. Call enable() first.");
+    }
+    swarm.loggerService.debug(MEMORY_ADAPTER_METHOD_NAME_WRITE, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+      memoryId: dto.memoryId,
+    });
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
@@ -495,6 +588,14 @@ export class MemoryAdapter implements TMemoryInstance {
     bucketName: string;
     settings?: SearchSettings;
   }) => {
+    if (!this.enable.hasValue()) {
+      throw new Error("MemoryAdapter is not enabled. Call enable() first.");
+    }
+    swarm.loggerService.debug(MEMORY_ADAPTER_METHOD_NAME_SEARCH, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+      query: dto.query,
+    });
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
@@ -512,6 +613,13 @@ export class MemoryAdapter implements TMemoryInstance {
     signalId: string;
     bucketName: string;
   }) => {
+    if (!this.enable.hasValue()) {
+      throw new Error("MemoryAdapter is not enabled. Call enable() first.");
+    }
+    swarm.loggerService.debug(MEMORY_ADAPTER_METHOD_NAME_LIST, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+    });
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
@@ -530,6 +638,14 @@ export class MemoryAdapter implements TMemoryInstance {
     signalId: string;
     bucketName: string;
   }) => {
+    if (!this.enable.hasValue()) {
+      throw new Error("MemoryAdapter is not enabled. Call enable() first.");
+    }
+    swarm.loggerService.debug(MEMORY_ADAPTER_METHOD_NAME_REMOVE, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+      memoryId: dto.memoryId,
+    });
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
@@ -550,6 +666,14 @@ export class MemoryAdapter implements TMemoryInstance {
     signalId: string;
     bucketName: string;
   }) => {
+    if (!this.enable.hasValue()) {
+      throw new Error("MemoryAdapter is not enabled. Call enable() first.");
+    }
+    swarm.loggerService.debug(MEMORY_ADAPTER_METHOD_NAME_READ, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+      memoryId: dto.memoryId,
+    });
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
@@ -581,6 +705,15 @@ export class MemoryAdapter implements TMemoryInstance {
   public useDummy = (): void => {
     swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_USE_DUMMY);
     this.MemoryFactory = MemoryDummyInstance;
+  };
+
+  /**
+   * Releases resources held by this adapter.
+   * Delegates to disable() to unsubscribe from signal lifecycle events.
+   */
+  public dispose = (): void => {
+    swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_DISPOSE);
+    this.disable();
   };
 }
 

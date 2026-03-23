@@ -773,6 +773,8 @@ export class DumpAdapter {
       const prefix = CREATE_KEY_FN(signalId, "");
       for (const key of this.getInstance.keys()) {
         if (key.startsWith(prefix)) {
+          const instance = this.getInstance.get(key);
+          instance && instance.dispose();
           this.getInstance.clear(key);
         }
       }
