@@ -2299,6 +2299,24 @@ export class PersistMemoryUtils {
     this.getMemoryStorage.clear(key);
   }
 
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistMemoryAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistMemoryAdapter(PersistDummy);
+  }
+
 }
 
 /**
