@@ -1,4 +1,4 @@
-# Agent Trading Memory System (v5.9, 23/03/2026)
+# Trading Agent Memory System (v5.9, 23/03/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/5.9)
 
