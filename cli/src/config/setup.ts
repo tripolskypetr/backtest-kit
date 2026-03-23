@@ -7,6 +7,8 @@ import {
   StorageBacktest,
   NotificationLive,
   NotificationBacktest,
+  Dump,
+  Memory,
   Log,
   setConfig,
 } from "backtest-kit";
@@ -19,6 +21,11 @@ import {
 {
   Markdown.enable();
   Report.enable();
+}
+
+{
+  Dump.useMarkdown();
+  Memory.usePersist();
 }
 
 {
