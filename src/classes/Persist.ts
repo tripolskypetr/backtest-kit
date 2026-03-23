@@ -1964,11 +1964,11 @@ export const PersistLogAdapter = new PersistLogUtils();
  * Used by Cache.file for persistent caching of external API responses.
  */
 export class PersistMeasureUtils {
-  private PersistMeasureFactory: TPersistBaseCtor<string, unknown> = PersistBase;
+  private PersistMeasureFactory: TPersistBaseCtor<string, MeasureData> = PersistBase;
 
   private getMeasureStorage = memoize(
     ([bucket]: [string]): string => bucket,
-    (bucket: string): IPersistBase<unknown> =>
+    (bucket: string): IPersistBase<MeasureData> =>
       Reflect.construct(this.PersistMeasureFactory, [
         bucket,
         `./dump/data/measure/`,
@@ -1981,7 +1981,7 @@ export class PersistMeasureUtils {
    * @param Ctor - Custom PersistBase constructor
    */
   public usePersistMeasureAdapter(
-    Ctor: TPersistBaseCtor<string, unknown>
+    Ctor: TPersistBaseCtor<string, MeasureData>
   ): void {
     swarm.loggerService.info(
       PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER

@@ -10655,7 +10655,10 @@ type SignalData = ISignalRow | null;
 /**
  * Cache.file data type stored in persistence layer.
  */
-type MeasureData = unknown;
+type MeasureData = {
+    id: string;
+    data: unknown;
+};
 /**
  * Type helper for PersistBase instance.
  */
@@ -11546,7 +11549,7 @@ declare class PersistMeasureUtils {
      *
      * @param Ctor - Custom PersistBase constructor
      */
-    usePersistMeasureAdapter(Ctor: TPersistBaseCtor<string, unknown>): void;
+    usePersistMeasureAdapter(Ctor: TPersistBaseCtor<string, MeasureData>): void;
     /**
      * Reads cached measure data for a given bucket and key.
      *
