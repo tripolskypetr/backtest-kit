@@ -8525,55 +8525,6 @@ declare function removeMemory(dto: {
     memoryId: string;
 }): Promise<void>;
 
-/** Unique identifier for a dump result. Can be a string or numeric ID. */
-type ResultId = string | number;
-/** Role of the message sender in LLM chat history. */
-type BaseRole = "assistant" | "system" | "user";
-/**
- * A single message in the chat history.
- * Used to represent system instructions, user input, or LLM responses.
- */
-interface Message<Role extends BaseRole = BaseRole> {
-    /**
-     * The sender of the message.
-     * - "system": System instructions and context
-     * - "user": User input and questions
-     * - "assistant": LLM responses
-     */
-    role: Role;
-    /**
-     * The text content of the message.
-     * Contains the actual message text sent or received.
-     */
-    content: string;
-}
-/**
- * Dumps chat history and result data to markdown files in a structured directory.
- *
- * Creates a subfolder named after `resultId` inside `outputDir`.
- * If the subfolder already exists, the function returns early without overwriting.
- * Writes:
- * - `00_system_prompt.md` — system messages and output data summary
- * - `NN_user_message.md` — each user message as a separate file
- * - `NN_llm_output.md` — final LLM output data
- *
- * Warns via logger if any user message exceeds 30 KB.
- *
- * @param resultId - Unique identifier for the result (used as subfolder name)
- * @param history - Full chat history containing system, user, and assistant messages
- * @param result - Structured output data to include in the dump
- * @param outputDir - Base directory for output files (default: `./dump/strategy`)
- * @returns Promise that resolves when all files are written
- *
- * @example
- * ```typescript
- * import { dumpMessages } from "backtest-kit";
- *
- * await dumpMessages("result-123", history, { profit: 42 });
- * ```
- */
-declare function dumpMessages<Data extends object = any>(resultId: ResultId, history: Message[], result: Data, outputDir?: string): Promise<void>;
-
 /**
  * Portfolio heatmap statistics for a single symbol.
  * Aggregated metrics across all strategies for one trading pair.
@@ -10491,6 +10442,7 @@ interface StrategyStatisticsModel {
     averageBuyCount: number;
 }
 
+/** Symbol key for the singleshot waitForInit function on PersistBase instances. */
 declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
 /**
  * Signal data stored in persistence layer.
@@ -11540,7 +11492,9 @@ declare class PersistMemoryUtils {
  */
 declare const PersistMemoryAdapter: PersistMemoryUtils;
 
+/** Symbol key for the singleshot waitForInit function on ReportBase instances. */
 declare const WAIT_FOR_INIT_SYMBOL$1: unique symbol;
+/** Symbol key for the timeout-protected write function on ReportBase instances. */
 declare const WRITE_SAFE_SYMBOL$1: unique symbol;
 /**
  * Configuration interface for selective report service enablement.
@@ -11854,7 +11808,9 @@ interface IMarkdownTarget {
     /** Enable highest profit milestone tracking reports */
     highest_profit: boolean;
 }
+/** Symbol key for the singleshot waitForInit function on MarkdownFileBase instances. */
 declare const WAIT_FOR_INIT_SYMBOL: unique symbol;
+/** Symbol key for the timeout-protected write function on MarkdownFileBase instances. */
 declare const WRITE_SAFE_SYMBOL: unique symbol;
 /**
  * Union type of all valid markdown report names.
@@ -18399,6 +18355,126 @@ declare class MemoryAdapter implements TMemoryInstance {
 }
 declare const Memory: MemoryAdapter;
 
+type MessageRole = "assistant" | "system" | "tool" | "user";
+type MessageToolCall = {
+    id: string;
+    type: "function";
+    function: {
+        name: string;
+        arguments: {
+            [key: string]: any;
+        };
+    };
+};
+interface MessageModel {
+    role: MessageRole;
+    content: string;
+    tool_calls?: MessageToolCall[];
+    images?: Blob[] | Uint8Array[] | string[];
+    tool_call_id?: string;
+}
+
+/**
+ * Context required to identify a dump entry.
+ * Compatible with both Memory (signalId + bucketName + dumpId as memoryId)
+ * and Markdown (path: ./dump/agent/{bucketName}/{signalId}/{dumpId}.md).
+ */
+interface IDumpContext {
+    /** Signal identifier — scopes the dump to a specific trade */
+    signalId: string;
+    /** Bucket name — groups dumps by strategy or agent name */
+    bucketName: string;
+    /** Unique identifier for this agent invocation */
+    dumpId: string;
+}
+/**
+ * Interface for dump instance implementations.
+ * Defines the contract for memory, markdown, and dummy backends.
+ */
+interface IDumpInstance {
+    /**
+     * Persist the full message history of one agent invocation.
+     * @param messages - Full chat history (system, user, assistant, tool)
+     * @param context - Scope identifiers for the dump entry
+     */
+    dumpAgentAnswer(messages: MessageModel[], context: IDumpContext): Promise<void>;
+}
+/**
+ * Constructor type for dump instance implementations.
+ * Used for swapping backends via DumpAdapter.useAdapter().
+ */
+type TDumpInstanceCtor = new () => IDumpInstance;
+/**
+ * Memory-backed dump instance.
+ * Stores only the last assistant message via Memory.writeMemory.
+ * Useful for downstream LLM retrieval via Memory.searchMemory.
+ */
+declare class DumpMemoryInstance implements IDumpInstance {
+    dumpAgentAnswer(messages: MessageModel[], context: IDumpContext): Promise<void>;
+}
+/**
+ * Markdown-backed dump instance.
+ * Writes all messages of one agent invocation into a single .md file.
+ *
+ * Storage layout:
+ *   ./dump/agent/{bucketName}/{signalId}/{memoryId}.md
+ *
+ * One file per invocation — readable by both LLM and developer.
+ * All roles (system, user, assistant, tool) are rendered as numbered sections.
+ * tool_calls are rendered as fenced JSON blocks.
+ * If the file already exists, the call is skipped.
+ */
+declare class DumpMarkdownInstance implements IDumpInstance {
+    dumpAgentAnswer(messages: MessageModel[], context: IDumpContext): Promise<void>;
+}
+/**
+ * No-op dump instance that discards all writes.
+ * Used for disabling dumps in tests or dry-run scenarios.
+ */
+declare class DumpDummyInstance implements IDumpInstance {
+    dumpAgentAnswer(): Promise<void>;
+}
+/**
+ * Facade for dump instances with swappable backend.
+ * Default backend: DumpMarkdownInstance.
+ *
+ * Switch backends via:
+ * - useMarkdown() — write one .md file per invocation (default)
+ * - useMemory()   — store last assistant message in Memory
+ * - useDummy()    — no-op, discard all writes
+ * - useDumpAdapter(Ctor) — inject a custom implementation
+ */
+declare class DumpAdapter implements IDumpInstance {
+    private _instance;
+    /**
+     * Persist the full message history of one agent invocation.
+     * Delegates to the active backend instance.
+     */
+    dumpAgentAnswer: (messages: MessageModel[], context: IDumpContext) => Promise<void>;
+    /**
+     * Switches to markdown backend (default).
+     * Writes one .md file per invocation to ./dump/agent/{bucketName}/{signalId}/{memoryId}.md
+     */
+    useMarkdown: () => void;
+    /**
+     * Switches to memory backend.
+     * Stores the last assistant message via Memory.writeMemory.
+     */
+    useMemory: () => void;
+    /**
+     * Switches to dummy backend.
+     * All writes are discarded.
+     */
+    useDummy: () => void;
+    /**
+     * Injects a custom dump adapter implementation.
+     * Uses Reflect.construct for ES3/ES6 interop compatibility.
+     * @param Ctor - Constructor for the custom dump implementation
+     */
+    useDumpAdapter: (Ctor: TDumpInstanceCtor) => void;
+}
+declare const Dump: DumpAdapter;
+
 /**
  * Utility class for exchange operations.
  *
@@ -20640,15 +20716,49 @@ type BrokerAverageBuyPayload = {
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Broker adapter interface for live order execution.
+ *
+ * Implement this interface to connect the framework to a real exchange or broker.
+ * All methods are called BEFORE the corresponding DI-core state mutation, so if any
+ * method throws, the internal state remains unchanged (transaction semantics).
+ *
+ * In backtest mode all calls are silently skipped by BrokerAdapter — the adapter
+ * never receives backtest traffic.
+ *
+ * @example
+ * ```typescript
+ * class MyBroker implements IBroker {
+ *   async waitForInit() {
+ *     await this.exchange.connect();
+ *   }
+ *   async onSignalOpenCommit(payload) {
+ *     await this.exchange.placeOrder({ symbol: payload.symbol, side: payload.position });
+ *   }
+ *   // ... other methods
+ * }
+ *
+ * Broker.useBrokerAdapter(MyBroker);
+ * ```
+ */
 interface IBroker {
+    /** Called once before first use. Connect to exchange, load credentials, etc. */
     waitForInit(): Promise<void>;
+    /** Called when a new signal is closed (take-profit, stop-loss, or manual close). */
     onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
+    /** Called when a new signal is opened (position entry confirmed). */
     onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
+    /** Called when a partial profit close is committed. */
     onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
+    /** Called when a partial loss close is committed. */
     onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
+    /** Called when a trailing stop update is committed. */
     onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
+    /** Called when a trailing take-profit update is committed. */
     onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
+    /** Called when a breakeven stop is committed (stop loss moved to entry price). */
     onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
+    /** Called when a DCA (average-buy) entry is committed. */
     onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
 }
 type TBrokerCtor = new () => Partial<IBroker>;
@@ -27850,4 +27960,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, Memory, type MemoryData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, waitForCandle, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, DumpDummyInstance, DumpMarkdownInstance, DumpMemoryInstance, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, Memory, type MemoryData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, waitForCandle, warmCandles, writeMemory };
