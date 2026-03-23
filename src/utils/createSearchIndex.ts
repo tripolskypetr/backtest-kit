@@ -4,9 +4,28 @@ const DEFAULT_BM25_SCORE = 0.5;
 
 const USE_FULL_RECOMPUTE = false;
 
+/**
+ * Tuning parameters for BM25 full-text search scoring.
+ * Controls term frequency saturation, document length normalization, and minimum score threshold.
+ */
 export type SearchSettings = {
+  /**
+   * Term frequency saturation parameter.
+   * Higher values give more weight to repeated terms; lower values saturate faster.
+   * Typical range: 1.2–2.0. Default: 1.5.
+   */
   BM25_K1: number;
+  /**
+   * Document length normalization factor.
+   * 0 = no normalization, 1 = full normalization by average document length.
+   * Default: 0.75.
+   */
   BM25_B: number;
+  /**
+   * Minimum BM25 score threshold for a result to be included in the output.
+   * Results with score below this value are filtered out.
+   * Default: 0.5.
+   */
   BM25_SCORE: number;
 }
 
