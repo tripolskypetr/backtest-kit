@@ -8555,6 +8555,8 @@ interface MessageModel<Role extends MessageRole = MessageRole> {
     role: Role;
     /** Text content of the message. Empty string for assistant messages that only contain tool_calls. */
     content: string;
+    /** Chain-of-thought / reasoning exposed by some providers (e.g. DeepSeek). */
+    reasoning_content?: string | null;
     /** Tool calls emitted by the assistant. Present only on assistant messages. */
     tool_calls?: MessageToolCall[];
     /** Images attached to the message. Supported as Blob, raw bytes, or base64 strings. */
@@ -11354,7 +11356,7 @@ type StorageData = IStorageSignalRow[];
  */
 declare class PersistStorageUtils {
     private PersistStorageFactory;
-    private getStorageStorage;
+    private getStorage;
     /**
      * Registers a custom persistence adapter.
      *
@@ -11600,7 +11602,7 @@ type MemoryData = {
  * - Atomic read/write/remove operations
  * - Async iteration over stored keys for index rebuilding
  *
- * Storage layout: ./dump/memory/<bucketName>/<signalId>/<memoryId>.json
+ * Storage layout: ./dump/memory/<signalId>/<bucketName>/<memoryId>.json
  *
  * Used by MemoryPersistInstance for crash-safe memory persistence.
  */
@@ -18460,7 +18462,7 @@ interface IMemoryInstance {
  */
 type TMemoryInstanceCtor = new (signalId: string, bucketName: string) => IMemoryInstance;
 /**
- * Public surface of MemoryAdapter — IMemoryInstance minus waitForInit.
+ * Public surface of MemoryAdapter - IMemoryInstance minus waitForInit.
  * waitForInit is managed internally by the adapter.
  */
 type TMemoryInstance = Omit<{
@@ -18556,7 +18558,7 @@ declare class MemoryAdapter implements TMemoryInstance {
     useLocal: () => void;
     /**
      * Switches to file-system backed adapter.
-     * Data is persisted to ./dump/memory/<bucketName>/<signalId>/.
+     * Data is persisted to ./dump/memory/<signalId>/<bucketName>/.
      */
     usePersist: () => void;
     /**
@@ -18568,12 +18570,12 @@ declare const Memory: MemoryAdapter;
 
 /**
  * Context required to identify a dump entry.
- * Passed only through DumpAdapter — instances receive signalId and bucketName via constructor.
+ * Passed only through DumpAdapter - instances receive signalId and bucketName via constructor.
  */
 interface IDumpContext {
-    /** Signal identifier — scopes the dump to a specific trade */
+    /** Signal identifier - scopes the dump to a specific trade */
     signalId: string;
-    /** Bucket name — groups dumps by strategy or agent name */
+    /** Bucket name - groups dumps by strategy or agent name */
     bucketName: string;
     /** Unique identifier for this dump entry */
     dumpId: string;
@@ -18627,7 +18629,7 @@ interface IDumpInstance {
      * @param json - Arbitrary object to serialize with JSON.stringify
      * @param dumpId - Unique identifier for this dump entry
      * @param description - Human-readable label describing the object contents; included in the BM25 index for Memory search
-     * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
+     * @deprecated Prefer dumpRecord - flat key-value structure maps naturally to markdown tables and SQL storage
      */
     dumpJson(json: object, dumpId: string, description: string): Promise<void>;
 }
@@ -18644,10 +18646,10 @@ type TDumpInstanceCtor = new (signalId: string, bucketName: string) => IDumpInst
  * and delegates with only the dumpId.
  *
  * Switch backends via:
- * - useMarkdown() — write one .md file per call (default)
- * - useMemory()   — store data in Memory
- * - useDummy()    — no-op, discard all writes
- * - useDumpAdapter(Ctor) — inject a custom implementation
+ * - useMarkdown() - write one .md file per call (default)
+ * - useMemory()   - store data in Memory
+ * - useDummy()    - no-op, discard all writes
+ * - useDumpAdapter(Ctor) - inject a custom implementation
  */
 declare class DumpAdapter {
     private DumpFactory;
@@ -18674,7 +18676,7 @@ declare class DumpAdapter {
     dumpError: (content: string, context: IDumpContext) => Promise<void>;
     /**
      * Persist an arbitrary nested object as a fenced JSON block.
-     * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
+     * @deprecated Prefer dumpRecord - flat key-value structure maps naturally to markdown tables and SQL storage
      */
     dumpJson: (json: object, context: IDumpContext) => Promise<void>;
     /**

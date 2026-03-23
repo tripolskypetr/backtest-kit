@@ -1599,7 +1599,7 @@ export class PersistStorageUtils {
   private PersistStorageFactory: TPersistBaseCtor<string, IStorageSignalRow> =
     PersistBase;
 
-  private getStorageStorage = memoize(
+  private getStorage = memoize(
     ([backtest]): string => backtest ? `backtest` : `live`,
     (backtest: boolean): IPersistBase<IStorageSignalRow> =>
       Reflect.construct(this.PersistStorageFactory, [
@@ -1636,8 +1636,8 @@ export class PersistStorageUtils {
     swarm.loggerService.info(PERSIST_STORAGE_UTILS_METHOD_NAME_READ_DATA);
 
     const key = backtest ? `backtest` : `live`;
-    const isInitial = !this.getStorageStorage.has(key);
-    const stateStorage = this.getStorageStorage(backtest);
+    const isInitial = !this.getStorage.has(key);
+    const stateStorage = this.getStorage(backtest);
     await stateStorage.waitForInit(isInitial);
 
     const signals: IStorageSignalRow[] = [];
@@ -1668,8 +1668,8 @@ export class PersistStorageUtils {
     swarm.loggerService.info(PERSIST_STORAGE_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = backtest ? `backtest` : `live`;
-    const isInitial = !this.getStorageStorage.has(key);
-    const stateStorage = this.getStorageStorage(backtest);
+    const isInitial = !this.getStorage.has(key);
+    const stateStorage = this.getStorage(backtest);
     await stateStorage.waitForInit(isInitial);
 
     for (const signal of signalData) {
