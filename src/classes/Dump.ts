@@ -76,204 +76,198 @@ const RENDER_TABLE_FN = (rows: Record<string, unknown>[]): string => {
 
 /**
  * Context required to identify a dump entry.
- * Compatible with both Memory (signalId + bucketName + dumpId as memoryId)
- * and Markdown (path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md).
+ * Passed only through DumpAdapter — instances receive signalId and bucketName via constructor.
  */
 export interface IDumpContext {
   /** Signal identifier — scopes the dump to a specific trade */
   signalId: string;
   /** Bucket name — groups dumps by strategy or agent name */
   bucketName: string;
-  /** Unique identifier for this agent invocation */
+  /** Unique identifier for this dump entry */
   dumpId: string;
 }
 
 /**
  * Interface for dump instance implementations.
- * Defines the contract for memory, markdown, and dummy backends.
+ * Instances are scoped to (signalId, bucketName) via constructor.
+ * Methods receive only the payload and dumpId.
  */
 export interface IDumpInstance {
   /**
    * Persist the full message history of one agent invocation.
    * @param messages - Full chat history (system, user, assistant, tool)
-   * @param context - Scope identifiers for the dump entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  dumpAgentAnswer(messages: MessageModel[], context: IDumpContext): Promise<void>;
+  dumpAgentAnswer(messages: MessageModel[], dumpId: string): Promise<void>;
   /**
    * Persist a flat key-value record.
    * @param record - Arbitrary flat object to dump
-   * @param context - Scope identifiers for the dump entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  dumpRecord(record: Record<string, unknown>, context: IDumpContext): Promise<void>;
+  dumpRecord(record: Record<string, unknown>, dumpId: string): Promise<void>;
   /**
    * Persist an array of objects as a table.
    * Column headers are derived from the union of all keys across all rows.
    * @param rows - Array of arbitrary objects to dump
-   * @param context - Scope identifiers for the dump entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  dumpTable(rows: Record<string, unknown>[], context: IDumpContext): Promise<void>;
+  dumpTable(rows: Record<string, unknown>[], dumpId: string): Promise<void>;
   /**
    * Persist a raw text or markdown string.
    * @param content - Arbitrary text content to dump
-   * @param context - Scope identifiers for the dump entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  dumpText(content: string, context: IDumpContext): Promise<void>;
+  dumpText(content: string, dumpId: string): Promise<void>;
   /**
    * Persist an error description.
    * @param content - Error message or description to dump
-   * @param context - Scope identifiers for the dump entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  dumpError(content: string, context: IDumpContext): Promise<void>;
+  dumpError(content: string, dumpId: string): Promise<void>;
   /**
    * Persist an arbitrary nested object as a fenced JSON block.
    * @param json - Arbitrary object to serialize with JSON.stringify
-   * @param context - Scope identifiers for the dump entry
+   * @param dumpId - Unique identifier for this dump entry
    * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
    */
-  dumpJson(json: object, context: IDumpContext): Promise<void>;
+  dumpJson(json: object, dumpId: string): Promise<void>;
 }
 
 /**
  * Constructor type for dump instance implementations.
  * Used for swapping backends via DumpAdapter.useDumpAdapter().
  */
-export type TDumpInstanceCtor = new () => IDumpInstance;
+export type TDumpInstanceCtor = new (signalId: string, bucketName: string) => IDumpInstance;
 
 /**
  * Memory-backed dump instance.
  * Stores data via Memory.writeMemory using dumpId as memoryId.
+ * Scoped to (signalId, bucketName) via constructor.
  * Useful for downstream LLM retrieval via Memory.searchMemory.
  */
 export class DumpMemoryInstance implements IDumpInstance {
+  constructor(
+    readonly signalId: string,
+    readonly bucketName: string,
+  ) {}
+
   /**
    * Stores the full agent message history in Memory as a `{ messages }` object.
-   * Uses dumpId as memoryId, scoped by signalId and bucketName.
    * If the message list is empty, the call is a no-op.
    * @param messages - Full chat history (system, user, assistant, tool)
-   * @param context - Scope identifiers for the memory entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpAgentAnswer(
-    messages: MessageModel[],
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpAgentAnswer(messages: MessageModel[], dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MEMORY_INSTANCE_METHOD_NAME_AGENT, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
       messagesLen: messages.length,
-      context,
     });
     if (!messages.length) {
       return;
     }
     await Memory.writeMemory({
-      memoryId: context.dumpId,
-      bucketName: context.bucketName,
-      signalId: context.signalId,
+      memoryId: dumpId,
+      bucketName: this.bucketName,
+      signalId: this.signalId,
       value: { messages },
     });
   }
 
   /**
    * Stores the record object in Memory.
-   * Uses dumpId as memoryId, scoped by signalId and bucketName.
    * @param record - Arbitrary flat object to persist
-   * @param context - Scope identifiers for the memory entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpRecord(
-    record: Record<string, unknown>,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpRecord(record: Record<string, unknown>, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MEMORY_INSTANCE_METHOD_NAME_RECORD, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
     await Memory.writeMemory({
-      memoryId: context.dumpId,
-      bucketName: context.bucketName,
-      signalId: context.signalId,
+      memoryId: dumpId,
+      bucketName: this.bucketName,
+      signalId: this.signalId,
       value: record,
     });
   }
 
   /**
    * Stores the row array in Memory as a single object with a `rows` field.
-   * Uses dumpId as memoryId, scoped by signalId and bucketName.
    * @param rows - Array of arbitrary objects to persist
-   * @param context - Scope identifiers for the memory entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpTable(
-    rows: Record<string, unknown>[],
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpTable(rows: Record<string, unknown>[], dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MEMORY_INSTANCE_METHOD_NAME_TABLE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
       rowsLen: rows.length,
-      context,
     });
     await Memory.writeMemory({
-      memoryId: context.dumpId,
-      bucketName: context.bucketName,
-      signalId: context.signalId,
+      memoryId: dumpId,
+      bucketName: this.bucketName,
+      signalId: this.signalId,
       value: { rows },
     });
   }
 
   /**
    * Stores the text content in Memory as a plain object with a `content` field.
-   * Uses dumpId as memoryId, scoped by signalId and bucketName.
    * @param content - Arbitrary text to persist
-   * @param context - Scope identifiers for the memory entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpText(
-    content: string,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpText(content: string, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MEMORY_INSTANCE_METHOD_NAME_TEXT, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
     await Memory.writeMemory({
-      memoryId: context.dumpId,
-      bucketName: context.bucketName,
-      signalId: context.signalId,
+      memoryId: dumpId,
+      bucketName: this.bucketName,
+      signalId: this.signalId,
       value: { content },
     });
   }
 
   /**
    * Stores the error content in Memory as a plain object with a `content` field.
-   * Uses dumpId as memoryId, scoped by signalId and bucketName.
    * @param content - Error message or description to persist
-   * @param context - Scope identifiers for the memory entry
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpError(
-    content: string,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpError(content: string, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MEMORY_INSTANCE_METHOD_NAME_ERROR, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
     await Memory.writeMemory({
-      memoryId: context.dumpId,
-      bucketName: context.bucketName,
-      signalId: context.signalId,
+      memoryId: dumpId,
+      bucketName: this.bucketName,
+      signalId: this.signalId,
       value: { content },
     });
   }
 
   /**
    * Stores the JSON object in Memory as-is.
-   * Uses dumpId as memoryId, scoped by signalId and bucketName.
    * @param json - Arbitrary nested object to persist
-   * @param context - Scope identifiers for the memory entry
+   * @param dumpId - Unique identifier for this dump entry
    * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
    */
-  public async dumpJson(
-    json: object,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpJson(json: object, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MEMORY_INSTANCE_METHOD_NAME_JSON, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
     await Memory.writeMemory({
-      memoryId: context.dumpId,
-      bucketName: context.bucketName,
-      signalId: context.signalId,
+      memoryId: dumpId,
+      bucketName: this.bucketName,
+      signalId: this.signalId,
       value: json,
     });
   }
@@ -282,6 +276,7 @@ export class DumpMemoryInstance implements IDumpInstance {
 /**
  * Markdown-backed dump instance.
  * Writes output into a single .md file per call.
+ * Scoped to (signalId, bucketName) via constructor.
  *
  * Storage layout:
  *   ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
@@ -289,36 +284,46 @@ export class DumpMemoryInstance implements IDumpInstance {
  * If the file already exists, the call is skipped (idempotent).
  */
 export class DumpMarkdownInstance implements IDumpInstance {
+  constructor(
+    readonly signalId: string,
+    readonly bucketName: string,
+  ) {}
+
+  private getFilePath(dumpId: string): string {
+    return join("./dump/agent", this.signalId, this.bucketName, `${dumpId}.md`);
+  }
+
+  private async ensureFile(filePath: string): Promise<boolean> {
+    try {
+      await fs.access(filePath);
+      return false;
+    } catch {
+      await fs.mkdir(dirname(filePath), { recursive: true });
+      return true;
+    }
+  }
+
   /**
    * Writes all messages of the agent invocation to a single markdown file.
    * Path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
    * If the file already exists, the call is skipped (idempotent).
    * @param messages - Full chat history (system, user, assistant, tool)
-   * @param context - Scope identifiers used to construct the file path
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpAgentAnswer(
-    messages: MessageModel[],
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpAgentAnswer(messages: MessageModel[], dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MARKDOWN_INSTANCE_METHOD_NAME_AGENT, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
       messagesLen: messages.length,
-      context,
     });
-    const filePath = join(
-      "./dump/agent",
-      context.signalId,
-      context.bucketName,
-      `${context.dumpId}.md`,
-    );
-    try {
-      await fs.access(filePath);
+    const filePath = this.getFilePath(dumpId);
+    if (!await this.ensureFile(filePath)) {
       return;
-    } catch {
-      await fs.mkdir(dirname(filePath), { recursive: true });
     }
-    let content = `# Agent Reasoning — ${context.dumpId}\n\n`;
-    content += `**signalId**: ${context.signalId}  \n`;
-    content += `**bucketName**: ${context.bucketName}\n\n`;
+    let content = `# Agent Reasoning — ${dumpId}\n\n`;
+    content += `**signalId**: ${this.signalId}  \n`;
+    content += `**bucketName**: ${this.bucketName}\n\n`;
     for (let i = 0; i < messages.length; i++) {
       content += RENDER_MESSAGE_FN(messages[i], i);
       content += "\n";
@@ -331,30 +336,21 @@ export class DumpMarkdownInstance implements IDumpInstance {
    * Path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
    * If the file already exists, the call is skipped (idempotent).
    * @param record - Arbitrary flat object to render
-   * @param context - Scope identifiers used to construct the file path
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpRecord(
-    record: Record<string, unknown>,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpRecord(record: Record<string, unknown>, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MARKDOWN_INSTANCE_METHOD_NAME_RECORD, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
-    const filePath = join(
-      "./dump/agent",
-      context.signalId,
-      context.bucketName,
-      `${context.dumpId}.md`,
-    );
-    try {
-      await fs.access(filePath);
+    const filePath = this.getFilePath(dumpId);
+    if (!await this.ensureFile(filePath)) {
       return;
-    } catch {
-      await fs.mkdir(dirname(filePath), { recursive: true });
     }
-    let content = `# Record Dump — ${context.dumpId}\n\n`;
-    content += `**signalId**: ${context.signalId}  \n`;
-    content += `**bucketName**: ${context.bucketName}\n\n`;
+    let content = `# Record Dump — ${dumpId}\n\n`;
+    content += `**signalId**: ${this.signalId}  \n`;
+    content += `**bucketName**: ${this.bucketName}\n\n`;
     content += RENDER_RECORD_FN(record);
     await fs.writeFile(filePath, content, "utf8");
   }
@@ -365,31 +361,22 @@ export class DumpMarkdownInstance implements IDumpInstance {
    * Path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
    * If the file already exists, the call is skipped (idempotent).
    * @param rows - Array of arbitrary objects to render
-   * @param context - Scope identifiers used to construct the file path
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpTable(
-    rows: Record<string, unknown>[],
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpTable(rows: Record<string, unknown>[], dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MARKDOWN_INSTANCE_METHOD_NAME_TABLE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
       rowsLen: rows.length,
-      context,
     });
-    const filePath = join(
-      "./dump/agent",
-      context.signalId,
-      context.bucketName,
-      `${context.dumpId}.md`,
-    );
-    try {
-      await fs.access(filePath);
+    const filePath = this.getFilePath(dumpId);
+    if (!await this.ensureFile(filePath)) {
       return;
-    } catch {
-      await fs.mkdir(dirname(filePath), { recursive: true });
     }
-    let content = `# Table Dump — ${context.dumpId}\n\n`;
-    content += `**signalId**: ${context.signalId}  \n`;
-    content += `**bucketName**: ${context.bucketName}\n\n`;
+    let content = `# Table Dump — ${dumpId}\n\n`;
+    content += `**signalId**: ${this.signalId}  \n`;
+    content += `**bucketName**: ${this.bucketName}\n\n`;
     content += RENDER_TABLE_FN(rows);
     await fs.writeFile(filePath, content, "utf8");
   }
@@ -399,26 +386,17 @@ export class DumpMarkdownInstance implements IDumpInstance {
    * Path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
    * If the file already exists, the call is skipped (idempotent).
    * @param content - Arbitrary text to write
-   * @param context - Scope identifiers used to construct the file path
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpText(
-    content: string,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpText(content: string, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MARKDOWN_INSTANCE_METHOD_NAME_TEXT, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
-    const filePath = join(
-      "./dump/agent",
-      context.signalId,
-      context.bucketName,
-      `${context.dumpId}.md`,
-    );
-    try {
-      await fs.access(filePath);
+    const filePath = this.getFilePath(dumpId);
+    if (!await this.ensureFile(filePath)) {
       return;
-    } catch {
-      await fs.mkdir(dirname(filePath), { recursive: true });
     }
     await fs.writeFile(filePath, content, "utf8");
   }
@@ -428,30 +406,21 @@ export class DumpMarkdownInstance implements IDumpInstance {
    * Path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
    * If the file already exists, the call is skipped (idempotent).
    * @param content - Error message or description to write
-   * @param context - Scope identifiers used to construct the file path
+   * @param dumpId - Unique identifier for this dump entry
    */
-  public async dumpError(
-    content: string,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpError(content: string, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MARKDOWN_INSTANCE_METHOD_NAME_ERROR, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
-    const filePath = join(
-      "./dump/agent",
-      context.signalId,
-      context.bucketName,
-      `${context.dumpId}.md`,
-    );
-    try {
-      await fs.access(filePath);
+    const filePath = this.getFilePath(dumpId);
+    if (!await this.ensureFile(filePath)) {
       return;
-    } catch {
-      await fs.mkdir(dirname(filePath), { recursive: true });
     }
-    let output = `# Error Dump — ${context.dumpId}\n\n`;
-    output += `**signalId**: ${context.signalId}  \n`;
-    output += `**bucketName**: ${context.bucketName}\n\n`;
+    let output = `# Error Dump — ${dumpId}\n\n`;
+    output += `**signalId**: ${this.signalId}  \n`;
+    output += `**bucketName**: ${this.bucketName}\n\n`;
     output += content;
     output += "\n";
     await fs.writeFile(filePath, output, "utf8");
@@ -462,31 +431,22 @@ export class DumpMarkdownInstance implements IDumpInstance {
    * Path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
    * If the file already exists, the call is skipped (idempotent).
    * @param json - Arbitrary nested object to serialize
-   * @param context - Scope identifiers used to construct the file path
+   * @param dumpId - Unique identifier for this dump entry
    * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
    */
-  public async dumpJson(
-    json: object,
-    context: IDumpContext,
-  ): Promise<void> {
+  public async dumpJson(json: object, dumpId: string): Promise<void> {
     backtest.loggerService.info(DUMP_MARKDOWN_INSTANCE_METHOD_NAME_JSON, {
-      context,
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+      dumpId,
     });
-    const filePath = join(
-      "./dump/agent",
-      context.signalId,
-      context.bucketName,
-      `${context.dumpId}.md`,
-    );
-    try {
-      await fs.access(filePath);
+    const filePath = this.getFilePath(dumpId);
+    if (!await this.ensureFile(filePath)) {
       return;
-    } catch {
-      await fs.mkdir(dirname(filePath), { recursive: true });
     }
-    let output = `# JSON Dump — ${context.dumpId}\n\n`;
-    output += `**signalId**: ${context.signalId}  \n`;
-    output += `**bucketName**: ${context.bucketName}\n\n`;
+    let output = `# JSON Dump — ${dumpId}\n\n`;
+    output += `**signalId**: ${this.signalId}  \n`;
+    output += `**bucketName**: ${this.bucketName}\n\n`;
     output += "```json\n";
     output += JSON.stringify(json, null, 2);
     output += "\n```\n";
@@ -499,6 +459,11 @@ export class DumpMarkdownInstance implements IDumpInstance {
  * Used for disabling dumps in tests or dry-run scenarios.
  */
 export class DumpDummyInstance implements IDumpInstance {
+  constructor(
+    readonly signalId: string,
+    readonly bucketName: string,
+  ) {}
+
   /** No-op. */
   public async dumpAgentAnswer(): Promise<void> {
     void 0;
@@ -537,80 +502,87 @@ export class DumpDummyInstance implements IDumpInstance {
  * Facade for dump instances with swappable backend.
  * Default backend: DumpMarkdownInstance.
  *
+ * Accepts IDumpContext on every call, constructs a scoped instance per (signalId, bucketName),
+ * and delegates with only the dumpId.
+ *
  * Switch backends via:
  * - useMarkdown() — write one .md file per call (default)
  * - useMemory()   — store data in Memory
  * - useDummy()    — no-op, discard all writes
  * - useDumpAdapter(Ctor) — inject a custom implementation
  */
-export class DumpAdapter implements IDumpInstance {
-  private _instance: IDumpInstance = new DumpMarkdownInstance();
+export class DumpAdapter {
+  private DumpFactory: TDumpInstanceCtor = DumpMarkdownInstance;
+
+  private getInstance(signalId: string, bucketName: string): IDumpInstance {
+    return Reflect.construct(this.DumpFactory, [signalId, bucketName]);
+  }
 
   /**
    * Persist the full message history of one agent invocation.
-   * Delegates to the active backend instance.
    */
   public dumpAgentAnswer = async (
     messages: MessageModel[],
     context: IDumpContext,
   ): Promise<void> => {
-    return await this._instance.dumpAgentAnswer(messages, context);
+    return await this.getInstance(context.signalId, context.bucketName)
+      .dumpAgentAnswer(messages, context.dumpId);
   };
 
   /**
    * Persist a flat key-value record.
-   * Delegates to the active backend instance.
    */
   public dumpRecord = async (
     record: Record<string, unknown>,
     context: IDumpContext,
   ): Promise<void> => {
-    return await this._instance.dumpRecord(record, context);
+    return await this.getInstance(context.signalId, context.bucketName)
+      .dumpRecord(record, context.dumpId);
   };
 
   /**
    * Persist an array of objects as a table.
-   * Delegates to the active backend instance.
    */
   public dumpTable = async (
     rows: Record<string, unknown>[],
     context: IDumpContext,
   ): Promise<void> => {
-    return await this._instance.dumpTable(rows, context);
+    return await this.getInstance(context.signalId, context.bucketName)
+      .dumpTable(rows, context.dumpId);
   };
 
   /**
    * Persist raw text content.
-   * Delegates to the active backend instance.
    */
   public dumpText = async (
     content: string,
     context: IDumpContext,
   ): Promise<void> => {
-    return await this._instance.dumpText(content, context);
+    return await this.getInstance(context.signalId, context.bucketName)
+      .dumpText(content, context.dumpId);
   };
 
   /**
    * Persist an error description.
-   * Delegates to the active backend instance.
    */
   public dumpError = async (
     content: string,
     context: IDumpContext,
   ): Promise<void> => {
-    return await this._instance.dumpError(content, context);
+    return await this.getInstance(context.signalId, context.bucketName)
+      .dumpError(content, context.dumpId);
   };
 
   /**
    * Persist an arbitrary nested object as a fenced JSON block.
-   * Delegates to the active backend instance.
    * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
    */
   public dumpJson = async (
     json: object,
     context: IDumpContext,
   ): Promise<void> => {
-    return await this._instance.dumpJson(json, context);
+    return await this.getInstance(context.signalId, context.bucketName)
+      .dumpJson(json, context.dumpId);
   };
 
   /**
@@ -619,7 +591,7 @@ export class DumpAdapter implements IDumpInstance {
    */
   public useMarkdown = (): void => {
     backtest.loggerService.info(DUMP_ADAPTER_METHOD_NAME_USE_MARKDOWN);
-    this._instance = new DumpMarkdownInstance();
+    this.DumpFactory = DumpMarkdownInstance;
   };
 
   /**
@@ -628,7 +600,7 @@ export class DumpAdapter implements IDumpInstance {
    */
   public useMemory = (): void => {
     backtest.loggerService.info(DUMP_ADAPTER_METHOD_NAME_USE_MEMORY);
-    this._instance = new DumpMemoryInstance();
+    this.DumpFactory = DumpMemoryInstance;
   };
 
   /**
@@ -637,7 +609,7 @@ export class DumpAdapter implements IDumpInstance {
    */
   public useDummy = (): void => {
     backtest.loggerService.info(DUMP_ADAPTER_METHOD_NAME_USE_DUMMY);
-    this._instance = new DumpDummyInstance();
+    this.DumpFactory = DumpDummyInstance;
   };
 
   /**
@@ -647,7 +619,7 @@ export class DumpAdapter implements IDumpInstance {
    */
   public useDumpAdapter = (Ctor: TDumpInstanceCtor): void => {
     backtest.loggerService.info(DUMP_ADAPTER_METHOD_NAME_USE_ADAPTER);
-    this._instance = Reflect.construct(Ctor, []);
+    this.DumpFactory = Ctor;
   };
 }
 
