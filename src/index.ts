@@ -426,6 +426,11 @@ export {
   IDumpContext,
   TDumpInstanceCtor,
 } from "./classes/Dump";
+export {
+  MessageModel,
+  MessageRole,
+  MessageToolCall,
+} from "./model/Message.model";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Breakeven } from "./classes/Breakeven";
