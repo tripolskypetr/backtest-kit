@@ -137,10 +137,10 @@ export type TDumpInstanceCtor = new () => IDumpInstance;
  */
 export class DumpMemoryInstance implements IDumpInstance {
   /**
-   * Stores the last message of the agent invocation in Memory.
+   * Stores the full agent message history in Memory as a `{ messages }` object.
    * Uses dumpId as memoryId, scoped by signalId and bucketName.
    * If the message list is empty, the call is a no-op.
-   * @param messages - Full chat history; only the last entry is persisted
+   * @param messages - Full chat history (system, user, assistant, tool)
    * @param context - Scope identifiers for the memory entry
    */
   public async dumpAgentAnswer(
@@ -151,15 +151,14 @@ export class DumpMemoryInstance implements IDumpInstance {
       messagesLen: messages.length,
       context,
     });
-    const lastMessage = messages[messages.length - 1] ?? null;
-    if (!lastMessage) {
+    if (!messages.length) {
       return;
     }
     await Memory.writeMemory({
       memoryId: context.dumpId,
       bucketName: context.bucketName,
       signalId: context.signalId,
-      value: lastMessage,
+      value: { messages },
     });
   }
 
