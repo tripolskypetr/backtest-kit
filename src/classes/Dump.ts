@@ -1,9 +1,10 @@
 import fs from "fs/promises";
 import { join, dirname } from "path";
-import { memoize } from "functools-kit";
+import { compose, memoize, singleshot } from "functools-kit";
 import backtest from "../lib";
 import { Memory } from "./Memory";
 import MessageModel from "../model/Message.model";
+import { signalEmitter } from "../config/emitters";
 
 const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
   `${signalId}-${bucketName}`;
@@ -26,6 +27,15 @@ const DUMP_BOTH_INSTANCE_METHOD_NAME_TABLE = "DumpBothInstance.dumpTable";
 const DUMP_BOTH_INSTANCE_METHOD_NAME_TEXT = "DumpBothInstance.dumpText";
 const DUMP_BOTH_INSTANCE_METHOD_NAME_ERROR = "DumpBothInstance.dumpError";
 const DUMP_BOTH_INSTANCE_METHOD_NAME_JSON = "DumpBothInstance.dumpJson";
+const DUMP_ADAPTER_METHOD_NAME_ENABLE = "DumpAdapter.enable";
+const DUMP_ADAPTER_METHOD_NAME_DISABLE = "DumpAdapter.disable";
+const DUMP_ADAPTER_METHOD_NAME_DISPOSE = "DumpAdapter.dispose";
+const DUMP_ADAPTER_METHOD_NAME_AGENT = "DumpAdapter.dumpAgentAnswer";
+const DUMP_ADAPTER_METHOD_NAME_RECORD = "DumpAdapter.dumpRecord";
+const DUMP_ADAPTER_METHOD_NAME_TABLE = "DumpAdapter.dumpTable";
+const DUMP_ADAPTER_METHOD_NAME_TEXT = "DumpAdapter.dumpText";
+const DUMP_ADAPTER_METHOD_NAME_ERROR = "DumpAdapter.dumpError";
+const DUMP_ADAPTER_METHOD_NAME_JSON = "DumpAdapter.dumpJson";
 const DUMP_ADAPTER_METHOD_NAME_USE_MARKDOWN = "DumpAdapter.useMarkdown";
 const DUMP_ADAPTER_METHOD_NAME_USE_MEMORY = "DumpAdapter.useMemory";
 const DUMP_ADAPTER_METHOD_NAME_USE_DUMMY = "DumpAdapter.useDummy";
@@ -150,6 +160,10 @@ export interface IDumpInstance {
    * @deprecated Prefer dumpRecord - flat key-value structure maps naturally to markdown tables and SQL storage
    */
   dumpJson(json: object, dumpId: string, description: string): Promise<void>;
+  /**
+   * Releases any resources held by this instance.
+   */
+  dispose(): void;
 }
 
 /**
@@ -176,6 +190,12 @@ export class DumpBothInstance implements IDumpInstance {
   ) {
     this._memory = new DumpMemoryInstance(signalId, bucketName);
     this._markdown = new DumpMarkdownInstance(signalId, bucketName);
+  }
+
+  /** Releases resources held by both backends. */
+  public dispose(): void {
+    this._memory.dispose();
+    this._markdown.dispose();
   }
 
   /**
@@ -452,6 +472,14 @@ export class DumpMemoryInstance implements IDumpInstance {
       index: description,
     });
   }
+
+  /** Releases resources held by this instance. */
+  public dispose(): void {
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_DISPOSE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+    });
+  }
 }
 
 /**
@@ -650,6 +678,14 @@ export class DumpMarkdownInstance implements IDumpInstance {
     output += "\n```\n";
     await fs.writeFile(filePath, output, "utf8");
   }
+
+  /** Releases resources held by this instance. */
+  public dispose(): void {
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_DISPOSE, {
+      signalId: this.signalId,
+      bucketName: this.bucketName,
+    });
+  }
 }
 
 /**
@@ -694,6 +730,11 @@ export class DumpDummyInstance implements IDumpInstance {
   public async dumpJson(): Promise<void> {
     void 0;
   }
+
+  /** No-op. */
+  public dispose(): void {
+    void 0;
+  }
 }
 
 /**
@@ -719,12 +760,65 @@ export class DumpAdapter {
   );
 
   /**
+   * Activates the adapter by subscribing to signal lifecycle events.
+   * Clears memoized instances for a signalId when it is cancelled or closed,
+   * preventing stale instances from accumulating in memory.
+   * Idempotent — subsequent calls return the same subscription handle.
+   * Must be called before any dump method is used.
+   */
+  public enable = singleshot(() => {
+    backtest.loggerService.info(DUMP_ADAPTER_METHOD_NAME_ENABLE);
+
+    const handleDispose = (signalId: string) => {
+      const prefix = CREATE_KEY_FN(signalId, "");
+      for (const key of this.getInstance.keys()) {
+        if (key.startsWith(prefix)) {
+          this.getInstance.clear(key);
+        }
+      }
+    };
+
+    const unCancel = signalEmitter
+      .filter(({ action }) => action === "cancelled")
+      .connect(({ signal }) => handleDispose(signal.id))
+
+    const unClose = signalEmitter
+      .filter(({ action }) => action === "closed")
+      .connect(({ signal }) => handleDispose(signal.id))
+
+    return compose(
+      () => unCancel(),
+      () => unClose(),
+    );
+  });
+
+  /**
+   * Deactivates the adapter by unsubscribing from signal lifecycle events.
+   * No-op if enable() was never called.
+   */
+  public disable = () => {
+    backtest.loggerService.info(DUMP_ADAPTER_METHOD_NAME_DISABLE);
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+    }
+  };
+
+  /**
    * Persist the full message history of one agent invocation.
    */
   public dumpAgentAnswer = async (
     messages: MessageModel[],
     context: IDumpContext,
   ): Promise<void> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("DumpAdapter is not enabled. Call enable() first.");
+    }
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_AGENT, {
+      signalId: context.signalId,
+      bucketName: context.bucketName,
+      dumpId: context.dumpId,
+    });
     const instance = this.getInstance(context.signalId, context.bucketName);
     return await instance.dumpAgentAnswer(messages, context.dumpId, context.description);
   };
@@ -736,6 +830,14 @@ export class DumpAdapter {
     record: Record<string, unknown>,
     context: IDumpContext,
   ): Promise<void> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("DumpAdapter is not enabled. Call enable() first.");
+    }
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_RECORD, {
+      signalId: context.signalId,
+      bucketName: context.bucketName,
+      dumpId: context.dumpId,
+    });
     const instance = this.getInstance(context.signalId, context.bucketName);
     return await instance.dumpRecord(record, context.dumpId, context.description);
   };
@@ -747,6 +849,14 @@ export class DumpAdapter {
     rows: Record<string, unknown>[],
     context: IDumpContext,
   ): Promise<void> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("DumpAdapter is not enabled. Call enable() first.");
+    }
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_TABLE, {
+      signalId: context.signalId,
+      bucketName: context.bucketName,
+      dumpId: context.dumpId,
+    });
     const instance = this.getInstance(context.signalId, context.bucketName);
     return await instance.dumpTable(rows, context.dumpId, context.description);
   };
@@ -758,6 +868,14 @@ export class DumpAdapter {
     content: string,
     context: IDumpContext,
   ): Promise<void> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("DumpAdapter is not enabled. Call enable() first.");
+    }
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_TEXT, {
+      signalId: context.signalId,
+      bucketName: context.bucketName,
+      dumpId: context.dumpId,
+    });
     const instance = this.getInstance(context.signalId, context.bucketName);
     return await instance.dumpText(content, context.dumpId, context.description);
   };
@@ -769,6 +887,14 @@ export class DumpAdapter {
     content: string,
     context: IDumpContext,
   ): Promise<void> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("DumpAdapter is not enabled. Call enable() first.");
+    }
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_ERROR, {
+      signalId: context.signalId,
+      bucketName: context.bucketName,
+      dumpId: context.dumpId,
+    });
     const instance = this.getInstance(context.signalId, context.bucketName);
     return await instance.dumpError(content, context.dumpId, context.description);
   };
@@ -781,6 +907,14 @@ export class DumpAdapter {
     json: object,
     context: IDumpContext,
   ): Promise<void> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("DumpAdapter is not enabled. Call enable() first.");
+    }
+    backtest.loggerService.debug(DUMP_ADAPTER_METHOD_NAME_JSON, {
+      signalId: context.signalId,
+      bucketName: context.bucketName,
+      dumpId: context.dumpId,
+    });
     const instance = this.getInstance(context.signalId, context.bucketName);
     return await instance.dumpJson(json, context.dumpId, context.description);
   };
