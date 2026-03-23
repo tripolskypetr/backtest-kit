@@ -1,23 +1,26 @@
 const DEFAULT_BM25_K1 = 1.5;
 const DEFAULT_BM25_B = 0.75;
+const DEFAULT_BM25_SCORE = 0.5;
 
 const USE_FULL_RECOMPUTE = false;
 
 export type SearchSettings = {
   BM25_K1: number;
   BM25_B: number;
+  BM25_SCORE: number;
 }
 
 const DEFAULT_SETTINGS: SearchSettings = {
   BM25_K1: DEFAULT_BM25_K1,
   BM25_B: DEFAULT_BM25_B,
+  BM25_SCORE: DEFAULT_BM25_SCORE,
 }
 
 const normalize = (s: string): string =>
   s
     .normalize("NFC")
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/[^\p{L}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -127,7 +130,7 @@ export const createSearchIndex = () => {
         }
         return { id, score, content: doc.content };
       })
-      .filter((r) => r.score > 0)
+      .filter((r) => r.score >= settings.BM25_SCORE)
       .sort((a, b) => b.score - a.score)
       .map(({ id, content, score }) => ({ id, content, score }));
   };

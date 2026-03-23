@@ -53,10 +53,12 @@ export interface IMemoryInstance {
    * Write a value to memory.
    * @param memoryId - Unique entry identifier
    * @param value - Value to store
+   * @param index - Optional BM25 index string; defaults to JSON.stringify(value)
    */
   writeMemory<T extends object = object>(
     memoryId: string,
     value: T,
+    index?: string,
   ): Promise<void>;
 
   /**
@@ -151,10 +153,12 @@ export class MemoryLocalInstance implements IMemoryInstance {
    * Write a value into the BM25 index.
    * @param memoryId - Unique entry identifier
    * @param value - Value to store and index
+   * @param index - Optional BM25 index string; defaults to JSON.stringify(value)
    */
   public async writeMemory<T extends object = object>(
     memoryId: string,
     value: T,
+    index?: string,
   ) {
     swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_WRITE, {
       signalId: this.signalId,
@@ -164,7 +168,7 @@ export class MemoryLocalInstance implements IMemoryInstance {
     this._index.upsert({
       id: memoryId,
       content: value,
-      index: JSON.stringify(value),
+      index: index ?? JSON.stringify(value),
       priority: Date.now(),
     });
   }
@@ -269,11 +273,11 @@ export class MemoryPersistInstance implements IMemoryInstance {
       initial,
     });
     await PersistMemoryAdapter.waitForInit(this.signalId, this.bucketName, initial);
-    for await (const { memoryId, data: { data, priority } } of PersistMemoryAdapter.listMemoryData(this.signalId, this.bucketName)) {
+    for await (const { memoryId, data: { data, index, priority } } of PersistMemoryAdapter.listMemoryData(this.signalId, this.bucketName)) {
       this._index.upsert({
         id: memoryId,
         content: data,
-        index: JSON.stringify(data),
+        index,
         priority,
       });
     }
@@ -283,10 +287,12 @@ export class MemoryPersistInstance implements IMemoryInstance {
    * Write a value to disk and update the BM25 index.
    * @param memoryId - Unique entry identifier
    * @param value - Value to persist and index
+   * @param index - Optional BM25 index string; defaults to JSON.stringify(value)
    */
   public async writeMemory<T extends object = object>(
     memoryId: string,
     value: T,
+    index = JSON.stringify(value),
   ): Promise<void> {
     swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_WRITE, {
       signalId: this.signalId,
@@ -295,7 +301,7 @@ export class MemoryPersistInstance implements IMemoryInstance {
     });
     const priority = Date.now();
     await PersistMemoryAdapter.writeMemoryData(
-      { data: value, priority, removed: false },
+      { data: value, priority, removed: false, index },
       this.signalId,
       this.bucketName,
       memoryId,
@@ -303,7 +309,7 @@ export class MemoryPersistInstance implements IMemoryInstance {
     this._index.upsert({
       id: memoryId,
       content: value,
-      index: JSON.stringify(value),
+      index,
       priority,
     });
   }
@@ -460,18 +466,20 @@ export class MemoryAdapter implements TMemoryInstance {
    * @param dto.value - Value to store
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.index - Optional BM25 index string; defaults to JSON.stringify(value)
    */
   public writeMemory = async <T extends object = object>(dto: {
     memoryId: string;
     value: T;
     signalId: string;
     bucketName: string;
+    index?: string;
   }) => {
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.writeMemory<T>(dto.memoryId, dto.value);
+    return await instance.writeMemory<T>(dto.memoryId, dto.value, dto.index);
   };
 
   /**

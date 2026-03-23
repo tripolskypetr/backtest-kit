@@ -427,11 +427,11 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
 
     const cached = await PersistMeasureAdapter.readMeasureData(bucket, entityKey);
     if (cached !== null) {
-      return cached as Awaited<ReturnType<T>>;
+      return cached.data as Awaited<ReturnType<T>>;
     }
 
     const result = await this.fn.call(null, ...args);
-    await PersistMeasureAdapter.writeMeasureData(result, bucket, entityKey);
+    await PersistMeasureAdapter.writeMeasureData({id: entityKey, data: result}, bucket, entityKey);
     return result;
   };
 }

@@ -12,6 +12,7 @@ import {
   PersistMemoryAdapter,
   Report,
   Markdown,
+  Dump,
 } from "../../build/index.mjs";
 
 // setLogger(console)
@@ -22,6 +23,7 @@ import {
 }
 
 {
+  Dump.useDummy();
   Report.useDummy();
   Markdown.useDummy();
 }

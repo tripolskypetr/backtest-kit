@@ -152,9 +152,13 @@ export {
   writeMemory,
 } from "./function/memory";
 export {
-  dumpMessages,
+  dumpAgentAnswer,
+  dumpRecord,
+  dumpTable,
+  dumpText,
+  dumpError,
+  dumpJson,
 } from "./function/dump";
-
 export {
   CandleInterval,
   ICandleData,
@@ -417,6 +421,17 @@ export {
   IMemoryInstance,
   TMemoryInstanceCtor
 } from "./classes/Memory";
+export {
+  Dump,
+  IDumpInstance,
+  IDumpContext,
+  TDumpInstanceCtor,
+} from "./classes/Dump";
+export {
+  MessageModel,
+  MessageRole,
+  MessageToolCall,
+} from "./model/Message.model";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Breakeven } from "./classes/Breakeven";
