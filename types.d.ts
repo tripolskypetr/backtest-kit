@@ -18665,6 +18665,11 @@ declare class DumpAdapter {
      */
     useDummy: () => void;
     /**
+     * Switches to dual-write backend.
+     * Writes to both Memory and Markdown simultaneously.
+     */
+    useMarkdownMemoryBoth: () => void;
+    /**
      * Injects a custom dump adapter implementation.
      * Uses Reflect.construct for ES3/ES6 interop compatibility.
      * @param Ctor - Constructor for the custom dump implementation
