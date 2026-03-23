@@ -415,9 +415,6 @@ export {
 } from "./classes/Memory";
 export {
   Dump,
-  DumpMarkdownInstance,
-  DumpMemoryInstance,
-  DumpDummyInstance,
   IDumpInstance,
   IDumpContext,
   TDumpInstanceCtor,
