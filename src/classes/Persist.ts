@@ -161,6 +161,8 @@ const PERSIST_MEMORY_UTILS_METHOD_NAME_LIST_DATA =
   "PersistMemoryUtils.listMemoryData";
 const PERSIST_MEMORY_UTILS_METHOD_NAME_HAS_DATA =
   "PersistMemoryUtils.hasMemoryData";
+const PERSIST_MEMORY_UTILS_METHOD_NAME_CLEAR =
+  "PersistMemoryUtils.clear";
 
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
@@ -2281,6 +2283,21 @@ export class PersistMemoryUtils {
       yield { memoryId: String(memoryId), data };
     }
   };
+
+  /**
+   * Dispose persist adapter to prevent memory leak
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   */
+  public clear = (signalId: string, bucketName: string) => {
+    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_CLEAR, {
+      signalId,
+      bucketName,
+    });
+    const key = `${signalId}:${bucketName}`;
+    this.getMemoryStorage.clear(key);
+  }
 
 }
 
