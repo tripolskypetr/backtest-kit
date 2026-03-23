@@ -157,6 +157,7 @@ export {
   dumpTable,
   dumpText,
   dumpError,
+  dumpJson,
 } from "./function/dump";
 export {
   CandleInterval,

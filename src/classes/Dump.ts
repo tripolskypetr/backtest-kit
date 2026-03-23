@@ -14,6 +14,8 @@ const DUMP_MEMORY_INSTANCE_METHOD_NAME_TEXT = "DumpMemoryInstance.dumpText";
 const DUMP_MEMORY_INSTANCE_METHOD_NAME_ERROR = "DumpMemoryInstance.dumpError";
 const DUMP_MARKDOWN_INSTANCE_METHOD_NAME_TEXT = "DumpMarkdownInstance.dumpText";
 const DUMP_MARKDOWN_INSTANCE_METHOD_NAME_ERROR = "DumpMarkdownInstance.dumpError";
+const DUMP_MEMORY_INSTANCE_METHOD_NAME_JSON = "DumpMemoryInstance.dumpJson";
+const DUMP_MARKDOWN_INSTANCE_METHOD_NAME_JSON = "DumpMarkdownInstance.dumpJson";
 const DUMP_ADAPTER_METHOD_NAME_USE_MARKDOWN = "DumpAdapter.useMarkdown";
 const DUMP_ADAPTER_METHOD_NAME_USE_MEMORY = "DumpAdapter.useMemory";
 const DUMP_ADAPTER_METHOD_NAME_USE_DUMMY = "DumpAdapter.useDummy";
@@ -122,6 +124,12 @@ export interface IDumpInstance {
    * @param context - Scope identifiers for the dump entry
    */
   dumpError(content: string, context: IDumpContext): Promise<void>;
+  /**
+   * Persist an arbitrary nested object as a fenced JSON block.
+   * @param json - Arbitrary object to serialize with JSON.stringify
+   * @param context - Scope identifiers for the dump entry
+   */
+  dumpJson(json: object, context: IDumpContext): Promise<void>;
 }
 
 /**
@@ -244,6 +252,27 @@ export class DumpMemoryInstance implements IDumpInstance {
       bucketName: context.bucketName,
       signalId: context.signalId,
       value: { content },
+    });
+  }
+
+  /**
+   * Stores the JSON object in Memory as-is.
+   * Uses dumpId as memoryId, scoped by signalId and bucketName.
+   * @param json - Arbitrary nested object to persist
+   * @param context - Scope identifiers for the memory entry
+   */
+  public async dumpJson(
+    json: object,
+    context: IDumpContext,
+  ): Promise<void> {
+    backtest.loggerService.info(DUMP_MEMORY_INSTANCE_METHOD_NAME_JSON, {
+      context,
+    });
+    await Memory.writeMemory({
+      memoryId: context.dumpId,
+      bucketName: context.bucketName,
+      signalId: context.signalId,
+      value: json,
     });
   }
 }
@@ -425,6 +454,41 @@ export class DumpMarkdownInstance implements IDumpInstance {
     output += "\n";
     await fs.writeFile(filePath, output, "utf8");
   }
+
+  /**
+   * Writes an arbitrary nested object as a fenced JSON block to a markdown file.
+   * Path: ./dump/agent/{signalId}/{bucketName}/{dumpId}.md
+   * If the file already exists, the call is skipped (idempotent).
+   * @param json - Arbitrary nested object to serialize
+   * @param context - Scope identifiers used to construct the file path
+   */
+  public async dumpJson(
+    json: object,
+    context: IDumpContext,
+  ): Promise<void> {
+    backtest.loggerService.info(DUMP_MARKDOWN_INSTANCE_METHOD_NAME_JSON, {
+      context,
+    });
+    const filePath = join(
+      "./dump/agent",
+      context.signalId,
+      context.bucketName,
+      `${context.dumpId}.md`,
+    );
+    try {
+      await fs.access(filePath);
+      return;
+    } catch {
+      await fs.mkdir(dirname(filePath), { recursive: true });
+    }
+    let output = `# JSON Dump — ${context.dumpId}\n\n`;
+    output += `**signalId**: ${context.signalId}  \n`;
+    output += `**bucketName**: ${context.bucketName}\n\n`;
+    output += "```json\n";
+    output += JSON.stringify(json, null, 2);
+    output += "\n```\n";
+    await fs.writeFile(filePath, output, "utf8");
+  }
 }
 
 /**
@@ -454,6 +518,11 @@ export class DumpDummyInstance implements IDumpInstance {
 
   /** No-op. */
   public async dumpError(): Promise<void> {
+    void 0;
+  }
+
+  /** No-op. */
+  public async dumpJson(): Promise<void> {
     void 0;
   }
 }
@@ -524,6 +593,17 @@ export class DumpAdapter implements IDumpInstance {
     context: IDumpContext,
   ): Promise<void> => {
     return await this._instance.dumpError(content, context);
+  };
+
+  /**
+   * Persist an arbitrary nested object as a fenced JSON block.
+   * Delegates to the active backend instance.
+   */
+  public dumpJson = async (
+    json: object,
+    context: IDumpContext,
+  ): Promise<void> => {
+    return await this._instance.dumpJson(json, context);
   };
 
   /**

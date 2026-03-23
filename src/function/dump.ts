@@ -10,6 +10,7 @@ const DUMP_RECORD_METHOD_NAME = "dump.dumpRecord";
 const DUMP_TABLE_METHOD_NAME = "dump.dumpTable";
 const DUMP_TEXT_METHOD_NAME = "dump.dumpText";
 const DUMP_ERROR_METHOD_NAME = "dump.dumpError";
+const DUMP_JSON_METHOD_NAME = "dump.dumpJson";
 
 /**
  * Dumps the full agent message history scoped to the current signal.
@@ -299,6 +300,64 @@ export async function dumpError(dto: {
     return;
   }
   await Dump.dumpError(content, {
+    dumpId,
+    bucketName,
+    signalId: signal.id,
+  });
+}
+
+/**
+ * Dumps an arbitrary nested object as a fenced JSON block scoped to the current signal.
+ *
+ * Reads signalId from the active pending signal via execution and method context.
+ * If no pending signal exists, logs a warning and returns without writing.
+ *
+ * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
+ * @param dto.dumpId - Unique identifier for this dump entry
+ * @param dto.json - Arbitrary nested object to serialize with JSON.stringify
+ * @returns Promise that resolves when the dump is complete
+ *
+ * @deprecated Better use Dump.dumpJson with manual signalId argument
+ *
+ * @example
+ * ```typescript
+ * import { dumpJson } from "backtest-kit";
+ *
+ * await dumpJson({ bucketName: "my-strategy", dumpId: "signal-state", json: { entries: [], partials: [] } });
+ * ```
+ */
+export async function dumpJson(dto: {
+  bucketName: string;
+  dumpId: string;
+  json: object;
+}): Promise<void> {
+  const { bucketName, dumpId, json } = dto;
+  backtest.loggerService.info(DUMP_JSON_METHOD_NAME, {
+    bucketName,
+    dumpId,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("dumpJson requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("dumpJson requires a method context");
+  }
+  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  const currentPrice =
+    await backtest.exchangeConnectionService.getAveragePrice(symbol);
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    console.warn(`backtest-kit dumpJson no pending signal for symbol=${symbol} dumpId=${dumpId}`);
+    return;
+  }
+  await Dump.dumpJson(json, {
     dumpId,
     bucketName,
     signalId: signal.id,
