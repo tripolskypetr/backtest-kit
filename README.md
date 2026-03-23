@@ -62,6 +62,7 @@ npm install backtest-kit ccxt ollama uuid
 - Breakeven protection
 - Stop limit entries (before OCO)
 - Dollar cost averaging
+- Time attack / Infinite hold
 
 ## 📚 Code Samples
 
