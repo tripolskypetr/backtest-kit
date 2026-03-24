@@ -106,3 +106,21 @@ listMemoryData(signalId: string, bucketName: string): AsyncGenerator<{
 
 Lists all memory entry IDs for a given (signalId, bucketName) pair.
 Used by MemoryPersistInstance to rebuild the BM25 index on init.
+
+### useJson
+
+```ts
+useJson(): void;
+```
+
+Switches to the default JSON persist adapter.
+All future persistence writes will use JSON storage.
+
+### useDummy
+
+```ts
+useDummy(): void;
+```
+
+Switches to a dummy persist adapter that discards all writes.
+All future persistence writes will be no-ops.

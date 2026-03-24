@@ -58,20 +58,20 @@ _stream: WriteStream
 
 WriteStream instance for append-only writes, null until initialized
 
-### __@WAIT_FOR_INIT_SYMBOL$1@2936
+### __@WAIT_FOR_INIT_SYMBOL$1@2939
 
 ```ts
-__@WAIT_FOR_INIT_SYMBOL$1@2936: (() => Promise<void>) & ISingleshotClearable
+__@WAIT_FOR_INIT_SYMBOL$1@2939: (() => Promise<void>) & ISingleshotClearable
 ```
 
 Singleshot initialization function that creates directory and stream.
 Protected by singleshot to ensure one-time execution.
 Sets up error handler that emits to exitEmitter.
 
-### __@WRITE_SAFE_SYMBOL$1@2937
+### __@WRITE_SAFE_SYMBOL$1@2940
 
 ```ts
-__@WRITE_SAFE_SYMBOL$1@2937: (line: string) => Promise<symbol | void>
+__@WRITE_SAFE_SYMBOL$1@2940: (line: string) => Promise<symbol | void>
 ```
 
 Timeout-protected write function with backpressure handling.

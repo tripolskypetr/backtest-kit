@@ -59,7 +59,7 @@ No-op if enable() was never called.
 ### writeMemory
 
 ```ts
-writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; index?: string; }) => Promise<void>
+writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; description: string; }) => Promise<void>
 ```
 
 Write a value to memory.

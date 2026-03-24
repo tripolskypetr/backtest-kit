@@ -13,4 +13,5 @@ type SearchSettings = {
 };
 ```
 
-
+Tuning parameters for BM25 full-text search scoring.
+Controls term frequency saturation, document length normalization, and minimum score threshold.

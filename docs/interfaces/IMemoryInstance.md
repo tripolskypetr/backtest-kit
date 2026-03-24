@@ -21,7 +21,7 @@ Initialize the memory instance.
 ### writeMemory
 
 ```ts
-writeMemory: <T extends object = object>(memoryId: string, value: T, index?: string) => Promise<void>
+writeMemory: <T extends object = object>(memoryId: string, value: T, description: string) => Promise<void>
 ```
 
 Write a value to memory.

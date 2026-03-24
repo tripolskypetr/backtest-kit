@@ -10,6 +10,7 @@ declare function writeMemory<T extends object = object>(dto: {
     bucketName: string;
     memoryId: string;
     value: T;
+    description: string;
 }): Promise<void>;
 ```
 
