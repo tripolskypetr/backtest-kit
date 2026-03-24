@@ -80,13 +80,13 @@ const App = () => {
 
     useOnce(() =>
         ioc.routerService.reloadSubject.subscribe(() => {
-            flushSync(() => {
+            queueMicrotask(() => flushSync(() => {
                 setItem(getRouteItem());
                 setParams(
                     getRouteParams(routes, ioc.routerService.location.pathname),
                 );
                 setPathname(ioc.routerService.location.pathname);
-            })
+            }))
         }),
     );
 
