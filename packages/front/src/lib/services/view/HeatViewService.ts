@@ -54,7 +54,7 @@ export class HeatViewService {
         strategyName: backtestItem.strategyName,
         exchangeName: backtestItem.exchangeName,
         frameName: backtestItem.frameName,
-      });
+      }, true);
     }
 
     if (liveItem) {
@@ -62,7 +62,7 @@ export class HeatViewService {
         strategyName: liveItem.strategyName,
         exchangeName: liveItem.exchangeName,
         frameName: "",
-      });
+      }, false);
     }
 
     return null;
