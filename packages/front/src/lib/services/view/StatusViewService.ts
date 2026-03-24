@@ -144,7 +144,7 @@ export class StatusViewService {
           strategyName: backtestTarget.strategyName,
           exchangeName: backtestTarget.exchangeName,
           frameName: backtestTarget.frameName,
-        });
+        }, true);
         return {
           context: {
             strategyName: backtestTarget.strategyName,
@@ -175,7 +175,7 @@ export class StatusViewService {
           strategyName: liveTarget.strategyName,
           exchangeName: liveTarget.exchangeName,
           frameName: "",
-        });
+        }, false);
         return {
           context: {
             strategyName: liveTarget.strategyName,
