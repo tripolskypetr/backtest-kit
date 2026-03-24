@@ -185,6 +185,17 @@ const createFields = async (): Promise<TypedField[]> => {
         ioc.statusViewService.getStatusList(),
     ]);
 
+    if (!statusList || statusList.length === 0) {
+        return [
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
+                placeholder: "Listening for a pending signal...",
+                sx: { textAlign: "center", opacity: 0.5, mt: 4 },
+            },
+        ];
+    }
+
     // Группируем сигналы по strategyName
     const strategyGroups: Record<string, IRoute[]> = {};
 
