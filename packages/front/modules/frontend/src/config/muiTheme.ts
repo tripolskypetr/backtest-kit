@@ -104,6 +104,13 @@ export const muiTheme = createTheme({
         },
       },
     },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          overflow: "clip"
+        }
+      }
+    },
     MuiAppBar: {
       styleOverrides: {
         root: {
