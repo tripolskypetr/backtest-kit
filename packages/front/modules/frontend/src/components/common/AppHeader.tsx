@@ -280,7 +280,7 @@ export const AppHeader = ({
                     variant="h4"
                     onClick={() => ioc.routerService.push("/main")}
                     className={cx(classes.title, LOGO_CLASS)}
-                    sx={{ display: { xs: "none", sm: "flex" } }}
+                    sx={{ display: { xs: "none", sm: "flex" }, whiteSpace: "nowrap" }}
                 >
                     Backtest Kit
                 </Typography>
