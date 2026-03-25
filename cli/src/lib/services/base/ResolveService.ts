@@ -1,5 +1,5 @@
 import path from "path";
-import { access } from "fs/promises";
+import { access, readFile } from "fs/promises";
 import { constants } from "fs";
 import dotenv from "dotenv";
 import { Log } from "backtest-kit";
@@ -30,12 +30,14 @@ export class ResolveService {
         return _is_launched;
     }
 
-    public attachPine = (pinePath: string) => {
+    public attachPine = async (pinePath: string) => {
         this.loggerService.log("resolveService attachPine");
         if (_is_launched) {
             throw new Error("Entry point is already attached. Multiple entry points are not allowed.");
         }
-        const pineDir = path.dirname(path.resolve(pinePath));
+        const absolutePath = path.resolve(pinePath);
+        await access(absolutePath, constants.F_OK | constants.R_OK);
+        const pineDir = path.dirname(absolutePath);
         {
             const cwd = process.cwd();
             process.chdir(pineDir);
@@ -43,6 +45,7 @@ export class ResolveService {
             dotenv.config({ path: path.join(pineDir, '.env'), override: true, quiet: true });
         }
         _is_launched = true;
+        return await readFile(absolutePath, "utf-8");
     }
 
     public attachJavascript = async (jsPath: string) => {

@@ -1,4 +1,4 @@
-import { run, File, toMarkdown } from "@backtest-kit/pinets";
+import { run, Code, toMarkdown } from "@backtest-kit/pinets";
 import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
@@ -21,15 +21,19 @@ export const main = async () => {
     return;
   }
 
-  cli.resolveService.attachPine(entryPoint);
+  const source = await cli.resolveService.attachPine(entryPoint);
 
-  await cli.moduleConnectionService.loadModule("./pine.module")
+  await cli.moduleConnectionService.loadModule("./pine.module");
 
-  await cli.exchangeSchemaService.addSchema();
-  
+  {
+    await cli.exchangeSchemaService.addSchema();
+    await cli.symbolSchemaService.addSchema();
+  }
+
   const [defaultExchangeName = null] = await listExchangeSchema();
 
-  const exchangeName = <string>values.exchange || defaultExchangeName?.exchangeName;
+  const exchangeName =
+    <string>values.exchange || defaultExchangeName?.exchangeName;
 
   const symbol = <string>values.symbol || "BTCUSDT";
   const timeframe = <string>values.timeframe || "15m";
@@ -45,19 +49,33 @@ export const main = async () => {
   const when = isNaN(whenStamp) ? new Date() : new Date(whenStamp);
 
   const plots = await run(
-    File.fromPath(entryPoint, process.cwd()),
+    Code.fromString(source),
     {
       symbol,
       timeframe: <CandleInterval>timeframe,
       limit,
     },
     exchangeName,
-    when
+    when,
   );
 
   const signalId = `CLI execution ${new Date().toISOString()}`;
 
-  const signalSchema = Object.fromEntries(Object.keys(plots).map((key) => [key, key]));
+  const signalSchema = Object.fromEntries(
+    Object.keys(plots)
+      .filter((key) =>
+        plots[key].data.some((v: { value: unknown }) => {
+          if (typeof v?.value !== "number") {
+            return false;
+          }
+          if (!isFinite(v.value)) {
+            return false;
+          }
+          return true;
+        }),
+      )
+      .map((key) => [key, key]),
+  );
 
   console.log(await toMarkdown(signalId, plots, signalSchema));
 };

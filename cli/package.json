@@ -45,7 +45,8 @@
     "url": "https://github.com/tripolskypetr/backtest-kit/issues"
   },
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "start": "npm run build && node build/index.mjs math/master_trend_15m.pine --pine --symbol BTCUSDT --timeframe 15m --limit 180"
   },
   "main": "build/index.cjs",
   "module": "build/index.mjs",
