@@ -5,6 +5,7 @@ export const getArgs = singleshot(() => {
   const { values, positionals } = parseArgs({
     args: process.argv,
     options: {
+      // backtest entry
       symbol: {
         type: "string",
         default: "",
@@ -56,6 +57,23 @@ export const getArgs = singleshot(() => {
       cacheInterval: {
         type: "string",
         default: "1m, 15m, 30m, 4h",
+      },
+      // pinescript entry
+      pine: {
+        type: "boolean",
+        default: false,
+      },
+      timeframe: {
+        type: "string",
+        default: "",
+      },
+      limit: {
+        type: "string",
+        default: "",
+      },
+      when: {
+        type: "string",
+        default: "",
       },
     },
     strict: false,

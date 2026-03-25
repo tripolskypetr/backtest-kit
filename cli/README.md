@@ -474,6 +474,122 @@ When your strategy module does not register an exchange, frame, or strategy name
 
 > **Note:** The default exchange schema **does not support order book fetching in backtest mode**. If your strategy calls `getOrderBook()` during backtest, you must register a custom exchange schema with your own snapshot storage.
 
+## 🌲 Running Local PineScript Indicators
+
+`@backtest-kit/cli` can execute any local `.pine` file against a real exchange and print the results as a Markdown table — no TradingView account required.
+
+### CLI Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--pine` | boolean | Enable PineScript execution mode |
+| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
+| `--timeframe` | string | Candle interval (default: `"15m"`) |
+| `--limit` | string | Number of candles to fetch (default: `250`) |
+| `--when` | string | End date for candle window — ISO 8601 or Unix ms (default: now) |
+| `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
+
+**Important:** `limit` must cover indicator warmup bars — rows before warmup completes will show `N/A` 
+
+**Positional argument:** path to the `.pine` file.
+
+### Exchange via `pine.module`
+
+By default the CLI registers CCXT Binance automatically. To use a different exchange — or to configure API keys, custom rate limits, or a non-spot market — drop a `pine.module` file next to your `.pine` file. The CLI loads it as a side-effect import before running the script.
+
+```
+my-project/
+├── math/
+│   └── master_trend_15m.pine       ← indicator
+├── modules/
+│   └── pine.module.ts              ← exchange registration (loaded automatically)
+└── package.json
+```
+
+Inside `pine.module.ts` call `addExchangeSchema` from `backtest-kit` and give the exchange a name:
+
+```typescript
+// math/pine.module.ts
+import { addExchangeSchema } from "backtest-kit";
+import ccxt from "ccxt";
+
+addExchangeSchema({
+  exchangeName: "my-exchange",
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.bybit({ enableRateLimit: true });
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
+      timestamp, open, high, low, close, volume,
+    }));
+  },
+  formatPrice: (symbol, price) => price.toFixed(2),
+  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+});
+```
+
+Then run:
+
+```bash
+npx @backtest-kit/cli --pine ./math/master_trend_15m.pine \
+  --exchange my-exchange \
+  --symbol BTCUSDT \
+  --timeframe 15m \
+  --limit 180 \
+  --when "2025-09-24T12:00:00.000Z"
+```
+
+Or add it to `package.json`:
+
+```json
+{
+  "scripts": {
+    "pine": "npx @backtest-kit/cli --pine ./math/master_trend_15m.pine --symbol BTCUSDT --timeframe 15m --limit 180"
+  }
+}
+```
+
+```bash
+npm run pine
+```
+
+### PineScript Requirements
+
+The CLI reads all `plot()` calls that use `display=display.data_window` as output columns. Every other `plot()` is ignored. Name each output plot explicitly:
+
+```pine
+//@version=5
+indicator("MyIndicator", overlay=true)
+
+// ... computation ...
+
+plot(close,    "Close",    display=display.data_window)
+plot(position, "Position", display=display.data_window)
+```
+
+The column names in the output Markdown table are taken directly from those plot names — no manual schema definition needed.
+
+### Output
+
+The CLI prints a Markdown table to stdout:
+
+```
+# PineScript Technical Analysis Dump
+
+**Signal ID**: CLI execution 2025-09-24T12:00:00.000Z
+
+| Close | Position | timestamp |
+| --- | --- | --- |
+| 112871.28 | -1.0000 | 2025-09-22T15:00:00.000Z |
+| 112666.69 | -1.0000 | 2025-09-22T15:15:00.000Z |
+| 112736.00 |  0.0000 | 2025-09-22T18:30:00.000Z |
+| 112653.90 |  1.0000 | 2025-09-22T22:15:00.000Z |
+```
+
+Redirect to a file to save the report:
+
+```bash
+npm run pine > report.md
+```
 
 ## 🔧 Programmatic API
 

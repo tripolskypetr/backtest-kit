@@ -1,0 +1,38 @@
+//@version=5
+indicator("MasterTrend", overlay=true)
+
+plotcandle(open, high, low, close,
+     color       = close > open ? color.new(color.green, 70) : color.new(color.red, 70),
+     wickcolor   = color.new(color.gray, 70),
+     bordercolor = color.new(color.gray, 70))
+
+atrPeriod   = input(15,  "ATR Period")
+factor      = input(3.0, "Factor")
+confirmBars = input.int(15, "Confirm Bars")
+
+[supertrend, direction] = ta.supertrend(factor, atrPeriod)
+
+dir = int(direction)
+
+var int trend   = 0
+var int counter = 0
+
+dirChanged = dir != trend
+
+if dirChanged
+    counter := counter + 1
+    if counter >= confirmBars
+        trend   := dir
+        counter := 0
+else
+    counter := 0
+
+// Серый пока набираем confirmBars, цвет как только подтвердили
+position = dirChanged and counter < confirmBars ? 0 : dir < 0 ? 1 : -1
+lineColor = position == 0 ? color.gray : position == 1 ? color.green : color.red
+
+plot(close, "MasterTrend", color = lineColor, linewidth = 2)
+
+// === OUTPUTS FOR BOT ===
+plot(close,      "Close",      display=display.data_window)
+plot(position,   "Position",   display=display.data_window)

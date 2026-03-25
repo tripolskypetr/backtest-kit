@@ -9,6 +9,8 @@ import "./main/live";
 import "./main/frontend";
 import "./main/telegram";
 
+import "./main/pine";
+
 export type { ILogger } from "./interfaces/Logger.interface";
 export type { ILoader } from "./interfaces/Loader.interface";
 export type { IBabel } from "./interfaces/Babel.interface";

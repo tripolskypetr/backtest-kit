@@ -3,6 +3,8 @@ import { singleshot } from "functools-kit";
 
 import { CC_WWWROOT_HOST, CC_WWWROOT_PORT } from "../config/params";
 
+import { serveSubject } from "../config/emitters";
+
 import router from "../config/router";
 import ioc from "../lib";
 
@@ -35,6 +37,7 @@ export function serve(host?: string, port?: number) {
     host,
     port,
   });
+  serveSubject.next();
   return serveInternal(host, port);
 }
 

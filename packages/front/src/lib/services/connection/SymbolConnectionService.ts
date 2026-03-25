@@ -6,6 +6,7 @@ import symbol_list_default from "../../../assets/symbol_list";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
+import { serveSubject } from "../../../config/emitters";
 
 const require = createRequire(import.meta.url);
 
@@ -58,7 +59,7 @@ export class SymbolConnectionService {
 
   protected init = singleshot(async () => {
     this.loggerService.log("symbolConnectionService init");
-    getSymbolList();
+    serveSubject.once(getSymbolList);
   });
 }
 
