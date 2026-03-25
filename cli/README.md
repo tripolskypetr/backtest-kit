@@ -436,44 +436,6 @@ For projects that compile to or use CommonJS. Loaded via `require()`:
 }
 ```
 
-## 🌍 Environment Variables
-
-Create a `.env` file in your project root:
-
-```env
-# Telegram notifications (required for --telegram)
-CC_TELEGRAM_TOKEN=your_bot_token_here
-CC_TELEGRAM_CHANNEL=-100123456789
-
-# Web UI server (optional, defaults shown)
-CC_WWWROOT_HOST=0.0.0.0
-CC_WWWROOT_PORT=60050
-
-# Custom QuickChart service URL (optional)
-CC_QUICKCHART_HOST=
-```
-
-| Variable               | Default     | Description                           |
-|------------------------|-------------|---------------------------------------|
-| `CC_TELEGRAM_TOKEN`    | —           | Telegram bot token (from @BotFather)  |
-| `CC_TELEGRAM_CHANNEL`  | —           | Telegram channel or chat ID           |
-| `CC_WWWROOT_HOST`      | `0.0.0.0`   | UI server bind address                |
-| `CC_WWWROOT_PORT`      | `60050`     | UI server port                        |
-| `CC_QUICKCHART_HOST`   | —           | Self-hosted QuickChart instance URL   |
-
-## ⚙️ Default Behaviors
-
-When your strategy module does not register an exchange, frame, or strategy name, the CLI falls back to built-in defaults and prints a console warning:
-
-| Component    | Default                        | Warning                                                                   |
-|--------------|--------------------------------|---------------------------------------------------------------------------|
-| **Exchange** | CCXT Binance (`default_exchange`) | `Warning: The default exchange schema is set to CCXT Binance...`       |
-| **Frame**    | February 2024 (`default_frame`)   | `Warning: The default frame schema is set to February 2024...`         |
-| **Symbol**   | `BTCUSDT`                         | —                                                                      |
-| **Cache intervals** | `1m, 15m, 30m, 4h`         | Used if `--cacheInterval` not provided; skip entirely with `--noCache` |
-
-> **Note:** The default exchange schema **does not support order book fetching in backtest mode**. If your strategy calls `getOrderBook()` during backtest, you must register a custom exchange schema with your own snapshot storage.
-
 ## 🌲 Running Local PineScript Indicators
 
 `@backtest-kit/cli` can execute any local `.pine` file against a real exchange and print the results as a Markdown table — no TradingView account required.
@@ -590,6 +552,44 @@ Redirect to a file to save the report:
 ```bash
 npm run pine > report.md
 ```
+
+## 🌍 Environment Variables
+
+Create a `.env` file in your project root:
+
+```env
+# Telegram notifications (required for --telegram)
+CC_TELEGRAM_TOKEN=your_bot_token_here
+CC_TELEGRAM_CHANNEL=-100123456789
+
+# Web UI server (optional, defaults shown)
+CC_WWWROOT_HOST=0.0.0.0
+CC_WWWROOT_PORT=60050
+
+# Custom QuickChart service URL (optional)
+CC_QUICKCHART_HOST=
+```
+
+| Variable               | Default     | Description                           |
+|------------------------|-------------|---------------------------------------|
+| `CC_TELEGRAM_TOKEN`    | —           | Telegram bot token (from @BotFather)  |
+| `CC_TELEGRAM_CHANNEL`  | —           | Telegram channel or chat ID           |
+| `CC_WWWROOT_HOST`      | `0.0.0.0`   | UI server bind address                |
+| `CC_WWWROOT_PORT`      | `60050`     | UI server port                        |
+| `CC_QUICKCHART_HOST`   | —           | Self-hosted QuickChart instance URL   |
+
+## ⚙️ Default Behaviors
+
+When your strategy module does not register an exchange, frame, or strategy name, the CLI falls back to built-in defaults and prints a console warning:
+
+| Component    | Default                        | Warning                                                                   |
+|--------------|--------------------------------|---------------------------------------------------------------------------|
+| **Exchange** | CCXT Binance (`default_exchange`) | `Warning: The default exchange schema is set to CCXT Binance...`       |
+| **Frame**    | February 2024 (`default_frame`)   | `Warning: The default frame schema is set to February 2024...`         |
+| **Symbol**   | `BTCUSDT`                         | —                                                                      |
+| **Cache intervals** | `1m, 15m, 30m, 4h`         | Used if `--cacheInterval` not provided; skip entirely with `--noCache` |
+
+> **Note:** The default exchange schema **does not support order book fetching in backtest mode**. If your strategy calls `getOrderBook()` during backtest, you must register a custom exchange schema with your own snapshot storage.
 
 ## 🔧 Programmatic API
 
