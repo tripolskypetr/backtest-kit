@@ -1,8 +1,28 @@
 import { run, Code, toMarkdown } from "@backtest-kit/pinets";
+import { writeFile } from "fs/promises";
 import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
 import { CandleInterval, listExchangeSchema } from "backtest-kit";
+
+const EXTRACT_ROWS_FN = (plots: Record<string, { data: { value: unknown; time: number }[] }>, schema: Record<string, string>) => {
+  const keys = Object.keys(schema);
+  const dataLength = Math.max(...keys.map((k) => plots[k]?.data?.length ?? 0));
+  const rows: Record<string, unknown>[] = [];
+  for (let i = 0; i < dataLength; i++) {
+    const row: Record<string, unknown> = {};
+    for (const key of keys) {
+      const point = plots[key]?.data?.[i];
+      row[key] = point?.value ?? null;
+    }
+    const point = plots[keys[0]]?.data?.[i];
+    if (point?.time) {
+      row.timestamp = new Date(point.time).toISOString();
+    }
+    rows.push(row);
+  }
+  return rows;
+};
 
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
@@ -77,7 +97,28 @@ export const main = async () => {
       .map((key) => [key, key]),
   );
 
+  const jsonPath = <string>values.json;
+  if (jsonPath) {
+    const rows = EXTRACT_ROWS_FN(plots, signalSchema);
+    await writeFile(jsonPath, JSON.stringify(rows, null, 2), "utf-8");
+    return;
+  }
+
+  const jsonlPath = <string>values.jsonl;
+  if (jsonlPath) {
+    const rows = EXTRACT_ROWS_FN(plots, signalSchema);
+    await writeFile(jsonlPath, rows.map((r) => JSON.stringify(r)).join("\n"), "utf-8");
+    return;
+  }
+
+  const markdownPath = <string>values.markdown;
+  if (markdownPath) {
+    await writeFile(markdownPath, await toMarkdown(signalId, plots, signalSchema), "utf-8");
+    return;
+  }
+
   console.log(await toMarkdown(signalId, plots, signalSchema));
+
 };
 
 main();

@@ -4,14 +4,13 @@ export { File } from "./classes/File";
 export { usePine } from "./function/pine.function";
 export { useIndicator } from "./function/indicator.function";
 export { run } from "./function/run.function";
-export { extract } from "./function/extract.function";
+export { extract, extractRows } from "./function/extract.function";
 export { setLogger } from "./function/setup.function";
 export { getSignal } from "./function/strategy.function";
 export { dumpPlotData } from "./function/dump.function";
 export { toMarkdown, markdown } from "./function/markdown.function";
 
-export { type PlotExtractConfig } from "./lib/services/data/PineDataService";
-export { type PlotMapping } from "./lib/services/data/PineDataService";
+export { type PlotExtractConfig, type PlotMapping, type ExtractedData, type ExtractedDataRow } from "./lib/services/data/PineDataService";
 
 export { toSignalDto } from "./helpers/toSignalDto";
 

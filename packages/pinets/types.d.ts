@@ -74,11 +74,18 @@ type PlotMapping = {
 type ExtractedData<M extends PlotMapping> = {
     [K in keyof M]: M[K] extends PlotExtractConfig<infer R> ? R : M[K] extends string ? number : never;
 };
+type ExtractedDataRow<M extends PlotMapping> = {
+    [K in keyof M]: M[K] extends PlotExtractConfig<infer R> ? R | null : M[K] extends string ? number | null : never;
+} & {
+    timestamp: string;
+};
 declare class PineDataService {
     private readonly loggerService;
+    extractRows<M extends PlotMapping>(plots: PlotModel, mapping: M): ExtractedDataRow<M>[];
     extract<M extends PlotMapping>(plots: PlotModel, mapping: M): ExtractedData<M>;
 }
 
+declare function extractRows<M extends PlotMapping>(plots: PlotModel, mapping: M): Promise<ExtractedDataRow<M>[]>;
 declare function extract<M extends PlotMapping>(plots: PlotModel, mapping: M): Promise<ExtractedData<M>>;
 
 interface ILogger {
@@ -226,4 +233,4 @@ declare const pine: {
     };
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type IIndicator, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TIndicatorCtor, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, markdown, run, setLogger, toMarkdown, toSignalDto, useIndicator, usePine };
+export { AXIS_SYMBOL, type CandleModel, Code, type ExtractedData, type ExtractedDataRow, File, type IIndicator, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TIndicatorCtor, type TPineCtor, dumpPlotData, extract, extractRows, getSignal, pine as lib, markdown, run, setLogger, toMarkdown, toSignalDto, useIndicator, usePine };

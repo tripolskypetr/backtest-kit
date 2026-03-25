@@ -450,6 +450,9 @@ For projects that compile to or use CommonJS. Loaded via `require()`:
 | `--limit` | string | Number of candles to fetch (default: `250`) |
 | `--when` | string | End date for candle window — ISO 8601 or Unix ms (default: now) |
 | `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
+| `--json` | string | Write plots as a JSON array to a file (e.g. `--json=./output.json`) |
+| `--jsonl` | string | Write plots as JSONL (one row per line) to a file (e.g. `--jsonl=./output.jsonl`) |
+| `--markdown` | string | Write Markdown table to a file (e.g. `--markdown=./output.md`) |
 
 **Important:** `limit` must cover indicator warmup bars — rows before warmup completes will show `N/A` 
 

@@ -75,6 +75,18 @@ export const getArgs = singleshot(() => {
         type: "string",
         default: "",
       },
+      json: {
+        type: "string",
+        default: "",
+      },
+      jsonl: {
+        type: "string",
+        default: "",
+      },
+      markdown: {
+        type: "string",
+        default: "",
+      },
     },
     strict: false,
     allowPositionals: true,
