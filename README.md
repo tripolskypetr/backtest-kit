@@ -228,7 +228,7 @@ Backtest Kit is **not a data-processing library** - it is a **time execution eng
 These three functions work together to dynamically manage the position. To reduce position linearity, by default, each DCA entry is formatted as a fixed **unit of $100**. This can be changed. No mathematical knowledge is required.
 
 **Public API:**
-- **`commitAverageBuy`** — adds a new DCA entry. For LONG, **only accepted when current price is below a new low**. Silently rejected otherwise. This prevents averaging up. Can be overridden using `setConfig`
+- **`commitAverageBuy`** — adds a new DCA entry. By default, **only accepted when current price is below a new low**. Silently rejected otherwise. This prevents averaging up. Can be overridden using `setConfig`
 - **`commitPartialProfit`** — closes X% of the position at a profit. Locks in gains while keeping exposure.
 - **`commitPartialLoss`** — closes X% of the position at a loss. Cuts exposure before the stop-loss is hit.
 
