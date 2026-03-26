@@ -632,13 +632,6 @@ export class BacktestLogicPrivateService {
     let i = 0;
 
     try {
-
-      frameEndTime -= GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST * 60 * 1_000;
-
-      if (frameEndTime < 0) {
-        throw new Error(`backtestLogicPrivateService frameEndTime is negative: symbol=${symbol} frameEndTime=${frameEndTime}`);
-      }
-
       while (i < timeframes.length) {
         const timeframeStartTime = performance.now();
         const when = timeframes[i];
