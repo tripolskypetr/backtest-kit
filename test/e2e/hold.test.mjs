@@ -1907,3 +1907,487 @@ test("HOLD: first candle timestamp mismatch error surfaced when adapter returns 
 
   fail(`Unexpected error (expected timestamp mismatch): ${errMsg}`);
 });
+
+/**
+ * ТЕСТ #17: frameEndTime закрывает LONG по time_expired до достижения TP
+ *
+ * TP генерируется явно в свечах на minute 50, но frameEndTime = startTime + 20min.
+ * Сигнал должен закрыться по time_expired раньше чем дойдёт до TP.
+ */
+test("HOLD: frameEndTime closes LONG by time_expired before TP is reached", async ({ pass, fail }) => {
+
+  setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity }, true);
+
+  const startTime = new Date("2024-01-01T15:00:00Z").getTime();
+  const intervalMs = 60_000;
+  const TP_MINUTE = 50;
+  // frameEndTime = lastTimeframe = endDate - 1min = startTime + 20min
+  // TP at minute 50 > frameEndTime at minute 20 → time_expired wins
+  const frameEndMinute = 20;
+
+  let signalGenerated = false;
+  let finalResult = null;
+  let errorCaught = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-hold-frame-end-tp",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const m = (timestamp - startTime) / intervalMs;
+        if (timestamp < startTime) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m < 5) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m === 5) {
+          result.push({ timestamp, open: 42100, high: 42200, low: 42000, close: 42100, volume: 100 });
+        } else if (m >= TP_MINUTE) {
+          // TP явно генерируется на minute 50: high >= 43000
+          result.push({ timestamp, open: 43000, high: 43100, low: 42900, close: 43000, volume: 100 });
+        } else {
+          result.push({ timestamp, open: 42100, high: 42200, low: 42050, close: 42100, volume: 100 });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-hold-frame-end-tp",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        priceOpen: 42000,
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: Infinity,
+      };
+    },
+    callbacks: {},
+  });
+
+  addFrameSchema({
+    frameName: "frame-hold-frame-end-tp",
+    interval: "1m",
+    startDate: new Date("2024-01-01T15:00:00Z"),
+    endDate: new Date(startTime + (frameEndMinute + 1) * intervalMs),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  const unsubscribeError = listenError((error) => { errorCaught = error; awaitSubject.next(); });
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") finalResult = result;
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-hold-frame-end-tp",
+    exchangeName: "binance-hold-frame-end-tp",
+    frameName: "frame-hold-frame-end-tp",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message || errorCaught}`); return; }
+  if (!finalResult) { fail("Signal was NOT closed!"); return; }
+  if (finalResult.closeReason !== "time_expired") {
+    fail(`Expected "time_expired" (frameEndTime), got "${finalResult.closeReason}"`);
+    return;
+  }
+  const closeMin = Math.round((finalResult.closeTimestamp - startTime) / intervalMs);
+  if (closeMin >= TP_MINUTE) {
+    fail(`Signal closed at minute ${closeMin} — TP at ${TP_MINUTE} was reached, frameEndTime did not win`);
+    return;
+  }
+  pass(`HOLD FRAME-END TP: closed by time_expired at minute ~${closeMin}, before TP at minute ${TP_MINUTE}`);
+});
+
+/**
+ * ТЕСТ #18: frameEndTime закрывает LONG по time_expired до достижения SL
+ *
+ * SL генерируется явно в свечах на minute 50, но frameEndTime = startTime + 20min.
+ */
+test("HOLD: frameEndTime closes LONG by time_expired before SL is reached", async ({ pass, fail }) => {
+
+  setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity }, true);
+
+  const startTime = new Date("2024-01-01T16:00:00Z").getTime();
+  const intervalMs = 60_000;
+  const SL_MINUTE = 50;
+  const frameEndMinute = 20;
+
+  let signalGenerated = false;
+  let finalResult = null;
+  let errorCaught = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-hold-frame-end-sl",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const m = (timestamp - startTime) / intervalMs;
+        if (timestamp < startTime) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m < 5) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m === 5) {
+          result.push({ timestamp, open: 42100, high: 42200, low: 42000, close: 42100, volume: 100 });
+        } else if (m >= SL_MINUTE) {
+          // SL явно генерируется на minute 50: low <= 41000
+          result.push({ timestamp, open: 40900, high: 41100, low: 40800, close: 40900, volume: 100 });
+        } else {
+          result.push({ timestamp, open: 42100, high: 42200, low: 42050, close: 42100, volume: 100 });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-hold-frame-end-sl",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        priceOpen: 42000,
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: Infinity,
+      };
+    },
+    callbacks: {},
+  });
+
+  addFrameSchema({
+    frameName: "frame-hold-frame-end-sl",
+    interval: "1m",
+    startDate: new Date("2024-01-01T16:00:00Z"),
+    endDate: new Date(startTime + (frameEndMinute + 1) * intervalMs),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  const unsubscribeError = listenError((error) => { errorCaught = error; awaitSubject.next(); });
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") finalResult = result;
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-hold-frame-end-sl",
+    exchangeName: "binance-hold-frame-end-sl",
+    frameName: "frame-hold-frame-end-sl",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message || errorCaught}`); return; }
+  if (!finalResult) { fail("Signal was NOT closed!"); return; }
+  if (finalResult.closeReason !== "time_expired") {
+    fail(`Expected "time_expired" (frameEndTime), got "${finalResult.closeReason}"`);
+    return;
+  }
+  const closeMin = Math.round((finalResult.closeTimestamp - startTime) / intervalMs);
+  if (closeMin >= SL_MINUTE) {
+    fail(`Signal closed at minute ${closeMin} — SL at ${SL_MINUTE} was reached, frameEndTime did not win`);
+    return;
+  }
+  pass(`HOLD FRAME-END SL: closed by time_expired at minute ~${closeMin}, before SL at minute ${SL_MINUTE}`);
+});
+
+/**
+ * ТЕСТ #19: frameEndTime отменяет scheduled сигнал (так и не активировался)
+ *
+ * priceOpen = 30000 никогда не достигается, scheduled сигнал висит весь фрейм.
+ * По окончании frameEndTime сигнал отменяется (action=cancelled).
+ */
+test("HOLD: frameEndTime cancels scheduled signal that never activated", async ({ pass, fail }) => {
+
+  setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity }, true);
+
+  const startTime = new Date("2024-01-01T17:00:00Z").getTime();
+  const intervalMs = 60_000;
+
+  let signalGenerated = false;
+  let cancelledResult = null;
+  let errorCaught = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-hold-frame-end-cancel",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        // Цена всегда выше priceOpen=30000 — активация никогда не произойдёт
+        result.push({ timestamp, open: 42000, high: 42100, low: 41900, close: 42000, volume: 100 });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-hold-frame-end-cancel",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        priceOpen: 30000,
+        priceTakeProfit: 35000,
+        priceStopLoss: 25000,
+        minuteEstimatedTime: Infinity,
+      };
+    },
+    callbacks: {},
+  });
+
+  addFrameSchema({
+    frameName: "frame-hold-frame-end-cancel",
+    interval: "1m",
+    startDate: new Date("2024-01-01T17:00:00Z"),
+    endDate: new Date(startTime + 22 * intervalMs),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  const unsubscribeError = listenError((error) => { errorCaught = error; awaitSubject.next(); });
+
+  listenSignalBacktest((result) => {
+    if (result.action === "cancelled") cancelledResult = result;
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-hold-frame-end-cancel",
+    exchangeName: "binance-hold-frame-end-cancel",
+    frameName: "frame-hold-frame-end-cancel",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message || errorCaught}`); return; }
+  if (!cancelledResult) { fail("Signal was NOT cancelled!"); return; }
+
+  pass(`HOLD FRAME-END CANCEL: scheduled signal cancelled by frameEndTime (never activated)`);
+});
+
+/**
+ * ТЕСТ #20: frameEndTime закрывает SHORT по time_expired до достижения TP
+ *
+ * SHORT TP = 40000, генерируется на minute 50, frameEndTime = startTime + 20min.
+ */
+test("HOLD: frameEndTime closes SHORT by time_expired before TP is reached", async ({ pass, fail }) => {
+
+  setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity }, true);
+
+  const startTime = new Date("2024-01-01T18:00:00Z").getTime();
+  const intervalMs = 60_000;
+  const TP_MINUTE = 50;
+  const frameEndMinute = 20;
+
+  let signalGenerated = false;
+  let finalResult = null;
+  let errorCaught = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-hold-frame-end-short-tp",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const m = (timestamp - startTime) / intervalMs;
+        if (timestamp < startTime) {
+          // Буфер SHORT: ниже priceOpen
+          result.push({ timestamp, open: 41000, high: 41900, low: 40900, close: 41000, volume: 100 });
+        } else if (m < 5) {
+          result.push({ timestamp, open: 41000, high: 41900, low: 40900, close: 41000, volume: 100 });
+        } else if (m === 5) {
+          // Активация SHORT: high === priceOpen = 42000
+          result.push({ timestamp, open: 41900, high: 42000, low: 41800, close: 41900, volume: 100 });
+        } else if (m >= TP_MINUTE) {
+          // TP SHORT: low <= 40000
+          result.push({ timestamp, open: 39900, high: 40100, low: 39800, close: 39900, volume: 100 });
+        } else {
+          result.push({ timestamp, open: 41900, high: 41950, low: 41850, close: 41900, volume: 100 });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-hold-frame-end-short-tp",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "short",
+        priceOpen: 42000,
+        priceTakeProfit: 40000,
+        priceStopLoss: 43000,
+        minuteEstimatedTime: Infinity,
+      };
+    },
+    callbacks: {},
+  });
+
+  addFrameSchema({
+    frameName: "frame-hold-frame-end-short-tp",
+    interval: "1m",
+    startDate: new Date("2024-01-01T18:00:00Z"),
+    endDate: new Date(startTime + (frameEndMinute + 1) * intervalMs),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  const unsubscribeError = listenError((error) => { errorCaught = error; awaitSubject.next(); });
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") finalResult = result;
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-hold-frame-end-short-tp",
+    exchangeName: "binance-hold-frame-end-short-tp",
+    frameName: "frame-hold-frame-end-short-tp",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message || errorCaught}`); return; }
+  if (!finalResult) { fail("Signal was NOT closed!"); return; }
+  if (finalResult.closeReason !== "time_expired") {
+    fail(`Expected "time_expired" (frameEndTime), got "${finalResult.closeReason}"`);
+    return;
+  }
+  const closeMin = Math.round((finalResult.closeTimestamp - startTime) / intervalMs);
+  if (closeMin >= TP_MINUTE) {
+    fail(`Signal closed at minute ${closeMin} — SHORT TP at ${TP_MINUTE} was reached, frameEndTime did not win`);
+    return;
+  }
+  pass(`HOLD FRAME-END SHORT TP: closed by time_expired at minute ~${closeMin}, before TP at minute ${TP_MINUTE}`);
+});
+
+/**
+ * ТЕСТ #21: frameEndTime побеждает minuteEstimatedTime (finite)
+ *
+ * minuteEstimatedTime=100, но frameEndTime = startTime + 20min.
+ * Сигнал должен закрыться по time_expired от frameEndTime, а не от minuteEstimatedTime.
+ * TP и SL не достигаются.
+ */
+test("HOLD: frameEndTime wins over minuteEstimatedTime when frame ends earlier", async ({ pass, fail }) => {
+
+  setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity }, true);
+
+  const startTime = new Date("2024-01-01T19:00:00Z").getTime();
+  const intervalMs = 60_000;
+  const frameEndMinute = 20;
+
+  let signalGenerated = false;
+  let finalResult = null;
+  let errorCaught = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-hold-frame-end-vs-met",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const m = (timestamp - startTime) / intervalMs;
+        if (timestamp < startTime) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m < 5) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m === 5) {
+          result.push({ timestamp, open: 42100, high: 42200, low: 42000, close: 42100, volume: 100 });
+        } else {
+          // Нейтраль: TP/SL не достигаются никогда
+          result.push({ timestamp, open: 42100, high: 42200, low: 42050, close: 42100, volume: 100 });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-hold-frame-end-vs-met",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        priceOpen: 42000,
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 100, // 100 минут, но frame кончится на 20
+      };
+    },
+    callbacks: {},
+  });
+
+  addFrameSchema({
+    frameName: "frame-hold-frame-end-vs-met",
+    interval: "1m",
+    startDate: new Date("2024-01-01T19:00:00Z"),
+    endDate: new Date(startTime + (frameEndMinute + 1) * intervalMs),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  const unsubscribeError = listenError((error) => { errorCaught = error; awaitSubject.next(); });
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") finalResult = result;
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-hold-frame-end-vs-met",
+    exchangeName: "binance-hold-frame-end-vs-met",
+    frameName: "frame-hold-frame-end-vs-met",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message || errorCaught}`); return; }
+  if (!finalResult) { fail("Signal was NOT closed!"); return; }
+  if (finalResult.closeReason !== "time_expired") {
+    fail(`Expected "time_expired" (frameEndTime before minuteEstimatedTime=100), got "${finalResult.closeReason}"`);
+    return;
+  }
+  const closeMin = Math.round((finalResult.closeTimestamp - startTime) / intervalMs);
+  if (closeMin >= 100) {
+    fail(`Signal closed at minute ${closeMin} — minuteEstimatedTime=100 was reached instead of frameEndTime`);
+    return;
+  }
+  pass(`HOLD FRAME-END VS MET: frameEndTime at minute ~${frameEndMinute} won over minuteEstimatedTime=100. Closed at minute ~${closeMin}`);
+});
