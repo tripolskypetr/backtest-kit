@@ -1516,3 +1516,133 @@ test("HOLD: closePending fires correctly when candle data exhausted past Date.no
 
   pass(`HOLD CLOSE-PENDING BOUNDARY: closePending correctly closed signal when candle data exhausted past Date.now(). closeReason="${finalResult.closeReason}"`);
 });
+
+/**
+ * ТЕСТ #14: Адаптер вернул меньше свечей чем запрошено — candle count mismatch
+ *
+ * Сценарий:
+ * - minuteEstimatedTime: Infinity, сигнал активен через scheduled batch
+ * - Первый чанк в RUN_INFINITY_CHUNK_LOOP_FN: адаптер возвращает limit/2 вместо limit
+ * - ClientExchange.getNextCandles выбрасывает "candle count mismatch"
+ * - Ошибка всплывает через errorEmitter, TFnError → _fatalError → process.exit(-1)
+ * - Тест ожидает именно эту ошибку как корректное поведение защиты
+ */
+test("HOLD: candle count mismatch error surfaced when adapter returns fewer candles than requested", async ({ pass, fail }) => {
+
+  setConfig({
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity,
+  }, true);
+
+  const startTime = new Date("2024-01-01T12:00:00Z").getTime();
+  const intervalMs = 60_000;
+
+  // Scheduled batch since=startTime-4min → не попадает под partial (4 < 1100)
+  // Первый чанк в RUN_INFINITY_CHUNK_LOOP_FN since≈minute 1116 → попадает (1116 > 1100)
+  const partialBoundaryMs = startTime + 1100 * intervalMs;
+
+  let signalGenerated = false;
+  let errorCaught = null;
+  let partialTriggered = false;
+
+  addExchangeSchema({
+    exchangeName: "binance-hold-partial-candles",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+
+      // Первый чанк infinity loop: возвращаем только половину — candle count mismatch
+      if (alignedSince >= partialBoundaryMs) {
+        partialTriggered = true;
+        const halfLimit = Math.floor(limit / 2);
+        const result = [];
+        for (let i = 0; i < halfLimit; i++) {
+          const timestamp = alignedSince + i * intervalMs;
+          result.push({ timestamp, open: 42100, high: 42200, low: 42050, close: 42100, volume: 100 });
+        }
+        return result;
+      }
+
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const m = (timestamp - startTime) / intervalMs;
+        if (timestamp < startTime) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m < 5) {
+          result.push({ timestamp, open: 43000, high: 43100, low: 42100, close: 43000, volume: 100 });
+        } else if (m === 5) {
+          result.push({ timestamp, open: 42100, high: 42200, low: 42000, close: 42100, volume: 100 });
+        } else {
+          result.push({ timestamp, open: 42100, high: 42200, low: 42050, close: 42100, volume: 100 });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-hold-partial-candles",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        priceOpen: 42000,
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: Infinity,
+      };
+    },
+    callbacks: {},
+  });
+
+  addFrameSchema({
+    frameName: "5m-hold-partial-candles",
+    interval: "1m",
+    startDate: new Date("2024-01-01T12:00:00Z"),
+    endDate: new Date("2024-01-01T12:05:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  const originalProcessExit = process.exit;
+  process.exit = () => {
+    process.exit = originalProcessExit;
+    awaitSubject.next();
+  };
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-hold-partial-candles",
+    exchangeName: "binance-hold-partial-candles",
+    frameName: "5m-hold-partial-candles",
+  });
+
+  await awaitSubject.toPromise();
+  process.exit = originalProcessExit;
+  unsubscribeError();
+
+  if (!partialTriggered) {
+    fail("Partial candle boundary was never reached — chunk loop did not start. Check partialBoundaryMs.");
+    return;
+  }
+
+  if (!errorCaught) {
+    fail("No error was caught! Expected 'candle count mismatch' error from ClientExchange.");
+    return;
+  }
+
+  const errMsg = errorCaught.message || String(errorCaught);
+  if (errMsg.includes("candle count mismatch") || errMsg.includes("Adapter must return exact number")) {
+    pass(`HOLD PARTIAL CANDLES: candle count mismatch correctly surfaced — "${errMsg.substring(0, 120)}"`);
+    return;
+  }
+
+  fail(`Unexpected error (expected candle count mismatch): ${errMsg}`);
+});
