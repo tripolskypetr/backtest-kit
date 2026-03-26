@@ -99,7 +99,7 @@ test("HOLD: Infinity LONG closes by stop_loss within first chunk", async ({ pass
     frameName: "5m-hold-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:12:00Z"),
+    endDate: new Date("2024-01-01T00:22:00Z"),
   });
 
   const awaitSubject = new Subject();
