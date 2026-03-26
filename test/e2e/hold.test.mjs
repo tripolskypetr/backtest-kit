@@ -99,7 +99,7 @@ test("HOLD: Infinity LONG closes by stop_loss within first chunk", async ({ pass
     frameName: "5m-hold-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:05:00Z"),
+    endDate: new Date("2024-01-01T00:12:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -215,7 +215,7 @@ test("HOLD: Infinity LONG closes by take_profit within first chunk", async ({ pa
     frameName: "5m-hold-tp",
     interval: "1m",
     startDate: new Date("2024-01-01T01:00:00Z"),
-    endDate: new Date("2024-01-01T01:05:00Z"),
+    endDate: new Date("2024-01-01T01:12:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -338,7 +338,7 @@ test("HOLD: Infinity LONG closes by take_profit after 1200 minutes (cross-chunk)
     frameName: "5m-hold-cross-chunk",
     interval: "1m",
     startDate: new Date("2024-01-01T02:00:00Z"),
-    endDate: new Date("2024-01-01T02:05:00Z"),
+    endDate: new Date("2024-01-01T22:02:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -459,7 +459,7 @@ test("HOLD: Infinity LONG — 2nd chunk request triggered (TP at minute 1200)", 
     frameName: "5m-hold-2chunk",
     interval: "1m",
     startDate: new Date("2024-01-01T03:00:00Z"),
-    endDate: new Date("2024-01-01T03:05:00Z"),
+    endDate: new Date("2024-01-01T23:02:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -579,7 +579,7 @@ test("HOLD: Infinity LONG — 3rd chunk request triggered (TP at minute 2300)", 
     frameName: "5m-hold-3chunk",
     interval: "1m",
     startDate: new Date("2024-01-01T04:00:00Z"),
-    endDate: new Date("2024-01-01T04:05:00Z"),
+    endDate: new Date("2024-01-02T18:22:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -699,7 +699,7 @@ test("HOLD: Infinity LONG — 10 calendar days processed, closes by stop_loss", 
     frameName: "5m-hold-10days-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T06:00:00Z"),
-    endDate: new Date("2024-01-01T06:06:00Z"),
+    endDate: new Date("2024-01-11T06:02:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -822,7 +822,7 @@ test("HOLD: finite minuteEstimatedTime — signal closes by time_expired", async
     frameName: "5m-hold-timeout",
     interval: "1m",
     startDate: new Date("2024-01-01T07:00:00Z"),
-    endDate: new Date("2024-01-01T07:05:00Z"),
+    endDate: new Date("2024-01-01T07:32:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -950,7 +950,7 @@ test("HOLD: Infinity LONG 5 days — closes via commitClosePending when breakeve
     frameName: "5m-hold-be-long",
     interval: "1m",
     startDate: new Date("2024-01-01T08:00:00Z"),
-    endDate: new Date("2024-01-01T08:06:00Z"),
+    endDate: new Date("2024-01-04T08:02:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -1093,7 +1093,7 @@ test("HOLD: Infinity SHORT 5 days — closes via commitClosePending when breakev
     frameName: "5m-hold-be-short",
     interval: "1m",
     startDate: new Date("2024-01-01T09:00:00Z"),
-    endDate: new Date("2024-01-01T09:06:00Z"),
+    endDate: new Date("2024-01-04T09:02:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -1450,7 +1450,7 @@ test("HOLD: closePending fires correctly when candle data exhausted past Date.no
     frameName: "5m-hold-close-pending-boundary",
     interval: "1m",
     startDate: new Date("2024-01-01T11:00:00Z"),
-    endDate: new Date("2024-01-01T11:05:00Z"),
+    endDate: new Date("2024-01-02T23:42:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -1602,7 +1602,7 @@ test("HOLD: candle count mismatch error surfaced when adapter returns fewer cand
     frameName: "5m-hold-partial-candles",
     interval: "1m",
     startDate: new Date("2024-01-01T12:00:00Z"),
-    endDate: new Date("2024-01-01T12:05:00Z"),
+    endDate: new Date("2024-01-03T00:42:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -1735,7 +1735,7 @@ test("HOLD: candle count mismatch after deduplication of duplicate timestamps", 
     frameName: "5m-hold-dup-timestamps",
     interval: "1m",
     startDate: new Date("2024-01-01T13:00:00Z"),
-    endDate: new Date("2024-01-01T13:05:00Z"),
+    endDate: new Date("2024-01-03T01:42:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -1863,7 +1863,7 @@ test("HOLD: first candle timestamp mismatch error surfaced when adapter returns 
     frameName: "5m-hold-ts-mismatch",
     interval: "1m",
     startDate: new Date("2024-01-01T14:00:00Z"),
-    endDate: new Date("2024-01-01T14:05:00Z"),
+    endDate: new Date("2024-01-03T02:42:00Z"),
   });
 
   const awaitSubject = new Subject();
