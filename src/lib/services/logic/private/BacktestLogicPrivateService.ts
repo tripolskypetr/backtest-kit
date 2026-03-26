@@ -83,7 +83,9 @@ const TICK_FN = async (
       frameName: self.methodContextService.context.frameName,
     });
   } catch (error) {
-    console.error(`backtestLogicPrivateService tick failed symbol=${symbol} when=${when.toISOString()} strategyName=${self.methodContextService.context.strategyName} exchangeName=${self.methodContextService.context.exchangeName}`);
+    console.error(`backtestLogicPrivateService tick failed symbol=${symbol} when=${when.toISOString()} strategyName=${self.methodContextService.context.strategyName} exchangeName=${self.methodContextService.context.exchangeName} error=${getErrorMessage(error)}`, {
+      error: errorData(error),
+    });
     self.loggerService.warn("backtestLogicPrivateService tick failed", {
       symbol,
       when: when.toISOString(),
@@ -159,7 +161,14 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
     }
 
     if (!chunkCandles.length) {
-      await self.strategyCoreService.closePending(true, symbol, context);
+      try {
+        await self.strategyCoreService.closePending(true, symbol, context);
+      } catch (error) {
+        const message = `closePending failed: ${getErrorMessage(error)}`;
+        console.error(`backtestLogicPrivateService RUN_INFINITY_CHUNK_LOOP_FN: ${message} symbol=${symbol}`);
+        await errorEmitter.next(error instanceof Error ? error : new Error(message));
+        return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "CLOSE_PENDING_FN", message };
+      }
       const result = await BACKTEST_FN(self, symbol, lastChunkCandles, when, context, { signalId });
       if ("__error__" in result) {
         return result;
@@ -417,7 +426,14 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
         await errorEmitter.next(new Error(message));
         return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "RUN_OPENED_CHUNK_LOOP_FN", message };
       }
-      await self.strategyCoreService.closePending(true, symbol, context);
+      try {
+        await self.strategyCoreService.closePending(true, symbol, context);
+      } catch (error) {
+        const message = `closePending failed: ${getErrorMessage(error)}`;
+        console.error(`backtestLogicPrivateService RUN_OPENED_CHUNK_LOOP_FN: ${message} symbol=${symbol}`);
+        await errorEmitter.next(error instanceof Error ? error : new Error(message));
+        return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "CLOSE_PENDING_FN", message };
+      }
       const result = await BACKTEST_FN(self, symbol, lastChunkCandles, when, context, { signalId });
       if ("__error__" in result) {
         return result;
@@ -597,6 +613,9 @@ export class BacktestLogicPrivateService {
 
     const backtestStartTime = performance.now();
 
+    let _fatalError: unknown = null;
+    let previousEventTimestamp: number | null = null;
+
     const timeframes = await this.frameCoreService.getTimeframe(
       symbol,
       this.methodContextService.context.frameName
@@ -604,105 +623,120 @@ export class BacktestLogicPrivateService {
     const totalFrames = timeframes.length;
 
     let i = 0;
-    let previousEventTimestamp: number | null = null;
 
-    while (i < timeframes.length) {
-      const timeframeStartTime = performance.now();
-      const when = timeframes[i];
+    try {
+      while (i < timeframes.length) {
+        const timeframeStartTime = performance.now();
+        const when = timeframes[i];
 
-      await EMIT_PROGRESS_FN(this, symbol, totalFrames, i);
+        await EMIT_PROGRESS_FN(this, symbol, totalFrames, i);
 
-      if (await CHECK_STOPPED_FN(this, symbol, "before tick", { when: when.toISOString(), processedFrames: i, totalFrames })) {
-        break;
-      }
-
-      const result = await TICK_FN(this, symbol, when);
-      if ("__error__" in result) {
-        break;
-      }
-
-      if (
-        result.action === "idle" &&
-        await and(
-          Promise.resolve(true),
-          this.strategyCoreService.getStopped(true, symbol, {
-            strategyName: this.methodContextService.context.strategyName,
-            exchangeName: this.methodContextService.context.exchangeName,
-            frameName: this.methodContextService.context.frameName,
-          })
-        )
-      ) {
-        this.loggerService.info("backtestLogicPrivateService stopped by user request (idle state)", {
-          symbol,
-          when: when.toISOString(),
-          processedFrames: i,
-          totalFrames,
-        });
-        break;
-      }
-
-      if (result.action === "scheduled") {
-        yield result;
-
-        const r = yield* PROCESS_SCHEDULED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp);
-
-        if (r.type === "error") {
+        if (await CHECK_STOPPED_FN(this, symbol, "before tick", { when: when.toISOString(), processedFrames: i, totalFrames })) {
           break;
         }
 
-        if (r.type === "closed") {
-          previousEventTimestamp = r.previousEventTimestamp;
-          while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
-            i++;
-          }
-          if (r.shouldStop) {
-            break;
-          }
-        }
-      }
-
-      if (result.action === "opened") {
-        yield result;
-
-        const r = yield* PROCESS_OPENED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp);
-
-        if (r.type === "error") {
+        const result = await TICK_FN(this, symbol, when);
+        if ("__error__" in result) {
+          _fatalError = new Error(`[${result.reason}] ${result.message}`);
           break;
         }
 
-        if (r.type === "closed") {
-          previousEventTimestamp = r.previousEventTimestamp;
-          while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
-            i++;
-          }
-          if (r.shouldStop) {
+        if (
+          result.action === "idle" &&
+          await and(
+            Promise.resolve(true),
+            this.strategyCoreService.getStopped(true, symbol, {
+              strategyName: this.methodContextService.context.strategyName,
+              exchangeName: this.methodContextService.context.exchangeName,
+              frameName: this.methodContextService.context.frameName,
+            })
+          )
+        ) {
+          this.loggerService.info("backtestLogicPrivateService stopped by user request (idle state)", {
+            symbol,
+            when: when.toISOString(),
+            processedFrames: i,
+            totalFrames,
+          });
+          break;
+        }
+
+        if (result.action === "scheduled") {
+          yield result;
+
+          const r = yield* PROCESS_SCHEDULED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp);
+
+          if (r.type === "error") {
+            _fatalError = new Error(`[${r.reason}] ${r.message}`);
             break;
           }
+
+          if (r.type === "closed") {
+            previousEventTimestamp = r.previousEventTimestamp;
+            while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
+              i++;
+            }
+            if (r.shouldStop) {
+              break;
+            }
+          }
         }
+
+        if (result.action === "opened") {
+          yield result;
+
+          const r = yield* PROCESS_OPENED_SIGNAL_FN(this, symbol, when, result, previousEventTimestamp);
+
+          if (r.type === "error") {
+            _fatalError = new Error(`[${r.reason}] ${r.message}`);
+            break;
+          }
+
+          if (r.type === "closed") {
+            previousEventTimestamp = r.previousEventTimestamp;
+            while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
+              i++;
+            }
+            if (r.shouldStop) {
+              break;
+            }
+          }
+        }
+
+        previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp);
+
+        i++;
       }
 
-      previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp);
+      // Emit final progress event (100%)
+      await EMIT_PROGRESS_FN(this, symbol, totalFrames, totalFrames);
 
-      i++;
+      // Track total backtest duration
+      const backtestEndTime = performance.now();
+      const currentTimestamp = Date.now();
+      await performanceEmitter.next({
+        timestamp: currentTimestamp,
+        previousTimestamp: previousEventTimestamp,
+        metricType: "backtest_total",
+        duration: backtestEndTime - backtestStartTime,
+        strategyName: this.methodContextService.context.strategyName,
+        exchangeName: this.methodContextService.context.exchangeName,
+        frameName: this.methodContextService.context.frameName,
+        symbol,
+        backtest: true,
+      });
+    } catch (error) {
+      _fatalError = error;
+    } finally {
+      if (_fatalError !== null) {
+        console.error(
+          `[BacktestLogicPrivateService] Fatal error — backtest sequence broken for symbol=${symbol} ` +
+          `strategy=${this.methodContextService.context.strategyName}`,
+          _fatalError
+        );
+        process.exit(-1);
+      }
     }
-
-    // Emit final progress event (100%)
-    await EMIT_PROGRESS_FN(this, symbol, totalFrames, totalFrames);
-
-    // Track total backtest duration
-    const backtestEndTime = performance.now();
-    const currentTimestamp = Date.now();
-    await performanceEmitter.next({
-      timestamp: currentTimestamp,
-      previousTimestamp: previousEventTimestamp,
-      metricType: "backtest_total",
-      duration: backtestEndTime - backtestStartTime,
-      strategyName: this.methodContextService.context.strategyName,
-      exchangeName: this.methodContextService.context.exchangeName,
-      frameName: this.methodContextService.context.frameName,
-      symbol,
-      backtest: true,
-    });
   }
 }
 

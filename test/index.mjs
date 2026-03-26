@@ -57,6 +57,7 @@ import "./migration/migrate4.test.mjs";
 import "./migration/migrate5.test.mjs";
 import "./migration/migrate6.test.mjs";
 import "./migration/migrate7.test.mjs";
+import "./migration/migrate8.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

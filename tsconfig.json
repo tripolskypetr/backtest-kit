@@ -6,6 +6,9 @@
       "esnext",
       "dom"
     ],
+    "types": [
+      "node"
+    ],
     "moduleDetection": "force",
     "target": "ES2020",
     "module": "ESNext",
