@@ -1688,7 +1688,7 @@ npm start
 
 ## ✅ Tested & Reliable
 
-500+ tests cover validation, recovery, reports, and events.
+515+ tests cover validation, recovery, reports, and events.
 
 ## 🤝 Contribute
 
