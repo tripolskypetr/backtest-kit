@@ -431,70 +431,184 @@ export interface IBroker {
   onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
 }
 
+/**
+ * Constructor type for a broker adapter class.
+ *
+ * Used by `BrokerAdapter.useBrokerAdapter` to accept a class (not an instance).
+ * All `IBroker` methods are optional — implement only what the adapter needs.
+ *
+ * @example
+ * ```typescript
+ * class MyBroker implements Partial<IBroker> {
+ *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) { ... }
+ * }
+ *
+ * Broker.useBrokerAdapter(MyBroker); // MyBroker satisfies TBrokerCtor
+ * ```
+ */
 export type TBrokerCtor = new () => Partial<IBroker>;
 
+/**
+ * Wrapper around a `Partial<IBroker>` adapter instance.
+ *
+ * Implements the full `IBroker` interface but guards every method call —
+ * if the underlying adapter does not implement a given method, an error is thrown.
+ * `waitForInit` is the only exception: it is silently skipped when not implemented.
+ *
+ * Created internally by `BrokerAdapter.useBrokerAdapter` and stored as
+ * `_brokerInstance`. All `BrokerAdapter.commit*` methods delegate here
+ * after backtest-mode and enable-state checks pass.
+ */
 export class BrokerProxy implements IBroker {
   constructor(readonly _instance: Partial<IBroker>) {}
+
+  /**
+   * Calls `waitForInit` on the underlying adapter exactly once (singleshot).
+   * If the adapter does not implement `waitForInit`, the call is silently skipped.
+   *
+   * @returns Resolves when initialization is complete (or immediately if not implemented).
+   */
   public waitForInit = singleshot(async (): Promise<void> => {
     if (this._instance.waitForInit) {
       await this._instance.waitForInit();
+      return;
     }
   });
+
+  /**
+   * Forwards a signal-open event to the underlying adapter.
+   * Throws if the adapter does not implement `onSignalOpenCommit`.
+   *
+   * @param payload - Signal open details: symbol, cost, position, prices, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onSignalOpenCommit`.
+   */
   public async onSignalOpenCommit(
     payload: BrokerSignalOpenPayload,
   ): Promise<void> {
     if (this._instance.onSignalOpenCommit) {
       await this._instance.onSignalOpenCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onSignalOpenCommit is not implemented")
   }
+
+  /**
+   * Forwards a signal-close event to the underlying adapter.
+   * Throws if the adapter does not implement `onSignalCloseCommit`.
+   *
+   * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onSignalCloseCommit`.
+   */
   public async onSignalCloseCommit(
     payload: BrokerSignalClosePayload,
   ): Promise<void> {
     if (this._instance.onSignalCloseCommit) {
       await this._instance.onSignalCloseCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onSignalCloseCommit is not implemented")
   }
+
+  /**
+   * Forwards a partial-profit close event to the underlying adapter.
+   * Throws if the adapter does not implement `onPartialProfitCommit`.
+   *
+   * @param payload - Partial profit details: symbol, percentToClose, cost, currentPrice, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onPartialProfitCommit`.
+   */
   public async onPartialProfitCommit(
     payload: BrokerPartialProfitPayload,
   ): Promise<void> {
     if (this._instance.onPartialProfitCommit) {
       await this._instance.onPartialProfitCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onPartialProfitCommit is not implemented")
   }
+
+  /**
+   * Forwards a partial-loss close event to the underlying adapter.
+   * Throws if the adapter does not implement `onPartialLossCommit`.
+   *
+   * @param payload - Partial loss details: symbol, percentToClose, cost, currentPrice, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onPartialLossCommit`.
+   */
   public async onPartialLossCommit(
     payload: BrokerPartialLossPayload,
   ): Promise<void> {
     if (this._instance.onPartialLossCommit) {
       await this._instance.onPartialLossCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onPartialLossCommit is not implemented")
   }
+
+  /**
+   * Forwards a trailing stop-loss update event to the underlying adapter.
+   * Throws if the adapter does not implement `onTrailingStopCommit`.
+   *
+   * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onTrailingStopCommit`.
+   */
   public async onTrailingStopCommit(
     payload: BrokerTrailingStopPayload,
   ): Promise<void> {
     if (this._instance.onTrailingStopCommit) {
       await this._instance.onTrailingStopCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onTrailingStopCommit is not implemented")
   }
+
+  /**
+   * Forwards a trailing take-profit update event to the underlying adapter.
+   * Throws if the adapter does not implement `onTrailingTakeCommit`.
+   *
+   * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onTrailingTakeCommit`.
+   */
   public async onTrailingTakeCommit(
     payload: BrokerTrailingTakePayload,
   ): Promise<void> {
     if (this._instance.onTrailingTakeCommit) {
       await this._instance.onTrailingTakeCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onTrailingTakeCommit is not implemented")
   }
+
+  /**
+   * Forwards a breakeven event to the underlying adapter.
+   * Throws if the adapter does not implement `onBreakevenCommit`.
+   *
+   * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice (= effectivePriceOpen), newTakeProfitPrice, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onBreakevenCommit`.
+   */
   public async onBreakevenCommit(
     payload: BrokerBreakevenPayload,
   ): Promise<void> {
     if (this._instance.onBreakevenCommit) {
       await this._instance.onBreakevenCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onBreakevenCommit is not implemented")
   }
+
+  /**
+   * Forwards a DCA average-buy entry event to the underlying adapter.
+   * Throws if the adapter does not implement `onAverageBuyCommit`.
+   *
+   * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest flag.
+   * @throws {Error} If the adapter does not implement `onAverageBuyCommit`.
+   */
   public async onAverageBuyCommit(
     payload: BrokerAverageBuyPayload,
   ): Promise<void> {
     if (this._instance.onAverageBuyCommit) {
       await this._instance.onAverageBuyCommit(payload);
+      return;
     }
+    throw new Error("BrokerProxy onAverageBuyCommit is not implemented")
   }
 }
 
