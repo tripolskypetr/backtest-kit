@@ -313,6 +313,10 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
     return candles;
   }
 
+  // No candles available for this scheduled signal — the frame ends before the signal
+  // could be evaluated. Unlike pending (Infinity) signals that require CLOSE_PENDING_FN,
+  // a scheduled signal that never activated needs no explicit cancellation: it simply
+  // did not start. Returning "skip" moves the backtest to the next timeframe.
   if (!candles.length) {
     return { type: "skip" };
   }
