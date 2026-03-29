@@ -63,6 +63,10 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      dump: {
+        type: "boolean",
+        default: false,
+      },
       timeframe: {
         type: "string",
         default: "",

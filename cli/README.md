@@ -613,6 +613,98 @@ Print to stdout (no flag):
 npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine
 ```
 
+## 💾 Dumping Raw Candles
+
+`@backtest-kit/cli` can fetch raw OHLCV candles from any registered exchange and save them to a file — no strategy file required.
+
+### CLI Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--dump` | boolean | Enable candle dump mode |
+| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
+| `--timeframe` | string | Candle interval (default: `"15m"`) |
+| `--limit` | string | Number of candles to fetch (default: `250`) |
+| `--when` | string | End date for candle window — ISO 8601 or Unix ms (default: now) |
+| `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
+| `--output` | string | Output file base name without extension (default: `{SYMBOL}_{LIMIT}_{TIMEFRAME}_{TIMESTAMP}`) |
+| `--json` | boolean | Write candles as a JSON array to `./dump/{output}.json` |
+| `--jsonl` | boolean | Write candles as JSONL (one row per line) to `./dump/{output}.jsonl` |
+
+The `dump/` directory is created in the current working directory (where the CLI is invoked from).
+
+### Exchange via `dump.module`
+
+By default the CLI registers CCXT Binance automatically. To use a different exchange — or to configure API keys, custom rate limits, or a non-spot market — create a `modules/dump.module.ts` file. The CLI loads it automatically before fetching candles.
+
+The CLI looks for `modules/dump.module` in the current working directory
+
+```
+my-project/
+├── modules/
+│   └── dump.module.ts            ← exchange registration
+├── dump/                         ← auto-created: candle output files
+└── package.json
+```
+
+Inside `dump.module.ts` call `addExchangeSchema` from `backtest-kit`:
+
+```typescript
+// modules/dump.module.ts
+import { addExchangeSchema } from "backtest-kit";
+import ccxt from "ccxt";
+
+addExchangeSchema({
+  exchangeName: "my-exchange",
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.bybit({ enableRateLimit: true });
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
+      timestamp, open, high, low, close, volume,
+    }));
+  },
+  formatPrice: (symbol, price) => price.toFixed(2),
+  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+});
+```
+
+### Output
+
+Each candle row contains OHLCV fields. Print to stdout:
+
+```bash
+npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 100
+```
+
+Save to `./dump/BTCUSDT_100_15m_{timestamp}.jsonl`:
+
+```bash
+npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 100 --jsonl
+```
+
+Fetch candles up to a specific date with `--when` and override the file name with `--output`:
+
+```bash
+npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 \
+  --when "2026-02-28T00:00:00.000Z" \
+  --jsonl --output feb2026_btc
+# → ./dump/feb2026_btc.jsonl
+```
+
+Or add it to `package.json`:
+
+```json
+{
+  "scripts": {
+    "dump": "npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl"
+  }
+}
+```
+
+```bash
+npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+```
+
 ## 🌍 Environment Variables
 
 Create a `.env` file in your project root:
