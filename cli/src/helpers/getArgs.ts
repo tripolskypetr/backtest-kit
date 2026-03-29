@@ -75,17 +75,21 @@ export const getArgs = singleshot(() => {
         type: "string",
         default: "",
       },
-      json: {
+      output: {
         type: "string",
         default: "",
+      },
+      json: {
+        type: "boolean",
+        default: false,
       },
       jsonl: {
-        type: "string",
-        default: "",
+        type: "boolean",
+        default: false,
       },
       markdown: {
-        type: "string",
-        default: "",
+        type: "boolean",
+        default: false,
       },
     },
     strict: false,

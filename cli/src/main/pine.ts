@@ -1,5 +1,6 @@
 import { run, Code, toMarkdown } from "@backtest-kit/pinets";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
+import { basename, extname, join } from "path";
 import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
@@ -99,23 +100,26 @@ export const main = async () => {
       .map((key) => [key, key]),
   );
 
-  const jsonPath = <string>values.json;
-  if (jsonPath) {
+  const dumpName = <string>values.output || basename(entryPoint, extname(entryPoint));
+  const dumpDir = join(process.cwd(), "dump");
+
+  if (values.json) {
     const rows = EXTRACT_ROWS_FN(plots, signalSchema);
-    await writeFile(jsonPath, JSON.stringify(rows, null, 2), "utf-8");
+    await mkdir(dumpDir, { recursive: true });
+    await writeFile(join(dumpDir, `${dumpName}.json`), JSON.stringify(rows, null, 2), "utf-8");
     return;
   }
 
-  const jsonlPath = <string>values.jsonl;
-  if (jsonlPath) {
+  if (values.jsonl) {
     const rows = EXTRACT_ROWS_FN(plots, signalSchema);
-    await writeFile(jsonlPath, rows.map((r) => JSON.stringify(r)).join("\n"), "utf-8");
+    await mkdir(dumpDir, { recursive: true });
+    await writeFile(join(dumpDir, `${dumpName}.jsonl`), rows.map((r) => JSON.stringify(r)).join("\n"), "utf-8");
     return;
   }
 
-  const markdownPath = <string>values.markdown;
-  if (markdownPath) {
-    await writeFile(markdownPath, await toMarkdown(signalId, plots, signalSchema), "utf-8");
+  if (values.markdown) {
+    await mkdir(dumpDir, { recursive: true });
+    await writeFile(join(dumpDir, `${dumpName}.md`), await toMarkdown(signalId, plots, signalSchema), "utf-8");
     return;
   }
 

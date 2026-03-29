@@ -450,9 +450,10 @@ For projects that compile to or use CommonJS. Loaded via `require()`:
 | `--limit` | string | Number of candles to fetch (default: `250`) |
 | `--when` | string | End date for candle window — ISO 8601 or Unix ms (default: now) |
 | `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
-| `--json` | string | Write plots as a JSON array to a file (e.g. `--json=./output.json`) |
-| `--jsonl` | string | Write plots as JSONL (one row per line) to a file (e.g. `--jsonl=./output.jsonl`) |
-| `--markdown` | string | Write Markdown table to a file (e.g. `--markdown=./output.md`) |
+| `--output` | string | Output file base name without extension (default: `.pine` file name) |
+| `--json` | boolean | Write plots as a JSON array to `<pine-dir>/dump/{output}.json` |
+| `--jsonl` | boolean | Write plots as JSONL (one row per line) to `<pine-dir>/dump/{output}.jsonl` |
+| `--markdown` | boolean | Write Markdown table to `<pine-dir>/dump/{output}.md` |
 
 **Important:** `limit` must cover indicator warmup bars — rows before warmup completes will show `N/A` 
 
@@ -470,7 +471,7 @@ The CLI looks for `modules/pine.module` in two locations (first match wins):
 ```
 my-project/
 ├── math/
-│   ├── master_trend_15m.pine         ← indicator
+│   ├── impulse_trend_15m.pine         ← indicator
 │   └── modules/
 │       └── pine.module.ts            ← loaded first (next to .pine file)
 ├── modules/
@@ -507,7 +508,7 @@ Before loading `pine.module`, the CLI loads `.env` files in the same order as fo
 my-project/
 ├── math/
 │   ├── .env                          ← loaded second (overrides root)
-│   └── master_trend_15m.pine
+│   └── impulse_trend_15m.pine
 ├── .env                              ← loaded first
 └── package.json
 ```
@@ -538,7 +539,7 @@ addExchangeSchema({
 Then run:
 
 ```bash
-npx @backtest-kit/cli --pine ./math/master_trend_15m.pine \
+npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine \
   --exchange my-exchange \
   --symbol BTCUSDT \
   --timeframe 15m \
@@ -551,7 +552,7 @@ Or add it to `package.json`:
 ```json
 {
   "scripts": {
-    "pine": "npx @backtest-kit/cli --pine ./math/master_trend_15m.pine --symbol BTCUSDT --timeframe 15m --limit 180"
+    "pine": "npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --symbol BTCUSDT --timeframe 15m --limit 180"
   }
 }
 ```
@@ -593,10 +594,23 @@ The CLI prints a Markdown table to stdout:
 | 112653.90 |  1.0000 | 2025-09-22T22:15:00.000Z |
 ```
 
-Redirect to a file to save the report:
+Save to `./math/dump/impulse_trend_15m.md` (uses `.pine` file name automatically, dump is created next to the `.pine` file):
 
 ```bash
-npm run pine > report.md
+npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --markdown
+```
+
+Override the output name with `--output`:
+
+```bash
+npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --jsonl --output feb2026_bb
+# → ./math/dump/feb2026_bb.jsonl
+```
+
+Print to stdout (no flag):
+
+```bash
+npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine
 ```
 
 ## 🌍 Environment Variables
