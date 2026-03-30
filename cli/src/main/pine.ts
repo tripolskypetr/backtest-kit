@@ -32,7 +32,7 @@ export const main = async () => {
     return;
   }
 
-  const { values, positionals } = getArgs();
+  const { values } = getArgs();
 
   if (!values.pine) {
     return;

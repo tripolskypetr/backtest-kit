@@ -114,7 +114,7 @@ export class PaperMainService {
       return;
     }
 
-    const { values, positionals } = getArgs();
+    const { values } = getArgs();
 
     if (!values.paper) {
       return;

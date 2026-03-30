@@ -111,7 +111,7 @@ export class LiveMainService {
       return;
     }
 
-    const { values, positionals } = getArgs();
+    const { values } = getArgs();
 
     if (!values.live) {
       return;

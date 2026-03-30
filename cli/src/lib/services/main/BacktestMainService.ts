@@ -162,7 +162,7 @@ export class BacktestMainService {
       return;
     }
 
-    const { values, positionals } = getArgs();
+    const { values } = getArgs();
 
     if (!values.backtest) {
       return;
