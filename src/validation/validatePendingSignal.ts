@@ -1,6 +1,20 @@
 import { ISignalRow } from "../interfaces/Strategy.interface";
 import validateCommonSignal from "./validateCommonSignal";
 
+/**
+ * Validates a pending (immediately active) signal before it is opened.
+ *
+ * Checks:
+ * - ISignalRow-specific fields: id, exchangeName, strategyName, symbol, _isScheduled
+ * - currentPrice is a finite positive number
+ * - Common signal fields via validateCommonSignal (position, prices, TP/SL relationships, minuteEstimatedTime)
+ * - currentPrice is between SL and TP — position would not be immediately closed on open
+ * - scheduledAt and pendingAt are positive numbers
+ *
+ * @param signal - Pending signal row to validate
+ * @param currentPrice - Current market price at the moment of signal creation
+ * @throws {Error} If any validation check fails
+ */
 export const validatePendingSignal = (signal: ISignalRow, currentPrice: number): void => {
   const errors: string[] = [];
 

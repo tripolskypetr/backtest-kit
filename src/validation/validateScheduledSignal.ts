@@ -1,6 +1,20 @@
 import { IScheduledSignalRow } from "../interfaces/Strategy.interface";
 import validateCommonSignal from "./validateCommonSignal";
 
+/**
+ * Validates a scheduled signal before it is registered for activation.
+ *
+ * Checks:
+ * - ISignalRow-specific fields: id, exchangeName, strategyName, symbol, _isScheduled
+ * - currentPrice is a finite positive number
+ * - Common signal fields via validateCommonSignal (position, prices, TP/SL relationships, minuteEstimatedTime)
+ * - priceOpen is between SL and TP — position would not be immediately closed upon activation
+ * - scheduledAt is a positive number (pendingAt === 0 is allowed until activation)
+ *
+ * @param signal - Scheduled signal row to validate
+ * @param currentPrice - Current market price at the moment of signal creation
+ * @throws {Error} If any validation check fails
+ */
 export const validateScheduledSignal = (signal: IScheduledSignalRow, currentPrice: number): void => {
   const errors: string[] = [];
 
