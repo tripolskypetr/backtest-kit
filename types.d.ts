@@ -5756,6 +5756,16 @@ declare const GLOBAL_CONFIG: {
      */
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     /**
+     * Enables trailing logic (Trailing Take / Trailing Stop) without requiring absorption conditions.
+     * Allows trailing mechanisms to be activated regardless of whether absorption has been detected.
+     *
+     * This can lead to earlier or more frequent trailing activation, improving reactivity to price movement,
+     * but may increase sensitivity to noise and result in premature exits.
+     *
+     * Default: false (trailing logic is applied only when absorption conditions are met)
+     */
+    CC_ENABLE_TRAILING_EVERYWHERE: boolean;
+    /**
      * Cost of entering a position (in USD).
      * This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy
      * Default: $100 per position
@@ -5890,6 +5900,7 @@ declare function getConfig(): {
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
+    CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
 };
 /**
@@ -5944,6 +5955,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
+    CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
 }>;
 /**
