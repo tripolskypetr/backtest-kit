@@ -17,16 +17,30 @@ Build reliable trading systems: backtest on historical data, deploy live bots wi
 
 ## 🚀 Quick Start
 
-### 🎯 The Fastest Way: Sidekick CLI
+### 🎯 The Fastest Way: CLI Init
 
-> **Create a production-ready trading bot in seconds:**
+> **Minimal scaffold — all boilerplate stays inside `@backtest-kit/cli`:**
 
 ```bash
-# Create project with npx (recommended)
+npx @backtest-kit/cli --init --output backtest-kit-project
+cd backtest-kit-project
+npm install
+npm start
+```
+
+The generated project contains only your strategy files. There is no bootstrap, exchange registration, or runner code to maintain — all of that lives inside `@backtest-kit/cli` and is invoked via `npm start`. Library documentation is fetched automatically into `docs/lib/` on init.
+
+### 🏗️ Alternative: Sidekick CLI
+
+> **Full-control scaffold — all wiring is in your project files:**
+
+```bash
 npx -y @backtest-kit/sidekick my-trading-bot
 cd my-trading-bot
 npm start
 ```
+
+Sidekick generates a project where the exchange adapter, frame definitions, risk rules, strategy logic, and runner script all live as editable source files inside the project. Use it when you need full visibility and control over every part of the setup.
 
 ### 📦 Manual Installation
 
@@ -1661,7 +1675,7 @@ npm install @backtest-kit/signals backtest-kit
 
 > **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/sidekick)** 🚀
 
-The **@backtest-kit/sidekick** package is the easiest way to create a new Backtest Kit trading bot project. Like create-react-app, but for algorithmic trading.
+The **@backtest-kit/sidekick** package scaffolds a project where **all wiring is visible and editable** in your project files — exchange adapter, frame definitions, risk rules, strategy logic, and the runner script. Think of it as the **eject** of `@backtest-kit/cli --init`: instead of the boilerplate being hidden inside the CLI package, it lives directly in your project.
 
 #### Key Features
 - 🚀 **Zero Config**: Get started with one command - no setup required
