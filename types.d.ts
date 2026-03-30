@@ -3613,7 +3613,7 @@ interface ILogger {
 /**
  * Candle time interval for fetching historical data.
  */
-type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h";
+type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "1d" | "1w";
 /** Numeric type that can be undefined (used for optional numeric values) */
 type Num = number | undefined;
 interface IPublicCandleData {

@@ -19,6 +19,8 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "4h": 240,
   "6h": 360,
   "8h": 480,
+  "1d": 1440,
+  "1w": 10080,
 };
 
 export const AXIS_SYMBOL = "_AXIS";
