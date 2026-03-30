@@ -7,7 +7,7 @@ import {
   overrideExchangeSchema,
 } from "backtest-kit";
 import { singleshot } from "functools-kit";
-import { getArgs } from "../../../helpers/getArgs";
+import { getArgs, getPositional } from "../../../helpers/getArgs";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
@@ -168,7 +168,7 @@ export class BacktestMainService {
       return;
     }
 
-    const [entryPoint = null] = positionals.slice(-1);
+    const entryPoint = getPositional();
 
     if (!entryPoint) {
       throw new Error("Entry point is required");

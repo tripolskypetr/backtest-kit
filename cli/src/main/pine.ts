@@ -1,7 +1,7 @@
 import { run, Code, toMarkdown } from "@backtest-kit/pinets";
 import { writeFile, mkdir } from "fs/promises";
 import { basename, extname, join, resolve } from "path";
-import { getArgs } from "../helpers/getArgs";
+import { getArgs, getPositional } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
 import { CandleInterval, listExchangeSchema } from "backtest-kit";
@@ -38,7 +38,7 @@ export const main = async () => {
     return;
   }
 
-  const [entryPoint = null] = positionals.slice(-1);
+  const entryPoint = getPositional();
 
   if (!entryPoint) {
     return;

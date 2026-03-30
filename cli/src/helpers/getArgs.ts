@@ -1,6 +1,15 @@
 import { singleshot } from "functools-kit";
 import { parseArgs } from "util";
 
+const ALLOWED_EXTENSIONS = [
+  `.cjs`,
+  `.mjs`,
+  `.ts`,
+  `.tsx`,
+  `.js`,
+  `.pine`,
+];
+
 export const getArgs = singleshot(() => {
   const { values, positionals } = parseArgs({
     args: process.argv,
@@ -102,5 +111,13 @@ export const getArgs = singleshot(() => {
   return {
     values,
     positionals,
-  }
+  };
+});
+
+export const getPositional = singleshot((): string | null => {
+  const { positionals } = getArgs();
+  const result = positionals.find((value) =>
+    ALLOWED_EXTENSIONS.some((ext) => value.endsWith(ext)),
+  );
+  return result || null;
 });
