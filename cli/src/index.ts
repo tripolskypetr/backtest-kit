@@ -11,6 +11,7 @@ import "./main/telegram";
 
 import "./main/pine";
 import "./main/dump";
+import "./main/init";
 
 export type { ILogger } from "./interfaces/Logger.interface";
 export type { ILoader } from "./interfaces/Loader.interface";

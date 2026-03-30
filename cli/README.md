@@ -38,6 +38,9 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 | **Live**         | `--live`                   | Real trades via exchange API                 |
 | **UI Dashboard** | `--ui`                     | Web dashboard at `http://localhost:60050`    |
 | **Telegram**     | `--telegram`               | Trade notifications with price charts        |
+| **PineScript**   | `--pine`                   | Run a local `.pine` indicator against exchange data |
+| **Candle Dump**  | `--dump`                   | Fetch and save raw OHLCV candles to a file   |
+| **Init Project** | `--init`                   | Scaffold a new backtest-kit project          |
 
 ## 🚀 Installation
 
@@ -703,6 +706,93 @@ Or add it to `package.json`:
 
 ```bash
 npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+```
+
+## 🗂️ Scaffolding a New Project (`--init`)
+
+`@backtest-kit/cli` can bootstrap a ready-to-use project directory with a pre-configured layout, example strategy files, and all documentation fetched automatically.
+
+### CLI Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--init` | boolean | Scaffold a new project |
+| `--output` | string | Target directory name (default: `backtest-kit-project`) |
+
+### Usage
+
+```bash
+npx @backtest-kit/cli --init
+```
+
+Creates `./backtest-kit-project/` in the current working directory.
+
+Override the directory name with `--output`:
+
+```bash
+npx @backtest-kit/cli --init --output my-trading-bot
+```
+
+Creates `./my-trading-bot/`.
+
+The target directory must not exist or must be empty — the command aborts if it contains any files.
+
+### Generated Project Structure
+
+```
+backtest-kit-project/
+├── package.json              # pre-configured with all backtest-kit dependencies
+├── .gitignore
+├── CLAUDE.md                 # AI-agent guide for writing strategies
+├── content/
+│   └── feb_2026.strategy.ts  # example strategy entry point
+├── docs/
+│   ├── lib/                  # fetched automatically (see below)
+│   ├── backtest_actions.md
+│   ├── backtest_graph_pattern.md
+│   ├── backtest_logging_jsonl.md
+│   ├── backtest_pinets_usage.md
+│   ├── backtest_risk_async.md
+│   ├── backtest_strategy_structure.md
+│   ├── pine_debug.md
+│   └── pine_indicator_warmup.md
+├── math/
+│   └── feb_2026.pine         # example PineScript indicator
+├── modules/
+│   ├── dump.module.ts        # exchange schema for --dump mode
+│   └── pine.module.ts        # exchange schema for --pine mode
+├── report/
+│   └── feb_2026.md           # example strategy research report
+└── scripts/
+    └── fetch_docs.mjs        # utility: downloads library READMEs into docs/lib/
+```
+
+### Automatic Documentation Fetch
+
+After scaffolding, the CLI immediately runs `scripts/fetch_docs.mjs` inside the new project, which downloads the latest README files for all bundled libraries into `docs/lib/`:
+
+| File | Source |
+|------|--------|
+| `backtest-kit.md` | `backtest-kit` README |
+| `backtest-kit__graph.md` | `@backtest-kit/graph` README |
+| `backtest-kit__pinets.md` | `@backtest-kit/pinets` README |
+| `backtest-kit__cli.md` | `@backtest-kit/cli` README |
+| `garch.md` | `garch` README |
+| `volume-anomaly.md` | `volume-anomaly` README |
+| `agent-swarm-kit.md` | `agent-swarm-kit` README |
+| `functools-kit.md` | `functools-kit` README |
+
+You can re-run this script at any time to refresh the docs:
+
+```bash
+cd backtest-kit-project
+node ./scripts/fetch_docs.mjs
+```
+
+Or via the pre-configured npm script:
+
+```bash
+npm run sync:lib
 ```
 
 ## 🌍 Environment Variables
