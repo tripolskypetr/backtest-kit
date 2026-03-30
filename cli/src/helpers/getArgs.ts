@@ -115,7 +115,7 @@ export const getArgs = singleshot(() => {
 });
 
 export const getPositional = singleshot((): string | null => {
-  const { positionals } = getArgs();
+  const { positionals = [] } = getArgs();
   const result = positionals.find((value) =>
     ALLOWED_EXTENSIONS.some((ext) => value.endsWith(ext)),
   );
