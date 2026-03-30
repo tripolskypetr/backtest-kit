@@ -67,6 +67,11 @@ type Partials = Array<{
   timestamp: number;
 }>;
 
+/**
+ * Type for DCA average contract used in getPositionEntries
+ * Contains details of the average buy execution to calculate effective priceOpen and PnL.
+ * Used to track multiple entries in a position and their impact on overall profitability.
+ */
 type Entries = Array<{ price: number; cost: number; timestamp: number }>;
 
 /**
