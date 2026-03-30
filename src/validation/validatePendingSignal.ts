@@ -1,7 +1,7 @@
 import { ISignalRow } from "../interfaces/Strategy.interface";
 import validateCommonSignal from "./validateCommonSignal";
 
-const validatePendingSignal = (signal: ISignalRow, currentPrice: number): void => {
+export const validatePendingSignal = (signal: ISignalRow, currentPrice: number): void => {
   const errors: string[] = [];
 
   // ПРОВЕРКА ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ ISignalRow

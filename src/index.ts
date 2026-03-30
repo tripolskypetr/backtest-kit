@@ -482,6 +482,10 @@ export { slPercentShiftToPrice } from "./math/slPercentShiftToPrice";
 export { tpPercentShiftToPrice } from "./math/tpPercentShiftToPrice"
 export { percentToCloseCost } from "./math/percentToCloseCost";
 
+export { validateCommonSignal } from "./validation/validateCommonSignal";
+export { validatePendingSignal } from "./validation/validatePendingSignal";
+export { validateScheduledSignal } from "./validation/validateScheduledSignal";
+
 export { type GlobalConfig } from "./config/params";
 export { type ColumnConfig } from "./config/columns";
 

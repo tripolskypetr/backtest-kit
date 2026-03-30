@@ -18,7 +18,7 @@ import { GLOBAL_CONFIG } from "../config/params";
  * @param signal - Signal DTO to validate
  * @returns Array of error strings (empty if valid)
  */
-const validateCommonSignal = (signal: ISignalDto) => {
+export const validateCommonSignal = (signal: ISignalDto) => {
   const errors: string[] = [];
 
   // Валидация position
