@@ -22181,7 +22181,7 @@ declare const validateSignal: (signal: ISignalDto, currentPrice: number) => bool
  * - currentPrice vs SL/TP (immediate close protection — handled by pending/scheduled validators)
  * - ISignalRow-specific fields: id, exchangeName, strategyName, symbol, _isScheduled, scheduledAt, pendingAt
  *
- * @deprecated This is an internal code for unit tests. Use `validateSignal` in Strategy::getSignal
+ * @deprecated This is an internal code exported for unit tests only. Use `validateSignal` in Strategy::getSignal
  *
  * @param signal - Signal DTO to validate
  * @returns Array of error strings (empty if valid)
@@ -22198,7 +22198,7 @@ declare const validateCommonSignal: (signal: ISignalDto) => void;
  * - currentPrice is between SL and TP — position would not be immediately closed on open
  * - scheduledAt and pendingAt are positive numbers
  *
- * @deprecated This is an internal code for unit tests. Use `validateSignal` in Strategy::getSignal
+ * @deprecated This is an internal code exported for unit tests only. Use `validateSignal` in Strategy::getSignal
  *
  * @param signal - Pending signal row to validate
  * @param currentPrice - Current market price at the moment of signal creation
@@ -22216,7 +22216,7 @@ declare const validatePendingSignal: (signal: ISignalRow, currentPrice: number) 
  * - priceOpen is between SL and TP — position would not be immediately closed upon activation
  * - scheduledAt is a positive number (pendingAt === 0 is allowed until activation)
  *
- * @deprecated This is an internal code for unit tests. Use `validateSignal` in Strategy::getSignal
+ * @deprecated This is an internal code exported for unit tests only. Use `validateSignal` in Strategy::getSignal
  *
  * @param signal - Scheduled signal row to validate
  * @param currentPrice - Current market price at the moment of signal creation

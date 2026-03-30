@@ -11,7 +11,7 @@ import validateCommonSignal from "./validateCommonSignal";
  * - currentPrice is between SL and TP — position would not be immediately closed on open
  * - scheduledAt and pendingAt are positive numbers
  *
- * @deprecated This is an internal code for unit tests. Use `validateSignal` in Strategy::getSignal
+ * @deprecated This is an internal code exported for unit tests only. Use `validateSignal` in Strategy::getSignal
  * 
  * @param signal - Pending signal row to validate
  * @param currentPrice - Current market price at the moment of signal creation

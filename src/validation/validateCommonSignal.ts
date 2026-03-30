@@ -15,7 +15,7 @@ import { GLOBAL_CONFIG } from "../config/params";
  * - currentPrice vs SL/TP (immediate close protection — handled by pending/scheduled validators)
  * - ISignalRow-specific fields: id, exchangeName, strategyName, symbol, _isScheduled, scheduledAt, pendingAt
  *
- * @deprecated This is an internal code for unit tests. Use `validateSignal` in Strategy::getSignal
+ * @deprecated This is an internal code exported for unit tests only. Use `validateSignal` in Strategy::getSignal
  * 
  * @param signal - Signal DTO to validate
  * @returns Array of error strings (empty if valid)
