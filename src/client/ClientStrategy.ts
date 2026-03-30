@@ -1267,9 +1267,12 @@ const TRAILING_STOP_LOSS_FN = (
     // CRITICAL: Larger percentShift absorbs smaller one
     // For LONG: higher SL (closer to entry) absorbs lower one
     // For SHORT: lower SL (closer to entry) absorbs higher one
+    // When CC_ENABLE_TRAILING_EVERYWHERE is true, absorption check is skipped
     let shouldUpdate = false;
 
-    if (signal.position === "long") {
+    if (GLOBAL_CONFIG.CC_ENABLE_TRAILING_EVERYWHERE) {
+      shouldUpdate = true;
+    } else if (signal.position === "long") {
       // LONG: update only if new SL is higher (better protection)
       shouldUpdate = newStopLoss > currentTrailingSL;
     } else {
@@ -1361,9 +1364,12 @@ const TRAILING_TAKE_PROFIT_FN = (
     // CRITICAL: Larger percentShift absorbs smaller one
     // For LONG: lower TP (closer to entry) absorbs higher one
     // For SHORT: higher TP (closer to entry) absorbs lower one
+    // When CC_ENABLE_TRAILING_EVERYWHERE is true, absorption check is skipped
     let shouldUpdate = false;
 
-    if (signal.position === "long") {
+    if (GLOBAL_CONFIG.CC_ENABLE_TRAILING_EVERYWHERE) {
+      shouldUpdate = true;
+    } else if (signal.position === "long") {
       // LONG: update only if new TP is lower (closer to entry, more conservative)
       shouldUpdate = newTakeProfit < currentTrailingTP;
     } else {
@@ -6831,10 +6837,13 @@ export class ClientStrategy implements IStrategy {
     if (signal.position === "short" && newStopLoss <= effectiveTakeProfit) return false;
 
     // Absorption check (mirrors TRAILING_STOP_LOSS_FN: first call is unconditional)
-    const currentTrailingSL = signal._trailingPriceStopLoss;
-    if (currentTrailingSL !== undefined) {
-      if (signal.position === "long" && newStopLoss <= currentTrailingSL) return false;
-      if (signal.position === "short" && newStopLoss >= currentTrailingSL) return false;
+    // When CC_ENABLE_TRAILING_EVERYWHERE is true, absorption check is skipped
+    if (!GLOBAL_CONFIG.CC_ENABLE_TRAILING_EVERYWHERE) {
+      const currentTrailingSL = signal._trailingPriceStopLoss;
+      if (currentTrailingSL !== undefined) {
+        if (signal.position === "long" && newStopLoss <= currentTrailingSL) return false;
+        if (signal.position === "short" && newStopLoss >= currentTrailingSL) return false;
+      }
     }
 
     return true;
@@ -7120,10 +7129,13 @@ export class ClientStrategy implements IStrategy {
     if (signal.position === "short" && newTakeProfit >= effectiveStopLoss) return false;
 
     // Absorption check (mirrors TRAILING_TAKE_PROFIT_FN: first call is unconditional)
-    const currentTrailingTP = signal._trailingPriceTakeProfit;
-    if (currentTrailingTP !== undefined) {
-      if (signal.position === "long" && newTakeProfit >= currentTrailingTP) return false;
-      if (signal.position === "short" && newTakeProfit <= currentTrailingTP) return false;
+    // When CC_ENABLE_TRAILING_EVERYWHERE is true, absorption check is skipped
+    if (!GLOBAL_CONFIG.CC_ENABLE_TRAILING_EVERYWHERE) {
+      const currentTrailingTP = signal._trailingPriceTakeProfit;
+      if (currentTrailingTP !== undefined) {
+        if (signal.position === "long" && newTakeProfit >= currentTrailingTP) return false;
+        if (signal.position === "short" && newTakeProfit <= currentTrailingTP) return false;
+      }
     }
 
     return true;

@@ -52,6 +52,7 @@ setConfig({
 setConfig({
   CC_ENABLE_DCA_EVERYWHERE: true,
   CC_ENABLE_PPPL_EVERYWHERE: true,
+  CC_ENABLE_TRAILING_EVERYWHERE: true,
 })
 
 setConfig({
