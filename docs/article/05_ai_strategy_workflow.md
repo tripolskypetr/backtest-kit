@@ -9,11 +9,11 @@ group: article
 
 ![cover_liquidation_cascade_workflow](../../assets/images/cover_liquidation_cascade_workflow.png)
 
-Previously I wrote about [Why the Price Drops in a Single Candle](https://medium.com/r/?url=https%3A%2F%2Ftripolskypetr.medium.com%2Fwhy-the-price-drops-in-a-single-candle-95f4695ee3c7). The cause of that phenomenon is a liquidation cascade.
+Previously I wrote about [Why the Price Drops in a Single Candle](./04_option_hedging.md). The cause of that phenomenon is a liquidation cascade.
 
 A liquidation cascade is not random price movement. The price drops below a certain level and the exchange forcibly closes positions — via market orders, selling everything at once without discrimination. The price drops fast and deep within one or two bars, after which there is no one left to sell and the market bounces back. This pattern repeats dozens of times a year.
 
-Yet nobody profits from it, because the parameters change every month. In one regime a cascade is a support level breakdown with continuation downward. In another it's a spike with an immediate V-bounce of 3%. Updating these criteria requires digging into the news feed: who got liquidated and why. [This makes building such a system by hand impractical.](https://medium.com/r/?url=https%3A%2F%2Ftripolskypetr.medium.com%2Fhow-ai-got-hands-for-stock-trading-bb558991cd82)
+Yet nobody profits from it, because the parameters change every month. In one regime a cascade is a support level breakdown with continuation downward. In another it's a spike with an immediate V-bounce of 3%. Updating these criteria requires digging into the news feed: who got liquidated and why. [This makes building such a system by hand impractical.](./03_claude_trader.md)
 
 ## What Changed
 
@@ -256,7 +256,7 @@ The agent wrote a Python script that parsed the boundaries of each position and 
 
 ![step5_good_vs_bad_entries_analysis](../../assets/images/step5_good_vs_bad_entries_analysis.png)
 
-Good entries came after a single extreme bar (Feb 6: 62910 → 60256, -4%). Bad entries came after uniform slow declines where no bounce occurred and the price continued downward. The distinguishing feature: the previous candle's drop must be > 1.5 ATR. This separates a forced liquidation from a regular downtrend — exactly the mechanics I described in [Second-Order Chaos: How Algo Trading Bots Play Against Themselves at a Loss.](https://medium.com/r/?url=https%3A%2F%2Ftripolskypetr.medium.com%2Fsecond-order-chaos-how-algo-trading-bots-play-against-themselves-at-a-loss-791902c97515)
+Good entries came after a single extreme bar (Feb 6: 62910 → 60256, -4%). Bad entries came after uniform slow declines where no bounce occurred and the price continued downward. The distinguishing feature: the previous candle's drop must be > 1.5 ATR. This separates a forced liquidation from a regular downtrend — exactly the mechanics I described in [Second-Order Chaos: How Algo Trading Bots Play Against Themselves at a Loss.](./02_second_order_chaos.md)
 
 ![step5_atr_spike_filter](../../assets/images/step5_atr_spike_filter.png)
 
