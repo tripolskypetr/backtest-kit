@@ -80,6 +80,22 @@ export const main = async () => {
     return;
   }
 
+  if (values.markdown) {
+    const header = `| open | high | low | close | volume | timestamp |\n| --- | --- | --- | --- | --- | --- |`;
+    const rows = candles.map((c) =>
+      `| ${c.open} | ${c.high} | ${c.low} | ${c.close} | ${c.volume} | ${new Date(c.timestamp).toISOString()} |`
+    );
+    const md = [header, ...rows].join("\n");
+    {
+      const filePath = resolve(dumpDir, `${dumpName}.md`);
+      await mkdir(dumpDir, { recursive: true });
+      await writeFile(filePath, md, "utf-8");
+      console.log(`Saved: ${filePath}`);
+    }
+    process.exit(0);
+    return;
+  }
+
   console.log(JSON.stringify(candles, null, 2));
   process.exit(0);
 };
