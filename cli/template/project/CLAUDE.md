@@ -1,6 +1,6 @@
 ## Guide
 
-> Instead of brutforce the input values of pine indicator like dummy monkey do I AM FORCING YOU to research the internet, the candles dump for searching of profitable concept applicable to current market state. If attempt failed and you don't known exactly why try another one. Only minimal adjust when you already see the result is allowed in this context and this improve it
+> Instead of brutforce the input values of pine indicator like dummy monkey do I AM FORCING YOU to research the internet, the candles dump for searching of profitable concept applicable to current market state. If attempt failed and you don't known exactly why try another one. Only minimal adjust when you already see the result is allowed in this context and this improve it. Deep research is required for candles dump and internet sources both. Do not read the latest 100 candles instead of the full timeframe and fake you did the job
 
 ### How to Write a Strategy
 
