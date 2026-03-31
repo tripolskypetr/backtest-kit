@@ -61,7 +61,7 @@ npm install backtest-kit ccxt ollama uuid
 - 🛡️ **Risk Management**: Custom rules for position limits, time windows, and multi-strategy coordination.
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
 - 🗃️ **Transactional Live Orders**: Broker adapter intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
-- 🧪 **Tested**: 350+ unit/integration tests for validation, recovery, and events.
+- 🧪 **Tested**: 515+ unit/integration tests for validation, recovery, and events.
 - 🔓 **Self hosted**: Zero dependency on third-party node_modules or platforms; run entirely in your own environment.
 
 ## 📋 Supported Order Types
