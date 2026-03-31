@@ -109,6 +109,7 @@ export const main = async () => {
     await mkdir(dumpDir, { recursive: true });
     await writeFile(filePath, JSON.stringify(rows, null, 2), "utf-8");
     console.log(`Saved: ${filePath}`);
+    process.exit(0);
     return;
   }
 
@@ -118,6 +119,7 @@ export const main = async () => {
     await mkdir(dumpDir, { recursive: true });
     await writeFile(filePath, rows.map((r) => JSON.stringify(r)).join("\n"), "utf-8");
     console.log(`Saved: ${filePath}`);
+    process.exit(0);
     return;
   }
 
@@ -126,10 +128,12 @@ export const main = async () => {
     await mkdir(dumpDir, { recursive: true });
     await writeFile(filePath, await toMarkdown(signalId, plots, signalSchema), "utf-8");
     console.log(`Saved: ${filePath}`);
+    process.exit(0);
     return;
   }
 
   console.log(await toMarkdown(signalId, plots, signalSchema));
+  process.exit(0);
 
 };
 

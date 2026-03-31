@@ -103,6 +103,7 @@ export const main = async () => {
   await runScript(join(projectPath, "scripts/fetch_docs.mjs"), projectPath);
 
   console.log(`Done! Project created at ${projectPath}`);
+  process.exit(0);
 };
 
 main();

@@ -63,6 +63,7 @@ export const main = async () => {
     await mkdir(dumpDir, { recursive: true });
     await writeFile(filePath, JSON.stringify(candles, null, 2), "utf-8");
     console.log(`Saved: ${filePath}`);
+    process.exit(0);
     return;
   }
 
@@ -75,10 +76,12 @@ export const main = async () => {
       "utf-8",
     );
     console.log(`Saved: ${filePath}`);
+    process.exit(0);
     return;
   }
 
   console.log(JSON.stringify(candles, null, 2));
+  process.exit(0);
 };
 
 main();

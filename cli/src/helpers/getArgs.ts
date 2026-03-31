@@ -117,6 +117,10 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      version: {
+        type: "boolean",
+        default: false,
+      },
     },
     strict: false,
     allowPositionals: true,
