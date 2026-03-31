@@ -1,5 +1,7 @@
 ## Guide
 
+> Instead of brutforce the input values of pine indicator like dummy monkey do I AM FORCING YOU to research the internet, the candles dump for searching of profitable concept applicable to current market state. If attempt failed and you don't known exactly why try another one. Only minimal adjust when you already see the result is allowed in this context and this improve it
+
 ### How to Write a Strategy
 
 **What NOT to do**
