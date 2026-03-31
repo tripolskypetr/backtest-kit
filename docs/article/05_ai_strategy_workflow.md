@@ -7,7 +7,7 @@ group: article
 
 > To get the agent code, run `npx @backtest-kit/cli --init --output my-project`
 
-![](../../assets/images/cover_liquidation_cascade_workflow.png)
+![cover_liquidation_cascade_workflow](../../assets/images/cover_liquidation_cascade_workflow.png)
 
 Previously I wrote about [Why the Price Drops in a Single Candle](https://medium.com/r/?url=https%3A%2F%2Ftripolskypetr.medium.com%2Fwhy-the-price-drops-in-a-single-candle-95f4695ee3c7). The cause of that phenomenon is a liquidation cascade.
 
@@ -198,7 +198,7 @@ Task submitted to the agent:
 
 ## 1. Read jan_2026.pine and understand why the strategy is bad
 
-![](../../assets/images/step1_jan2026_pine_read.png)
+![step1_jan2026_pine_read](../../assets/images/step1_jan2026_pine_read.png)
 
 I created the January strategy specifically as a genesis for the recursion, so the prompt would work the first time. It's a bear trend continuation strategy. It works when the market drops monotonically. Now we need to understand why February didn't produce profit.
 
@@ -210,7 +210,7 @@ The agent received a dump of 500 15-minute candles. Not to stare at numbers — 
 
 ## 2. Search for Bitcoin February 2026 news (negative)
 
-![](../../assets/images/step2_news_search_feb2026.png)
+![step2_news_search_feb2026](../../assets/images/step2_news_search_feb2026.png)
 
 Before looking for a pattern in the data, the agent searches for the news context that explains the data.
 
@@ -220,7 +220,7 @@ This isn't background noise — it's a mechanical explanation. It shows why the 
 
 ## 3. Analyze market structure and develop a strategy hypothesis
 
-![](../../assets/images/step3_market_structure_w_pattern.png)
+![step3_market_structure_w_pattern](../../assets/images/step3_market_structure_w_pattern.png)
 
 Here the agent does what an indicator cannot: it correlates the news context with actual candles and formulates why the pattern looked the way it did.
 
@@ -228,7 +228,7 @@ The market entered February at $67–70K after the $126K peak in October 2025 �
 
 The January strategy failed for exactly this reason: it waited for continuation of the drop after a minimum breach — and every time received a V-bounce of $7–8K against the open SHORT.
 
-![](../../assets/images/step3_hypothesis_rsi_bounce.png)
+![step3_hypothesis_rsi_bounce](../../assets/images/step3_hypothesis_rsi_bounce.png)
 
 The hypothesis the agent formalized before writing code: RSI oversold bounce + volume spike confirmation for LONG after liquidation panic candles. TP=1.5%, SL=0.7%, no trailing — exit by condition.
 
@@ -236,13 +236,13 @@ This is where the workflow's value lies. Not in the fact that the agent can writ
 
 ## 4. Write feb_2026.pine from scratch
 
-![](../../assets/images/step4_write_feb2026_pine.png)
+![step4_write_feb2026_pine](../../assets/images/step4_write_feb2026_pine.png)
 
 The agent wrote the strategy and immediately got the first results. But `CLAUDE.md` does not allow stopping at "profitable" — at least one signal per day and an acceptable Sharpe are required.
 
 ## 5. Run feb_2026.pine and check the result
 
-![](../../assets/images/step5_first_run_bad_result.png)
+![step5_first_run_bad_result](../../assets/images/step5_first_run_bad_result.png)
 
 0.54 signals per day. Sharpe 0.08. Feb 22 holds a position for 44 bars — a quiet HOLD without a strict exit condition. The problem isn't in the parameters — it's that the spike filter lets slow downtrends through alongside genuine cascades.
 
@@ -254,43 +254,43 @@ Total net PnL: 1.55%
 
 The agent wrote a Python script that parsed the boundaries of each position and pulled the context of two bars before entry — separately for profitable trades and separately for losers.
 
-![](../../assets/images/step5_good_vs_bad_entries_analysis.png)
+![step5_good_vs_bad_entries_analysis](../../assets/images/step5_good_vs_bad_entries_analysis.png)
 
 Good entries came after a single extreme bar (Feb 6: 62910 → 60256, -4%). Bad entries came after uniform slow declines where no bounce occurred and the price continued downward. The distinguishing feature: the previous candle's drop must be > 1.5 ATR. This separates a forced liquidation from a regular downtrend — exactly the mechanics I described in [Second-Order Chaos: How Algo Trading Bots Play Against Themselves at a Loss.](https://medium.com/r/?url=https%3A%2F%2Ftripolskypetr.medium.com%2Fsecond-order-chaos-how-algo-trading-bots-play-against-themselves-at-a-loss-791902c97515)
 
-![](../../assets/images/step5_atr_spike_filter.png)
+![step5_atr_spike_filter](../../assets/images/step5_atr_spike_filter.png)
 
 ## 6. Code review for HOLD / trailing SL
 
-![](../../assets/images/step6_code_review_hold_check.png)
+![step6_code_review_hold_check](../../assets/images/step6_code_review_hold_check.png)
 
 Review as a separate call — a `CLAUDE.md` requirement. The reviewer found a stub left over from the iteration process and deleted seven lines of commented-out hacks. The check for absent infinite trailing SL passed. The strategy header is updated to preserve the findings.
 
 ## 7. Save analytics to report/feb_2026.md
 
-![](../../assets/images/step7_save_report_feb2026.png)
+![step7_save_report_feb2026](../../assets/images/step7_save_report_feb2026.png)
 
 The agent saved the full analysis: market structure, news sources, explanation of why the January strategy failed, and the hypothesis with justification. Next month the agent will read this file first — it's a knowledge base that accumulates rather than resetting when the context switches.
 
 ## Results
 
-![](../../assets/images/results_backtest_ui_timeframes.png)
+![results_backtest_ui_timeframes](../../assets/images/results_backtest_ui_timeframes.png)
 
 The Backtest Kit internal UI shows the lifecycle of each trade across timeframes. The higher timeframe shows price moving in a range.
 
-![](../../assets/images/results_trades_list.png)
+![results_trades_list](../../assets/images/results_trades_list.png)
 
 28.02 +1.10%, 23.02 +1.10%, 16.02 +1.10%, 15.02 -1.20%, 10.02 +1.10%, 06.02 +1.10%.
 
-![](../../assets/images/results_tp_path_notifications.png)
+![results_tp_path_notifications](../../assets/images/results_tp_path_notifications.png)
 
 The system sends a notification for every 10% of the path to TP, and a separate `Breakeven available` event when the position has moved to breakeven.
 
-![](../../assets/images/results_breakeven_notifications.png)
+![results_breakeven_notifications](../../assets/images/results_breakeven_notifications.png)
 
 **Total PNL 4.28%, Win Rate 83.33%, Profit Factor 4.58, Sharpe Ratio 0.84, Max Drawdown 0.00%.**
 
-![](../../assets/images/results_final_stats_pnl_sharpe.png)
+![results_final_stats_pnl_sharpe](../../assets/images/results_final_stats_pnl_sharpe.png)
 
 ## Source Code
 
