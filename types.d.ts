@@ -8117,7 +8117,7 @@ declare function listenStrategyCommitOnce(filterFn: (event: StrategyCommitContra
  * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to stop listening
  */
-declare function listenSync(fn: (event: SignalSyncContract) => void): () => void;
+declare function listenSync(fn: (event: SignalSyncContract) => void, warned?: boolean): () => void;
 /**
  * Subscribes to filtered signal synchronization events with one-time execution.
  * If throws position is not being opened/closed until the async function completes. Useful for synchronizing with external systems.
@@ -8126,7 +8126,7 @@ declare function listenSync(fn: (event: SignalSyncContract) => void): () => void
  * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to cancel the listener before it fires
  */
-declare function listenSyncOnce(filterFn: (event: SignalSyncContract) => boolean, fn: (event: SignalSyncContract) => void): () => void;
+declare function listenSyncOnce(filterFn: (event: SignalSyncContract) => boolean, fn: (event: SignalSyncContract) => void, warned?: boolean): () => void;
 /**
  * Subscribes to highest profit events with queued async processing.
  * Emits when a signal reaches a new highest profit level during its lifecycle.
