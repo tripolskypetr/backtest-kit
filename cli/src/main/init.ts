@@ -75,6 +75,21 @@ function runScript(scriptPath: string, cwd: string): Promise<void> {
   });
 }
 
+function runNpmInstall(cwd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+    const child = spawn(npm, ["install"], { cwd, stdio: "inherit", shell: true });
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`npm install exited with code ${code}`));
+        return;
+      }
+      resolve();
+    });
+    child.on("error", reject);
+  });
+}
+
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
     return;
@@ -101,6 +116,9 @@ export const main = async () => {
 
   console.log(`Fetching docs...`);
   await runScript(join(projectPath, "scripts/fetch_docs.mjs"), projectPath);
+
+  console.log(`Installing dependencies...`);
+  await runNpmInstall(projectPath);
 
   console.log(`Done! Project created at ${projectPath}`);
   process.exit(0);
