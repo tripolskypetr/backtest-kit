@@ -5,6 +5,7 @@ import ExchangeSchemaService from "../services/schema/ExchangeSchemaService";
 import FrameSchemaService from "../services/schema/FrameSchemaService";
 import SymbolSchemaService from "../services/schema/SymbolSchemaService";
 import BacktestMainService from "../services/main/BacktestMainService";
+import WalkerMainService from "../services/main/WalkerMainService";
 import LiveMainService from "../services/main/LiveMainService";
 import PaperMainService from "../services/main/PaperMainService";
 import FrontendProviderService from "../services/provider/FrontendProviderService";
@@ -40,6 +41,7 @@ import LoaderService from "../services/base/LoaderService";
 
 {
     provide(TYPES.backtestMainService, () => new BacktestMainService());
+    provide(TYPES.walkerMainService, () => new WalkerMainService());
     provide(TYPES.paperMainService, () => new PaperMainService());
     provide(TYPES.liveMainService, () => new LiveMainService());
 }

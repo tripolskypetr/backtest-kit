@@ -5,6 +5,7 @@ import LoggerService from "./services/base/LoggerService";
 import PaperMainService from "./services/main/PaperMainService";
 import LiveMainService from "./services/main/LiveMainService";
 import BacktestMainService from "./services/main/BacktestMainService";
+import WalkerMainService from "./services/main/WalkerMainService";
 import ExchangeSchemaService from "./services/schema/ExchangeSchemaService";
 import FrameSchemaService from "./services/schema/FrameSchemaService";
 import ResolveService from "./services/base/ResolveService";
@@ -41,6 +42,7 @@ const connectionServices = {
 
 const mainServices = {
   backtestMainService: inject<BacktestMainService>(TYPES.backtestMainService),
+  walkerMainService: inject<WalkerMainService>(TYPES.walkerMainService),
   paperMainService: inject<PaperMainService>(TYPES.paperMainService),
   liveMainService: inject<LiveMainService>(TYPES.liveMainService),
 }

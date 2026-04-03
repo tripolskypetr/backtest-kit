@@ -40,6 +40,10 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      walker: {
+        type: "boolean",
+        default: false,
+      },
       live: {
         type: "boolean",
         default: false,
@@ -131,12 +135,11 @@ export const getArgs = singleshot(() => {
   };
 });
 
-export const getPositional = singleshot((): string | null => {
+export const getPositionals = singleshot((): string[] => {
   const { positionals = [] } = getArgs();
-  const result = positionals
+  return positionals
     .filter((value) => !DISALLOWED_PATHS.some((path) => value.includes(path)))
-    .find((value) =>
+    .filter((value) =>
       ALLOWED_EXTENSIONS.some((ext) => value.endsWith(ext)),
     );
-  return result || null;
 });

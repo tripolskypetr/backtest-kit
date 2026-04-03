@@ -17,6 +17,7 @@ const connectionServices = {
 
 const mainServices = {
     backtestMainService: Symbol('backtestMainService'),
+    walkerMainService: Symbol('walkerMainService'),
     paperMainService: Symbol('paperMainService'),
     liveMainService: Symbol('liveMainService'),
 }

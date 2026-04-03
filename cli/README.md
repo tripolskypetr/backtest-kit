@@ -17,7 +17,7 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 ## ✨ Features
 
 - 🚀 **Zero Config**: Run `npx @backtest-kit/cli --backtest ./strategy.mjs` — no boilerplate needed
-- 🔄 **Three Modes**: Backtest on historical data, paper trade on live prices, or deploy live bots
+- 🔄 **Four Modes**: Backtest on historical data, walker A/B comparison, paper trade on live prices, or deploy live bots
 - 💾 **Auto Candle Cache**: Warms OHLCV cache for all required intervals before backtest starts
 - 🌐 **Web Dashboard**: Launch `@backtest-kit/ui` with a single `--ui` flag
 - 📬 **Telegram Alerts**: Send formatted trade notifications with charts via `--telegram`
@@ -34,6 +34,7 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 | Mode             | Command Line Args          | Description                                  |
 |------------------|----------------------------|----------------------------------------------|
 | **Backtest**     | `--backtest`               | Run strategy on historical candle data       |
+| **Walker**       | `--walker`                 | A/B compare multiple strategies on the same historical data |
 | **Paper**        | `--paper`                  | Live prices, no real orders                  |
 | **Live**         | `--live`                   | Real trades via exchange API                 |
 | **UI Dashboard** | `--ui`                     | Web dashboard at `http://localhost:60050`    |
@@ -136,6 +137,7 @@ npm start -- --symbol BTCUSDT --ui
 |     Command Line Args     | Type    | Description                                                        |
 |---------------------------|---------|--------------------------------------------------------------------|
 | `--backtest`              | boolean | Run historical backtest (default: `false`)                         |
+| `--walker`                | boolean | Run Walker A/B strategy comparison (default: `false`)              |
 | `--paper`                 | boolean | Paper trading (live prices, no orders) (default: `false`)          |
 | `--live`                  | boolean | Run live trading (default: `false`)                                |
 | `--ui`                    | boolean | Start web UI dashboard (default: `false`)                          |
@@ -210,6 +212,61 @@ Deploys a real trading bot. Requires exchange API keys configured in your `.env`
 npm start
 ```
 
+### Walker — A/B Strategy Comparison
+
+Runs the same historical period against multiple strategy files and prints a ranked comparison report. Use it to pick the best variant before deploying to backtest or live.
+
+```json
+{
+  "scripts": {
+    "walker": "npx @backtest-kit/cli --walker --symbol BTCUSDT --noCache ./content/feb_2026_v1.strategy.ts ./content/feb_2026_v2.strategy.ts ./content/feb_2026_v3.strategy.ts"
+  }
+}
+```
+
+```bash
+npm run walker
+```
+
+Each positional argument is a separate strategy entry point. All files are loaded without changing `process.cwd()` — `.env` is read from the working directory only. After loading, `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files.
+
+If no frame is registered, the CLI falls back to the last 31 days from `Date.now()` with a console warning.
+
+**Walker-specific flags:**
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--walker` | boolean | Enable Walker comparison mode |
+| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
+| `--cacheInterval` | string | Intervals to pre-cache (default: `"1m, 15m, 30m, 4h"`) |
+| `--noCache` | boolean | Skip candle cache warming (default: `false`) |
+| `--verbose` | boolean | Log each candle fetch and strategy progress (default: `false`) |
+| `--output` | string | Output file base name (default: `walker_{SYMBOL}_{TIMESTAMP}`) |
+| `--json` | boolean | Save results as JSON to `./dump/<output>.json` |
+| `--markdown` | boolean | Save report as Markdown to `./dump/<output>.md` |
+
+**Output modes:**
+
+- No flag — print Markdown report to stdout
+- `--json` — save `Walker.getData()` result as JSON and exit
+- `--markdown` — save `Walker.getReport()` as `.md` file and exit
+
+**Module hook:** `./modules/walker.module` is loaded automatically before the comparison starts (same rules as other modes — `.ts`, `.mjs`, `.cjs` tried in order).
+
+**Example — compare three variants and save the report:**
+
+```bash
+npx @backtest-kit/cli --walker \
+  --symbol BTCUSDT \
+  --noCache \
+  --markdown \
+  --output feb_2026_comparison \
+  ./content/feb_2026_v1.strategy.ts \
+  ./content/feb_2026_v2.strategy.ts \
+  ./content/feb_2026_v3.strategy.ts
+# → ./dump/feb_2026_comparison.md
+```
+
 ## 🗂️ Monorepo Usage
 
 `@backtest-kit/cli` works out of the box in a monorepo where each strategy lives in its own subdirectory. When the CLI loads your entry point file, it automatically changes the working directory to the file's location — so all relative paths (`dump/`, `modules/`, `template/`) resolve inside that strategy's folder, not the project root.
@@ -278,6 +335,7 @@ npm run backtest:dec
 | Broker module (live)     | `./modules/live.module.mjs`       | ✅ per-strategy  |
 | Broker module (paper)    | `./modules/paper.module.mjs`      | ✅ per-strategy  |
 | Broker module (backtest) | `./modules/backtest.module.mjs`   | ✅ per-strategy  |
+| Config module (walker)   | `./modules/walker.module.mjs`     | ✅ loaded once   |
 | Telegram templates       | `./template/*.mustache`           | ✅ per-strategy  |
 | Environment variables    | `./.env` (overrides root)         | ✅ per-strategy  |
 
@@ -310,6 +368,7 @@ The CLI supports **mode-specific module files** that are loaded as side-effect i
 | `--live`          | `./modules/live.module.mjs`     | `Live.background()`         |
 | `--paper`         | `./modules/paper.module.mjs`    | `Live.background()` (paper) |
 | `--backtest`      | `./modules/backtest.module.mjs` | `Backtest.background()`     |
+| `--walker`        | `./modules/walker.module.mjs`   | `Walker.background()`       |
 
 > File is resolved relative to `cwd` (the strategy directory). All of `.mjs`, `.cjs`, `.ts` extensions are tried automatically. Missing module is a soft warning — not an error.
 

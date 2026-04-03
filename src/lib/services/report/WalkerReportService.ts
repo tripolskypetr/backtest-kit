@@ -54,6 +54,14 @@ export class WalkerReportService {
   private tick = async (data: WalkerContract) => {
     this.loggerService.log(WALKER_REPORT_METHOD_NAME_TICK, { data });
 
+    const signals = data.stats.signalList;
+    const firstEventTime = signals.length > 0
+      ? signals.reduce((acc, s) => s.signal.pendingAt < acc ? s.signal.pendingAt : acc, signals[0].signal.pendingAt)
+      : null;
+    const lastEventTime = signals.length > 0
+      ? signals.reduce((acc, s) => s.closeTimestamp > acc ? s.closeTimestamp : acc, signals[0].closeTimestamp)
+      : null;
+
     await Report.writeData("walker", {
       timestamp: getContextTimestamp(),
       walkerName: data.walkerName,
@@ -78,6 +86,8 @@ export class WalkerReportService {
       annualizedSharpeRatio: data.stats.annualizedSharpeRatio,
       certaintyRatio: data.stats.certaintyRatio,
       expectedYearlyReturns: data.stats.expectedYearlyReturns,
+      firstEventTime,
+      lastEventTime,
     }, {
       symbol: data.symbol,
       strategyName: data.strategyName,

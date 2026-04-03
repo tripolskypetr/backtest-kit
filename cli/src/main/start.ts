@@ -3,7 +3,7 @@ import getEntry from "../helpers/getEntry";
 
 declare const __PACKAGE_VERSION__: string;
 
-const MODES = ["backtest", "paper", "live", "pine", "dump", "init", "help", "version"] as const;
+const MODES = ["backtest", "walker", "paper", "live", "pine", "dump", "init", "help", "version"] as const;
 
 const ENTRY_PATH = "./node_modules/@backtest-kit/cli/build/index.mjs";
 

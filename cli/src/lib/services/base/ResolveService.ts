@@ -48,6 +48,20 @@ export class ResolveService {
         return await readFile(absolutePath, "utf-8");
     }
 
+    public attachStrategy = async (jsPath: string) => {
+        this.loggerService.log("resolveService attachStrategy", {
+            jsPath
+        });
+        const absolutePath = path.resolve(jsPath);
+        await access(absolutePath, constants.F_OK | constants.R_OK);
+        const moduleRoot = path.dirname(absolutePath);
+        {
+            const cwd = process.cwd();
+            dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+        }
+        this.loaderService.import(absolutePath, moduleRoot);
+    }
+
     public attachJavascript = async (jsPath: string) => {
         this.loggerService.log("resolveService attachJavascript", {
             jsPath

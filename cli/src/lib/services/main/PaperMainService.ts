@@ -5,7 +5,7 @@ import {
   overrideExchangeSchema,
 } from "backtest-kit";
 import { singleshot } from "functools-kit";
-import { getArgs, getPositional } from "../../../helpers/getArgs";
+import { getArgs, getPositionals } from "../../../helpers/getArgs";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
@@ -56,7 +56,10 @@ export class PaperMainService {
         this.telegramProviderService.connect();
       }
 
-      await this.resolveService.attachJavascript(payload.entryPoint);
+      {
+        await this.resolveService.attachJavascript(payload.entryPoint);
+        await this.moduleConnectionService.loadModule("./paper.module");
+      }
 
       {
         this.exchangeSchemaService.addSchema();
@@ -96,8 +99,6 @@ export class PaperMainService {
         notifyVerbose();
       }
 
-      await this.moduleConnectionService.loadModule("./paper.module")
-
       Live.background(symbol, {
         strategyName,
         exchangeName,
@@ -120,7 +121,7 @@ export class PaperMainService {
       return;
     }
 
-    const entryPoint = getPositional();
+    const [entryPoint = null] = getPositionals();
 
     if (!entryPoint) {
       throw new Error("Entry point is required");

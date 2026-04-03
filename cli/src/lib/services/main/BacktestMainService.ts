@@ -7,7 +7,7 @@ import {
   overrideExchangeSchema,
 } from "backtest-kit";
 import { singleshot } from "functools-kit";
-import { getArgs, getPositional } from "../../../helpers/getArgs";
+import { getArgs, getPositionals } from "../../../helpers/getArgs";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
@@ -84,7 +84,10 @@ export class BacktestMainService {
         this.telegramProviderService.connect();
       }
 
-      await this.resolveService.attachJavascript(payload.entryPoint);
+      {
+        await this.resolveService.attachJavascript(payload.entryPoint);
+        await this.moduleConnectionService.loadModule("./backtest.module")
+      }
 
       {
         this.exchangeSchemaService.addSchema();
@@ -143,8 +146,6 @@ export class BacktestMainService {
         notifyVerbose();
       }
 
-      await this.moduleConnectionService.loadModule("./backtest.module")
-
       Backtest.background(symbol, {
         strategyName,
         frameName,
@@ -168,7 +169,7 @@ export class BacktestMainService {
       return;
     }
 
-    const entryPoint = getPositional();
+    const [entryPoint = null] = getPositionals();
 
     if (!entryPoint) {
       throw new Error("Entry point is required");

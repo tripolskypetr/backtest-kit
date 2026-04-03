@@ -36,6 +36,10 @@ export interface IStrategyResult {
   stats: BacktestStatisticsModel;
   /** Value of the optimization metric (null if invalid) */
   metricValue: number | null;
+  /** Timestamp of the first signal event (pendingAt of earliest signal), null if no signals */
+  firstEventTime: number | null;
+  /** Timestamp of the last signal event (closeTimestamp of latest signal), null if no signals */
+  lastEventTime: number | null;
 }
 
 /**

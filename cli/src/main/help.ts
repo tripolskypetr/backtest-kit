@@ -11,9 +11,10 @@ Usage:
 
 Modes:
 
-  --backtest <entry>    Run strategy against historical candle data
-  --paper    <entry>    Paper trading (live prices, no real orders)
-  --live     <entry>    Live trading with real orders
+  --backtest <entry>          Run strategy against historical candle data
+  --walker   <entry...>       Run Walker A/B strategy comparison across multiple strategies
+  --paper    <entry>          Paper trading (live prices, no real orders)
+  --live     <entry>          Live trading with real orders
   --pine     <entry>    Execute a local .pine indicator file
   --dump                Fetch and save raw OHLCV candles
   --init                Scaffold a new project in the current directory
@@ -30,6 +31,23 @@ Backtest flags:
   --verbose                Log every candle fetch to stdout
   --ui                     Start web dashboard at http://localhost:60050
   --telegram               Send trade notifications to Telegram
+
+Walker flags (--walker):
+
+  --symbol        <string>   Trading pair (default: BTCUSDT)
+  --cacheInterval <string>   Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 4h")
+  --noCache                  Skip candle cache warming before the run
+  --verbose                  Log every candle fetch to stdout
+  --output        <string>   Output file base name (default: walker_{SYMBOL}_{TIMESTAMP})
+  --json                     Save results as JSON to ./dump/<output>.json
+  --markdown                 Save report as Markdown to ./dump/<output>.md
+
+  Each positional argument is a strategy entry point. All strategy files are loaded without
+  changing process.cwd() — .env is read from the working directory only.
+  addWalkerSchema is called automatically using the registered exchange and frame.
+  After comparison completes the report is printed to stdout (or saved if --json/--markdown).
+
+  Module file ./modules/walker.module is loaded automatically if it exists.
 
 Paper / Live flags:
 
@@ -77,6 +95,7 @@ Init flags (--init):
 Module hooks (loaded automatically by each mode):
 
   modules/backtest.module   --backtest   Broker adapter for backtest
+  modules/walker.module     --walker     Broker adapter for walker comparison
   modules/paper.module      --paper      Broker adapter for paper trading
   modules/live.module       --live       Broker adapter for live trading
   modules/pine.module       --pine       Exchange schema for PineScript runs
@@ -95,6 +114,8 @@ Examples:
 
   node ${ENTRY_PATH} --backtest ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --backtest --symbol BTCUSDT --noCache --ui ./content/feb_2026.strategy.ts
+  node ${ENTRY_PATH} --walker ./content/feb_2026_v1.strategy.ts ./content/feb_2026_v2.strategy.ts ./content/feb_2026_v3.strategy.ts
+  node ${ENTRY_PATH} --walker --symbol BTCUSDT --noCache --markdown ./content/feb_2026_v1.ts ./content/feb_2026_v2.ts
   node ${ENTRY_PATH} --paper --symbol ETHUSDT ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --live --ui --telegram ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --jsonl
