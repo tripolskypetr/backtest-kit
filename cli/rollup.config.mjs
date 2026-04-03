@@ -3,7 +3,7 @@ import typescript from "@rollup/plugin-typescript";
 import { dts } from "rollup-plugin-dts";
 import replace from "@rollup/plugin-replace";
 import path from "path";
-import pkg from "../package.json" with { type: 'json' };
+import pkg from "./package.json" with { type: 'json' };
 
 export default [
   {
