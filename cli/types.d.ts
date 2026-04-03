@@ -77,6 +77,26 @@ declare class BacktestMainService {
     connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
+declare class WalkerMainService {
+    private loggerService;
+    private resolveService;
+    private exchangeSchemaService;
+    private symbolSchemaService;
+    private cacheLogicService;
+    private moduleConnectionService;
+    run: ((payload: {
+        entryPoints: string[];
+        symbol: string;
+        output: string;
+        cacheInterval: CandleInterval[];
+        json: boolean;
+        markdown: boolean;
+        verbose: boolean;
+        noCache: boolean;
+    }) => Promise<void>) & functools_kit.ISingleshotClearable;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
 declare class ExchangeSchemaService {
     readonly loggerService: LoggerService;
     addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable;
@@ -104,6 +124,7 @@ declare class ResolveService {
     readonly OVERRIDE_MODULES_DIR: string;
     getIsLaunched: () => boolean;
     attachPine: (pinePath: string) => Promise<string>;
+    attachStrategy: (jsPath: string) => Promise<void>;
     attachJavascript: (jsPath: string) => Promise<void>;
 }
 
@@ -232,6 +253,7 @@ declare const cli: {
     cacheLogicService: CacheLogicService;
     telegramLogicService: TelegramLogicService;
     backtestMainService: BacktestMainService;
+    walkerMainService: WalkerMainService;
     paperMainService: PaperMainService;
     liveMainService: LiveMainService;
     moduleConnectionService: ModuleConnectionService;

@@ -1,7 +1,6 @@
 import {
   Walker,
   CandleInterval,
-  getWalkerSchema,
   addWalkerSchema,
   listStrategySchema,
   listExchangeSchema,
@@ -19,8 +18,6 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
 import ResolveService from "../base/ResolveService";
-import FrontendProviderService from "../provider/FrontendProviderService";
-import TelegramProviderService from "../provider/TelegramProviderService";
 import CacheLogicService from "../logic/CacheLogicService";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
@@ -132,19 +129,17 @@ export class WalkerMainService {
         strategies: strategyNames,
       });
 
-      const walkerSchema = getWalkerSchema(WALKER_NAME);
-
       if (!payload.noCache) {
         await this.cacheLogicService.execute(payload.cacheInterval, {
-          exchangeName: walkerSchema.exchangeName,
-          frameName: walkerSchema.frameName,
+          exchangeName,
+          frameName,
           symbol,
         });
       }
 
       if (payload.verbose) {
         overrideExchangeSchema({
-          exchangeName: walkerSchema.exchangeName,
+          exchangeName,
           callbacks: {
             onCandleData(symbol, interval, since) {
               console.log(

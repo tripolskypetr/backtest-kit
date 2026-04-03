@@ -5,6 +5,7 @@ import "./lib";
 import "./main/start";
 
 import "./main/backtest";
+import "./main/walker";
 import "./main/paper";
 import "./main/live";
 
@@ -15,6 +16,7 @@ import "./main/pine";
 import "./main/dump";
 import "./main/init";
 import "./main/help";
+
 import "./main/version";
 
 export type { ILogger } from "./interfaces/Logger.interface";
