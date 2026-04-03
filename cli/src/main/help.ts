@@ -1,11 +1,11 @@
 import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 
+declare const __PACKAGE_VERSION__: string;
+
 const ENTRY_PATH = "./node_modules/@backtest-kit/cli/build/index.mjs";
 
 const HELP_TEXT = `
-@backtest-kit/cli
-
 Usage:
   node index.mjs --<mode> [flags] [entry-point]
 
@@ -113,6 +113,7 @@ export const main = async () => {
     return;
   }
 
+  process.stdout.write(`@backtest-kit/cli ${__PACKAGE_VERSION__}\n\n`);
   process.stdout.write(HELP_TEXT);
   process.exit(0);
 };
