@@ -164,10 +164,20 @@ class ReportStorage {
       this._bestStats = data.stats;
     }
 
+    const signals = data.stats.signalList;
+    const firstEventTime = signals.length > 0
+      ? signals.reduce((acc, s) => s.signal.pendingAt < acc ? s.signal.pendingAt : acc, signals[0].signal.pendingAt)
+      : null;
+    const lastEventTime = signals.length > 0
+      ? signals.reduce((acc, s) => s.closeTimestamp > acc ? s.closeTimestamp : acc, signals[0].closeTimestamp)
+      : null;
+
     this._strategyResults.unshift({
       strategyName: data.strategyName,
       stats: data.stats,
       metricValue: isUnsafe(data.metricValue) ? null : data.metricValue,
+      firstEventTime,
+      lastEventTime,
     });
   }
 

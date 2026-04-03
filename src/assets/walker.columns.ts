@@ -111,6 +111,24 @@ export const walker_strategy_columns: ColumnModel<IStrategyResult>[] = [
         : "N/A",
     isVisible: () => true,
   },
+  {
+    key: "firstEventTime",
+    label: "First Event",
+    format: (data) =>
+      data.firstEventTime !== null
+        ? new Date(data.firstEventTime).toISOString()
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "lastEventTime",
+    label: "Last Event",
+    format: (data) =>
+      data.lastEventTime !== null
+        ? new Date(data.lastEventTime).toISOString()
+        : "N/A",
+    isVisible: () => true,
+  },
 ];
 
 /**
