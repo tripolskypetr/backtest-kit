@@ -14,8 +14,9 @@ import * as BacktestKitSignals from "@backtest-kit/signals";
 
 declare const __IS_ESM__: boolean;
 
-const TRANSPILE_FN = (code: string, self: ClientLoader) => {
-  const require = self.getBaseRequire();
+type Require = ReturnType<typeof CREATE_BASE_REQUIRE_FN>;
+
+const TRANSPILE_FN = (code: string, self: ClientLoader, require: Require) => {
   const __filename = self.__filename;
   const __dirname = self.__dirname;
   const module = { exports: {} as Record<string, unknown> };
@@ -37,11 +38,11 @@ const TRANSPILE_FN = (code: string, self: ClientLoader) => {
   };
 };
 
-const REQUIRE_ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
+const REQUIRE_ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<string>) => {
   if (__IS_ESM__) {
     return null;
   }
-  const baseRequire = self.getBaseRequire();
+  const baseRequire = CREATE_BASE_REQUIRE_FN(self, seen);
   try {
     return baseRequire(filePath);
   } catch {
@@ -49,12 +50,12 @@ const REQUIRE_ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
   }
 };
 
-const BABEL_ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
+const BABEL_ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<string>) => {
   try {
     const resolvedPath = path.resolve(self.__dirname, filePath);
     const code = fs.readFileSync(resolvedPath, "utf-8");
     const child = self.fork(path.dirname(resolvedPath));
-    const { module } = TRANSPILE_FN(code, child);
+    const { module } = TRANSPILE_FN(code, child, CREATE_BASE_REQUIRE_FN(child, seen));
     return "default" in module.exports
       ? module.exports.default
       : module.exports;
@@ -100,14 +101,13 @@ const GET_RESOLVED_EXT_FN = (filePath: string) => {
   return filePath;
 };
 
-const ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
-  filePath = GET_RESOLVED_EXT_FN(filePath);
+const ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<string>) => {
   {
     let result: any = null;
-    if ((result = REQUIRE_ENTRY_FACTORY(filePath, self))) {
+    if ((result = REQUIRE_ENTRY_FACTORY(filePath, self, seen))) {
       return result;
     }
-    if ((result = BABEL_ENTRY_FACTORY(filePath, self))) {
+    if ((result = BABEL_ENTRY_FACTORY(filePath, self, seen))) {
       return result;
     }
   }
@@ -116,8 +116,8 @@ const ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
   );
 };
 
-const CREATE_BASE_REQUIRE_FN = (self: ClientLoader) => {
-  const baseRequire = createRequire(self.__filename);
+const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
+  const baseRequire = self.baseRequire();
   return new Proxy(baseRequire, {
     apply(_target, _this, args) {
       const id = args[0];
@@ -131,7 +131,7 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader) => {
       if (id.startsWith("./") || id.startsWith("../")) {
         const resolved = path.resolve(self.__dirname, id);
         const child = self.fork(path.dirname(resolved));
-        return child.import(resolved);
+        return child.import(resolved, seen);
       }
       return baseRequire(id);
     },
@@ -165,11 +165,11 @@ export class ClientLoader implements ILoader {
   __filename: string;
   __dirname: string;
 
-  public getBaseRequire = singleshot(() => {
-    this.params.logger.log("ClientLoader getBaseRequire", {
+  public baseRequire = singleshot(() => {
+    this.params.logger.log("ClientLoader baseRequire", {
       basePath: this.params.path,
     });
-    return CREATE_BASE_REQUIRE_FN(this);
+    return createRequire(this.__filename);
   });
 
   constructor(readonly params: ILoaderParams) {
@@ -189,12 +189,23 @@ export class ClientLoader implements ILoader {
     });
   }
 
-  public import(filePath: string) {
+  public import(filePath: string, seen = new Set<string>()) {
     this.params.logger.log("ClientLoader import", {
       filePath,
       basePath: this.params.path,
     });
-    return ENTRY_FACTORY(filePath, this);
+    const resolved = GET_RESOLVED_EXT_FN(filePath);
+    if (seen.has(resolved)) {
+      throw new Error(
+        `Circular dependency detected: ${resolved} (seen: ${[...seen].join("->")}->${resolved})`,
+      );
+    }
+    const currentSeen = new Set(seen);
+    if (!seen.size) {
+      currentSeen.add(path.resolve(this.__dirname, filePath));
+    }
+    currentSeen.add(resolved);
+    return ENTRY_FACTORY(resolved, this, currentSeen);
   }
 
   public check(filePath: string) {
