@@ -27,7 +27,7 @@ const TRANSPILE_FN = memoize(
       eval(self.params.babel.transpile(code));
     } catch (error) {
       console.log(
-        `Error during transpilation error=\`${getErrorMessage(error)}\` path=${path} __filename=\`${__filename}\` __dirname=\`${__dirname}\``,
+        `Error during transpilation error=\`${getErrorMessage(error)}\` path=\`${path}\` __filename=\`${__filename}\` __dirname=\`${__dirname}\``,
       );
       process.exit(-1);
     }
