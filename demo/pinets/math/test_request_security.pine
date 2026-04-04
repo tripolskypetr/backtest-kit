@@ -1,0 +1,11 @@
+//@version=5
+indicator("test_request_security", overlay=false)
+
+// Higher timeframe trend filter via request.security
+btcClose = request.security("BINANCE:BTCUSDT", "1h", close)
+
+plot(close,    "Close",     display=display.data_window)
+plot(btcClose, "BTC Close", display=display.data_window)
+
+// Position: flat by default, just verify data flows
+plot(0, "Position", display=display.data_window)
