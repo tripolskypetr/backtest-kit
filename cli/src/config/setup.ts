@@ -1,48 +1,7 @@
-import {
-  Storage,
-  Notification,
-  Markdown,
-  Report,
-  StorageLive,
-  StorageBacktest,
-  NotificationLive,
-  NotificationBacktest,
-  Dump,
-  Memory,
-  Log,
-  setConfig,
-} from "backtest-kit";
+import { setConfig } from "backtest-kit";
+import { Setup } from "../classes/Setup";
 
-{
-  Storage.enable();
-  Notification.enable();
-}
-
-{
-  Markdown.enable();
-  Report.enable();
-  Dump.enable();
-  Memory.enable();
-}
-
-{
-  Dump.useMarkdown();
-  Memory.usePersist();
-}
-
-{
-  StorageLive.usePersist();
-  StorageBacktest.useMemory();
-}
-
-{
-  NotificationLive.usePersist();
-  NotificationBacktest.useMemory();
-}
-
-{
-  Markdown.useDummy();
-}
+Setup.enable();
 
 setConfig({
   CC_MAX_NOTIFICATIONS: 5_000,
@@ -81,4 +40,3 @@ setConfig({
   CC_WALKER_MARKDOWN_TOP_N: 10,
 })
 
-Log.useJsonl();

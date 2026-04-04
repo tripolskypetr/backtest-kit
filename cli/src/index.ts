@@ -19,6 +19,8 @@ import "./main/help";
 
 import "./main/version";
 
+export { Setup } from "./classes/Setup";
+
 export type { ILogger } from "./interfaces/Logger.interface";
 export type { ILoader } from "./interfaces/Loader.interface";
 export type { IBabel } from "./interfaces/Babel.interface";

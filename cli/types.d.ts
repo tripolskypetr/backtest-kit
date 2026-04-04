@@ -266,6 +266,12 @@ declare const cli: {
     quickchartApiService: QuickchartApiService;
 };
 
+declare class SetupUtils {
+    enable: (() => void) & functools_kit.ISingleshotClearable;
+    clear: () => void;
+}
+declare const Setup: SetupUtils;
+
 interface ILoader {
     import(filePath: string): any;
     check(filePath: string): boolean;
@@ -288,4 +294,4 @@ type Mode = "backtest" | "live" | "paper";
 type Args = Partial<PayloadBacktest> | Partial<PayloadPaper> | Partial<PayloadLive>;
 declare function run(mode: Mode, args: Args): Promise<void>;
 
-export { ExchangeName, FrameName, type IBabel, type ILoader, type ILogger, cli, run, setLogger };
+export { ExchangeName, FrameName, type IBabel, type ILoader, type ILogger, Setup, cli, run, setLogger };

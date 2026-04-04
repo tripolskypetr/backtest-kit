@@ -28,6 +28,7 @@ import path, { join, resolve } from "path";
 import dotenv from "dotenv";
 import { mkdir, writeFile } from "fs/promises";
 import FrameName from "../../../enum/FrameName";
+import { Setup } from "../../../classes/Setup";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -142,6 +143,12 @@ export class WalkerMainService {
           if (!entryPoint) {
             return;
           }
+
+          {
+            Setup.clear();
+            Setup.enable();
+          }
+
           const absolutePath = path.resolve(entryPoint);
           const moduleRoot = path.dirname(absolutePath);
 
