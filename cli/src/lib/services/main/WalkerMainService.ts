@@ -30,11 +30,10 @@ import dotenv from "dotenv";
 import { access, mkdir, writeFile } from "fs/promises";
 import { constants } from "fs";
 import FrameName from "../../../enum/FrameName";
+import WalkerName from "../../../enum/WalkerName";
 import { Setup } from "../../../classes/Setup";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
-
-const WALKER_NAME = "cli-walker";
 
 const GET_CACHE_INTERVAL_LIST_FN = () => {
   const { values } = getArgs();
@@ -198,7 +197,7 @@ export class WalkerMainService {
       };
 
       addWalkerSchema({
-        walkerName: WALKER_NAME,
+        walkerName: WalkerName.DefaultWalker,
         exchangeName,
         frameName,
         strategies: strategyNames,
@@ -221,7 +220,7 @@ export class WalkerMainService {
 
       if (payload.verbose) {
         overrideWalkerSchema({
-          walkerName: WALKER_NAME,
+          walkerName: WalkerName.DefaultWalker,
           callbacks: {
             async onStrategyStart(strategyName, symbol) {
               console.log(`Strategy started: ${strategyName} for symbol: ${symbol}`);
@@ -240,7 +239,7 @@ export class WalkerMainService {
         })
       }
 
-      Walker.background(symbol, { walkerName: WALKER_NAME });
+      Walker.background(symbol, { walkerName: WalkerName.DefaultWalker });
 
       const [awaiter, { resolve: res }] = createAwaiter<void>();
 
@@ -263,7 +262,7 @@ export class WalkerMainService {
 
       if (payload.json) {
         const filePath = resolve(dumpDir, `${dumpName}.json`);
-        const data = await Walker.getData(symbol, { walkerName: WALKER_NAME });
+        const data = await Walker.getData(symbol, { walkerName: WalkerName.DefaultWalker });
         await mkdir(dumpDir, { recursive: true });
         await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
         console.log(`Saved: ${filePath}`);
@@ -273,7 +272,7 @@ export class WalkerMainService {
 
       if (payload.markdown) {
         const filePath = resolve(dumpDir, `${dumpName}.md`);
-        const report = await Walker.getReport(symbol, { walkerName: WALKER_NAME });
+        const report = await Walker.getReport(symbol, { walkerName: WalkerName.DefaultWalker });
         await mkdir(dumpDir, { recursive: true });
         await writeFile(filePath, report, "utf-8");
         console.log(`Saved: ${filePath}`);
@@ -281,7 +280,7 @@ export class WalkerMainService {
         return;
       }
 
-      const report = await Walker.getReport(symbol, { walkerName: WALKER_NAME });
+      const report = await Walker.getReport(symbol, { walkerName: WalkerName.DefaultWalker });
       console.log(report);
       process.exit(0);
     },
