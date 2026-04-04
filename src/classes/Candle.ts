@@ -8,6 +8,12 @@ const METHOD_NAME_RELEASE_LOCK = "CandleUtils.releaseLock";
 export class CandleUtils {
   private _lock = new Lock();
 
+  /**
+   * Acquires the candle fetch mutex if CC_ENABLE_CANDLE_FETCH_MUTEX is enabled.
+   * Prevents concurrent candle fetches from the same exchange.
+   *
+   * @param source - Caller identifier for logging
+   */
   public acquireLock = async (source: string) => {
     backtest.loggerService.info(METHOD_NAME_ACQUIRE_LOCK, {
       source,
@@ -18,6 +24,12 @@ export class CandleUtils {
     return await this._lock.acquireLock();
   };
 
+  /**
+   * Releases the candle fetch mutex if CC_ENABLE_CANDLE_FETCH_MUTEX is enabled.
+   * Must be called after acquireLock, typically in a finally block.
+   *
+   * @param source - Caller identifier for logging
+   */
   public releaseLock = async (source: string) => {
     backtest.loggerService.info(METHOD_NAME_RELEASE_LOCK, {
       source,

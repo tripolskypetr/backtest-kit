@@ -321,6 +321,13 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
     return Array.from(this._signals.values());
   };
 
+  /**
+   * Handles active ping event for an opened signal.
+   * Updates the signal's PnL and timestamp if the event is newer than the stored state.
+   * Persists updated state to disk.
+   *
+   * @param event - Active ping contract with signal data and current price
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -345,6 +352,13 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
     await this._updateStorage();
   };
 
+  /**
+   * Handles schedule ping event for a scheduled signal.
+   * Updates the signal's data and timestamp if the event is newer than the stored state.
+   * Persists updated state to disk.
+   *
+   * @param event - Schedule ping contract with signal data and current price
+   */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
@@ -509,6 +523,13 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
     return Array.from(this._signals.values());
   };
 
+  /**
+   * Handles active ping event for an opened signal.
+   * Updates the signal's PnL and timestamp if the event is newer than the stored state.
+   * In-memory only — no disk persistence.
+   *
+   * @param event - Active ping contract with signal data and current price
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -531,6 +552,13 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
     });
   };
 
+  /**
+   * Handles schedule ping event for a scheduled signal.
+   * Updates the signal's data and timestamp if the event is newer than the stored state.
+   * In-memory only — no disk persistence.
+   *
+   * @param event - Schedule ping contract with signal data and current price
+   */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
@@ -608,10 +636,16 @@ export class StorageDummyBacktestUtils implements IStorageUtils {
     return [];
   };
 
+  /**
+   * No-op handler for active ping events (dummy adapter discards all writes).
+   */
   public handleActivePing = async (): Promise<void> => {
     void 0;
   };
 
+  /**
+   * No-op handler for schedule ping events (dummy adapter discards all writes).
+   */
   public handleSchedulePing = async (): Promise<void> => {
     void 0;
   };
@@ -804,6 +838,13 @@ export class StoragePersistLiveUtils implements IStorageUtils {
     return Array.from(this._signals.values());
   };
 
+  /**
+   * Handles active ping event for an opened signal.
+   * Updates the signal's PnL and timestamp if the event is newer than the stored state.
+   * Persists updated state to disk.
+   *
+   * @param event - Active ping contract with signal data and current price
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -828,6 +869,13 @@ export class StoragePersistLiveUtils implements IStorageUtils {
     await this._updateStorage();
   };
 
+  /**
+   * Handles schedule ping event for a scheduled signal.
+   * Updates the signal's data and timestamp if the event is newer than the stored state.
+   * Persists updated state to disk.
+   *
+   * @param event - Schedule ping contract with signal data and current price
+   */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
@@ -992,6 +1040,13 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
     return Array.from(this._signals.values());
   };
 
+  /**
+   * Handles active ping event for an opened signal.
+   * Updates the signal's PnL and timestamp if the event is newer than the stored state.
+   * In-memory only — no disk persistence.
+   *
+   * @param event - Active ping contract with signal data and current price
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -1014,6 +1069,13 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
     });
   };
 
+  /**
+   * Handles schedule ping event for a scheduled signal.
+   * Updates the signal's data and timestamp if the event is newer than the stored state.
+   * In-memory only — no disk persistence.
+   *
+   * @param event - Schedule ping contract with signal data and current price
+   */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
     backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
@@ -1091,10 +1153,16 @@ export class StorageDummyLiveUtils implements IStorageUtils {
     return [];
   };
 
+  /**
+   * No-op handler for active ping events (dummy adapter discards all writes).
+   */
   public handleActivePing = async (): Promise<void> => {
     void 0;
   };
 
+  /**
+   * No-op handler for schedule ping events (dummy adapter discards all writes).
+   */
   public handleSchedulePing = async (): Promise<void> => {
     void 0;
   };
