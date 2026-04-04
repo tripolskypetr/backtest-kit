@@ -109,7 +109,7 @@ const commitMicroTermMath = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchMicroTermMath),
+    fallback: () => fetchMicroTermMath.clear(),
   }
 ) as ReportFn;
 
@@ -158,7 +158,7 @@ const commitLongTermMath = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchLongTermMath),
+    fallback: () => fetchLongTermMath.clear(),
   }
 ) as ReportFn;
 
@@ -207,7 +207,7 @@ const commitShortTermMath = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchShortTermMath),
+    fallback: () => fetchShortTermMath.clear(),
   }
 ) as ReportFn;
 
@@ -257,7 +257,7 @@ const commitSwingTermMath = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchSwingTermMath),
+    fallback: () => fetchSwingTermMath.clear(),
   }
 ) as ReportFn;
 

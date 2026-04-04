@@ -86,7 +86,7 @@ const commitBookDataReport = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchBookData),
+    fallback: () => fetchBookData.clear(),
   }
 ) as ReportFn;
 

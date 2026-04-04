@@ -109,7 +109,7 @@ const commitHourHistory = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchHourHistory),
+    fallback: () => fetchHourHistory.clear(),
   }
 ) as ReportFn;
 
@@ -151,7 +151,7 @@ const commitThirtyMinuteHistory = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchThirtyMinuteHistory),
+    fallback: () => fetchThirtyMinuteHistory.clear(),
   }
 ) as ReportFn;
 
@@ -193,7 +193,7 @@ const commitFifteenMinuteHistory = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchFifteenMinuteHistory),
+    fallback: () => fetchFifteenMinuteHistory.clear(),
   }
 ) as ReportFn;
 
@@ -235,7 +235,7 @@ const commitOneMinuteHistory = trycatch(
     );
   },
   {
-    fallback: () => Cache.clear(fetchOneMinuteHistory),
+    fallback: () => fetchOneMinuteHistory.clear(),
   }
 ) as ReportFn;
 
