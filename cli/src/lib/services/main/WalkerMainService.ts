@@ -11,6 +11,7 @@ import {
   addFrameSchema,
   alignToInterval,
   Log,
+  Cache,
 } from "backtest-kit";
 import { createAwaiter, singleshot } from "functools-kit";
 import { getArgs, getPositionals } from "../../../helpers/getArgs";
@@ -76,7 +77,18 @@ export class WalkerMainService {
 
       const strategyMap = new Map();
 
+      const cwd = process.cwd();
+
       for (const entryPoint of payload.entryPoints) {
+
+        const absolutePath = path.resolve(entryPoint);
+        const moduleRoot = path.dirname(absolutePath);
+
+        {
+          dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+          dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
+        }
+
         await this.resolveService.attachStrategy(entryPoint);
 
         for (const { strategyName } of await listStrategySchema()) {
@@ -85,6 +97,8 @@ export class WalkerMainService {
           }
           strategyMap.set(strategyName, entryPoint)
         }
+
+        Cache.clear();
       }
 
       await this.moduleConnectionService.loadModule("./walker.module");
@@ -134,7 +148,6 @@ export class WalkerMainService {
         throw new Error("Frame name is required");
       }
 
-      const cwd = process.cwd();
       const self = this;
 
       const callbacks = {
