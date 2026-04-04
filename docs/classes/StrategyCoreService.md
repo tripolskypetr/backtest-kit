@@ -111,6 +111,11 @@ getPositionEffectivePrice: (backtest: boolean, symbol: string, context: { strate
 ```
 
 Returns the effective (DCA-averaged) entry price for the current pending signal.
+
+This is the harmonic mean of all _entry prices, which is the correct
+cost-basis price used in all PNL calculations.
+With no DCA entries, equals the original priceOpen.
+
 Returns null if no pending signal exists.
 
 ### getPositionInvestedCount
@@ -119,8 +124,12 @@ Returns null if no pending signal exists.
 getPositionInvestedCount: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
 ```
 
-Returns the number of DCA entries for the current pending signal.
-1 = original entry only. Returns null if no pending signal exists.
+Returns the number of DCA entries made for the current pending signal.
+
+1 = original entry only (no DCA).
+Increases by 1 with each successful commitAverageBuy().
+
+Returns null if no pending signal exists.
 
 ### getPositionInvestedCost
 
@@ -128,7 +137,11 @@ Returns the number of DCA entries for the current pending signal.
 getPositionInvestedCost: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
 ```
 
-Returns the total invested cost basis in dollars (entryCount × $100).
+Returns the total invested cost basis in dollars for the current pending signal.
+
+Equal to entryCount × $100 (COST_BASIS_PER_ENTRY).
+1 entry = $100, 2 entries = $200, etc.
+
 Returns null if no pending signal exists.
 
 ### getPositionPnlPercent
@@ -137,8 +150,11 @@ Returns null if no pending signal exists.
 getPositionPnlPercent: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
 ```
 
-Returns the unrealized PNL percentage at currentPrice.
-Accounts for partial closes, DCA entries, slippage and fees.
+Returns the unrealized PNL percentage for the current pending signal at currentPrice.
+
+Accounts for partial closes, DCA entries, slippage and fees
+(delegates to toProfitLossDto).
+
 Returns null if no pending signal exists.
 
 ### getPositionPnlCost
@@ -147,8 +163,11 @@ Returns null if no pending signal exists.
 getPositionPnlCost: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
 ```
 
-Returns the unrealized PNL in dollars at currentPrice.
-Calculated as: pnlPercentage / 100 × totalInvestedCost.
+Returns the unrealized PNL in dollars for the current pending signal at currentPrice.
+
+Calculated as: pnlPercentage / 100 × totalInvestedCost
+Accounts for partial closes, DCA entries, slippage and fees.
+
 Returns null if no pending signal exists.
 
 ### getPositionLevels
@@ -157,18 +176,27 @@ Returns null if no pending signal exists.
 getPositionLevels: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number[]>
 ```
 
+Returns the list of DCA entry prices for the current pending signal.
+
+The first element is always the original priceOpen (initial entry).
+Each subsequent element is a price added by commitAverageBuy().
+
+Returns null if no pending signal exists.
+Returns a single-element array [priceOpen] if no DCA entries were made.
+
 ### getPositionPartials
 
 ```ts
 getPositionPartials: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; timestamp: number; }[]>
 ```
 
-Returns the history of partial closes for the current pending signal.
+Returns the list of partial closes for the current pending signal.
 
-Each record includes the type (profit or loss), percentage closed, price, cost basis at close, and timestamp.
-Used for tracking how the position was partially closed over time.
+Each entry records a partial profit or loss close event with its type,
+percent closed, price at close, cost basis snapshot, and entry count at close.
 
-Returns null if no pending signal exists or no partial closes were executed.
+Returns null if no pending signal exists.
+Returns an empty array if no partial closes have been executed.
 
 ### getPositionEntries
 
@@ -352,12 +380,8 @@ Does not require execution context as this is a direct state mutation.
 validateTrailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
-Adjusts the trailing stop-loss distance for an active pending signal.
-
-Validates strategy existence and delegates to connection service
-to update the stop-loss distance by a percentage adjustment.
-
-Does not require execution context as this is a direct state mutation.
+Checks whether `trailingStop` would succeed without executing it.
+Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
 
 ### trailingStop
 
@@ -365,8 +389,12 @@ Does not require execution context as this is a direct state mutation.
 trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
-Checks whether `trailingStop` would succeed without executing it.
-Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
+Adjusts the trailing stop-loss distance for an active pending signal.
+
+Validates strategy existence and delegates to connection service
+to update the stop-loss distance by a percentage adjustment.
+
+Does not require execution context as this is a direct state mutation.
 
 ### validateTrailingTake
 
@@ -374,8 +402,8 @@ Validates context, then delegates to StrategyConnectionService.validateTrailingS
 validateTrailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
-Adjusts the trailing take-profit distance for an active pending signal.
-Validates context and delegates to StrategyConnectionService.
+Checks whether `trailingTake` would succeed without executing it.
+Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
 
 ### trailingTake
 
@@ -383,8 +411,8 @@ Validates context and delegates to StrategyConnectionService.
 trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
-Checks whether `trailingTake` would succeed without executing it.
-Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
+Adjusts the trailing take-profit distance for an active pending signal.
+Validates context and delegates to StrategyConnectionService.
 
 ### validateBreakeven
 
@@ -392,8 +420,8 @@ Validates context, then delegates to StrategyConnectionService.validateTrailingT
 validateBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
-Moves stop-loss to breakeven when price reaches threshold.
-Validates context and delegates to StrategyConnectionService.
+Checks whether `breakeven` would succeed without executing it.
+Validates context, then delegates to StrategyConnectionService.validateBreakeven().
 
 ### breakeven
 
@@ -401,8 +429,8 @@ Validates context and delegates to StrategyConnectionService.
 breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
-Checks whether `breakeven` would succeed without executing it.
-Validates context, then delegates to StrategyConnectionService.validateBreakeven().
+Moves stop-loss to breakeven when price reaches threshold.
+Validates context and delegates to StrategyConnectionService.
 
 ### activateScheduled
 
@@ -421,10 +449,8 @@ to set the activation flag. The actual activation happens on next tick().
 validateAverageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
-Adds a new DCA entry to the active pending signal.
-
-Validates strategy existence and delegates to connection service
-to add a new averaging entry to the position.
+Checks whether `averageBuy` would succeed without executing it.
+Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
 
 ### averageBuy
 
@@ -432,8 +458,10 @@ to add a new averaging entry to the position.
 averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, cost: number) => Promise<boolean>
 ```
 
-Checks whether `averageBuy` would succeed without executing it.
-Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
+Adds a new DCA entry to the active pending signal.
+
+Validates strategy existence and delegates to connection service
+to add a new averaging entry to the position.
 
 ### hasPendingSignal
 
