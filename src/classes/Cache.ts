@@ -362,6 +362,13 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
     return CacheFileInstance._indexCounter++;
   }
 
+  /**
+   * Clears the index counter.
+   */
+  public static clearCounter(): void {
+    CacheFileInstance._indexCounter = 0;
+  }
+
   /** Unique index for this instance, used as a prefix in the persistent dynamicKey */
   readonly index: number;
 
@@ -640,8 +647,10 @@ export class CacheUtils {
     backtest.loggerService.info(CACHE_METHOD_NAME_DISPOSE, {
       run,
     });
-    this._getFnInstance.clear(run);
-    this._getFileInstance.clear(run);
+    {
+      this._getFnInstance.clear(run);
+      this._getFileInstance.clear(run);
+    }
   };
 
   /**
@@ -651,8 +660,11 @@ export class CacheUtils {
    */
   public clear = () => {
     backtest.loggerService.info(CACHE_METHOD_NAME_CLEAR);
-    this._getFnInstance.clear();
-    this._getFileInstance.clear();
+    {
+      this._getFnInstance.clear();
+      this._getFileInstance.clear();
+    }
+    CacheFileInstance.clearCounter();
   }
 }
 
