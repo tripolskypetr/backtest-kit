@@ -27,7 +27,8 @@ import notifyVerbose from "../../../utils/notifyVerbose";
 import ModuleConnectionService from "../connection/ModuleConnectionService";
 import path, { join, resolve } from "path";
 import dotenv from "dotenv";
-import { mkdir, writeFile } from "fs/promises";
+import { access, mkdir, writeFile } from "fs/promises";
+import { constants } from "fs";
 import FrameName from "../../../enum/FrameName";
 import { Setup } from "../../../classes/Setup";
 
@@ -81,10 +82,21 @@ export class WalkerMainService {
 
       for (const entryPoint of payload.entryPoints) {
 
+        process.chdir(cwd);
+
         const absolutePath = path.resolve(entryPoint);
+        await access(absolutePath, constants.F_OK | constants.R_OK);
         const moduleRoot = path.dirname(absolutePath);
 
+        process.chdir(moduleRoot);
+
         {
+          Setup.clear();
+          Setup.enable();
+        }
+
+        { 
+          cwd !== moduleRoot && Log.useJsonl();
           dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
           dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
         }
@@ -157,16 +169,19 @@ export class WalkerMainService {
             return;
           }
 
+          process.chdir(cwd);
+
+          const absolutePath = path.resolve(entryPoint);
+          const moduleRoot = path.dirname(absolutePath);
+
+          process.chdir(moduleRoot);
+
           {
             Setup.clear();
             Setup.enable();
           }
 
-          const absolutePath = path.resolve(entryPoint);
-          const moduleRoot = path.dirname(absolutePath);
-
           {
-            process.chdir(moduleRoot);
             cwd !== moduleRoot && Log.useJsonl();
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
             dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
