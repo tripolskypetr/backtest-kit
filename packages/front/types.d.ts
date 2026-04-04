@@ -412,5 +412,4 @@ declare const ioc: {
     exchangeService: ExchangeService;
 };
 
-export { getModulesPath, getPublicPath, getRouter, ioc as lib, serve, setLogger };
-export type { SymbolModel };
+export { type SymbolModel, getModulesPath, getPublicPath, getRouter, ioc as lib, serve, setLogger };
