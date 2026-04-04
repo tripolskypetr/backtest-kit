@@ -1,4 +1,4 @@
-import { addExchangeSchema, addFrameSchema, Exchange, roundTicks } from "./build/index.mjs";
+import { addExchangeSchema, Exchange, roundTicks } from "backtest-kit";
 import { singleshot } from "functools-kit";
 import ccxt from "ccxt";
 
@@ -88,14 +88,6 @@ addExchangeSchema({
       isBuyerMaker: t.m,
     }));
   },
-});
-
-addFrameSchema({
-  frameName: "test-frame",
-  interval: "1m",
-  startDate: new Date("2025-10-01T00:00:00Z"),
-  endDate: new Date("2025-10-31T23:59:59Z"),
-  note: "Sharp market drop from the 9th to 11th",
 });
 
 console.log(

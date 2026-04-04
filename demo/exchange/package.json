@@ -1,0 +1,17 @@
+{
+  "name": "exchange",
+  "version": "1.5.0",
+  "type": "module",
+  "scripts": {
+    "start": "node ./src/index.mjs"
+  },
+  "dependencies": {
+    "backtest-kit": "6.5.0",
+    "ccxt": "4.5.24",
+    "functools-kit": "1.0.95",
+    "uuid": "13.0.0"
+  },
+  "devDependencies": {
+    "dotenv-cli": "11.0.0"
+  }
+}
