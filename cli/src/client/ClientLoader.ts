@@ -73,13 +73,12 @@ const GET_EXT_VARIANTS_FN = (fileName: string): string[] => {
   const result: string[] = [];
 
   {
-    result.push(`${base}`)
-    result.push(`${base}.cjs`)
-    result.push(`${base}.mjs`)
-    result.push(`${base}.ts`)
-    result.push(`${base}.tsx`)
-    result.push(`${base}.js`)
-    result.push(`${base}.json`)
+    result.push(path.join(fileName, `index.cjs`))
+    result.push(path.join(fileName, `index.mjs`))
+    result.push(path.join(fileName, `index.ts`))
+    result.push(path.join(fileName, `index.tsx`))
+    result.push(path.join(fileName, `index.js`))
+    result.push(path.join(fileName, `index.json`))
   }
 
   {
@@ -90,6 +89,16 @@ const GET_EXT_VARIANTS_FN = (fileName: string): string[] => {
     result.push(`${fileName}.tsx`)
     result.push(`${fileName}.js`)
     result.push(`${fileName}.json`)
+  }
+
+  {
+    result.push(`${base}`)
+    result.push(`${base}.cjs`)
+    result.push(`${base}.mjs`)
+    result.push(`${base}.ts`)
+    result.push(`${base}.tsx`)
+    result.push(`${base}.js`)
+    result.push(`${base}.json`)
   }
 
   return result;
