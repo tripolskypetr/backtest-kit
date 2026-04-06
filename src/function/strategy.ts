@@ -54,6 +54,12 @@ const GET_POSITION_HIGHEST_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionHig
 const GET_POSITION_HIGHEST_PNL_COST_METHOD_NAME = "strategy.getPositionHighestPnlCost";
 const GET_POSITION_HIGHEST_PROFIT_BREAKEVEN_METHOD_NAME = "strategy.getPositionHighestProfitBreakeven";
 const GET_POSITION_DRAWDOWN_MINUTES_METHOD_NAME = "strategy.getPositionDrawdownMinutes";
+const GET_POSITION_HIGHEST_PROFIT_MINUTES_METHOD_NAME = "strategy.getPositionHighestProfitMinutes";
+const GET_POSITION_MAX_DRAWDOWN_MINUTES_METHOD_NAME = "strategy.getPositionMaxDrawdownMinutes";
+const GET_POSITION_MAX_DRAWDOWN_PRICE_METHOD_NAME = "strategy.getPositionMaxDrawdownPrice";
+const GET_POSITION_MAX_DRAWDOWN_TIMESTAMP_METHOD_NAME = "strategy.getPositionMaxDrawdownTimestamp";
+const GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionMaxDrawdownPnlPercentage";
+const GET_POSITION_MAX_DRAWDOWN_PNL_COST_METHOD_NAME = "strategy.getPositionMaxDrawdownPnlCost";
 const GET_POSITION_ENTRY_OVERLAP_METHOD_NAME = "strategy.getPositionEntryOverlap";
 const GET_POSITION_PARTIAL_OVERLAP_METHOD_NAME = "strategy.getPositionPartialOverlap";
 const HAS_NO_PENDING_SIGNAL_METHOD_NAME = "strategy.hasNoPendingSignal";
@@ -1997,6 +2003,211 @@ export async function getPositionDrawdownMinutes(symbol: string) {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionDrawdownMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the number of minutes elapsed since the highest profit price was recorded.
+ *
+ * Alias for getPositionDrawdownMinutes — measures how long the position has been
+ * pulling back from its peak profit level.
+ * Zero when called at the exact moment the peak was set.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to minutes since last profit peak or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestProfitMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionHighestProfitMinutes("BTCUSDT");
+ * // e.g. 30 (30 minutes since the highest profit price)
+ * ```
+ */
+export async function getPositionHighestProfitMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_HIGHEST_PROFIT_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionHighestProfitMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the number of minutes elapsed since the worst loss price was recorded.
+ *
+ * Measures how long ago the deepest drawdown point occurred.
+ * Zero when called at the exact moment the trough was set.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to minutes since last drawdown trough or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionMaxDrawdownMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionMaxDrawdownMinutes("BTCUSDT");
+ * // e.g. 15 (15 minutes since the worst loss price)
+ * ```
+ */
+export async function getPositionMaxDrawdownMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_MAX_DRAWDOWN_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionMaxDrawdownMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the worst price reached in the loss direction during this position's life.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to price or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionMaxDrawdownPrice } from "backtest-kit";
+ *
+ * const price = await getPositionMaxDrawdownPrice("BTCUSDT");
+ * // e.g. 41000 (lowest price seen for a LONG position)
+ * ```
+ */
+export async function getPositionMaxDrawdownPrice(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_MAX_DRAWDOWN_PRICE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownPrice requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownPrice requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionMaxDrawdownPrice(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the timestamp when the worst loss price was recorded during this position's life.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to timestamp in milliseconds or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionMaxDrawdownTimestamp } from "backtest-kit";
+ *
+ * const ts = await getPositionMaxDrawdownTimestamp("BTCUSDT");
+ * // e.g. 1700000000000
+ * ```
+ */
+export async function getPositionMaxDrawdownTimestamp(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_MAX_DRAWDOWN_TIMESTAMP_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownTimestamp requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownTimestamp requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionMaxDrawdownTimestamp(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL percentage or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionMaxDrawdownPnlPercentage } from "backtest-kit";
+ *
+ * const pnl = await getPositionMaxDrawdownPnlPercentage("BTCUSDT");
+ * // e.g. -5.2 (deepest PnL percentage reached)
+ * ```
+ */
+export async function getPositionMaxDrawdownPnlPercentage(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownPnlPercentage requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownPnlPercentage requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionMaxDrawdownPnlPercentage(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to PnL cost or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionMaxDrawdownPnlCost } from "backtest-kit";
+ *
+ * const cost = await getPositionMaxDrawdownPnlCost("BTCUSDT");
+ * // e.g. -52 (deepest PnL in quote currency)
+ * ```
+ */
+export async function getPositionMaxDrawdownPnlCost(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_MAX_DRAWDOWN_PNL_COST_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownPnlCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionMaxDrawdownPnlCost requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionMaxDrawdownPnlCost(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
