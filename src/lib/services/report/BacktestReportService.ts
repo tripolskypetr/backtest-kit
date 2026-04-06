@@ -124,6 +124,8 @@ export class BacktestReportService {
         pnlPriceClose: data.pnl.priceClose,
         totalPartials: data.signal?.totalPartials,
         cost: data.signal?.cost,
+        peakPnl: data.signal?._peak.pnlPercentage,
+        fallPnl: data.signal?._fall.pnlPercentage,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "closed") {
       const durationMs = data.closeTimestamp - data.signal?.pendingAt;
@@ -156,6 +158,8 @@ export class BacktestReportService {
         closeReason: data.closeReason,
         closeTime: data.closeTimestamp,
         duration: durationMin,
+        peakPnl: data.signal?._peak.pnlPercentage,
+        fallPnl: data.signal?._fall.pnlPercentage,
       }, { ...searchOptions, signalId: data.signal?.id });
     }
   };

@@ -1306,6 +1306,160 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Alias for getPositionDrawdownMinutes — measures how long the position has been
+   * pulling back from its peak profit level.
+   *
+   * Resolves current timestamp via timeMetaService and delegates to
+   * ClientStrategy.getPositionHighestProfitMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to minutes since last profit peak or null
+   */
+  public getPositionHighestProfitMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionHighestProfitMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.getPositionHighestProfitMinutes(symbol, timestamp);
+  };
+
+  /**
+   * Returns the number of minutes elapsed since the worst loss price was recorded.
+   *
+   * Measures how long ago the deepest drawdown point occurred.
+   * Zero when called at the exact moment the trough was set.
+   *
+   * Resolves current timestamp via timeMetaService and delegates to
+   * ClientStrategy.getPositionMaxDrawdownMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to minutes since last drawdown trough or null
+   */
+  public getPositionMaxDrawdownMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionMaxDrawdownMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.getPositionMaxDrawdownMinutes(symbol, timestamp);
+  };
+
+  /**
+   * Returns the worst price reached in the loss direction during this position's life.
+   *
+   * Delegates to ClientStrategy.getPositionMaxDrawdownPrice().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to price or null
+   */
+  public getPositionMaxDrawdownPrice = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionMaxDrawdownPrice", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionMaxDrawdownPrice(symbol);
+  };
+
+  /**
+   * Returns the timestamp when the worst loss price was recorded during this position's life.
+   *
+   * Delegates to ClientStrategy.getPositionMaxDrawdownTimestamp().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to timestamp in milliseconds or null
+   */
+  public getPositionMaxDrawdownTimestamp = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionMaxDrawdownTimestamp", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionMaxDrawdownTimestamp(symbol);
+  };
+
+  /**
+   * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+   *
+   * Delegates to ClientStrategy.getPositionMaxDrawdownPnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to PnL percentage or null
+   */
+  public getPositionMaxDrawdownPnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionMaxDrawdownPnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionMaxDrawdownPnlPercentage(symbol);
+  };
+
+  /**
+   * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+   *
+   * Delegates to ClientStrategy.getPositionMaxDrawdownPnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to PnL cost or null
+   */
+  public getPositionMaxDrawdownPnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionMaxDrawdownPnlCost", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionMaxDrawdownPnlCost(symbol);
+  };
+
+  /**
    * Disposes the ClientStrategy instance for the given context.
    *
    * Calls dispose callback, then removes strategy from cache.

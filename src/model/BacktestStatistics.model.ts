@@ -56,4 +56,10 @@ export interface BacktestStatisticsModel {
 
   /** Expected yearly returns based on average trade duration and PNL, null if unsafe. Higher is better. */
   expectedYearlyReturns: number | null;
+
+  /** Average peak PNL percentage across all signals (_peak.pnlPercentage), null if unsafe. Higher is better. */
+  avgPeakPnl: number | null;
+
+  /** Average fall PNL percentage across all signals (_fall.pnlPercentage), null if unsafe. Lower (more negative) means deeper drawdowns. */
+  avgFallPnl: number | null;
 }

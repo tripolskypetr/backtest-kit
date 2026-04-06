@@ -297,6 +297,14 @@ class HeatmapStorage {
       expectancy = (winRate / 100) * avgWin + (lossRate / 100) * avgLoss;
     }
 
+    // Calculate average peak and fall PNL
+    let avgPeakPnl: number | null = null;
+    let avgFallPnl: number | null = null;
+    if (signals.length > 0) {
+      avgPeakPnl = signals.reduce((acc, s) => acc + s.signal._peak.pnlPercentage, 0) / signals.length;
+      avgFallPnl = signals.reduce((acc, s) => acc + s.signal._fall.pnlPercentage, 0) / signals.length;
+    }
+
     // Apply safe math checks
     if (isUnsafe(winRate)) winRate = null;
     if (isUnsafe(totalPnl)) totalPnl = null;
@@ -308,6 +316,8 @@ class HeatmapStorage {
     if (isUnsafe(avgWin)) avgWin = null;
     if (isUnsafe(avgLoss)) avgLoss = null;
     if (isUnsafe(expectancy)) expectancy = null;
+    if (isUnsafe(avgPeakPnl)) avgPeakPnl = null;
+    if (isUnsafe(avgFallPnl)) avgFallPnl = null;
 
     return {
       symbol,
@@ -326,6 +336,8 @@ class HeatmapStorage {
       maxWinStreak,
       maxLossStreak,
       expectancy,
+      avgPeakPnl,
+      avgFallPnl,
     };
   }
 
@@ -385,9 +397,23 @@ class HeatmapStorage {
       portfolioSharpeRatio = weightedSum / portfolioTotalTrades;
     }
 
+    // Calculate portfolio-wide weighted average peak/fall PNL
+    let portfolioAvgPeakPnl: number | null = null;
+    let portfolioAvgFallPnl: number | null = null;
+    const validPeak = symbols.filter((s) => s.avgPeakPnl !== null);
+    const validFall = symbols.filter((s) => s.avgFallPnl !== null);
+    if (validPeak.length > 0 && portfolioTotalTrades > 0) {
+      portfolioAvgPeakPnl = validPeak.reduce((acc, s) => acc + s.avgPeakPnl! * s.totalTrades, 0) / portfolioTotalTrades;
+    }
+    if (validFall.length > 0 && portfolioTotalTrades > 0) {
+      portfolioAvgFallPnl = validFall.reduce((acc, s) => acc + s.avgFallPnl! * s.totalTrades, 0) / portfolioTotalTrades;
+    }
+
     // Apply safe math
     if (isUnsafe(portfolioTotalPnl)) portfolioTotalPnl = null;
     if (isUnsafe(portfolioSharpeRatio)) portfolioSharpeRatio = null;
+    if (isUnsafe(portfolioAvgPeakPnl)) portfolioAvgPeakPnl = null;
+    if (isUnsafe(portfolioAvgFallPnl)) portfolioAvgFallPnl = null;
 
     return {
       symbols,
@@ -395,6 +421,8 @@ class HeatmapStorage {
       portfolioTotalPnl,
       portfolioSharpeRatio,
       portfolioTotalTrades,
+      portfolioAvgPeakPnl,
+      portfolioAvgFallPnl,
     };
   }
 
@@ -455,7 +483,7 @@ class HeatmapStorage {
     return [
       `# Portfolio Heatmap: ${strategyName}`,
       "",
-      `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"} | **Portfolio Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio) : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades}`,
+      `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"} | **Portfolio Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio) : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades} | **Avg Peak PNL:** ${data.portfolioAvgPeakPnl !== null ? str(data.portfolioAvgPeakPnl, "%") : "N/A"} | **Avg Max Drawdown PNL:** ${data.portfolioAvgFallPnl !== null ? str(data.portfolioAvgFallPnl, "%") : "N/A"}`,
       "",
       table
     ].join("\n");

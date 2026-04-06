@@ -19,4 +19,10 @@ export interface HeatmapStatisticsModel {
 
   /** Portfolio-wide total trades */
   portfolioTotalTrades: number;
+
+  /** Trade-count-weighted average peak PNL across all symbols. Higher is better. */
+  portfolioAvgPeakPnl: number | null;
+
+  /** Trade-count-weighted average fall PNL across all symbols. Closer to 0 is better. */
+  portfolioAvgFallPnl: number | null;
 }

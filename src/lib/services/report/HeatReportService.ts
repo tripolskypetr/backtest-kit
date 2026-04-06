@@ -85,6 +85,8 @@ export class HeatReportService {
       openTime: data.signal?.pendingAt,
       scheduledAt: data.signal?.scheduledAt,
       closeTime: data.closeTimestamp,
+      peakPnl: data.signal?._peak.pnlPercentage,
+      fallPnl: data.signal?._fall.pnlPercentage,
     }, {
       symbol: data.symbol,
       strategyName: data.strategyName,

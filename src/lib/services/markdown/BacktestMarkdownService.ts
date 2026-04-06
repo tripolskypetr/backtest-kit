@@ -166,6 +166,8 @@ class ReportStorage {
         annualizedSharpeRatio: null,
         certaintyRatio: null,
         expectedYearlyReturns: null,
+        avgPeakPnl: null,
+        avgFallPnl: null,
       };
     }
 
@@ -205,6 +207,10 @@ class ReportStorage {
     const tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
     const expectedYearlyReturns = avgPnl * tradesPerYear;
 
+    // Calculate average peak and fall PNL across all signals
+    const avgPeakPnl = this._signalList.reduce((sum, s) => sum + s.signal._peak.pnlPercentage, 0) / totalSignals;
+    const avgFallPnl = this._signalList.reduce((sum, s) => sum + s.signal._fall.pnlPercentage, 0) / totalSignals;
+
     return {
       signalList: this._signalList,
       totalSignals,
@@ -218,6 +224,8 @@ class ReportStorage {
       annualizedSharpeRatio: isUnsafe(annualizedSharpeRatio) ? null : annualizedSharpeRatio,
       certaintyRatio: isUnsafe(certaintyRatio) ? null : certaintyRatio,
       expectedYearlyReturns: isUnsafe(expectedYearlyReturns) ? null : expectedYearlyReturns,
+      avgPeakPnl: isUnsafe(avgPeakPnl) ? null : avgPeakPnl,
+      avgFallPnl: isUnsafe(avgFallPnl) ? null : avgFallPnl,
     };
   }
 
@@ -274,6 +282,8 @@ class ReportStorage {
       `**Annualized Sharpe Ratio:** ${stats.annualizedSharpeRatio === null ? "N/A" : `${stats.annualizedSharpeRatio.toFixed(3)} (higher is better)`}`,
       `**Certainty Ratio:** ${stats.certaintyRatio === null ? "N/A" : `${stats.certaintyRatio.toFixed(3)} (higher is better)`}`,
       `**Expected Yearly Returns:** ${stats.expectedYearlyReturns === null ? "N/A" : `${stats.expectedYearlyReturns > 0 ? "+" : ""}${stats.expectedYearlyReturns.toFixed(2)}% (higher is better)`}`,
+      `**Avg Peak PNL:** ${stats.avgPeakPnl === null ? "N/A" : `${stats.avgPeakPnl > 0 ? "+" : ""}${stats.avgPeakPnl.toFixed(2)}% (higher is better)`}`,
+      `**Avg Max Drawdown PNL:** ${stats.avgFallPnl === null ? "N/A" : `${stats.avgFallPnl.toFixed(2)}% (closer to 0 is better)`}`,
     ].join("\n");
   }
 

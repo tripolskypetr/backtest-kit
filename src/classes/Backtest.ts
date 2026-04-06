@@ -73,6 +73,18 @@ const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_BREAKEVEN =
   "BacktestUtils.getPositionHighestProfitBreakeven";
 const BACKTEST_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES =
   "BacktestUtils.getPositionDrawdownMinutes";
+const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES =
+  "BacktestUtils.getPositionHighestProfitMinutes";
+const BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES =
+  "BacktestUtils.getPositionMaxDrawdownMinutes";
+const BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PRICE =
+  "BacktestUtils.getPositionMaxDrawdownPrice";
+const BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_TIMESTAMP =
+  "BacktestUtils.getPositionMaxDrawdownTimestamp";
+const BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE =
+  "BacktestUtils.getPositionMaxDrawdownPnlPercentage";
+const BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_COST =
+  "BacktestUtils.getPositionMaxDrawdownPnlCost";
 const BACKTEST_METHOD_NAME_GET_POSITION_ENTRY_OVERLAP =
   "BacktestUtils.getPositionEntryOverlap";
 const BACKTEST_METHOD_NAME_GET_POSITION_PARTIAL_OVERLAP =
@@ -2114,6 +2126,379 @@ export class BacktestUtils {
     }
 
     return await backtest.strategyCoreService.getPositionDrawdownMinutes(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Alias for getPositionDrawdownMinutes — measures how long the position has been
+   * pulling back from its peak profit level.
+   * Zero when called at the exact moment the peak was set.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Minutes since last profit peak, or null if no active position
+   */
+  public getPositionHighestProfitMinutes = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionHighestProfitMinutes(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the number of minutes elapsed since the worst loss price was recorded.
+   *
+   * Measures how long ago the deepest drawdown point occurred.
+   * Zero when called at the exact moment the trough was set.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Minutes since last drawdown trough, or null if no active position
+   */
+  public getPositionMaxDrawdownMinutes = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionMaxDrawdownMinutes(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the worst price reached in the loss direction during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns price or null if no active position
+   */
+  public getPositionMaxDrawdownPrice = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PRICE, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PRICE,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PRICE,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PRICE,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PRICE,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PRICE,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionMaxDrawdownPrice(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the timestamp when the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns timestamp in milliseconds or null if no active position
+   */
+  public getPositionMaxDrawdownTimestamp = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_TIMESTAMP, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_TIMESTAMP,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_TIMESTAMP,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_TIMESTAMP,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_TIMESTAMP,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_TIMESTAMP,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionMaxDrawdownTimestamp(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns PnL percentage or null if no active position
+   */
+  public getPositionMaxDrawdownPnlPercentage = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionMaxDrawdownPnlPercentage(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns PnL cost or null if no active position
+   */
+  public getPositionMaxDrawdownPnlCost = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_COST, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_COST,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_COST,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_COST,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_COST,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_PNL_COST,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionMaxDrawdownPnlCost(
       true,
       symbol,
       context,

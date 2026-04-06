@@ -212,4 +212,20 @@ export const live_columns: ColumnModel<TickEvent>[] = [
       data.scheduledAt !== undefined ? new Date(data.scheduledAt).toISOString() : "N/A",
     isVisible: () => true,
   },
+  {
+    key: "peakPnl",
+    label: "Peak PNL",
+    format: (data) => {
+      if (data.peakPnl === undefined) return "N/A";
+      return `${data.peakPnl > 0 ? "+" : ""}${data.peakPnl.toFixed(2)}%`;
+    },
+    isVisible: () => true,
+  },
+  {
+    key: "fallPnl",
+    label: "Max DD PNL",
+    format: (data) =>
+      data.fallPnl !== undefined ? `${data.fallPnl.toFixed(2)}%` : "N/A",
+    isVisible: () => true,
+  },
 ];

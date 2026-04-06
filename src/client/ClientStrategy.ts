@@ -572,6 +572,7 @@ const GET_SIGNAL_FN = trycatch(
           _isScheduled: false,
           _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
           _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+          _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
         };
 
         // Валидируем сигнал перед возвратом
@@ -600,6 +601,7 @@ const GET_SIGNAL_FN = trycatch(
         _isScheduled: true,
         _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
         _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+        _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
       };
 
       // Валидируем сигнал перед возвратом
@@ -625,6 +627,7 @@ const GET_SIGNAL_FN = trycatch(
       _isScheduled: false,
       _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
       _peak: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+      _fall: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
     };
 
     // Валидируем сигнал перед возвратом
@@ -1549,6 +1552,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     pendingAt: activationTime,
     _isScheduled: false,
     _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
+    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -2796,6 +2800,10 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const slDistance = effectivePriceOpen - effectiveStopLoss;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
+        if (currentPrice < signal._fall.price) {
+          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+        }
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
@@ -2869,6 +2877,10 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const slDistance = effectiveStopLoss - effectivePriceOpen;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
+        if (currentPrice > signal._fall.price) {
+          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+        }
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
@@ -3080,6 +3092,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     pendingAt: activationTime,
     _isScheduled: false,
     _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
+    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3465,6 +3478,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         pendingAt: candle.timestamp,
         _isScheduled: false,
         _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0 },
+        _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0 },
       };
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3800,6 +3814,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
           const slDistance = effectivePriceOpen - effectiveStopLoss;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
+          if (averagePrice < signal._fall.price) {
+            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -3865,6 +3883,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
           const slDistance = effectiveStopLoss - effectivePriceOpen;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
+          if (averagePrice > signal._fall.price) {
+            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -4675,6 +4697,110 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Alias for getPositionDrawdownMinutes — measures how long the position has been
+   * pulling back from its peak profit level.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to minutes since last profit peak or null
+   */
+  public async getPositionHighestProfitMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionHighestProfitMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.floor((timestamp - this._pendingSignal._peak.timestamp) / 60000);
+  }
+
+  /**
+   * Returns the number of minutes elapsed since the worst loss price was recorded.
+   *
+   * Measures how long ago the deepest drawdown point occurred.
+   * Zero when called at the exact moment the trough was set.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to minutes since last drawdown trough or null
+   */
+  public async getPositionMaxDrawdownMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionMaxDrawdownMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.floor((timestamp - this._pendingSignal._fall.timestamp) / 60000);
+  }
+
+  /**
+   * Returns the worst price reached in the loss direction during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to price or null
+   */
+  public async getPositionMaxDrawdownPrice(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionMaxDrawdownPrice", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._fall.price;
+  }
+
+  /**
+   * Returns the timestamp when the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to timestamp in milliseconds or null
+   */
+  public async getPositionMaxDrawdownTimestamp(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionMaxDrawdownTimestamp", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._fall.timestamp;
+  }
+
+  /**
+   * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL percentage or null
+   */
+  public async getPositionMaxDrawdownPnlPercentage(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionMaxDrawdownPnlPercentage", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._fall.pnlPercentage;
+  }
+
+  /**
+   * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL cost or null
+   */
+  public async getPositionMaxDrawdownPnlCost(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionMaxDrawdownPnlCost", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._fall.pnlCost;
+  }
+
+  /**
    * Performs a single tick of strategy execution.
    *
    * Flow (LIVE mode):
@@ -4946,6 +5072,7 @@ export class ClientStrategy implements IStrategy {
         pendingAt: currentTime,
         _isScheduled: false,
         _peak: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+        _fall: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
       };
 
       const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);

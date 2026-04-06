@@ -151,6 +151,14 @@ export interface ISignalRow extends ISignalDto {
    * - For SHORT: minimum VWAP price seen below effective entry
    */
   _peak: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; };
+  /**
+   * Worst price seen in loss direction during the life of this position.
+   * Initialized at position open with priceOpen/pendingAt (pnl = 0).
+   * Updated on every tick/candle when price moves toward SL (currentDistance < 0).
+   * - For LONG: minimum VWAP price seen below effective entry
+   * - For SHORT: maximum VWAP price seen above effective entry
+   */
+  _fall: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; };
   /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
   timestamp: number;
 }
@@ -1564,6 +1572,74 @@ export interface IStrategy {
    * @returns Promise resolving to drawdown duration in minutes or null
    */
   getPositionDrawdownMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+
+  /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Alias for getPositionDrawdownMinutes — measures how long the position has been
+   * pulling back from its peak profit level.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to minutes since last profit peak or null
+   */
+  getPositionHighestProfitMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+
+  /**
+   * Returns the number of minutes elapsed since the worst loss price was recorded.
+   *
+   * Measures how long ago the deepest drawdown point occurred.
+   * Zero when called at the exact moment the trough was set.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to minutes since last drawdown trough or null
+   */
+  getPositionMaxDrawdownMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+
+  /**
+   * Returns the worst price reached in the loss direction during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to price or null
+   */
+  getPositionMaxDrawdownPrice: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the timestamp when the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to timestamp in milliseconds or null
+   */
+  getPositionMaxDrawdownTimestamp: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL percentage or null
+   */
+  getPositionMaxDrawdownPnlPercentage: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to PnL cost or null
+   */
+  getPositionMaxDrawdownPnlCost: (symbol: string) => Promise<number | null>;
 
   /**
    * Disposes the strategy instance and cleans up resources.

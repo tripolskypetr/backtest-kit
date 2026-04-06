@@ -118,4 +118,18 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     format: (data) => data.totalTrades.toString(),
     isVisible: () => true,
   },
+  {
+    key: "avgPeakPnl",
+    label: "Avg Peak PNL",
+    format: (data) =>
+      data.avgPeakPnl !== null ? str(data.avgPeakPnl, "%") : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "avgFallPnl",
+    label: "Avg DD PNL",
+    format: (data) =>
+      data.avgFallPnl !== null ? str(data.avgFallPnl, "%") : "N/A",
+    isVisible: () => true,
+  },
 ];

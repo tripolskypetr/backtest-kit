@@ -35,6 +35,10 @@ export interface IHeatmapRow {
   maxLossStreak: number;
   /** Expectancy: (winRate * avgWin) - (lossRate * avgLoss) */
   expectancy: number | null;
+  /** Average peak PNL percentage across all trades (_peak.pnlPercentage). Higher is better. */
+  avgPeakPnl: number | null;
+  /** Average fall PNL percentage across all trades (_fall.pnlPercentage). Closer to 0 is better. */
+  avgFallPnl: number | null;
 }
 
 /**

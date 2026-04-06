@@ -284,6 +284,8 @@ class ReportStorage {
       duration: durationMin,
       pendingAt: data.signal.pendingAt,
       scheduledAt: data.signal.scheduledAt,
+      peakPnl: data.signal._peak.pnlPercentage,
+      fallPnl: data.signal._fall.pnlPercentage,
     };
 
     this._eventList.unshift(newEvent);
@@ -427,6 +429,8 @@ class ReportStorage {
         annualizedSharpeRatio: null,
         certaintyRatio: null,
         expectedYearlyReturns: null,
+        avgPeakPnl: null,
+        avgFallPnl: null,
       };
     }
 
@@ -479,6 +483,13 @@ class ReportStorage {
       expectedYearlyReturns = avgPnl * tradesPerYear;
     }
 
+    const avgPeakPnl = totalClosed > 0
+      ? closedEvents.reduce((sum, e) => sum + (e.peakPnl || 0), 0) / totalClosed
+      : 0;
+    const avgFallPnl = totalClosed > 0
+      ? closedEvents.reduce((sum, e) => sum + (e.fallPnl || 0), 0) / totalClosed
+      : 0;
+
     return {
       eventList: this._eventList,
       totalEvents: this._eventList.length,
@@ -493,6 +504,8 @@ class ReportStorage {
       annualizedSharpeRatio: isUnsafe(annualizedSharpeRatio) ? null : annualizedSharpeRatio,
       certaintyRatio: isUnsafe(certaintyRatio) ? null : certaintyRatio,
       expectedYearlyReturns: isUnsafe(expectedYearlyReturns) ? null : expectedYearlyReturns,
+      avgPeakPnl: isUnsafe(avgPeakPnl) ? null : avgPeakPnl,
+      avgFallPnl: isUnsafe(avgFallPnl) ? null : avgFallPnl,
     };
   }
 
@@ -549,6 +562,8 @@ class ReportStorage {
       `**Annualized Sharpe Ratio:** ${stats.annualizedSharpeRatio === null ? "N/A" : `${stats.annualizedSharpeRatio.toFixed(3)} (higher is better)`}`,
       `**Certainty Ratio:** ${stats.certaintyRatio === null ? "N/A" : `${stats.certaintyRatio.toFixed(3)} (higher is better)`}`,
       `**Expected Yearly Returns:** ${stats.expectedYearlyReturns === null ? "N/A" : `${stats.expectedYearlyReturns > 0 ? "+" : ""}${stats.expectedYearlyReturns.toFixed(2)}% (higher is better)`}`,
+      `**Avg Peak PNL:** ${stats.avgPeakPnl === null ? "N/A" : `${stats.avgPeakPnl > 0 ? "+" : ""}${stats.avgPeakPnl.toFixed(2)}% (higher is better)`}`,
+      `**Avg Max Drawdown PNL:** ${stats.avgFallPnl === null ? "N/A" : `${stats.avgFallPnl.toFixed(2)}% (closer to 0 is better)`}`,
     ].join("\n");
   }
 

@@ -179,4 +179,19 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     format: (data) => new Date(data.closeTimestamp).toISOString(),
     isVisible: () => true,
   },
+  {
+    key: "peakPnl",
+    label: "Peak PNL",
+    format: (data) => {
+      const v = data.signal._peak.pnlPercentage;
+      return `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
+    },
+    isVisible: () => true,
+  },
+  {
+    key: "fallPnl",
+    label: "Max DD PNL",
+    format: (data) => `${data.signal._fall.pnlPercentage.toFixed(2)}%`,
+    isVisible: () => true,
+  },
 ];

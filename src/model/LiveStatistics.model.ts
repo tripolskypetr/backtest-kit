@@ -55,6 +55,10 @@ export interface TickEvent {
   pendingAt?: number;
   /** Timestamp when signal was created/scheduled (only for scheduled/waiting/opened/active/closed/cancelled) */
   scheduledAt?: number;
+  /** Peak PNL percentage at best price during position (_peak.pnlPercentage, only for closed) */
+  peakPnl?: number;
+  /** Fall PNL percentage at worst price during position (_fall.pnlPercentage, only for closed) */
+  fallPnl?: number;
 }
 
 /**
@@ -119,4 +123,10 @@ export interface LiveStatisticsModel {
 
   /** Expected yearly returns based on average trade duration and PNL, null if unsafe. Higher is better. */
   expectedYearlyReturns: number | null;
+
+  /** Average peak PNL percentage across all closed signals (_peak.pnlPercentage), null if unsafe. Higher is better. */
+  avgPeakPnl: number | null;
+
+  /** Average fall PNL percentage across all closed signals (_fall.pnlPercentage), null if unsafe. Closer to 0 is better. */
+  avgFallPnl: number | null;
 }
