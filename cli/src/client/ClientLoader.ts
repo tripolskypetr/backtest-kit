@@ -16,6 +16,8 @@ declare const __IS_ESM__: boolean;
 
 type Require = ReturnType<typeof CREATE_BASE_REQUIRE_FN>;
 
+const USE_ESMODULE_DEFAULT = false;
+
 const TRANSPILE_FN = memoize(
   ([path]) => `${path}`, 
   (path: string, code: string, self: ClientLoader, require: Require) => {
@@ -59,6 +61,9 @@ const BABEL_ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<str
     const code = fs.readFileSync(resolvedPath, "utf-8");
     const child = self.fork(path.dirname(resolvedPath));
     const { module } = TRANSPILE_FN(resolvedPath, code, child, CREATE_BASE_REQUIRE_FN(child, seen));
+    if (!USE_ESMODULE_DEFAULT) {
+      return module.exports;
+    }
     return "default" in module.exports
       ? module.exports.default
       : module.exports;
