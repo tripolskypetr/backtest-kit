@@ -484,6 +484,8 @@ export interface IStrategyParams extends IStrategySchema {
   onSignalSync: (event: SignalSyncContract) => Promise<boolean> | boolean;
   /** System callback for highest profit updates (emits to highestProfitSubject) */
   onHighestProfit: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
+  /** System callback for max drawdown updates (emits to maxDrawdownSubject) */
+  onMaxDrawdown: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
 }
 
 /**

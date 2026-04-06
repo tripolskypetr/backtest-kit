@@ -2803,6 +2803,24 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         if (currentPrice < signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          if (self.params.callbacks?.onWrite) {
+            self.params.callbacks.onWrite(
+              signal.symbol,
+              signal,
+              backtest
+            );
+          }
+          !backtest && await PersistSignalAdapter.writeSignalData(
+            signal,
+            self.params.execution.context.symbol,
+            self.params.strategyName,
+            self.params.exchangeName,
+          );
+          await self.params.onMaxDrawdown(
+            TO_PUBLIC_SIGNAL(signal, currentPrice),
+            currentPrice,
+            currentTime,
+          );
         }
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
           self,
@@ -2880,6 +2898,24 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         if (currentPrice > signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          if (self.params.callbacks?.onWrite) {
+            self.params.callbacks.onWrite(
+              signal.symbol,
+              signal,
+              backtest
+            );
+          }
+          !backtest && await PersistSignalAdapter.writeSignalData(
+            signal,
+            self.params.execution.context.symbol,
+            self.params.strategyName,
+            self.params.exchangeName,
+          );
+          await self.params.onMaxDrawdown(
+            TO_PUBLIC_SIGNAL(signal, currentPrice),
+            currentPrice,
+            currentTime,
+          );
         }
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
           self,
@@ -3817,6 +3853,18 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+            if (self.params.callbacks?.onWrite) {
+              self.params.callbacks.onWrite(
+                signal.symbol,
+                signal,
+                true
+              );
+            }
+            await self.params.onMaxDrawdown(
+              TO_PUBLIC_SIGNAL(signal, averagePrice),
+              averagePrice,
+              currentCandleTimestamp
+            );
           }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
@@ -3886,6 +3934,18 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+            if (self.params.callbacks?.onWrite) {
+              self.params.callbacks.onWrite(
+                signal.symbol,
+                signal,
+                true
+              );
+            }
+            await self.params.onMaxDrawdown(
+              TO_PUBLIC_SIGNAL(signal, averagePrice),
+              averagePrice,
+              currentCandleTimestamp
+            );
           }
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,

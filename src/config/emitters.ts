@@ -16,6 +16,7 @@ import { ActivePingContract } from "../contract/ActivePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import SignalSyncContract from "../contract/SignalSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
+import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
 
 /**
  * Exchange signal synchronization emitter.
@@ -195,3 +196,10 @@ export const backtestScheduleOpenSubject = new Subject<IStrategyTickResultOpened
  * Allows users to track profit milestones and implement custom management logic based on profit levels.
  */
 export const highestProfitSubject = new Subject<HighestProfitContract>();
+
+/**
+ * Max drawdown emitter for real-time risk tracking.
+ * Emits updates on the maximum drawdown experienced for an open position.
+ * Allows users to track drawdown levels and implement custom risk management logic based on drawdown thresholds.
+ */
+export const maxDrawdownSubject = new Subject<MaxDrawdownContract>();

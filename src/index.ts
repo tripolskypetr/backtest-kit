@@ -133,6 +133,8 @@ export {
   listenSyncOnce,
   listenHighestProfit,
   listenHighestProfitOnce,
+  listenMaxDrawdown,
+  listenMaxDrawdownOnce,
 } from "./function/event";
 export {
   getCandles,

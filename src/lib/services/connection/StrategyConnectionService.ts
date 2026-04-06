@@ -29,6 +29,7 @@ import {
   strategyCommitSubject,
   syncSubject,
   highestProfitSubject,
+  maxDrawdownSubject,
 } from "../../../config/emitters";
 import { StrategyCommitContract } from "../../../contract/StrategyCommit.contract";
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
@@ -414,6 +415,46 @@ const CREATE_HIGHEST_PROFIT_FN = (self: StrategyConnectionService, strategyName:
 );
 
 /**
+ * Creates a callback function for emitting max drawdown updates to maxDrawdownSubject.
+ * Called by ClientStrategy when the maximum drawdown for an open position is updated.
+ * Emits MaxDrawdownContract event to all subscribers with the current price and timestamp.
+ * Used for real-time risk tracking and management logic based on drawdown levels.
+ * @param self - Reference to StrategyConnectionService instance
+ * @param strategyName - Name of the strategy
+ * @param exchangeName - Name of the exchange
+ * @param frameName - Name of the frame
+ * @param isBacktest - Flag indicating if the operation is for backtesting
+ * @return Callback function for max drawdown updates
+ */
+const CREATE_MAX_DRAWDOWN_FN = (self: StrategyConnectionService, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, isBacktest: boolean) => trycatch(
+  async (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => {
+    await maxDrawdownSubject.next({
+      symbol: signal.symbol,
+      signal,
+      currentPrice,
+      timestamp,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest: isBacktest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_MAX_DRAWDOWN_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting dispose events.
  *
  * Called by ClientStrategy when it is being disposed.
@@ -560,6 +601,7 @@ export class StrategyConnectionService implements TStrategy {
         onCommit: CREATE_COMMIT_FN(this),
         onSignalSync: CREATE_SYNC_FN(this, strategyName, exchangeName, frameName, backtest),
         onHighestProfit: CREATE_HIGHEST_PROFIT_FN(this, strategyName, exchangeName, frameName, backtest),
+        onMaxDrawdown: CREATE_MAX_DRAWDOWN_FN(this, strategyName, exchangeName, frameName, backtest),
       });
     }
   );

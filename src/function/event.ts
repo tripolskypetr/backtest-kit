@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -17,6 +17,7 @@ import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { queued } from "functools-kit";
 import SignalSyncContract from "../contract/SignalSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
+import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
 const LISTEN_SIGNAL_ONCE_METHOD_NAME = "event.listenSignalOnce";
@@ -57,6 +58,8 @@ const LISTEN_SYNC_METHOD_NAME = "event.listenSync";
 const LISTEN_SYNC_ONCE_METHOD_NAME = "event.listenSyncOnce";
 const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
+const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
+const LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME = "event.listenMaxDrawdownOnce";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -1603,3 +1606,58 @@ export function listenHighestProfitOnce(
   return disposeFn = listenHighestProfit(wrappedFn);
 }
 
+/**
+ * Subscribes to max drawdown events with queued async processing.
+ * Emits when a signal reaches a new maximum drawdown level during its lifecycle.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * Useful for tracking drawdown milestones and implementing dynamic risk management logic.
+ * @param fn - Callback function to handle max drawdown events
+ * @return Unsubscribe function to stop listening to events
+ */
+export function listenMaxDrawdown(fn: (event: MaxDrawdownContract) => void) {
+  backtest.loggerService.log(LISTEN_MAX_DRAWDOWN_METHOD_NAME);
+  
+  const wrappedFn = async (event: MaxDrawdownContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        { 
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return maxDrawdownSubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered max drawdown events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific drawdown conditions.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+export function listenMaxDrawdownOnce(
+  filterFn: (event: MaxDrawdownContract) => boolean,
+  fn: (event: MaxDrawdownContract) => void
+) {
+  backtest.loggerService.log(LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME);
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: MaxDrawdownContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenMaxDrawdown(wrappedFn);
+}
