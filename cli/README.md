@@ -343,7 +343,7 @@ Each strategy run produces its own `dump/` directory, making it straightforward 
 
 ## 🔗 Shared Import Aliases
 
-`@backtest-kit/cli` automatically turns every **top-level folder in `cwd`** into a bare import alias available inside any strategy file. No configuration needed — just create the folder.
+`@backtest-kit/cli` automatically turns every **top-level folder** in `process.cwd()` into a bare import alias available inside any strategy file. No configuration needed — just create the folder.
 
 ### How It Works
 
