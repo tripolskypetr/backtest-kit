@@ -13,14 +13,14 @@ const researchSource = Cache.file(
   async (symbol: string, when: Date) => {
     return await research(symbol, when);
   },
-  { interval: "1d", name: "research_source" },
+  { interval: "8h", name: "research_source" },
 );
 
 const positionSource = Cache.fn(
   async (symbol: string, when: Date, research: ResearchResponseContract) => {
     return await position(research, symbol, when);
   },
-  { interval: "1h", key: ([symbol]) => symbol },
+  { interval: "15m", key: ([symbol]) => symbol },
 );
 
 addStrategySchema({
