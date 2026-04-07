@@ -4,10 +4,12 @@ import TYPES from "../../../lib/core/types";
 import LoggerService from "./LoggerService";
 import ClientLoader from "../../../client/ClientLoader";
 import { memoize } from "functools-kit";
+import ResolveService from "./ResolveService";
 
 export class LoaderService {
   private readonly babelService = inject<BabelService>(TYPES.babelService);
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly resolveService = inject<ResolveService>(TYPES.resolveService);
 
   private getInstance = memoize(
     ([basePath]) => `${basePath}`,
@@ -15,6 +17,7 @@ export class LoaderService {
       new ClientLoader({
         babel: this.babelService,
         logger: this.loggerService,
+        resolve: this.resolveService,
         path: basePath,
       }),
   );

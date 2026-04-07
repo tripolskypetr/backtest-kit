@@ -9,13 +9,14 @@ import TYPES from '../../../lib/core/types';
 import { entrySubject } from '../../../config/emitters';
 import LoaderService from './LoaderService';
 import { fileURLToPath } from "url";
+import { IResolve } from "../../../interfaces/Resolve.interface";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let _is_launched = false;
 
-export class ResolveService {
+export class ResolveService implements IResolve{
 
     readonly loggerService = inject<LoggerService>(TYPES.loggerService);
     readonly loaderService = inject<LoaderService>(TYPES.loaderService);
@@ -24,6 +25,8 @@ export class ResolveService {
     public readonly DEFAULT_MODULES_DIR = path.resolve(__dirname, '..', 'modules');
     public readonly OVERRIDE_TEMPLATE_DIR = path.resolve(process.cwd(), 'template');
     public readonly OVERRIDE_MODULES_DIR = path.resolve(process.cwd(), 'modules');
+
+    public readonly IMPORT_PATHS_DIR = process.cwd();
 
     public getIsLaunched = () => {
         this.loggerService.log("resolveService getIsLaunched");

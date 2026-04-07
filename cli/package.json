@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/cli",
-  "version": "6.7.1",
+  "version": "6.7.2",
   "description": "Zero-boilerplate CLI runner for backtest-kit strategies. Run backtests, paper trading, and live bots with candle cache warming, web dashboard, and Telegram notifications — no setup code required.",
   "author": {
     "name": "Petr Tripolsky",

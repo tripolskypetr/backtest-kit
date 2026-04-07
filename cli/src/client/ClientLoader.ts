@@ -133,6 +133,17 @@ const ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<string>) 
   );
 };
 
+const READ_IMPORT_PATHS_MAP_FN = singleshot((importPathsDir: string) => {
+  const entries = fs.readdirSync(importPathsDir, { withFileTypes: true });
+  const map: Record<string, string> = {};
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      map[entry.name] = path.join(importPathsDir, entry.name);
+    }
+  }
+  return map;
+});
+
 const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
   const baseRequire = self.baseRequire();
   return new Proxy(baseRequire, {
@@ -147,6 +158,19 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
       if (id === "@backtest-kit/signals") return globalThis.BacktestKitSignals;
       if (id.startsWith("./") || id.startsWith("../")) {
         const resolved = path.resolve(self.__dirname, id);
+        const child = self.fork(path.dirname(resolved));
+        return child.import(resolved, seen);
+      }
+      const importPathsMap = READ_IMPORT_PATHS_MAP_FN(self.params.resolve.IMPORT_PATHS_DIR);
+      if (id in importPathsMap) {
+        const resolved = importPathsMap[id];
+        const child = self.fork(resolved);
+        return child.import(resolved, seen);
+      }
+      const importPathsKey = Object.keys(importPathsMap).find((key) => id === key || id.startsWith(`${key}/`));
+      if (importPathsKey) {
+        const subPath = id.slice(importPathsKey.length);
+        const resolved = path.join(importPathsMap[importPathsKey], subPath);
         const child = self.fork(path.dirname(resolved));
         return child.import(resolved, seen);
       }
@@ -203,6 +227,7 @@ export class ClientLoader implements ILoader {
       path: basePath,
       babel: this.params.babel,
       logger: this.params.logger,
+      resolve: this.params.resolve,
     });
   }
 
