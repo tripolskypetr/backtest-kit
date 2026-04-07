@@ -18,6 +18,8 @@ type Require = ReturnType<typeof CREATE_BASE_REQUIRE_FN>;
 
 const USE_ESMODULE_DEFAULT = false;
 
+const IMPORT_PATHS_EXCLUDE = new Set(["dump", "logs", "node_modules"]);
+
 const TRANSPILE_FN = memoize(
   ([path]) => `${path}`, 
   (path: string, code: string, self: ClientLoader, require: Require) => {
@@ -137,9 +139,13 @@ const READ_IMPORT_PATHS_MAP_FN = singleshot((importPathsDir: string) => {
   const entries = fs.readdirSync(importPathsDir, { withFileTypes: true });
   const map: Record<string, string> = {};
   for (const entry of entries) {
-    if (entry.isDirectory()) {
-      map[entry.name] = path.join(importPathsDir, entry.name);
+    if (!entry.isDirectory()) {
+      continue
     }
+    if (IMPORT_PATHS_EXCLUDE.has(entry.name)) {
+      continue
+    }
+    map[entry.name] = path.join(importPathsDir, entry.name);
   }
   return map;
 });

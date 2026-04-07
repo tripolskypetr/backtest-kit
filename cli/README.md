@@ -341,6 +341,67 @@ npm run backtest:dec
 
 Each strategy run produces its own `dump/` directory, making it straightforward to compare results across time periods — both by inspection and by pointing an AI agent at a specific strategy folder.
 
+## 🔗 Shared Import Aliases
+
+`@backtest-kit/cli` automatically turns every **top-level folder in `cwd`** into a bare import alias available inside any strategy file. No configuration needed — just create the folder.
+
+### How It Works
+
+When the CLI loads a strategy file, it scans the current working directory for subdirectories and registers each one as an import alias. The alias name is the folder name. Both barrel imports and deep subpath imports are supported:
+
+| Import | Resolves to |
+|--------|-------------|
+| `import { fn } from "utils"` | `<cwd>/utils/index.ts` (or `.js`, `.mjs`, `.cjs`) |
+| `import { calcRSI } from "math/rsi"` | `<cwd>/math/rsi.ts` |
+| `import { research } from "logic"` | `<cwd>/logic/index.ts` |
+| `import { ResearchResponseContract } from "logic/contract/ResearchResponse.contract"` | `<cwd>/logic/contract/ResearchResponse.contract.ts` |
+
+### Project Structure
+
+```
+my-project/
+├── utils/                    ← import { formatDate } from "utils"
+│   └── index.ts
+├── math/                     ← import { calcRSI } from "math/rsi"
+│   └── rsi.ts
+├── logic/                    ← import { research } from "logic"
+│   ├── index.ts              ←   barrel
+│   └── contract/
+│       └── ResearchResponse.contract.ts  ← import { ... } from "logic/contract/ResearchResponse.contract"
+└── content/
+    ├── feb_2026.strategy.ts  ← uses all three aliases freely
+    └── mar_2026.strategy.ts  ← same aliases, no duplication
+```
+
+This lets you extract shared utilities, math helpers, or AI agent logic (e.g. `agent-swarm-kit` workflows) into named folders and reuse them across every strategy in the project without relative path hell.
+
+### TypeScript Support
+
+Add a matching `paths` entry to your `tsconfig.json` so the editor resolves the aliases:
+
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "paths": {
+      "logic": ["./logic/index.ts"],
+      "logic/*": ["./logic/*"],
+      "math": ["./math/index.ts"],
+      "math/*": ["./math/*"],
+      "utils": ["./utils/index.ts"],
+      "utils/*": ["./utils/*"]
+    }
+  },
+  "include": [
+    "./logic",
+    "./math",
+    "./utils",
+    "./content",
+    "./modules",
+  ],
+}
+```
+
 ## 🔔 Integrations
 
 ### Web Dashboard (`--ui`)
