@@ -110,18 +110,28 @@ declare class FrameSchemaService {
 declare class LoaderService {
     private readonly babelService;
     private readonly loggerService;
+    private readonly resolveService;
     private getInstance;
     import: (filePath: string, basePath?: string) => any;
     check: (filePath: string, basePath?: string) => Promise<boolean>;
 }
 
-declare class ResolveService {
+interface IResolve {
+    DEFAULT_TEMPLATE_DIR: string;
+    DEFAULT_MODULES_DIR: string;
+    OVERRIDE_TEMPLATE_DIR: string;
+    OVERRIDE_MODULES_DIR: string;
+    IMPORT_PATHS_DIR: string;
+}
+
+declare class ResolveService implements IResolve {
     readonly loggerService: LoggerService;
     readonly loaderService: LoaderService;
     readonly DEFAULT_TEMPLATE_DIR: string;
     readonly DEFAULT_MODULES_DIR: string;
     readonly OVERRIDE_TEMPLATE_DIR: string;
     readonly OVERRIDE_MODULES_DIR: string;
+    readonly IMPORT_PATHS_DIR: string;
     getIsLaunched: () => boolean;
     attachPine: (pinePath: string) => Promise<string>;
     attachStrategy: (jsPath: string) => Promise<void>;
