@@ -6,8 +6,8 @@ import {
   getAveragePrice,
 } from "backtest-kit";
 import { errorData, getErrorMessage } from "functools-kit";
-import { position, research } from "../../logic";
-import { ResearchResponseContract } from "../../logic/contract/ResearchResponse.contract";
+import { position, research } from "logic";
+import { ResearchResponseContract } from "logic/contract/ResearchResponse.contract";
 
 const researchSource = Cache.file(
   async (symbol: string, when: Date) => {

@@ -21,6 +21,12 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
+    "paths": {
+      "logic": ["./logic/index.ts"],
+      "logic/*": ["./logic/*"],
+      "utils": ["./utils/index.ts"],
+      "utils/*": ["./utils/*"]
+    }
   },
   "include": [
     "./logic",
