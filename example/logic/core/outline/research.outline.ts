@@ -12,8 +12,8 @@ import { str } from "functools-kit";
 import { OutlineName } from "../../enum/OutlineName";
 import { CompletionName } from "../../enum/CompletionName";
 import { SwarmName } from "../../enum/SwarmName";
-import { SignalResponseContract } from "../../contract/SignalResponse.contract";
 import dayjs from "dayjs";
+import { ResearchResponseContract } from "../../contract/ResearchResponse.contract";
 
 const DISPLAY_NAME_MAP = {
   BTCUSDT: "Bitcoin",
@@ -126,8 +126,8 @@ const commitSignalSearch = async (
   );
 };
 
-addOutline<SignalResponseContract>({
-  outlineName: OutlineName.SignalOutline,
+addOutline<ResearchResponseContract>({
+  outlineName: OutlineName.ResearchOutline,
   completion: CompletionName.OllamaOutlineToolCompletion,
   format: {
     type: "object",
@@ -186,7 +186,7 @@ addOutline<SignalResponseContract>({
     },
   ],
   callbacks: {
-    async onValidDocument(result: IOutlineResult<SignalResponseContract>) {
+    async onValidDocument(result) {
       if (!result.data) {
         return;
       }

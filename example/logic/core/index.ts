@@ -7,4 +7,4 @@ import "./agent/web_search.agent";
 import "./swarm/web_search.swarm";
 
 import "./outline/position.outline";
-import "./outline/signal.outline";
+import "./outline/research.outline";

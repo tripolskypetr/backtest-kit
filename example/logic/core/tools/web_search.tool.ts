@@ -2,11 +2,11 @@ import { addTool, commitToolOutput, execute } from "agent-swarm-kit";
 import { getOllama } from "../../config/ollama";
 import { str } from "functools-kit";
 import { ToolName } from "../../enum/ToolName";
-import { WebSearchContract } from "../../contract/WebSearch.contract";
+import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
 
 const SEARCH_MAX_RESULTS = 10;
 
-addTool<WebSearchContract>({
+addTool<WebSearchRequestContract>({
   toolName: ToolName.WebSearchTool,
   isAvailable: () => true,
   call: async ({ toolId, params, clientId, agentName, isLast }) => {
