@@ -1,0 +1,29 @@
+{
+  "name": "node-ccxt-backtest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./node_modules/@backtest-kit/cli/build/index.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@backtest-kit/cli": "6.5.1",
+    "@backtest-kit/graph": "6.5.0",
+    "@backtest-kit/pinets": "6.5.0",
+    "@backtest-kit/ui": "6.5.0",
+    "@backtest-kit/signals": "6.5.0",
+    "agent-swarm-kit": "1.3.2",
+    "backtest-kit": "6.5.2",
+    "dayjs": "1.11.20",
+    "functools-kit": "1.0.95",
+    "jsonrepair": "3.12.0",
+    "garch": "1.2.3",
+    "get-moment-stamp": "1.1.2",
+    "ollama": "0.6.3",
+    "volume-anomaly": "1.2.3"
+  }
+}
