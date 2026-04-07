@@ -18,7 +18,7 @@ type Require = ReturnType<typeof CREATE_BASE_REQUIRE_FN>;
 
 const USE_ESMODULE_DEFAULT = false;
 
-const IMPORT_PATHS_EXCLUDE = new Set(["dump", "logs", "node_modules"]);
+const IMPORT_PATHS_EXCLUDE = new Set(["dump", "logs", "modules", "node_modules"]);
 
 const TRANSPILE_FN = memoize(
   ([path]) => `${path}`, 
