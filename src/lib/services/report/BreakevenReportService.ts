@@ -4,7 +4,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { breakevenSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { singleton } from "di-singleton";
@@ -22,7 +22,7 @@ const BREAKEVEN_REPORT_METHOD_NAME_TICK = "BreakevenReportService.tickBreakeven"
  * Features:
  * - Listens to breakeven events via breakevenSubject
  * - Logs all breakeven achievements with full signal details
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -63,7 +63,7 @@ export const BreakevenReportService = singleton(class {
   }) => {
     this.loggerService.log(BREAKEVEN_REPORT_METHOD_NAME_TICK, { data });
 
-    await Report.writeData("breakeven", {
+    await ReportWriter.writeData("breakeven", {
       timestamp: data.timestamp,
       symbol: data.symbol,
       strategyName: data.data.strategyName,

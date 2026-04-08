@@ -4,7 +4,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { singleton } from "di-singleton";
 
 const SCHEDULE_REPORT_METHOD_NAME_SUBSCRIBE = "ScheduleReportService.subscribe";
@@ -21,7 +21,7 @@ const SCHEDULE_REPORT_METHOD_NAME_TICK = "ScheduleReportService.tick";
  * - Listens to signal events via signalEmitter
  * - Logs scheduled, opened (from scheduled), and cancelled events
  * - Calculates duration between scheduling and execution/cancellation
- * - Stores events in Report.writeData() for schedule tracking
+ * - Stores events in ReportWriter.writeData() for schedule tracking
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -74,7 +74,7 @@ export const ScheduleReportService = singleton(class {
     };
 
     if (data.action === "scheduled") {
-      await Report.writeData("schedule", {
+      await ReportWriter.writeData("schedule", {
         timestamp: data.signal?.scheduledAt,
         action: "scheduled",
         ...baseEvent,
@@ -104,7 +104,7 @@ export const ScheduleReportService = singleton(class {
         const durationMs = data.signal?.pendingAt - data.signal?.scheduledAt;
         const durationMin = Math.round(durationMs / 60000);
 
-        await Report.writeData("schedule", {
+        await ReportWriter.writeData("schedule", {
           timestamp: data.signal?.pendingAt,
           action: "opened",
           ...baseEvent,
@@ -136,7 +136,7 @@ export const ScheduleReportService = singleton(class {
       const durationMs = data.closeTimestamp - data.signal?.scheduledAt;
       const durationMin = Math.round(durationMs / 60000);
 
-      await Report.writeData("schedule", {
+      await ReportWriter.writeData("schedule", {
         timestamp: data.closeTimestamp,
         action: "cancelled",
         ...baseEvent,

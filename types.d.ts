@@ -12196,300 +12196,6 @@ declare class PersistMemoryUtils {
  */
 declare const PersistMemoryAdapter: PersistMemoryUtils;
 
-/** Symbol key for the singleshot waitForInit function on ReportBase instances. */
-declare const WAIT_FOR_INIT_SYMBOL$1: unique symbol;
-/** Symbol key for the timeout-protected write function on ReportBase instances. */
-declare const WRITE_SAFE_SYMBOL$1: unique symbol;
-/**
- * Configuration interface for selective report service enablement.
- * Controls which report services should be activated for JSONL event logging.
- */
-interface IReportTarget {
-    /** Enable strategy commit actions */
-    strategy: boolean;
-    /** Enable risk rejection event logging */
-    risk: boolean;
-    /** Enable breakeven event logging */
-    breakeven: boolean;
-    /** Enable partial close event logging */
-    partial: boolean;
-    /** Enable heatmap data event logging */
-    heat: boolean;
-    /** Enable walker iteration event logging */
-    walker: boolean;
-    /** Enable performance metrics event logging */
-    performance: boolean;
-    /** Enable scheduled signal event logging */
-    schedule: boolean;
-    /** Enable live trading event logging (all tick states) */
-    live: boolean;
-    /** Enable backtest closed signal event logging */
-    backtest: boolean;
-    /** Enable signal synchronization event logging (signal-open, signal-close) */
-    sync: boolean;
-    /** Enable highest profit milestone event logging */
-    highest_profit: boolean;
-    /** Enable max drawdown milestone event logging */
-    max_drawdown: boolean;
-}
-/**
- * Union type of all valid report names.
- * Used for type-safe identification of report services.
- */
-type ReportName = keyof IReportTarget;
-/**
- * Options for report data writes.
- * Contains metadata for event filtering and search.
- */
-interface IReportDumpOptions {
-    /** Trading pair symbol (e.g., "BTCUSDT") */
-    symbol: string;
-    /** Strategy name */
-    strategyName: string;
-    /** Exchange name */
-    exchangeName: string;
-    /** Frame name (timeframe identifier) */
-    frameName: string;
-    /** Signal unique identifier */
-    signalId: string;
-    /** Walker optimization name */
-    walkerName: string;
-}
-/**
- * Base interface for report storage adapters.
- * All report adapters must implement this interface.
- */
-type TReportBase = {
-    /**
-     * Initialize report storage and prepare for writes.
-     * Uses singleshot to ensure one-time execution.
-     *
-     * @param initial - Whether this is the first initialization
-     * @returns Promise that resolves when initialization is complete
-     */
-    waitForInit(initial: boolean): Promise<void>;
-    /**
-     * Write report data to storage.
-     *
-     * @param data - Report data object to write
-     * @param options - Metadata options for filtering and search
-     * @returns Promise that resolves when write is complete
-     * @throws Error if write fails or stream is not initialized
-     */
-    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
-};
-/**
- * Constructor type for report storage adapters.
- * Used for custom report storage implementations.
- */
-type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportBase;
-/**
- * JSONL-based report adapter with append-only writes.
- *
- * Features:
- * - Writes events as JSONL entries to a single file per report type
- * - Stream-based writes with backpressure handling
- * - 15-second timeout protection for write operations
- * - Automatic directory creation
- * - Error handling via exitEmitter
- * - Search metadata for filtering (symbol, strategy, exchange, frame, signalId, walkerName)
- *
- * File format: ./dump/report/{reportName}.jsonl
- * Each line contains: reportName, data, metadata, timestamp
- *
- * Use this adapter for event logging and post-processing analytics.
- */
-declare class ReportBase implements TReportBase {
-    readonly reportName: ReportName;
-    readonly baseDir: string;
-    /** Absolute path to the JSONL file for this report type */
-    _filePath: string;
-    /** WriteStream instance for append-only writes, null until initialized */
-    _stream: WriteStream | null;
-    /**
-     * Creates a new JSONL report adapter instance.
-     *
-     * @param reportName - Type of report (backtest, live, walker, etc.)
-     * @param baseDir - Base directory for report files, defaults to ./dump/report
-     */
-    constructor(reportName: ReportName, baseDir?: string);
-    /**
-     * Singleshot initialization function that creates directory and stream.
-     * Protected by singleshot to ensure one-time execution.
-     * Sets up error handler that emits to exitEmitter.
-     */
-    [WAIT_FOR_INIT_SYMBOL$1]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
-    /**
-     * Timeout-protected write function with backpressure handling.
-     * Waits for drain event if write buffer is full.
-     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
-     */
-    [WRITE_SAFE_SYMBOL$1]: (line: string) => Promise<symbol | void>;
-    /**
-     * Initializes the JSONL file and write stream.
-     * Safe to call multiple times - singleshot ensures one-time execution.
-     *
-     * @param initial - Whether this is the first initialization (informational only)
-     * @returns Promise that resolves when initialization is complete
-     */
-    waitForInit(initial: boolean): Promise<void>;
-    /**
-     * Writes event data to JSONL file with metadata.
-     * Appends a single line with JSON object containing:
-     * - reportName: Type of report
-     * - data: Event data object
-     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
-     * - timestamp: Current timestamp in milliseconds
-     *
-     * @param data - Event data object to write
-     * @param options - Metadata options for filtering and search
-     * @throws Error if stream not initialized or write timeout exceeded
-     */
-    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
-}
-/**
- * Utility class for managing report services.
- *
- * Provides methods to enable/disable JSONL event logging across
- * different service types (backtest, live, walker, performance, etc.).
- *
- * Typically extended by ReportAdapter for additional functionality.
- */
-declare class ReportUtils {
-    /**
-     * Enables report services selectively.
-     *
-     * Subscribes to specified report services and returns a cleanup function
-     * that unsubscribes from all enabled services at once.
-     *
-     * Each enabled service will:
-     * - Start listening to relevant events
-     * - Write events to JSONL files in real-time
-     * - Include metadata for filtering and analytics
-     *
-     * IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
-     *
-     * @param config - Service configuration object. Defaults to enabling all services.
-     * @param config.backtest - Enable backtest closed signal logging
-     * @param config.breakeven - Enable breakeven event logging
-     * @param config.partial - Enable partial close event logging
-     * @param config.heat - Enable heatmap data logging
-     * @param config.walker - Enable walker iteration logging
-     * @param config.performance - Enable performance metrics logging
-     * @param config.risk - Enable risk rejection logging
-     * @param config.schedule - Enable scheduled signal logging
-     * @param config.live - Enable live trading event logging
-     *
-     * @returns Cleanup function that unsubscribes from all enabled services
-     */
-    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any;
-    /**
-     * Disables report services selectively.
-     *
-     * Unsubscribes from specified report services to stop event logging.
-     * Use this method to stop JSONL logging for specific services while keeping others active.
-     *
-     * Each disabled service will:
-     * - Stop listening to events immediately
-     * - Stop writing to JSONL files
-     * - Free up event listener resources
-     *
-     * Unlike enable(), this method does NOT return an unsubscribe function.
-     * Services are unsubscribed immediately upon calling this method.
-     *
-     * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
-     * @param config.backtest - Disable backtest closed signal logging
-     * @param config.breakeven - Disable breakeven event logging
-     * @param config.partial - Disable partial close event logging
-     * @param config.heat - Disable heatmap data logging
-     * @param config.walker - Disable walker iteration logging
-     * @param config.performance - Disable performance metrics logging
-     * @param config.risk - Disable risk rejection logging
-     * @param config.schedule - Disable scheduled signal logging
-     * @param config.live - Disable live trading event logging
-     *
-     * @example
-     * ```typescript
-     * import { Report } from "backtest-kit";
-     *
-     * // Disable specific services
-     * Report.disable({ backtest: true, live: true });
-     *
-     * // Disable all services
-     * Report.disable();
-     * ```
-     */
-    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => void;
-}
-/**
- * Report adapter with pluggable storage backend and instance memoization.
- *
- * Features:
- * - Adapter pattern for swappable storage implementations
- * - Memoized storage instances (one per report type)
- * - Default adapter: ReportBase (JSONL append)
- * - Lazy initialization on first write
- * - Real-time event logging to JSONL files
- *
- * Used for structured event logging and analytics pipelines.
- */
-declare class ReportAdapter extends ReportUtils {
-    /**
-     * Current report storage adapter constructor.
-     * Defaults to ReportBase for JSONL storage.
-     * Can be changed via useReportAdapter().
-     */
-    private ReportFactory;
-    /**
-     * Memoized storage instances cache.
-     * Key: reportName (backtest, live, walker, etc.)
-     * Value: TReportBase instance created with current ReportFactory.
-     * Ensures single instance per report type for the lifetime of the application.
-     */
-    private getReportStorage;
-    /**
-     * Sets the report storage adapter constructor.
-     * All future report instances will use this adapter.
-     *
-     * @param Ctor - Constructor for report storage adapter
-     */
-    useReportAdapter(Ctor: TReportBaseCtor): void;
-    /**
-     * Writes report data to storage using the configured adapter.
-     * Automatically initializes storage on first write for each report type.
-     *
-     * @param reportName - Type of report (backtest, live, walker, etc.)
-     * @param data - Event data object to write
-     * @param options - Metadata options for filtering and search
-     * @returns Promise that resolves when write is complete
-     * @throws Error if write fails or storage initialization fails
-     *
-     * @internal - Automatically called by report services, not for direct use
-     */
-    writeData: <T = any>(reportName: ReportName, data: T, options: IReportDumpOptions) => Promise<void>;
-    /**
-     * Clears the memoized storage cache.
-     * Call this when process.cwd() changes between strategy iterations
-     * so new storage instances are created with the updated base path.
-     */
-    clear(): void;
-    /**
-     * Switches to a dummy report adapter that discards all writes.
-     * All future report writes will be no-ops.
-     */
-    useDummy(): void;
-    /**
-     * Switches to the default JSONL report adapter.
-     * All future report writes will use JSONL storage.
-     */
-    useJsonl(): void;
-}
-/**
- * Global singleton instance of ReportAdapter.
- * Provides JSONL event logging with pluggable storage backends.
- */
-declare const Report: ReportAdapter;
-
 /**
  * Configuration interface for selective markdown service enablement.
  * Controls which markdown report services should be activated.
@@ -12683,6 +12389,270 @@ declare class MarkdownFolderBase implements TMarkdownBase {
      */
     dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
 }
+/**
+ * Configuration interface for selective report service enablement.
+ * Controls which report services should be activated for JSONL event logging.
+ */
+interface IReportTarget {
+    /** Enable strategy commit actions */
+    strategy: boolean;
+    /** Enable risk rejection event logging */
+    risk: boolean;
+    /** Enable breakeven event logging */
+    breakeven: boolean;
+    /** Enable partial close event logging */
+    partial: boolean;
+    /** Enable heatmap data event logging */
+    heat: boolean;
+    /** Enable walker iteration event logging */
+    walker: boolean;
+    /** Enable performance metrics event logging */
+    performance: boolean;
+    /** Enable scheduled signal event logging */
+    schedule: boolean;
+    /** Enable live trading event logging (all tick states) */
+    live: boolean;
+    /** Enable backtest closed signal event logging */
+    backtest: boolean;
+    /** Enable signal synchronization event logging (signal-open, signal-close) */
+    sync: boolean;
+    /** Enable highest profit milestone event logging */
+    highest_profit: boolean;
+    /** Enable max drawdown milestone event logging */
+    max_drawdown: boolean;
+}
+/**
+ * Union type of all valid report names.
+ * Used for type-safe identification of report services.
+ */
+type ReportName = keyof IReportTarget;
+/**
+ * Options for report data writes.
+ * Contains metadata for event filtering and search.
+ */
+interface IReportDumpOptions {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name */
+    strategyName: string;
+    /** Exchange name */
+    exchangeName: string;
+    /** Frame name (timeframe identifier) */
+    frameName: string;
+    /** Signal unique identifier */
+    signalId: string;
+    /** Walker optimization name */
+    walkerName: string;
+}
+/**
+ * Base interface for report storage adapters.
+ * All report adapters must implement this interface.
+ */
+type TReportBase = {
+    /**
+     * Initialize report storage and prepare for writes.
+     * Uses singleshot to ensure one-time execution.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Write report data to storage.
+     *
+     * @param data - Report data object to write
+     * @param options - Metadata options for filtering and search
+     * @returns Promise that resolves when write is complete
+     * @throws Error if write fails or stream is not initialized
+     */
+    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
+};
+/**
+ * Constructor type for report storage adapters.
+ * Used for custom report storage implementations.
+ */
+type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportBase;
+/**
+ * JSONL-based report adapter with append-only writes.
+ *
+ * Features:
+ * - Writes events as JSONL entries to a single file per report type
+ * - Stream-based writes with backpressure handling
+ * - 15-second timeout protection for write operations
+ * - Automatic directory creation
+ * - Error handling via exitEmitter
+ * - Search metadata for filtering (symbol, strategy, exchange, frame, signalId, walkerName)
+ *
+ * File format: ./dump/report/{reportName}.jsonl
+ * Each line contains: reportName, data, metadata, timestamp
+ *
+ * Use this adapter for event logging and post-processing analytics.
+ */
+declare class ReportBase implements TReportBase {
+    readonly reportName: ReportName;
+    readonly baseDir: string;
+    /** Absolute path to the JSONL file for this report type */
+    _filePath: string;
+    /** WriteStream instance for append-only writes, null until initialized */
+    _stream: WriteStream | null;
+    /**
+     * Creates a new JSONL report adapter instance.
+     *
+     * @param reportName - Type of report (backtest, live, walker, etc.)
+     * @param baseDir - Base directory for report files, defaults to ./dump/report
+     */
+    constructor(reportName: ReportName, baseDir?: string);
+    /**
+     * Singleshot initialization function that creates directory and stream.
+     * Protected by singleshot to ensure one-time execution.
+     * Sets up error handler that emits to exitEmitter.
+     */
+    [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Timeout-protected write function with backpressure handling.
+     * Waits for drain event if write buffer is full.
+     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
+     */
+    [WRITE_SAFE_SYMBOL]: (line: string) => Promise<symbol | void>;
+    /**
+     * Initializes the JSONL file and write stream.
+     * Safe to call multiple times - singleshot ensures one-time execution.
+     *
+     * @param initial - Whether this is the first initialization (informational only)
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Writes event data to JSONL file with metadata.
+     * Appends a single line with JSON object containing:
+     * - reportName: Type of report
+     * - data: Event data object
+     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
+     * - timestamp: Current timestamp in milliseconds
+     *
+     * @param data - Event data object to write
+     * @param options - Metadata options for filtering and search
+     * @throws Error if stream not initialized or write timeout exceeded
+     */
+    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
+}
+
+/**
+ * Utility class for managing report services.
+ *
+ * Provides methods to enable/disable JSONL event logging across
+ * different service types (backtest, live, walker, performance, etc.).
+ *
+ * Typically extended by ReportAdapter for additional functionality.
+ */
+declare class ReportUtils {
+    /**
+     * Enables report services selectively.
+     *
+     * Subscribes to specified report services and returns a cleanup function
+     * that unsubscribes from all enabled services at once.
+     *
+     * Each enabled service will:
+     * - Start listening to relevant events
+     * - Write events to JSONL files in real-time
+     * - Include metadata for filtering and analytics
+     *
+     * IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
+     *
+     * @param config - Service configuration object. Defaults to enabling all services.
+     * @param config.backtest - Enable backtest closed signal logging
+     * @param config.breakeven - Enable breakeven event logging
+     * @param config.partial - Enable partial close event logging
+     * @param config.heat - Enable heatmap data logging
+     * @param config.walker - Enable walker iteration logging
+     * @param config.performance - Enable performance metrics logging
+     * @param config.risk - Enable risk rejection logging
+     * @param config.schedule - Enable scheduled signal logging
+     * @param config.live - Enable live trading event logging
+     *
+     * @returns Cleanup function that unsubscribes from all enabled services
+     */
+    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any;
+    /**
+     * Disables report services selectively.
+     *
+     * Unsubscribes from specified report services to stop event logging.
+     * Use this method to stop JSONL logging for specific services while keeping others active.
+     *
+     * Each disabled service will:
+     * - Stop listening to events immediately
+     * - Stop writing to JSONL files
+     * - Free up event listener resources
+     *
+     * Unlike enable(), this method does NOT return an unsubscribe function.
+     * Services are unsubscribed immediately upon calling this method.
+     *
+     * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
+     * @param config.backtest - Disable backtest closed signal logging
+     * @param config.breakeven - Disable breakeven event logging
+     * @param config.partial - Disable partial close event logging
+     * @param config.heat - Disable heatmap data logging
+     * @param config.walker - Disable walker iteration logging
+     * @param config.performance - Disable performance metrics logging
+     * @param config.risk - Disable risk rejection logging
+     * @param config.schedule - Disable scheduled signal logging
+     * @param config.live - Disable live trading event logging
+     *
+     * @example
+     * ```typescript
+     * import { Report } from "backtest-kit";
+     *
+     * // Disable specific services
+     * Report.disable({ backtest: true, live: true });
+     *
+     * // Disable all services
+     * Report.disable();
+     * ```
+     */
+    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => void;
+}
+/**
+ * Report adapter with pluggable storage backend and instance memoization.
+ *
+ * Features:
+ * - Adapter pattern for swappable storage implementations
+ * - Memoized storage instances (one per report type)
+ * - Default adapter: ReportBase (JSONL append)
+ * - Lazy initialization on first write
+ * - Real-time event logging to JSONL files
+ *
+ * Used for structured event logging and analytics pipelines.
+ */
+declare class ReportAdapter extends ReportUtils {
+    /**
+     * Sets the report storage adapter constructor.
+     * All future report instances will use this adapter.
+     *
+     * @param Ctor - Constructor for report storage adapter
+     */
+    useReportAdapter(Ctor: TReportBaseCtor): void;
+    /**
+     * Clears the memoized storage cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new storage instances are created with the updated base path.
+     */
+    clear(): void;
+    /**
+     * Switches to a dummy report adapter that discards all writes.
+     * All future report writes will be no-ops.
+     */
+    useDummy(): void;
+    /**
+     * Switches to the default JSONL report adapter.
+     * All future report writes will use JSONL storage.
+     */
+    useJsonl(): void;
+}
+/**
+ * Global singleton instance of ReportAdapter.
+ * Provides JSONL event logging with pluggable storage backends.
+ */
+declare const Report: ReportAdapter;
 
 /**
  * Utility class for managing markdown report services.

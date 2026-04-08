@@ -4,7 +4,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { performanceEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { singleton } from "di-singleton";
 
 const PERFORMANCE_REPORT_METHOD_NAME_SUBSCRIBE = "PerformanceReportService.subscribe";
@@ -20,7 +20,7 @@ const PERFORMANCE_REPORT_METHOD_NAME_TRACK = "PerformanceReportService.track";
  * Features:
  * - Listens to performance events via performanceEmitter
  * - Logs all timing metrics with duration and metadata
- * - Stores events in Report.writeData() for performance analysis
+ * - Stores events in ReportWriter.writeData() for performance analysis
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -53,7 +53,7 @@ export const PerformanceReportService = singleton(class {
   public track = async (event: PerformanceContract) => {
     this.loggerService.log(PERFORMANCE_REPORT_METHOD_NAME_TRACK, { event });
 
-    await Report.writeData("performance", {
+    await ReportWriter.writeData("performance", {
       timestamp: event.timestamp,
       metricType: event.metricType,
       duration: event.duration,

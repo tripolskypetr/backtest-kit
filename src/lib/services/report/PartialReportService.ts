@@ -5,7 +5,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { partialProfitSubject, partialLossSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { singleton } from "di-singleton";
@@ -25,7 +25,7 @@ const PARTIAL_REPORT_METHOD_NAME_TICK_LOSS = "PartialReportService.tickLoss";
  * - Listens to partial profit events via partialProfitSubject
  * - Listens to partial loss events via partialLossSubject
  * - Logs all partial exit events with level and price information
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -67,7 +67,7 @@ export const PartialReportService = singleton(class {
   }) => {
     this.loggerService.log(PARTIAL_REPORT_METHOD_NAME_TICK_PROFIT, { data });
 
-    await Report.writeData("partial", {
+    await ReportWriter.writeData("partial", {
       timestamp: data.timestamp,
       action: "profit",
       symbol: data.symbol,
@@ -128,7 +128,7 @@ export const PartialReportService = singleton(class {
   }) => {
     this.loggerService.log(PARTIAL_REPORT_METHOD_NAME_TICK_LOSS, { data });
 
-    await Report.writeData("partial", {
+    await ReportWriter.writeData("partial", {
       timestamp: data.timestamp,
       action: "loss",
       symbol: data.symbol,

@@ -3,7 +3,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { riskSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { RiskEvent } from "../../../model/RiskStatistics.model";
 import { singleton } from "di-singleton";
 
@@ -20,7 +20,7 @@ const RISK_REPORT_METHOD_NAME_TICK = "RiskReportService.tickRejection";
  * Features:
  * - Listens to risk rejection events via riskSubject
  * - Logs all rejected signals with reason and pending signal details
- * - Stores events in Report.writeData() for risk tracking
+ * - Stores events in ReportWriter.writeData() for risk tracking
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -53,7 +53,7 @@ export const RiskReportService = singleton(class {
   public tickRejection = async (data: RiskEvent) => {
     this.loggerService.log(RISK_REPORT_METHOD_NAME_TICK, { data });
 
-    await Report.writeData("risk", {
+    await ReportWriter.writeData("risk", {
       timestamp: data.timestamp,
       symbol: data.symbol,
       strategyName: data.strategyName,

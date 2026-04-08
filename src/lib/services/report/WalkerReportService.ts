@@ -4,9 +4,9 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { walkerEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 import { singleton } from "di-singleton";
+import { ReportWriter } from "../../../classes/Writer";
 
 const WALKER_REPORT_METHOD_NAME_SUBSCRIBE = "WalkerReportService.subscribe";
 const WALKER_REPORT_METHOD_NAME_UNSUBSCRIBE = "WalkerReportService.unsubscribe";
@@ -22,7 +22,7 @@ const WALKER_REPORT_METHOD_NAME_TICK = "WalkerReportService.tick";
  * - Listens to walker events via walkerEmitter
  * - Logs each strategy test result with metrics and statistics
  * - Tracks best strategy and optimization progress
- * - Stores events in Report.writeData() for optimization analysis
+ * - Stores events in ReportWriter.writeData() for optimization analysis
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -63,7 +63,7 @@ export const WalkerReportService = singleton(class {
       ? signals.reduce((acc, s) => s.closeTimestamp > acc ? s.closeTimestamp : acc, signals[0].closeTimestamp)
       : null;
 
-    await Report.writeData("walker", {
+    await ReportWriter.writeData("walker", {
       timestamp: getContextTimestamp(),
       walkerName: data.walkerName,
       symbol: data.symbol,

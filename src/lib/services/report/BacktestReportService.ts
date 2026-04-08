@@ -4,7 +4,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalBacktestEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 import { singleton } from "di-singleton";
 
@@ -21,7 +21,7 @@ const BACKTEST_REPORT_METHOD_NAME_TICK = "BacktestReportService.tick";
  * Features:
  * - Listens to backtest signal events via signalBacktestEmitter
  * - Logs all tick event types with full signal details
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -76,9 +76,9 @@ export const BacktestReportService = singleton(class {
     };
 
     if (data.action === "idle") {
-      await Report.writeData("backtest", baseEvent, searchOptions);
+      await ReportWriter.writeData("backtest", baseEvent, searchOptions);
     } else if (data.action === "opened") {
-      await Report.writeData("backtest", {
+      await ReportWriter.writeData("backtest", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,
@@ -99,7 +99,7 @@ export const BacktestReportService = singleton(class {
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "active") {
-      await Report.writeData("backtest", {
+      await ReportWriter.writeData("backtest", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,
@@ -132,7 +132,7 @@ export const BacktestReportService = singleton(class {
       const durationMs = data.closeTimestamp - data.signal?.pendingAt;
       const durationMin = Math.round(durationMs / 60000);
 
-      await Report.writeData("backtest", {
+      await ReportWriter.writeData("backtest", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,

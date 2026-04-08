@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { compose, singleshot } from "functools-kit";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
@@ -32,7 +32,7 @@ import { singleton } from "di-singleton";
  *
  * Lifecycle:
  * - Call subscribe() to enable event logging
- * - Events are written via Report.writeData() with "strategy" category
+ * - Events are written via ReportWriter.writeData() with "strategy" category
  * - Call unsubscribe() to disable event logging
  *
  * @see StrategyMarkdownService for in-memory event accumulation and markdown report generation
@@ -67,7 +67,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "cancel-scheduled",
@@ -119,7 +119,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "close-pending",
@@ -183,7 +183,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "partial-profit",
@@ -258,7 +258,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "partial-loss",
@@ -333,7 +333,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "trailing-stop",
@@ -408,7 +408,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "trailing-take",
@@ -481,7 +481,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "breakeven",
@@ -555,7 +555,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "activate-scheduled",
@@ -632,7 +632,7 @@ export const StrategyReportService = singleton(class {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "average-buy",

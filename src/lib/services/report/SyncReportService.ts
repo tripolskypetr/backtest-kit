@@ -3,7 +3,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot, trycatch } from "functools-kit";
 import { syncSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import SignalSyncContract from "../../../contract/SignalSync.contract";
 import { singleton } from "di-singleton";
 
@@ -22,7 +22,7 @@ const SYNC_REPORT_METHOD_NAME_TICK = "SyncReportService.tick";
  * - Listens to sync events via syncSubject
  * - Logs signal-open events (scheduled limit order filled) with full signal details
  * - Logs signal-close events (position exited) with PNL and close reason
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -99,9 +99,9 @@ export const SyncReportService = singleton(class {
     };
 
     if (data.action === "signal-open") {
-      await Report.writeData("sync", baseEvent, searchOptions);
+      await ReportWriter.writeData("sync", baseEvent, searchOptions);
     } else if (data.action === "signal-close") {
-      await Report.writeData("sync", {
+      await ReportWriter.writeData("sync", {
         ...baseEvent,
         closeReason: data.closeReason,
       }, searchOptions);

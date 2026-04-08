@@ -4,7 +4,7 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 import { singleton } from "di-singleton";
 
@@ -21,7 +21,7 @@ const HEAT_REPORT_METHOD_NAME_TICK = "HeatReportService.tick";
  * Features:
  * - Listens to signal events via signalEmitter
  * - Logs only closed signals with PNL data
- * - Stores events in Report.writeData() for heatmap generation
+ * - Stores events in ReportWriter.writeData() for heatmap generation
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -59,7 +59,7 @@ export const HeatReportService = singleton(class {
       return;
     }
 
-    await Report.writeData("heat", {
+    await ReportWriter.writeData("heat", {
       timestamp: getContextTimestamp(),
       action: data.action,
       symbol: data.symbol,

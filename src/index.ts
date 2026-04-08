@@ -383,10 +383,6 @@ export {
 
 export {
   Report,
-  ReportBase,
-  ReportName,
-  TReportBase,
-  IReportDumpOptions,
 } from "./classes/Report";
 
 export {
@@ -399,6 +395,13 @@ export {
   MarkdownName,
   TMarkdownBase,
   IMarkdownDumpOptions,
+} from "./classes/Writer"
+
+export {
+  ReportBase,
+  ReportName,
+  TReportBase,
+  IReportDumpOptions,
 } from "./classes/Writer"
 
 export {
