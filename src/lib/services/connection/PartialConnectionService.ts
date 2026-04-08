@@ -68,7 +68,7 @@ const CREATE_COMMIT_PROFIT_FN = (self: PartialConnectionService) => trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -117,7 +117,7 @@ const CREATE_COMMIT_LOSS_FN = (self: PartialConnectionService) => trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -160,12 +160,12 @@ export class PartialConnectionService implements IPartial {
   /**
    * Logger service injected from DI container.
    */
-  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Action core service injected from DI container.
    */
-  public readonly actionCoreService = inject<ActionCoreService>(TYPES.actionCoreService);
+  readonly actionCoreService = inject<ActionCoreService>(TYPES.actionCoreService);
 
   /**
    * Memoized factory function for ClientPartial instances.

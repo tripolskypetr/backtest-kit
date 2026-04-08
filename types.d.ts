@@ -23676,7 +23676,22 @@ declare class PartialConnectionService implements IPartial {
     /**
      * Logger service injected from DI container.
      */
-    private readonly loggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     /**
      * Action core service injected from DI container.
      */
@@ -23777,7 +23792,22 @@ declare class BreakevenConnectionService implements IBreakeven {
     /**
      * Logger service injected from DI container.
      */
-    private readonly loggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     /**
      * Action core service injected from DI container.
      */
