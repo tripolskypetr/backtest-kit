@@ -35,7 +35,7 @@ import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist";
-import backtest, { ExecutionContextService } from "../lib";
+import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import toPlainString from "../helpers/toPlainString";
