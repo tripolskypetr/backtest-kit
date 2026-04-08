@@ -13,7 +13,7 @@ and stores them in the Report database for analysis and tracking.
 Features:
 - Listens to breakeven events via breakevenSubject
 - Logs all breakeven achievements with full signal details
-- Stores events in Report.writeData() for persistence
+- Stores events in ReportWriter.writeData() for persistence
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

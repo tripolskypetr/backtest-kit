@@ -16,7 +16,7 @@ this service writes each event immediately to disk for audit trail purposes.
 
 Lifecycle:
 - Call subscribe() to enable event logging
-- Events are written via Report.writeData() with "strategy" category
+- Events are written via ReportWriter.writeData() with "strategy" category
 - Call unsubscribe() to disable event logging
 
 ## Constructor
@@ -30,7 +30,7 @@ constructor();
 ### loggerService
 
 ```ts
-loggerService: LoggerService
+loggerService: { readonly methodContextService: { readonly context: IMethodContext; }; readonly executionContextService: { readonly context: IExecutionContext; }; ... 7 more ...; setLogger: (logger: ILogger) => void; }
 ```
 
 ### cancelScheduled

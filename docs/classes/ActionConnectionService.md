@@ -38,6 +38,12 @@ loggerService: any
 actionSchemaService: any
 ```
 
+### strategyCoreService
+
+```ts
+strategyCoreService: any
+```
+
 ### getAction
 
 ```ts

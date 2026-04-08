@@ -2,6 +2,7 @@ import { ILogger } from "./Logger.interface";
 import { IPublicSignalRow, IRiskSignalRow, StrategyName } from "./Strategy.interface";
 import { ExchangeName } from "./Exchange.interface";
 import { FrameName } from "./Frame.interface";
+import { TExecutionContextService } from "../lib/services/context/ExecutionContextService";
 
 /**
  * Risk rejection result type.
@@ -148,6 +149,9 @@ export interface IRiskParams extends IRiskSchema {
 
   /** Logger service for debug output */
   logger: ILogger;
+
+  /** Execution context service (symbol, when, backtest flag) */
+  execution: TExecutionContextService;
 
   /** True if backtest mode, false if live mode */
   backtest: boolean;

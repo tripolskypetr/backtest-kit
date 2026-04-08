@@ -13,7 +13,7 @@ and stores them in the Report database for bottleneck analysis and optimization.
 Features:
 - Listens to performance events via performanceEmitter
 - Logs all timing metrics with duration and metadata
-- Stores events in Report.writeData() for performance analysis
+- Stores events in ReportWriter.writeData() for performance analysis
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

@@ -13,7 +13,7 @@ and stores them in the Report database for analysis and debugging.
 Features:
 - Listens to backtest signal events via signalBacktestEmitter
 - Logs all tick event types with full signal details
-- Stores events in Report.writeData() for persistence
+- Stores events in ReportWriter.writeData() for persistence
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

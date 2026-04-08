@@ -1,9 +1,13 @@
+import LoggerService from "../lib/services/base/LoggerService";
 import { GLOBAL_CONFIG } from "../config/params";
 import backtest from "../lib";
 import { Lock } from "./Lock";
 
 const METHOD_NAME_ACQUIRE_LOCK = "CandleUtils.acquireLock";
 const METHOD_NAME_RELEASE_LOCK = "CandleUtils.releaseLock";
+
+/** Logger service injected as DI singleton */
+const LOGGER_SERVICE = new LoggerService();
 
 export class CandleUtils {
   private _lock = new Lock();
@@ -15,7 +19,7 @@ export class CandleUtils {
    * @param source - Caller identifier for logging
    */
   public acquireLock = async (source: string) => {
-    backtest.loggerService.info(METHOD_NAME_ACQUIRE_LOCK, {
+    LOGGER_SERVICE.info(METHOD_NAME_ACQUIRE_LOCK, {
       source,
     });
     if (!GLOBAL_CONFIG.CC_ENABLE_CANDLE_FETCH_MUTEX) {
@@ -31,7 +35,7 @@ export class CandleUtils {
    * @param source - Caller identifier for logging
    */
   public releaseLock = async (source: string) => {
-    backtest.loggerService.info(METHOD_NAME_RELEASE_LOCK, {
+    LOGGER_SERVICE.info(METHOD_NAME_RELEASE_LOCK, {
       source,
     });
     if (!GLOBAL_CONFIG.CC_ENABLE_CANDLE_FETCH_MUTEX) {

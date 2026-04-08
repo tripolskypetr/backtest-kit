@@ -1,10 +1,10 @@
 import { IPublicSignalRow } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { maxDrawdownSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 
@@ -16,16 +16,16 @@ const MAX_DRAWDOWN_REPORT_METHOD_NAME_TICK = "MaxDrawdownReportService.tick";
  * Service for logging max drawdown events to the JSONL report database.
  *
  * Listens to maxDrawdownSubject and writes each new drawdown record to
- * Report.writeData() for persistence and analytics.
+ * ReportWriter.writeData() for persistence and analytics.
  */
 export class MaxDrawdownReportService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Handles a single `MaxDrawdownContract` event emitted by `maxDrawdownSubject`.
    *
    * Writes a JSONL record to the `"max_drawdown"` report database via
-   * `Report.writeData`, capturing the full signal snapshot at the moment
+   * `ReportWriter.writeData`, capturing the full signal snapshot at the moment
    * the new drawdown record was set:
    * - `timestamp`, `symbol`, `strategyName`, `exchangeName`, `frameName`, `backtest`
    * - `signalId`, `position`, `currentPrice`
@@ -49,7 +49,7 @@ export class MaxDrawdownReportService {
   }) => {
     this.loggerService.log(MAX_DRAWDOWN_REPORT_METHOD_NAME_TICK, { data });
 
-    await Report.writeData("max_drawdown", {
+    await ReportWriter.writeData("max_drawdown", {
       timestamp: data.timestamp,
       symbol: data.symbol,
       strategyName: data.signal.strategyName,

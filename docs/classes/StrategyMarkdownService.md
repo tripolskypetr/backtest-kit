@@ -39,7 +39,7 @@ constructor();
 ### loggerService
 
 ```ts
-loggerService: LoggerService
+loggerService: { readonly methodContextService: { readonly context: IMethodContext; }; readonly executionContextService: { readonly context: IExecutionContext; }; ... 7 more ...; setLogger: (logger: ILogger) => void; }
 ```
 
 ### getStorage
@@ -158,7 +158,7 @@ dump: (symbol: string, strategyName: string, exchangeName: string, frameName: st
 Generates and saves a markdown report to disk.
 
 Creates the output directory if it doesn't exist and writes
-the report with a timestamped filename via Markdown.writeData().
+the report with a timestamped filename via MarkdownWriter.writeData().
 
 Filename format: `{symbol}_{strategyName}_{exchangeName}[_{frameName}_backtest&vert;_live]-{timestamp}.md`
 

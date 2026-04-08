@@ -13,7 +13,7 @@ and stores them in the Report database for risk analysis and auditing.
 Features:
 - Listens to risk rejection events via riskSubject
 - Logs all rejected signals with reason and pending signal details
-- Stores events in Report.writeData() for risk tracking
+- Stores events in ReportWriter.writeData() for risk tracking
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

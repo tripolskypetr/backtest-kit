@@ -15,7 +15,7 @@ Features:
 - Listens to sync events via syncSubject
 - Logs signal-open events (scheduled limit order filled) with full signal details
 - Logs signal-close events (position exited) with PNL and close reason
-- Stores events in Report.writeData() for persistence
+- Stores events in ReportWriter.writeData() for persistence
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

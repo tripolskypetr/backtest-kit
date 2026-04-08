@@ -24,38 +24,6 @@ Used for structured event logging and analytics pipelines.
 constructor();
 ```
 
-## Properties
-
-### ReportFactory
-
-```ts
-ReportFactory: any
-```
-
-Current report storage adapter constructor.
-Defaults to ReportBase for JSONL storage.
-Can be changed via useReportAdapter().
-
-### getReportStorage
-
-```ts
-getReportStorage: any
-```
-
-Memoized storage instances cache.
-Key: reportName (backtest, live, walker, etc.)
-Value: TReportBase instance created with current ReportFactory.
-Ensures single instance per report type for the lifetime of the application.
-
-### writeData
-
-```ts
-writeData: <T = any>(reportName: keyof IReportTarget, data: T, options: IReportDumpOptions) => Promise<void>
-```
-
-Writes report data to storage using the configured adapter.
-Automatically initializes storage on first write for each report type.
-
 ## Methods
 
 ### useReportAdapter

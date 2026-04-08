@@ -272,6 +272,8 @@ interface IRiskParams extends IRiskSchema {
     exchangeName: ExchangeName;
     /** Logger service for debug output */
     logger: ILogger;
+    /** Execution context service (symbol, when, backtest flag) */
+    execution: TExecutionContextService;
     /** True if backtest mode, false if live mode */
     backtest: boolean;
     /**
@@ -1322,6 +1324,47 @@ type SignalSyncContract = SignalOpenContract | SignalCloseContract;
  */
 type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName, backtest: boolean) => Partial<IPublicAction>;
 /**
+ * Strategy query interface exposed to action handlers via IActionParams.strategy.
+ *
+ * Provides read-only access to the current signal state needed for
+ * guard checks inside ActionProxy before invoking user callbacks.
+ *
+ * Used by:
+ * - ActionProxy.breakevenAvailable — skips if no pending signal
+ * - ActionProxy.partialProfitAvailable — skips if no pending signal
+ * - ActionProxy.partialLossAvailable — skips if no pending signal
+ * - ActionProxy.pingActive — skips if no pending signal
+ * - ActionProxy.pingScheduled — skips if no scheduled signal
+ */
+interface IActionStrategy {
+    /**
+     * Checks if there is an active pending signal (open position) for the symbol.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if a pending signal exists, false otherwise
+     */
+    hasPendingSignal(backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }): Promise<boolean>;
+    /**
+     * Checks if there is a waiting scheduled signal for the symbol.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if a scheduled signal exists, false otherwise
+     */
+    hasScheduledSignal(backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }): Promise<boolean>;
+}
+/**
  * Action parameters passed to ClientAction constructor.
  * Combines schema with runtime dependencies and execution context.
  *
@@ -1355,6 +1398,8 @@ interface IActionParams extends IActionSchema {
     frameName: FrameName;
     /** Whether running in backtest mode */
     backtest: boolean;
+    /** Strategy context object providing access to current signal and position state */
+    strategy: IActionStrategy;
 }
 /**
  * Lifecycle and event callbacks for action handlers.
@@ -12151,300 +12196,6 @@ declare class PersistMemoryUtils {
  */
 declare const PersistMemoryAdapter: PersistMemoryUtils;
 
-/** Symbol key for the singleshot waitForInit function on ReportBase instances. */
-declare const WAIT_FOR_INIT_SYMBOL$1: unique symbol;
-/** Symbol key for the timeout-protected write function on ReportBase instances. */
-declare const WRITE_SAFE_SYMBOL$1: unique symbol;
-/**
- * Configuration interface for selective report service enablement.
- * Controls which report services should be activated for JSONL event logging.
- */
-interface IReportTarget {
-    /** Enable strategy commit actions */
-    strategy: boolean;
-    /** Enable risk rejection event logging */
-    risk: boolean;
-    /** Enable breakeven event logging */
-    breakeven: boolean;
-    /** Enable partial close event logging */
-    partial: boolean;
-    /** Enable heatmap data event logging */
-    heat: boolean;
-    /** Enable walker iteration event logging */
-    walker: boolean;
-    /** Enable performance metrics event logging */
-    performance: boolean;
-    /** Enable scheduled signal event logging */
-    schedule: boolean;
-    /** Enable live trading event logging (all tick states) */
-    live: boolean;
-    /** Enable backtest closed signal event logging */
-    backtest: boolean;
-    /** Enable signal synchronization event logging (signal-open, signal-close) */
-    sync: boolean;
-    /** Enable highest profit milestone event logging */
-    highest_profit: boolean;
-    /** Enable max drawdown milestone event logging */
-    max_drawdown: boolean;
-}
-/**
- * Union type of all valid report names.
- * Used for type-safe identification of report services.
- */
-type ReportName = keyof IReportTarget;
-/**
- * Options for report data writes.
- * Contains metadata for event filtering and search.
- */
-interface IReportDumpOptions {
-    /** Trading pair symbol (e.g., "BTCUSDT") */
-    symbol: string;
-    /** Strategy name */
-    strategyName: string;
-    /** Exchange name */
-    exchangeName: string;
-    /** Frame name (timeframe identifier) */
-    frameName: string;
-    /** Signal unique identifier */
-    signalId: string;
-    /** Walker optimization name */
-    walkerName: string;
-}
-/**
- * Base interface for report storage adapters.
- * All report adapters must implement this interface.
- */
-type TReportBase = {
-    /**
-     * Initialize report storage and prepare for writes.
-     * Uses singleshot to ensure one-time execution.
-     *
-     * @param initial - Whether this is the first initialization
-     * @returns Promise that resolves when initialization is complete
-     */
-    waitForInit(initial: boolean): Promise<void>;
-    /**
-     * Write report data to storage.
-     *
-     * @param data - Report data object to write
-     * @param options - Metadata options for filtering and search
-     * @returns Promise that resolves when write is complete
-     * @throws Error if write fails or stream is not initialized
-     */
-    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
-};
-/**
- * Constructor type for report storage adapters.
- * Used for custom report storage implementations.
- */
-type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportBase;
-/**
- * JSONL-based report adapter with append-only writes.
- *
- * Features:
- * - Writes events as JSONL entries to a single file per report type
- * - Stream-based writes with backpressure handling
- * - 15-second timeout protection for write operations
- * - Automatic directory creation
- * - Error handling via exitEmitter
- * - Search metadata for filtering (symbol, strategy, exchange, frame, signalId, walkerName)
- *
- * File format: ./dump/report/{reportName}.jsonl
- * Each line contains: reportName, data, metadata, timestamp
- *
- * Use this adapter for event logging and post-processing analytics.
- */
-declare class ReportBase implements TReportBase {
-    readonly reportName: ReportName;
-    readonly baseDir: string;
-    /** Absolute path to the JSONL file for this report type */
-    _filePath: string;
-    /** WriteStream instance for append-only writes, null until initialized */
-    _stream: WriteStream | null;
-    /**
-     * Creates a new JSONL report adapter instance.
-     *
-     * @param reportName - Type of report (backtest, live, walker, etc.)
-     * @param baseDir - Base directory for report files, defaults to ./dump/report
-     */
-    constructor(reportName: ReportName, baseDir?: string);
-    /**
-     * Singleshot initialization function that creates directory and stream.
-     * Protected by singleshot to ensure one-time execution.
-     * Sets up error handler that emits to exitEmitter.
-     */
-    [WAIT_FOR_INIT_SYMBOL$1]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
-    /**
-     * Timeout-protected write function with backpressure handling.
-     * Waits for drain event if write buffer is full.
-     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
-     */
-    [WRITE_SAFE_SYMBOL$1]: (line: string) => Promise<symbol | void>;
-    /**
-     * Initializes the JSONL file and write stream.
-     * Safe to call multiple times - singleshot ensures one-time execution.
-     *
-     * @param initial - Whether this is the first initialization (informational only)
-     * @returns Promise that resolves when initialization is complete
-     */
-    waitForInit(initial: boolean): Promise<void>;
-    /**
-     * Writes event data to JSONL file with metadata.
-     * Appends a single line with JSON object containing:
-     * - reportName: Type of report
-     * - data: Event data object
-     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
-     * - timestamp: Current timestamp in milliseconds
-     *
-     * @param data - Event data object to write
-     * @param options - Metadata options for filtering and search
-     * @throws Error if stream not initialized or write timeout exceeded
-     */
-    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
-}
-/**
- * Utility class for managing report services.
- *
- * Provides methods to enable/disable JSONL event logging across
- * different service types (backtest, live, walker, performance, etc.).
- *
- * Typically extended by ReportAdapter for additional functionality.
- */
-declare class ReportUtils {
-    /**
-     * Enables report services selectively.
-     *
-     * Subscribes to specified report services and returns a cleanup function
-     * that unsubscribes from all enabled services at once.
-     *
-     * Each enabled service will:
-     * - Start listening to relevant events
-     * - Write events to JSONL files in real-time
-     * - Include metadata for filtering and analytics
-     *
-     * IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
-     *
-     * @param config - Service configuration object. Defaults to enabling all services.
-     * @param config.backtest - Enable backtest closed signal logging
-     * @param config.breakeven - Enable breakeven event logging
-     * @param config.partial - Enable partial close event logging
-     * @param config.heat - Enable heatmap data logging
-     * @param config.walker - Enable walker iteration logging
-     * @param config.performance - Enable performance metrics logging
-     * @param config.risk - Enable risk rejection logging
-     * @param config.schedule - Enable scheduled signal logging
-     * @param config.live - Enable live trading event logging
-     *
-     * @returns Cleanup function that unsubscribes from all enabled services
-     */
-    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any;
-    /**
-     * Disables report services selectively.
-     *
-     * Unsubscribes from specified report services to stop event logging.
-     * Use this method to stop JSONL logging for specific services while keeping others active.
-     *
-     * Each disabled service will:
-     * - Stop listening to events immediately
-     * - Stop writing to JSONL files
-     * - Free up event listener resources
-     *
-     * Unlike enable(), this method does NOT return an unsubscribe function.
-     * Services are unsubscribed immediately upon calling this method.
-     *
-     * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
-     * @param config.backtest - Disable backtest closed signal logging
-     * @param config.breakeven - Disable breakeven event logging
-     * @param config.partial - Disable partial close event logging
-     * @param config.heat - Disable heatmap data logging
-     * @param config.walker - Disable walker iteration logging
-     * @param config.performance - Disable performance metrics logging
-     * @param config.risk - Disable risk rejection logging
-     * @param config.schedule - Disable scheduled signal logging
-     * @param config.live - Disable live trading event logging
-     *
-     * @example
-     * ```typescript
-     * import { Report } from "backtest-kit";
-     *
-     * // Disable specific services
-     * Report.disable({ backtest: true, live: true });
-     *
-     * // Disable all services
-     * Report.disable();
-     * ```
-     */
-    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => void;
-}
-/**
- * Report adapter with pluggable storage backend and instance memoization.
- *
- * Features:
- * - Adapter pattern for swappable storage implementations
- * - Memoized storage instances (one per report type)
- * - Default adapter: ReportBase (JSONL append)
- * - Lazy initialization on first write
- * - Real-time event logging to JSONL files
- *
- * Used for structured event logging and analytics pipelines.
- */
-declare class ReportAdapter extends ReportUtils {
-    /**
-     * Current report storage adapter constructor.
-     * Defaults to ReportBase for JSONL storage.
-     * Can be changed via useReportAdapter().
-     */
-    private ReportFactory;
-    /**
-     * Memoized storage instances cache.
-     * Key: reportName (backtest, live, walker, etc.)
-     * Value: TReportBase instance created with current ReportFactory.
-     * Ensures single instance per report type for the lifetime of the application.
-     */
-    private getReportStorage;
-    /**
-     * Sets the report storage adapter constructor.
-     * All future report instances will use this adapter.
-     *
-     * @param Ctor - Constructor for report storage adapter
-     */
-    useReportAdapter(Ctor: TReportBaseCtor): void;
-    /**
-     * Writes report data to storage using the configured adapter.
-     * Automatically initializes storage on first write for each report type.
-     *
-     * @param reportName - Type of report (backtest, live, walker, etc.)
-     * @param data - Event data object to write
-     * @param options - Metadata options for filtering and search
-     * @returns Promise that resolves when write is complete
-     * @throws Error if write fails or storage initialization fails
-     *
-     * @internal - Automatically called by report services, not for direct use
-     */
-    writeData: <T = any>(reportName: ReportName, data: T, options: IReportDumpOptions) => Promise<void>;
-    /**
-     * Clears the memoized storage cache.
-     * Call this when process.cwd() changes between strategy iterations
-     * so new storage instances are created with the updated base path.
-     */
-    clear(): void;
-    /**
-     * Switches to a dummy report adapter that discards all writes.
-     * All future report writes will be no-ops.
-     */
-    useDummy(): void;
-    /**
-     * Switches to the default JSONL report adapter.
-     * All future report writes will use JSONL storage.
-     */
-    useJsonl(): void;
-}
-/**
- * Global singleton instance of ReportAdapter.
- * Provides JSONL event logging with pluggable storage backends.
- */
-declare const Report: ReportAdapter;
-
 /**
  * Configuration interface for selective markdown service enablement.
  * Controls which markdown report services should be activated.
@@ -12639,6 +12390,403 @@ declare class MarkdownFolderBase implements TMarkdownBase {
     dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
 }
 /**
+ * Markdown writer with pluggable storage backend and instance memoization.
+ *
+ * Features:
+ * - Adapter pattern for swappable storage implementations (folder, JSONL, dummy)
+ * - Memoized storage instances (one per markdown type)
+ * - Default adapter: MarkdownFolderBase (one .md file per report)
+ * - Lazy initialization on first write
+ *
+ * Use `useMd()` for human-readable folder output, `useJsonl()` for centralized
+ * append-only logging, or `useDummy()` to suppress all markdown output.
+ */
+declare class MarkdownWriterAdapter {
+    /**
+     * Current markdown storage adapter constructor.
+     * Defaults to MarkdownFolderBase for per-file storage.
+     * Can be changed via useMarkdownAdapter().
+     */
+    private MarkdownFactory;
+    /**
+     * Memoized storage instances cache.
+     * Key: markdownName (backtest, live, walker, etc.)
+     * Value: TMarkdownBase instance created with current MarkdownFactory.
+     * Ensures single instance per markdown type for the lifetime of the application.
+     */
+    private getMarkdownStorage;
+    /**
+     * Sets the markdown storage adapter constructor.
+     * All future markdown instances will use this adapter.
+     *
+     * @param Ctor - Constructor for markdown storage adapter
+     */
+    useMarkdownAdapter(Ctor: TMarkdownBaseCtor): void;
+    /**
+     * Writes markdown content to storage using the configured adapter.
+     * Automatically initializes storage on first write for each markdown type.
+     *
+     * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
+     * @param content - Markdown content to write
+     * @param options - Path and metadata options for the dump
+     * @returns Promise that resolves when write is complete
+     * @throws Error if write fails or storage initialization fails
+     */
+    writeData(markdownName: MarkdownName, content: string, options: IMarkdownDumpOptions): Promise<void>;
+    /**
+     * Switches to the folder-based markdown adapter (default).
+     * Each report is written as a separate .md file.
+     */
+    useMd(): void;
+    /**
+     * Switches to the JSONL markdown adapter.
+     * All reports are appended to a single .jsonl file per markdown type.
+     */
+    useJsonl(): void;
+    /**
+     * Clears the memoized storage cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new storage instances are created with the updated base path.
+     */
+    clear(): void;
+    /**
+     * Switches to a dummy markdown adapter that discards all writes.
+     * All future markdown writes will be no-ops.
+     */
+    useDummy(): void;
+}
+declare const MarkdownWriter: MarkdownWriterAdapter;
+/**
+ * Configuration interface for selective report service enablement.
+ * Controls which report services should be activated for JSONL event logging.
+ */
+interface IReportTarget {
+    /** Enable strategy commit actions */
+    strategy: boolean;
+    /** Enable risk rejection event logging */
+    risk: boolean;
+    /** Enable breakeven event logging */
+    breakeven: boolean;
+    /** Enable partial close event logging */
+    partial: boolean;
+    /** Enable heatmap data event logging */
+    heat: boolean;
+    /** Enable walker iteration event logging */
+    walker: boolean;
+    /** Enable performance metrics event logging */
+    performance: boolean;
+    /** Enable scheduled signal event logging */
+    schedule: boolean;
+    /** Enable live trading event logging (all tick states) */
+    live: boolean;
+    /** Enable backtest closed signal event logging */
+    backtest: boolean;
+    /** Enable signal synchronization event logging (signal-open, signal-close) */
+    sync: boolean;
+    /** Enable highest profit milestone event logging */
+    highest_profit: boolean;
+    /** Enable max drawdown milestone event logging */
+    max_drawdown: boolean;
+}
+/**
+ * Union type of all valid report names.
+ * Used for type-safe identification of report services.
+ */
+type ReportName = keyof IReportTarget;
+/**
+ * Options for report data writes.
+ * Contains metadata for event filtering and search.
+ */
+interface IReportDumpOptions {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name */
+    strategyName: string;
+    /** Exchange name */
+    exchangeName: string;
+    /** Frame name (timeframe identifier) */
+    frameName: string;
+    /** Signal unique identifier */
+    signalId: string;
+    /** Walker optimization name */
+    walkerName: string;
+}
+/**
+ * Base interface for report storage adapters.
+ * All report adapters must implement this interface.
+ */
+type TReportBase = {
+    /**
+     * Initialize report storage and prepare for writes.
+     * Uses singleshot to ensure one-time execution.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Write report data to storage.
+     *
+     * @param data - Report data object to write
+     * @param options - Metadata options for filtering and search
+     * @returns Promise that resolves when write is complete
+     * @throws Error if write fails or stream is not initialized
+     */
+    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
+};
+/**
+ * Constructor type for report storage adapters.
+ * Used for custom report storage implementations.
+ */
+type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportBase;
+/**
+ * JSONL-based report adapter with append-only writes.
+ *
+ * Features:
+ * - Writes events as JSONL entries to a single file per report type
+ * - Stream-based writes with backpressure handling
+ * - 15-second timeout protection for write operations
+ * - Automatic directory creation
+ * - Error handling via exitEmitter
+ * - Search metadata for filtering (symbol, strategy, exchange, frame, signalId, walkerName)
+ *
+ * File format: ./dump/report/{reportName}.jsonl
+ * Each line contains: reportName, data, metadata, timestamp
+ *
+ * Use this adapter for event logging and post-processing analytics.
+ */
+declare class ReportBase implements TReportBase {
+    readonly reportName: ReportName;
+    readonly baseDir: string;
+    /** Absolute path to the JSONL file for this report type */
+    _filePath: string;
+    /** WriteStream instance for append-only writes, null until initialized */
+    _stream: WriteStream | null;
+    /**
+     * Creates a new JSONL report adapter instance.
+     *
+     * @param reportName - Type of report (backtest, live, walker, etc.)
+     * @param baseDir - Base directory for report files, defaults to ./dump/report
+     */
+    constructor(reportName: ReportName, baseDir?: string);
+    /**
+     * Singleshot initialization function that creates directory and stream.
+     * Protected by singleshot to ensure one-time execution.
+     * Sets up error handler that emits to exitEmitter.
+     */
+    [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Timeout-protected write function with backpressure handling.
+     * Waits for drain event if write buffer is full.
+     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
+     */
+    [WRITE_SAFE_SYMBOL]: (line: string) => Promise<symbol | void>;
+    /**
+     * Initializes the JSONL file and write stream.
+     * Safe to call multiple times - singleshot ensures one-time execution.
+     *
+     * @param initial - Whether this is the first initialization (informational only)
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Writes event data to JSONL file with metadata.
+     * Appends a single line with JSON object containing:
+     * - reportName: Type of report
+     * - data: Event data object
+     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
+     * - timestamp: Current timestamp in milliseconds
+     *
+     * @param data - Event data object to write
+     * @param options - Metadata options for filtering and search
+     * @throws Error if stream not initialized or write timeout exceeded
+     */
+    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
+}
+/**
+ * Report adapter with pluggable storage backend and instance memoization.
+ *
+ * Features:
+ * - Adapter pattern for swappable storage implementations
+ * - Memoized storage instances (one per report type)
+ * - Default adapter: ReportBase (JSONL append)
+ * - Lazy initialization on first write
+ * - Real-time event logging to JSONL files
+ *
+ * Used for structured event logging and analytics pipelines.
+ */
+declare class ReportWriterAdapter {
+    /**
+     * Current report storage adapter constructor.
+     * Defaults to ReportBase for JSONL storage.
+     * Can be changed via useReportAdapter().
+     */
+    private ReportFactory;
+    /**
+     * Memoized storage instances cache.
+     * Key: reportName (backtest, live, walker, etc.)
+     * Value: TReportBase instance created with current ReportFactory.
+     * Ensures single instance per report type for the lifetime of the application.
+     */
+    private getReportStorage;
+    /**
+     * Sets the report storage adapter constructor.
+     * All future report instances will use this adapter.
+     *
+     * @param Ctor - Constructor for report storage adapter
+     */
+    useReportAdapter(Ctor: TReportBaseCtor): void;
+    /**
+     * Writes report data to storage using the configured adapter.
+     * Automatically initializes storage on first write for each report type.
+     *
+     * @param reportName - Type of report (backtest, live, walker, etc.)
+     * @param data - Event data object to write
+     * @param options - Metadata options for filtering and search
+     * @returns Promise that resolves when write is complete
+     * @throws Error if write fails or storage initialization fails
+     *
+     * @internal - Automatically called by report services, not for direct use
+     */
+    writeData: <T = any>(reportName: ReportName, data: T, options: IReportDumpOptions) => Promise<void>;
+    /**
+     * Clears the memoized storage cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new storage instances are created with the updated base path.
+     */
+    clear(): void;
+    /**
+     * Switches to a dummy report adapter that discards all writes.
+     * All future report writes will be no-ops.
+     */
+    useDummy(): void;
+    /**
+     * Switches to the default JSONL report adapter.
+     * All future report writes will use JSONL storage.
+     */
+    useJsonl(): void;
+}
+
+declare const ReportWriter: ReportWriterAdapter;
+
+/**
+ * Utility class for managing report services.
+ *
+ * Provides methods to enable/disable JSONL event logging across
+ * different service types (backtest, live, walker, performance, etc.).
+ *
+ * Typically extended by ReportAdapter for additional functionality.
+ */
+declare class ReportUtils {
+    /**
+     * Enables report services selectively.
+     *
+     * Subscribes to specified report services and returns a cleanup function
+     * that unsubscribes from all enabled services at once.
+     *
+     * Each enabled service will:
+     * - Start listening to relevant events
+     * - Write events to JSONL files in real-time
+     * - Include metadata for filtering and analytics
+     *
+     * IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
+     *
+     * @param config - Service configuration object. Defaults to enabling all services.
+     * @param config.backtest - Enable backtest closed signal logging
+     * @param config.breakeven - Enable breakeven event logging
+     * @param config.partial - Enable partial close event logging
+     * @param config.heat - Enable heatmap data logging
+     * @param config.walker - Enable walker iteration logging
+     * @param config.performance - Enable performance metrics logging
+     * @param config.risk - Enable risk rejection logging
+     * @param config.schedule - Enable scheduled signal logging
+     * @param config.live - Enable live trading event logging
+     *
+     * @returns Cleanup function that unsubscribes from all enabled services
+     */
+    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any;
+    /**
+     * Disables report services selectively.
+     *
+     * Unsubscribes from specified report services to stop event logging.
+     * Use this method to stop JSONL logging for specific services while keeping others active.
+     *
+     * Each disabled service will:
+     * - Stop listening to events immediately
+     * - Stop writing to JSONL files
+     * - Free up event listener resources
+     *
+     * Unlike enable(), this method does NOT return an unsubscribe function.
+     * Services are unsubscribed immediately upon calling this method.
+     *
+     * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
+     * @param config.backtest - Disable backtest closed signal logging
+     * @param config.breakeven - Disable breakeven event logging
+     * @param config.partial - Disable partial close event logging
+     * @param config.heat - Disable heatmap data logging
+     * @param config.walker - Disable walker iteration logging
+     * @param config.performance - Disable performance metrics logging
+     * @param config.risk - Disable risk rejection logging
+     * @param config.schedule - Disable scheduled signal logging
+     * @param config.live - Disable live trading event logging
+     *
+     * @example
+     * ```typescript
+     * import { Report } from "backtest-kit";
+     *
+     * // Disable specific services
+     * Report.disable({ backtest: true, live: true });
+     *
+     * // Disable all services
+     * Report.disable();
+     * ```
+     */
+    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => void;
+}
+/**
+ * Report adapter with pluggable storage backend and instance memoization.
+ *
+ * Features:
+ * - Adapter pattern for swappable storage implementations
+ * - Memoized storage instances (one per report type)
+ * - Default adapter: ReportBase (JSONL append)
+ * - Lazy initialization on first write
+ * - Real-time event logging to JSONL files
+ *
+ * Used for structured event logging and analytics pipelines.
+ */
+declare class ReportAdapter extends ReportUtils {
+    /**
+     * Sets the report storage adapter constructor.
+     * All future report instances will use this adapter.
+     *
+     * @param Ctor - Constructor for report storage adapter
+     */
+    useReportAdapter(Ctor: TReportBaseCtor): void;
+    /**
+     * Clears the memoized storage cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new storage instances are created with the updated base path.
+     */
+    clear(): void;
+    /**
+     * Switches to a dummy report adapter that discards all writes.
+     * All future report writes will be no-ops.
+     */
+    useDummy(): void;
+    /**
+     * Switches to the default JSONL report adapter.
+     * All future report writes will use JSONL storage.
+     */
+    useJsonl(): void;
+}
+/**
+ * Global singleton instance of ReportAdapter.
+ * Provides JSONL event logging with pluggable storage backends.
+ */
+declare const Report: ReportAdapter;
+
+/**
  * Utility class for managing markdown report services.
  *
  * Provides methods to enable/disable markdown report generation across
@@ -12726,38 +12874,12 @@ declare class MarkdownUtils {
  */
 declare class MarkdownAdapter extends MarkdownUtils {
     /**
-     * Current markdown storage adapter constructor.
-     * Defaults to MarkdownFolderBase for separate file storage.
-     * Can be changed via useMarkdownAdapter().
-     */
-    private MarkdownFactory;
-    /**
-     * Memoized storage instances cache.
-     * Key: markdownName (backtest, live, walker, etc.)
-     * Value: TMarkdownBase instance created with current MarkdownFactory.
-     * Ensures single instance per markdown type for the lifetime of the application.
-     */
-    private getMarkdownStorage;
-    /**
      * Sets the markdown storage adapter constructor.
      * All future markdown instances will use this adapter.
      *
      * @param Ctor - Constructor for markdown storage adapter
      */
     useMarkdownAdapter(Ctor: TMarkdownBaseCtor): void;
-    /**
-     * Writes markdown data to storage using the configured adapter.
-     * Automatically initializes storage on first write for each markdown type.
-     *
-     * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
-     * @param content - Markdown content to write
-     * @param options - Path, file, and metadata options
-     * @returns Promise that resolves when write is complete
-     * @throws Error if write fails or storage initialization fails
-     *
-     * @internal - Use service-specific dump methods instead (e.g., Backtest.dump)
-     */
-    writeData(markdownName: MarkdownName, content: string, options: IMarkdownDumpOptions): Promise<void>;
     /**
      * Switches to folder-based markdown storage (default).
      * Shorthand for useMarkdownAdapter(MarkdownFolderBase).
@@ -18296,7 +18418,7 @@ type Columns$2 = ColumnModel<SyncEvent>;
  * ```typescript
  * import { Markdown } from "backtest-kit";
  *
- * const unsubscribe = Markdown.enable({ sync: true });
+ * const unsubscribe = MarkdownWriter.enable({ sync: true });
  * // ... later
  * unsubscribe();
  * ```
@@ -20249,67 +20371,6 @@ declare class BreakevenUtils {
 declare const Breakeven: BreakevenUtils;
 
 /**
- * Logger service with automatic context injection.
- *
- * Features:
- * - Delegates to user-provided logger via setLogger()
- * - Automatically appends method context (strategyName, exchangeName, frameName)
- * - Automatically appends execution context (symbol, when, backtest)
- * - Defaults to NOOP_LOGGER if no logger configured
- *
- * Used throughout the framework for consistent logging with context.
- */
-declare class LoggerService implements ILogger {
-    private readonly methodContextService;
-    private readonly executionContextService;
-    private _commonLogger;
-    /**
-     * Gets current method context if available.
-     * Contains strategyName, exchangeName, frameName from MethodContextService.
-     */
-    private get methodContext();
-    /**
-     * Gets current execution context if available.
-     * Contains symbol, when, backtest from ExecutionContextService.
-     */
-    private get executionContext();
-    /**
-     * Logs general-purpose message with automatic context injection.
-     *
-     * @param topic - Log topic/category
-     * @param args - Additional log arguments
-     */
-    log: (topic: string, ...args: any[]) => Promise<void>;
-    /**
-     * Logs debug-level message with automatic context injection.
-     *
-     * @param topic - Log topic/category
-     * @param args - Additional log arguments
-     */
-    debug: (topic: string, ...args: any[]) => Promise<void>;
-    /**
-     * Logs info-level message with automatic context injection.
-     *
-     * @param topic - Log topic/category
-     * @param args - Additional log arguments
-     */
-    info: (topic: string, ...args: any[]) => Promise<void>;
-    /**
-     * Logs warning-level message with automatic context injection.
-     *
-     * @param topic - Log topic/category
-     * @param args - Additional log arguments
-     */
-    warn: (topic: string, ...args: any[]) => Promise<void>;
-    /**
-     * Sets custom logger implementation.
-     *
-     * @param logger - Custom logger implementing ILogger interface
-     */
-    setLogger: (logger: ILogger) => void;
-}
-
-/**
  * Type alias for column configuration used in strategy markdown reports.
  *
  * @see ColumnModel for the base interface
@@ -20363,7 +20424,22 @@ type Columns = ColumnModel<StrategyEvent>;
  * @see Strategy for the high-level utility class that wraps this service
  */
 declare class StrategyMarkdownService {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     /**
      * Memoized factory for ReportStorage instances.
      *
@@ -20599,7 +20675,7 @@ declare class StrategyMarkdownService {
      * Generates and saves a markdown report to disk.
      *
      * Creates the output directory if it doesn't exist and writes
-     * the report with a timestamped filename via Markdown.writeData().
+     * the report with a timestamped filename via MarkdownWriter.writeData().
      *
      * Filename format: `{symbol}_{strategyName}_{exchangeName}[_{frameName}_backtest|_live]-{timestamp}.md`
      *
@@ -20819,207 +20895,6 @@ declare class StrategyUtils {
 declare const Strategy: StrategyUtils;
 
 /**
- * Proxy wrapper for user-defined action handlers with automatic error capture.
- *
- * Wraps all IPublicAction methods with trycatch to prevent user code errors from crashing the system.
- * All errors are logged, sent to errorEmitter, and returned as null (non-breaking).
- *
- * Key features:
- * - Automatic error catching and logging for all action methods
- * - Safe execution of partial user implementations (missing methods return null)
- * - Consistent error capture across all action lifecycle events
- * - Non-breaking failure mode (errors logged but execution continues)
- *
- * Architecture:
- * - Private constructor enforces factory pattern via fromInstance()
- * - Each method checks if target implements the method before calling
- * - Errors caught with fallback handler (warn log + errorEmitter)
- * - Returns null on error to prevent undefined behavior
- *
- * Used by:
- * - ClientAction to wrap user-provided action handlers
- * - ActionCoreService to safely invoke action callbacks
- *
- * @example
- * ```typescript
- * // Create proxy from user implementation
- * const userAction = {
- *   signal: async (event) => {
- *     // User code that might throw
- *     throw new Error('User error');
- *   }
- * };
- *
- * const proxy = ActionProxy.fromInstance(userAction);
- *
- * // Error is caught and logged, execution continues
- * await proxy.signal(event); // Logs error, returns null
- * await proxy.dispose(); // Safe call even though not implemented
- * ```
- *
- * @example
- * ```typescript
- * // Partial implementation is safe
- * const partialAction = {
- *   init: async () => console.log('Initialized'),
- *   // Other methods not implemented
- * };
- *
- * const proxy = ActionProxy.fromInstance(partialAction);
- * await proxy.init(); // Works
- * await proxy.signal(event); // Returns null (not implemented)
- * ```
- */
-declare class ActionProxy implements IPublicAction {
-    readonly _target: Partial<IPublicAction>;
-    /**
-     * Creates a new ActionProxy instance.
-     *
-     * @param _target - Partial action implementation to wrap with error capture
-     * @private Use ActionProxy.fromInstance() instead
-     */
-    private constructor();
-    /**
-     * Initializes the action handler with error capture.
-     *
-     * Wraps the user's init() method in trycatch to prevent initialization errors from crashing the system.
-     * If the target doesn't implement init(), this method safely returns undefined.
-     *
-     * @returns Promise resolving to user's init() result or undefined if not implemented
-     */
-    init(): Promise<any>;
-    /**
-     * Handles signal events from all modes with error capture.
-     *
-     * Wraps the user's signal() method to catch and log any errors.
-     * Called on every tick/candle when strategy is evaluated.
-     *
-     * @param event - Signal state result with action, state, signal data, and context
-     * @returns Promise resolving to user's signal() result or null on error
-     */
-    signal(event: IStrategyTickResult): Promise<any>;
-    /**
-     * Handles signal events from live trading only with error capture.
-     *
-     * Wraps the user's signalLive() method to catch and log any errors.
-     * Called every tick in live mode.
-     *
-     * @param event - Signal state result from live trading
-     * @returns Promise resolving to user's signalLive() result or null on error
-     */
-    signalLive(event: IStrategyTickResult): Promise<any>;
-    /**
-     * Handles signal events from backtest only with error capture.
-     *
-     * Wraps the user's signalBacktest() method to catch and log any errors.
-     * Called every candle in backtest mode.
-     *
-     * @param event - Signal state result from backtest
-     * @returns Promise resolving to user's signalBacktest() result or null on error
-     */
-    signalBacktest(event: IStrategyTickResult): Promise<any>;
-    /**
-     * Handles breakeven events with error capture.
-     *
-     * Wraps the user's breakevenAvailable() method to catch and log any errors.
-     * Called once per signal when stop-loss is moved to entry price.
-     *
-     * @param event - Breakeven milestone data with signal info, current price, timestamp
-     * @returns Promise resolving to user's breakevenAvailable() result or null on error
-     */
-    breakevenAvailable(event: BreakevenContract): Promise<any>;
-    /**
-     * Handles partial profit level events with error capture.
-     *
-     * Wraps the user's partialProfitAvailable() method to catch and log any errors.
-     * Called once per profit level per signal (10%, 20%, 30%, etc).
-     *
-     * @param event - Profit milestone data with signal info, level, price, timestamp
-     * @returns Promise resolving to user's partialProfitAvailable() result or null on error
-     */
-    partialProfitAvailable(event: PartialProfitContract): Promise<any>;
-    /**
-     * Handles partial loss level events with error capture.
-     *
-     * Wraps the user's partialLossAvailable() method to catch and log any errors.
-     * Called once per loss level per signal (-10%, -20%, -30%, etc).
-     *
-     * @param event - Loss milestone data with signal info, level, price, timestamp
-     * @returns Promise resolving to user's partialLossAvailable() result or null on error
-     */
-    partialLossAvailable(event: PartialLossContract): Promise<any>;
-    /**
-     * Handles scheduled ping events with error capture.
-     *
-     * Wraps the user's pingScheduled() method to catch and log any errors.
-     * Called every minute while a scheduled signal is waiting for activation.
-     *
-     * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
-     * @returns Promise resolving to user's pingScheduled() result or null on error
-     */
-    pingScheduled(event: SchedulePingContract): Promise<any>;
-    /**
-     * Handles active ping events with error capture.
-     *
-     * Wraps the user's pingActive() method to catch and log any errors.
-     * Called every minute while a pending signal is active (position open).
-     *
-     * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
-     * @returns Promise resolving to user's pingActive() result or null on error
-     */
-    pingActive(event: ActivePingContract): Promise<any>;
-    /**
-     * Handles risk rejection events with error capture.
-     *
-     * Wraps the user's riskRejection() method to catch and log any errors.
-     * Called only when signal is rejected by risk management validation.
-     *
-     * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
-     * @returns Promise resolving to user's riskRejection() result or null on error
-     */
-    riskRejection(event: RiskContract): Promise<any>;
-    /**
-     * Gate for position open/close via limit order.
-     * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
-     *
-     * @param event - Sync event with action "signal-open" or "signal-close"
-     */
-    signalSync(event: SignalSyncContract): Promise<void>;
-    /**
-     * Cleans up resources with error capture.
-     *
-     * Wraps the user's dispose() method to catch and log any errors.
-     * Called once when strategy execution ends.
-     *
-     * @returns Promise resolving to user's dispose() result or null on error
-     */
-    dispose(): Promise<any>;
-    /**
-     * Creates a new ActionProxy instance wrapping a user-provided action handler.
-     *
-     * Factory method enforcing the private constructor pattern.
-     * Wraps all methods of the provided instance with error capture.
-     *
-     * @param instance - Partial action implementation to wrap
-     * @returns New ActionProxy instance with error-safe method wrappers
-     *
-     * @example
-     * ```typescript
-     * const userAction = {
-     *   signal: async (event) => {
-     *     console.log('Signal received:', event);
-     *   },
-     *   dispose: async () => {
-     *     console.log('Cleanup complete');
-     *   }
-     * };
-     *
-     * const proxy = ActionProxy.fromInstance(userAction);
-     * ```
-     */
-    static fromInstance(instance: Partial<IPublicAction>): ActionProxy;
-}
-/**
  * Base class for custom action handlers.
  *
  * Provides default implementations for all IPublicAction methods that log events.
@@ -21032,7 +20907,7 @@ declare class ActionProxy implements IPublicAction {
  *
  * Key features:
  * - All methods have default implementations (no need to implement unused methods)
- * - Automatic logging of all events via backtest.loggerService
+ * - Automatic logging of all events via LOGGER_SERVICE
  * - Access to strategy context (strategyName, frameName, actionName)
  * - Implements full IPublicAction interface
  *
@@ -23256,7 +23131,22 @@ declare class ExchangeConnectionService implements IExchange {
  * Strategies are registered via addStrategy() and retrieved by name.
  */
 declare class StrategySchemaService {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     private _registry;
     /**
      * Registers a new strategy schema.
@@ -23380,6 +23270,67 @@ declare class ClientRisk implements IRisk {
      * @returns Promise resolving to true if allowed, false if rejected
      */
     checkSignal: (params: IRiskCheckArgs) => Promise<boolean>;
+}
+
+/**
+ * Service for managing risk schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Risk profiles are registered via addRisk() and retrieved by name.
+ */
+declare class RiskSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a new risk schema.
+     *
+     * @param key - Unique risk profile name
+     * @param value - Risk schema configuration
+     * @throws Error if risk name already exists
+     */
+    register: (key: RiskName, value: IRiskSchema) => void;
+    /**
+     * Validates risk schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param riskSchema - Risk schema to validate
+     * @throws Error if riskName is missing or not a string
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing risk schema with partial updates.
+     *
+     * @param key - Risk name to override
+     * @param value - Partial schema updates
+     * @returns Updated risk schema
+     * @throws Error if risk name doesn't exist
+     */
+    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
+    /**
+     * Retrieves a risk schema by name.
+     *
+     * @param key - Risk name
+     * @returns Risk schema configuration
+     * @throws Error if risk name doesn't exist
+     */
+    get: (key: RiskName) => IRiskSchema;
 }
 
 /**
@@ -23668,8 +23619,26 @@ type TRisk$1 = {
  * ```
  */
 declare class RiskConnectionService implements TRisk$1 {
-    private readonly loggerService;
-    private readonly riskSchemaService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly riskSchemaService: RiskSchemaService;
+    readonly executionContextService: {
+        readonly context: IExecutionContext;
+    };
     /**
      * Action core service injected from DI container.
      */
@@ -23789,7 +23758,22 @@ declare class PartialConnectionService implements IPartial {
     /**
      * Logger service injected from DI container.
      */
-    private readonly loggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     /**
      * Action core service injected from DI container.
      */
@@ -23890,7 +23874,22 @@ declare class BreakevenConnectionService implements IBreakeven {
     /**
      * Logger service injected from DI container.
      */
-    private readonly loggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     /**
      * Action core service injected from DI container.
      */
@@ -24147,7 +24146,22 @@ type TStrategy$1 = {
  * ```
  */
 declare class StrategyConnectionService implements TStrategy$1 {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     readonly executionContextService: {
         readonly context: IExecutionContext;
     };
@@ -25307,6 +25321,209 @@ declare class SizingConnectionService implements TSizing$1 {
 }
 
 /**
+ * Proxy wrapper for user-defined action handlers with automatic error capture.
+ *
+ * Wraps all IPublicAction methods with trycatch to prevent user code errors from crashing the system.
+ * All errors are logged, sent to errorEmitter, and returned as null (non-breaking).
+ *
+ * Key features:
+ * - Automatic error catching and logging for all action methods
+ * - Safe execution of partial user implementations (missing methods return null)
+ * - Consistent error capture across all action lifecycle events
+ * - Non-breaking failure mode (errors logged but execution continues)
+ *
+ * Architecture:
+ * - Private constructor enforces factory pattern via fromInstance()
+ * - Each method checks if target implements the method before calling
+ * - Errors caught with fallback handler (warn log + errorEmitter)
+ * - Returns null on error to prevent undefined behavior
+ *
+ * Used by:
+ * - ClientAction to wrap user-provided action handlers
+ * - ActionCoreService to safely invoke action callbacks
+ *
+ * @example
+ * ```typescript
+ * // Create proxy from user implementation
+ * const userAction = {
+ *   signal: async (event) => {
+ *     // User code that might throw
+ *     throw new Error('User error');
+ *   }
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(userAction);
+ *
+ * // Error is caught and logged, execution continues
+ * await proxy.signal(event); // Logs error, returns null
+ * await proxy.dispose(); // Safe call even though not implemented
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Partial implementation is safe
+ * const partialAction = {
+ *   init: async () => console.log('Initialized'),
+ *   // Other methods not implemented
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(partialAction);
+ * await proxy.init(); // Works
+ * await proxy.signal(event); // Returns null (not implemented)
+ * ```
+ */
+declare class ActionProxy implements IPublicAction {
+    readonly _target: Partial<IPublicAction>;
+    readonly params: IActionParams;
+    /**
+     * Creates a new ActionProxy instance.
+     *
+     * @param _target - Partial action implementation to wrap with error capture
+     * @private Use ActionProxy.fromInstance() instead
+     */
+    private constructor();
+    /**
+     * Initializes the action handler with error capture.
+     *
+     * Wraps the user's init() method in trycatch to prevent initialization errors from crashing the system.
+     * If the target doesn't implement init(), this method safely returns undefined.
+     *
+     * @returns Promise resolving to user's init() result or undefined if not implemented
+     */
+    init(): Promise<any>;
+    /**
+     * Handles signal events from all modes with error capture.
+     *
+     * Wraps the user's signal() method to catch and log any errors.
+     * Called on every tick/candle when strategy is evaluated.
+     *
+     * @param event - Signal state result with action, state, signal data, and context
+     * @returns Promise resolving to user's signal() result or null on error
+     */
+    signal(event: IStrategyTickResult): Promise<any>;
+    /**
+     * Handles signal events from live trading only with error capture.
+     *
+     * Wraps the user's signalLive() method to catch and log any errors.
+     * Called every tick in live mode.
+     *
+     * @param event - Signal state result from live trading
+     * @returns Promise resolving to user's signalLive() result or null on error
+     */
+    signalLive(event: IStrategyTickResult): Promise<any>;
+    /**
+     * Handles signal events from backtest only with error capture.
+     *
+     * Wraps the user's signalBacktest() method to catch and log any errors.
+     * Called every candle in backtest mode.
+     *
+     * @param event - Signal state result from backtest
+     * @returns Promise resolving to user's signalBacktest() result or null on error
+     */
+    signalBacktest(event: IStrategyTickResult): Promise<any>;
+    /**
+     * Handles breakeven events with error capture.
+     *
+     * Wraps the user's breakevenAvailable() method to catch and log any errors.
+     * Called once per signal when stop-loss is moved to entry price.
+     *
+     * @param event - Breakeven milestone data with signal info, current price, timestamp
+     * @returns Promise resolving to user's breakevenAvailable() result or null on error
+     */
+    breakevenAvailable(event: BreakevenContract): Promise<any>;
+    /**
+     * Handles partial profit level events with error capture.
+     *
+     * Wraps the user's partialProfitAvailable() method to catch and log any errors.
+     * Called once per profit level per signal (10%, 20%, 30%, etc).
+     *
+     * @param event - Profit milestone data with signal info, level, price, timestamp
+     * @returns Promise resolving to user's partialProfitAvailable() result or null on error
+     */
+    partialProfitAvailable(event: PartialProfitContract): Promise<any>;
+    /**
+     * Handles partial loss level events with error capture.
+     *
+     * Wraps the user's partialLossAvailable() method to catch and log any errors.
+     * Called once per loss level per signal (-10%, -20%, -30%, etc).
+     *
+     * @param event - Loss milestone data with signal info, level, price, timestamp
+     * @returns Promise resolving to user's partialLossAvailable() result or null on error
+     */
+    partialLossAvailable(event: PartialLossContract): Promise<any>;
+    /**
+     * Handles scheduled ping events with error capture.
+     *
+     * Wraps the user's pingScheduled() method to catch and log any errors.
+     * Called every minute while a scheduled signal is waiting for activation.
+     *
+     * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
+     * @returns Promise resolving to user's pingScheduled() result or null on error
+     */
+    pingScheduled(event: SchedulePingContract): Promise<any>;
+    /**
+     * Handles active ping events with error capture.
+     *
+     * Wraps the user's pingActive() method to catch and log any errors.
+     * Called every minute while a pending signal is active (position open).
+     *
+     * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
+     * @returns Promise resolving to user's pingActive() result or null on error
+     */
+    pingActive(event: ActivePingContract): Promise<any>;
+    /**
+     * Handles risk rejection events with error capture.
+     *
+     * Wraps the user's riskRejection() method to catch and log any errors.
+     * Called only when signal is rejected by risk management validation.
+     *
+     * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
+     * @returns Promise resolving to user's riskRejection() result or null on error
+     */
+    riskRejection(event: RiskContract): Promise<any>;
+    /**
+     * Gate for position open/close via limit order.
+     * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
+     *
+     * @param event - Sync event with action "signal-open" or "signal-close"
+     */
+    signalSync(event: SignalSyncContract): Promise<void>;
+    /**
+     * Cleans up resources with error capture.
+     *
+     * Wraps the user's dispose() method to catch and log any errors.
+     * Called once when strategy execution ends.
+     *
+     * @returns Promise resolving to user's dispose() result or null on error
+     */
+    dispose(): Promise<any>;
+    /**
+     * Creates a new ActionProxy instance wrapping a user-provided action handler.
+     *
+     * Factory method enforcing the private constructor pattern.
+     * Wraps all methods of the provided instance with error capture.
+     *
+     * @param instance - Partial action implementation to wrap
+     * @returns New ActionProxy instance with error-safe method wrappers
+     *
+     * @example
+     * ```typescript
+     * const userAction = {
+     *   signal: async (event) => {
+     *     console.log('Signal received:', event);
+     *   },
+     *   dispose: async () => {
+     *     console.log('Cleanup complete');
+     *   }
+     * };
+     *
+     * const proxy = ActionProxy.fromInstance(userAction);
+     * ```
+     */
+    static fromInstance(instance: Partial<IPublicAction>, params: IActionParams): ActionProxy;
+}
+
+/**
  * ClientAction implementation for action handler execution.
  *
  * Provides lifecycle management and event routing for action handlers:
@@ -25463,6 +25680,7 @@ type TAction = {
 declare class ActionConnectionService implements TAction {
     private readonly loggerService;
     private readonly actionSchemaService;
+    private readonly strategyCoreService;
     /**
      * Retrieves memoized ClientAction instance for given action name, strategy, exchange, frame and backtest mode.
      *
@@ -26887,6 +27105,188 @@ declare class RiskGlobalService implements TRisk {
 }
 
 /**
+ * Private service for backtest orchestration using async generators.
+ *
+ * Flow:
+ * 1. Get timeframes from frame service
+ * 2. Iterate through timeframes calling tick()
+ * 3. When signal opens: fetch candles and call backtest()
+ * 4. Skip timeframes until signal closes
+ * 5. Yield closed result and continue
+ *
+ * Memory efficient: streams results without array accumulation.
+ * Supports early termination via break in consumer.
+ */
+declare class BacktestLogicPrivateService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly strategyCoreService: StrategyCoreService;
+    readonly exchangeCoreService: ExchangeCoreService;
+    readonly frameCoreService: FrameCoreService;
+    readonly methodContextService: {
+        readonly context: IMethodContext;
+    };
+    readonly actionCoreService: ActionCoreService;
+    /**
+     * Runs backtest for a symbol, streaming closed signals as async generator.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @yields Closed signal results with PNL
+     *
+     * @example
+     * ```typescript
+     * for await (const result of backtestLogic.run("BTCUSDT")) {
+     *   console.log(result.closeReason, result.pnl.pnlPercentage);
+     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
+     * }
+     * ```
+     */
+    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
+}
+
+/**
+ * Type definition for public BacktestLogic service.
+ * Omits private dependencies from BacktestLogicPrivateService.
+ */
+type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
+    loggerService: never;
+    strategyCoreService: never;
+    exchangeCoreService: never;
+    frameCoreService: never;
+    actionCoreService: never;
+    methodContextService: never;
+}>;
+/**
+ * Type definition for BacktestLogicPublicService.
+ * Maps all keys of IBacktestLogicPrivateService to any type.
+ */
+type TBacktestLogicPrivateService = {
+    [key in keyof IBacktestLogicPrivateService]: any;
+};
+/**
+ * Public service for backtest orchestration with context management.
+ *
+ * Wraps BacktestLogicPrivateService with MethodContextService to provide
+ * implicit context propagation for strategyName, exchangeName, and frameName.
+ *
+ * This allows getCandles(), getSignal(), and other functions to work without
+ * explicit context parameters.
+ *
+ * @example
+ * ```typescript
+ * const backtestLogicPublicService = inject(TYPES.backtestLogicPublicService);
+ *
+ * for await (const result of backtestLogicPublicService.run("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "my-exchange",
+ *   frameName: "1d-backtest",
+ * })) {
+ *   if (result.action === "closed") {
+ *     console.log("PNL:", result.pnl.profit);
+ *   }
+ * }
+ * ```
+ */
+declare class BacktestLogicPublicService implements TBacktestLogicPrivateService {
+    private readonly loggerService;
+    private readonly backtestLogicPrivateService;
+    /**
+     * Runs backtest for a symbol with context propagation.
+     *
+     * Streams closed signals as async generator. Context is automatically
+     * injected into all framework functions called during iteration.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Execution context with strategy, exchange, and frame names
+     * @returns Async generator yielding closed signals with PNL
+     */
+    run: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
+}
+
+/**
+ * Service for managing walker schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Walkers are registered via addWalker() and retrieved by name.
+ */
+declare class WalkerSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a new walker schema.
+     *
+     * @param key - Unique walker name
+     * @param value - Walker schema configuration
+     * @throws Error if walker name already exists
+     */
+    register: (key: WalkerName, value: IWalkerSchema) => void;
+    /**
+     * Validates walker schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param walkerSchema - Walker schema to validate
+     * @throws Error if walkerName is missing or not a string
+     * @throws Error if exchangeName is missing or not a string
+     * @throws Error if frameName is missing or not a string
+     * @throws Error if strategies is missing or not an array
+     * @throws Error if strategies array is empty
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing walker schema with partial updates.
+     *
+     * @param key - Walker name to override
+     * @param value - Partial schema updates
+     * @returns Updated walker schema
+     * @throws Error if walker name doesn't exist
+     */
+    override: (key: WalkerName, value: Partial<IWalkerSchema>) => IWalkerSchema;
+    /**
+     * Retrieves a walker schema by name.
+     *
+     * @param key - Walker name
+     * @returns Walker schema configuration
+     * @throws Error if walker name doesn't exist
+     */
+    get: (key: WalkerName) => IWalkerSchema;
+}
+
+/**
  * Private service for walker orchestration (strategy comparison).
  *
  * Flow:
@@ -26897,10 +27297,25 @@ declare class RiskGlobalService implements TRisk {
  * Uses BacktestLogicPublicService internally for each strategy.
  */
 declare class WalkerLogicPrivateService {
-    private readonly loggerService;
-    private readonly backtestLogicPublicService;
-    private readonly backtestMarkdownService;
-    private readonly walkerSchemaService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly backtestLogicPublicService: BacktestLogicPublicService;
+    readonly backtestMarkdownService: BacktestMarkdownService;
+    readonly walkerSchemaService: WalkerSchemaService;
     /**
      * Runs walker comparison for a symbol.
      *
@@ -27037,7 +27452,22 @@ declare class WalkerCommandService implements TWalkerLogicPublicService {
  * Exchanges are registered via addExchange() and retrieved by name.
  */
 declare class ExchangeSchemaService {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     private _registry;
     /**
      * Registers a new exchange schema.
@@ -27086,7 +27516,22 @@ declare class ExchangeSchemaService {
  * Frames are registered via addFrame() and retrieved by name.
  */
 declare class FrameSchemaService {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     private _registry;
     /**
      * Registers a new frame schema.
@@ -27134,7 +27579,22 @@ declare class FrameSchemaService {
  * Sizing schemas are registered via addSizing() and retrieved by name.
  */
 declare class SizingSchemaService {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     private _registry;
     /**
      * Registers a new sizing schema.
@@ -27175,52 +27635,6 @@ declare class SizingSchemaService {
 }
 
 /**
- * Service for managing risk schema registry.
- *
- * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Risk profiles are registered via addRisk() and retrieved by name.
- */
-declare class RiskSchemaService {
-    readonly loggerService: LoggerService;
-    private _registry;
-    /**
-     * Registers a new risk schema.
-     *
-     * @param key - Unique risk profile name
-     * @param value - Risk schema configuration
-     * @throws Error if risk name already exists
-     */
-    register: (key: RiskName, value: IRiskSchema) => void;
-    /**
-     * Validates risk schema structure for required properties.
-     *
-     * Performs shallow validation to ensure all required properties exist
-     * and have correct types before registration in the registry.
-     *
-     * @param riskSchema - Risk schema to validate
-     * @throws Error if riskName is missing or not a string
-     */
-    private validateShallow;
-    /**
-     * Overrides an existing risk schema with partial updates.
-     *
-     * @param key - Risk name to override
-     * @param value - Partial schema updates
-     * @returns Updated risk schema
-     * @throws Error if risk name doesn't exist
-     */
-    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
-    /**
-     * Retrieves a risk schema by name.
-     *
-     * @param key - Risk name
-     * @returns Risk schema configuration
-     * @throws Error if risk name doesn't exist
-     */
-    get: (key: RiskName) => IRiskSchema;
-}
-
-/**
  * Service for managing action schema registry.
  *
  * Manages registration, validation and retrieval of action schemas.
@@ -27254,7 +27668,22 @@ declare class RiskSchemaService {
  * ```
  */
 declare class ActionSchemaService {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     private _registry;
     /**
      * Registers a new action schema.
@@ -27308,95 +27737,6 @@ declare class ActionSchemaService {
 }
 
 /**
- * Service for managing walker schema registry.
- *
- * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Walkers are registered via addWalker() and retrieved by name.
- */
-declare class WalkerSchemaService {
-    readonly loggerService: LoggerService;
-    private _registry;
-    /**
-     * Registers a new walker schema.
-     *
-     * @param key - Unique walker name
-     * @param value - Walker schema configuration
-     * @throws Error if walker name already exists
-     */
-    register: (key: WalkerName, value: IWalkerSchema) => void;
-    /**
-     * Validates walker schema structure for required properties.
-     *
-     * Performs shallow validation to ensure all required properties exist
-     * and have correct types before registration in the registry.
-     *
-     * @param walkerSchema - Walker schema to validate
-     * @throws Error if walkerName is missing or not a string
-     * @throws Error if exchangeName is missing or not a string
-     * @throws Error if frameName is missing or not a string
-     * @throws Error if strategies is missing or not an array
-     * @throws Error if strategies array is empty
-     */
-    private validateShallow;
-    /**
-     * Overrides an existing walker schema with partial updates.
-     *
-     * @param key - Walker name to override
-     * @param value - Partial schema updates
-     * @returns Updated walker schema
-     * @throws Error if walker name doesn't exist
-     */
-    override: (key: WalkerName, value: Partial<IWalkerSchema>) => IWalkerSchema;
-    /**
-     * Retrieves a walker schema by name.
-     *
-     * @param key - Walker name
-     * @returns Walker schema configuration
-     * @throws Error if walker name doesn't exist
-     */
-    get: (key: WalkerName) => IWalkerSchema;
-}
-
-/**
- * Private service for backtest orchestration using async generators.
- *
- * Flow:
- * 1. Get timeframes from frame service
- * 2. Iterate through timeframes calling tick()
- * 3. When signal opens: fetch candles and call backtest()
- * 4. Skip timeframes until signal closes
- * 5. Yield closed result and continue
- *
- * Memory efficient: streams results without array accumulation.
- * Supports early termination via break in consumer.
- */
-declare class BacktestLogicPrivateService {
-    readonly loggerService: LoggerService;
-    readonly strategyCoreService: StrategyCoreService;
-    readonly exchangeCoreService: ExchangeCoreService;
-    readonly frameCoreService: FrameCoreService;
-    readonly methodContextService: {
-        readonly context: IMethodContext;
-    };
-    readonly actionCoreService: ActionCoreService;
-    /**
-     * Runs backtest for a symbol, streaming closed signals as async generator.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @yields Closed signal results with PNL
-     *
-     * @example
-     * ```typescript
-     * for await (const result of backtestLogic.run("BTCUSDT")) {
-     *   console.log(result.closeReason, result.pnl.pnlPercentage);
-     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
-     * }
-     * ```
-     */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
-}
-
-/**
  * Private service for live trading orchestration using async generators.
  *
  * Flow:
@@ -27439,69 +27779,6 @@ declare class LiveLogicPrivateService {
      * ```
      */
     run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
-}
-
-/**
- * Type definition for public BacktestLogic service.
- * Omits private dependencies from BacktestLogicPrivateService.
- */
-type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
-    loggerService: never;
-    strategyCoreService: never;
-    exchangeCoreService: never;
-    frameCoreService: never;
-    actionCoreService: never;
-    methodContextService: never;
-}>;
-/**
- * Type definition for BacktestLogicPublicService.
- * Maps all keys of IBacktestLogicPrivateService to any type.
- */
-type TBacktestLogicPrivateService = {
-    [key in keyof IBacktestLogicPrivateService]: any;
-};
-/**
- * Public service for backtest orchestration with context management.
- *
- * Wraps BacktestLogicPrivateService with MethodContextService to provide
- * implicit context propagation for strategyName, exchangeName, and frameName.
- *
- * This allows getCandles(), getSignal(), and other functions to work without
- * explicit context parameters.
- *
- * @example
- * ```typescript
- * const backtestLogicPublicService = inject(TYPES.backtestLogicPublicService);
- *
- * for await (const result of backtestLogicPublicService.run("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "my-exchange",
- *   frameName: "1d-backtest",
- * })) {
- *   if (result.action === "closed") {
- *     console.log("PNL:", result.pnl.profit);
- *   }
- * }
- * ```
- */
-declare class BacktestLogicPublicService implements TBacktestLogicPrivateService {
-    private readonly loggerService;
-    private readonly backtestLogicPrivateService;
-    /**
-     * Runs backtest for a symbol with context propagation.
-     *
-     * Streams closed signals as async generator. Context is automatically
-     * injected into all framework functions called during iteration.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Execution context with strategy, exchange, and frame names
-     * @returns Async generator yielding closed signals with PNL
-     */
-    run: (symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
 }
 
 /**
@@ -28387,7 +28664,7 @@ declare class ColumnValidationService {
  * Features:
  * - Listens to backtest signal events via signalBacktestEmitter
  * - Logs all tick event types with full signal details
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28459,7 +28736,7 @@ declare class BacktestReportService {
  * Features:
  * - Listens to live signal events via signalLiveEmitter
  * - Logs all tick event types with full signal details
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28532,7 +28809,7 @@ declare class LiveReportService {
  * - Listens to signal events via signalEmitter
  * - Logs scheduled, opened (from scheduled), and cancelled events
  * - Calculates duration between scheduling and execution/cancellation
- * - Stores events in Report.writeData() for schedule tracking
+ * - Stores events in ReportWriter.writeData() for schedule tracking
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28604,7 +28881,7 @@ declare class ScheduleReportService {
  * Features:
  * - Listens to performance events via performanceEmitter
  * - Logs all timing metrics with duration and metadata
- * - Stores events in Report.writeData() for performance analysis
+ * - Stores events in ReportWriter.writeData() for performance analysis
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28676,7 +28953,7 @@ declare class PerformanceReportService {
  * - Listens to walker events via walkerEmitter
  * - Logs each strategy test result with metrics and statistics
  * - Tracks best strategy and optimization progress
- * - Stores events in Report.writeData() for optimization analysis
+ * - Stores events in ReportWriter.writeData() for optimization analysis
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28747,7 +29024,7 @@ declare class WalkerReportService {
  * Features:
  * - Listens to signal events via signalEmitter
  * - Logs only closed signals with PNL data
- * - Stores events in Report.writeData() for heatmap generation
+ * - Stores events in ReportWriter.writeData() for heatmap generation
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28820,7 +29097,7 @@ declare class HeatReportService {
  * - Listens to partial profit events via partialProfitSubject
  * - Listens to partial loss events via partialLossSubject
  * - Logs all partial exit events with level and price information
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28899,7 +29176,7 @@ declare class PartialReportService {
  * Features:
  * - Listens to breakeven events via breakevenSubject
  * - Logs all breakeven achievements with full signal details
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -28970,7 +29247,7 @@ declare class BreakevenReportService {
  * Features:
  * - Listens to risk rejection events via riskSubject
  * - Logs all rejected signals with reason and pending signal details
- * - Stores events in Report.writeData() for risk tracking
+ * - Stores events in ReportWriter.writeData() for risk tracking
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -29044,14 +29321,29 @@ declare class RiskReportService {
  *
  * Lifecycle:
  * - Call subscribe() to enable event logging
- * - Events are written via Report.writeData() with "strategy" category
+ * - Events are written via ReportWriter.writeData() with "strategy" category
  * - Call unsubscribe() to disable event logging
  *
  * @see StrategyMarkdownService for in-memory event accumulation and markdown report generation
  * @see Report for the underlying persistence mechanism
  */
 declare class StrategyReportService {
-    readonly loggerService: LoggerService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
     /**
      * Logs a cancel-scheduled event when a scheduled signal is cancelled.
      */
@@ -29152,7 +29444,7 @@ declare class StrategyReportService {
  * - Listens to sync events via syncSubject
  * - Logs signal-open events (scheduled limit order filled) with full signal details
  * - Logs signal-close events (position exited) with PNL and close reason
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -29219,7 +29511,7 @@ declare class SyncReportService {
  * Service for logging highest profit events to the JSONL report database.
  *
  * Listens to highestProfitSubject and writes each new price record to
- * Report.writeData() for persistence and analytics.
+ * ReportWriter.writeData() for persistence and analytics.
  */
 declare class HighestProfitReportService {
     private readonly loggerService;
@@ -29227,7 +29519,7 @@ declare class HighestProfitReportService {
      * Handles a single `HighestProfitContract` event emitted by `highestProfitSubject`.
      *
      * Writes a JSONL record to the `"highest_profit"` report database via
-     * `Report.writeData`, capturing the full signal snapshot at the moment
+     * `ReportWriter.writeData`, capturing the full signal snapshot at the moment
      * the new profit record was set:
      * - `timestamp`, `symbol`, `strategyName`, `exchangeName`, `frameName`, `backtest`
      * - `signalId`, `position`, `currentPrice`
@@ -29281,7 +29573,7 @@ declare class HighestProfitReportService {
  * Service for logging max drawdown events to the JSONL report database.
  *
  * Listens to maxDrawdownSubject and writes each new drawdown record to
- * Report.writeData() for persistence and analytics.
+ * ReportWriter.writeData() for persistence and analytics.
  */
 declare class MaxDrawdownReportService {
     private readonly loggerService;
@@ -29289,7 +29581,7 @@ declare class MaxDrawdownReportService {
      * Handles a single `MaxDrawdownContract` event emitted by `maxDrawdownSubject`.
      *
      * Writes a JSONL record to the `"max_drawdown"` report database via
-     * `Report.writeData`, capturing the full signal snapshot at the moment
+     * `ReportWriter.writeData`, capturing the full signal snapshot at the moment
      * the new drawdown record was set:
      * - `timestamp`, `symbol`, `strategyName`, `exchangeName`, `frameName`, `backtest`
      * - `signalId`, `position`, `currentPrice`
@@ -29374,6 +29666,28 @@ declare const backtest: {
     breakevenGlobalService: BreakevenGlobalService;
     timeMetaService: TimeMetaService;
     priceMetaService: PriceMetaService;
+    contextMetaService: {
+        readonly loggerService: {
+            readonly methodContextService: {
+                readonly context: IMethodContext;
+            };
+            readonly executionContextService: {
+                readonly context: IExecutionContext;
+            };
+            _commonLogger: ILogger;
+            readonly _methodContext: {};
+            readonly _executionContext: {};
+            log: (topic: string, ...args: any[]) => Promise<void>;
+            debug: (topic: string, ...args: any[]) => Promise<void>;
+            info: (topic: string, ...args: any[]) => Promise<void>;
+            warn: (topic: string, ...args: any[]) => Promise<void>;
+            setLogger: (logger: ILogger) => void;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        getContextTimestamp: () => number;
+    };
     exchangeCoreService: ExchangeCoreService;
     strategyCoreService: StrategyCoreService;
     actionCoreService: ActionCoreService;
@@ -29399,7 +29713,22 @@ declare const backtest: {
     methodContextService: {
         readonly context: IMethodContext;
     };
-    loggerService: LoggerService;
+    loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
 };
 
 interface Signal$2 extends ISignalDto {
@@ -29478,4 +29807,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };

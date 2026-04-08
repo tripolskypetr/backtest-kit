@@ -1,6 +1,6 @@
 import { RiskName, IRiskSchema } from "../../../interfaces/Risk.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { isObject, ToolRegistry } from "functools-kit";
 
@@ -11,7 +11,7 @@ import { isObject, ToolRegistry } from "functools-kit";
  * Risk profiles are registered via addRisk() and retrieved by name.
  */
 export class RiskSchemaService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   private _registry = new ToolRegistry<Record<RiskName, IRiskSchema>>(
     "riskSchema"

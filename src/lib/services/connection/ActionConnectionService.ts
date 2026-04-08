@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { ActionName, IAction } from "../../../interfaces/Action.interface";
 import { memoize } from "functools-kit";
@@ -16,6 +16,7 @@ import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 import { SignalSyncContract } from "../../../contract/SignalSync.contract";
+import StrategyCoreService from "../core/StrategyCoreService";
 
 /**
  * Creates a unique key for memoizing ClientAction instances.
@@ -77,10 +78,11 @@ type TAction = {
  * ```
  */
 export class ActionConnectionService implements TAction {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly actionSchemaService = inject<ActionSchemaService>(
     TYPES.actionSchemaService
   );
+  private readonly strategyCoreService = inject<StrategyCoreService>(TYPES.strategyCoreService);
 
   /**
    * Retrieves memoized ClientAction instance for given action name, strategy, exchange, frame and backtest mode.
@@ -103,6 +105,7 @@ export class ActionConnectionService implements TAction {
       return new ClientAction({
         ...schema,
         logger: this.loggerService,
+        strategy: this.strategyCoreService,
         exchangeName,
         strategyName,
         frameName,

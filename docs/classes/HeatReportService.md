@@ -13,7 +13,7 @@ heatmap analysis and stores them in the Report database.
 Features:
 - Listens to signal events via signalEmitter
 - Logs only closed signals with PNL data
-- Stores events in Report.writeData() for heatmap generation
+- Stores events in ReportWriter.writeData() for heatmap generation
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

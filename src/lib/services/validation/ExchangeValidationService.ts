@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { ExchangeName, IExchangeSchema } from "../../../interfaces/Exchange.interface";
 import { memoize } from "functools-kit";
@@ -33,7 +33,7 @@ export class ExchangeValidationService {
    * @readonly
    * Injected logger service instance
    */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * @private

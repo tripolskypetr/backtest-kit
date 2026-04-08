@@ -143,8 +143,8 @@ export class LogPersistUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "log",
-        priority: Date.now(),
-        timestamp: getContextTimestamp(),
+      priority: Date.now(),
+      timestamp: getContextTimestamp(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),

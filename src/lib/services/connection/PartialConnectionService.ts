@@ -1,5 +1,5 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { IPublicSignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
 import { IPartial, PartialLevel } from "../../../interfaces/Partial.interface";
@@ -13,7 +13,6 @@ import {
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
-import backtest from "../../../lib";
 
 /**
  * Creates a unique key for memoizing ClientPartial instances.
@@ -68,7 +67,7 @@ const CREATE_COMMIT_PROFIT_FN = (self: PartialConnectionService) => trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -117,7 +116,7 @@ const CREATE_COMMIT_LOSS_FN = (self: PartialConnectionService) => trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -160,12 +159,12 @@ export class PartialConnectionService implements IPartial {
   /**
    * Logger service injected from DI container.
    */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Action core service injected from DI container.
    */
-  public readonly actionCoreService = inject<ActionCoreService>(TYPES.actionCoreService);
+  readonly actionCoreService = inject<ActionCoreService>(TYPES.actionCoreService);
 
   /**
    * Memoized factory function for ClientPartial instances.

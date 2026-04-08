@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import RiskConnectionService from "../connection/RiskConnectionService";
 import { IRisk, IRiskCheckArgs, RiskName } from "../../../interfaces/Risk.interface";
@@ -39,7 +39,7 @@ type TRisk = {
  * Used internally by strategy execution and public API.
  */
 export class RiskGlobalService implements TRisk {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly riskConnectionService = inject<RiskConnectionService>(
     TYPES.riskConnectionService
   );

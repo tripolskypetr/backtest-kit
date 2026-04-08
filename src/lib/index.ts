@@ -1,7 +1,7 @@
 import "./core/provide";
 import { inject, init } from "./core/di";
 import TYPES from "./core/types";
-import LoggerService from "./services/base/LoggerService";
+import LoggerService, { TLoggerService } from "./services/base/LoggerService";
 import ExchangeConnectionService from "./services/connection/ExchangeConnectionService";
 import StrategyConnectionService from "./services/connection/StrategyConnectionService";
 import FrameConnectionService from "./services/connection/FrameConnectionService";
@@ -77,9 +77,10 @@ import HighestProfitMarkdownService from "./services/markdown/HighestProfitMarkd
 import MaxDrawdownMarkdownService from "./services/markdown/MaxDrawdownMarkdownService";
 import TimeMetaService from "./services/meta/TimeMetaService";
 import PriceMetaService from "./services/meta/PriceMetaService";
+import { TContextMetaService } from "./services/meta/ContextMetaService";
 
 const baseServices = {
-  loggerService: inject<LoggerService>(TYPES.loggerService),
+  loggerService: inject<TLoggerService>(TYPES.loggerService),
 };
 
 const contextServices = {
@@ -142,6 +143,7 @@ const coreServices = {
 const metaServices = {
   timeMetaService: inject<TimeMetaService>(TYPES.timeMetaService),
   priceMetaService: inject<PriceMetaService>(TYPES.priceMetaService),
+  contextMetaService: inject<TContextMetaService>(TYPES.contextMetaService),
 }
 
 const globalServices = {

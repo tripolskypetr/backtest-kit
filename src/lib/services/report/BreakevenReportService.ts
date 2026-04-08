@@ -1,10 +1,10 @@
 import { IPublicSignalRow } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { breakevenSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 
@@ -21,7 +21,7 @@ const BREAKEVEN_REPORT_METHOD_NAME_TICK = "BreakevenReportService.tickBreakeven"
  * Features:
  * - Listens to breakeven events via breakevenSubject
  * - Logs all breakeven achievements with full signal details
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -42,7 +42,7 @@ const BREAKEVEN_REPORT_METHOD_NAME_TICK = "BreakevenReportService.tickBreakeven"
  */
 export class BreakevenReportService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Processes breakeven events and logs them to the database.
@@ -62,7 +62,7 @@ export class BreakevenReportService {
   }) => {
     this.loggerService.log(BREAKEVEN_REPORT_METHOD_NAME_TICK, { data });
 
-    await Report.writeData("breakeven", {
+    await ReportWriter.writeData("breakeven", {
       timestamp: data.timestamp,
       symbol: data.symbol,
       strategyName: data.data.strategyName,

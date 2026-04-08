@@ -1,4 +1,4 @@
-import { Markdown } from "../../../classes/Markdown";
+import { MarkdownWriter } from "../../../classes/Writer";
 import {
   IStrategyTickResult,
   IStrategyTickResultScheduled,
@@ -10,7 +10,7 @@ import {
   StrategyName,
 } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { signalLiveEmitter } from "../../../config/emitters";
@@ -582,7 +582,7 @@ class ReportStorage {
     const markdown = await this.getReport(strategyName, columns);
     const timestamp = getContextTimestamp();
     const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
-    await Markdown.writeData("live", markdown, {
+    await MarkdownWriter.writeData("live", markdown, {
       path,
       signalId: "",
       file: filename,
@@ -626,7 +626,7 @@ class ReportStorage {
  */
 export class LiveMarkdownService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Memoized function to get or create ReportStorage for a symbol-strategy-exchange-frame-backtest combination.

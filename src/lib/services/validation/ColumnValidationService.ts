@@ -1,5 +1,5 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { COLUMN_CONFIG } from "../../../config/columns";
 import { ColumnModel } from "../../../model/Column.model";
@@ -36,7 +36,7 @@ export class ColumnValidationService {
    * @readonly
    * Injected logger service instance
    */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Validates all column configurations in COLUMN_CONFIG for structural correctness.

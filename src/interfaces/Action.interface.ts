@@ -40,6 +40,40 @@ import { SignalSyncContract } from "../contract/SignalSync.contract";
 export type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName, backtest: boolean) => Partial<IPublicAction>;
 
 /**
+ * Strategy query interface exposed to action handlers via IActionParams.strategy.
+ *
+ * Provides read-only access to the current signal state needed for
+ * guard checks inside ActionProxy before invoking user callbacks.
+ *
+ * Used by:
+ * - ActionProxy.breakevenAvailable — skips if no pending signal
+ * - ActionProxy.partialProfitAvailable — skips if no pending signal
+ * - ActionProxy.partialLossAvailable — skips if no pending signal
+ * - ActionProxy.pingActive — skips if no pending signal
+ * - ActionProxy.pingScheduled — skips if no scheduled signal
+ */
+export interface IActionStrategy {
+  /**
+   * Checks if there is an active pending signal (open position) for the symbol.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to true if a pending signal exists, false otherwise
+   */
+  hasPendingSignal(backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }): Promise<boolean>;
+  /**
+   * Checks if there is a waiting scheduled signal for the symbol.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to true if a scheduled signal exists, false otherwise
+   */
+  hasScheduledSignal(backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }): Promise<boolean>;
+}
+
+/**
  * Action parameters passed to ClientAction constructor.
  * Combines schema with runtime dependencies and execution context.
  *
@@ -73,6 +107,8 @@ export interface IActionParams extends IActionSchema {
   frameName: FrameName;
   /** Whether running in backtest mode */
   backtest: boolean;
+  /** Strategy context object providing access to current signal and position state */
+  strategy: IActionStrategy;
 }
 
 /**

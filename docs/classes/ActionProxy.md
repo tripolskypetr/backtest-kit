@@ -42,6 +42,12 @@ constructor();
 _target: Partial<IPublicAction>
 ```
 
+### params
+
+```ts
+params: IActionParams
+```
+
 ## Methods
 
 ### init
@@ -177,7 +183,7 @@ Called once when strategy execution ends.
 ### fromInstance
 
 ```ts
-static fromInstance(instance: Partial<IPublicAction>): ActionProxy;
+static fromInstance(instance: Partial<IPublicAction>, params: IActionParams): ActionProxy;
 ```
 
 Creates a new ActionProxy instance wrapping a user-provided action handler.

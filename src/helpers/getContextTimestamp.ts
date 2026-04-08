@@ -1,5 +1,10 @@
-import { alignToInterval } from "../utils/alignToInterval";
-import backtest, { ExecutionContextService } from "../lib"
+import ContextMetaService from "../lib/services/meta/ContextMetaService";
+
+/**
+ * Global instance of ContextMetaService used by getContextTimestamp.
+ * Ensures a single source of truth for context-aware timestamps across the application.
+ */
+const CONTEXT_META_SERVICE = new ContextMetaService();
 
 /**
  * Retrieves the current timestamp based on the execution context.
@@ -9,8 +14,5 @@ import backtest, { ExecutionContextService } from "../lib"
  * @return {number} The current timestamp in milliseconds, either from the execution context or the real-world clock.
  */
 export const getContextTimestamp = () => {
-    if (ExecutionContextService.hasContext()) {
-        return backtest.executionContextService.context.when.getTime();
-    }
-    return alignToInterval(new Date(), "1m").getTime();
+    return CONTEXT_META_SERVICE.getContextTimestamp();
 }

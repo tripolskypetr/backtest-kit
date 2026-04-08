@@ -1,10 +1,10 @@
 import { IStrategyTickResult } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalLiveEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 const LIVE_REPORT_METHOD_NAME_SUBSCRIBE = "LiveReportService.subscribe";
@@ -20,7 +20,7 @@ const LIVE_REPORT_METHOD_NAME_TICK = "LiveReportService.tick";
  * Features:
  * - Listens to live signal events via signalLiveEmitter
  * - Logs all tick event types with full signal details
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -41,7 +41,7 @@ const LIVE_REPORT_METHOD_NAME_TICK = "LiveReportService.tick";
  */
 export class LiveReportService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Processes live trading tick events and logs them to the database.
@@ -75,9 +75,9 @@ export class LiveReportService {
     };
 
     if (data.action === "idle") {
-      await Report.writeData("live", baseEvent, searchOptions);
+      await ReportWriter.writeData("live", baseEvent, searchOptions);
     } else if (data.action === "scheduled") {
-      await Report.writeData("live", {
+      await ReportWriter.writeData("live", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,
@@ -97,7 +97,7 @@ export class LiveReportService {
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "waiting") {
-      await Report.writeData("live", {
+      await ReportWriter.writeData("live", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,
@@ -126,7 +126,7 @@ export class LiveReportService {
         fallPnl: data.signal?._fall?.pnlPercentage,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "opened") {
-      await Report.writeData("live", {
+      await ReportWriter.writeData("live", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,
@@ -146,7 +146,7 @@ export class LiveReportService {
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "active") {
-      await Report.writeData("live", {
+      await ReportWriter.writeData("live", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,
@@ -179,7 +179,7 @@ export class LiveReportService {
       const durationMs = data.closeTimestamp - data.signal?.pendingAt;
       const durationMin = Math.round(durationMs / 60000);
 
-      await Report.writeData("live", {
+      await ReportWriter.writeData("live", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,
@@ -210,7 +210,7 @@ export class LiveReportService {
         fallPnl: data.signal?._fall?.pnlPercentage,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "cancelled") {
-      await Report.writeData("live", {
+      await ReportWriter.writeData("live", {
         ...baseEvent,
         signalId: data.signal?.id,
         position: data.signal?.position,

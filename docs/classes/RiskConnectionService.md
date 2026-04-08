@@ -31,13 +31,19 @@ constructor();
 ### loggerService
 
 ```ts
-loggerService: any
+loggerService: { readonly methodContextService: { readonly context: IMethodContext; }; readonly executionContextService: { readonly context: IExecutionContext; }; ... 7 more ...; setLogger: (logger: ILogger) => void; }
 ```
 
 ### riskSchemaService
 
 ```ts
-riskSchemaService: any
+riskSchemaService: RiskSchemaService
+```
+
+### executionContextService
+
+```ts
+executionContextService: { readonly context: IExecutionContext; }
 ```
 
 ### actionCoreService

@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import SizingConnectionService from "../connection/SizingConnectionService";
 import { ISizing, ISizingCalculateParams, SizingName } from "../../../interfaces/Sizing.interface";
@@ -23,7 +23,7 @@ type TSizing = {
  * Used internally by strategy execution and public API.
  */
 export class SizingGlobalService implements TSizing {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly sizingConnectionService = inject<SizingConnectionService>(
     TYPES.sizingConnectionService
   );

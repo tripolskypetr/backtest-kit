@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { WalkerName, IWalkerSchema } from "../../../interfaces/Walker.interface";
 import { memoize } from "functools-kit";
@@ -35,7 +35,7 @@ export class WalkerValidationService {
    * @readonly
    * Injected logger service instance
    */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * @private

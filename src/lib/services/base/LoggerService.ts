@@ -7,6 +7,7 @@ import TYPES from "../../../lib/core/types";
 import ExecutionContextService, {
   TExecutionContextService,
 } from "../context/ExecutionContextService";
+import { singleton } from "di-singleton";
 
 /**
  * No-op logger implementation used as default.
@@ -38,21 +39,21 @@ const NOOP_LOGGER: ILogger = {
  *
  * Used throughout the framework for consistent logging with context.
  */
-export class LoggerService implements ILogger {
-  private readonly methodContextService = inject<TMethodContextService>(
+export const LoggerService = singleton(class implements ILogger {
+  readonly methodContextService = inject<TMethodContextService>(
     TYPES.methodContextService
   );
-  private readonly executionContextService = inject<TExecutionContextService>(
+  readonly executionContextService = inject<TExecutionContextService>(
     TYPES.executionContextService
   );
 
-  private _commonLogger: ILogger = NOOP_LOGGER;
+  _commonLogger: ILogger = NOOP_LOGGER;
 
   /**
    * Gets current method context if available.
    * Contains strategyName, exchangeName, frameName from MethodContextService.
    */
-  private get methodContext() {
+  get _methodContext() {
     if (MethodContextService.hasContext()) {
       return this.methodContextService.context;
     }
@@ -63,7 +64,7 @@ export class LoggerService implements ILogger {
    * Gets current execution context if available.
    * Contains symbol, when, backtest from ExecutionContextService.
    */
-  private get executionContext() {
+  get _executionContext() {
     if (ExecutionContextService.hasContext()) {
       return this.executionContextService.context;
     }
@@ -80,8 +81,8 @@ export class LoggerService implements ILogger {
     await this._commonLogger.log(
       topic,
       ...args,
-      this.methodContext,
-      this.executionContext
+      this._methodContext,
+      this._executionContext
     );
   };
 
@@ -95,8 +96,8 @@ export class LoggerService implements ILogger {
     await this._commonLogger.debug(
       topic,
       ...args,
-      this.methodContext,
-      this.executionContext
+      this._methodContext,
+      this._executionContext
     );
   };
 
@@ -110,8 +111,8 @@ export class LoggerService implements ILogger {
     await this._commonLogger.info(
       topic,
       ...args,
-      this.methodContext,
-      this.executionContext
+      this._methodContext,
+      this._executionContext
     );
   };
 
@@ -125,8 +126,8 @@ export class LoggerService implements ILogger {
     await this._commonLogger.warn(
       topic,
       ...args,
-      this.methodContext,
-      this.executionContext
+      this._methodContext,
+      this._executionContext
     );
   };
 
@@ -138,6 +139,19 @@ export class LoggerService implements ILogger {
   public setLogger = (logger: ILogger) => {
     this._commonLogger = logger;
   };
-}
+})
+
+/**
+ * Type alias for LoggerService instance, used for DI injection.
+ * Allows other services to declare dependencies on LoggerService with correct typing.
+ * Example usage in another service:
+ * ```
+ * class SomeService {
+ *  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
+ *  ...
+ * }
+ * ```
+ */
+export type TLoggerService = InstanceType<typeof LoggerService>;
 
 export default LoggerService;

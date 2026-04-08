@@ -1,5 +1,4 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import LiveLogicPublicService from "../logic/public/LiveLogicPublicService";
 import StrategyValidationService from "../validation/StrategyValidationService";
@@ -9,6 +8,7 @@ import RiskValidationService from "../validation/RiskValidationService";
 import ActionValidationService from "../validation/ActionValidationService";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
+import { TLoggerService } from "../base/LoggerService";
 
 const METHOD_NAME_RUN = "liveCommandService run";
 
@@ -27,7 +27,7 @@ type TLiveLogicPublicService = {
  * Used by public API exports.
  */
 export class LiveCommandService implements TLiveLogicPublicService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly liveLogicPublicService = inject<LiveLogicPublicService>(
     TYPES.liveLogicPublicService
   );

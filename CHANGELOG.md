@@ -1,3 +1,71 @@
+# Code Refactoring (v6.8.1, 08/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.8.1)
+
+
+v6.8.1 resolves circular import issues across the class layer by splitting monolithic files, extracting shared infrastructure into dedicated services, and converting `LoggerService` to a `singleton` factory so all DI consumers reference the same instance without importing through the `lib` barrel.
+
+## `Action.ts` Split — `ActionBase` + `ActionProxy`
+
+The 1100-line `Action.ts` is split into two focused files:
+
+- **`ActionBase.ts`** — base class users extend to implement custom action handlers (state management, notifications, analytics). All `IPublicAction` methods have default no-op logging implementations. No longer imports from `src/lib` barrel, eliminating the circular dependency.
+- **`ActionProxy.ts`** — internal proxy that wraps a user's `ActionBase` instance with error capture (`trycatch`), guard checks (pending/scheduled signal), and error emission. Imports `LoggerService` directly instead of through the `lib` barrel.
+
+`Action.ts` now re-exports both classes for backwards compatibility.
+
+## `MergeRisk` Extracted to `MergeRisk.ts`
+
+`MergeRisk` (composite risk that ANDs multiple `IRisk` instances) is moved from `Risk.ts` into its own `src/classes/MergeRisk.ts`. It now uses `LoggerService` directly instead of the `bt` singleton from `lib`, removing the circular import.
+
+## `Writer.ts` — Shared Infrastructure for Markdown and Report Classes
+
+A new `src/classes/Writer.ts` extracts the common file-writing infrastructure that was duplicated between `Markdown.ts` and `Report.ts`:
+
+- `MarkdownWriter` / `ReportWriter` — adapter classes managing file/folder JSONL writers with `singleshot` init, `timeout` writes, and `exitEmitter`/`shutdownEmitter` teardown
+- `IMarkdownTarget` / `IReportTarget` — configuration interfaces for selective service enablement
+- `TMarkdownBaseCtor` / `TReportBaseCtor` — constructor type aliases
+
+`Markdown.ts` and `Report.ts` are now thin facades that compose the per-domain services (e.g. `BacktestMarkdownService`, `StrategyReportService`) with the shared writer infrastructure from `Writer.ts`.
+
+## `ContextMetaService` — New DI Service
+
+`src/lib/services/meta/ContextMetaService.ts` is a new `singleton` service that centralises the "get current timestamp" logic previously inlined in `getContextTimestamp.ts`:
+
+- If an execution context is active, returns `executionContextService.context.when.getTime()`
+- Otherwise returns `alignToInterval(new Date(), "1m").getTime()`
+
+`getContextTimestamp.ts` now delegates entirely to `CONTEXT_META_SERVICE.getContextTimestamp()`, removing its direct import of `backtest` from the `lib` barrel.
+
+## `LoggerService` Converted to `singleton`
+
+`LoggerService` is now exported as a `singleton(class ...)` factory from `di-singleton`. Previously it was a plain `class`, which caused consumers to create independent instances. Now all DI lookups share one instance. Private fields and getters are renamed with `_` prefix to satisfy singleton class constraints:
+
+- `_commonLogger` (was `private _commonLogger`)
+- `_methodContext` (was `private get methodContext`)
+- `_executionContext` (was `private get executionContext`)
+
+All services that injected `LoggerService` by class reference now inject by `TLoggerService` type alias to avoid importing the concrete class.
+
+## `IActionStrategy` Interface + `strategy` param on `IActionParams`
+
+`IActionStrategy` is added to `Action.interface.ts`. It exposes `hasPendingSignal` and `hasScheduledSignal` — the two guard queries `ActionProxy` needs to skip callbacks when there is no active position. The `strategy` field is injected via `IActionParams` instead of being pulled from the `lib` barrel inside the class.
+
+## `execution` Field on `IRiskParams`
+
+`IRiskParams` gains an `execution: TExecutionContextService` field so risk implementations can access the current execution context (symbol, timestamp, backtest flag) without importing `lib` directly.
+
+## Services Updated to Use `TLoggerService`
+
+All services that previously typed their injected logger as `inject<LoggerService>(...)` now use `inject<TLoggerService>(...)`. Affected files span the full service tree: `BacktestLogicPublicService`, `LiveLogicPublicService`, `WalkerLogicPublicService`, all connection/schema/validation/report/markdown services, and `PriceMetaService` / `TimeMetaService`.
+
+## `getDebugTimestamp` Removed
+
+`src/helpers/getDebugTimestamp.ts` is deleted. Its functionality was already covered by `getContextTimestamp`.
+
+
+
+
 # Max Drawdown Measure (v6.7.0, 06/04/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.7.0)

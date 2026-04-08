@@ -17,21 +17,28 @@ import {
   RiskName,
 } from "../interfaces/Risk.interface";
 import { PersistRiskAdapter } from "../classes/Persist";
-import backtest from "../lib";
 import { validationSubject, errorEmitter } from "../config/emitters";
 import { get } from "../utils/get";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { IRiskSignalRow, ISignalDto, ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { IRiskSignalRow, ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
 import toProfitLossDto from "../helpers/toProfitLossDto";
-import { getContextTimestamp } from "../helpers/getContextTimestamp";
+import alignToInterval from "../utils/alignToInterval";
+import ExecutionContextService from "../lib/services/context/ExecutionContextService";
 
 /** Type for active position map */
 type RiskMap = Map<string, IRiskActivePosition>;
 
 /** Symbol indicating that positions need to be fetched from persistence */
 const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
+
+const GET_CONTEXT_TIMESTAMP_FN = (self: ClientRisk) => {
+  if (ExecutionContextService.hasContext()) {
+      return self.params.execution.context.when.getTime();
+  }
+  return alignToInterval(new Date(), "1m").getTime();
+}
 
 /**
  * Converts signal to risk validation format.
@@ -69,7 +76,7 @@ const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
  * // riskSignal.originalPriceTakeProfit = activeSignal.priceTakeProfit (original)
  * ```
  */
-const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number): IRiskSignalRow => {
+const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, timestamp): IRiskSignalRow => {
   const hasTrailingSL = "_trailingPriceStopLoss" in signal && signal._trailingPriceStopLoss !== undefined;
   const hasTrailingTP = "_trailingPriceTakeProfit" in signal && signal._trailingPriceTakeProfit !== undefined;
   const partialExecuted = ("_partial" in signal && Array.isArray(signal._partial))
@@ -78,7 +85,7 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number): 
   return {
     ...structuredClone(signal) as ISignalRow,
     cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
-    timestamp: signal.timestamp || getContextTimestamp(),
+    timestamp: signal.timestamp || timestamp,
     totalEntries: 1,
     totalPartials: 0,
     priceOpen: signal.priceOpen ?? currentPrice,
@@ -98,6 +105,7 @@ const CREATE_NAME_FN = (strategyName: StrategyName, exchangeName: ExchangeName, 
 
 /** Wrapper to execute risk validation function with error handling */
 const DO_VALIDATION_FN = async (
+  self: ClientRisk,
   validation: IRiskValidationFn,
   params: IRiskValidationPayload
 ): Promise<RiskRejection> => {
@@ -109,7 +117,7 @@ const DO_VALIDATION_FN = async (
       error: errorData(error),
       message: getErrorMessage(error),
     };
-    backtest.loggerService.warn(message, payload);
+    self.params.logger.warn(message, payload);
     console.warn(message, payload);
     validationSubject.next(error);
     return payload.message;
@@ -128,13 +136,13 @@ const CALL_REJECTED_CALLBACKS_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientRisk CALL_REJECTED_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -153,13 +161,13 @@ const CALL_ALLOWED_CALLBACKS_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientRisk CALL_ALLOWED_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -335,11 +343,14 @@ export class ClientRisk implements IRisk {
 
     const riskMap = <RiskMap>this._activePositions;
 
+    const timestamp = GET_CONTEXT_TIMESTAMP_FN(this);
+
     const payload: IRiskValidationPayload = {
       ...params,
       currentSignal: TO_RISK_SIGNAL(
         params.currentSignal,
-        params.currentPrice
+        params.currentPrice,
+        timestamp,
       ),
       activePositionCount: riskMap.size,
       activePositions: Array.from(riskMap.values()),
@@ -350,6 +361,7 @@ export class ClientRisk implements IRisk {
     if (this.params.validations) {
       for (const validation of this.params.validations) {
         const rejection = await DO_VALIDATION_FN(
+          this,
           typeof validation === "function" ? validation : validation.validate,
           payload
         );

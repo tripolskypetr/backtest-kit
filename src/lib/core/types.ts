@@ -36,6 +36,7 @@ const coreServices = {
 }
 
 const metaServices = {
+    contextMetaService: Symbol('contextMetaService'),
     priceMetaService: Symbol('priceMetaService'),
     timeMetaService: Symbol('timeMetaService'),
 }

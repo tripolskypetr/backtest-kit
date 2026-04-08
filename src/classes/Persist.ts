@@ -25,7 +25,10 @@ import { ExchangeName, CandleInterval, ICandleData } from "../interfaces/Exchang
 import { IStorageSignalRow } from "../interfaces/Strategy.interface";
 import { NotificationModel } from "../model/Notification.model";
 import { ILogEntry } from "../interfaces/Logger.interface";
+import LoggerService from "../lib/services/base/LoggerService";
 
+/** Logger service injected as DI singleton */
+const LOGGER_SERVICE = new LoggerService();
 
 /** Symbol key for the singleshot waitForInit function on PersistBase instances. */
 const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
@@ -281,7 +284,7 @@ export interface IPersistBase<Entity extends IEntity | null = IEntity> {
 }
 
 const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
-  swarm.loggerService.debug(BASE_WAIT_FOR_INIT_FN_METHOD_NAME, {
+  LOGGER_SERVICE.debug(BASE_WAIT_FOR_INIT_FN_METHOD_NAME, {
     entityName: self.entityName,
     directory: self._directory,
   });
@@ -358,7 +361,7 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
     readonly entityName: EntityName,
     readonly baseDir = join(process.cwd(), "logs/data")
   ) {
-    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_CTOR, {
+    LOGGER_SERVICE.debug(PERSIST_BASE_METHOD_NAME_CTOR, {
       entityName: this.entityName,
       baseDir,
     });
@@ -380,7 +383,7 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
   );
 
   async waitForInit(initial: boolean): Promise<void> {
-    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT, {
+    LOGGER_SERVICE.debug(PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT, {
       entityName: this.entityName,
       initial,
     });
@@ -388,7 +391,7 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
   }
 
   async readValue<T extends IEntity = IEntity>(entityId: EntityId): Promise<T> {
-    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_READ_VALUE, {
+    LOGGER_SERVICE.debug(PERSIST_BASE_METHOD_NAME_READ_VALUE, {
       entityName: this.entityName,
       entityId,
     });
@@ -409,7 +412,7 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
   }
 
   async hasValue(entityId: EntityId): Promise<boolean> {
-    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_HAS_VALUE, {
+    LOGGER_SERVICE.debug(PERSIST_BASE_METHOD_NAME_HAS_VALUE, {
       entityName: this.entityName,
       entityId,
     });
@@ -433,7 +436,7 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
     entityId: EntityId,
     entity: T
   ): Promise<void> {
-    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_WRITE_VALUE, {
+    LOGGER_SERVICE.debug(PERSIST_BASE_METHOD_NAME_WRITE_VALUE, {
       entityName: this.entityName,
       entityId,
     });
@@ -459,7 +462,7 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
    * @throws Error if reading fails
    */
   async *keys(): AsyncGenerator<EntityId> {
-    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_KEYS, {
+    LOGGER_SERVICE.debug(PERSIST_BASE_METHOD_NAME_KEYS, {
       entityName: this.entityName,
     });
     try {
@@ -580,7 +583,7 @@ export class PersistSignalUtils {
   public usePersistSignalAdapter(
     Ctor: TPersistBaseCtor<StrategyName, SignalData>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_PERSIST_SIGNAL_ADAPTER
     );
     this.PersistSignalFactory = Ctor;
@@ -602,7 +605,7 @@ export class PersistSignalUtils {
     strategyName: StrategyName,
     exchangeName: ExchangeName
   ): Promise<ISignalRow | null> => {
-    swarm.loggerService.info(PERSIST_SIGNAL_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_SIGNAL_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getStorage.has(key);
@@ -638,7 +641,7 @@ export class PersistSignalUtils {
     strategyName: StrategyName,
     exchangeName: ExchangeName
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_SIGNAL_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_SIGNAL_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getStorage.has(key);
@@ -658,7 +661,7 @@ export class PersistSignalUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_CLEAR);
     this.getStorage.clear();
   }
 
@@ -667,7 +670,7 @@ export class PersistSignalUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistSignalAdapter(PersistBase);
   }
 
@@ -676,7 +679,7 @@ export class PersistSignalUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistSignalAdapter(PersistDummy);
   }
 }
@@ -747,7 +750,7 @@ export class PersistRiskUtils {
   public usePersistRiskAdapter(
     Ctor: TPersistBaseCtor<RiskName, RiskData>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_RISK_UTILS_METHOD_NAME_USE_PERSIST_RISK_ADAPTER
     );
     this.PersistRiskFactory = Ctor;
@@ -767,7 +770,7 @@ export class PersistRiskUtils {
     riskName: RiskName,
     exchangeName: ExchangeName
   ): Promise<RiskData> => {
-    swarm.loggerService.info(PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${riskName}:${exchangeName}`;
     const isInitial = !this.getRiskStorage.has(key);
@@ -799,7 +802,7 @@ export class PersistRiskUtils {
     riskName: RiskName,
     exchangeName: ExchangeName
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = `${riskName}:${exchangeName}`;
     const isInitial = !this.getRiskStorage.has(key);
@@ -817,7 +820,7 @@ export class PersistRiskUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_RISK_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_RISK_UTILS_METHOD_NAME_CLEAR);
     this.getRiskStorage.clear();
   }
 
@@ -826,7 +829,7 @@ export class PersistRiskUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistRiskAdapter(PersistBase);
   }
 
@@ -835,7 +838,7 @@ export class PersistRiskUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistRiskAdapter(PersistDummy);
   }
 }
@@ -913,7 +916,7 @@ export class PersistScheduleUtils {
   public usePersistScheduleAdapter(
     Ctor: TPersistBaseCtor<StrategyName, ScheduleData>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_PERSIST_SCHEDULE_ADAPTER
     );
     this.PersistScheduleFactory = Ctor;
@@ -935,7 +938,7 @@ export class PersistScheduleUtils {
     strategyName: StrategyName,
     exchangeName: ExchangeName
   ): Promise<IScheduledSignalRow | null> => {
-    swarm.loggerService.info(PERSIST_SCHEDULE_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_SCHEDULE_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getScheduleStorage.has(key);
@@ -971,7 +974,7 @@ export class PersistScheduleUtils {
     strategyName: StrategyName,
     exchangeName: ExchangeName
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_SCHEDULE_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_SCHEDULE_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getScheduleStorage.has(key);
@@ -991,7 +994,7 @@ export class PersistScheduleUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_CLEAR);
     this.getScheduleStorage.clear();
   }
 
@@ -1000,7 +1003,7 @@ export class PersistScheduleUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistScheduleAdapter(PersistBase);
   }
 
@@ -1009,7 +1012,7 @@ export class PersistScheduleUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistScheduleAdapter(PersistDummy);
   }
 }
@@ -1087,7 +1090,7 @@ export class PersistPartialUtils {
   public usePersistPartialAdapter(
     Ctor: TPersistBaseCtor<string, PartialData>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_PERSIST_PARTIAL_ADAPTER
     );
     this.PersistPartialFactory = Ctor;
@@ -1111,7 +1114,7 @@ export class PersistPartialUtils {
     signalId: string,
     exchangeName: ExchangeName
   ): Promise<PartialData> => {
-    swarm.loggerService.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getPartialStorage.has(key);
@@ -1149,7 +1152,7 @@ export class PersistPartialUtils {
     signalId: string,
     exchangeName: ExchangeName
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getPartialStorage.has(key);
@@ -1169,7 +1172,7 @@ export class PersistPartialUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_CLEAR);
     this.getPartialStorage.clear();
   }
 
@@ -1178,7 +1181,7 @@ export class PersistPartialUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistPartialAdapter(PersistBase);
   }
 
@@ -1187,7 +1190,7 @@ export class PersistPartialUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistPartialAdapter(PersistDummy);
   }
 }
@@ -1299,7 +1302,7 @@ class PersistBreakevenUtils {
   public usePersistBreakevenAdapter(
     Ctor: TPersistBaseCtor<string, BreakevenData>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_PERSIST_BREAKEVEN_ADAPTER
     );
     this.PersistBreakevenFactory = Ctor;
@@ -1323,7 +1326,7 @@ class PersistBreakevenUtils {
     signalId: string,
     exchangeName: ExchangeName
   ): Promise<BreakevenData> => {
-    swarm.loggerService.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getBreakevenStorage.has(key);
@@ -1362,7 +1365,7 @@ class PersistBreakevenUtils {
     signalId: string,
     exchangeName: ExchangeName
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getBreakevenStorage.has(key);
@@ -1382,7 +1385,7 @@ class PersistBreakevenUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_CLEAR);
     this.getBreakevenStorage.clear();
   }
 
@@ -1391,7 +1394,7 @@ class PersistBreakevenUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistBreakevenAdapter(PersistBase);
   }
 
@@ -1400,7 +1403,7 @@ class PersistBreakevenUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistBreakevenAdapter(PersistDummy);
   }
 }
@@ -1466,7 +1469,7 @@ export class PersistCandleUtils {
   public usePersistCandleAdapter(
     Ctor: TPersistBaseCtor<string, CandleData>
   ): void {
-    swarm.loggerService.info("PersistCandleUtils.usePersistCandleAdapter");
+    LOGGER_SERVICE.info("PersistCandleUtils.usePersistCandleAdapter");
     this.PersistCandlesFactory = Ctor;
   }
 
@@ -1496,7 +1499,7 @@ export class PersistCandleUtils {
     sinceTimestamp: number,
     _untilTimestamp: number
   ): Promise<CandleData[] | null> => {
-    swarm.loggerService.info("PersistCandleUtils.readCandlesData", {
+    LOGGER_SERVICE.info("PersistCandleUtils.readCandlesData", {
       symbol,
       interval,
       exchangeName,
@@ -1533,7 +1536,7 @@ export class PersistCandleUtils {
           error: errorData(error),
           message: getErrorMessage(error),
         };
-        swarm.loggerService.warn(message, payload);
+        LOGGER_SERVICE.warn(message, payload);
         console.warn(message, payload);
         errorEmitter.next(error);
         return null;
@@ -1564,7 +1567,7 @@ export class PersistCandleUtils {
     interval: CandleInterval,
     exchangeName: ExchangeName
   ): Promise<void> => {
-    swarm.loggerService.info("PersistCandleUtils.writeCandlesData", {
+    LOGGER_SERVICE.info("PersistCandleUtils.writeCandlesData", {
       symbol,
       interval,
       exchangeName,
@@ -1586,7 +1589,7 @@ export class PersistCandleUtils {
       // closeTime = timestamp + stepMs
       const candleCloseTime = candle.timestamp + stepMs;
       if (candleCloseTime > now) {
-        swarm.loggerService.debug(
+        LOGGER_SERVICE.debug(
           "PersistCandleUtils.writeCandlesData: skipping incomplete candle",
           {
             symbol,
@@ -1612,7 +1615,7 @@ export class PersistCandleUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_CANDLE_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_CANDLE_UTILS_METHOD_NAME_CLEAR);
     this.getCandlesStorage.clear();
   }
 
@@ -1621,7 +1624,7 @@ export class PersistCandleUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log("PersistCandleUtils.useJson");
+    LOGGER_SERVICE.log("PersistCandleUtils.useJson");
     this.usePersistCandleAdapter(PersistBase);
   }
 
@@ -1630,7 +1633,7 @@ export class PersistCandleUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log("PersistCandleUtils.useDummy");
+    LOGGER_SERVICE.log("PersistCandleUtils.useDummy");
     this.usePersistCandleAdapter(PersistDummy);
   }
 }
@@ -1693,7 +1696,7 @@ export class PersistStorageUtils {
   public usePersistStorageAdapter(
     Ctor: TPersistBaseCtor<string, IStorageSignalRow>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_STORAGE_UTILS_METHOD_NAME_USE_PERSIST_STORAGE_ADAPTER
     );
     this.PersistStorageFactory = Ctor;
@@ -1710,7 +1713,7 @@ export class PersistStorageUtils {
    * @returns Promise resolving to array of signal entries
    */
   public readStorageData = async (backtest: boolean): Promise<StorageData> => {
-    swarm.loggerService.info(PERSIST_STORAGE_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_STORAGE_UTILS_METHOD_NAME_READ_DATA);
 
     const key = backtest ? `backtest` : `live`;
     const isInitial = !this.getStorage.has(key);
@@ -1742,7 +1745,7 @@ export class PersistStorageUtils {
     signalData: StorageData,
     backtest: boolean
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_STORAGE_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_STORAGE_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = backtest ? `backtest` : `live`;
     const isInitial = !this.getStorage.has(key);
@@ -1760,7 +1763,7 @@ export class PersistStorageUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_STORAGE_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_STORAGE_UTILS_METHOD_NAME_CLEAR);
     this.getStorage.clear();
   }
 
@@ -1769,7 +1772,7 @@ export class PersistStorageUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_STORAGE_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_STORAGE_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistStorageAdapter(PersistBase);
   }
 
@@ -1778,7 +1781,7 @@ export class PersistStorageUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_STORAGE_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_STORAGE_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistStorageAdapter(PersistDummy);
   }
 }
@@ -1828,7 +1831,7 @@ export class PersistNotificationUtils {
   public usePersistNotificationAdapter(
     Ctor: TPersistBaseCtor<string, NotificationModel>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_PERSIST_NOTIFICATION_ADAPTER
     );
     this.PersistNotificationFactory = Ctor;
@@ -1845,7 +1848,7 @@ export class PersistNotificationUtils {
    * @returns Promise resolving to array of notification entries
    */
   public readNotificationData = async (backtest: boolean): Promise<NotificationData> => {
-    swarm.loggerService.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_READ_DATA);
 
     const key = backtest ? `backtest` : `live`;
     const isInitial = !this.getNotificationStorage.has(key);
@@ -1877,7 +1880,7 @@ export class PersistNotificationUtils {
     notificationData: NotificationData,
     backtest: boolean
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = backtest ? `backtest` : `live`;
     const isInitial = !this.getNotificationStorage.has(key);
@@ -1895,7 +1898,7 @@ export class PersistNotificationUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_CLEAR);
     this.getNotificationStorage.clear();
   }
 
@@ -1904,7 +1907,7 @@ export class PersistNotificationUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistNotificationAdapter(PersistBase);
   }
 
@@ -1913,7 +1916,7 @@ export class PersistNotificationUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistNotificationAdapter(PersistDummy);
   }
 }
@@ -1967,7 +1970,7 @@ export class PersistLogUtils {
   public usePersistLogAdapter(
     Ctor: TPersistBaseCtor<string, ILogEntry>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_LOG_UTILS_METHOD_NAME_USE_PERSIST_LOG_ADAPTER
     );
     this.PersistLogFactory = Ctor;
@@ -1983,7 +1986,7 @@ export class PersistLogUtils {
    * @returns Promise resolving to array of log entries
    */
   public readLogData = async (): Promise<LogData> => {
-    swarm.loggerService.info(PERSIST_LOG_UTILS_METHOD_NAME_READ_DATA);
+    LOGGER_SERVICE.info(PERSIST_LOG_UTILS_METHOD_NAME_READ_DATA);
 
     const isInitial = !this._logStorage;
     const stateStorage = this.getLogStorage();
@@ -2010,7 +2013,7 @@ export class PersistLogUtils {
    * @returns Promise that resolves when write is complete
    */
   public writeLogData = async (logData: LogData): Promise<void> => {
-    swarm.loggerService.info(PERSIST_LOG_UTILS_METHOD_NAME_WRITE_DATA);
+    LOGGER_SERVICE.info(PERSIST_LOG_UTILS_METHOD_NAME_WRITE_DATA);
 
     const isInitial = !this._logStorage;
     const stateStorage = this.getLogStorage();
@@ -2030,7 +2033,7 @@ export class PersistLogUtils {
    * so a new storage instance is created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_LOG_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_LOG_UTILS_METHOD_NAME_CLEAR);
     this._logStorage = null;
   }
 
@@ -2039,7 +2042,7 @@ export class PersistLogUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistLogAdapter(PersistBase);
   }
 
@@ -2048,7 +2051,7 @@ export class PersistLogUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistLogAdapter(PersistDummy);
   }
 }
@@ -2090,7 +2093,7 @@ export class PersistMeasureUtils {
   public usePersistMeasureAdapter(
     Ctor: TPersistBaseCtor<string, MeasureData>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER
     );
     this.PersistMeasureFactory = Ctor;
@@ -2107,7 +2110,7 @@ export class PersistMeasureUtils {
     bucket: string,
     key: string
   ): Promise<MeasureData | null> => {
-    swarm.loggerService.info(PERSIST_MEASURE_UTILS_METHOD_NAME_READ_DATA, {
+    LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_READ_DATA, {
       bucket,
       key,
     });
@@ -2136,7 +2139,7 @@ export class PersistMeasureUtils {
     bucket: string,
     key: string
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_MEASURE_UTILS_METHOD_NAME_WRITE_DATA, {
+    LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_WRITE_DATA, {
       bucket,
       key,
     });
@@ -2154,7 +2157,7 @@ export class PersistMeasureUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear(): void {
-    swarm.loggerService.log(PERSIST_MEASURE_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.log(PERSIST_MEASURE_UTILS_METHOD_NAME_CLEAR);
     this.getMeasureStorage.clear();
   }
 
@@ -2162,7 +2165,7 @@ export class PersistMeasureUtils {
    * Switches to the default JSON persist adapter.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistMeasureAdapter(PersistBase);
   }
 
@@ -2170,7 +2173,7 @@ export class PersistMeasureUtils {
    * Switches to a dummy persist adapter that discards all writes.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistMeasureAdapter(PersistDummy);
   }
 }
@@ -2236,7 +2239,7 @@ export class PersistMemoryUtils {
   public usePersistMemoryAdapter(
     Ctor: TPersistBaseCtor<string, MemoryData>
   ): void {
-    swarm.loggerService.info(
+    LOGGER_SERVICE.info(
       PERSIST_MEMORY_UTILS_METHOD_NAME_USE_PERSIST_MEMORY_ADAPTER
     );
     this.PersistMemoryFactory = Ctor;
@@ -2274,7 +2277,7 @@ export class PersistMemoryUtils {
     bucketName: string,
     memoryId: string
   ): Promise<MemoryData | null> => {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_READ_DATA, {
+    LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_READ_DATA, {
       signalId,
       bucketName,
       memoryId,
@@ -2303,7 +2306,7 @@ export class PersistMemoryUtils {
     bucketName: string,
     memoryId: string
   ): Promise<boolean> => {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_HAS_DATA, {
+    LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_HAS_DATA, {
       signalId,
       bucketName,
       memoryId,
@@ -2330,7 +2333,7 @@ export class PersistMemoryUtils {
     bucketName: string,
     memoryId: string
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_WRITE_DATA, {
+    LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_WRITE_DATA, {
       signalId,
       bucketName,
       memoryId,
@@ -2355,7 +2358,7 @@ export class PersistMemoryUtils {
     bucketName: string,
     memoryId: string
   ): Promise<void> => {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_REMOVE_DATA, {
+    LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_REMOVE_DATA, {
       signalId,
       bucketName,
       memoryId,
@@ -2382,7 +2385,7 @@ export class PersistMemoryUtils {
     signalId: string,
     bucketName: string
   ): AsyncGenerator<{ memoryId: string; data: MemoryData }> {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_LIST_DATA, {
+    LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_LIST_DATA, {
       signalId,
       bucketName,
     });
@@ -2405,7 +2408,7 @@ export class PersistMemoryUtils {
    * so new storage instances are created with the updated base path.
    */
   public clear = () => {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_CLEAR);
     this.getMemoryStorage.clear();
   }
 
@@ -2418,7 +2421,7 @@ export class PersistMemoryUtils {
    * @returns void
    */
   public dispose = (signalId: string, bucketName: string) => {
-    swarm.loggerService.info(PERSIST_MEMORY_UTILS_METHOD_NAME_DISPOSE);
+    LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_DISPOSE);
     const key = `${signalId}:${bucketName}`;
     this.getMemoryStorage.clear(key);
   }
@@ -2428,7 +2431,7 @@ export class PersistMemoryUtils {
    * All future persistence writes will use JSON storage.
    */
   public useJson() {
-    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
+    LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistMemoryAdapter(PersistBase);
   }
 
@@ -2437,7 +2440,7 @@ export class PersistMemoryUtils {
    * All future persistence writes will be no-ops.
    */
   public useDummy() {
-    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistMemoryAdapter(PersistDummy);
   }
 

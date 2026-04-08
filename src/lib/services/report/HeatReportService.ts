@@ -1,10 +1,10 @@
 import { IStrategyTickResult } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 const HEAT_REPORT_METHOD_NAME_SUBSCRIBE = "HeatReportService.subscribe";
@@ -20,7 +20,7 @@ const HEAT_REPORT_METHOD_NAME_TICK = "HeatReportService.tick";
  * Features:
  * - Listens to signal events via signalEmitter
  * - Logs only closed signals with PNL data
- * - Stores events in Report.writeData() for heatmap generation
+ * - Stores events in ReportWriter.writeData() for heatmap generation
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -41,7 +41,7 @@ const HEAT_REPORT_METHOD_NAME_TICK = "HeatReportService.tick";
  */
 export class HeatReportService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Processes signal tick events and logs closed signals to the database.
@@ -58,7 +58,7 @@ export class HeatReportService {
       return;
     }
 
-    await Report.writeData("heat", {
+    await ReportWriter.writeData("heat", {
       timestamp: getContextTimestamp(),
       action: data.action,
       symbol: data.symbol,

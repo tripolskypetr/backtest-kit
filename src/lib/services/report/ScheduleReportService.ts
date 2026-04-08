@@ -1,10 +1,10 @@
 import { IStrategyTickResult } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 
 const SCHEDULE_REPORT_METHOD_NAME_SUBSCRIBE = "ScheduleReportService.subscribe";
 const SCHEDULE_REPORT_METHOD_NAME_UNSUBSCRIBE = "ScheduleReportService.unsubscribe";
@@ -20,7 +20,7 @@ const SCHEDULE_REPORT_METHOD_NAME_TICK = "ScheduleReportService.tick";
  * - Listens to signal events via signalEmitter
  * - Logs scheduled, opened (from scheduled), and cancelled events
  * - Calculates duration between scheduling and execution/cancellation
- * - Stores events in Report.writeData() for schedule tracking
+ * - Stores events in ReportWriter.writeData() for schedule tracking
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -41,7 +41,7 @@ const SCHEDULE_REPORT_METHOD_NAME_TICK = "ScheduleReportService.tick";
  */
 export class ScheduleReportService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Processes signal tick events and logs scheduled signal lifecycle to the database.
@@ -73,7 +73,7 @@ export class ScheduleReportService {
     };
 
     if (data.action === "scheduled") {
-      await Report.writeData("schedule", {
+      await ReportWriter.writeData("schedule", {
         timestamp: data.signal?.scheduledAt,
         action: "scheduled",
         ...baseEvent,
@@ -103,7 +103,7 @@ export class ScheduleReportService {
         const durationMs = data.signal?.pendingAt - data.signal?.scheduledAt;
         const durationMin = Math.round(durationMs / 60000);
 
-        await Report.writeData("schedule", {
+        await ReportWriter.writeData("schedule", {
           timestamp: data.signal?.pendingAt,
           action: "opened",
           ...baseEvent,
@@ -135,7 +135,7 @@ export class ScheduleReportService {
       const durationMs = data.closeTimestamp - data.signal?.scheduledAt;
       const durationMin = Math.round(durationMs / 60000);
 
-      await Report.writeData("schedule", {
+      await ReportWriter.writeData("schedule", {
         timestamp: data.closeTimestamp,
         action: "cancelled",
         ...baseEvent,

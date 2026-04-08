@@ -35,7 +35,7 @@ import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist";
-import backtest, { ExecutionContextService } from "../lib";
+import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import toPlainString from "../helpers/toPlainString";
@@ -196,13 +196,13 @@ const CALL_COMMIT_FN = trycatch(
     await self.params.onCommit(event);
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_COMMIT_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -637,13 +637,13 @@ const GET_SIGNAL_FN = trycatch(
   },
   {
     defaultValue: null,
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy GET_SIGNAL_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1669,13 +1669,13 @@ const CALL_SCHEDULE_PING_CALLBACKS_FN = trycatch(
     })
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_SCHEDULE_PING_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1721,13 +1721,13 @@ const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
     })
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_ACTIVE_PING_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1760,13 +1760,13 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_ACTIVE_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1799,13 +1799,13 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_SCHEDULE_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1838,13 +1838,13 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_CANCEL_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1877,13 +1877,13 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_OPEN_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1916,13 +1916,13 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_CLOSE_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1952,13 +1952,13 @@ const CALL_TICK_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_TICK_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -1988,13 +1988,13 @@ const CALL_IDLE_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_IDLE_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2034,13 +2034,13 @@ const CALL_RISK_ADD_SIGNAL_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_RISK_ADD_SIGNAL_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2068,13 +2068,13 @@ const CALL_RISK_REMOVE_SIGNAL_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_RISK_REMOVE_SIGNAL_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2105,13 +2105,13 @@ const CALL_PARTIAL_CLEAR_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_PARTIAL_CLEAR_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2146,13 +2146,13 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
   }),
   {
     defaultValue: false,
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_RISK_CHECK_SIGNAL_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2195,13 +2195,13 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_PARTIAL_PROFIT_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2244,13 +2244,13 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_PARTIAL_LOSS_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2290,13 +2290,13 @@ const CALL_BREAKEVEN_CHECK_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_BREAKEVEN_CHECK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2327,13 +2327,13 @@ const CALL_BREAKEVEN_CLEAR_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_BREAKEVEN_CLEAR_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -2367,13 +2367,13 @@ const CALL_BACKTEST_SCHEDULE_OPEN_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientStrategy CALL_BACKTEST_SCHEDULE_OPEN_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },

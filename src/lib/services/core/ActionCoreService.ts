@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ActionConnectionService from "../connection/ActionConnectionService";
 import { IAction, ActionName } from "../../../interfaces/Action.interface";
@@ -60,7 +60,7 @@ type TAction = {
  * Used internally by strategy execution and public API.
  */
 export class ActionCoreService implements TAction {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly actionConnectionService = inject<ActionConnectionService>(
     TYPES.actionConnectionService
   );

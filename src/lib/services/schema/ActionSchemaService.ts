@@ -5,7 +5,7 @@ import {
   TActionCtor,
 } from "../../../interfaces/Action.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { isObject, str, ToolRegistry, typo } from "functools-kit";
 
@@ -275,7 +275,7 @@ const VALIDATE_OBJECT_METHODS = (
  * ```
  */
 export class ActionSchemaService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   private _registry = new ToolRegistry<Record<ActionName, IActionSchema>>(
     "actionSchema",

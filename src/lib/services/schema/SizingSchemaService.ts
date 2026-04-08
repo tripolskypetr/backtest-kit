@@ -1,6 +1,6 @@
 import { ISizingSchema, SizingName } from "../../../interfaces/Sizing.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { ToolRegistry } from "functools-kit";
 
@@ -11,7 +11,7 @@ import { ToolRegistry } from "functools-kit";
  * Sizing schemas are registered via addSizing() and retrieved by name.
  */
 export class SizingSchemaService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   private _registry = new ToolRegistry<Record<SizingName, ISizingSchema>>(
     "sizingSchema"

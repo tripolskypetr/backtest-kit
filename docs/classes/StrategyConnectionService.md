@@ -30,7 +30,7 @@ constructor();
 ### loggerService
 
 ```ts
-loggerService: LoggerService
+loggerService: { readonly methodContextService: { readonly context: IMethodContext; }; readonly executionContextService: { readonly context: IExecutionContext; }; ... 7 more ...; setLogger: (logger: ILogger) => void; }
 ```
 
 ### executionContextService

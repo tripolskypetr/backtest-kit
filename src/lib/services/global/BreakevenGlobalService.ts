@@ -1,5 +1,5 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { BreakevenConnectionService } from "../connection/BreakevenConnectionService";
 import { IPublicSignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
@@ -68,7 +68,7 @@ export class BreakevenGlobalService implements TBreakeven {
    * Logger service injected from DI container.
    * Used for logging operations at global service level.
    */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Connection service injected from DI container.

@@ -14,7 +14,7 @@ Features:
 - Listens to signal events via signalEmitter
 - Logs scheduled, opened (from scheduled), and cancelled events
 - Calculates duration between scheduling and execution/cancellation
-- Stores events in Report.writeData() for schedule tracking
+- Stores events in ReportWriter.writeData() for schedule tracking
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

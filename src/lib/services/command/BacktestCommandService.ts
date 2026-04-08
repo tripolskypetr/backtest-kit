@@ -1,5 +1,5 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import BacktestLogicPublicService from "../logic/public/BacktestLogicPublicService";
 import StrategyValidationService from "../validation/StrategyValidationService";
@@ -29,7 +29,7 @@ type TBacktestLogicPublicService = {
  * Used by public API exports.
  */
 export class BacktestCommandService implements TBacktestLogicPublicService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly strategySchemaService = inject<StrategySchemaService>(
     TYPES.strategySchemaService
   );  

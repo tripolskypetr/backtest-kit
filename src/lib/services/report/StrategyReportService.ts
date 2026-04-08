@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { compose, singleshot } from "functools-kit";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
@@ -31,14 +31,14 @@ import {
  *
  * Lifecycle:
  * - Call subscribe() to enable event logging
- * - Events are written via Report.writeData() with "strategy" category
+ * - Events are written via ReportWriter.writeData() with "strategy" category
  * - Call unsubscribe() to disable event logging
  *
  * @see StrategyMarkdownService for in-memory event accumulation and markdown report generation
  * @see Report for the underlying persistence mechanism
  */
 export class StrategyReportService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Logs a cancel-scheduled event when a scheduled signal is cancelled.
@@ -66,7 +66,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "cancel-scheduled",
@@ -118,7 +118,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "close-pending",
@@ -182,7 +182,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "partial-profit",
@@ -257,7 +257,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "partial-loss",
@@ -332,7 +332,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "trailing-stop",
@@ -407,7 +407,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "trailing-take",
@@ -480,7 +480,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "breakeven",
@@ -554,7 +554,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "activate-scheduled",
@@ -631,7 +631,7 @@ export class StrategyReportService {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
-    await Report.writeData(
+    await ReportWriter.writeData(
       "strategy",
       {
         action: "average-buy",

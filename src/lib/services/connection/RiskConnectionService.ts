@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { RiskName, IRiskCheckArgs, IRiskRejectionResult, IRisk } from "../../../interfaces/Risk.interface";
 import { memoize, trycatch, errorData, getErrorMessage } from "functools-kit";
@@ -11,6 +11,7 @@ import { FrameName } from "../../../interfaces/Frame.interface";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import backtest from "../../../lib";
+import { TExecutionContextService } from "../context/ExecutionContextService";
 
 /**
  * Creates a unique key for memoizing ClientRisk instances.
@@ -80,7 +81,7 @@ const CREATE_COMMIT_REJECTION_FN = (
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -130,10 +131,11 @@ type TRisk = {
  * ```
  */
 export class RiskConnectionService implements TRisk {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  private readonly riskSchemaService = inject<RiskSchemaService>(
+  public readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
+  public readonly riskSchemaService = inject<RiskSchemaService>(
     TYPES.riskSchemaService
   );
+  public readonly executionContextService = inject<TExecutionContextService>(TYPES.executionContextService);
 
   /**
    * Action core service injected from DI container.
@@ -160,6 +162,7 @@ export class RiskConnectionService implements TRisk {
       return new ClientRisk({
         ...schema,
         logger: this.loggerService,
+        execution: this.executionContextService,
         backtest,
         exchangeName,
         onRejected: CREATE_COMMIT_REJECTION_FN(this, exchangeName, frameName),

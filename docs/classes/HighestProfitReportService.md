@@ -8,7 +8,7 @@ group: docs
 Service for logging highest profit events to the JSONL report database.
 
 Listens to highestProfitSubject and writes each new price record to
-Report.writeData() for persistence and analytics.
+ReportWriter.writeData() for persistence and analytics.
 
 ## Constructor
 
@@ -33,7 +33,7 @@ tick: any
 Handles a single `HighestProfitContract` event emitted by `highestProfitSubject`.
 
 Writes a JSONL record to the `"highest_profit"` report database via
-`Report.writeData`, capturing the full signal snapshot at the moment
+`ReportWriter.writeData`, capturing the full signal snapshot at the moment
 the new profit record was set:
 - `timestamp`, `symbol`, `strategyName`, `exchangeName`, `frameName`, `backtest`
 - `signalId`, `position`, `currentPrice`

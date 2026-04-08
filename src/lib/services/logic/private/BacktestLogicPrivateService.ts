@@ -1,5 +1,5 @@
 import { inject } from "../../../core/di";
-import LoggerService from "../../base/LoggerService";
+import { TLoggerService } from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import { IStrategyTickResult, IStrategyTickResultOpened, IStrategyTickResultScheduled, IStrategyTickResultClosed, IStrategyTickResultCancelled, IStrategyTickResultActive } from "../../../../interfaces/Strategy.interface";
 import { ICandleData } from "../../../../interfaces/Exchange.interface";
@@ -574,7 +574,7 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
  * Supports early termination via break in consumer.
  */
 export class BacktestLogicPrivateService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   readonly strategyCoreService = inject<StrategyCoreService>(
     TYPES.strategyCoreService
   );

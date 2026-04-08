@@ -54,3 +54,11 @@ backtest: boolean
 ```
 
 Whether running in backtest mode
+
+### strategy
+
+```ts
+strategy: IActionStrategy
+```
+
+Strategy context object providing access to current signal and position state

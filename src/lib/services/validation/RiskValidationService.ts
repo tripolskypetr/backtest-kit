@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { RiskName, IRiskSchema } from "../../../interfaces/Risk.interface";
 import { memoize } from "functools-kit";
@@ -33,7 +33,7 @@ export class RiskValidationService {
    * @readonly
    * Injected logger service instance
    */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * @private

@@ -14,7 +14,7 @@ Features:
 - Listens to partial profit events via partialProfitSubject
 - Listens to partial loss events via partialLossSubject
 - Logs all partial exit events with level and price information
-- Stores events in Report.writeData() for persistence
+- Stores events in ReportWriter.writeData() for persistence
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

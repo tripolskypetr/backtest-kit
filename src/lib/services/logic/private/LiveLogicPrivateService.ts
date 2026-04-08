@@ -1,5 +1,5 @@
 import { inject } from "../../../core/di";
-import LoggerService from "../../base/LoggerService";
+import { TLoggerService } from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import StrategyCoreService from "../../core/StrategyCoreService";
 import { and, errorData, getErrorMessage } from "functools-kit";
@@ -31,7 +31,7 @@ import { alignToInterval } from "../../../../utils/alignToInterval";
  * - Never completes (infinite generator)
  */
 export class LiveLogicPrivateService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly strategyCoreService = inject<StrategyCoreService>(
     TYPES.strategyCoreService
   );

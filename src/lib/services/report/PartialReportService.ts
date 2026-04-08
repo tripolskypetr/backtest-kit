@@ -1,11 +1,11 @@
 import { IPublicSignalRow } from "../../../interfaces/Strategy.interface";
 import { PartialLevel } from "../../../interfaces/Partial.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { partialProfitSubject, partialLossSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 
@@ -24,7 +24,7 @@ const PARTIAL_REPORT_METHOD_NAME_TICK_LOSS = "PartialReportService.tickLoss";
  * - Listens to partial profit events via partialProfitSubject
  * - Listens to partial loss events via partialLossSubject
  * - Logs all partial exit events with level and price information
- * - Stores events in Report.writeData() for persistence
+ * - Stores events in ReportWriter.writeData() for persistence
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -45,7 +45,7 @@ const PARTIAL_REPORT_METHOD_NAME_TICK_LOSS = "PartialReportService.tickLoss";
  */
 export class PartialReportService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Processes partial profit events and logs them to the database.
@@ -66,7 +66,7 @@ export class PartialReportService {
   }) => {
     this.loggerService.log(PARTIAL_REPORT_METHOD_NAME_TICK_PROFIT, { data });
 
-    await Report.writeData("partial", {
+    await ReportWriter.writeData("partial", {
       timestamp: data.timestamp,
       action: "profit",
       symbol: data.symbol,
@@ -127,7 +127,7 @@ export class PartialReportService {
   }) => {
     this.loggerService.log(PARTIAL_REPORT_METHOD_NAME_TICK_LOSS, { data });
 
-    await Report.writeData("partial", {
+    await ReportWriter.writeData("partial", {
       timestamp: data.timestamp,
       action: "loss",
       symbol: data.symbol,

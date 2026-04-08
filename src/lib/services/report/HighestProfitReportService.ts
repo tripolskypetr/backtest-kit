@@ -1,10 +1,10 @@
 import { IPublicSignalRow } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { highestProfitSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 
@@ -16,16 +16,16 @@ const HIGHEST_PROFIT_REPORT_METHOD_NAME_TICK = "HighestProfitReportService.tick"
  * Service for logging highest profit events to the JSONL report database.
  *
  * Listens to highestProfitSubject and writes each new price record to
- * Report.writeData() for persistence and analytics.
+ * ReportWriter.writeData() for persistence and analytics.
  */
 export class HighestProfitReportService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Handles a single `HighestProfitContract` event emitted by `highestProfitSubject`.
    *
    * Writes a JSONL record to the `"highest_profit"` report database via
-   * `Report.writeData`, capturing the full signal snapshot at the moment
+   * `ReportWriter.writeData`, capturing the full signal snapshot at the moment
    * the new profit record was set:
    * - `timestamp`, `symbol`, `strategyName`, `exchangeName`, `frameName`, `backtest`
    * - `signalId`, `position`, `currentPrice`
@@ -49,7 +49,7 @@ export class HighestProfitReportService {
   }) => {
     this.loggerService.log(HIGHEST_PROFIT_REPORT_METHOD_NAME_TICK, { data });
 
-    await Report.writeData("highest_profit", {
+    await ReportWriter.writeData("highest_profit", {
       timestamp: data.timestamp,
       symbol: data.symbol,
       strategyName: data.signal.strategyName,

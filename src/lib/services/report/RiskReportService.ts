@@ -1,9 +1,9 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { riskSubject } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 import { RiskEvent } from "../../../model/RiskStatistics.model";
 
 const RISK_REPORT_METHOD_NAME_SUBSCRIBE = "RiskReportService.subscribe";
@@ -19,7 +19,7 @@ const RISK_REPORT_METHOD_NAME_TICK = "RiskReportService.tickRejection";
  * Features:
  * - Listens to risk rejection events via riskSubject
  * - Logs all rejected signals with reason and pending signal details
- * - Stores events in Report.writeData() for risk tracking
+ * - Stores events in ReportWriter.writeData() for risk tracking
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -40,7 +40,7 @@ const RISK_REPORT_METHOD_NAME_TICK = "RiskReportService.tickRejection";
  */
 export class RiskReportService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Processes risk rejection events and logs them to the database.
@@ -52,7 +52,7 @@ export class RiskReportService {
   private tickRejection = async (data: RiskEvent) => {
     this.loggerService.log(RISK_REPORT_METHOD_NAME_TICK, { data });
 
-    await Report.writeData("risk", {
+    await ReportWriter.writeData("risk", {
       timestamp: data.timestamp,
       symbol: data.symbol,
       strategyName: data.strategyName,

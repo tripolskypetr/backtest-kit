@@ -1,5 +1,5 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { GLOBAL_CONFIG } from "../../../config/params";
 
@@ -40,7 +40,7 @@ export class ConfigValidationService {
    * @readonly
    * Injected logger service instance
    */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Validates GLOBAL_CONFIG parameters for mathematical correctness.

@@ -8,7 +8,7 @@ group: docs
 Service for logging max drawdown events to the JSONL report database.
 
 Listens to maxDrawdownSubject and writes each new drawdown record to
-Report.writeData() for persistence and analytics.
+ReportWriter.writeData() for persistence and analytics.
 
 ## Constructor
 
@@ -33,7 +33,7 @@ tick: any
 Handles a single `MaxDrawdownContract` event emitted by `maxDrawdownSubject`.
 
 Writes a JSONL record to the `"max_drawdown"` report database via
-`Report.writeData`, capturing the full signal snapshot at the moment
+`ReportWriter.writeData`, capturing the full signal snapshot at the moment
 the new drawdown record was set:
 - `timestamp`, `symbol`, `strategyName`, `exchangeName`, `frameName`, `backtest`
 - `signalId`, `position`, `currentPrice`

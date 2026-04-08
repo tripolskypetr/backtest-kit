@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import WalkerLogicPublicService from "../logic/public/WalkerLogicPublicService";
 import StrategyValidationService from "../validation/StrategyValidationService";
@@ -31,7 +31,7 @@ type TWalkerLogicPublicService = {
  * Used by public API exports.
  */
 export class WalkerCommandService implements TWalkerLogicPublicService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly walkerLogicPublicService = inject<WalkerLogicPublicService>(
     TYPES.walkerLogicPublicService
   );

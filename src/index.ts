@@ -383,20 +383,31 @@ export {
 
 export {
   Report,
-  ReportBase,
-  ReportName,
-  TReportBase,
-  IReportDumpOptions,
 } from "./classes/Report";
 
 export {
   Markdown,
+} from "./classes/Markdown";
+
+export {
+  MarkdownWriter,
+  ReportWriter,
+} from "./classes/Writer"
+
+export {
   MarkdownFileBase,
   MarkdownFolderBase,
   MarkdownName,
   TMarkdownBase,
   IMarkdownDumpOptions,
-} from "./classes/Markdown";
+} from "./classes/Writer"
+
+export {
+  ReportBase,
+  ReportName,
+  TReportBase,
+  IReportDumpOptions,
+} from "./classes/Writer"
 
 export {
   Log,
@@ -451,7 +462,7 @@ export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Breakeven } from "./classes/Breakeven";
 export { Strategy } from "./classes/Strategy";
-export { ActionBase } from "./classes/Action";
+export { ActionBase } from "./classes/ActionBase";
 
 export { 
   Broker,

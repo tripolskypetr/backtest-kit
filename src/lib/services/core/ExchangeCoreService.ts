@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ExecutionContextService from "../context/ExecutionContextService";
 import {
@@ -46,7 +46,7 @@ type TExchange = {
  * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
  */
 export class ExchangeCoreService implements TExchange {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly exchangeConnectionService =
     inject<ExchangeConnectionService>(TYPES.exchangeConnectionService);
   private readonly methodContextService = inject<TMethodContextService>(

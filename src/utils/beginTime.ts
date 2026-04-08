@@ -1,5 +1,4 @@
-import { AsyncResource } from "async_hooks";
-import swarm, { ExecutionContextService, MethodContextService } from "../lib";
+import ExecutionContextService from "../lib/services/context/ExecutionContextService";
 
 /**
  * Wraps a function to execute it outside of the current execution context if one exists.

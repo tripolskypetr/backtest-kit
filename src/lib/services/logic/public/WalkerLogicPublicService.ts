@@ -1,5 +1,5 @@
 import { inject } from "../../../core/di";
-import LoggerService from "../../base/LoggerService";
+import { TLoggerService } from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import WalkerLogicPrivateService from "../private/WalkerLogicPrivateService";
 import WalkerSchemaService from "../../schema/WalkerSchemaService";
@@ -48,7 +48,7 @@ type TWalkerLogicPrivateService = {
  * ```
  */
 export class WalkerLogicPublicService implements TWalkerLogicPrivateService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly walkerLogicPrivateService =
     inject<WalkerLogicPrivateService>(TYPES.walkerLogicPrivateService);
   private readonly walkerSchemaService =

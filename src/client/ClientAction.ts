@@ -17,10 +17,9 @@ import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
-import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { FrameName } from "../interfaces/Frame.interface";
-import { ActionProxy } from "../classes/Action";
+import { ActionProxy } from "../classes/ActionProxy";
 
 /** Wrapper to call signal callback with error handling */
 const CALL_SIGNAL_CALLBACK_FN = trycatch(
@@ -36,13 +35,13 @@ const CALL_SIGNAL_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_SIGNAL_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -63,13 +62,13 @@ const CALL_SIGNAL_LIVE_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_SIGNAL_LIVE_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -90,13 +89,13 @@ const CALL_SIGNAL_BACKTEST_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_SIGNAL_BACKTEST_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -117,13 +116,13 @@ const CALL_BREAKEVEN_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_BREAKEVEN_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -144,13 +143,13 @@ const CALL_PARTIAL_PROFIT_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_PARTIAL_PROFIT_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -171,13 +170,13 @@ const CALL_PARTIAL_LOSS_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_PARTIAL_LOSS_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -198,13 +197,13 @@ const CALL_PING_SCHEDULED_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_PING_SCHEDULED_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -225,13 +224,13 @@ const CALL_PING_ACTIVE_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_PING_ACTIVE_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -252,13 +251,13 @@ const CALL_RISK_REJECTION_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_RISK_REJECTION_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -294,13 +293,13 @@ const CALL_INIT_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_INIT_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -320,13 +319,13 @@ const CALL_DISPOSE_CALLBACK_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientAction CALL_DISPOSE_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -368,7 +367,7 @@ export const WAIT_FOR_INIT_FN = async (self: ClientAction): Promise<void> => {
   // Create handler instance
   {
     const instance = CREATE_HANDLER_FN(self);
-    self._handlerInstance = ActionProxy.fromInstance(instance);
+    self._handlerInstance = ActionProxy.fromInstance(instance, self.params);
   }
 
   // Call handler init() method if defined

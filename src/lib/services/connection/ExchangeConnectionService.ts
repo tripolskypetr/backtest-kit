@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { TExecutionContextService } from "../context/ExecutionContextService";
 import {
@@ -89,7 +89,7 @@ const DEFAULT_GET_AGGREGATED_TRADES_FN = async (_symbol: string, _from: Date, _t
  * ```
  */
 export class ExchangeConnectionService implements IExchange {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly executionContextService = inject<TExecutionContextService>(
     TYPES.executionContextService
   );

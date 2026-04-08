@@ -1,6 +1,6 @@
 import { StrategyName, IStrategySchema } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { ToolRegistry } from "functools-kit";
 
@@ -11,7 +11,7 @@ import { ToolRegistry } from "functools-kit";
  * Strategies are registered via addStrategy() and retrieved by name.
  */
 export class StrategySchemaService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   private _registry = new ToolRegistry<Record<StrategyName, IStrategySchema>>("strategySchema");
 

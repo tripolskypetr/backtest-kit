@@ -51,13 +51,13 @@ const CALL_TIMEFRAME_CALLBACKS_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "ClientFrame CALL_TIMEFRAME_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },

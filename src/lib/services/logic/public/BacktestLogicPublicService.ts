@@ -1,5 +1,5 @@
 import { inject } from "../../../core/di";
-import LoggerService from "../../base/LoggerService";
+import { TLoggerService } from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import BacktestLogicPrivateService from "../private/BacktestLogicPrivateService";
 import MethodContextService from "../../context/MethodContextService";
@@ -53,7 +53,7 @@ type TBacktestLogicPrivateService = {
  * ```
  */
 export class BacktestLogicPublicService implements TBacktestLogicPrivateService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly backtestLogicPrivateService =
     inject<BacktestLogicPrivateService>(TYPES.backtestLogicPrivateService);
 

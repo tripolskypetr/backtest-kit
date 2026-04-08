@@ -1,5 +1,5 @@
 import { inject } from "../../../core/di";
-import LoggerService from "../../base/LoggerService";
+import { TLoggerService } from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import LiveLogicPrivateService from "../private/LiveLogicPrivateService";
 import MethodContextService from "../../context/MethodContextService";
@@ -56,7 +56,7 @@ type TLiveLogicPrivateService = {
  * ```
  */
 export class LiveLogicPublicService implements TLiveLogicPrivateService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly liveLogicPrivateService = inject<LiveLogicPrivateService>(
     TYPES.liveLogicPrivateService
   );

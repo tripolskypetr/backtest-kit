@@ -1,11 +1,11 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { compose, memoize, singleshot } from "functools-kit";
 import { IStrategyPnL, StrategyName } from "../../../interfaces/Strategy.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
-import { Markdown } from "../../../classes/Markdown";
+import { MarkdownWriter } from "../../../classes/Writer";
 import {
   StrategyStatisticsModel,
   StrategyEvent,
@@ -255,7 +255,7 @@ class ReportStorage {
     const markdown = await this.getReport(symbol, strategyName, columns);
     const timestamp = getContextTimestamp();
     const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
-    await Markdown.writeData("strategy", markdown, {
+    await MarkdownWriter.writeData("strategy", markdown, {
       path,
       file: filename,
       symbol: this.symbol,
@@ -314,7 +314,7 @@ class ReportStorage {
  * @see Strategy for the high-level utility class that wraps this service
  */
 export class StrategyMarkdownService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Memoized factory for ReportStorage instances.
@@ -1032,7 +1032,7 @@ export class StrategyMarkdownService {
    * Generates and saves a markdown report to disk.
    *
    * Creates the output directory if it doesn't exist and writes
-   * the report with a timestamped filename via Markdown.writeData().
+   * the report with a timestamped filename via MarkdownWriter.writeData().
    *
    * Filename format: `{symbol}_{strategyName}_{exchangeName}[_{frameName}_backtest|_live]-{timestamp}.md`
    *

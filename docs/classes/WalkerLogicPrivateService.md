@@ -25,25 +25,25 @@ constructor();
 ### loggerService
 
 ```ts
-loggerService: any
+loggerService: { readonly methodContextService: { readonly context: IMethodContext; }; readonly executionContextService: { readonly context: IExecutionContext; }; ... 7 more ...; setLogger: (logger: ILogger) => void; }
 ```
 
 ### backtestLogicPublicService
 
 ```ts
-backtestLogicPublicService: any
+backtestLogicPublicService: BacktestLogicPublicService
 ```
 
 ### backtestMarkdownService
 
 ```ts
-backtestMarkdownService: any
+backtestMarkdownService: BacktestMarkdownService
 ```
 
 ### walkerSchemaService
 
 ```ts
-walkerSchemaService: any
+walkerSchemaService: WalkerSchemaService
 ```
 
 ## Methods

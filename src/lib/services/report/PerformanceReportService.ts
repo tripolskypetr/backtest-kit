@@ -1,10 +1,10 @@
 import { PerformanceContract } from "../../../contract/Performance.contract";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import LoggerService, { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { performanceEmitter } from "../../../config/emitters";
-import { Report } from "../../../classes/Report";
+import { ReportWriter } from "../../../classes/Writer";
 
 const PERFORMANCE_REPORT_METHOD_NAME_SUBSCRIBE = "PerformanceReportService.subscribe";
 const PERFORMANCE_REPORT_METHOD_NAME_UNSUBSCRIBE = "PerformanceReportService.unsubscribe";
@@ -19,7 +19,7 @@ const PERFORMANCE_REPORT_METHOD_NAME_TRACK = "PerformanceReportService.track";
  * Features:
  * - Listens to performance events via performanceEmitter
  * - Logs all timing metrics with duration and metadata
- * - Stores events in Report.writeData() for performance analysis
+ * - Stores events in ReportWriter.writeData() for performance analysis
  * - Protected against multiple subscriptions using singleshot
  *
  * @example
@@ -40,7 +40,7 @@ const PERFORMANCE_REPORT_METHOD_NAME_TRACK = "PerformanceReportService.track";
  */
 export class PerformanceReportService {
   /** Logger service for debug output */
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   /**
    * Processes performance tracking events and logs them to the database.
@@ -52,7 +52,7 @@ export class PerformanceReportService {
   private track = async (event: PerformanceContract) => {
     this.loggerService.log(PERFORMANCE_REPORT_METHOD_NAME_TRACK, { event });
 
-    await Report.writeData("performance", {
+    await ReportWriter.writeData("performance", {
       timestamp: event.timestamp,
       metricType: event.metricType,
       duration: event.duration,

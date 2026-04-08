@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ExecutionContextService, { TExecutionContextService } from "../context/ExecutionContextService";
 import { ExchangeName, ICandleData } from "../../../interfaces/Exchange.interface";
@@ -36,11 +36,10 @@ import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
 import { PartialConnectionService } from "./PartialConnectionService";
 import { BreakevenConnectionService } from "./BreakevenConnectionService";
-import { MergeRisk } from "../../../classes/Risk";
+import { MergeRisk } from "../../../classes/MergeRisk";
 import { TMethodContextService } from "../context/MethodContextService";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
-import backtest from "../../../lib";
 import beginTime from "../../../utils/beginTime";
 import SignalSyncContract from "../../../contract/SignalSync.contract";
 import TimeMetaService from "../meta/TimeMetaService";
@@ -111,13 +110,13 @@ const CALL_SIGNAL_EMIT_FN = trycatch(
     });
   }),
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "StrategyConnectionService CALL_SIGNAL_EMIT_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -256,7 +255,7 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -302,7 +301,7 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -336,7 +335,7 @@ const CREATE_COMMIT_INIT_FN = (self: StrategyConnectionService) => trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -365,7 +364,7 @@ const CREATE_COMMIT_FN = (self: StrategyConnectionService) => trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -406,7 +405,7 @@ const CREATE_HIGHEST_PROFIT_FN = (self: StrategyConnectionService, strategyName:
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -446,7 +445,7 @@ const CREATE_MAX_DRAWDOWN_FN = (self: StrategyConnectionService, strategyName: S
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -480,7 +479,7 @@ const CREATE_COMMIT_DISPOSE_FN = (self: StrategyConnectionService) => trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -518,7 +517,7 @@ type TStrategy = {
  * ```
  */
 export class StrategyConnectionService implements TStrategy {
-  public readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  public readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   public readonly executionContextService = inject<TExecutionContextService>(
     TYPES.executionContextService
   );

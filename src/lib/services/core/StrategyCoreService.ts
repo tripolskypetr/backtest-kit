@@ -1,5 +1,5 @@
 import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ExecutionContextService from "../context/ExecutionContextService";
 import {
@@ -56,7 +56,7 @@ type TStrategy = {
  * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
  */
 export class StrategyCoreService implements TStrategy {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
   private readonly strategyConnectionService =
     inject<StrategyConnectionService>(TYPES.strategyConnectionService);
   private readonly strategySchemaService = inject<StrategySchemaService>(

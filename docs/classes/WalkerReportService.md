@@ -14,7 +14,7 @@ Features:
 - Listens to walker events via walkerEmitter
 - Logs each strategy test result with metrics and statistics
 - Tracks best strategy and optimization progress
-- Stores events in Report.writeData() for optimization analysis
+- Stores events in ReportWriter.writeData() for optimization analysis
 - Protected against multiple subscriptions using singleshot
 
 ## Constructor

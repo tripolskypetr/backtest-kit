@@ -1,6 +1,6 @@
 import { ExchangeName, IExchangeSchema } from "../../../interfaces/Exchange.interface";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
+import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { ToolRegistry } from "functools-kit";
 
@@ -11,7 +11,7 @@ import { ToolRegistry } from "functools-kit";
  * Exchanges are registered via addExchange() and retrieved by name.
  */
 export class ExchangeSchemaService {
-  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
 
   private _registry = new ToolRegistry<Record<ExchangeName, IExchangeSchema>>("exchangeSchema");
 

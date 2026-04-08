@@ -2,7 +2,7 @@ import { inject } from "../../../lib/core/di";
 import { MessageModel } from "../../../model/Message.model";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { Markdown, ISignalDto } from "backtest-kit";
+import { MarkdownWriter, ISignalDto } from "backtest-kit";
 import path from "path";
 
 type MarkdownName = any;
@@ -67,7 +67,7 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
       });
     }
 
-    await Markdown.writeData(<MarkdownName>"outline", summary, {
+    await MarkdownWriter.writeData(<MarkdownName>"outline", summary, {
       path: subfolderPath,
       file: "00_system_prompt.md",
       symbol: "",
@@ -102,7 +102,7 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
         content += message.content;
         content += "\n";
 
-        await Markdown.writeData(<MarkdownName>"outline", content, {
+        await MarkdownWriter.writeData(<MarkdownName>"outline", content, {
           path: subfolderPath,
           file: contentFileName,
           signalId: String(signalId),
@@ -130,7 +130,7 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
       content += "\n```\n";
     }
 
-    await Markdown.writeData(<MarkdownName>"outline", content, {
+    await MarkdownWriter.writeData(<MarkdownName>"outline", content, {
       path: subfolderPath,
       file: contentFileName,
       symbol: "",
