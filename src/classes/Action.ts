@@ -5,6 +5,7 @@ import SchedulePingContract from "../contract/SchedulePing.contract";
 import ActivePingContract from "../contract/ActivePing.contract";
 import RiskContract from "../contract/Risk.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
+import LoggerService from "../lib/services/base/LoggerService";
 import {
   IStrategyTickResult,
   StrategyName,
@@ -33,6 +34,8 @@ const METHOD_NAME_DISPOSE = "ActionBase.dispose";
 
 const DEFAULT_SOURCE = "default";
 
+const LOGGER_SERVICE = new LoggerService
+
 /**
  * Wrapper to call init method with error capture.
  */
@@ -49,7 +52,7 @@ const CALL_INIT_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -73,7 +76,7 @@ const CALL_SIGNAL_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -97,7 +100,7 @@ const CALL_SIGNAL_LIVE_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -121,7 +124,7 @@ const CALL_SIGNAL_BACKTEST_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -161,7 +164,7 @@ const CALL_BREAKEVEN_AVAILABLE_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -201,7 +204,7 @@ const CALL_PARTIAL_PROFIT_AVAILABLE_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -241,7 +244,7 @@ const CALL_PARTIAL_LOSS_AVAILABLE_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -281,7 +284,7 @@ const CALL_PING_SCHEDULED_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -321,7 +324,7 @@ const CALL_PING_ACTIVE_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -345,7 +348,7 @@ const CALL_RISK_REJECTION_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -369,7 +372,7 @@ const CALL_DISPOSE_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      LOGGER_SERVICE.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -637,7 +640,7 @@ class ActionProxy implements IPublicAction {
  *
  * Key features:
  * - All methods have default implementations (no need to implement unused methods)
- * - Automatic logging of all events via backtest.loggerService
+ * - Automatic logging of all events via LOGGER_SERVICE
  * - Access to strategy context (strategyName, frameName, actionName)
  * - Implements full IPublicAction interface
  *
@@ -768,7 +771,7 @@ class ActionBase implements IPublicAction {
    * ```
    */
   public init(source = DEFAULT_SOURCE): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_INIT, {
+    LOGGER_SERVICE.info(METHOD_NAME_INIT, {
       source,
     });
   }
@@ -803,7 +806,7 @@ class ActionBase implements IPublicAction {
     event: IStrategyTickResult,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_EVENT, {
+    LOGGER_SERVICE.info(METHOD_NAME_EVENT, {
       event,
       source,
     });
@@ -837,7 +840,7 @@ class ActionBase implements IPublicAction {
     event: IStrategyTickResult,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_SIGNAL_LIVE, {
+    LOGGER_SERVICE.info(METHOD_NAME_SIGNAL_LIVE, {
       event,
       source,
     });
@@ -870,7 +873,7 @@ class ActionBase implements IPublicAction {
     event: IStrategyTickResult,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_SIGNAL_BACKTEST, {
+    LOGGER_SERVICE.info(METHOD_NAME_SIGNAL_BACKTEST, {
       event,
       source,
     });
@@ -904,7 +907,7 @@ class ActionBase implements IPublicAction {
     event: BreakevenContract,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_BREAKEVEN_AVAILABLE, {
+    LOGGER_SERVICE.info(METHOD_NAME_BREAKEVEN_AVAILABLE, {
       event,
       source,
     });
@@ -939,7 +942,7 @@ class ActionBase implements IPublicAction {
     event: PartialProfitContract,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_PARTIAL_PROFIT_AVAILABLE, {
+    LOGGER_SERVICE.info(METHOD_NAME_PARTIAL_PROFIT_AVAILABLE, {
       event,
       source,
     });
@@ -974,7 +977,7 @@ class ActionBase implements IPublicAction {
     event: PartialLossContract,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_PARTIAL_LOSS_AVAILABLE, {
+    LOGGER_SERVICE.info(METHOD_NAME_PARTIAL_LOSS_AVAILABLE, {
       event,
       source,
     });
@@ -1007,7 +1010,7 @@ class ActionBase implements IPublicAction {
     event: SchedulePingContract,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_PING_SCHEDULED, {
+    LOGGER_SERVICE.info(METHOD_NAME_PING_SCHEDULED, {
       event,
       source,
     });
@@ -1040,7 +1043,7 @@ class ActionBase implements IPublicAction {
     event: ActivePingContract,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_PING_ACTIVE, {
+    LOGGER_SERVICE.info(METHOD_NAME_PING_ACTIVE, {
       event,
       source,
     });
@@ -1076,7 +1079,7 @@ class ActionBase implements IPublicAction {
     event: RiskContract,
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_RISK_REJECTION, {
+    LOGGER_SERVICE.info(METHOD_NAME_RISK_REJECTION, {
       event,
       source,
     });
@@ -1109,7 +1112,7 @@ class ActionBase implements IPublicAction {
    * ```
    */
   public dispose(source = DEFAULT_SOURCE): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_DISPOSE, {
+    LOGGER_SERVICE.info(METHOD_NAME_DISPOSE, {
       source,
     });
   }

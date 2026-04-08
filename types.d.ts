@@ -20986,7 +20986,7 @@ declare class ActionProxy implements IPublicAction {
  *
  * Key features:
  * - All methods have default implementations (no need to implement unused methods)
- * - Automatic logging of all events via backtest.loggerService
+ * - Automatic logging of all events via LOGGER_SERVICE
  * - Access to strategy context (strategyName, frameName, actionName)
  * - Implements full IPublicAction interface
  *
