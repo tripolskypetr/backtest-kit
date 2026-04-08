@@ -2,7 +2,7 @@ import { inject } from "../../core/di";
 import { PlotModel } from "../../../model/Plot.model";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../core/types";
-import { ExecutionContextService, Markdown, MarkdownName, MethodContextService, lib } from "backtest-kit";
+import { ExecutionContextService, MarkdownWriter, MarkdownName, MethodContextService, lib } from "backtest-kit";
 import { PlotExtractConfig, PlotMapping } from "../data/PineDataService";
 
 const TABLE_ROWS_LIMIT = 48;
@@ -143,7 +143,7 @@ export class PineMarkdownService {
 
     const { exchangeName, frameName, strategyName } = GET_METHOD_CONTEXT_FN();
 
-    await Markdown.writeData(<MarkdownName>taName, content, {
+    await MarkdownWriter.writeData(<MarkdownName>taName, content, {
       path: outputDir,
       file: `${String(signalId)}.md`,
       symbol: "",
