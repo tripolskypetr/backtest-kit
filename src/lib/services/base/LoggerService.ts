@@ -141,6 +141,17 @@ export const LoggerService = singleton(class implements ILogger {
   };
 })
 
+/**
+ * Type alias for LoggerService instance, used for DI injection.
+ * Allows other services to declare dependencies on LoggerService with correct typing.
+ * Example usage in another service:
+ * ```
+ * class SomeService {
+ *  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
+ *  ...
+ * }
+ * ```
+ */
 export type TLoggerService = InstanceType<typeof LoggerService>;
 
 export default LoggerService;
