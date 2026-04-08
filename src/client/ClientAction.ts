@@ -17,10 +17,9 @@ import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
-import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { FrameName } from "../interfaces/Frame.interface";
-import { ActionProxy } from "../classes/Action";
+import { ActionProxy } from "../classes/ActionProxy";
 
 /** Wrapper to call signal callback with error handling */
 const CALL_SIGNAL_CALLBACK_FN = trycatch(
@@ -368,7 +367,7 @@ export const WAIT_FOR_INIT_FN = async (self: ClientAction): Promise<void> => {
   // Create handler instance
   {
     const instance = CREATE_HANDLER_FN(self);
-    self._handlerInstance = ActionProxy.fromInstance(instance);
+    self._handlerInstance = ActionProxy.fromInstance(instance, self.params);
   }
 
   // Call handler init() method if defined

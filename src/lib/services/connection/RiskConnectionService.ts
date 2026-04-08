@@ -80,7 +80,7 @@ const CREATE_COMMIT_REJECTION_FN = (
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -130,8 +130,8 @@ type TRisk = {
  * ```
  */
 export class RiskConnectionService implements TRisk {
-  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
-  private readonly riskSchemaService = inject<RiskSchemaService>(
+  public readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
+  public readonly riskSchemaService = inject<RiskSchemaService>(
     TYPES.riskSchemaService
   );
 

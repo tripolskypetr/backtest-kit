@@ -16,6 +16,7 @@ import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 import { SignalSyncContract } from "../../../contract/SignalSync.contract";
+import StrategyCoreService from "../core/StrategyCoreService";
 
 /**
  * Creates a unique key for memoizing ClientAction instances.
@@ -81,6 +82,7 @@ export class ActionConnectionService implements TAction {
   private readonly actionSchemaService = inject<ActionSchemaService>(
     TYPES.actionSchemaService
   );
+  private readonly strategyCoreService = inject<StrategyCoreService>(TYPES.strategyCoreService);
 
   /**
    * Retrieves memoized ClientAction instance for given action name, strategy, exchange, frame and backtest mode.
@@ -103,6 +105,7 @@ export class ActionConnectionService implements TAction {
       return new ClientAction({
         ...schema,
         logger: this.loggerService,
+        strategy: this.strategyCoreService,
         exchangeName,
         strategyName,
         frameName,

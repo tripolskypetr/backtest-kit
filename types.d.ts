@@ -1322,6 +1322,47 @@ type SignalSyncContract = SignalOpenContract | SignalCloseContract;
  */
 type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName, backtest: boolean) => Partial<IPublicAction>;
 /**
+ * Strategy query interface exposed to action handlers via IActionParams.strategy.
+ *
+ * Provides read-only access to the current signal state needed for
+ * guard checks inside ActionProxy before invoking user callbacks.
+ *
+ * Used by:
+ * - ActionProxy.breakevenAvailable — skips if no pending signal
+ * - ActionProxy.partialProfitAvailable — skips if no pending signal
+ * - ActionProxy.partialLossAvailable — skips if no pending signal
+ * - ActionProxy.pingActive — skips if no pending signal
+ * - ActionProxy.pingScheduled — skips if no scheduled signal
+ */
+interface IActionStrategy {
+    /**
+     * Checks if there is an active pending signal (open position) for the symbol.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if a pending signal exists, false otherwise
+     */
+    hasPendingSignal(backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }): Promise<boolean>;
+    /**
+     * Checks if there is a waiting scheduled signal for the symbol.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if a scheduled signal exists, false otherwise
+     */
+    hasScheduledSignal(backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }): Promise<boolean>;
+}
+/**
  * Action parameters passed to ClientAction constructor.
  * Combines schema with runtime dependencies and execution context.
  *
@@ -1355,6 +1396,8 @@ interface IActionParams extends IActionSchema {
     frameName: FrameName;
     /** Whether running in backtest mode */
     backtest: boolean;
+    /** Strategy context object providing access to current signal and position state */
+    strategy: IActionStrategy;
 }
 /**
  * Lifecycle and event callbacks for action handlers.
@@ -20773,207 +20816,6 @@ declare class StrategyUtils {
 declare const Strategy: StrategyUtils;
 
 /**
- * Proxy wrapper for user-defined action handlers with automatic error capture.
- *
- * Wraps all IPublicAction methods with trycatch to prevent user code errors from crashing the system.
- * All errors are logged, sent to errorEmitter, and returned as null (non-breaking).
- *
- * Key features:
- * - Automatic error catching and logging for all action methods
- * - Safe execution of partial user implementations (missing methods return null)
- * - Consistent error capture across all action lifecycle events
- * - Non-breaking failure mode (errors logged but execution continues)
- *
- * Architecture:
- * - Private constructor enforces factory pattern via fromInstance()
- * - Each method checks if target implements the method before calling
- * - Errors caught with fallback handler (warn log + errorEmitter)
- * - Returns null on error to prevent undefined behavior
- *
- * Used by:
- * - ClientAction to wrap user-provided action handlers
- * - ActionCoreService to safely invoke action callbacks
- *
- * @example
- * ```typescript
- * // Create proxy from user implementation
- * const userAction = {
- *   signal: async (event) => {
- *     // User code that might throw
- *     throw new Error('User error');
- *   }
- * };
- *
- * const proxy = ActionProxy.fromInstance(userAction);
- *
- * // Error is caught and logged, execution continues
- * await proxy.signal(event); // Logs error, returns null
- * await proxy.dispose(); // Safe call even though not implemented
- * ```
- *
- * @example
- * ```typescript
- * // Partial implementation is safe
- * const partialAction = {
- *   init: async () => console.log('Initialized'),
- *   // Other methods not implemented
- * };
- *
- * const proxy = ActionProxy.fromInstance(partialAction);
- * await proxy.init(); // Works
- * await proxy.signal(event); // Returns null (not implemented)
- * ```
- */
-declare class ActionProxy implements IPublicAction {
-    readonly _target: Partial<IPublicAction>;
-    /**
-     * Creates a new ActionProxy instance.
-     *
-     * @param _target - Partial action implementation to wrap with error capture
-     * @private Use ActionProxy.fromInstance() instead
-     */
-    private constructor();
-    /**
-     * Initializes the action handler with error capture.
-     *
-     * Wraps the user's init() method in trycatch to prevent initialization errors from crashing the system.
-     * If the target doesn't implement init(), this method safely returns undefined.
-     *
-     * @returns Promise resolving to user's init() result or undefined if not implemented
-     */
-    init(): Promise<any>;
-    /**
-     * Handles signal events from all modes with error capture.
-     *
-     * Wraps the user's signal() method to catch and log any errors.
-     * Called on every tick/candle when strategy is evaluated.
-     *
-     * @param event - Signal state result with action, state, signal data, and context
-     * @returns Promise resolving to user's signal() result or null on error
-     */
-    signal(event: IStrategyTickResult): Promise<any>;
-    /**
-     * Handles signal events from live trading only with error capture.
-     *
-     * Wraps the user's signalLive() method to catch and log any errors.
-     * Called every tick in live mode.
-     *
-     * @param event - Signal state result from live trading
-     * @returns Promise resolving to user's signalLive() result or null on error
-     */
-    signalLive(event: IStrategyTickResult): Promise<any>;
-    /**
-     * Handles signal events from backtest only with error capture.
-     *
-     * Wraps the user's signalBacktest() method to catch and log any errors.
-     * Called every candle in backtest mode.
-     *
-     * @param event - Signal state result from backtest
-     * @returns Promise resolving to user's signalBacktest() result or null on error
-     */
-    signalBacktest(event: IStrategyTickResult): Promise<any>;
-    /**
-     * Handles breakeven events with error capture.
-     *
-     * Wraps the user's breakevenAvailable() method to catch and log any errors.
-     * Called once per signal when stop-loss is moved to entry price.
-     *
-     * @param event - Breakeven milestone data with signal info, current price, timestamp
-     * @returns Promise resolving to user's breakevenAvailable() result or null on error
-     */
-    breakevenAvailable(event: BreakevenContract): Promise<any>;
-    /**
-     * Handles partial profit level events with error capture.
-     *
-     * Wraps the user's partialProfitAvailable() method to catch and log any errors.
-     * Called once per profit level per signal (10%, 20%, 30%, etc).
-     *
-     * @param event - Profit milestone data with signal info, level, price, timestamp
-     * @returns Promise resolving to user's partialProfitAvailable() result or null on error
-     */
-    partialProfitAvailable(event: PartialProfitContract): Promise<any>;
-    /**
-     * Handles partial loss level events with error capture.
-     *
-     * Wraps the user's partialLossAvailable() method to catch and log any errors.
-     * Called once per loss level per signal (-10%, -20%, -30%, etc).
-     *
-     * @param event - Loss milestone data with signal info, level, price, timestamp
-     * @returns Promise resolving to user's partialLossAvailable() result or null on error
-     */
-    partialLossAvailable(event: PartialLossContract): Promise<any>;
-    /**
-     * Handles scheduled ping events with error capture.
-     *
-     * Wraps the user's pingScheduled() method to catch and log any errors.
-     * Called every minute while a scheduled signal is waiting for activation.
-     *
-     * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
-     * @returns Promise resolving to user's pingScheduled() result or null on error
-     */
-    pingScheduled(event: SchedulePingContract): Promise<any>;
-    /**
-     * Handles active ping events with error capture.
-     *
-     * Wraps the user's pingActive() method to catch and log any errors.
-     * Called every minute while a pending signal is active (position open).
-     *
-     * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
-     * @returns Promise resolving to user's pingActive() result or null on error
-     */
-    pingActive(event: ActivePingContract): Promise<any>;
-    /**
-     * Handles risk rejection events with error capture.
-     *
-     * Wraps the user's riskRejection() method to catch and log any errors.
-     * Called only when signal is rejected by risk management validation.
-     *
-     * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
-     * @returns Promise resolving to user's riskRejection() result or null on error
-     */
-    riskRejection(event: RiskContract): Promise<any>;
-    /**
-     * Gate for position open/close via limit order.
-     * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
-     *
-     * @param event - Sync event with action "signal-open" or "signal-close"
-     */
-    signalSync(event: SignalSyncContract): Promise<void>;
-    /**
-     * Cleans up resources with error capture.
-     *
-     * Wraps the user's dispose() method to catch and log any errors.
-     * Called once when strategy execution ends.
-     *
-     * @returns Promise resolving to user's dispose() result or null on error
-     */
-    dispose(): Promise<any>;
-    /**
-     * Creates a new ActionProxy instance wrapping a user-provided action handler.
-     *
-     * Factory method enforcing the private constructor pattern.
-     * Wraps all methods of the provided instance with error capture.
-     *
-     * @param instance - Partial action implementation to wrap
-     * @returns New ActionProxy instance with error-safe method wrappers
-     *
-     * @example
-     * ```typescript
-     * const userAction = {
-     *   signal: async (event) => {
-     *     console.log('Signal received:', event);
-     *   },
-     *   dispose: async () => {
-     *     console.log('Cleanup complete');
-     *   }
-     * };
-     *
-     * const proxy = ActionProxy.fromInstance(userAction);
-     * ```
-     */
-    static fromInstance(instance: Partial<IPublicAction>): ActionProxy;
-}
-/**
  * Base class for custom action handlers.
  *
  * Provides default implementations for all IPublicAction methods that log events.
@@ -23352,6 +23194,67 @@ declare class ClientRisk implements IRisk {
 }
 
 /**
+ * Service for managing risk schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Risk profiles are registered via addRisk() and retrieved by name.
+ */
+declare class RiskSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a new risk schema.
+     *
+     * @param key - Unique risk profile name
+     * @param value - Risk schema configuration
+     * @throws Error if risk name already exists
+     */
+    register: (key: RiskName, value: IRiskSchema) => void;
+    /**
+     * Validates risk schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param riskSchema - Risk schema to validate
+     * @throws Error if riskName is missing or not a string
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing risk schema with partial updates.
+     *
+     * @param key - Risk name to override
+     * @param value - Partial schema updates
+     * @returns Updated risk schema
+     * @throws Error if risk name doesn't exist
+     */
+    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
+    /**
+     * Retrieves a risk schema by name.
+     *
+     * @param key - Risk name
+     * @returns Risk schema configuration
+     * @throws Error if risk name doesn't exist
+     */
+    get: (key: RiskName) => IRiskSchema;
+}
+
+/**
  * Type definition for action methods.
  * Maps all keys of IAction to any type.
  * Used for dynamic method routing in ActionCoreService.
@@ -23637,8 +23540,23 @@ type TRisk$1 = {
  * ```
  */
 declare class RiskConnectionService implements TRisk$1 {
-    private readonly loggerService;
-    private readonly riskSchemaService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly riskSchemaService: RiskSchemaService;
     /**
      * Action core service injected from DI container.
      */
@@ -25291,6 +25209,209 @@ declare class SizingConnectionService implements TSizing$1 {
 }
 
 /**
+ * Proxy wrapper for user-defined action handlers with automatic error capture.
+ *
+ * Wraps all IPublicAction methods with trycatch to prevent user code errors from crashing the system.
+ * All errors are logged, sent to errorEmitter, and returned as null (non-breaking).
+ *
+ * Key features:
+ * - Automatic error catching and logging for all action methods
+ * - Safe execution of partial user implementations (missing methods return null)
+ * - Consistent error capture across all action lifecycle events
+ * - Non-breaking failure mode (errors logged but execution continues)
+ *
+ * Architecture:
+ * - Private constructor enforces factory pattern via fromInstance()
+ * - Each method checks if target implements the method before calling
+ * - Errors caught with fallback handler (warn log + errorEmitter)
+ * - Returns null on error to prevent undefined behavior
+ *
+ * Used by:
+ * - ClientAction to wrap user-provided action handlers
+ * - ActionCoreService to safely invoke action callbacks
+ *
+ * @example
+ * ```typescript
+ * // Create proxy from user implementation
+ * const userAction = {
+ *   signal: async (event) => {
+ *     // User code that might throw
+ *     throw new Error('User error');
+ *   }
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(userAction);
+ *
+ * // Error is caught and logged, execution continues
+ * await proxy.signal(event); // Logs error, returns null
+ * await proxy.dispose(); // Safe call even though not implemented
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Partial implementation is safe
+ * const partialAction = {
+ *   init: async () => console.log('Initialized'),
+ *   // Other methods not implemented
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(partialAction);
+ * await proxy.init(); // Works
+ * await proxy.signal(event); // Returns null (not implemented)
+ * ```
+ */
+declare class ActionProxy implements IPublicAction {
+    readonly _target: Partial<IPublicAction>;
+    readonly params: IActionParams;
+    /**
+     * Creates a new ActionProxy instance.
+     *
+     * @param _target - Partial action implementation to wrap with error capture
+     * @private Use ActionProxy.fromInstance() instead
+     */
+    private constructor();
+    /**
+     * Initializes the action handler with error capture.
+     *
+     * Wraps the user's init() method in trycatch to prevent initialization errors from crashing the system.
+     * If the target doesn't implement init(), this method safely returns undefined.
+     *
+     * @returns Promise resolving to user's init() result or undefined if not implemented
+     */
+    init(): Promise<any>;
+    /**
+     * Handles signal events from all modes with error capture.
+     *
+     * Wraps the user's signal() method to catch and log any errors.
+     * Called on every tick/candle when strategy is evaluated.
+     *
+     * @param event - Signal state result with action, state, signal data, and context
+     * @returns Promise resolving to user's signal() result or null on error
+     */
+    signal(event: IStrategyTickResult): Promise<any>;
+    /**
+     * Handles signal events from live trading only with error capture.
+     *
+     * Wraps the user's signalLive() method to catch and log any errors.
+     * Called every tick in live mode.
+     *
+     * @param event - Signal state result from live trading
+     * @returns Promise resolving to user's signalLive() result or null on error
+     */
+    signalLive(event: IStrategyTickResult): Promise<any>;
+    /**
+     * Handles signal events from backtest only with error capture.
+     *
+     * Wraps the user's signalBacktest() method to catch and log any errors.
+     * Called every candle in backtest mode.
+     *
+     * @param event - Signal state result from backtest
+     * @returns Promise resolving to user's signalBacktest() result or null on error
+     */
+    signalBacktest(event: IStrategyTickResult): Promise<any>;
+    /**
+     * Handles breakeven events with error capture.
+     *
+     * Wraps the user's breakevenAvailable() method to catch and log any errors.
+     * Called once per signal when stop-loss is moved to entry price.
+     *
+     * @param event - Breakeven milestone data with signal info, current price, timestamp
+     * @returns Promise resolving to user's breakevenAvailable() result or null on error
+     */
+    breakevenAvailable(event: BreakevenContract): Promise<any>;
+    /**
+     * Handles partial profit level events with error capture.
+     *
+     * Wraps the user's partialProfitAvailable() method to catch and log any errors.
+     * Called once per profit level per signal (10%, 20%, 30%, etc).
+     *
+     * @param event - Profit milestone data with signal info, level, price, timestamp
+     * @returns Promise resolving to user's partialProfitAvailable() result or null on error
+     */
+    partialProfitAvailable(event: PartialProfitContract): Promise<any>;
+    /**
+     * Handles partial loss level events with error capture.
+     *
+     * Wraps the user's partialLossAvailable() method to catch and log any errors.
+     * Called once per loss level per signal (-10%, -20%, -30%, etc).
+     *
+     * @param event - Loss milestone data with signal info, level, price, timestamp
+     * @returns Promise resolving to user's partialLossAvailable() result or null on error
+     */
+    partialLossAvailable(event: PartialLossContract): Promise<any>;
+    /**
+     * Handles scheduled ping events with error capture.
+     *
+     * Wraps the user's pingScheduled() method to catch and log any errors.
+     * Called every minute while a scheduled signal is waiting for activation.
+     *
+     * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
+     * @returns Promise resolving to user's pingScheduled() result or null on error
+     */
+    pingScheduled(event: SchedulePingContract): Promise<any>;
+    /**
+     * Handles active ping events with error capture.
+     *
+     * Wraps the user's pingActive() method to catch and log any errors.
+     * Called every minute while a pending signal is active (position open).
+     *
+     * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
+     * @returns Promise resolving to user's pingActive() result or null on error
+     */
+    pingActive(event: ActivePingContract): Promise<any>;
+    /**
+     * Handles risk rejection events with error capture.
+     *
+     * Wraps the user's riskRejection() method to catch and log any errors.
+     * Called only when signal is rejected by risk management validation.
+     *
+     * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
+     * @returns Promise resolving to user's riskRejection() result or null on error
+     */
+    riskRejection(event: RiskContract): Promise<any>;
+    /**
+     * Gate for position open/close via limit order.
+     * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
+     *
+     * @param event - Sync event with action "signal-open" or "signal-close"
+     */
+    signalSync(event: SignalSyncContract): Promise<void>;
+    /**
+     * Cleans up resources with error capture.
+     *
+     * Wraps the user's dispose() method to catch and log any errors.
+     * Called once when strategy execution ends.
+     *
+     * @returns Promise resolving to user's dispose() result or null on error
+     */
+    dispose(): Promise<any>;
+    /**
+     * Creates a new ActionProxy instance wrapping a user-provided action handler.
+     *
+     * Factory method enforcing the private constructor pattern.
+     * Wraps all methods of the provided instance with error capture.
+     *
+     * @param instance - Partial action implementation to wrap
+     * @returns New ActionProxy instance with error-safe method wrappers
+     *
+     * @example
+     * ```typescript
+     * const userAction = {
+     *   signal: async (event) => {
+     *     console.log('Signal received:', event);
+     *   },
+     *   dispose: async () => {
+     *     console.log('Cleanup complete');
+     *   }
+     * };
+     *
+     * const proxy = ActionProxy.fromInstance(userAction);
+     * ```
+     */
+    static fromInstance(instance: Partial<IPublicAction>, params: IActionParams): ActionProxy;
+}
+
+/**
  * ClientAction implementation for action handler execution.
  *
  * Provides lifecycle management and event routing for action handlers:
@@ -25447,6 +25568,7 @@ type TAction = {
 declare class ActionConnectionService implements TAction {
     private readonly loggerService;
     private readonly actionSchemaService;
+    private readonly strategyCoreService;
     /**
      * Retrieves memoized ClientAction instance for given action name, strategy, exchange, frame and backtest mode.
      *
@@ -26871,6 +26993,188 @@ declare class RiskGlobalService implements TRisk {
 }
 
 /**
+ * Private service for backtest orchestration using async generators.
+ *
+ * Flow:
+ * 1. Get timeframes from frame service
+ * 2. Iterate through timeframes calling tick()
+ * 3. When signal opens: fetch candles and call backtest()
+ * 4. Skip timeframes until signal closes
+ * 5. Yield closed result and continue
+ *
+ * Memory efficient: streams results without array accumulation.
+ * Supports early termination via break in consumer.
+ */
+declare class BacktestLogicPrivateService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly strategyCoreService: StrategyCoreService;
+    readonly exchangeCoreService: ExchangeCoreService;
+    readonly frameCoreService: FrameCoreService;
+    readonly methodContextService: {
+        readonly context: IMethodContext;
+    };
+    readonly actionCoreService: ActionCoreService;
+    /**
+     * Runs backtest for a symbol, streaming closed signals as async generator.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @yields Closed signal results with PNL
+     *
+     * @example
+     * ```typescript
+     * for await (const result of backtestLogic.run("BTCUSDT")) {
+     *   console.log(result.closeReason, result.pnl.pnlPercentage);
+     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
+     * }
+     * ```
+     */
+    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
+}
+
+/**
+ * Type definition for public BacktestLogic service.
+ * Omits private dependencies from BacktestLogicPrivateService.
+ */
+type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
+    loggerService: never;
+    strategyCoreService: never;
+    exchangeCoreService: never;
+    frameCoreService: never;
+    actionCoreService: never;
+    methodContextService: never;
+}>;
+/**
+ * Type definition for BacktestLogicPublicService.
+ * Maps all keys of IBacktestLogicPrivateService to any type.
+ */
+type TBacktestLogicPrivateService = {
+    [key in keyof IBacktestLogicPrivateService]: any;
+};
+/**
+ * Public service for backtest orchestration with context management.
+ *
+ * Wraps BacktestLogicPrivateService with MethodContextService to provide
+ * implicit context propagation for strategyName, exchangeName, and frameName.
+ *
+ * This allows getCandles(), getSignal(), and other functions to work without
+ * explicit context parameters.
+ *
+ * @example
+ * ```typescript
+ * const backtestLogicPublicService = inject(TYPES.backtestLogicPublicService);
+ *
+ * for await (const result of backtestLogicPublicService.run("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "my-exchange",
+ *   frameName: "1d-backtest",
+ * })) {
+ *   if (result.action === "closed") {
+ *     console.log("PNL:", result.pnl.profit);
+ *   }
+ * }
+ * ```
+ */
+declare class BacktestLogicPublicService implements TBacktestLogicPrivateService {
+    private readonly loggerService;
+    private readonly backtestLogicPrivateService;
+    /**
+     * Runs backtest for a symbol with context propagation.
+     *
+     * Streams closed signals as async generator. Context is automatically
+     * injected into all framework functions called during iteration.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Execution context with strategy, exchange, and frame names
+     * @returns Async generator yielding closed signals with PNL
+     */
+    run: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
+}
+
+/**
+ * Service for managing walker schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Walkers are registered via addWalker() and retrieved by name.
+ */
+declare class WalkerSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a new walker schema.
+     *
+     * @param key - Unique walker name
+     * @param value - Walker schema configuration
+     * @throws Error if walker name already exists
+     */
+    register: (key: WalkerName, value: IWalkerSchema) => void;
+    /**
+     * Validates walker schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param walkerSchema - Walker schema to validate
+     * @throws Error if walkerName is missing or not a string
+     * @throws Error if exchangeName is missing or not a string
+     * @throws Error if frameName is missing or not a string
+     * @throws Error if strategies is missing or not an array
+     * @throws Error if strategies array is empty
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing walker schema with partial updates.
+     *
+     * @param key - Walker name to override
+     * @param value - Partial schema updates
+     * @returns Updated walker schema
+     * @throws Error if walker name doesn't exist
+     */
+    override: (key: WalkerName, value: Partial<IWalkerSchema>) => IWalkerSchema;
+    /**
+     * Retrieves a walker schema by name.
+     *
+     * @param key - Walker name
+     * @returns Walker schema configuration
+     * @throws Error if walker name doesn't exist
+     */
+    get: (key: WalkerName) => IWalkerSchema;
+}
+
+/**
  * Private service for walker orchestration (strategy comparison).
  *
  * Flow:
@@ -26881,10 +27185,25 @@ declare class RiskGlobalService implements TRisk {
  * Uses BacktestLogicPublicService internally for each strategy.
  */
 declare class WalkerLogicPrivateService {
-    private readonly loggerService;
-    private readonly backtestLogicPublicService;
-    private readonly backtestMarkdownService;
-    private readonly walkerSchemaService;
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    readonly backtestLogicPublicService: BacktestLogicPublicService;
+    readonly backtestMarkdownService: BacktestMarkdownService;
+    readonly walkerSchemaService: WalkerSchemaService;
     /**
      * Runs walker comparison for a symbol.
      *
@@ -27204,67 +27523,6 @@ declare class SizingSchemaService {
 }
 
 /**
- * Service for managing risk schema registry.
- *
- * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Risk profiles are registered via addRisk() and retrieved by name.
- */
-declare class RiskSchemaService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    private _registry;
-    /**
-     * Registers a new risk schema.
-     *
-     * @param key - Unique risk profile name
-     * @param value - Risk schema configuration
-     * @throws Error if risk name already exists
-     */
-    register: (key: RiskName, value: IRiskSchema) => void;
-    /**
-     * Validates risk schema structure for required properties.
-     *
-     * Performs shallow validation to ensure all required properties exist
-     * and have correct types before registration in the registry.
-     *
-     * @param riskSchema - Risk schema to validate
-     * @throws Error if riskName is missing or not a string
-     */
-    private validateShallow;
-    /**
-     * Overrides an existing risk schema with partial updates.
-     *
-     * @param key - Risk name to override
-     * @param value - Partial schema updates
-     * @returns Updated risk schema
-     * @throws Error if risk name doesn't exist
-     */
-    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
-    /**
-     * Retrieves a risk schema by name.
-     *
-     * @param key - Risk name
-     * @returns Risk schema configuration
-     * @throws Error if risk name doesn't exist
-     */
-    get: (key: RiskName) => IRiskSchema;
-}
-
-/**
  * Service for managing action schema registry.
  *
  * Manages registration, validation and retrieval of action schemas.
@@ -27367,125 +27625,6 @@ declare class ActionSchemaService {
 }
 
 /**
- * Service for managing walker schema registry.
- *
- * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Walkers are registered via addWalker() and retrieved by name.
- */
-declare class WalkerSchemaService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    private _registry;
-    /**
-     * Registers a new walker schema.
-     *
-     * @param key - Unique walker name
-     * @param value - Walker schema configuration
-     * @throws Error if walker name already exists
-     */
-    register: (key: WalkerName, value: IWalkerSchema) => void;
-    /**
-     * Validates walker schema structure for required properties.
-     *
-     * Performs shallow validation to ensure all required properties exist
-     * and have correct types before registration in the registry.
-     *
-     * @param walkerSchema - Walker schema to validate
-     * @throws Error if walkerName is missing or not a string
-     * @throws Error if exchangeName is missing or not a string
-     * @throws Error if frameName is missing or not a string
-     * @throws Error if strategies is missing or not an array
-     * @throws Error if strategies array is empty
-     */
-    private validateShallow;
-    /**
-     * Overrides an existing walker schema with partial updates.
-     *
-     * @param key - Walker name to override
-     * @param value - Partial schema updates
-     * @returns Updated walker schema
-     * @throws Error if walker name doesn't exist
-     */
-    override: (key: WalkerName, value: Partial<IWalkerSchema>) => IWalkerSchema;
-    /**
-     * Retrieves a walker schema by name.
-     *
-     * @param key - Walker name
-     * @returns Walker schema configuration
-     * @throws Error if walker name doesn't exist
-     */
-    get: (key: WalkerName) => IWalkerSchema;
-}
-
-/**
- * Private service for backtest orchestration using async generators.
- *
- * Flow:
- * 1. Get timeframes from frame service
- * 2. Iterate through timeframes calling tick()
- * 3. When signal opens: fetch candles and call backtest()
- * 4. Skip timeframes until signal closes
- * 5. Yield closed result and continue
- *
- * Memory efficient: streams results without array accumulation.
- * Supports early termination via break in consumer.
- */
-declare class BacktestLogicPrivateService {
-    readonly loggerService: {
-        readonly methodContextService: {
-            readonly context: IMethodContext;
-        };
-        readonly executionContextService: {
-            readonly context: IExecutionContext;
-        };
-        _commonLogger: ILogger;
-        readonly _methodContext: {};
-        readonly _executionContext: {};
-        log: (topic: string, ...args: any[]) => Promise<void>;
-        debug: (topic: string, ...args: any[]) => Promise<void>;
-        info: (topic: string, ...args: any[]) => Promise<void>;
-        warn: (topic: string, ...args: any[]) => Promise<void>;
-        setLogger: (logger: ILogger) => void;
-    };
-    readonly strategyCoreService: StrategyCoreService;
-    readonly exchangeCoreService: ExchangeCoreService;
-    readonly frameCoreService: FrameCoreService;
-    readonly methodContextService: {
-        readonly context: IMethodContext;
-    };
-    readonly actionCoreService: ActionCoreService;
-    /**
-     * Runs backtest for a symbol, streaming closed signals as async generator.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @yields Closed signal results with PNL
-     *
-     * @example
-     * ```typescript
-     * for await (const result of backtestLogic.run("BTCUSDT")) {
-     *   console.log(result.closeReason, result.pnl.pnlPercentage);
-     *   if (result.pnl.pnlPercentage < -10) break; // Early termination
-     * }
-     * ```
-     */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
-}
-
-/**
  * Private service for live trading orchestration using async generators.
  *
  * Flow:
@@ -27528,69 +27667,6 @@ declare class LiveLogicPrivateService {
      * ```
      */
     run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
-}
-
-/**
- * Type definition for public BacktestLogic service.
- * Omits private dependencies from BacktestLogicPrivateService.
- */
-type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
-    loggerService: never;
-    strategyCoreService: never;
-    exchangeCoreService: never;
-    frameCoreService: never;
-    actionCoreService: never;
-    methodContextService: never;
-}>;
-/**
- * Type definition for BacktestLogicPublicService.
- * Maps all keys of IBacktestLogicPrivateService to any type.
- */
-type TBacktestLogicPrivateService = {
-    [key in keyof IBacktestLogicPrivateService]: any;
-};
-/**
- * Public service for backtest orchestration with context management.
- *
- * Wraps BacktestLogicPrivateService with MethodContextService to provide
- * implicit context propagation for strategyName, exchangeName, and frameName.
- *
- * This allows getCandles(), getSignal(), and other functions to work without
- * explicit context parameters.
- *
- * @example
- * ```typescript
- * const backtestLogicPublicService = inject(TYPES.backtestLogicPublicService);
- *
- * for await (const result of backtestLogicPublicService.run("BTCUSDT", {
- *   strategyName: "my-strategy",
- *   exchangeName: "my-exchange",
- *   frameName: "1d-backtest",
- * })) {
- *   if (result.action === "closed") {
- *     console.log("PNL:", result.pnl.profit);
- *   }
- * }
- * ```
- */
-declare class BacktestLogicPublicService implements TBacktestLogicPrivateService {
-    private readonly loggerService;
-    private readonly backtestLogicPrivateService;
-    /**
-     * Runs backtest for a symbol with context propagation.
-     *
-     * Streams closed signals as async generator. Context is automatically
-     * injected into all framework functions called during iteration.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Execution context with strategy, exchange, and frame names
-     * @returns Async generator yielding closed signals with PNL
-     */
-    run: (symbol: string, context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-    }) => AsyncGenerator<IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, any>;
 }
 
 /**

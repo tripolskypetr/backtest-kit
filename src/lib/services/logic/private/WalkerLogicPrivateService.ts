@@ -19,7 +19,6 @@ import { ExchangeName } from "../../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../../interfaces/Frame.interface";
 import { IWalkerSchema } from "../../../../interfaces/Walker.interface";
 import { BacktestStatisticsModel } from "../../../../model/BacktestStatistics.model";
-import backtest from "../../../../lib";
 
 /**
  * Wrapper to call onStrategyStart callback with error handling.
@@ -31,6 +30,7 @@ import backtest from "../../../../lib";
  */
 const CALL_STRATEGY_START_CALLBACKS_FN = trycatch(
   async (
+    _self: WalkerLogicPrivateService,
     walkerSchema: IWalkerSchema,
     strategyName: StrategyName,
     symbol: string
@@ -40,13 +40,13 @@ const CALL_STRATEGY_START_CALLBACKS_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "WalkerLogicPrivateService CALL_STRATEGY_START_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -64,6 +64,7 @@ const CALL_STRATEGY_START_CALLBACKS_FN = trycatch(
  */
 const CALL_STRATEGY_ERROR_CALLBACKS_FN = trycatch(
   async (
+    _self: WalkerLogicPrivateService,
     walkerSchema: IWalkerSchema,
     strategyName: StrategyName,
     symbol: string,
@@ -74,13 +75,13 @@ const CALL_STRATEGY_ERROR_CALLBACKS_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "WalkerLogicPrivateService CALL_STRATEGY_ERROR_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -99,6 +100,7 @@ const CALL_STRATEGY_ERROR_CALLBACKS_FN = trycatch(
  */
 const CALL_STRATEGY_COMPLETE_CALLBACKS_FN = trycatch(
   async (
+    _self: WalkerLogicPrivateService,
     walkerSchema: IWalkerSchema,
     strategyName: StrategyName,
     symbol: string,
@@ -115,13 +117,13 @@ const CALL_STRATEGY_COMPLETE_CALLBACKS_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "WalkerLogicPrivateService CALL_STRATEGY_COMPLETE_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -137,6 +139,7 @@ const CALL_STRATEGY_COMPLETE_CALLBACKS_FN = trycatch(
  */
 const CALL_COMPLETE_CALLBACKS_FN = trycatch(
   async (
+    _self: WalkerLogicPrivateService,
     walkerSchema: IWalkerSchema,
     finalResults: any
   ): Promise<void> => {
@@ -145,13 +148,13 @@ const CALL_COMPLETE_CALLBACKS_FN = trycatch(
     }
   },
   {
-    fallback: (error) => {
+    fallback: (error, self) => {
       const message = "WalkerLogicPrivateService CALL_COMPLETE_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      self.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -169,13 +172,13 @@ const CALL_COMPLETE_CALLBACKS_FN = trycatch(
  * Uses BacktestLogicPublicService internally for each strategy.
  */
 export class WalkerLogicPrivateService {
-  private readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
-  private readonly backtestLogicPublicService =
+  readonly loggerService = inject<TLoggerService>(TYPES.loggerService);
+  readonly backtestLogicPublicService =
     inject<BacktestLogicPublicService>(TYPES.backtestLogicPublicService);
-  private readonly backtestMarkdownService = inject<BacktestMarkdownService>(
+  readonly backtestMarkdownService = inject<BacktestMarkdownService>(
     TYPES.backtestMarkdownService
   );
-  private readonly walkerSchemaService = inject<WalkerSchemaService>(
+  readonly walkerSchemaService = inject<WalkerSchemaService>(
     TYPES.walkerSchemaService
   );
 
@@ -272,7 +275,7 @@ export class WalkerLogicPrivateService {
         }
 
         // Call onStrategyStart callback if provided
-        await CALL_STRATEGY_START_CALLBACKS_FN(walkerSchema, strategyName, symbol);
+        await CALL_STRATEGY_START_CALLBACKS_FN(this, walkerSchema, strategyName, symbol);
         this.loggerService.info("walkerLogicPrivateService testing strategy", {
           strategyName,
           symbol,
@@ -298,7 +301,7 @@ export class WalkerLogicPrivateService {
           );
           await errorEmitter.next(error);
           // Call onStrategyError callback if provided
-          await CALL_STRATEGY_ERROR_CALLBACKS_FN(walkerSchema, strategyName, symbol, error);
+          await CALL_STRATEGY_ERROR_CALLBACKS_FN(this, walkerSchema, strategyName, symbol, error);
           continue;
         }
 
@@ -361,6 +364,7 @@ export class WalkerLogicPrivateService {
 
         // Call onStrategyComplete callback if provided
         await CALL_STRATEGY_COMPLETE_CALLBACKS_FN(
+          this,
           walkerSchema,
           strategyName,
           symbol,
@@ -392,7 +396,7 @@ export class WalkerLogicPrivateService {
     };
 
     // Call onComplete callback if provided with final best results
-    await CALL_COMPLETE_CALLBACKS_FN(walkerSchema, finalResults);
+    await CALL_COMPLETE_CALLBACKS_FN(this, walkerSchema, finalResults);
 
     await walkerCompleteSubject.next(finalResults);
   }
