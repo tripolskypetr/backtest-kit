@@ -32,12 +32,12 @@ const serveInternal = singleshot(
   },
 );
 
-export function serve(host?: string, port?: number) {
+export function serve(host?: string, port?: number, cwd = process.cwd()) {
   ioc.loggerService.log(METHOD_NAME_SERVE, {
     host,
     port,
   });
-  serveSubject.next();
+  serveSubject.next(cwd);
   return serveInternal(host, port);
 }
 

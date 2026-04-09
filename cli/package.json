@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/cli",
-  "version": "6.8.1",
+  "version": "6.8.2",
   "description": "Zero-boilerplate CLI runner for backtest-kit strategies. Run backtests, paper trading, and live bots with candle cache warming, web dashboard, and Telegram notifications — no setup code required.",
   "author": {
     "name": "Petr Tripolsky",
@@ -61,7 +61,7 @@
   "devDependencies": {
     "@babel/plugin-transform-modules-umd": "7.27.1",
     "@babel/standalone": "7.29.1",
-    "@backtest-kit/ui": "6.8.1",
+    "@backtest-kit/ui": "6.8.2",
     "@backtest-kit/graph": "6.8.1",
     "@backtest-kit/ollama": "6.8.1",
     "@backtest-kit/pinets": "6.8.1",
@@ -88,7 +88,7 @@
   "peerDependencies": {
     "@babel/plugin-transform-modules-umd": "^7.27.1",
     "@babel/standalone": "^7.29.1",
-    "@backtest-kit/ui": "^6.8.1",
+    "@backtest-kit/ui": "^6.8.2",
     "@backtest-kit/graph": "^6.8.1",
     "@backtest-kit/ollama": "^6.8.1",
     "@backtest-kit/pinets": "^6.8.1",

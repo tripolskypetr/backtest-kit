@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/ui",
-  "version": "6.8.1",
+  "version": "6.8.2",
   "description": "Full-stack UI framework for visualizing cryptocurrency trading signals, backtests, and real-time market data. React dashboard with candlestick charts, signal tracking, and risk analysis.",
   "author": {
     "name": "Petr Tripolsky",

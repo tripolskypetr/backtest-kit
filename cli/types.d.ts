@@ -121,7 +121,7 @@ interface IResolve {
     DEFAULT_MODULES_DIR: string;
     OVERRIDE_TEMPLATE_DIR: string;
     OVERRIDE_MODULES_DIR: string;
-    IMPORT_PATHS_DIR: string;
+    PROJECT_ROOT_DIR: string;
 }
 
 declare class ResolveService implements IResolve {
@@ -131,7 +131,7 @@ declare class ResolveService implements IResolve {
     readonly DEFAULT_MODULES_DIR: string;
     readonly OVERRIDE_TEMPLATE_DIR: string;
     readonly OVERRIDE_MODULES_DIR: string;
-    readonly IMPORT_PATHS_DIR: string;
+    readonly PROJECT_ROOT_DIR: string;
     getIsLaunched: () => boolean;
     attachPine: (pinePath: string) => Promise<string>;
     attachStrategy: (jsPath: string) => Promise<void>;
@@ -151,6 +151,7 @@ declare class SymbolSchemaService {
 
 declare class FrontendProviderService {
     private readonly loggerService;
+    private readonly resolveService;
     enable: (() => () => void) & functools_kit.ISingleshotClearable;
     disable: () => void;
     connect: (() => Promise<() => void>) & functools_kit.ISingleshotClearable;
