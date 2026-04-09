@@ -1,3 +1,3 @@
-import { Subject } from "functools-kit";
+import { BehaviorSubject } from "functools-kit";
 
-export const serveSubject = new Subject<void>();
+export const serveSubject = new BehaviorSubject<string>();

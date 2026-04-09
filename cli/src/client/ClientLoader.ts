@@ -167,7 +167,7 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
         const child = self.fork(path.dirname(resolved));
         return child.import(resolved, seen);
       }
-      const importPathsMap = READ_IMPORT_PATHS_MAP_FN(self.params.resolve.IMPORT_PATHS_DIR);
+      const importPathsMap = READ_IMPORT_PATHS_MAP_FN(self.params.resolve.PROJECT_ROOT_DIR);
       if (id in importPathsMap) {
         const resolved = importPathsMap[id];
         const child = self.fork(resolved);

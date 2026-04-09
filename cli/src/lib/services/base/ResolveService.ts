@@ -26,7 +26,7 @@ export class ResolveService implements IResolve{
     public readonly OVERRIDE_TEMPLATE_DIR = path.resolve(process.cwd(), 'template');
     public readonly OVERRIDE_MODULES_DIR = path.resolve(process.cwd(), 'modules');
 
-    public readonly IMPORT_PATHS_DIR = process.cwd();
+    public readonly PROJECT_ROOT_DIR = process.cwd();
 
     public getIsLaunched = () => {
         this.loggerService.log("resolveService getIsLaunched");

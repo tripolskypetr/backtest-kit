@@ -10,10 +10,10 @@ import { serveSubject } from "../../../config/emitters";
 
 const require = createRequire(import.meta.url);
 
-const getSymbolList = singleshot((): SymbolModel[] => {
+const getSymbolList = singleshot((cwd: string): SymbolModel[] => {
   try {
     const modulePath = require.resolve(
-      path.join(process.cwd(), `./config/symbol.config.cjs`)
+      path.join(cwd, `./config/symbol.config.cjs`)
     );
     console.log(`Using ${modulePath} implementation as symbol.config.cjs`);
     return require(modulePath);
@@ -29,7 +29,12 @@ export class SymbolConnectionService {
 
   public getSymbolList = singleshot(async () => {
     this.loggerService.log("symbolConnectionService getSymbolList");
-    const symbolListRaw = await getSymbolList();
+
+    if (!serveSubject.data) {
+      throw new Error("Make sure to call serve() before getSymbolList().");
+    }
+
+    const symbolListRaw = await getSymbolList(serveSubject.data);
 
     const uniqueSymbols = new Set<string>();
 
