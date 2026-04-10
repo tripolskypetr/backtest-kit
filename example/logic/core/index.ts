@@ -6,5 +6,4 @@ import "./tools/web_search.tool";
 import "./agent/web_search.agent";
 import "./swarm/web_search.swarm";
 
-import "./outline/position.outline";
 import "./outline/research.outline";
