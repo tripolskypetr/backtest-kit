@@ -442,8 +442,19 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
     }
 
     const result = await this.fn.call(null, ...args);
-    await PersistMeasureAdapter.writeMeasureData({id: entityKey, data: result}, bucket, entityKey);
+    await PersistMeasureAdapter.writeMeasureData({id: entityKey, data: result, removed: false}, bucket, entityKey);
     return result;
+  };
+
+  /**
+   * Soft-delete all persisted records for this instance's bucket.
+   * After this call the next `run()` will recompute and re-cache the value.
+   */
+  public clear = async (): Promise<void> => {
+    const bucket = `${this.name}_${this.interval}_${this.index}`;
+    for await (const key of PersistMeasureAdapter.listMeasureData(bucket)) {
+      await PersistMeasureAdapter.removeMeasureData(bucket, key);
+    }
   };
 }
 
@@ -609,7 +620,7 @@ export class CacheUtils {
       name: string;
       key?: (args:  CacheFileKeyArgs<T>) => string;
     }
-  ): T & { clear(): void } => {
+  ): T & { clear(): Promise<void> } => {
     backtest.loggerService.info(CACHE_METHOD_NAME_FILE, { context });
 
     const wrappedFn = (...args: Parameters<T>): ReturnType<T> => {
@@ -617,12 +628,12 @@ export class CacheUtils {
       return instance.run(...args) as ReturnType<T>;
     };
 
-    wrappedFn.clear = () => {
+    wrappedFn.clear = async () => {
       backtest.loggerService.info(CACHE_METHOD_NAME_FILE_CLEAR);
-      this._getFileInstance.clear(run);
+      await this._getFileInstance.get(run)?.clear();
     };
 
-    return wrappedFn as unknown as T & { clear(): void };
+    return wrappedFn as unknown as T & { clear(): Promise<void> };
   };
 
   /**

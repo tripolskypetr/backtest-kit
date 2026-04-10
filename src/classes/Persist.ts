@@ -159,6 +159,10 @@ const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_JSON =
   "PersistMeasureUtils.useJson";
 const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistMeasureUtils.useDummy";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_REMOVE_DATA =
+  "PersistMeasureUtils.removeMeasureData";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_LIST_DATA =
+  "PersistMeasureUtils.listMeasureData";
 const PERSIST_MEASURE_UTILS_METHOD_NAME_CLEAR = "PersistMeasureUtils.clear";
 const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER =
   "PersistMeasureUtils.usePersistMeasureAdapter";
@@ -215,6 +219,7 @@ export type SignalData = ISignalRow | null;
 export type MeasureData = {
   id: string;
   data: unknown;
+  removed: boolean;
 };
 
 /**
@@ -2145,7 +2150,8 @@ export class PersistMeasureUtils {
     await stateStorage.waitForInit(isInitial);
 
     if (await stateStorage.hasValue(key)) {
-      return await stateStorage.readValue(key);
+      const data = await stateStorage.readValue(key);
+      return data.removed ? null : data;
     }
 
     return null;
@@ -2174,6 +2180,56 @@ export class PersistMeasureUtils {
     await stateStorage.waitForInit(isInitial);
 
     await stateStorage.writeValue(key, data);
+  };
+
+  /**
+   * Marks a cached entry as removed (soft delete — file is kept on disk).
+   * After this call `readMeasureData` for the same key returns `null`.
+   *
+   * @param bucket - Storage bucket
+   * @param key - Dynamic cache key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
+  public removeMeasureData = async (
+    bucket: string,
+    key: string
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_REMOVE_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getMeasureStorage.has(bucket);
+    const stateStorage = this.getMeasureStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    const data = await stateStorage.readValue(key);
+    if (data) {
+      await stateStorage.writeValue(key, Object.assign({}, data, { removed: true }));
+    }
+  };
+
+  /**
+   * Async generator yielding all non-removed entity keys for a given bucket.
+   * Used by `CacheFileInstance.clear()` to iterate and soft-delete all entries.
+   *
+   * @param bucket - Storage bucket
+   * @returns AsyncGenerator yielding entity keys
+   */
+  public async *listMeasureData(bucket: string): AsyncGenerator<string> {
+    LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_LIST_DATA, { bucket });
+
+    const isInitial = !this.getMeasureStorage.has(bucket);
+    const stateStorage = this.getMeasureStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    for await (const key of stateStorage.keys()) {
+      const data = await stateStorage.readValue(String(key));
+      if (data === null || data.removed) {
+        continue;
+      }
+      yield String(key);
+    }
   };
 
   /**
