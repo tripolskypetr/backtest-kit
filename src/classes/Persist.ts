@@ -159,9 +159,29 @@ const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_JSON =
   "PersistMeasureUtils.useJson";
 const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistMeasureUtils.useDummy";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_REMOVE_DATA =
+  "PersistMeasureUtils.removeMeasureData";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_LIST_DATA =
+  "PersistMeasureUtils.listMeasureData";
 const PERSIST_MEASURE_UTILS_METHOD_NAME_CLEAR = "PersistMeasureUtils.clear";
 const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER =
   "PersistMeasureUtils.usePersistMeasureAdapter";
+
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_READ_DATA =
+  "PersistIntervalUtils.readIntervalData";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistIntervalUtils.writeIntervalData";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_JSON =
+  "PersistIntervalUtils.useJson";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistIntervalUtils.useDummy";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_REMOVE_DATA =
+  "PersistIntervalUtils.removeIntervalData";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_LIST_DATA =
+  "PersistIntervalUtils.listIntervalData";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_CLEAR = "PersistIntervalUtils.clear";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_PERSIST_INTERVAL_ADAPTER =
+  "PersistIntervalUtils.usePersistIntervalAdapter";
 
 const PERSIST_CANDLE_UTILS_METHOD_NAME_CLEAR = "PersistCandleUtils.clear";
 
@@ -199,6 +219,16 @@ export type SignalData = ISignalRow | null;
 export type MeasureData = {
   id: string;
   data: unknown;
+  removed: boolean;
+};
+
+/**
+ * Interval.file data type stored in persistence layer.
+ */
+export type IntervalData = {
+  id: string;
+  data: unknown;
+  removed: boolean;
 };
 
 /**
@@ -2120,7 +2150,8 @@ export class PersistMeasureUtils {
     await stateStorage.waitForInit(isInitial);
 
     if (await stateStorage.hasValue(key)) {
-      return await stateStorage.readValue(key);
+      const data = await stateStorage.readValue(key);
+      return data.removed ? null : data;
     }
 
     return null;
@@ -2149,6 +2180,56 @@ export class PersistMeasureUtils {
     await stateStorage.waitForInit(isInitial);
 
     await stateStorage.writeValue(key, data);
+  };
+
+  /**
+   * Marks a cached entry as removed (soft delete — file is kept on disk).
+   * After this call `readMeasureData` for the same key returns `null`.
+   *
+   * @param bucket - Storage bucket
+   * @param key - Dynamic cache key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
+  public removeMeasureData = async (
+    bucket: string,
+    key: string
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_REMOVE_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getMeasureStorage.has(bucket);
+    const stateStorage = this.getMeasureStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    const data = await stateStorage.readValue(key);
+    if (data) {
+      await stateStorage.writeValue(key, Object.assign({}, data, { removed: true }));
+    }
+  };
+
+  /**
+   * Async generator yielding all non-removed entity keys for a given bucket.
+   * Used by `CacheFileInstance.clear()` to iterate and soft-delete all entries.
+   *
+   * @param bucket - Storage bucket
+   * @returns AsyncGenerator yielding entity keys
+   */
+  public async *listMeasureData(bucket: string): AsyncGenerator<string> {
+    LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_LIST_DATA, { bucket });
+
+    const isInitial = !this.getMeasureStorage.has(bucket);
+    const stateStorage = this.getMeasureStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    for await (const key of stateStorage.keys()) {
+      const data = await stateStorage.readValue(String(key));
+      if (data === null || data.removed) {
+        continue;
+      }
+      yield String(key);
+    }
   };
 
   /**
@@ -2183,6 +2264,175 @@ export class PersistMeasureUtils {
  * Used by Cache.file for persistent caching of external API responses.
  */
 export const PersistMeasureAdapter = new PersistMeasureUtils();
+
+/**
+ * Persistence layer for Interval.file once-per-interval signal firing.
+ *
+ * Stores fired-interval markers under `./dump/data/interval/`.
+ * A record's presence means the interval has already fired for that bucket+key;
+ * absence means the function has not yet fired (or returned null last time).
+ */
+export class PersistIntervalUtils {
+  private PersistIntervalFactory: TPersistBaseCtor<string, IntervalData> = PersistBase;
+
+  private getIntervalStorage = memoize(
+    ([bucket]: [string]): string => bucket,
+    (bucket: string): IPersistBase<IntervalData> =>
+      Reflect.construct(this.PersistIntervalFactory, [
+        bucket,
+        `./dump/data/interval/`,
+      ])
+  );
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   */
+  public usePersistIntervalAdapter(
+    Ctor: TPersistBaseCtor<string, IntervalData>
+  ): void {
+    LOGGER_SERVICE.info(
+      PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_PERSIST_INTERVAL_ADAPTER
+    );
+    this.PersistIntervalFactory = Ctor;
+  }
+
+  /**
+   * Reads interval data for a given bucket and key.
+   *
+   * @param bucket - Storage bucket (instance name + interval + index)
+   * @param key - Entity key within the bucket (symbol + aligned timestamp)
+   * @returns Promise resolving to stored value or null if not found
+   */
+  public readIntervalData = async (
+    bucket: string,
+    key: string
+  ): Promise<IntervalData | null> => {
+    LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_READ_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getIntervalStorage.has(bucket);
+    const stateStorage = this.getIntervalStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    if (await stateStorage.hasValue(key)) {
+      const data = await stateStorage.readValue(key);
+      return data.removed ? null : data;
+    }
+
+    return null;
+  };
+
+  /**
+   * Writes interval data to disk.
+   *
+   * @param data - Data to store
+   * @param bucket - Storage bucket
+   * @param key - Entity key within the bucket
+   * @returns Promise that resolves when write is complete
+   */
+  public writeIntervalData = async (
+    data: IntervalData,
+    bucket: string,
+    key: string
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_WRITE_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getIntervalStorage.has(bucket);
+    const stateStorage = this.getIntervalStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    await stateStorage.writeValue(key, data);
+  };
+
+  /**
+   * Marks an interval entry as removed (soft delete — file is kept on disk).
+   * After this call `readIntervalData` for the same key returns `null`,
+   * so the function will fire again on the next `IntervalFileInstance.run` call.
+   *
+   * @param bucket - Storage bucket
+   * @param key - Entity key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
+  public removeIntervalData = async (
+    bucket: string,
+    key: string
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_REMOVE_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getIntervalStorage.has(bucket);
+    const stateStorage = this.getIntervalStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    const data = await stateStorage.readValue(key);
+    if (data) {
+      await stateStorage.writeValue(key, Object.assign({}, data, { removed: true }));
+    }
+  };
+
+  /**
+   * Async generator yielding all non-removed entity keys for a given bucket.
+   * Used by `IntervalFileInstance.clear()` to iterate and soft-delete all entries.
+   *
+   * @param bucket - Storage bucket
+   * @returns AsyncGenerator yielding entity keys
+   */
+  public async *listIntervalData(bucket: string): AsyncGenerator<string> {
+    LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_LIST_DATA, { bucket });
+
+    const isInitial = !this.getIntervalStorage.has(bucket);
+    const stateStorage = this.getIntervalStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    for await (const key of stateStorage.keys()) {
+      const data = await stateStorage.readValue(String(key));
+      if (data === null || data.removed) {
+        continue;
+      }
+      yield String(key);
+    }
+  };
+
+  /**
+   * Clears the memoized storage cache.
+   * Call this when process.cwd() changes between strategy iterations.
+   */
+  public clear(): void {
+    LOGGER_SERVICE.log(PERSIST_INTERVAL_UTILS_METHOD_NAME_CLEAR);
+    this.getIntervalStorage.clear();
+  }
+
+  /**
+   * Switches to the default JSON persist adapter.
+   */
+  public useJson() {
+    LOGGER_SERVICE.log(PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistIntervalAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   */
+  public useDummy() {
+    LOGGER_SERVICE.log(PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistIntervalAdapter(PersistDummy);
+  }
+}
+
+/**
+ * Global singleton instance of PersistIntervalUtils.
+ * Used by Interval.file for persistent once-per-interval signal firing.
+ */
+export const PersistIntervalAdapter = new PersistIntervalUtils();
 
 /**
  * Type for persisted memory entry data.

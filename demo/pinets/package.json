@@ -6,8 +6,8 @@
     "start": "node ./src/index.mjs"
   },
   "dependencies": {
-    "backtest-kit": "6.8.1",
-    "@backtest-kit/pinets": "6.8.1",
+    "backtest-kit": "6.9.0",
+    "@backtest-kit/pinets": "6.9.0",
     "ccxt": "4.5.24",
     "functools-kit": "1.1.1",
     "uuid": "13.0.0"

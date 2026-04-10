@@ -9,6 +9,7 @@ group: docs
 type MeasureData = {
     id: string;
     data: unknown;
+    removed: boolean;
 };
 ```
 

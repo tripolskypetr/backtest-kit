@@ -51,6 +51,15 @@ writeMeasureData: (data: MeasureData, bucket: string, key: string) => Promise<vo
 
 Writes measure data to disk with atomic file writes.
 
+### removeMeasureData
+
+```ts
+removeMeasureData: (bucket: string, key: string) => Promise<void>
+```
+
+Marks a cached entry as removed (soft delete — file is kept on disk).
+After this call `readMeasureData` for the same key returns `null`.
+
 ## Methods
 
 ### usePersistMeasureAdapter
@@ -60,6 +69,15 @@ usePersistMeasureAdapter(Ctor: TPersistBaseCtor<string, MeasureData>): void;
 ```
 
 Registers a custom persistence adapter.
+
+### listMeasureData
+
+```ts
+listMeasureData(bucket: string): AsyncGenerator<string>;
+```
+
+Async generator yielding all non-removed entity keys for a given bucket.
+Used by `CacheFileInstance.clear()` to iterate and soft-delete all entries.
 
 ### clear
 

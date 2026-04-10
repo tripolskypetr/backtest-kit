@@ -379,6 +379,8 @@ export {
   PersistMeasureAdapter,
   MemoryData,
   PersistMemoryAdapter,
+  IntervalData,
+  PersistIntervalAdapter,
 } from "./classes/Persist";
 
 export {
@@ -422,6 +424,7 @@ export { Performance } from "./classes/Performance";
 export { Walker } from "./classes/Walker";
 export { Heat } from "./classes/Heat";
 export { PositionSize } from "./classes/PositionSize";
+export { Position } from "./classes/Position";
 export { Partial } from "./classes/Partial";
 export { HighestProfit } from "./classes/HighestProfit";
 export { MaxDrawdown } from "./classes/MaxDrawdown";
@@ -460,6 +463,7 @@ export {
 } from "./model/Message.model";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
+export { Interval } from "./classes/Interval";
 export { Breakeven } from "./classes/Breakeven";
 export { Strategy } from "./classes/Strategy";
 export { ActionBase } from "./classes/ActionBase";

@@ -24,7 +24,7 @@ constructor();
 _getFnInstance: any
 ```
 
-Memoized function to get or create CacheInstance for a function.
+Memoized function to get or create CacheFnInstance for a function.
 Each function gets its own isolated cache instance.
 
 ### _getFileInstance
@@ -69,11 +69,11 @@ Pass the same function reference each time to reuse the same cache.
 dispose: <T extends Function>(run: T) => void
 ```
 
-Dispose (remove) the memoized CacheInstance for a specific function.
+Dispose (remove) the memoized CacheFnInstance for a specific function.
 
-Removes the CacheInstance from the internal memoization cache, discarding all cached
+Removes the CacheFnInstance from the internal memoization cache, discarding all cached
 results across all contexts (all strategy/exchange/mode combinations) for that function.
-The next call to the wrapped function will create a fresh CacheInstance.
+The next call to the wrapped function will create a fresh CacheFnInstance.
 
 ### clear
 
@@ -81,6 +81,6 @@ The next call to the wrapped function will create a fresh CacheInstance.
 clear: () => void
 ```
 
-Clears all memoized CacheInstance and CacheFileInstance objects.
+Clears all memoized CacheFnInstance and CacheFileInstance objects.
 Call this when process.cwd() changes between strategy iterations
 so new instances are created with the updated base path.

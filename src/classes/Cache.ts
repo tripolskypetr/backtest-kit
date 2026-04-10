@@ -8,7 +8,7 @@ import backtest, {
 import { FrameName } from "../interfaces/Frame.interface";
 import { PersistMeasureAdapter } from "./Persist";
 
-const CACHE_METHOD_NAME_RUN = "CacheInstance.run";
+const CACHE_METHOD_NAME_RUN = "CacheFnInstance.run";
 const CACHE_METHOD_NAME_FN = "CacheUtils.fn";
 const CACHE_METHOD_NAME_FN_CLEAR = "CacheUtils.fn.clear";
 const CACHE_METHOD_NAME_FN_GC = "CacheUtils.fn.gc";
@@ -131,19 +131,19 @@ const NEVER_VALUE = Symbol("never");
  *
  * @example
  * ```typescript
- * const instance = new CacheInstance(myExpensiveFunction, "1h");
+ * const instance = new CacheFnInstance(myExpensiveFunction, "1h");
  * const result = instance.run(arg1, arg2); // Computed
  * const result2 = instance.run(arg1, arg2); // Cached (within same hour)
  * // After 1 hour passes
  * const result3 = instance.run(arg1, arg2); // Recomputed
  * ```
  */
-export class CacheInstance<T extends Function = Function, K = string> {
+export class CacheFnInstance<T extends Function = Function, K = string> {
   /** Cache map storing results per strategy/exchange/mode/argKey combination */
   private _cacheMap = new Map<string, ICache<T>>();
 
   /**
-   * Creates a new CacheInstance for a specific function and interval.
+   * Creates a new CacheFnInstance for a specific function and interval.
    *
    * @param fn - Function to cache
    * @param interval - Candle interval for cache invalidation (e.g., "1m", "1h")
@@ -180,7 +180,7 @@ export class CacheInstance<T extends Function = Function, K = string> {
    *
    * @example
    * ```typescript
-   * const instance = new CacheInstance(calculateIndicator, "15m");
+   * const instance = new CacheFnInstance(calculateIndicator, "15m");
    * const result = instance.run("BTCUSDT", 100);
    * console.log(result.value); // Calculated value
    * console.log(result.when); // Cache timestamp
@@ -193,14 +193,14 @@ export class CacheInstance<T extends Function = Function, K = string> {
 
     {
       if (!MethodContextService.hasContext()) {
-        throw new Error("CacheInstance run requires method context");
+        throw new Error("CacheFnInstance run requires method context");
       }
       if (!ExecutionContextService.hasContext()) {
-        throw new Error("CacheInstance run requires execution context");
+        throw new Error("CacheFnInstance run requires execution context");
       }
       if (!step) {
         throw new Error(
-          `CacheInstance unknown cache ttl interval=${this.interval}`
+          `CacheFnInstance unknown cache ttl interval=${this.interval}`
         );
       }
     }
@@ -244,7 +244,7 @@ export class CacheInstance<T extends Function = Function, K = string> {
    *
    * @example
    * ```typescript
-   * const instance = new CacheInstance(calculateIndicator, "1h");
+   * const instance = new CacheFnInstance(calculateIndicator, "1h");
    * const result1 = instance.run("BTCUSDT", 14); // Computed
    * const result2 = instance.run("BTCUSDT", 14); // Cached
    *
@@ -280,7 +280,7 @@ export class CacheInstance<T extends Function = Function, K = string> {
    *
    * @example
    * ```typescript
-   * const instance = new CacheInstance(calculateIndicator, "1h");
+   * const instance = new CacheFnInstance(calculateIndicator, "1h");
    * instance.run("BTCUSDT", 14); // Cached at 10:00
    * instance.run("ETHUSDT", 14); // Cached at 10:00
    * // Time passes to 11:00
@@ -442,8 +442,19 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
     }
 
     const result = await this.fn.call(null, ...args);
-    await PersistMeasureAdapter.writeMeasureData({id: entityKey, data: result}, bucket, entityKey);
+    await PersistMeasureAdapter.writeMeasureData({id: entityKey, data: result, removed: false}, bucket, entityKey);
     return result;
+  };
+
+  /**
+   * Soft-delete all persisted records for this instance's bucket.
+   * After this call the next `run()` will recompute and re-cache the value.
+   */
+  public clear = async (): Promise<void> => {
+    const bucket = `${this.name}_${this.interval}_${this.index}`;
+    for await (const key of PersistMeasureAdapter.listMeasureData(bucket)) {
+      await PersistMeasureAdapter.removeMeasureData(bucket, key);
+    }
   };
 }
 
@@ -464,7 +475,7 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
  */
 export class CacheUtils {
   /**
-   * Memoized function to get or create CacheInstance for a function.
+   * Memoized function to get or create CacheFnInstance for a function.
    * Each function gets its own isolated cache instance.
    */
   private _getFnInstance = memoize(
@@ -473,7 +484,7 @@ export class CacheUtils {
       run: T,
       interval: CandleInterval,
       key?: (args: Parameters<T>) => K
-    ) => new CacheInstance(run, interval, key)
+    ) => new CacheFnInstance(run, interval, key)
   );
 
   /**
@@ -609,37 +620,41 @@ export class CacheUtils {
       name: string;
       key?: (args:  CacheFileKeyArgs<T>) => string;
     }
-  ): T & { clear(): void } => {
+  ): T & { clear(): Promise<void> } => {
     backtest.loggerService.info(CACHE_METHOD_NAME_FILE, { context });
+
+    {
+      this._getFileInstance(run, context.interval, context.name, context.key);
+    }
 
     const wrappedFn = (...args: Parameters<T>): ReturnType<T> => {
       const instance = this._getFileInstance(run, context.interval, context.name, context.key);
       return instance.run(...args) as ReturnType<T>;
     };
 
-    wrappedFn.clear = () => {
+    wrappedFn.clear = async () => {
       backtest.loggerService.info(CACHE_METHOD_NAME_FILE_CLEAR);
-      this._getFileInstance.clear(run);
+      await this._getFileInstance.get(run)?.clear();
     };
 
-    return wrappedFn as unknown as T & { clear(): void };
+    return wrappedFn as unknown as T & { clear(): Promise<void> };
   };
 
   /**
-   * Dispose (remove) the memoized CacheInstance for a specific function.
+   * Dispose (remove) the memoized CacheFnInstance for a specific function.
    *
-   * Removes the CacheInstance from the internal memoization cache, discarding all cached
+   * Removes the CacheFnInstance from the internal memoization cache, discarding all cached
    * results across all contexts (all strategy/exchange/mode combinations) for that function.
-   * The next call to the wrapped function will create a fresh CacheInstance.
+   * The next call to the wrapped function will create a fresh CacheFnInstance.
    *
    * @template T - Function type
-   * @param run - Function whose CacheInstance should be disposed.
+   * @param run - Function whose CacheFnInstance should be disposed.
    *
    * @example
    * ```typescript
    * const cachedFn = Cache.fn(calculateIndicator, { interval: "1h" });
    *
-   * // Dispose CacheInstance for a specific function
+   * // Dispose CacheFnInstance for a specific function
    * Cache.dispose(calculateIndicator);
    * ```
    */
@@ -654,7 +669,7 @@ export class CacheUtils {
   };
 
   /**
-   * Clears all memoized CacheInstance and CacheFileInstance objects.
+   * Clears all memoized CacheFnInstance and CacheFileInstance objects.
    * Call this when process.cwd() changes between strategy iterations
    * so new instances are created with the updated base path.
    */

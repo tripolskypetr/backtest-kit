@@ -2,21 +2,8 @@ import {
   compose,
 } from "functools-kit";
 import LoggerService from "../lib/services/base/LoggerService";
-import BacktestMarkdownService from "../lib/services/markdown/BacktestMarkdownService";
-import BreakevenMarkdownService from "../lib/services/markdown/BreakevenMarkdownService";
-import HeatMarkdownService from "../lib/services/markdown/HeatMarkdownService";
-import LiveMarkdownService from "../lib/services/markdown/LiveMarkdownService";
-import PartialMarkdownService from "../lib/services/markdown/PartialMarkdownService";
-import PerformanceMarkdownService from "../lib/services/markdown/PerformanceMarkdownService";
-import RiskMarkdownService from "../lib/services/markdown/RiskMarkdownService";
-import StrategyMarkdownService from "../lib/services/markdown/StrategyMarkdownService";
-import ScheduleMarkdownService from "../lib/services/markdown/ScheduleMarkdownService";
-import WalkerMarkdownService from "../lib/services/markdown/WalkerMarkdownService";
-import SyncMarkdownService from "../lib/services/markdown/SyncMarkdownService";
-import HighestProfitMarkdownService from "../lib/services/markdown/HighestProfitMarkdownService";
-import MaxDrawdownMarkdownService from "../lib/services/markdown/MaxDrawdownMarkdownService";
 import { IMarkdownTarget, MarkdownWriter, TMarkdownBaseCtor } from "./Writer";
-import backtest from "src/lib";
+import backtest from "../lib";
 
 const MARKDOWN_METHOD_NAME_ENABLE = "MarkdownUtils.enable";
 const MARKDOWN_METHOD_NAME_DISABLE = "MarkdownUtils.disable";
