@@ -1,0 +1,60 @@
+//@version=5
+// ============================================================
+// position_long.pine — LOCAL BOTTOM entry for BTCUSDT LONG
+// Runs AFTER agent emits BUY signal on 8h block start
+// Period reference: February 2026
+// ============================================================
+//
+// Purpose: find a better entry than block open price.
+// Analysis of all 5 BUY blocks in Feb 2026 (1m candles):
+//   - Price dips within first 60min in 5/5 blocks before the main rally
+//   - Entering at the local low of first 60min eliminates adverse drawdown in 4/5 cases
+//   - Worst dd after local-low entry: -2.61% (Feb 2 knife-catch). SL=3% covers it.
+//
+// Entry: confirmed when current bar closes above low of previous bar AND
+//        that previous bar's low equals the 60-bar rolling low (local bottom)
+// TP/SL: 1:1 at 3%
+//
+// Timeframe: 1m
+// No var, no persistent state — fully stateless
+// ============================================================
+
+indicator("PositionLong Feb2026", overlay=true)
+
+// --- Inputs ---
+windowBars = input.int(60, "Entry window (bars)")
+tpPct      = input.float(3.0, "TP %") / 100
+slPct      = input.float(3.0, "SL %") / 100
+
+// --- Local bottom detection ---
+windowLow = ta.lowest(low, windowBars)
+
+// Local bottom confirmed: previous bar made the window low, current bar closes above it
+localBottomConfirmed = low[1] <= windowLow and close > low[1]
+
+// --- Stateless position tracking via barssince ---
+bse = ta.barssince(localBottomConfirmed)
+
+// Reconstruct entry price: low[1] at entry bar = low[bse + 1] now
+epNow = low[bse + 1]
+tpNow = epNow * (1 + tpPct)
+slNow = epNow * (1 - slPct)
+
+hitTP = not na(bse) and bse > 0 and ta.highest(high, bse) >= tpNow
+hitSL = not na(bse) and bse > 0 and ta.lowest(low,   bse) <= slNow
+
+inPosition = not na(bse) and not hitTP and not hitSL
+
+position = inPosition ? 1 : 0
+
+// === OUTPUTS FOR BOT ===
+plot(position,                        "Position",   display=display.data_window)
+plot(position == 1 ? tpNow : na,      "TP",         display=display.data_window)
+plot(position == 1 ? slNow : na,      "SL",         display=display.data_window)
+plot(position == 1 ? epNow : na,      "EntryPrice", display=display.data_window)
+
+// === VISUAL ===
+plot(close,                            "Price",   color=position == 1 ? color.green : color.gray, linewidth=2)
+plot(position == 1 ? tpNow : na,       "TP Line", color=color.new(color.green, 30), linewidth=1)
+plot(position == 1 ? slNow : na,       "SL Line", color=color.new(color.red,   30), linewidth=1)
+plotshape(localBottomConfirmed, "Long Entry", shape.triangleup, location.belowbar, color.green, size=size.small)

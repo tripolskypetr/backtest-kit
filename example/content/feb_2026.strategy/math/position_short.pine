@@ -1,0 +1,70 @@
+//@version=5
+// ============================================================
+// position_short.pine — LOCAL TOP entry for BTCUSDT SHORT
+// Runs AFTER agent emits SELL signal on 8h block start
+// Period reference: February 2026
+// ============================================================
+//
+// Purpose: find a better entry than block open price.
+// Analysis of all 41 SELL blocks in Feb 2026 (1m candles):
+//   - Price spikes up within first 60min in 40/41 blocks before the main drop
+//   - Entering at the local high of first 60min reduces adverse drawdown vs open in 40/41 cases
+//   - Avg MaxUp from open: +0.9%, max: +4.93% (Feb 6 reversal anomaly)
+//   - Strategy: wait for local high to form in first 60min window, then enter SHORT
+//
+// Entry: confirmed when current bar closes below high of previous bar AND
+//        that previous bar's high equals the 60-bar rolling high (local top)
+// TP/SL: 1:1 at 3% — covers worst observed adverse move after local-top entry
+//
+// Timeframe: 1m
+// No var, no persistent state — fully stateless
+// ============================================================
+
+indicator("PositionShort Feb2026", overlay=true)
+
+// --- Inputs ---
+windowBars = input.int(60, "Entry window (bars)")
+tpPct      = input.float(3.0, "TP %") / 100
+slPct      = input.float(3.0, "SL %") / 100
+
+// --- Local top detection ---
+// Window high over last windowBars bars
+windowHigh = ta.highest(high, windowBars)
+
+// Local top confirmed: previous bar made the window high, current bar closes below it
+localTopConfirmed = high[1] >= windowHigh and close < high[1]
+
+// Entry price = high of the bar that made the local top
+ep = localTopConfirmed ? high[1] : na
+
+// TP/SL levels anchored at entry
+entryTP = localTopConfirmed ? high[1] * (1 - tpPct) : na
+entrySL = localTopConfirmed ? high[1] * (1 + slPct) : na
+
+// --- Stateless position tracking via barssince ---
+bse = ta.barssince(localTopConfirmed)
+
+// Reconstruct levels from the entry bar (bar bse bars ago)
+// high[1] at entry bar = high[bse + 1] now (bse bars since entry + 1 for the [1] offset)
+epNow = high[bse + 1]
+tpNow = epNow * (1 - tpPct)
+slNow = epNow * (1 + slPct)
+
+hitTP = not na(bse) and bse > 0 and ta.lowest(low,  bse) <= tpNow
+hitSL = not na(bse) and bse > 0 and ta.highest(high, bse) >= slNow
+
+inPosition = not na(bse) and not hitTP and not hitSL
+
+position = inPosition ? -1 : 0
+
+// === OUTPUTS FOR BOT ===
+plot(position,                          "Position",   display=display.data_window)
+plot(position == -1 ? tpNow : na,       "TP",         display=display.data_window)
+plot(position == -1 ? slNow : na,       "SL",         display=display.data_window)
+plot(position == -1 ? epNow : na,       "EntryPrice", display=display.data_window)
+
+// === VISUAL ===
+plot(close,                              "Price",   color=position == -1 ? color.red : color.gray, linewidth=2)
+plot(position == -1 ? tpNow : na,        "TP Line", color=color.new(color.green, 30), linewidth=1)
+plot(position == -1 ? slNow : na,        "SL Line", color=color.new(color.red,   30), linewidth=1)
+plotshape(localTopConfirmed, "Short Entry", shape.triangledown, location.abovebar, color.red, size=size.small)
