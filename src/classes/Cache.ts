@@ -545,10 +545,6 @@ export class CacheUtils {
       context,
     });
 
-    {
-      this._getFnInstance(run, context.interval, context.key);
-    }
-
     const wrappedFn = (...args: Parameters<T>): ReturnType<T> => {
       const instance = this._getFnInstance(run, context.interval, context.key);
       return instance.run(...args).value;
