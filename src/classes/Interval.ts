@@ -10,6 +10,7 @@ const INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN = "IntervalFileInstance.run";
 const INTERVAL_METHOD_NAME_FN = "IntervalUtils.fn";
 const INTERVAL_METHOD_NAME_FN_CLEAR = "IntervalUtils.fn.clear";
 const INTERVAL_METHOD_NAME_FILE = "IntervalUtils.file";
+const INTERVAL_METHOD_NAME_FILE_CLEAR = "IntervalUtils.file.clear";
 const INTERVAL_METHOD_NAME_DISPOSE = "IntervalUtils.dispose";
 const INTERVAL_METHOD_NAME_CLEAR = "IntervalUtils.clear";
 
@@ -322,9 +323,20 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
 
     const result = await this.fn.call(null, ...args);
     if (result !== null) {
-      await PersistIntervalAdapter.writeIntervalData({ id: entityKey, data: result }, bucket, entityKey);
+      await PersistIntervalAdapter.writeIntervalData({ id: entityKey, data: result, removed: false }, bucket, entityKey);
     }
     return result;
+  };
+
+  /**
+   * Soft-delete all persisted records for this instance's bucket.
+   * After this call the function will fire again on the next `run()`.
+   */
+  public clear = async (): Promise<void> => {
+    const bucket = `${this.name}_${this.interval}_${this.index}`;
+    for await (const key of PersistIntervalAdapter.listIntervalData(bucket)) {
+      await PersistIntervalAdapter.removeIntervalData(bucket, key);
+    }
   };
 }
 
@@ -428,12 +440,14 @@ export class IntervalUtils {
    * @param run - Async signal function to wrap with persistent once-per-interval firing
    * @param context.interval - Candle interval that controls the firing boundary
    * @param context.name - Human-readable bucket name; becomes the directory prefix
-   * @returns Wrapped function with the same signature as `T`
+   * @returns Wrapped function with the same signature as `T`, plus an async `clear()` method
+   *   that deletes persisted records from disk and disposes the memoized instance
    *
    * @example
    * ```typescript
    * const fetchSignal = async (symbol: string, period: number) => { ... };
    * const fireOnce = Interval.file(fetchSignal, { interval: "1h", name: "fetchSignal" });
+   * await fireOnce.clear(); // delete disk records so the function fires again next call
    * ```
    */
   public file = <T extends TIntervalFileFn>(
@@ -442,7 +456,7 @@ export class IntervalUtils {
       interval: CandleInterval;
       name: string;
     }
-  ): T => {
+  ): T & { clear(): Promise<void> } => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_FILE, { context });
 
     const wrappedFn = (...args: Parameters<T>): Promise<ISignalIntervalDto | null> => {
@@ -450,7 +464,12 @@ export class IntervalUtils {
       return instance.run(...args);
     };
 
-    return wrappedFn as unknown as T;
+    wrappedFn.clear = async () => {
+      backtest.loggerService.info(INTERVAL_METHOD_NAME_FILE_CLEAR);
+      await this._getFileInstance.get(run)?.clear();
+    };
+
+    return wrappedFn as unknown as T & { clear(): Promise<void> };
   };
 
   /**

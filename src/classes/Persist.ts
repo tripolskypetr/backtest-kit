@@ -171,6 +171,10 @@ const PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_JSON =
   "PersistIntervalUtils.useJson";
 const PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistIntervalUtils.useDummy";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_REMOVE_DATA =
+  "PersistIntervalUtils.removeIntervalData";
+const PERSIST_INTERVAL_UTILS_METHOD_NAME_LIST_DATA =
+  "PersistIntervalUtils.listIntervalData";
 const PERSIST_INTERVAL_UTILS_METHOD_NAME_CLEAR = "PersistIntervalUtils.clear";
 const PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_PERSIST_INTERVAL_ADAPTER =
   "PersistIntervalUtils.usePersistIntervalAdapter";
@@ -219,6 +223,7 @@ export type MeasureData = {
 export type IntervalData = {
   id: string;
   data: unknown;
+  removed: boolean;
 };
 
 /**
@@ -2258,7 +2263,8 @@ export class PersistIntervalUtils {
     await stateStorage.waitForInit(isInitial);
 
     if (await stateStorage.hasValue(key)) {
-      return await stateStorage.readValue(key);
+      const data = await stateStorage.readValue(key);
+      return data.removed ? null : data;
     }
 
     return null;
@@ -2287,6 +2293,57 @@ export class PersistIntervalUtils {
     await stateStorage.waitForInit(isInitial);
 
     await stateStorage.writeValue(key, data);
+  };
+
+  /**
+   * Marks an interval entry as removed (soft delete — file is kept on disk).
+   * After this call `readIntervalData` for the same key returns `null`,
+   * so the function will fire again on the next `IntervalFileInstance.run` call.
+   *
+   * @param bucket - Storage bucket
+   * @param key - Entity key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
+  public removeIntervalData = async (
+    bucket: string,
+    key: string
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_REMOVE_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getIntervalStorage.has(bucket);
+    const stateStorage = this.getIntervalStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    const data = await stateStorage.readValue(key);
+    if (data) {
+      await stateStorage.writeValue(key, Object.assign({}, data, { removed: true }));
+    }
+  };
+
+  /**
+   * Async generator yielding all non-removed entity keys for a given bucket.
+   * Used by `IntervalFileInstance.clear()` to iterate and soft-delete all entries.
+   *
+   * @param bucket - Storage bucket
+   * @returns AsyncGenerator yielding entity keys
+   */
+  public async *listIntervalData(bucket: string): AsyncGenerator<string> {
+    LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_LIST_DATA, { bucket });
+
+    const isInitial = !this.getIntervalStorage.has(bucket);
+    const stateStorage = this.getIntervalStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    for await (const key of stateStorage.keys()) {
+      const data = await stateStorage.readValue(String(key));
+      if (data === null || data.removed) {
+        continue;
+      }
+      yield String(key);
+    }
   };
 
   /**
