@@ -379,6 +379,8 @@ export {
   PersistMeasureAdapter,
   MemoryData,
   PersistMemoryAdapter,
+  IntervalData,
+  PersistIntervalAdapter,
 } from "./classes/Persist";
 
 export {
@@ -460,6 +462,7 @@ export {
 } from "./model/Message.model";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
+export { Interval } from "./classes/Interval";
 export { Breakeven } from "./classes/Breakeven";
 export { Strategy } from "./classes/Strategy";
 export { ActionBase } from "./classes/ActionBase";
