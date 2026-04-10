@@ -3,6 +3,8 @@ import { getOllama } from "../../config/ollama";
 import { str } from "functools-kit";
 import { ToolName } from "../../enum/ToolName";
 import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
+import { errorEmitter } from "../../config/emitters";
+import { ERROR_SYMBOL } from "../../config/constant";
 
 const SEARCH_MAX_RESULTS = 10;
 
@@ -48,4 +50,9 @@ addTool<WebSearchRequestContract>({
       required: ["query"],
     },
   },
+  callbacks: {
+    async onCallError() {
+      await errorEmitter.next(ERROR_SYMBOL);
+    },
+  }
 });

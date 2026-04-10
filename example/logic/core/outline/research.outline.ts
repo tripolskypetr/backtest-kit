@@ -14,6 +14,7 @@ import { CompletionName } from "../../enum/CompletionName";
 import { SwarmName } from "../../enum/SwarmName";
 import dayjs from "dayjs";
 import { ResearchResponseContract } from "../../contract/ResearchResponse.contract";
+import { errorEmitter } from "../../config/emitters";
 
 const DISPLAY_NAME_MAP = {
   BTCUSDT: "Bitcoin",
@@ -99,7 +100,10 @@ const commitSignalSearch = async (
         `Только события актуальные на ${dayjs(date).format("DD MMMM YYYY HH:mm")}`,
         `Сформируй отчёт о краткосрочных рисках и возможностях`,
       );
-      return await execute(request, clientId, agentName);
+      return await Promise.race([
+        execute(request, clientId, agentName),
+        errorEmitter.toPromise(),
+      ]);
     },
     {
       clientId: `${resultId}_signal`,
@@ -108,6 +112,9 @@ const commitSignalSearch = async (
     },
   );
   if (!report) {
+    throw new Error("SignalOutline web search failed");
+  }
+  if (typeof report === "symbol") {
     throw new Error("SignalOutline web search failed");
   }
   await history.push(
@@ -170,9 +177,16 @@ addOutline<ResearchResponseContract>({
     },
     {
       validate: ({ data }) => {
-        if (!["BUY", "SELL", "WAIT"].includes(data.signal)) {
-          throw new Error("Поле signal должно быть BUY, SELL или WAIT");
+        if (data.signal === "BUY") {
+          return;
         }
+        if (data.signal === "SELL") {
+          return;
+        }
+        if (data.signal === "WAIT") {
+          return;
+        }
+        throw new Error("Поле signal должно быть BUY, SELL или WAIT");
       },
       docDescription: "Проверяет, что signal содержит допустимое значение.",
     },
