@@ -2174,6 +2174,14 @@ interface ISignalDto {
     cost?: number;
 }
 /**
+ * Signal dto for IntervalUtils.fn which allows returning multiple signals in one getSignal call.
+ * This will pause the next signal untill interval elapses
+ */
+interface ISignalIntervalDto extends ISignalDto {
+    /** Unique signal identifier (UUID v4 auto-generated) */
+    id: string;
+}
+/**
  * Complete signal with auto-generated id.
  * Used throughout the system after validation.
  */
@@ -11072,6 +11080,13 @@ type MeasureData = {
     data: unknown;
 };
 /**
+ * Interval.file data type stored in persistence layer.
+ */
+type IntervalData = {
+    id: string;
+    data: unknown;
+};
+/**
  * Type helper for PersistBase instance.
  */
 type TPersistBase = InstanceType<typeof PersistBase>;
@@ -12053,6 +12068,58 @@ declare class PersistMeasureUtils {
  * Used by Cache.file for persistent caching of external API responses.
  */
 declare const PersistMeasureAdapter: PersistMeasureUtils;
+/**
+ * Persistence layer for Interval.file once-per-interval signal firing.
+ *
+ * Stores fired-interval markers under `./dump/data/interval/`.
+ * A record's presence means the interval has already fired for that bucket+key;
+ * absence means the function has not yet fired (or returned null last time).
+ */
+declare class PersistIntervalUtils {
+    private PersistIntervalFactory;
+    private getIntervalStorage;
+    /**
+     * Registers a custom persistence adapter.
+     *
+     * @param Ctor - Custom PersistBase constructor
+     */
+    usePersistIntervalAdapter(Ctor: TPersistBaseCtor<string, IntervalData>): void;
+    /**
+     * Reads interval data for a given bucket and key.
+     *
+     * @param bucket - Storage bucket (instance name + interval + index)
+     * @param key - Entity key within the bucket (symbol + aligned timestamp)
+     * @returns Promise resolving to stored value or null if not found
+     */
+    readIntervalData: (bucket: string, key: string) => Promise<IntervalData | null>;
+    /**
+     * Writes interval data to disk.
+     *
+     * @param data - Data to store
+     * @param bucket - Storage bucket
+     * @param key - Entity key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
+    writeIntervalData: (data: IntervalData, bucket: string, key: string) => Promise<void>;
+    /**
+     * Clears the memoized storage cache.
+     * Call this when process.cwd() changes between strategy iterations.
+     */
+    clear(): void;
+    /**
+     * Switches to the default JSON persist adapter.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     */
+    useDummy(): void;
+}
+/**
+ * Global singleton instance of PersistIntervalUtils.
+ * Used by Interval.file for persistent once-per-interval signal firing.
+ */
+declare const PersistIntervalAdapter: PersistIntervalUtils;
 /**
  * Type for persisted memory entry data.
  * Each memory entry is an arbitrary JSON-serializable object.
@@ -19886,7 +19953,7 @@ type CacheFileKeyArgs<T extends CacheFileFunction> = [
  */
 declare class CacheUtils {
     /**
-     * Memoized function to get or create CacheInstance for a function.
+     * Memoized function to get or create CacheFnInstance for a function.
      * Each function gets its own isolated cache instance.
      */
     private _getFnInstance;
@@ -19981,26 +20048,26 @@ declare class CacheUtils {
         clear(): void;
     };
     /**
-     * Dispose (remove) the memoized CacheInstance for a specific function.
+     * Dispose (remove) the memoized CacheFnInstance for a specific function.
      *
-     * Removes the CacheInstance from the internal memoization cache, discarding all cached
+     * Removes the CacheFnInstance from the internal memoization cache, discarding all cached
      * results across all contexts (all strategy/exchange/mode combinations) for that function.
-     * The next call to the wrapped function will create a fresh CacheInstance.
+     * The next call to the wrapped function will create a fresh CacheFnInstance.
      *
      * @template T - Function type
-     * @param run - Function whose CacheInstance should be disposed.
+     * @param run - Function whose CacheFnInstance should be disposed.
      *
      * @example
      * ```typescript
      * const cachedFn = Cache.fn(calculateIndicator, { interval: "1h" });
      *
-     * // Dispose CacheInstance for a specific function
+     * // Dispose CacheFnInstance for a specific function
      * Cache.dispose(calculateIndicator);
      * ```
      */
     dispose: <T extends Function>(run: T) => void;
     /**
-     * Clears all memoized CacheInstance and CacheFileInstance objects.
+     * Clears all memoized CacheFnInstance and CacheFileInstance objects.
      * Call this when process.cwd() changes between strategy iterations
      * so new instances are created with the updated base path.
      */
@@ -20021,6 +20088,136 @@ declare class CacheUtils {
  * ```
  */
 declare const Cache: CacheUtils;
+
+/**
+ * Signal function type for in-memory once-per-interval firing.
+ * Called at most once per interval boundary per symbol.
+ * Must return a non-null `ISignalIntervalDto` to start the interval countdown,
+ * or `null` to defer firing until the next call.
+ */
+type TIntervalFn = (symbol: string, when: Date) => Promise<ISignalIntervalDto | null>;
+/**
+ * Signal function type for persistent file-based once-per-interval firing.
+ * First argument is always `symbol: string`, followed by optional spread args.
+ * Fired state survives process restarts via `PersistIntervalAdapter`.
+ */
+type TIntervalFileFn = (symbol: string, ...args: any[]) => Promise<ISignalIntervalDto | null>;
+/**
+ * Utility class for wrapping signal functions with once-per-interval firing.
+ * Provides two modes: in-memory (`fn`) and persistent file-based (`file`).
+ * Exported as singleton instance `Interval` for convenient usage.
+ *
+ * @example
+ * ```typescript
+ * import { Interval } from "./classes/Interval";
+ *
+ * const fireOncePerHour = Interval.fn(mySignalFn, { interval: "1h" });
+ * await fireOncePerHour("BTCUSDT", when); // fn called — returns its result
+ * await fireOncePerHour("BTCUSDT", when); // returns null (same interval)
+ * ```
+ */
+declare class IntervalUtils {
+    /**
+     * Memoized factory to get or create an `IntervalFnInstance` for a function.
+     * Each function reference gets its own isolated instance.
+     */
+    private _getInstance;
+    /**
+     * Memoized factory to get or create an `IntervalFileInstance` for an async function.
+     * Each function reference gets its own isolated persistent instance.
+     */
+    private _getFileInstance;
+    /**
+     * Wrap a signal function with in-memory once-per-interval firing.
+     *
+     * Returns a wrapped version of the function that fires at most once per interval boundary.
+     * If the function returns `null`, the countdown does not start and the next call retries.
+     *
+     * The `run` function reference is used as the memoization key for the underlying
+     * `IntervalFnInstance`, so each unique function reference gets its own isolated instance.
+     *
+     * @param run - Signal function to wrap
+     * @param context.interval - Candle interval that controls the firing boundary
+     * @returns Wrapped function with the same signature as `TIntervalFn`, plus a `clear()` method
+     *
+     * @example
+     * ```typescript
+     * const fireOnce = Interval.fn(mySignalFn, { interval: "15m" });
+     *
+     * await fireOnce("BTCUSDT", when); // → signal or null  (fn called)
+     * await fireOnce("BTCUSDT", when); // → null            (same interval, skipped)
+     * ```
+     */
+    fn: (run: TIntervalFn, context: {
+        interval: CandleInterval;
+    }) => TIntervalFn & {
+        clear(): void;
+    };
+    /**
+     * Wrap an async signal function with persistent file-based once-per-interval firing.
+     *
+     * Returns a wrapped version of the function that reads from disk on hit (returns `null`)
+     * and writes the fired signal to disk on the first successful fire.
+     * Fired state survives process restarts.
+     *
+     * The `run` function reference is used as the memoization key for the underlying
+     * `IntervalFileInstance`, so each unique function reference gets its own isolated instance.
+     *
+     * @template T - Async function type to wrap
+     * @param run - Async signal function to wrap with persistent once-per-interval firing
+     * @param context.interval - Candle interval that controls the firing boundary
+     * @param context.name - Human-readable bucket name; becomes the directory prefix
+     * @returns Wrapped function with the same signature as `T`
+     *
+     * @example
+     * ```typescript
+     * const fetchSignal = async (symbol: string, period: number) => { ... };
+     * const fireOnce = Interval.file(fetchSignal, { interval: "1h", name: "fetchSignal" });
+     * ```
+     */
+    file: <T extends TIntervalFileFn>(run: T, context: {
+        interval: CandleInterval;
+        name: string;
+    }) => T;
+    /**
+     * Dispose (remove) the memoized `IntervalFnInstance` for a specific function.
+     *
+     * Removes the instance from the internal memoization cache, discarding all in-memory
+     * fired-interval state across all contexts for that function.
+     * The next call to the wrapped function will create a fresh `IntervalFnInstance`.
+     *
+     * @param run - Function whose `IntervalFnInstance` should be disposed
+     *
+     * @example
+     * ```typescript
+     * const fireOnce = Interval.fn(mySignalFn, { interval: "1h" });
+     * Interval.dispose(mySignalFn);
+     * ```
+     */
+    dispose: (run: TIntervalFn) => void;
+    /**
+     * Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects and
+     * resets the `IntervalFileInstance` index counter.
+     * Call this when `process.cwd()` changes between strategy iterations
+     * so new instances are created with the updated base path.
+     */
+    clear: () => void;
+}
+/**
+ * Singleton instance of `IntervalUtils` for convenient once-per-interval signal firing.
+ *
+ * @example
+ * ```typescript
+ * import { Interval } from "./classes/Interval";
+ *
+ * // In-memory: fires once per hour, resets on process restart
+ * const fireOnce = Interval.fn(mySignalFn, { interval: "1h" });
+ *
+ * // Persistent: fired state survives restarts
+ * const fireOncePersist = Interval.file(mySignalFn, { interval: "1h", name: "mySignal" });
+ * ```
+ */
+declare const Interval: IntervalUtils;
 
 /**
  * Type alias for column configuration used in breakeven markdown reports.
@@ -29807,4 +30004,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };

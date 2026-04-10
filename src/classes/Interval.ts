@@ -5,7 +5,7 @@ import backtest, { ExecutionContextService, MethodContextService } from "../lib"
 import { FrameName } from "../interfaces/Frame.interface";
 import { PersistIntervalAdapter } from "./Persist";
 
-const INTERVAL_METHOD_NAME_RUN = "IntervalInstance.run";
+const INTERVAL_METHOD_NAME_RUN = "IntervalFnInstance.run";
 const INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN = "IntervalFileInstance.run";
 const INTERVAL_METHOD_NAME_FN = "IntervalUtils.fn";
 const INTERVAL_METHOD_NAME_FN_CLEAR = "IntervalUtils.fn.clear";
@@ -116,19 +116,19 @@ const CREATE_KEY_FN = (
  *
  * @example
  * ```typescript
- * const instance = new IntervalInstance(mySignalFn, "1h");
+ * const instance = new IntervalFnInstance(mySignalFn, "1h");
  * await instance.run("BTCUSDT"); // → ISignalIntervalDto | null  (fn called)
  * await instance.run("BTCUSDT"); // → null                       (skipped, same interval)
  * // After 1 hour passes:
  * await instance.run("BTCUSDT"); // → ISignalIntervalDto | null  (fn called again)
  * ```
  */
-export class IntervalInstance {
+export class IntervalFnInstance {
   /** Stores the last aligned timestamp per context+symbol key. */
   private _stateMap = new Map<string, number>();
 
   /**
-   * Creates a new IntervalInstance.
+   * Creates a new IntervalFnInstance.
    *
    * @param fn - Signal function to fire once per interval
    * @param interval - Candle interval that controls the firing boundary
@@ -161,13 +161,13 @@ export class IntervalInstance {
 
     {
       if (!MethodContextService.hasContext()) {
-        throw new Error("IntervalInstance run requires method context");
+        throw new Error("IntervalFnInstance run requires method context");
       }
       if (!ExecutionContextService.hasContext()) {
-        throw new Error("IntervalInstance run requires execution context");
+        throw new Error("IntervalFnInstance run requires execution context");
       }
       if (!step) {
-        throw new Error(`IntervalInstance unknown interval=${this.interval}`);
+        throw new Error(`IntervalFnInstance unknown interval=${this.interval}`);
       }
     }
 
@@ -225,7 +225,7 @@ export class IntervalInstance {
  * Every subsequent call within the same interval returns `null` (record exists on disk).
  * If the function returns `null`, nothing is written and the next call retries.
  *
- * Fired state survives process restarts — unlike `IntervalInstance` which is in-memory only.
+ * Fired state survives process restarts — unlike `IntervalFnInstance` which is in-memory only.
  *
  * @template T - Async function type: `(symbol: string, ...args) => Promise<ISignalIntervalDto | null>`
  *
@@ -344,13 +344,13 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
  */
 export class IntervalUtils {
   /**
-   * Memoized factory to get or create an `IntervalInstance` for a function.
+   * Memoized factory to get or create an `IntervalFnInstance` for a function.
    * Each function reference gets its own isolated instance.
    */
   private _getInstance = memoize(
     ([run]) => run,
     (run: TIntervalFn, interval: CandleInterval) =>
-      new IntervalInstance(run, interval)
+      new IntervalFnInstance(run, interval)
   );
 
   /**
@@ -373,7 +373,7 @@ export class IntervalUtils {
    * If the function returns `null`, the countdown does not start and the next call retries.
    *
    * The `run` function reference is used as the memoization key for the underlying
-   * `IntervalInstance`, so each unique function reference gets its own isolated instance.
+   * `IntervalFnInstance`, so each unique function reference gets its own isolated instance.
    *
    * @param run - Signal function to wrap
    * @param context.interval - Candle interval that controls the firing boundary
@@ -454,13 +454,13 @@ export class IntervalUtils {
   };
 
   /**
-   * Dispose (remove) the memoized `IntervalInstance` for a specific function.
+   * Dispose (remove) the memoized `IntervalFnInstance` for a specific function.
    *
    * Removes the instance from the internal memoization cache, discarding all in-memory
    * fired-interval state across all contexts for that function.
-   * The next call to the wrapped function will create a fresh `IntervalInstance`.
+   * The next call to the wrapped function will create a fresh `IntervalFnInstance`.
    *
-   * @param run - Function whose `IntervalInstance` should be disposed
+   * @param run - Function whose `IntervalFnInstance` should be disposed
    *
    * @example
    * ```typescript
@@ -474,7 +474,7 @@ export class IntervalUtils {
   };
 
   /**
-   * Clears all memoized `IntervalInstance` and `IntervalFileInstance` objects and
+   * Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects and
    * resets the `IntervalFileInstance` index counter.
    * Call this when `process.cwd()` changes between strategy iterations
    * so new instances are created with the updated base path.
