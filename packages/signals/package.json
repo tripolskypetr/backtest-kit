@@ -79,7 +79,7 @@
     "functools-kit": "^2.0.1",
     "trading-signals": "^6.9.1",
     "get-moment-stamp": "^1.1.2",
-    "agent-swarm-kit": "^2.0.0"
+    "agent-swarm-kit": "^2.1.0"
   },
   "publishConfig": {
     "access": "public"
