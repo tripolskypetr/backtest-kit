@@ -226,6 +226,14 @@ currentPrice: number
 
 Current market price when activation was executed
 
+### note
+
+```ts
+note: string
+```
+
+Optional human-readable description of signal reason
+
 ### createdAt
 
 ```ts

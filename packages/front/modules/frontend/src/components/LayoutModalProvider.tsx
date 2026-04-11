@@ -1,6 +1,7 @@
 import {
     downloadBlank,
     useAlert,
+    useModalManager,
     useOnce,
     useOpenDocument,
     usePrompt,
@@ -55,6 +56,9 @@ interface ILayoutModalProviderProps {
 export const LayoutModalProvider = ({
     children,
 }: ILayoutModalProviderProps) => {
+
+    const { clear: closeModal } = useModalManager();
+
     const pickPrompt = usePrompt();
     const pickAlert = useAlert();
 
@@ -128,6 +132,12 @@ export const LayoutModalProvider = ({
 
     // Dump content hook
     const pickDumpContent = useDumpContentView();
+
+    useOnce(() => 
+        ioc.layoutService.closeModalSubject.subscribe(() => {
+            closeModal();
+        })
+    );
 
     useOnce(() =>
         ioc.layoutService.promptOutgoing.subscribe(async ({ title, value }) => {

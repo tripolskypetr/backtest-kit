@@ -10,18 +10,18 @@ import {
 import MuiMarkdown, { defaultOverrides } from "mui-markdown";
 import { applyFixes } from "markdownlint";
 import { lint } from "markdownlint/promise";
-import { openBlank, useAsyncValue } from "react-declarative";
+import { useAsyncValue } from "react-declarative";
 import ioc from "../../lib";
 
 const CustomLink = (props: LinkProps) => (
     <Link
         {...props}
         onClick={(e) => {
+            e.preventDefault();
             if (!props.href) {
                 return;
             }
-            e.preventDefault();
-            openBlank(props.href);
+            ioc.linkService.openLink(props.href);
         }}
     >
         {props.children}

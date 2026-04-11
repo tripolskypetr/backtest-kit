@@ -226,6 +226,14 @@ pendingAt: number
 
 Position activation timestamp in milliseconds
 
+### note
+
+```ts
+note: string
+```
+
+Optional human-readable description of signal reason
+
 ### createdAt
 
 ```ts

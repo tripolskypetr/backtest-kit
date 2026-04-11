@@ -210,6 +210,14 @@ pnlEntries: number
 
 Total invested capital in USD
 
+### note
+
+```ts
+note: string
+```
+
+Optional human-readable description of signal reason
+
 ### scheduledAt
 
 ```ts

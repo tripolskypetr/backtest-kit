@@ -38,7 +38,6 @@ import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
-import toPlainString from "../helpers/toPlainString";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
@@ -266,6 +265,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
+        note: publicSignal.note,
       });
       continue
     }
@@ -293,6 +293,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
+        note: publicSignal.note,
       });
       continue
     }
@@ -319,6 +320,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
+        note: publicSignal.note,
       });
       continue
     }
@@ -346,6 +348,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
+        note: publicSignal.note,
       });
       continue;
     }
@@ -373,6 +376,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
+        note: publicSignal.note,
       });
       continue;
     }
@@ -402,6 +406,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
+        note: publicSignal.note,
       });
       continue;
     }
@@ -515,6 +520,7 @@ const GET_SIGNAL_FN = trycatch(
       self.params.getSignal(
         self.params.execution.context.symbol,
         self.params.execution.context.when,
+        currentPrice,
       ),
       sleep(timeoutMs).then(() => TIMEOUT_SYMBOL),
     ]);
@@ -558,7 +564,7 @@ const GET_SIGNAL_FN = trycatch(
           cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
           priceOpen: signal.priceOpen, // Используем priceOpen из сигнала
           position: signal.position,
-          note: toPlainString(signal.note),
+          note: signal.note || "",
           priceTakeProfit: signal.priceTakeProfit,
           priceStopLoss: signal.priceStopLoss,
           minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
@@ -587,7 +593,7 @@ const GET_SIGNAL_FN = trycatch(
         cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
         priceOpen: signal.priceOpen,
         position: signal.position,
-        note: toPlainString(signal.note),
+        note: signal.note || "",
         priceTakeProfit: signal.priceTakeProfit,
         priceStopLoss: signal.priceStopLoss,
         minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
@@ -615,7 +621,7 @@ const GET_SIGNAL_FN = trycatch(
       cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
       priceOpen: currentPrice,
       ...structuredClone(signal),
-      note: toPlainString(signal.note),
+      note: signal.note || "",
       minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
@@ -1582,6 +1588,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, scheduled.priceOpen),
+      note: scheduled.note,
     });
     return null;
   }
@@ -3033,6 +3040,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, averagePrice),
+      note: scheduled.note,
     });
   }
 
@@ -3158,6 +3166,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, scheduled.priceOpen),
+      note: scheduled.note,
     });
     return false;
   }
@@ -3353,6 +3362,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     totalPartials: closedSignal._partial?.length ?? 0,
     originalPriceOpen: closedSignal.priceOpen,
     pnl: toProfitLossDto(closedSignal, averagePrice),
+    note: closedSignal.note,
   });
 
   await CALL_CLOSE_CALLBACKS_FN(
@@ -3544,6 +3554,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, averagePrice),
+          note: activatedSignal.note,
         });
         return { outcome: "pending" };
       }
@@ -3585,6 +3596,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         pendingAt: publicSignalForCommit.pendingAt,
         totalEntries: publicSignalForCommit.totalEntries,
         totalPartials: publicSignalForCommit.totalPartials,
+        note: publicSignalForCommit.note,
       });
 
       await CALL_OPEN_CALLBACKS_FN(
@@ -5020,6 +5032,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
+        note: cancelledSignal.note,
       });
 
       // Call onCancel callback
@@ -5102,6 +5115,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
+        note: closedSignal.note,
       });
 
       // Call onClose callback
@@ -5243,6 +5257,7 @@ export class ClientStrategy implements IStrategy {
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, currentPrice),
+          note: activatedSignal.note,
         });
         return await RETURN_IDLE_FN(this, currentPrice);
       }
@@ -5282,6 +5297,7 @@ export class ClientStrategy implements IStrategy {
         pendingAt: publicSignalForCommit.pendingAt,
         totalEntries: publicSignalForCommit.totalEntries,
         totalPartials: publicSignalForCommit.totalPartials,
+        note: publicSignalForCommit.note,
       });
 
       // Call onOpen callback
@@ -5498,6 +5514,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
+        note: cancelledSignal.note,
       });
 
       await CALL_CANCEL_CALLBACKS_FN(
@@ -5585,6 +5602,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
+        note: closedSignal.note,
       });
 
       await CALL_CLOSE_CALLBACKS_FN(

@@ -135,6 +135,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       pnlEntries: data.signal.pnl.pnlEntries,
       scheduledAt: data.signal.scheduledAt,
       currentPrice: data.currentPrice,
+      note: data.signal.note,
       createdAt: data.createdAt,
     };
   }
@@ -165,6 +166,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       duration: durationMin,
       scheduledAt: data.signal.scheduledAt,
       pendingAt: data.signal.pendingAt,
+      note: data.signal.note,
       createdAt: data.createdAt,
     };
   }
@@ -202,6 +204,7 @@ const CREATE_PARTIAL_PROFIT_NOTIFICATION_FN = (data: PartialProfitContract): Not
   pnlPriceClose: data.data.pnl.priceClose,
   pnlCost: data.data.pnl.pnlCost,
   pnlEntries: data.data.pnl.pnlEntries,
+  note: data.data.note,
   scheduledAt: data.data.scheduledAt,
   pendingAt: data.data.pendingAt,
   createdAt: data.timestamp,
@@ -238,6 +241,7 @@ const CREATE_PARTIAL_LOSS_NOTIFICATION_FN = (data: PartialLossContract): Notific
   pnlPriceClose: data.data.pnl.priceClose,
   pnlCost: data.data.pnl.pnlCost,
   pnlEntries: data.data.pnl.pnlEntries,
+  note: data.data.note,
   scheduledAt: data.data.scheduledAt,
   pendingAt: data.data.pendingAt,
   createdAt: data.timestamp,
@@ -273,6 +277,7 @@ const CREATE_BREAKEVEN_NOTIFICATION_FN = (data: BreakevenContract): Notification
   pnlPriceClose: data.data.pnl.priceClose,
   pnlCost: data.data.pnl.pnlCost,
   pnlEntries: data.data.pnl.pnlEntries,
+  note: data.data.note,
   scheduledAt: data.data.scheduledAt,
   pendingAt: data.data.pendingAt,
   createdAt: data.timestamp,
@@ -315,6 +320,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -347,6 +353,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -378,6 +385,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -410,6 +418,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -442,6 +451,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -474,6 +484,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -507,6 +518,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlEntries: data.pnl.pnlEntries,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -530,6 +542,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlPriceClose: data.pnl.priceClose,
       pnlCost: data.pnl.pnlCost,
       pnlEntries: data.pnl.pnlEntries,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -553,6 +566,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       pnlPriceClose: data.pnl.priceClose,
       pnlCost: data.pnl.pnlCost,
       pnlEntries: data.pnl.pnlEntries,
+      note: data.note,
       createdAt: data.timestamp,
     };
   }
@@ -595,6 +609,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: SignalSyncContract): Notificat
       totalPartials: data.totalPartials,
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
+      note: data.signal.note,
       createdAt: data.timestamp,
     };
   }
@@ -627,6 +642,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: SignalSyncContract): Notificat
       scheduledAt: data.scheduledAt,
       pendingAt: data.pendingAt,
       closeReason: data.closeReason,
+      note: data.signal.note,
       createdAt: data.timestamp,
     };
   }

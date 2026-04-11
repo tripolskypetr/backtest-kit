@@ -9,7 +9,7 @@ group: docs
 type CacheFileKeyArgs<T extends CacheFileFunction> = [
     symbol: string,
     alignMs: number,
-    ...rest: DropFirst<T>
+    ...rest: DropFirst$1<T>
 ];
 ```
 

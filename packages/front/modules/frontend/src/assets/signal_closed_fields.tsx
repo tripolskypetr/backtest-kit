@@ -1,6 +1,7 @@
 import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import ioc from "../lib";
+import Markdown from "../components/common/Markdown";
 
 const formatDuration = (durationMinutes: number): string => {
     if (durationMinutes == null) return "N/A";
@@ -447,6 +448,28 @@ export const signal_closed_fields: TypedField[] = [
                             };
                             return reasonMap[obj.closeReason] || obj.closeReason || "Unknown";
                         },
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
+                placeholder: "Note",
+                isVisible: (obj) => !!obj.note,
+            },
+            {
+                type: FieldType.Outline,
+                isVisible: (obj) => !!obj.note,
+                sx: { mb: 3 },
+                fields: [
+                    {
+                        type: FieldType.Component,
+                        desktopColumns: "12",
+                        tabletColumns: "12",
+                        phoneColumns: "12",
+                        element: ({ note }) => (
+                            <Markdown content={note} />
+                        ),
                     },
                 ],
             },

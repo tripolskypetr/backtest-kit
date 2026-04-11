@@ -38,7 +38,7 @@ Each function reference gets its own isolated persistent instance.
 ### fn
 
 ```ts
-fn: <T extends object>(run: TIntervalFn<T>, context: { interval: CandleInterval; }) => TIntervalWrappedFn<T> & { clear(): void; }
+fn: <F extends Function>(run: F, context: { interval: CandleInterval; key?: (args: Parameters<F>) => string; }) => F & { clear(): void; gc(): number; }
 ```
 
 Wrap a signal function with in-memory once-per-interval firing.
@@ -52,7 +52,7 @@ The `run` function reference is used as the memoization key for the underlying
 ### file
 
 ```ts
-file: <T extends object>(run: TIntervalFn<T>, context: { interval: CandleInterval; name: string; }) => TIntervalWrappedFn<T> & { clear(): Promise<...>; }
+file: <F extends IntervalFileFunction>(run: F, context: { interval: CandleInterval; name: string; key?: (args: [symbol: string, alignMs: number, ...rest: DropFirst<F>]) => string; }) => F & { ...; }
 ```
 
 Wrap an async signal function with persistent file-based once-per-interval firing.
@@ -67,7 +67,7 @@ The `run` function reference is used as the memoization key for the underlying
 ### dispose
 
 ```ts
-dispose: (run: TIntervalFn<object>) => void
+dispose: (run: Function) => void
 ```
 
 Dispose (remove) the memoized `IntervalFnInstance` for a specific function.
@@ -82,7 +82,16 @@ The next call to the wrapped function will create a fresh `IntervalFnInstance`.
 clear: () => void
 ```
 
-Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects and
-resets the `IntervalFileInstance` index counter.
+Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects.
 Call this when `process.cwd()` changes between strategy iterations
 so new instances are created with the updated base path.
+
+### resetCounter
+
+```ts
+resetCounter: () => void
+```
+
+Resets the IntervalFileInstance index counter to zero.
+This is useful when process.cwd() changes between strategy iterations to ensure
+that new IntervalFileInstance objects start with index 0 and do not collide with old instances.

@@ -34,10 +34,12 @@ interval: SignalInterval
 
 Minimum interval between getSignal calls (throttling)
 
+Default: 1m
+
 ### getSignal
 
 ```ts
-getSignal: (symbol: string, when: Date) => Promise<ISignalDto>
+getSignal: (symbol: string, when: Date, currentPrice: number) => Promise<ISignalDto>
 ```
 
 Signal generation function (returns null if no signal, validated DTO if signal).

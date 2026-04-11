@@ -9,6 +9,7 @@ const INTERVAL_METHOD_NAME_RUN = "IntervalFnInstance.run";
 const INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN = "IntervalFileInstance.run";
 const INTERVAL_METHOD_NAME_FN = "IntervalUtils.fn";
 const INTERVAL_METHOD_NAME_FN_CLEAR = "IntervalUtils.fn.clear";
+const INTERVAL_METHOD_NAME_FN_GC = "IntervalUtils.fn.gc";
 const INTERVAL_METHOD_NAME_FILE = "IntervalUtils.file";
 const INTERVAL_METHOD_NAME_FILE_CLEAR = "IntervalUtils.file.clear";
 const INTERVAL_METHOD_NAME_DISPOSE = "IntervalUtils.dispose";
@@ -33,17 +34,40 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
 };
 
 /**
- * User-implemented function fired once per interval boundary.
- * Receives `when` from the caller (sourced from execution context).
+ * Generic function type that accepts any arguments and returns any value.
+ * Used as a constraint for interval functions.
  */
-export type TIntervalFn<T extends object = object> = (symbol: string, when: Date) => Promise<T | null>;
+type Function = (...args: any[]) => any;
 
 /**
- * Wrapped function returned by `Interval.fn` and `Interval.file`.
- * `when` is resolved internally from the execution context — callers pass only `symbol`.
+ * Async function type for file-interval functions.
+ * First argument is always `symbol: string`, followed by optional spread args.
  */
-export type TIntervalWrappedFn<T extends object = object> = (symbol: string) => Promise<T | null>;
+type IntervalFileFunction = (symbol: string, ...args: any[]) => Promise<any>;
 
+/**
+ * Utility type to drop the first argument from a function type.
+ * For example, for `(symbol: string, arg1: number, arg2: string) => Promise<void>`,
+ * this will infer `[arg1: number, arg2: string]`.
+ */
+type DropFirst<T extends (...args: any) => any> =
+  T extends (first: any, ...rest: infer R) => any
+    ? R
+    : never;
+
+/**
+ * Extracts the `key` generator argument tuple from an `IntervalFileFunction`.
+ * The first two arguments are always `symbol: string` and `alignMs: number` (aligned timestamp),
+ * followed by the rest of the original function's arguments.
+ *
+ * For example, for `(symbol: string, arg1: number) => Promise<void>`,
+ * this will produce `[symbol: string, alignMs: number, arg1: number]`.
+ */
+type IntervalFileKeyArgs<T extends IntervalFileFunction> = [
+  symbol: string,
+  alignMs: number,
+  ...rest: DropFirst<T>
+];
 
 /**
  * Aligns timestamp down to the nearest interval boundary.
@@ -114,6 +138,8 @@ const CREATE_KEY_FN = (
  *
  * State is kept in memory; use `IntervalFileInstance` for persistence across restarts.
  *
+ * @template F - Concrete function type
+ *
  * @example
  * ```typescript
  * const instance = new IntervalFnInstance(mySignalFn, "1h");
@@ -123,8 +149,8 @@ const CREATE_KEY_FN = (
  * await instance.run("BTCUSDT"); // → T | null  (fn called again)
  * ```
  */
-export class IntervalFnInstance<T extends object = object> {
-  /** Stores the last aligned timestamp per context+symbol key. */
+export class IntervalFnInstance<F extends Function = Function> {
+  /** Stores the last aligned timestamp per context+symbol+args key. */
   private _stateMap = new Map<string, number>();
 
   /**
@@ -132,10 +158,13 @@ export class IntervalFnInstance<T extends object = object> {
    *
    * @param fn - Function to fire once per interval
    * @param interval - Candle interval that controls the firing boundary
+   * @param key - Optional key generator for argument-based state separation.
+   *              Default: `([symbol]) => symbol`
    */
   constructor(
-    readonly fn: TIntervalFn<T>,
+    readonly fn: F,
     readonly interval: CandleInterval,
+    readonly key: (args: Parameters<F>) => string = ([symbol]) => symbol,
   ) {}
 
   /**
@@ -143,19 +172,20 @@ export class IntervalFnInstance<T extends object = object> {
    *
    * Algorithm:
    * 1. Align the current execution context `when` to the interval boundary.
-   * 2. If the stored aligned timestamp for this context+symbol equals the current one → return `null`.
-   * 3. Otherwise call `fn`. If it returns a non-null signal, record the aligned timestamp and return
+   * 2. Build state key from context + key generator result.
+   * 3. If the stored aligned timestamp for this key equals the current one → return `null`.
+   * 4. Otherwise call `fn`. If it returns a non-null signal, record the aligned timestamp and return
    *    the signal. If it returns `null`, leave state unchanged so the next call retries.
    *
    * Requires active method context and execution context.
    *
-   * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+   * @param args - Arguments forwarded to the wrapped function
    * @returns The value returned by `fn` on the first non-null fire, `null` on all subsequent calls
    *   within the same interval or when `fn` itself returned `null`
    * @throws Error if method context, execution context, or interval is missing
    */
-  public run = async (symbol: string): Promise<T | null> => {
-    backtest.loggerService.debug(INTERVAL_METHOD_NAME_RUN, { symbol });
+  public run = async (...args: Parameters<F>): Promise<ReturnType<F>> => {
+    backtest.loggerService.debug(INTERVAL_METHOD_NAME_RUN, { args });
 
     const step = INTERVAL_MINUTES[this.interval];
 
@@ -177,17 +207,18 @@ export class IntervalFnInstance<T extends object = object> {
       backtest.methodContextService.context.frameName,
       backtest.executionContextService.context.backtest
     );
-    const key = `${contextKey}:${symbol}`;
     const currentWhen = backtest.executionContextService.context.when;
     const currentAligned = align(currentWhen.getTime(), this.interval);
+    const argKey = this.key(args);
+    const stateKey = `${contextKey}:${argKey}`;
 
-    if (this._stateMap.get(key) === currentAligned) {
-      return null;
+    if (this._stateMap.get(stateKey) === currentAligned) {
+      return null as ReturnType<F>;
     }
 
-    const result = await this.fn(symbol, currentWhen);
+    const result = await this.fn.apply(null, args);
     if (result !== null) {
-      this._stateMap.set(key, currentAligned);
+      this._stateMap.set(stateKey, currentAligned);
     }
     return result;
   };
@@ -214,6 +245,31 @@ export class IntervalFnInstance<T extends object = object> {
       }
     }
   };
+
+  /**
+   * Garbage collect expired state entries.
+   *
+   * Removes all entries whose aligned timestamp differs from the current interval boundary.
+   * Call this periodically to free memory from stale state entries.
+   *
+   * Requires active execution context to get current time.
+   *
+   * @returns Number of entries removed
+   */
+  public gc = (): number => {
+    const currentWhen = backtest.executionContextService.context.when;
+    const currentAligned = align(currentWhen.getTime(), this.interval);
+    let removed = 0;
+
+    for (const [key, storedAligned] of this._stateMap.entries()) {
+      if (storedAligned !== currentAligned) {
+        this._stateMap.delete(key);
+        removed++;
+      }
+    }
+
+    return removed;
+  };
 }
 
 /**
@@ -227,7 +283,7 @@ export class IntervalFnInstance<T extends object = object> {
  *
  * Fired state survives process restarts — unlike `IntervalFnInstance` which is in-memory only.
  *
- * @template T - Async function type: `(symbol: string, ...args) => Promise<R | null>`
+ * @template F - Concrete async function type
  *
  * @example
  * ```typescript
@@ -236,7 +292,7 @@ export class IntervalFnInstance<T extends object = object> {
  * await instance.run("BTCUSDT"); // → null      (record exists, already fired)
  * ```
  */
-export class IntervalFileInstance<T extends object = object> {
+export class IntervalFileInstance<F extends IntervalFileFunction = IntervalFileFunction> {
   /** Global counter — incremented once per IntervalFileInstance construction. */
   private static _indexCounter = 0;
 
@@ -265,11 +321,14 @@ export class IntervalFileInstance<T extends object = object> {
    * @param fn - Async signal function to fire once per interval
    * @param interval - Candle interval that controls the firing boundary
    * @param name - Human-readable bucket name used as the directory prefix
+   * @param key - Dynamic key generator; receives `[symbol, alignMs, ...rest]`.
+   *              Default: `([symbol, alignMs]) => \`${symbol}_${alignMs}\``
    */
   constructor(
-    readonly fn: TIntervalFn<T>,
+    readonly fn: F,
     readonly interval: CandleInterval,
     readonly name: string,
+    readonly key: (args: IntervalFileKeyArgs<F>) => string = ([symbol, alignMs]) => `${symbol}_${alignMs}`,
   ) {
     this.index = IntervalFileInstance.createIndex();
   }
@@ -279,8 +338,8 @@ export class IntervalFileInstance<T extends object = object> {
    *
    * Algorithm:
    * 1. Build bucket = `${name}_${interval}_${index}` — fixed per instance, used as directory name.
-   * 2. Align execution context `when` to interval boundary → `alignedTs`.
-   * 3. Build entity key = `${symbol}_${alignedTs}`.
+   * 2. Align execution context `when` to interval boundary → `alignedMs`.
+   * 3. Build entity key from the key generator (receives `[symbol, alignedMs, ...rest]`).
    * 4. Try to read from `PersistIntervalAdapter` using (bucket, entityKey).
    * 5. On hit — return `null` (interval already fired).
    * 6. On miss — call `fn`. If non-null, write to disk and return result. If null, skip write and return null.
@@ -288,12 +347,13 @@ export class IntervalFileInstance<T extends object = object> {
    * Requires active method context and execution context.
    *
    * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+   * @param args - Additional arguments forwarded to the wrapped function
    * @returns The value on the first non-null fire, `null` if already fired this interval
    *   or if `fn` itself returned `null`
    * @throws Error if method context, execution context, or interval is missing
    */
-  public run = async (symbol: string): Promise<T | null> => {
-    backtest.loggerService.debug(INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN, { symbol });
+  public run = async (...args: Parameters<F>): Promise<Awaited<ReturnType<F>>> => {
+    backtest.loggerService.debug(INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN, { args });
 
     const step = INTERVAL_MINUTES[this.interval];
 
@@ -309,17 +369,19 @@ export class IntervalFileInstance<T extends object = object> {
       }
     }
 
+    const [symbol, ...rest] = args;
+
     const { when } = backtest.executionContextService.context;
-    const alignedTs = align(when.getTime(), this.interval);
+    const alignedMs = align(when.getTime(), this.interval);
     const bucket = `${this.name}_${this.interval}_${this.index}`;
-    const entityKey = `${symbol}_${alignedTs}`;
+    const entityKey = this.key([symbol, alignedMs, ...rest as DropFirst<F>]);
 
     const cached = await PersistIntervalAdapter.readIntervalData(bucket, entityKey);
     if (cached !== null) {
-      return null;
+      return null as Awaited<ReturnType<F>>;
     }
 
-    const result = await this.fn(symbol, when);
+    const result = await this.fn.call(null, ...args);
     if (result !== null) {
       await PersistIntervalAdapter.writeIntervalData({ id: entityKey, data: result, removed: false }, bucket, entityKey);
     }
@@ -359,8 +421,8 @@ export class IntervalUtils {
    */
   private _getInstance = memoize(
     ([run]) => run,
-    <T extends object>(run: TIntervalFn<T>, interval: CandleInterval) =>
-      new IntervalFnInstance<T>(run, interval)
+    <F extends Function>(run: F, interval: CandleInterval, key?: (args: Parameters<F>) => string) =>
+      new IntervalFnInstance<F>(run, interval, key)
   );
 
   /**
@@ -369,8 +431,8 @@ export class IntervalUtils {
    */
   private _getFileInstance = memoize(
     ([run]) => run,
-    <T extends object>(run: TIntervalFn<T>, interval: CandleInterval, name: string) =>
-      new IntervalFileInstance<T>(run, interval, name)
+    <F extends IntervalFileFunction>(run: F, interval: CandleInterval, name: string, key?: (args: IntervalFileKeyArgs<F>) => string) =>
+      new IntervalFileInstance<F>(run, interval, name, key)
   );
 
   /**
@@ -384,25 +446,34 @@ export class IntervalUtils {
    *
    * @param run - Signal function to wrap
    * @param context.interval - Candle interval that controls the firing boundary
-   * @returns Wrapped function with the same signature as `TIntervalFn<T>`, plus a `clear()` method
+   * @param context.key - Optional key generator for argument-based state separation
+   * @returns Wrapped function with the same signature as `F`, plus a `clear()` method
    *
    * @example
    * ```typescript
+   * // Without extra args
    * const fireOnce = Interval.fn(mySignalFn, { interval: "15m" });
-   *
    * await fireOnce("BTCUSDT"); // → T or null  (fn called)
    * await fireOnce("BTCUSDT"); // → null       (same interval, skipped)
+   *
+   * // With extra args and key
+   * const fireOnce = Interval.fn(mySignalFn, {
+   *   interval: "15m",
+   *   key: ([symbol, period]) => `${symbol}_${period}`,
+   * });
+   * await fireOnce("BTCUSDT", 14); // → T or null
+   * await fireOnce("BTCUSDT", 28); // → T or null (separate state)
    * ```
    */
-  public fn = <T extends object>(
-    run: TIntervalFn<T>,
-    context: { interval: CandleInterval }
-  ): TIntervalWrappedFn<T> & { clear(): void } => {
+  public fn = <F extends Function>(
+    run: F,
+    context: { interval: CandleInterval; key?: (args: Parameters<F>) => string }
+  ): F & { clear(): void; gc(): number | undefined } => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_FN, { context });
 
-    const wrappedFn = (symbol: string): Promise<T | null> => {
-      const instance = this._getInstance<T>(run, context.interval);
-      return instance.run(symbol);
+    const wrappedFn = (...args: Parameters<F>): ReturnType<F> => {
+      const instance = this._getInstance<F>(run, context.interval, context.key);
+      return instance.run(...args) as ReturnType<F>;
     };
 
     wrappedFn.clear = () => {
@@ -418,7 +489,16 @@ export class IntervalUtils {
       this._getInstance.get(run)?.clear();
     };
 
-    return wrappedFn as TIntervalWrappedFn<T> & { clear(): void };
+    wrappedFn.gc = () => {
+      backtest.loggerService.info(INTERVAL_METHOD_NAME_FN_GC);
+      if (!ExecutionContextService.hasContext()) {
+        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_GC} called without execution context, skipping`);
+        return;
+      }
+      return this._getInstance.get(run)?.gc();
+    };
+
+    return wrappedFn as unknown as F & { clear(): void; gc(): number | undefined };
   };
 
   /**
@@ -431,36 +511,42 @@ export class IntervalUtils {
    * The `run` function reference is used as the memoization key for the underlying
    * `IntervalFileInstance`, so each unique function reference gets its own isolated instance.
    *
-   * @template T - Async function type to wrap
+   * @template F - Concrete async function type
    * @param run - Async signal function to wrap with persistent once-per-interval firing
    * @param context.interval - Candle interval that controls the firing boundary
    * @param context.name - Human-readable bucket name; becomes the directory prefix
-   * @returns Wrapped function with the same signature as `T`, plus an async `clear()` method
-   *   that deletes persisted records from disk and disposes the memoized instance
+   * @param context.key - Optional entity key generator. Receives `[symbol, alignMs, ...rest]`.
+   *                      Default: `([symbol, alignMs]) => \`${symbol}_${alignMs}\``
+   * @returns Wrapped function with the same signature as `F`, plus an async `clear()` method
    *
    * @example
    * ```typescript
-   * const fetchSignal = async (symbol: string, when: Date) => { ... };
-   * const fireOnce = Interval.file(fetchSignal, { interval: "1h", name: "fetchSignal" });
-   * await fireOnce.clear(); // delete disk records so the function fires again next call
+   * const fetchSignal = async (symbol: string, period: number) => { ... };
+   * const fireOnce = Interval.file(fetchSignal, {
+   *   interval: "1h",
+   *   name: "fetchSignal",
+   *   key: ([symbol, alignMs, period]) => `${symbol}_${alignMs}_${period}`,
+   * });
+   * await fireOnce("BTCUSDT", 14);
    * ```
    */
-  public file = <T extends object>(
-    run: TIntervalFn<T>,
+  public file = <F extends IntervalFileFunction>(
+    run: F,
     context: {
       interval: CandleInterval;
       name: string;
+      key?: (args: IntervalFileKeyArgs<F>) => string;
     }
-  ): TIntervalWrappedFn<T> & { clear(): Promise<void> } => {
+  ): F & { clear(): Promise<void> } => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_FILE, { context });
 
     {
-      this._getFileInstance<T>(run, context.interval, context.name);
+      this._getFileInstance<F>(run, context.interval, context.name, context.key);
     }
 
-    const wrappedFn = (symbol: string): Promise<T | null> => {
-      const instance = this._getFileInstance<T>(run, context.interval, context.name);
-      return instance.run(symbol);
+    const wrappedFn = (...args: Parameters<F>): ReturnType<F> => {
+      const instance = this._getFileInstance<F>(run, context.interval, context.name, context.key);
+      return instance.run(...args) as ReturnType<F>;
     };
 
     wrappedFn.clear = async () => {
@@ -468,7 +554,7 @@ export class IntervalUtils {
       await this._getFileInstance.get(run)?.clear();
     };
 
-    return wrappedFn as TIntervalWrappedFn<T> & { clear(): Promise<void> };
+    return wrappedFn as unknown as F & { clear(): Promise<void> };
   };
 
   /**
@@ -486,14 +572,14 @@ export class IntervalUtils {
    * Interval.dispose(mySignalFn);
    * ```
    */
-  public dispose = (run: TIntervalFn<object>) => {
+  public dispose = (run: Function) => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_DISPOSE, { run });
     this._getInstance.clear(run);
+    this._getFileInstance.clear(run);
   };
 
   /**
-   * Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects and
-   * resets the `IntervalFileInstance` index counter.
+   * Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects.
    * Call this when `process.cwd()` changes between strategy iterations
    * so new instances are created with the updated base path.
    */

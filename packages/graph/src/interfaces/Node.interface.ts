@@ -27,7 +27,7 @@ export interface INode {
      * Источник данных для SourceNode.
      * Вызывается при вычислении узла без входящих зависимостей.
      */
-    fetch?: (symbol: string, when: Date, exchangeName: ExchangeName) => Promise<Value> | Value;
+    fetch?: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<Value> | Value;
 
     /**
      * Функция вычисления для OutputNode.

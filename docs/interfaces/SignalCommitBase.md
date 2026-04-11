@@ -90,3 +90,11 @@ originalPriceOpen: number
 ```
 
 Original entry price at signal creation (unchanged by DCA averaging).
+
+### note
+
+```ts
+note: string
+```
+
+Optional human-readable description of signal reason

@@ -226,6 +226,14 @@ closeReason: string
 
 Why the signal was closed (take_profit &vert; stop_loss | time_expired | closed)
 
+### note
+
+```ts
+note: string
+```
+
+Optional human-readable description of signal reason
+
 ### createdAt
 
 ```ts

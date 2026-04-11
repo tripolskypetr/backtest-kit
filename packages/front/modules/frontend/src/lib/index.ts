@@ -7,6 +7,7 @@ import LayoutService from "./services/base/LayoutService";
 import LoggerService from "./services/base/LoggerService";
 import RouterService from "./services/base/RouterService";
 import AlertService from "./services/base/AlertService";
+import LinkService from "./services/base/LinkService";
 
 import ExchangeMockService from "./services/mock/ExchangeMockService";
 import NotificationMockService from "./services/mock/NotificationMockService";
@@ -29,7 +30,6 @@ import PriceGlobalService from "./services/global/PriceGlobalService";
 import BacktestGlobalService from "./services/global/BacktestGlobalService";
 import LiveGlobalService from "./services/global/LiveGlobalService";
 
-import TYPES from "./core/TYPES";
 import ExplorerHelperService from "./services/helpers/ExplorerHelperService";
 import MarkdownHelperService from "./services/helpers/MarkdownHelperService";
 import SignalViewService from "./services/view/SignalViewService";
@@ -37,12 +37,15 @@ import HeatViewService from "./services/view/HeatViewService";
 import SignalMockService from "./services/mock/SignalMockService";
 import HeatMockService from "./services/mock/HeatMockService";
 
+import TYPES from "./core/TYPES";
+
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
   layoutService: inject<LayoutService>(TYPES.layoutService),
   loggerService: inject<LoggerService>(TYPES.loggerService),
   routerService: inject<RouterService>(TYPES.routerService),
   alertService: inject<AlertService>(TYPES.alertService),
+  linkService: inject<LinkService>(TYPES.linkService),
 };
 
 const globalServices = {

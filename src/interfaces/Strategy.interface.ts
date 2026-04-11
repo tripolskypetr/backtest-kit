@@ -544,14 +544,18 @@ export interface IStrategySchema {
   strategyName: StrategyName;
   /** Optional developer note for documentation */
   note?: string;
-  /** Minimum interval between getSignal calls (throttling) */
-  interval: SignalInterval;
+  /** 
+   * Minimum interval between getSignal calls (throttling) 
+   * 
+   * Default: 1m
+   */
+  interval?: SignalInterval;
   /**
    * Signal generation function (returns null if no signal, validated DTO if signal).
    * If priceOpen is provided - becomes scheduled signal waiting for price to reach entry point.
    * If priceOpen is omitted - opens immediately at current price.
    */
-  getSignal: (symbol: string, when: Date) => Promise<ISignalDto | null>;
+  getSignal: (symbol: string, when: Date, currentPrice: number) => Promise<ISignalDto | null>;
   /** Optional lifecycle event callbacks (onOpen, onClose) */
   callbacks?: Partial<IStrategyCallbacks>;
   /** Optional risk profile identifier for risk management */

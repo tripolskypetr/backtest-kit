@@ -90,11 +90,13 @@ createCustomTag(
     "display: inline-block; text-decoration: underline; cursor: pointer;",
     {
         onClick: (e) => {
+            e.preventDefault();
             const target = e.currentTarget as HTMLSpanElement;
             const href = target.getAttribute("href");
-            if (href) {
-                openBlank(href);
+            if (!href) {
+                return;
             }
+            ioc.linkService.openLink(href);
         },
     },
 );

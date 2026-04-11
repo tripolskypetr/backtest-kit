@@ -6,6 +6,7 @@ import LayoutService from "../services/base/LayoutService";
 import LoggerService from "../services/base/LoggerService";
 import RouterService from "../services/base/RouterService";
 import AlertService from "../services/base/AlertService";
+import LinkService from "../services/base/LinkService";
 
 import ExchangeMockService from "../services/mock/ExchangeMockService";
 import NotificationMockService from "../services/mock/NotificationMockService";
@@ -39,6 +40,7 @@ import MarkdownHelperService from "../services/helpers/MarkdownHelperService";
     provide(TYPES.layoutService, () => new LayoutService());
     provide(TYPES.loggerService, () => new LoggerService());
     provide(TYPES.routerService, () => new RouterService());
+    provide(TYPES.linkService, () => new LinkService());
 }
 
 {

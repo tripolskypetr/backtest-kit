@@ -1,4 +1,4 @@
-import { ExecutionContextService, MethodContextService, lib } from "backtest-kit";
+import { ExecutionContextService, MethodContextService, getAveragePrice, lib } from "backtest-kit";
 
 import NodeType from '../enum/NodeType';
 import { TypedNode, SourceNode, OutputNode } from '../interfaces/TypedNode.interface';
@@ -25,10 +25,11 @@ export async function resolve(node: TypedNode): Promise<Value> {
     if (node.type === NodeType.SourceNode) {
         const { symbol, when } = lib.executionContextService.context;
         const { exchangeName } = lib.methodContextService.context;
-        return node.fetch(symbol, when, exchangeName);
+        const currentPrice = await getAveragePrice(symbol)
+        return await node.fetch(symbol, when, currentPrice, exchangeName);
     }
     const values = await Promise.all(node.nodes.map(resolve));
-    return node.compute(values as any);
+    return await node.compute(values as any);
 };
 
 export default resolve;

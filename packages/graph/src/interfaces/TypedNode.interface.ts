@@ -26,7 +26,7 @@ export type InferNodeValue<T extends TypedNode> =
 export type SourceNode<T extends Value = Value> = {
     type: NodeType.SourceNode;
     description?: string;
-    fetch: (symbol: string, when: Date, exchangeName: ExchangeName) => Promise<T> | T;
+    fetch: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<T> | T;
 };
 
 /**

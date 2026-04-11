@@ -39,7 +39,7 @@ Each function gets its own isolated file-cache instance.
 ### fn
 
 ```ts
-fn: <T extends Function, K = symbol>(run: T, context: { interval: CandleInterval; key?: (args: Parameters<T>) => K; }) => T & { clear(): void; gc(): number; }
+fn: <T extends Function$1, K = symbol>(run: T, context: { interval: CandleInterval; key?: (args: Parameters<T>) => K; }) => T & { clear(): void; gc(): number; }
 ```
 
 Wrap a function with caching based on timeframe intervals.
@@ -50,7 +50,7 @@ and invalidates based on the specified candle interval.
 ### file
 
 ```ts
-file: <T extends CacheFileFunction>(run: T, context: { interval: CandleInterval; name: string; key?: (args: [symbol: string, alignMs: number, ...rest: DropFirst<T>]) => string; }) => T & { ...; }
+file: <T extends CacheFileFunction>(run: T, context: { interval: CandleInterval; name: string; key?: (args: [symbol: string, alignMs: number, ...rest: DropFirst$1<T>]) => string; }) => T & { ...; }
 ```
 
 Wrap an async function with persistent file-based caching.
@@ -66,7 +66,7 @@ Pass the same function reference each time to reuse the same cache.
 ### dispose
 
 ```ts
-dispose: <T extends Function>(run: T) => void
+dispose: <T extends Function$1>(run: T) => void
 ```
 
 Dispose (remove) the memoized CacheFnInstance for a specific function.
@@ -84,3 +84,13 @@ clear: () => void
 Clears all memoized CacheFnInstance and CacheFileInstance objects.
 Call this when process.cwd() changes between strategy iterations
 so new instances are created with the updated base path.
+
+### resetCounter
+
+```ts
+resetCounter: () => void
+```
+
+Resets the CacheFileInstance index counter to zero.
+This is useful when process.cwd() changes between strategy iterations to ensure
+that new CacheFileInstance objects start with index 0 and do not collide with old instances.

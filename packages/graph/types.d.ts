@@ -27,7 +27,7 @@ interface INode {
      * Источник данных для SourceNode.
      * Вызывается при вычислении узла без входящих зависимостей.
      */
-    fetch?: (symbol: string, when: Date, exchangeName: ExchangeName) => Promise<Value> | Value;
+    fetch?: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<Value> | Value;
     /**
      * Функция вычисления для OutputNode.
      * Получает на вход массив значений, возвращённых fetch/compute
@@ -60,7 +60,7 @@ type InferNodeValue<T extends TypedNode> = T extends SourceNode<infer V> ? V : T
 type SourceNode<T extends Value = Value> = {
     type: NodeType.SourceNode;
     description?: string;
-    fetch: (symbol: string, when: Date, exchangeName: ExchangeName) => Promise<T> | T;
+    fetch: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<T> | T;
 };
 /**
  * Узел вычисления. TNodes — tuple входящих зависимостей,
@@ -79,7 +79,7 @@ type OutputNode<TNodes extends TypedNode[] = TypedNode[], TResult extends Value 
  */
 type TypedNode = SourceNode<Value> | OutputNode<TypedNode[], Value>;
 
-declare const sourceNode: <T extends Value>(fetch: (symbol: string, when: Date, exchangeName: ExchangeName) => Promise<T> | T) => SourceNode<T>;
+declare const sourceNode: <T extends Value>(fetch: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<T> | T) => SourceNode<T>;
 declare const outputNode: <TNodes extends TypedNode[], TResult extends Value = Value>(compute: (values: InferValues<TNodes>) => Promise<TResult> | TResult, ...nodes: TNodes) => OutputNode<TNodes, TResult>;
 
 /**
@@ -124,7 +124,7 @@ interface IFlatNode {
      * Источник данных для SourceNode — не сериализуется в БД,
      * восстанавливается на стороне приложения.
      */
-    fetch?: (symbol: string, when: Date, exchangeName: ExchangeName) => Promise<Value> | Value;
+    fetch?: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<Value> | Value;
     /**
      * Функция вычисления для OutputNode — не сериализуется в БД,
      * восстанавливается на стороне приложения.

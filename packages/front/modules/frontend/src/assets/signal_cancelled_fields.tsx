@@ -1,6 +1,7 @@
 import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import ioc from "../lib";
+import Markdown from "../components/common/Markdown";
 
 export const signal_cancelled_fields: TypedField[] = [
     {
@@ -319,6 +320,28 @@ export const signal_cancelled_fields: TypedField[] = [
                         readonly: true,
                         isVisible: (obj) => !!obj.cancelId,
                         compute: (obj) => obj.cancelId || "Not specified",
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
+                placeholder: "Note",
+                isVisible: (obj) => !!obj.note,
+            },
+            {
+                type: FieldType.Outline,
+                isVisible: (obj) => !!obj.note,
+                sx: { mb: 3 },
+                fields: [
+                    {
+                        type: FieldType.Component,
+                        desktopColumns: "12",
+                        tabletColumns: "12",
+                        phoneColumns: "12",
+                        element: ({ note }) => (
+                            <Markdown content={note} />
+                        ),
                     },
                 ],
             },

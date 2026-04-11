@@ -99,7 +99,7 @@ npm install @backtest-kit/graph backtest-kit
 - 🔒 **Type-safe values**: TypeScript infers the return type of every node through the graph via generics
 - 🧱 **Two APIs**: Low-level `INode` for runtime/storage, high-level `TypedNode` + builders for authoring
 - 💾 **DB-ready serialization**: `serialize` / `deserialize` convert the graph to a flat `IFlatNode[]` list with `id` / `nodeIds`
-- 🔌 **Context-aware fetch**: `SourceNode.fetch` receives `(symbol, when, exchangeName)` from the execution context automatically
+- 🔌 **Context-aware fetch**: `SourceNode.fetch` receives `(symbol, when, currentPrice, exchangeName)` from the execution context automatically
 
 ## 📖 Usage
 
@@ -110,14 +110,14 @@ Use `sourceNode` and `outputNode` to define a typed computation graph. TypeScrip
 ```typescript
 import { sourceNode, outputNode, resolve } from '@backtest-kit/graph';
 
-// SourceNode<number> — fetch receives symbol, when, exchangeName from context
-const closePrice = sourceNode(async (symbol, when, exchangeName) => {
+// SourceNode<number> — fetch receives symbol, when, currentPrice, exchangeName from context
+const closePrice = sourceNode(async (symbol, when, currentPrice, exchangeName) => {
     const candles = await getCandles(symbol, '1h', 1, exchangeName);
     return candles[0].close; // number
 });
 
 // SourceNode<number>
-const volume = sourceNode(async (symbol, when, exchangeName) => {
+const volume = sourceNode(async (symbol, when, currentPrice, exchangeName) => {
     const candles = await getCandles(symbol, '1h', 1, exchangeName);
     return candles[0].volume; // number
 });
@@ -147,14 +147,14 @@ const signal: TypedNode = {
     nodes: [
         {
             type: NodeType.SourceNode,
-            fetch: async (symbol, when, exchangeName) => {
+            fetch: async (symbol, when, currentPrice, exchangeName) => {
                 const plots = await run(File.fromPath('timeframe_4h.pine'), { symbol, timeframe: '4h', limit: 100 });
                 return extract(plots, { allowLong: 'AllowLong', allowShort: 'AllowShort', noTrades: 'NoTrades' });
             },
         },
         {
             type: NodeType.SourceNode,
-            fetch: async (symbol, when, exchangeName) => {
+            fetch: async (symbol, when, currentPrice, exchangeName) => {
                 const plots = await run(File.fromPath('timeframe_15m.pine'), { symbol, timeframe: '15m', limit: 100 });
                 return extract(plots, { position: 'Signal', priceOpen: 'Close', priceTakeProfit: 'TakeProfit', priceStopLoss: 'StopLoss' });
             },
@@ -195,7 +195,7 @@ const result = outputNode(
 import { addStrategy } from 'backtest-kit';
 import { sourceNode, outputNode, resolve } from '@backtest-kit/graph';
 
-const rsi = sourceNode(async (symbol, when, exchangeName) => {
+const rsi = sourceNode(async (symbol, when, currentPrice, exchangeName) => {
     // ... compute RSI
     return 55.2;
 });
@@ -229,7 +229,7 @@ import NodeType from '@backtest-kit/graph/enum/NodeType';
 const priceNode: INode = {
     type: NodeType.SourceNode,
     description: 'Close price',
-    fetch: async (symbol, when, exchangeName) => 42,
+    fetch: async (symbol, when, currentPrice, exchangeName) => 42,
 };
 
 const outputNode: INode = {

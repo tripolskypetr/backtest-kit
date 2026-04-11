@@ -261,6 +261,28 @@ export const risk_fields: TypedField[] = [
                 ],
             },
             {
+                type: FieldType.Typography,
+                typoVariant: "h6",
+                placeholder: "Signal Note",
+                isVisible: (obj) => !!obj.signalNote,
+            },
+            {
+                type: FieldType.Outline,
+                isVisible: (obj) => !!obj.signalNote,
+                sx: { mb: 3 },
+                fields: [
+                    {
+                        type: FieldType.Component,
+                        desktopColumns: "12",
+                        tabletColumns: "12",
+                        phoneColumns: "12",
+                        element: ({ signalNote }) => (
+                            <Markdown content={signalNote} />
+                        ),
+                    },
+                ],
+            },
+            {
                 type: FieldType.Box,
                 sx: {
                     display: "grid",

@@ -417,15 +417,13 @@ export const signal_opened_fields: TypedField[] = [
                 sx: { mb: 3 },
                 fields: [
                     {
-                        type: FieldType.Text,
-                        outlined: true,
-                        inputRows: 3,
-                        placeholder: "Empty",
-                        title: "",
+                        type: FieldType.Component,
                         desktopColumns: "12",
                         tabletColumns: "12",
                         phoneColumns: "12",
-                        name: "note",
+                        element: ({ note }) => (
+                            <Markdown content={note} />
+                        ),
                     },
                 ],
             },

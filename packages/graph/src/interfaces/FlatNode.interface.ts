@@ -33,7 +33,7 @@ export interface IFlatNode {
      * Источник данных для SourceNode — не сериализуется в БД,
      * восстанавливается на стороне приложения.
      */
-    fetch?: (symbol: string, when: Date, exchangeName: ExchangeName) => Promise<Value> | Value;
+    fetch?: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<Value> | Value;
 
     /**
      * Функция вычисления для OutputNode — не сериализуется в БД,

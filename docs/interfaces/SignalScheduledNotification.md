@@ -218,6 +218,14 @@ currentPrice: number
 
 Current market price when signal was scheduled
 
+### note
+
+```ts
+note: string
+```
+
+Optional human-readable description of signal reason
+
 ### createdAt
 
 ```ts

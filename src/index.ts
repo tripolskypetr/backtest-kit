@@ -488,10 +488,6 @@ export {
   BrokerSignalClosePayload,
 } from "./classes/Broker";
 
-export { 
-  TIntervalFn,  
-} from "./classes/Interval";
-
 export { type TickEvent } from "./model/LiveStatistics.model";
 export { type PartialEvent } from "./model/PartialStatistics.model";
 export { type HighestProfitEvent } from "./model/HighestProfitStatistics.model";

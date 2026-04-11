@@ -6,7 +6,7 @@ group: docs
 # runInMockContext
 
 ```ts
-declare function runInMockContext<T extends unknown = any>(run: Function$1<T>, { exchangeName, frameName, strategyName, symbol, backtest: isBacktest, when, }: Partial<IRunContext>): Promise<T>;
+declare function runInMockContext<T extends unknown = any>(run: Function$2<T>, { exchangeName, frameName, strategyName, symbol, backtest: isBacktest, when, }: Partial<IRunContext>): Promise<T>;
 ```
 
 Runs a function inside a mock method and execution context.

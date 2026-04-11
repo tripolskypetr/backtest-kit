@@ -186,6 +186,14 @@ pendingAt: number
 
 Pending timestamp in milliseconds (when position became pending/active at priceOpen)
 
+### note
+
+```ts
+note: string
+```
+
+Optional human-readable description of signal reason
+
 ### createdAt
 
 ```ts
