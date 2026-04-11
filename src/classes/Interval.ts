@@ -326,8 +326,8 @@ export class IntervalFileInstance<F extends IntervalFileFunction = IntervalFileF
    *   or if `fn` itself returned `null`
    * @throws Error if method context, execution context, or interval is missing
    */
-  public run = async (symbol: string, ...args: DropFirst<F>): Promise<Awaited<ReturnType<F>>> => {
-    backtest.loggerService.debug(INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN, { symbol, args });
+  public run = async (...args: Parameters<F>): Promise<Awaited<ReturnType<F>>> => {
+    backtest.loggerService.debug(INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN, { args });
 
     const step = INTERVAL_MINUTES[this.interval];
 
@@ -343,17 +343,19 @@ export class IntervalFileInstance<F extends IntervalFileFunction = IntervalFileF
       }
     }
 
+    const [symbol, ...rest] = args;
+
     const { when } = backtest.executionContextService.context;
     const alignedMs = align(when.getTime(), this.interval);
     const bucket = `${this.name}_${this.interval}_${this.index}`;
-    const entityKey = this.key([symbol, alignedMs, ...args] as IntervalFileKeyArgs<F>);
+    const entityKey = this.key([symbol, alignedMs, ...rest as DropFirst<F>]);
 
     const cached = await PersistIntervalAdapter.readIntervalData(bucket, entityKey);
     if (cached !== null) {
       return null as Awaited<ReturnType<F>>;
     }
 
-    const result = await this.fn.call(null, symbol, ...args);
+    const result = await this.fn.call(null, ...args);
     if (result !== null) {
       await PersistIntervalAdapter.writeIntervalData({ id: entityKey, data: result, removed: false }, bucket, entityKey);
     }
@@ -507,9 +509,9 @@ export class IntervalUtils {
       this._getFileInstance<F>(run, context.interval, context.name, context.key);
     }
 
-    const wrappedFn = (symbol: string, ...args: DropFirst<F>): ReturnType<F> => {
+    const wrappedFn = (...args: Parameters<F>): ReturnType<F> => {
       const instance = this._getFileInstance<F>(run, context.interval, context.name, context.key);
-      return instance.run(symbol, ...args) as ReturnType<F>;
+      return instance.run(...args) as ReturnType<F>;
     };
 
     wrappedFn.clear = async () => {
