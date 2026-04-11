@@ -544,8 +544,12 @@ export interface IStrategySchema {
   strategyName: StrategyName;
   /** Optional developer note for documentation */
   note?: string;
-  /** Minimum interval between getSignal calls (throttling) */
-  interval: SignalInterval;
+  /** 
+   * Minimum interval between getSignal calls (throttling) 
+   * 
+   * Default: 1m
+   */
+  interval?: SignalInterval;
   /**
    * Signal generation function (returns null if no signal, validated DTO if signal).
    * If priceOpen is provided - becomes scheduled signal waiting for price to reach entry point.

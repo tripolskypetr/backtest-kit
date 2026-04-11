@@ -1900,6 +1900,8 @@ interface SignalCommitBase {
     totalPartials: number;
     /** Original entry price at signal creation (unchanged by DCA averaging). */
     originalPriceOpen: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
 }
 /**
  * Cancel scheduled signal event.
@@ -2577,8 +2579,12 @@ interface IStrategySchema {
     strategyName: StrategyName;
     /** Optional developer note for documentation */
     note?: string;
-    /** Minimum interval between getSignal calls (throttling) */
-    interval: SignalInterval;
+    /**
+     * Minimum interval between getSignal calls (throttling)
+     *
+     * Default: 1m
+     */
+    interval?: SignalInterval;
     /**
      * Signal generation function (returns null if no signal, validated DTO if signal).
      * If priceOpen is provided - becomes scheduled signal waiting for price to reach entry point.
@@ -9465,6 +9471,8 @@ interface PartialProfitAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -9527,6 +9535,8 @@ interface PartialLossAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -9587,6 +9597,8 @@ interface BreakevenAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -9649,6 +9661,8 @@ interface PartialProfitCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -9711,6 +9725,8 @@ interface PartialLossCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -9771,6 +9787,8 @@ interface BreakevenCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -9835,6 +9853,8 @@ interface AverageBuyCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -9901,6 +9921,8 @@ interface ActivateScheduledCommitNotification {
     pendingAt: number;
     /** Current market price when activation was executed */
     currentPrice: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
     createdAt: number;
 }
@@ -9959,6 +9981,8 @@ interface TrailingStopCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -10021,6 +10045,8 @@ interface TrailingTakeCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -10087,6 +10113,8 @@ interface SignalSyncOpenNotification {
     scheduledAt: number;
     /** Position activation timestamp in milliseconds */
     pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
     createdAt: number;
 }
@@ -10149,6 +10177,8 @@ interface SignalSyncCloseNotification {
     pendingAt: number;
     /** Why the signal was closed (take_profit | stop_loss | time_expired | closed) */
     closeReason: string;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
     createdAt: number;
 }
@@ -10253,6 +10283,8 @@ interface SignalScheduledNotification {
     scheduledAt: number;
     /** Current market price when signal was scheduled */
     currentPrice: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
     createdAt: number;
 }
@@ -10305,6 +10337,8 @@ interface SignalCancelledNotification {
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
     pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
     createdAt: number;
 }
@@ -10397,6 +10431,8 @@ interface CancelScheduledCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
     createdAt: number;
 }
@@ -10441,6 +10477,8 @@ interface ClosePendingCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
     createdAt: number;
 }

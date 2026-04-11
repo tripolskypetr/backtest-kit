@@ -105,9 +105,9 @@ export class StrategySchemaService {
       );
     }
 
-    if (typeof strategySchema.interval !== "string") {
+    if (strategySchema.interval && typeof strategySchema.interval !== "string") {
       throw new Error(
-        `strategy schema validation failed: missing interval for strategyName=${strategySchema.strategyName}`
+        `strategy schema validation failed: invalid interval for strategyName=${strategySchema.strategyName}`
       );
     }
 

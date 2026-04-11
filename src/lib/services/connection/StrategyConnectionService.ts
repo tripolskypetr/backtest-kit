@@ -45,6 +45,9 @@ import SignalSyncContract from "../../../contract/SignalSync.contract";
 import TimeMetaService from "../meta/TimeMetaService";
 import PriceMetaService from "../meta/PriceMetaService";
 
+/** Default interval for strategies that do not specify one */
+const STRATEGY_DEFAULT_INTERVAL = "1m";
+
 /**
  * If syncSubject listener or any registered action throws, it means the signal was not properly synchronized
  * to the exchange (e.g. limit order failed to fill).
@@ -564,7 +567,7 @@ export class StrategyConnectionService implements TStrategy {
         riskName = "",
         riskList = [],
         getSignal,
-        interval,
+        interval = STRATEGY_DEFAULT_INTERVAL,
         callbacks,
       } = this.strategySchemaService.get(strategyName);
       return new ClientStrategy({
