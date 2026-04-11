@@ -1,3 +1,76 @@
+# Markdown Deep Link (v6.11.0, 11/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.11.0)
+
+v6.11.0 adds an optional `note` field to every notification type, makes `getSignal` receive `currentPrice`, makes `interval` optional in `IStrategySchema`, fully refactors `IntervalFnInstance`/`IntervalFileInstance` to accept arbitrary argument signatures, splits `CacheUtils.clear` from counter reset via a new `resetCounter` method, and introduces a `LinkService` in the frontend for smart deep-link routing from Markdown notes.
+
+
+## Frontend — `LinkService` for deep-link routing from Markdown
+
+New `LinkService` (`packages/front/modules/frontend/src/lib/services/base/LinkService.ts`) intercepts link clicks in Markdown-rendered content and routes them internally instead of always opening a new browser tab.
+
+Supported deep-link patterns (all routed without a page reload):
+
+| URL pattern | Action |
+|---|---|
+| `/pick-dump-search/:search` | Close modal → navigate to dump search page |
+| `/pick-signal/:signalId` | Open signal detail modal |
+| `/pick-risk/:notificationId` | Open risk detail modal |
+| `/pick-dump-content/:sessionId` | Open dump content modal |
+| `/pick-signal-opened/:notificationId` | Open "signal opened" notification detail |
+| `/pick-signal-closed/:notificationId` | Open "signal closed" notification detail |
+| `/pick-signal-scheduled/:notificationId` | Open "signal scheduled" notification detail |
+| `/pick-signal-cancelled/:notificationId` | Open "signal cancelled" notification detail |
+| `/pick-signal-sync-open/:notificationId` | Open "sync open" notification detail |
+| `/pick-signal-sync-close/:notificationId` | Open "sync close" notification detail |
+| `/pick-activate-scheduled/:notificationId` | Open "activate scheduled" notification detail |
+| `/pick-average-buy-commit/:notificationId` | Open "average buy" notification detail |
+| `/pick-cancel-scheduled/:notificationId` | Open "cancel scheduled" notification detail |
+| `/pick-close-pending/:notificationId` | Open "close pending" notification detail |
+| `/pick-partial-loss-available/:notificationId` | Open partial loss available detail |
+| `/pick-partial-loss-commit/:notificationId` | Open partial loss commit detail |
+| `/pick-partial-profit-available/:notificationId` | Open partial profit available detail |
+| `/pick-partial-profit-commit/:notificationId` | Open partial profit commit detail |
+| `/pick-breakeven-available/:notificationId` | Open breakeven available detail |
+| `/pick-breakeven-commit/:notificationId` | Open breakeven commit detail |
+| `/pick-trailing-stop/:notificationId` | Open trailing stop detail |
+| `/pick-trailing-take/:notificationId` | Open trailing take detail |
+
+Any unrecognised URL falls through to `openBlank` (external tab). The custom `<a>` tag handler now calls `e.preventDefault()` before delegating to `LinkService`.
+
+## Notification detail views — `note` field rendered as Markdown
+
+All 14 new notification asset files (`activate_scheduled_fields`, `average_buy_commit_fields`, `breakeven_available_fields`, `breakeven_commit_fields`, `cancel_scheduled_commit_fields`, `close_pending_commit_fields`, `partial_loss_available_fields`, `partial_loss_commit_fields`, `partial_profit_available_fields`, `partial_profit_commit_fields`, `signal_cancelled_fields`, `signal_closed_fields`, `signal_scheduled_fields`, `signal_sync_close_fields`, `signal_sync_open_fields`, `trailing_stop_fields`, `trailing_take_fields`) include a conditional `Note` section that renders `note` as a Markdown component when present. The existing `signal_fields` and `signal_opened_fields` also receive the same `signalNote` / `note` Markdown block.
+
+
+## Signal `note` propagation
+
+- `IStrategySchema.getSignal` now receives `currentPrice: number` as a third argument.
+- `ISignalDto.note` (already supported) is now propagated through every commit path and surfaced as `note?: string` on **all** notification interfaces: `SignalScheduledNotification`, `SignalCancelledNotification`, `SignalSyncOpenNotification`, `SignalSyncCloseNotification`, `ActivateScheduledCommitNotification`, `AverageBuyCommitNotification`, `CancelScheduledCommitNotification`, `ClosePendingCommitNotification`, `PartialProfitAvailableNotification`, `PartialProfitCommitNotification`, `PartialLossAvailableNotification`, `PartialLossCommitNotification`, `BreakevenAvailableNotification`, `BreakevenCommitNotification`, `TrailingStopCommitNotification`, `TrailingTakeCommitNotification`.
+- `toPlainString` helper removed from the note processing path; `note` is kept as a raw string.
+
+## `IStrategySchema` — `interval` is now optional
+
+`interval` in `IStrategySchema` (and `addStrategySchema`) is now optional and defaults to `1m` when omitted. The validation guard was updated accordingly: it no longer throws when `interval` is absent, and the error message is corrected from "missing interval" to "invalid interval".
+
+## `Interval` — fully generic argument pass-through
+
+`IntervalFnInstance` and `IntervalFileInstance` have been overhauled to support arbitrary function signatures:
+
+- **`TIntervalFn` / `TIntervalWrappedFn`** — removed from public exports; replaced by the generic `F extends Function` type parameter.
+- **`IntervalFnInstance<F>`** — `run(...args: Parameters<F>)` forwards all arguments to the wrapped function. An optional `key` generator `(args) => string` allows callers to partition state by arbitrary arguments (default: first argument as symbol).
+- **`IntervalFileInstance<F>`** — same pattern; `run(...args: Parameters<F>)` extracts `symbol` as the first arg; the `key` generator receives `[symbol, alignedMs, ...rest]` so file-based state keys can encode extra dimensions.
+- `IntervalFileInstance.clearCounter()` renamed to `resetCounter()` to match `CacheFileInstance`.
+
+## `CacheUtils` — `resetCounter` split from `clear`
+
+`CacheUtils.clear` no longer calls `CacheFileInstance.resetCounter()`. A new dedicated method `CacheUtils.resetCounter()` is added for explicitly resetting the file-instance index counter. This is necessary when `process.cwd()` changes between strategy iterations so that new `CacheFileInstance` objects start at index 0 without colliding with old instances.
+
+`CacheFileInstance.clearCounter()` is also renamed to `resetCounter()` for consistency.
+
+
+
+
 # Peak/Fall Distance Queries (v6.10.0, 11/04/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.10.0)
