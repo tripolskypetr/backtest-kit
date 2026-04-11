@@ -4,6 +4,7 @@ const baseServices = {
   layoutService: Symbol("layoutService"),
   loggerService: Symbol("loggerService"),
   routerService: Symbol("routerService"),
+  linkService: Symbol("linkService"),
 };
 
 const globalServices = {

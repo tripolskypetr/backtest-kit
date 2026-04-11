@@ -46,6 +46,9 @@ export class LayoutService {
     // Dump content subject
     public readonly pickDumpContentSubject = new Subject<string>();
 
+    // Modal window close subject
+    public readonly closeModalSubject = new Subject<void>();
+
     public readonly reloadOutletSubject = new Subject<void>();
 
     public readonly openDocumentSubject = new Subject<{
@@ -112,6 +115,10 @@ export class LayoutService {
         this.promptOutgoing.next({ title, value });
         return await this.promptIncoming.toPromise();
     };
+
+    closeModal = async () => {
+        await this.closeModalSubject.next();
+    }
 
     downloadFile = (url: string, fileName: string, sizeOriginal?: number) => {
         this.openDocumentSubject.next({
@@ -218,8 +225,8 @@ export class LayoutService {
     };
 
     // Dump content method
-    pickDumpContent = async (fileId: string) => {
-        await this.pickDumpContentSubject.next(fileId);
+    pickDumpContent = async (sessionId: string) => {
+        await this.pickDumpContentSubject.next(sessionId);
     };
 }
 
