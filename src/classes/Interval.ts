@@ -1,6 +1,6 @@
 import { memoize } from "functools-kit";
 import { CandleInterval, ExchangeName } from "../interfaces/Exchange.interface";
-import { ISignalIntervalDto, StrategyName } from "../interfaces/Strategy.interface";
+import { StrategyName } from "../interfaces/Strategy.interface";
 import backtest, { ExecutionContextService, MethodContextService } from "../lib";
 import { FrameName } from "../interfaces/Frame.interface";
 import { PersistIntervalAdapter } from "./Persist";
@@ -32,19 +32,17 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
 };
 
 /**
- * Signal function type for in-memory once-per-interval firing.
- * Called at most once per interval boundary per symbol.
- * Must return a non-null `ISignalIntervalDto` to start the interval countdown,
- * or `null` to defer firing until the next call.
+ * User-implemented function fired once per interval boundary.
+ * Receives `when` from the caller (sourced from execution context).
  */
-export type TIntervalFn = (symbol: string, when: Date) => Promise<ISignalIntervalDto | null>;
+export type TIntervalFn<T extends object = object> = (symbol: string, when: Date) => Promise<T | null>;
 
 /**
- * Signal function type for persistent file-based once-per-interval firing.
- * First argument is always `symbol: string`, followed by optional spread args.
- * Fired state survives process restarts via `PersistIntervalAdapter`.
+ * Wrapped function returned by `Interval.fn` and `Interval.file`.
+ * `when` is resolved internally from the execution context — callers pass only `symbol`.
  */
-export type TIntervalFileFn = (symbol: string, ...args: any[]) => Promise<ISignalIntervalDto | null>;
+export type TIntervalWrappedFn<T extends object = object> = (symbol: string) => Promise<T | null>;
+
 
 /**
  * Aligns timestamp down to the nearest interval boundary.
@@ -118,24 +116,24 @@ const CREATE_KEY_FN = (
  * @example
  * ```typescript
  * const instance = new IntervalFnInstance(mySignalFn, "1h");
- * await instance.run("BTCUSDT"); // → ISignalIntervalDto | null  (fn called)
- * await instance.run("BTCUSDT"); // → null                       (skipped, same interval)
+ * await instance.run("BTCUSDT"); // → T | null  (fn called)
+ * await instance.run("BTCUSDT"); // → null      (skipped, same interval)
  * // After 1 hour passes:
- * await instance.run("BTCUSDT"); // → ISignalIntervalDto | null  (fn called again)
+ * await instance.run("BTCUSDT"); // → T | null  (fn called again)
  * ```
  */
-export class IntervalFnInstance {
+export class IntervalFnInstance<T extends object = object> {
   /** Stores the last aligned timestamp per context+symbol key. */
   private _stateMap = new Map<string, number>();
 
   /**
    * Creates a new IntervalFnInstance.
    *
-   * @param fn - Signal function to fire once per interval
+   * @param fn - Function to fire once per interval
    * @param interval - Candle interval that controls the firing boundary
    */
   constructor(
-    readonly fn: TIntervalFn,
+    readonly fn: TIntervalFn<T>,
     readonly interval: CandleInterval,
   ) {}
 
@@ -151,11 +149,11 @@ export class IntervalFnInstance {
    * Requires active method context and execution context.
    *
    * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
-   * @returns The signal returned by `fn` on the first non-null fire, `null` on all subsequent calls
+   * @returns The value returned by `fn` on the first non-null fire, `null` on all subsequent calls
    *   within the same interval or when `fn` itself returned `null`
    * @throws Error if method context, execution context, or interval is missing
    */
-  public run = async (symbol: string): Promise<ISignalIntervalDto | null> => {
+  public run = async (symbol: string): Promise<T | null> => {
     backtest.loggerService.debug(INTERVAL_METHOD_NAME_RUN, { symbol });
 
     const step = INTERVAL_MINUTES[this.interval];
@@ -228,16 +226,16 @@ export class IntervalFnInstance {
  *
  * Fired state survives process restarts — unlike `IntervalFnInstance` which is in-memory only.
  *
- * @template T - Async function type: `(symbol: string, ...args) => Promise<ISignalIntervalDto | null>`
+ * @template T - Async function type: `(symbol: string, ...args) => Promise<R | null>`
  *
  * @example
  * ```typescript
  * const instance = new IntervalFileInstance(fetchSignal, "1h", "mySignal");
- * await instance.run("BTCUSDT"); // → ISignalIntervalDto | null  (fn called, result written to disk)
- * await instance.run("BTCUSDT"); // → null                       (record exists, already fired)
+ * await instance.run("BTCUSDT"); // → R | null  (fn called, result written to disk)
+ * await instance.run("BTCUSDT"); // → null      (record exists, already fired)
  * ```
  */
-export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
+export class IntervalFileInstance<T extends object = object> {
   /** Global counter — incremented once per IntervalFileInstance construction. */
   private static _indexCounter = 0;
 
@@ -268,7 +266,7 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
    * @param name - Human-readable bucket name used as the directory prefix
    */
   constructor(
-    readonly fn: T,
+    readonly fn: TIntervalFn<T>,
     readonly interval: CandleInterval,
     readonly name: string,
   ) {
@@ -276,7 +274,7 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
   }
 
   /**
-   * Execute the async signal function with persistent once-per-interval enforcement.
+   * Execute the async function with persistent once-per-interval enforcement.
    *
    * Algorithm:
    * 1. Build bucket = `${name}_${interval}_${index}` — fixed per instance, used as directory name.
@@ -288,13 +286,13 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
    *
    * Requires active method context and execution context.
    *
-   * @param args - Arguments forwarded to the wrapped function (first must be `symbol: string`)
-   * @returns The signal on the first non-null fire, `null` if already fired this interval
+   * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+   * @returns The value on the first non-null fire, `null` if already fired this interval
    *   or if `fn` itself returned `null`
    * @throws Error if method context, execution context, or interval is missing
    */
-  public run = async (...args: Parameters<T>): Promise<ISignalIntervalDto | null> => {
-    backtest.loggerService.debug(INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN, { args });
+  public run = async (symbol: string): Promise<T | null> => {
+    backtest.loggerService.debug(INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN, { symbol });
 
     const step = INTERVAL_MINUTES[this.interval];
 
@@ -310,7 +308,6 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
       }
     }
 
-    const [symbol] = args;
     const { when } = backtest.executionContextService.context;
     const alignedTs = align(when.getTime(), this.interval);
     const bucket = `${this.name}_${this.interval}_${this.index}`;
@@ -321,7 +318,7 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
       return null;
     }
 
-    const result = await this.fn.call(null, ...args);
+    const result = await this.fn(symbol, when);
     if (result !== null) {
       await PersistIntervalAdapter.writeIntervalData({ id: entityKey, data: result, removed: false }, bucket, entityKey);
     }
@@ -350,8 +347,8 @@ export class IntervalFileInstance<T extends TIntervalFileFn = TIntervalFileFn> {
  * import { Interval } from "./classes/Interval";
  *
  * const fireOncePerHour = Interval.fn(mySignalFn, { interval: "1h" });
- * await fireOncePerHour("BTCUSDT", when); // fn called — returns its result
- * await fireOncePerHour("BTCUSDT", when); // returns null (same interval)
+ * await fireOncePerHour("BTCUSDT"); // fn called — returns its result
+ * await fireOncePerHour("BTCUSDT"); // returns null (same interval)
  * ```
  */
 export class IntervalUtils {
@@ -361,8 +358,8 @@ export class IntervalUtils {
    */
   private _getInstance = memoize(
     ([run]) => run,
-    (run: TIntervalFn, interval: CandleInterval) =>
-      new IntervalFnInstance(run, interval)
+    <T extends object>(run: TIntervalFn<T>, interval: CandleInterval) =>
+      new IntervalFnInstance<T>(run, interval)
   );
 
   /**
@@ -371,11 +368,8 @@ export class IntervalUtils {
    */
   private _getFileInstance = memoize(
     ([run]) => run,
-    <T extends TIntervalFileFn>(
-      run: T,
-      interval: CandleInterval,
-      name: string,
-    ) => new IntervalFileInstance(run, interval, name)
+    <T extends object>(run: TIntervalFn<T>, interval: CandleInterval, name: string) =>
+      new IntervalFileInstance<T>(run, interval, name)
   );
 
   /**
@@ -389,24 +383,24 @@ export class IntervalUtils {
    *
    * @param run - Signal function to wrap
    * @param context.interval - Candle interval that controls the firing boundary
-   * @returns Wrapped function with the same signature as `TIntervalFn`, plus a `clear()` method
+   * @returns Wrapped function with the same signature as `TIntervalFn<T>`, plus a `clear()` method
    *
    * @example
    * ```typescript
    * const fireOnce = Interval.fn(mySignalFn, { interval: "15m" });
    *
-   * await fireOnce("BTCUSDT", when); // → signal or null  (fn called)
-   * await fireOnce("BTCUSDT", when); // → null            (same interval, skipped)
+   * await fireOnce("BTCUSDT"); // → T or null  (fn called)
+   * await fireOnce("BTCUSDT"); // → null       (same interval, skipped)
    * ```
    */
-  public fn = (
-    run: TIntervalFn,
+  public fn = <T extends object>(
+    run: TIntervalFn<T>,
     context: { interval: CandleInterval }
-  ): TIntervalFn & { clear(): void } => {
+  ): TIntervalWrappedFn<T> & { clear(): void } => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_FN, { context });
 
-    const wrappedFn = (symbol: string, _when: Date): Promise<ISignalIntervalDto | null> => {
-      const instance = this._getInstance(run, context.interval);
+    const wrappedFn = (symbol: string): Promise<T | null> => {
+      const instance = this._getInstance<T>(run, context.interval);
       return instance.run(symbol);
     };
 
@@ -423,7 +417,7 @@ export class IntervalUtils {
       this._getInstance.get(run)?.clear();
     };
 
-    return wrappedFn as TIntervalFn & { clear(): void };
+    return wrappedFn as TIntervalWrappedFn<T> & { clear(): void };
   };
 
   /**
@@ -445,27 +439,27 @@ export class IntervalUtils {
    *
    * @example
    * ```typescript
-   * const fetchSignal = async (symbol: string, period: number) => { ... };
+   * const fetchSignal = async (symbol: string, when: Date) => { ... };
    * const fireOnce = Interval.file(fetchSignal, { interval: "1h", name: "fetchSignal" });
    * await fireOnce.clear(); // delete disk records so the function fires again next call
    * ```
    */
-  public file = <T extends TIntervalFileFn>(
-    run: T,
+  public file = <T extends object>(
+    run: TIntervalFn<T>,
     context: {
       interval: CandleInterval;
       name: string;
     }
-  ): T & { clear(): Promise<void> } => {
+  ): TIntervalWrappedFn<T> & { clear(): Promise<void> } => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_FILE, { context });
 
     {
-      this._getFileInstance(run, context.interval, context.name);
+      this._getFileInstance<T>(run, context.interval, context.name);
     }
 
-    const wrappedFn = (...args: Parameters<T>): Promise<ISignalIntervalDto | null> => {
-      const instance = this._getFileInstance(run, context.interval, context.name);
-      return instance.run(...args);
+    const wrappedFn = (symbol: string): Promise<T | null> => {
+      const instance = this._getFileInstance<T>(run, context.interval, context.name);
+      return instance.run(symbol);
     };
 
     wrappedFn.clear = async () => {
@@ -473,7 +467,7 @@ export class IntervalUtils {
       await this._getFileInstance.get(run)?.clear();
     };
 
-    return wrappedFn as unknown as T & { clear(): Promise<void> };
+    return wrappedFn as TIntervalWrappedFn<T> & { clear(): Promise<void> };
   };
 
   /**
@@ -491,7 +485,7 @@ export class IntervalUtils {
    * Interval.dispose(mySignalFn);
    * ```
    */
-  public dispose = (run: TIntervalFn) => {
+  public dispose = (run: TIntervalFn<object>) => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_DISPOSE, { run });
     this._getInstance.clear(run);
   };
