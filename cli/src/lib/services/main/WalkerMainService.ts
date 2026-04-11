@@ -110,8 +110,8 @@ export class WalkerMainService {
           strategyMap.set(strategyName, entryPoint)
         }
 
-        Cache.clear();
-        Interval.clear();
+        Cache.resetCounter();
+        Interval.resetCounter();
       }
 
       await this.moduleConnectionService.loadModule("./walker.module");

@@ -12,7 +12,6 @@ import {
   Dump,
   Memory,
   Log,
-  Cache,
 } from "backtest-kit";
 
 import {
@@ -110,10 +109,6 @@ export class SetupUtils {
     {
       NotificationLive.clear();
       NotificationBacktest.clear();
-    }
-
-    {
-      Cache.clear();
     }
   };
 }

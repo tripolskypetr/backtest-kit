@@ -13,6 +13,7 @@ const INTERVAL_METHOD_NAME_FILE = "IntervalUtils.file";
 const INTERVAL_METHOD_NAME_FILE_CLEAR = "IntervalUtils.file.clear";
 const INTERVAL_METHOD_NAME_DISPOSE = "IntervalUtils.dispose";
 const INTERVAL_METHOD_NAME_CLEAR = "IntervalUtils.clear";
+const INTERVAL_METHOD_NAME_RESET_COUNTER = "IntervalUtils.resetCounter";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -500,8 +501,17 @@ export class IntervalUtils {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_CLEAR);
     this._getInstance.clear();
     this._getFileInstance.clear();
-    IntervalFileInstance.clearCounter();
   };
+
+  /**
+   * Resets the IntervalFileInstance index counter to zero.
+   * This is useful when process.cwd() changes between strategy iterations to ensure
+   * that new IntervalFileInstance objects start with index 0 and do not collide with old instances.
+   */
+  public resetCounter = () => {
+    backtest.loggerService.info(INTERVAL_METHOD_NAME_RESET_COUNTER);
+    IntervalFileInstance.clearCounter();
+  }
 }
 
 /**
