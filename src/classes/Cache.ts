@@ -16,6 +16,7 @@ const CACHE_METHOD_NAME_FILE = "CacheUtils.file";
 const CACHE_METHOD_NAME_FILE_CLEAR = "CacheUtils.file.clear";
 const CACHE_METHOD_NAME_DISPOSE = "CacheUtils.dispose";
 const CACHE_METHOD_NAME_CLEAR = "CacheUtils.clear";
+const CACHE_METHOD_NAME_RESET_COUNTER = "CacheUtils.resetCounter";
 const CACHE_FILE_INSTANCE_METHOD_NAME_RUN = "CacheFileInstance.run";
 
 const MS_PER_MINUTE = 60_000;
@@ -365,7 +366,7 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
   /**
    * Clears the index counter.
    */
-  public static clearCounter(): void {
+  public static resetCounter(): void {
     CacheFileInstance._indexCounter = 0;
   }
 
@@ -675,11 +676,18 @@ export class CacheUtils {
    */
   public clear = () => {
     backtest.loggerService.info(CACHE_METHOD_NAME_CLEAR);
-    {
-      this._getFnInstance.clear();
-      this._getFileInstance.clear();
-    }
-    CacheFileInstance.clearCounter();
+    this._getFnInstance.clear();
+    this._getFileInstance.clear();
+  }
+
+  /**
+   * Resets the CacheFileInstance index counter to zero.
+   * This is useful when process.cwd() changes between strategy iterations to ensure
+   * that new CacheFileInstance objects start with index 0 and do not collide with old instances.
+   */
+  public resetCounter = () => {
+    backtest.loggerService.info(CACHE_METHOD_NAME_RESET_COUNTER);
+    CacheFileInstance.resetCounter();
   }
 }
 

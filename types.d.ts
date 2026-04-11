@@ -3631,6 +3631,46 @@ interface IStrategy {
      */
     getPositionMaxDrawdownPnlCost: (symbol: string) => Promise<number | null>;
     /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlPercentage: (symbol: string, currentPrice: number) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Computed as: max(0, peakPnlCost - currentPnlCost).
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (symbol: string, currentPrice: number) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Computed as: max(0, currentPnlCost - fallPnlCost).
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+    /**
      * Disposes the strategy instance and cleans up resources.
      *
      * Called when the strategy is being removed from cache or shut down.
@@ -5590,6 +5630,78 @@ declare function getPositionMaxDrawdownPnlPercentage(symbol: string): Promise<nu
  * ```
  */
 declare function getPositionMaxDrawdownPnlCost(symbol: string): Promise<number>;
+/**
+ * Returns the distance in PnL percentage between the current price and the highest profit peak.
+ *
+ * Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestProfitDistancePnlPercentage } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestProfitDistancePnlPercentage("BTCUSDT");
+ * // e.g. 1.5 (gave back 1.5% from peak)
+ * ```
+ */
+declare function getPositionHighestProfitDistancePnlPercentage(symbol: string): Promise<number>;
+/**
+ * Returns the distance in PnL cost between the current price and the highest profit peak.
+ *
+ * Computed as: max(0, peakPnlCost - currentPnlCost).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestProfitDistancePnlCost } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestProfitDistancePnlCost("BTCUSDT");
+ * // e.g. 3.2 (gave back $3.2 from peak)
+ * ```
+ */
+declare function getPositionHighestProfitDistancePnlCost(symbol: string): Promise<number>;
+/**
+ * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+ *
+ * Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestMaxDrawdownPnlPercentage } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestMaxDrawdownPnlPercentage("BTCUSDT");
+ * // e.g. 2.1 (recovered 2.1% from trough)
+ * ```
+ */
+declare function getPositionHighestMaxDrawdownPnlPercentage(symbol: string): Promise<number>;
+/**
+ * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+ *
+ * Computed as: max(0, currentPnlCost - fallPnlCost).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestMaxDrawdownPnlCost } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestMaxDrawdownPnlCost("BTCUSDT");
+ * // e.g. 4.8 (recovered $4.8 from trough)
+ * ```
+ */
+declare function getPositionHighestMaxDrawdownPnlCost(symbol: string): Promise<number>;
 /**
  * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
  * Use this to prevent duplicate DCA entries at the same price area.
@@ -13900,6 +14012,66 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<number>;
     /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns drawdown distance in PnL% (≥ 0) or null if no active position
+     */
+    getPositionHighestProfitDistancePnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Computed as: max(0, peakPnlCost - currentPnlCost).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns drawdown distance in PnL cost (≥ 0) or null if no active position
+     */
+    getPositionHighestProfitDistancePnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns recovery distance in PnL% (≥ 0) or null if no active position
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Computed as: max(0, currentPnlCost - fallPnlCost).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns recovery distance in PnL cost (≥ 0) or null if no active position
+     */
+    getPositionHighestMaxDrawdownPnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
      * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
      * Use this to prevent duplicate DCA entries at the same price area.
      *
@@ -15254,6 +15426,62 @@ declare class LiveUtils {
      * @returns PnL cost or null if no active position
      */
     getPositionMaxDrawdownPnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns drawdown distance in PnL% (≥ 0) or null if no active position
+     */
+    getPositionHighestProfitDistancePnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Computed as: max(0, peakPnlCost - currentPnlCost).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns drawdown distance in PnL cost (≥ 0) or null if no active position
+     */
+    getPositionHighestProfitDistancePnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns recovery distance in PnL% (≥ 0) or null if no active position
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Computed as: max(0, currentPnlCost - fallPnlCost).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns recovery distance in PnL cost (≥ 0) or null if no active position
+     */
+    getPositionHighestMaxDrawdownPnlCost: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<number>;
@@ -20150,6 +20378,12 @@ declare class CacheUtils {
      * so new instances are created with the updated base path.
      */
     clear: () => void;
+    /**
+     * Resets the CacheFileInstance index counter to zero.
+     * This is useful when process.cwd() changes between strategy iterations to ensure
+     * that new CacheFileInstance objects start with index 0 and do not collide with old instances.
+     */
+    resetCounter: () => void;
 }
 /**
  * Singleton instance of CacheUtils for convenient function caching.
@@ -20168,18 +20402,15 @@ declare class CacheUtils {
 declare const Cache: CacheUtils;
 
 /**
- * Signal function type for in-memory once-per-interval firing.
- * Called at most once per interval boundary per symbol.
- * Must return a non-null `ISignalIntervalDto` to start the interval countdown,
- * or `null` to defer firing until the next call.
+ * User-implemented function fired once per interval boundary.
+ * Receives `when` from the caller (sourced from execution context).
  */
-type TIntervalFn = (symbol: string, when: Date) => Promise<ISignalIntervalDto | null>;
+type TIntervalFn<T extends object = object> = (symbol: string, when: Date) => Promise<T | null>;
 /**
- * Signal function type for persistent file-based once-per-interval firing.
- * First argument is always `symbol: string`, followed by optional spread args.
- * Fired state survives process restarts via `PersistIntervalAdapter`.
+ * Wrapped function returned by `Interval.fn` and `Interval.file`.
+ * `when` is resolved internally from the execution context — callers pass only `symbol`.
  */
-type TIntervalFileFn = (symbol: string, ...args: any[]) => Promise<ISignalIntervalDto | null>;
+type TIntervalWrappedFn<T extends object = object> = (symbol: string) => Promise<T | null>;
 /**
  * Utility class for wrapping signal functions with once-per-interval firing.
  * Provides two modes: in-memory (`fn`) and persistent file-based (`file`).
@@ -20190,8 +20421,8 @@ type TIntervalFileFn = (symbol: string, ...args: any[]) => Promise<ISignalInterv
  * import { Interval } from "./classes/Interval";
  *
  * const fireOncePerHour = Interval.fn(mySignalFn, { interval: "1h" });
- * await fireOncePerHour("BTCUSDT", when); // fn called — returns its result
- * await fireOncePerHour("BTCUSDT", when); // returns null (same interval)
+ * await fireOncePerHour("BTCUSDT"); // fn called — returns its result
+ * await fireOncePerHour("BTCUSDT"); // returns null (same interval)
  * ```
  */
 declare class IntervalUtils {
@@ -20216,19 +20447,19 @@ declare class IntervalUtils {
      *
      * @param run - Signal function to wrap
      * @param context.interval - Candle interval that controls the firing boundary
-     * @returns Wrapped function with the same signature as `TIntervalFn`, plus a `clear()` method
+     * @returns Wrapped function with the same signature as `TIntervalFn<T>`, plus a `clear()` method
      *
      * @example
      * ```typescript
      * const fireOnce = Interval.fn(mySignalFn, { interval: "15m" });
      *
-     * await fireOnce("BTCUSDT", when); // → signal or null  (fn called)
-     * await fireOnce("BTCUSDT", when); // → null            (same interval, skipped)
+     * await fireOnce("BTCUSDT"); // → T or null  (fn called)
+     * await fireOnce("BTCUSDT"); // → null       (same interval, skipped)
      * ```
      */
-    fn: (run: TIntervalFn, context: {
+    fn: <T extends object>(run: TIntervalFn<T>, context: {
         interval: CandleInterval;
-    }) => TIntervalFn & {
+    }) => TIntervalWrappedFn<T> & {
         clear(): void;
     };
     /**
@@ -20250,15 +20481,15 @@ declare class IntervalUtils {
      *
      * @example
      * ```typescript
-     * const fetchSignal = async (symbol: string, period: number) => { ... };
+     * const fetchSignal = async (symbol: string, when: Date) => { ... };
      * const fireOnce = Interval.file(fetchSignal, { interval: "1h", name: "fetchSignal" });
      * await fireOnce.clear(); // delete disk records so the function fires again next call
      * ```
      */
-    file: <T extends TIntervalFileFn>(run: T, context: {
+    file: <T extends object>(run: TIntervalFn<T>, context: {
         interval: CandleInterval;
         name: string;
-    }) => T & {
+    }) => TIntervalWrappedFn<T> & {
         clear(): Promise<void>;
     };
     /**
@@ -20276,7 +20507,7 @@ declare class IntervalUtils {
      * Interval.dispose(mySignalFn);
      * ```
      */
-    dispose: (run: TIntervalFn) => void;
+    dispose: (run: TIntervalFn<object>) => void;
     /**
      * Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects and
      * resets the `IntervalFileInstance` index counter.
@@ -20284,6 +20515,12 @@ declare class IntervalUtils {
      * so new instances are created with the updated base path.
      */
     clear: () => void;
+    /**
+     * Resets the IntervalFileInstance index counter to zero.
+     * This is useful when process.cwd() changes between strategy iterations to ensure
+     * that new IntervalFileInstance objects start with index 0 and do not collide with old instances.
+     */
+    resetCounter: () => void;
 }
 /**
  * Singleton instance of `IntervalUtils` for convenient once-per-interval signal firing.
@@ -25065,6 +25302,74 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<number | null>;
     /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Resolves current price via priceMetaService and delegates to
+     * ClientStrategy.getPositionHighestProfitDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Resolves current price via priceMetaService and delegates to
+     * ClientStrategy.getPositionHighestProfitDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Resolves current price via priceMetaService and delegates to
+     * ClientStrategy.getPositionHighestMaxDrawdownPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Resolves current price via priceMetaService and delegates to
+     * ClientStrategy.getPositionHighestMaxDrawdownPnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
      * Disposes the ClientStrategy instance for the given context.
      *
      * Calls dispose callback, then removes strategy from cache.
@@ -27231,6 +27536,70 @@ declare class StrategyCoreService implements TStrategy {
      * @returns Promise resolving to PnL cost or null
      */
     getPositionMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+     */
+    getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -30086,4 +30455,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TIntervalFn, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };

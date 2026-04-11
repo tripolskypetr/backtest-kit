@@ -8,7 +8,7 @@
   "dependencies": {
     "backtest-kit": "6.9.0",
     "ccxt": "4.5.24",
-    "functools-kit": "1.1.1",
+    "functools-kit": "2.0.1",
     "uuid": "13.0.0"
   },
   "devDependencies": {

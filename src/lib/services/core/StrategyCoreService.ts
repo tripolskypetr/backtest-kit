@@ -1515,6 +1515,102 @@ export class StrategyCoreService implements TStrategy {
     await this.validate(context);
     return await this.strategyConnectionService.getPositionMaxDrawdownPnlCost(backtest, symbol, context);
   };
+
+  /**
+   * Returns the distance in PnL percentage between the current price and the highest profit peak.
+   *
+   * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+   */
+  public getPositionHighestProfitDistancePnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionHighestProfitDistancePnlPercentage", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionHighestProfitDistancePnlPercentage(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the distance in PnL cost between the current price and the highest profit peak.
+   *
+   * Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+   */
+  public getPositionHighestProfitDistancePnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionHighestProfitDistancePnlCost", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionHighestProfitDistancePnlCost(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+   *
+   * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+   */
+  public getPositionHighestMaxDrawdownPnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionHighestMaxDrawdownPnlPercentage", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+   *
+   * Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+   */
+  public getPositionHighestMaxDrawdownPnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionHighestMaxDrawdownPnlCost", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionHighestMaxDrawdownPnlCost(backtest, symbol, context);
+  };
 }
 
 export default StrategyCoreService;

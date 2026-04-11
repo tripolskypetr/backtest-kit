@@ -4861,6 +4861,94 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the distance in PnL percentage between the current price and the highest profit peak.
+   *
+   * Measures how much PnL% the position has given back from its best point.
+   * Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+   * Zero when called at the exact moment the peak was set, or when current PnL >= peak PnL.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+   */
+  public async getPositionHighestProfitDistancePnlPercentage(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionHighestProfitDistancePnlPercentage", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const currentPnl = toProfitLossDto(this._pendingSignal, currentPrice);
+    return Math.max(0, this._pendingSignal._peak.pnlPercentage - currentPnl.pnlPercentage);
+  }
+
+  /**
+   * Returns the distance in PnL cost between the current price and the highest profit peak.
+   *
+   * Measures how much PnL cost the position has given back from its best point.
+   * Computed as: max(0, peakPnlCost - currentPnlCost).
+   * Zero when called at the exact moment the peak was set, or when current PnL >= peak PnL.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+   */
+  public async getPositionHighestProfitDistancePnlCost(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionHighestProfitDistancePnlCost", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const currentPnl = toProfitLossDto(this._pendingSignal, currentPrice);
+    return Math.max(0, this._pendingSignal._peak.pnlCost - currentPnl.pnlCost);
+  }
+
+  /**
+   * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+   *
+   * Measures how much the position has recovered from its deepest loss point.
+   * Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+   * Zero when called at the exact moment the trough was set, or when current PnL <= trough PnL.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+   */
+  public async getPositionHighestMaxDrawdownPnlPercentage(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionHighestMaxDrawdownPnlPercentage", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const currentPnl = toProfitLossDto(this._pendingSignal, currentPrice);
+    return Math.max(0, currentPnl.pnlPercentage - this._pendingSignal._fall.pnlPercentage);
+  }
+
+  /**
+   * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+   *
+   * Measures how much the position has recovered from its deepest loss point.
+   * Computed as: max(0, currentPnlCost - fallPnlCost).
+   * Zero when called at the exact moment the trough was set, or when current PnL <= trough PnL.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+   */
+  public async getPositionHighestMaxDrawdownPnlCost(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionHighestMaxDrawdownPnlCost", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const currentPnl = toProfitLossDto(this._pendingSignal, currentPrice);
+    return Math.max(0, currentPnl.pnlCost - this._pendingSignal._fall.pnlCost);
+  }
+
+  /**
    * Performs a single tick of strategy execution.
    *
    * Flow (LIVE mode):

@@ -617,3 +617,47 @@ getPositionMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: { st
 ```
 
 Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+
+### getPositionHighestProfitDistancePnlPercentage
+
+```ts
+getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL percentage between the current price and the highest profit peak.
+
+Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlPercentage().
+Returns null if no pending signal exists.
+
+### getPositionHighestProfitDistancePnlCost
+
+```ts
+getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL cost between the current price and the highest profit peak.
+
+Delegates to StrategyConnectionService.getPositionHighestProfitDistancePnlCost().
+Returns null if no pending signal exists.
+
+### getPositionHighestMaxDrawdownPnlPercentage
+
+```ts
+getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+
+Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlPercentage().
+Returns null if no pending signal exists.
+
+### getPositionHighestMaxDrawdownPnlCost
+
+```ts
+getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL cost between the current price and the worst drawdown trough.
+
+Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
+Returns null if no pending signal exists.

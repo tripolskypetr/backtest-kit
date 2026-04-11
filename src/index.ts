@@ -53,6 +53,10 @@ export {
   getPositionMaxDrawdownPnlPercentage,
   getPositionMaxDrawdownPrice,
   getPositionMaxDrawdownTimestamp,
+  getPositionHighestMaxDrawdownPnlCost,
+  getPositionHighestMaxDrawdownPnlPercentage,
+  getPositionHighestProfitDistancePnlCost,
+  getPositionHighestProfitDistancePnlPercentage,
   hasNoPendingSignal,
   hasNoScheduledSignal,
 } from "./function/strategy";
@@ -196,6 +200,7 @@ export {
   ISignalDto,
   ISignalRow,
   IPublicSignalRow,
+  ISignalIntervalDto,
   IStorageSignalRow,
   IRiskSignalRow,
   IScheduledSignalCancelRow,
@@ -482,6 +487,10 @@ export {
   BrokerSignalOpenPayload,
   BrokerSignalClosePayload,
 } from "./classes/Broker";
+
+export { 
+  TIntervalFn,  
+} from "./classes/Interval";
 
 export { type TickEvent } from "./model/LiveStatistics.model";
 export { type PartialEvent } from "./model/PartialStatistics.model";

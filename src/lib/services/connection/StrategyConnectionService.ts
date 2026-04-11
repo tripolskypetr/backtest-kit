@@ -1501,6 +1501,110 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Returns the distance in PnL percentage between the current price and the highest profit peak.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getPositionHighestProfitDistancePnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+   */
+  public getPositionHighestProfitDistancePnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionHighestProfitDistancePnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getPositionHighestProfitDistancePnlPercentage(symbol, currentPrice);
+  };
+
+  /**
+   * Returns the distance in PnL cost between the current price and the highest profit peak.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getPositionHighestProfitDistancePnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+   */
+  public getPositionHighestProfitDistancePnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionHighestProfitDistancePnlCost", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getPositionHighestProfitDistancePnlCost(symbol, currentPrice);
+  };
+
+  /**
+   * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getPositionHighestMaxDrawdownPnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+   */
+  public getPositionHighestMaxDrawdownPnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionHighestMaxDrawdownPnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getPositionHighestMaxDrawdownPnlPercentage(symbol, currentPrice);
+  };
+
+  /**
+   * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getPositionHighestMaxDrawdownPnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+   */
+  public getPositionHighestMaxDrawdownPnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionHighestMaxDrawdownPnlCost", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getPositionHighestMaxDrawdownPnlCost(symbol, currentPrice);
+  };
+
+  /**
    * Disposes the ClientStrategy instance for the given context.
    *
    * Calls dispose callback, then removes strategy from cache.

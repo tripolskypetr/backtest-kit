@@ -134,1315 +134,1399 @@ All tests follow consistent patterns:
 
 ## Class WalkerValidationService
 
-The WalkerValidationService helps you keep track of and double-check your parameter sweep setups, which are crucial for optimizing trading strategies. Think of it as a central place to register your different "walker" configurations – those that define the ranges of parameters you want to test.
+The WalkerValidationService helps you keep track of and make sure your parameter sweep configurations, which we call "walkers," are set up correctly. It's like a central place to register your walkers, define the ranges they’ll explore during optimization or hyperparameter tuning, and verify they exist before you try to use them. 
 
-It makes sure the walkers you’re using actually exist before you start running tests, preventing errors. Plus, to speed things up, it remembers the results of its checks so it doesn't have to re-validate every time.
+This service also remembers whether a walker is valid to avoid unnecessary checks, making things faster. 
 
-You can add new walkers using `addWalker`, confirm a walker exists with `validate`, and get a complete list of all registered walkers using `list`. It’s designed to simplify the management and verification of your parameter sweep setups.
+Here's what you can do:
+
+*   **Register walkers:**  Use `addWalker()` to add new walker configurations.
+*   **Verify walkers:** `validate()` makes sure a walker exists before you run anything.
+*   **See your walkers:** `list()` shows you all the walkers you've registered.
+
+The service uses a map to store walkers and a logger service for helpful messages.
 
 ## Class WalkerUtils
 
-WalkerUtils provides a set of tools to help manage and run your trading walkers, which are essentially automated systems that test trading strategies. Think of it as a helper class that simplifies the process of running these walkers and getting information about them.
+WalkerUtils helps manage and run "walkers," which are essentially automated processes for analyzing trading strategies. It simplifies the process of executing these walkers and provides tools for monitoring and managing them.
 
-It provides a way to easily start a walker comparison, running the calculations and providing logging. You don't need to worry about the underlying details of how the walker runs; WalkerUtils handles that for you.
+Think of WalkerUtils as a central hub. It provides a single, easy way to start, stop, and retrieve information about your walkers. It automatically handles things like pulling key information from walker configurations.
 
-If you want to run a walker without needing the immediate results—perhaps just to log something or trigger a callback—there's a background execution mode.
+Here's what you can do with WalkerUtils:
 
-You can also stop a walker’s signal generation, which allows any currently active signals to finish before halting further activity, ensuring a graceful shutdown.
+*   **Run walkers:** Easily kick off a walker comparison for a specific trading symbol, providing extra information about what you're testing.
+*   **Run in the background:** Start a walker to perform actions like logging or triggering callbacks without needing to directly watch the results.
+*   **Stop walkers:** Halt the generation of new trading signals from a walker. This stops any strategies in progress, but allows existing signals to complete before stopping completely.
+*   **Get data & reports:** Retrieve the data produced by walker comparisons or generate nicely formatted reports to understand the results. You can also save these reports to a file.
+*   **List walkers:** See a list of all currently running walkers, including their status (e.g., running, completed, or error).
 
-WalkerUtils also lets you retrieve all the results from a walker's comparisons, generate a formatted report in Markdown, and even save that report to a file. Finally, it offers a way to check the status of all currently running walkers. WalkerUtils ensures that each symbol and walker combination has its own dedicated instance, preventing any interference between different tests.
+It’s designed to be a central, always-available resource—a single instance that you can use throughout your system.
 
 ## Class WalkerSchemaService
 
-This service helps you keep track of and manage different schema definitions for your "walkers" – think of them as blueprints for specific tasks or processes. It uses a secure and organized system to store these schemas, ensuring they're consistent and reliable.
+This service keeps track of different schema definitions, specifically for "walkers," which seem to represent components in a larger system. It uses a special registry to store these schemas in a way that helps prevent errors related to incorrect data types.
 
-You can add new walker schemas using the `addWalker` method, and easily find them later by their names.
+You can add new schema definitions using the `addWalker()` method (represented here as `register`).  To get a specific schema definition, you'll use the `get()` method, providing the name of the schema you're looking for.
 
-The service checks your schemas as you add them to make sure they have the basic information they need, preventing errors down the line. 
+Before adding a new schema, the `validateShallow()` function quickly checks that it has the necessary properties and that they are of the correct types.  If you need to update an existing schema, the `override()` function allows you to change only certain parts of it, leaving the rest untouched.
 
-It also provides a way to update existing schemas with just the changes you need, without having to redefine the whole thing. Retrieving a schema is simple – just ask for it by name.
+The service also includes internal logging capabilities and a registry that manages how the schemas are stored.
 
 ## Class WalkerReportService
 
-WalkerReportService helps you keep track of your strategy optimization experiments. It acts like a diligent recorder, capturing the results of each test run and storing them in a database, typically SQLite.
+WalkerReportService helps you keep track of how your trading strategies are performing during optimization. It listens for updates as your strategies are tested and saves the results to a database. This allows you to easily see which parameters are working best, compare different strategies, and monitor your optimization progress over time.
 
-Think of it as a way to monitor how your strategies are improving over time, allowing you to compare different parameter settings and identify the best performers. 
-
-The service listens for updates from the optimization process and logs details like performance metrics and statistics. It also remembers the best strategy found so far and tracks the overall progress of the optimization.
-
-To use it, you'll subscribe to receive the optimization events – and be assured you won't accidentally subscribe more than once. When you’re finished, you can unsubscribe to stop receiving these updates.
-
+To get started, you'll subscribe to receive these optimization updates. Once you're done, you can unsubscribe to stop receiving them. The service uses a logger to provide feedback, and it's designed to prevent accidental duplicate subscriptions.
 
 ## Class WalkerMarkdownService
 
-The WalkerMarkdownService helps you create detailed reports about your trading strategies. It listens for updates as your strategies run, keeps track of their performance, and then organizes that information into easy-to-read markdown tables.
+The WalkerMarkdownService helps you automatically create and save reports about your trading strategies, specifically designed for use with walkers. It listens for updates from your walkers, keeping track of how each strategy is performing.
 
-Think of it as a central place for gathering and presenting data from your trading experiments.
+It organizes strategy results separately for each walker, preventing them from interfering with each other.
 
-Here's a breakdown of what it does:
+The service generates nicely formatted markdown tables that let you easily compare the performance of different strategies. These reports are saved as files, making it simple to review and share your results.
 
-*   It connects to your trading system to receive progress updates.
-*   It uses a special "storage" system to keep track of results for each trading strategy, ensuring each one is analyzed independently.
-*   It generates markdown tables to compare strategies side-by-side.
-*   It automatically saves these reports as markdown files in a designated folder, so you can review them later.
-
-You can subscribe to receive events, unsubscribe when you no longer need them, and clear the accumulated data when you’re finished with a test. You can retrieve specific data points, generate a full report, or save it directly to a file. The service also lets you clear all or specific walker's data.
+You can subscribe to walker events to start receiving updates, and unsubscribe when you no longer need them. The `tick` function is what handles processing those updates and storing the results. You can retrieve the accumulated data, generate reports, or even clear out all the stored data if you need to start fresh. The service also handles creating the necessary file directories to store your reports.
 
 ## Class WalkerLogicPublicService
 
-This service helps manage and run "walkers," which are essentially automated trading processes. It builds on a private service to handle the core walker logic.
+This service helps manage and run "walkers," which are essentially automated trading processes. It builds on a private service to handle the core walker logic, but adds a layer of context management. Think of it as providing a standardized way to execute trading strategies and automatically pass along key information like the strategy's name, the exchange being used, the timeframe, and the walker's identifier.
 
-It automatically passes along important information like the strategy name, exchange, frame, and walker name, making it simpler to track and understand what's happening during the execution.
+The service uses a logger to track events and relies on other services for managing walker schemas. The main function, `run`, is used to start a walker comparison for a specific stock symbol, effectively launching a set of backtests across different strategies while ensuring consistent context. It returns a generator that produces results as they become available.
 
-You can use the `run` method to kick off a walker comparison for a specific trading symbol and it will provide a stream of results. This method executes backtests across different strategies.
 
 ## Class WalkerLogicPrivateService
 
-WalkerLogicPrivateService helps manage and compare different trading strategies. It acts as a coordinator, stepping through each strategy one at a time.
+WalkerLogicPrivateService helps you compare different trading strategies, orchestrating their execution and providing updates along the way. It essentially acts as a manager for running multiple strategies one after another.
 
-As each strategy finishes its backtest, you'll get updates on its progress. It keeps track of the best-performing strategy along the way.
+As each strategy finishes its backtest, you'll receive progress updates. The service also keeps track of the best performance metric in real-time so you can see how strategies stack up. Finally, it delivers a complete report at the end, ranking all the strategies you tested. 
 
-Finally, it gives you a complete report, ranking all the strategies you tested. It uses other services internally to handle the actual backtesting and formatting the results.
+This service relies on BacktestLogicPublicService to actually execute the backtests for each strategy.
 
-The service requires a symbol to backtest, an array of strategies to compare, the metric to use for evaluation, and details about the environment (exchange, timeframe, and walker name).
-
-It uses a logger for detailed reporting and relies on other helper services for managing backtest logic, markdown formatting, and defining strategy schemas.
+The `run` method is the key – it's how you start the comparison process, specifying the symbol to trade, the strategies you want to compare, the metric you want to optimize for, and some context information about the testing environment.
 
 ## Class WalkerCommandService
 
-WalkerCommandService acts as a central access point for walker functionality within the system. It's essentially a convenient layer for injecting dependencies and making the walker tools available.
+WalkerCommandService acts as a central point to access and manage walker functionality within the system. It's designed to be easily used in different parts of the application through dependency injection.
 
-Think of it as a helpful assistant that orchestrates various services like logging, schema handling, and validation related to walkers, strategies, exchanges, and frames. 
+Think of it as a convenient layer on top of `WalkerLogicPublicService`, providing a structured way to interact with the walker's core logic.
 
-The `run` function is a key method allowing you to execute a walker comparison. You specify which symbol to compare and provide context—like the walker's name, exchange, and frame—to guide the process. It returns a stream of results.
+It relies on several services like `loggerService`, `walkerLogicPublicService`, and various validation services to handle different aspects of walker operation.
+
+The main function, `run`, is what initiates a walker comparison. You tell it which symbol to analyze and provide context details, such as the walker's name, the exchange it's connected to, and the frame it's running within, and it will return a sequence of results.
 
 ## Class TimeMetaService
 
-The TimeMetaService helps you reliably access the latest candle timestamp for a specific trading setup – think of it as knowing exactly when the last candle closed. It keeps track of these timestamps for each symbol, strategy, exchange, and timeframe you're using, and it does so in a way that's always up-to-date. 
+The TimeMetaService helps you keep track of the latest candle timestamp for each trading setup – think of it as knowing exactly when the last candle closed for a specific symbol, strategy, exchange, and timeframe. It's especially useful when you need this timestamp outside the usual trading tick cycle, like when executing a command between trades.
 
-If you need to know the current candle time *outside* of the normal trading loop (like when executing a command between ticks), this service provides that information. It anticipates that sometimes you'll need this data quickly, so it will wait a short time if a timestamp hasn't arrived yet.
+It essentially maintains a record of these timestamps, updating them as new ticks come in. If you need a timestamp, it’ll quickly provide it, or wait briefly if it’s still loading. 
 
-You can clear the service’s memory to make sure you're working with fresh data, either for everything or just a specific trading setup. The service is designed to be cleaned up at the beginning of each new backtest or live trading session to avoid using old information.
+The service is designed to be reliable, falling back on another service if you’re already in a trading tick. To keep things clean, it allows you to clear these timestamp records, either for a specific setup or all of them, which is important when starting a new backtest or trading session. It's a central piece for coordinating time-sensitive operations across your trading system.
 
 ## Class SyncUtils
 
-The SyncUtils class helps you understand what’s happening with your trading signals by giving you access to reports and data about them. It collects information about signal openings and closings, like when a limit order gets filled or a position is exited.
+The SyncUtils class helps you analyze and understand your signal synchronization data. It collects information about signal opening and closing events, allowing you to get a detailed picture of what's happening with your trading strategies.
 
-You can use it to get overall statistics, like the total number of signals opened and closed, or to generate a detailed report.
+You can use it to retrieve aggregated statistics, like the total number of signals opened and closed. It also generates nicely formatted Markdown reports that include tables summarizing each signal event, providing key details like the signal ID, action taken (open or close), position information, and performance metrics.
 
-The report itself is a markdown document, structured as a table, that includes key details about each signal - the symbol traded, strategy used, signal ID, action taken (open or close), price information, profit/loss details, and timestamps.
-
-Finally, you can use the `dump` function to automatically save these reports as files, neatly organized by symbol, strategy, exchange, frame, and whether it’s a backtest or live run. The class grabs this data from a system that keeps track of these signals and their lifecycle.
+Finally, the class allows you to easily save these reports to files for later review and analysis, organizing them by symbol, strategy, and whether they are backtest or live data. It handles creating the necessary directories to store these files.
 
 ## Class SyncReportService
 
-The SyncReportService helps keep track of what’s happening with your trading signals, specifically when they're opened and closed. It acts like a detailed record-keeper, capturing key information about each signal, like when a limit order is filled and when a position is exited.
+The SyncReportService is designed to keep a record of what's happening with your signals, specifically when they are initiated and exited. It listens for these "sync" events and neatly packages them into a report file, which is useful for keeping track of your trading activity and auditing purposes.
 
-This service listens for "signal" events – openings and closures – and meticulously logs them, including important details like profit and loss (PNL) and the reason for exiting a position. 
+The service diligently logs when a signal is opened – basically, when a new order gets filled – capturing all the important details about that signal. It also records when a position is closed, noting the profit or loss and why it was closed.
 
-It stores this data in a way that makes it easy to review and audit your trading activity. 
+Think of it as a detailed logbook of your signal lifecycle.
 
-To avoid accidentally logging multiple times, it ensures only one subscription to the signal events is active at a time.
+You can tell it to start listening for these events by using the `subscribe` method, which prevents accidental duplicate subscriptions. When you're done needing the service, use `unsubscribe` to stop the listening – if it wasn't already listening, this step is harmless. The `subscribe` method returns a function that you can call to stop the subscription. 
 
-You can start receiving these signal updates with the `subscribe` function, and when you’re done, use `unsubscribe` to stop receiving them.
+The `tick` property is the engine that actually processes these events and writes them to the report. The `loggerService` allows for debugging and displaying messages about the service’s operation.
 
 ## Class SyncMarkdownService
 
-This service helps you keep track of signal synchronization events—those moments when your trading signals are confirmed and processed. It automatically gathers information about signal opens and closes for each symbol, strategy, exchange, and timeframe you're using in your backtests or live trading.
+This service helps you create and store reports about your trading signals, specifically focusing on when they open and close. It listens for signal events and organizes them by symbol, strategy, exchange, and timeframe.
 
-It builds detailed reports in markdown format, showing you the lifecycle of each signal, including when it opened, closed, and why. You'll also get summary statistics like the total number of signals processed, how many were opened, and how many were closed.
+You can think of it as a data collector and reporter for your trading signals. It gathers information about each signal's lifecycle and presents it in an easy-to-read markdown format.
 
-You can subscribe to receive these signals, and the service will automatically save reports to disk, making them easy to review.  If you need to start fresh with a specific strategy or timeframe, you can clear the stored data. The service also allows you to generate and save reports directly to disk, with filenames that clearly identify the symbol, strategy, exchange, and backtest status. Finally, you can easily retrieve the accumulated data and reports for a specific combination of parameters.
+To start using it, you'll subscribe to a stream of signal events. Once subscribed, it automatically begins tracking these events and building up data. You can then request reports or statistics for specific combinations of symbols and strategies.
+
+It allows you to view accumulated statistics, generate detailed reports, or even clear all collected data. You can also save these reports directly to disk, making it simple to review past performance. It provides a way to track and analyze how your signals perform over time.
 
 ## Class StrategyValidationService
 
-The StrategyValidationService helps you keep track of and ensure the correctness of your trading strategies. It acts like a central manager, storing details about each strategy you’re using. 
+This service helps keep track of your trading strategies and makes sure they're set up correctly. It acts like a central control panel, registering your strategies, validating them before they're used, and remembering its findings to speed things up later. 
 
-Before you use a strategy, this service verifies that it exists and that any related risk profiles and actions are also set up correctly. To boost performance, it remembers the results of past validation checks, so it doesn’t have to repeat the work every time.
+You can add new strategies using `addStrategy`, providing their details. The `validate` function is used to verify that a strategy exists and that any linked risk profiles and actions are also valid. To see a complete list of registered strategies, use the `list` function.
 
-You can add new strategies using `addStrategy`, retrieve a list of all strategies with `list`, and perform validation using `validate`. It relies on other services for risk and action validation.
+The service also relies on other services like `loggerService`, `riskValidationService`, and `actionValidationService` to manage logging, risk profile validation, and action validation. Essentially, it’s designed to provide a reliable way to manage and confirm your strategy configurations.
 
 ## Class StrategyUtils
 
-StrategyUtils helps you analyze and understand how your trading strategies are performing. It's like a central place to gather and organize all the data about your strategy's actions, such as when it took profits, canceled orders, or hit stop-loss levels.
+StrategyUtils helps you analyze and understand how your trading strategies are performing. It acts as a central place to gather and present data about your strategy’s actions.
 
-You can request summarized statistics to see overall trends in your strategy's behavior.
+It collects information about events like closing positions, taking profits, or adjusting stop-loss orders. This information is organized and summarized to give you a clear picture of what's happening.
 
-It can also build detailed reports in markdown format, presenting the history of events in a clear, table-like structure. This report includes information like the price at which an action occurred, the percentage shift, and when it happened.
+You can request detailed statistics, like the frequency of different types of actions taken by a strategy. 
+It can also generate well-formatted markdown reports displaying a timeline of these events, including key details like the price, percentage values, and timestamps. 
 
-Finally, StrategyUtils makes it easy to save these reports to files so you can review them later or share them with others. The reports are named using the symbol, strategy name, and other relevant details.
+Finally, it can easily save these reports as files, automatically creating the necessary directories to keep things organized. The reports include a summary section detailing how often each type of action was taken.
 
 ## Class StrategySchemaService
 
-The StrategySchemaService helps you keep track of different trading strategy blueprints in a safe and organized way. It uses a special type-safe storage system to ensure your schemas are consistent.
+The StrategySchemaService helps keep track of different trading strategy blueprints. It acts like a central library, storing and organizing these blueprints so they can be easily accessed and reused.
 
-You can add new strategy schemas using the `addStrategy()` method and find them again later by their name using the `get()` method. 
+It uses a special system to ensure the blueprints are structured correctly and consistently.
 
-Before adding a strategy, `validateShallow()` checks the basic structure to make sure it has all the necessary parts and that those parts are the right types.
-
-If a strategy already exists, you can update it using the `override()` method, which allows you to change just specific parts of the existing schema.
-
+You can add new strategy blueprints using `addStrategy()`, and retrieve existing ones by their names using `get()`.  If a blueprint already exists, you can update parts of it using `override()`. Before a blueprint is added, `validateShallow()` checks to make sure it has all the necessary parts and that they're the right type. The `register` property is an internal function not intended for direct use.
 
 ## Class StrategyReportService
 
-This service is designed to keep a detailed record of your trading strategy's actions, like when it cancels a scheduled trade, closes a pending order, or takes partial profits or losses. Think of it as an audit trail for your strategy's decisions.
+This service is designed to keep a detailed audit trail of your trading strategy's actions, like when it cancels orders, closes positions, or adjusts stops and take-profits. It's particularly useful if you want to review exactly what your strategy did and when, especially for regulatory or debugging purposes.
 
-To start using it, you need to "subscribe" to begin logging events.  Then, as your strategy executes, the service records events like partial profit or loss closures, trailing stop or take adjustments, and even when a scheduled signal becomes active. These events are saved as individual JSON files, providing a clear history of what happened.
+To start using it, you need to "subscribe" – this tells the service to begin recording events.  Each time a significant action happens – whether it's a partial profit take, a trailing stop adjustment, or a breakeven move – the service saves a record of it to a separate JSON file.  
 
-When you're done, you can "unsubscribe" to stop the logging process. This is especially useful if you're only interested in tracking certain periods or for specific debugging.  The service ensures that events are written immediately as they happen, unlike some reporting methods that might hold everything in memory.
+Think of it as a digital paper trail for your strategy.  When you're done, you can "unsubscribe" to stop the logging. This service writes events directly to disk, unlike other reporting services that might hold everything in memory temporarily.  It's reliable and ensures that you don’t lose track of anything.
+
 
 ## Class StrategyMarkdownService
 
-This service helps you keep track of what your trading strategies are doing during backtests or live trading. It's designed to collect information about actions like canceling orders, closing positions, and adjusting stop-loss levels.
+This service helps you track and report on your trading strategy's actions during backtesting or live trading. Think of it as a detailed event recorder and report generator for your strategies.
 
-Instead of writing each event immediately to a file, it holds onto them temporarily in memory, grouped by the symbol (asset), strategy name, exchange, and frame (time interval). This lets it generate more efficient reports later.
+It collects information about various actions like canceling orders, closing trades, and adjusting stop-loss levels.  Instead of writing each action to disk immediately, it temporarily stores them to create more comprehensive reports later.
 
-To start using it, you need to "subscribe" to begin collecting these events, and when you’re done, you “unsubscribe” to stop and clear the data.
+To start using it, you need to "subscribe" to begin collecting data.  Once subscribed, the service automatically logs events triggered by your strategy. To get your data, use methods to retrieve statistics or generate markdown reports which can be saved to files. When you’re finished, you “unsubscribe” to stop data collection and clear the collected information.
 
-You can then request summaries of the events, either as a simple set of counts or as a nicely formatted markdown report. You can also have these reports saved directly to a file.
-
-It offers options to clear the accumulated data completely or just for specific strategies. Think of it as a central hub for monitoring and reporting on your strategies’ activity.
+The service remembers which symbol, strategy, exchange, frame, and backtest setting each event belongs to, making it easy to organize your reports.  It also offers the ability to configure which columns appear in your reports, and you can clear the stored data when it's no longer needed.
 
 ## Class StrategyCoreService
 
-This class, `StrategyCoreService`, is a central hub for managing trading strategy operations, handling important tasks like validation and retrieving position data. It works closely with other services like `StrategyConnectionService` and `ExecutionContextService` to inject context (like symbol and timeframe) into various operations.
+StrategyCoreService is a central hub for managing strategy operations, providing a way to interact with strategies and their data. It's a foundational component used internally by other services.
 
-It provides a wide range of methods for getting information about a pending signal, such as its total cost, entry prices, and potential PnL.  You can use these methods to track a strategy's performance and understand its behavior. It also offers methods to manipulate the strategy's state, like adjusting stop-loss levels or adding new entries.
+This service handles things like validating strategy configurations, retrieving information about pending signals (like profit/loss and entry points), and performing actions like closing positions or adjusting stop-loss levels. It injects relevant information like the trading symbol, timestamp, and backtest parameters into the strategy’s execution context, ensuring that operations are performed with the correct data.
 
-The service includes validation functions, often memoized for efficiency, to ensure the strategy and its configuration are correct.  It also supports backtesting, allowing you to simulate how a strategy would have performed against historical data. There are several methods for dealing with scheduled signals, including activation and cancellation. Finally, it offers functionality for cleaning up resources and managing strategy instances.
+**Key Features:**
+
+*   **Signal Management:**  Provides methods to retrieve and manipulate pending signals, including their profit/loss, entry prices, and partial closes.
+*   **Position Details:**  Offers insights into the current position, such as the total cost, invested count, effective price, and percentage closed.
+*   **Validation:** Validates strategy and risk configuration to ensure proper functionality.
+*   **Actions:**  Allows for actions like stopping a strategy, canceling scheduled signals, and closing pending positions.
+*   **Backtesting:** Facilitates fast backtesting by wrapping strategy backtest functionality.
+*   **Performance Metrics:** Includes methods for tracking and reporting on metrics such as maximum profit and drawdown.
+
+
+
+It’s designed to be reusable and well-organized, making it easier to build and maintain complex trading systems. It promotes consistency by centralizing common strategy operations.
 
 ## Class StrategyConnectionService
 
-This framework manages strategy execution and routing, acting as a central hub for your trading logic. It automatically assigns tasks to the correct strategy based on the symbol and its associated name, ensuring everything runs in the right context.
+This class acts as a central hub for managing strategies within the backtesting framework. It intelligently routes calls to the correct strategy implementation, ensuring that each strategy operates in its isolated environment.
 
-It uses caching to efficiently reuse strategy instances, avoiding redundant creation and boosting performance.  You can think of it as an intelligent dispatcher that keeps things organized and optimized.
+The service uses a caching mechanism to store and retrieve strategy instances, boosting performance. It automatically handles strategy initialization and supports both live trading (tick) and backtesting (backtest) operations.
 
-The service offers a comprehensive suite of functions, including:
+Here's a breakdown of what it does:
 
-*   **Signal Management:** Provides methods to get pending and scheduled signals, check status, and adjust or cancel them.
-*   **Position Analysis:**  Offers tools to analyze position details, such as P&L, entry costs, and levels.
-*   **Trading Actions:**  Includes functions for live trading (`tick`) and backtesting (`backtest`), as well as actions to stop strategies, adjust stop-loss or take-profit levels, and perform partial closes.
-*   **State Validation:** Offers features to validate trading actions without actually executing them.
+*   **Smart Strategy Routing:** It directs requests to the right strategy based on the trading symbol and strategy name.
+*   **Performance Caching:** It keeps frequently used strategies readily available, preventing repetitive creation.
+*   **Safe Initialization:** It guarantees that strategies are properly initialized before any trading actions occur.
+*   **Comprehensive Support:** It handles both live and historical data simulations.
 
-Overall, this framework simplifies your trading infrastructure by handling routing, caching, and providing a well-defined interface for interacting with strategies.
+The class provides several methods to interact with strategies:
+
+*   **`tick()`:** Executes a single trading tick for a strategy.
+*   **`backtest()`:** Runs a strategy against historical data.
+*   **`getStrategy()`:** Retrieves a cached strategy instance.
+*   **`getPendingSignal()`:**  Accesses the currently active pending signal data.
+*   **`getPosition...()` methods:** Provide detailed information about the current position, like cost, profit, and levels.
+
+It also offers advanced capabilities:
+
+*   **Partial Close Management:** Functions to partially close positions at profit or loss levels (`partialProfit`, `partialLoss`).
+*   **Trailing Stop/Take Management:** Adjustments to trailing stop and take-profit levels (`trailingStop`, `trailingTake`).
+*   **Scheduled Signal Control:** Activating or canceling scheduled orders (`activateScheduled`, `cancelScheduled`).
+*   **Validation Functions:**  Checking if an action (like average buy or partial close) is valid before execution.
+
 
 ## Class StorageLiveAdapter
 
-The `StorageLiveAdapter` helps manage and store trading signals, allowing you to easily switch between different storage methods. It acts as a flexible middleman, letting you choose how your signals are saved – whether it's to a file on your disk (the default), kept in memory only, or even discarded with a dummy adapter.
+The `StorageLiveAdapter` acts as a flexible middleman for managing how your trading signals are stored. It lets you easily switch between different storage methods – like keeping data on your hard drive, using memory only, or even using a "dummy" adapter that does nothing at all. 
 
-You can swap out the storage backend completely with `useStorageAdapter` if you need a very specific way to handle data. The adapter provides methods for opening, closing, scheduling, and canceling signals, as well as retrieving them by ID or listing all signals. 
+Think of it as a pluggable system; you can swap out the underlying storage without changing much of your strategy's core logic.
 
-It also handles periodic "ping" events to keep signal information up-to-date.  If you're just testing or want to avoid writing anything to storage, `useDummy` disables all writes. To go back to the standard persistent storage, `usePersist` restores the default behavior. For temporary data you don't need to keep, `useMemory` stores signals in memory. If your working directory changes, `clear` helps refresh the adapter.
+It provides methods for handling various signal events (opened, closed, scheduled, cancelled) and for retrieving signals by ID or listing them all. The `handleActivePing` and `handleSchedulePing` methods keep signals up-to-date by recording when they’re active or scheduled. 
+
+You can choose which storage method to use with the `useStorageAdapter`, `useDummy`, `usePersist`, or `useMemory` functions, with persistent storage being the default.  If your environment changes significantly, you can clear the adapter and force it to reinitialize.
 
 ## Class StorageBacktestAdapter
 
-The `StorageBacktestAdapter` is a flexible tool for managing how your backtesting framework stores information about trading signals. It allows you to easily switch between different storage methods, like persistent storage to disk, in-memory storage, or even a dummy storage for testing purposes. The adapter uses a pattern that lets you plug in different storage implementations, giving you control over where and how your data is kept.
+The `StorageBacktestAdapter` provides a flexible way to manage how your backtesting data is stored. Think of it as a central hub that allows you to easily switch between different storage methods like persistent storage (saving to disk), in-memory storage (fast but temporary), or a dummy storage (for testing without actually saving anything).
 
-It provides convenient shortcut functions – `usePersist()`, `useMemory()`, and `useDummy()` – to quickly change the active storage method. `usePersist` is the default, meaning signals are saved to disk. `useMemory` stores signals only in memory, and `useDummy` effectively ignores any storage operations.
+It handles events related to signals – when they're opened, closed, scheduled, or cancelled – and it lets you retrieve signals based on their ID or list all of them.  It also keeps track of when signals are actively pinged or scheduled, updating their timestamps.
 
-The adapter also handles events related to signal activity, such as signals being opened, closed, scheduled, or cancelled, and forwards those events to the selected storage backend. It allows you to find signals by their ID or list all signals. 
-
-The `clear()` function is particularly useful when the base directory changes during backtesting, ensuring a fresh start with the default storage adapter. Internal bookkeeping and adapter switching are managed through the `_signalBacktestUtils` property and the `useStorageAdapter()` function.
+You can change the storage method it uses through the `useStorageAdapter`, `useDummy`, `usePersist`, or `useMemory` functions, giving you great control over your backtest's data persistence.  There's also a `clear` function to reset the adapter to its default in-memory configuration, useful when the working directory changes. Essentially, this adapter simplifies managing where your backtesting signals are saved and how you interact with that storage.
 
 ## Class StorageAdapter
 
-The StorageAdapter is the central component for managing how your trading signals are stored, whether they're from a backtest or live trading.
+The StorageAdapter acts as a central hub for managing how your trading signals are stored, whether they’re from backtesting or live trading. It automatically keeps track of new signals as they're generated, simplifying how you access them. 
 
-It automatically keeps track of new signals as they are generated, ensuring they are saved. 
+It makes sure you don't accidentally subscribe to signal updates multiple times, preventing unexpected behavior. You can also easily turn storage on or off – and it’s safe to turn it off more than once.
 
-It simplifies working with signals from different sources, providing a single place to access both backtest and live data.
-
-To prevent unwanted duplicates, it utilizes a special mechanism to subscribe to signal sources only once.
-
-You can easily activate or deactivate the storage functionality, and it’s safe to deactivate it multiple times without issue.
-
-Need to find a specific signal? You can search by its ID.
-
-It also offers functions to retrieve all signals from your backtesting and live environments, respectively.
+Need to retrieve a specific signal? The `findSignalById` method lets you search by ID across your entire signal history.  If you only want to see the signals from your backtests, `listSignalBacktest` is what you need. Similarly, `listSignalLive` shows you all of the signals from your live trading.
 
 ## Class SizingValidationService
 
-This service helps you keep track of and double-check your position sizing strategies. It acts like a central place to register all your sizing methods, making sure they're available before you try to use them. 
+This service helps you keep track of your position sizing strategies and makes sure they're correctly set up before your backtests run. 
 
-To make things efficient, the service remembers whether a sizing strategy is valid, so it doesn't have to re-check every time.
+It acts like a central directory for your sizing configurations, letting you register new strategies with `addSizing`. 
 
-You can use it to:
+Before you use a sizing strategy in a backtest, you can use `validate` to confirm it exists, preventing potential errors. 
 
-*   Register new sizing strategies using `addSizing`.
-*   Verify that a sizing strategy exists before applying it with `validate`.
-*   Get a complete list of all registered sizing strategies through `list`.
+For efficiency, it remembers the results of validations, so things run faster.  If you need to know what sizing strategies are available, `list` gives you a complete overview.
 
-The service also uses a logger to help with debugging and keeps track of sizing configurations internally.
 
 ## Class SizingSchemaService
 
-This service helps you keep track of sizing schemas, which define how much of an asset to trade. It's designed to be type-safe, ensuring your schemas are consistent.
+The SizingSchemaService helps you keep track of and manage your sizing schemas in a reliable, type-safe way. It uses a specialized registry to store these schemas, ensuring everything is organized and consistent.
 
-The service uses a registry to store these sizing schemas, allowing you to easily add new ones with `addSizing()` and find existing ones by name using `get()`. You can also update existing schemas with `override()`.
+You can add new sizing schemas using the `addSizing()` function (referred to as `register` in the code) and access them later by their unique names using the `get` function.  If a sizing schema already exists, you can update it using the `override` function – think of it as providing partial changes to an existing schema.
 
-Before a sizing schema is added, `validateShallow` checks to make sure it has all the necessary properties and that those properties are the right types. This helps prevent errors later on. The `loggerService` allows for internal logging functionality related to the service's operations.
+Before a sizing schema is actually added, it undergoes a quick check with `validateShallow` to make sure it has all the necessary parts and that they're the right types. This helps prevent errors later on. The service also keeps track of logging information for tracking purposes.
 
 ## Class SizingGlobalService
 
-The SizingGlobalService helps determine how much of an asset to trade, essentially calculating position sizes. It acts as a central point for these calculations, coordinating with other services to ensure everything is done correctly. Think of it as the brain behind deciding how much to buy or sell.
+This service helps determine how much to trade based on your risk management rules. It’s a central component, handling position sizing calculations for both the internal strategy execution and when you're interacting with the system. 
 
-It uses a connection service to handle the details of the sizing process and another service to validate the parameters. 
+It relies on other services to make those calculations, specifically a connection service and a validation service. 
 
-The core function is `calculate`, which takes information about the trade (like risk tolerance) and figures out the appropriate size. This function is used both internally by the trading framework and by those using the public API.
+The `calculate` method is the key function – you provide it with details about the trade (like the amount of risk you want to take) and it returns the appropriate position size to use. This method also keeps track of the sizing operation being performed.
 
 
 ## Class SizingConnectionService
 
-The `SizingConnectionService` acts as a central hub for calculating position sizes in your trading strategies. It intelligently directs sizing requests to the correct sizing implementation, based on a name you provide. 
+The SizingConnectionService acts as a central hub for calculating position sizes within your backtesting strategies. It intelligently directs sizing requests to the correct sizing implementation based on a name you provide.
 
-Think of it as a traffic controller ensuring sizing requests get to the right place. 
+To optimize performance, it remembers (caches) these sizing implementations, so it doesn't have to recreate them every time you need them.
 
-It also remembers previously used sizing implementations, boosting performance through a caching mechanism. This means it only creates a new sizing calculation process the first time you use a particular sizing method.
+Think of it as a smart dispatcher that ensures your sizing calculations are handled correctly, whether you're using a fixed percentage, a Kelly criterion, or another sizing method.
 
-You can use it to determine how much of an asset to trade, factoring in risk management considerations and various sizing approaches like fixed percentages or Kelly Criterion. The service handles choosing the right approach based on the sizingName you specify. When your strategies don't have any custom sizing rules, an empty string is used for this sizingName parameter.
+The `getSizing` property is the key to retrieving these sizing implementations, and it automatically handles creating and caching them.
+
+The `calculate` method is where the actual sizing calculations happen, using the provided parameters and context (including the sizing name). It takes care of picking the right sizing method and performing the necessary calculations. If your strategy doesn't have a specific sizing configuration, you'll use an empty string as the sizing name.
+
 
 ## Class ScheduleUtils
 
-This class offers helpful tools for understanding and reporting on scheduled signals. It acts as a central place to track signals as they wait to be executed, and to see how often they're cancelled.
+The ScheduleUtils class helps you manage and understand the reporting of scheduled trading signals. Think of it as a tool to keep track of signals that are waiting to be executed and to analyze how well the scheduling is working. 
 
-You can easily retrieve statistics like cancellation rates and average wait times for specific trading strategies and symbols. 
+It provides a simple way to get data about these signals, like how many are queued, how often they're cancelled, and how long they're taking to be processed.
 
-It also allows you to generate clear, readable markdown reports summarizing signal activity, or save these reports directly to a file. Think of it as a way to keep an eye on how your scheduled signals are performing.
+You can easily generate clear, readable reports in markdown format to visualize this information for a specific trading strategy and symbol. 
 
-The class is designed to be simple to use, accessible as a single, readily available instance.
-
+The class is designed to be readily available throughout your backtesting framework, ensuring you have easy access to signal scheduling insights. It also allows you to save these reports directly to your hard drive.
 
 ## Class ScheduleReportService
 
-This service helps track the lifecycle of scheduled signals, specifically designed for understanding how long it takes for orders to execute after being initially scheduled. It monitors signals and records key events like when a signal is scheduled, when it's opened (meaning an order is placed based on the signal), and when it's cancelled.
+The ScheduleReportService helps you keep track of how your scheduled signals are performing. It's designed to listen for signal events – when a signal is scheduled, when it starts, and when it's cancelled. 
 
-It automatically calculates the time elapsed between scheduling a signal and either its execution or cancellation. 
+It carefully records these events, noting the time elapsed between scheduling and when the signal is either executed or cancelled. This information is then saved to a database so you can analyze and understand any delays.
 
-The service works by connecting to a system that emits signal events and logs them to a database. It's designed to prevent accidental multiple connections to this signal event system, ensuring accurate tracking. 
-
-To start using it, you'll need to subscribe to the signal emitter, and when you're finished, you should unsubscribe to avoid unnecessary processing.
+To use it, you’ll subscribe to receive these signal events, and when you’re done, you’ll unsubscribe to stop listening. The service is set up to prevent accidental multiple subscriptions, ensuring reliable tracking. It uses a logger to provide useful debugging information.
 
 ## Class ScheduleMarkdownService
 
-The ScheduleMarkdownService helps you track and understand how your trading signals are being scheduled and potentially cancelled. It keeps a record of these events for each strategy you're using, creating organized reports.
+The ScheduleMarkdownService helps you keep track of your trading signals by automatically creating reports. It listens for when signals are scheduled and cancelled, then organizes this information for each strategy you're using. The service compiles this data into easy-to-read markdown tables, and also calculates useful statistics like cancellation rates and average wait times.
 
-It listens for signal events – when a signal is scheduled or cancelled – and gathers this information. Then, it turns this data into readable markdown reports that include details about each event and provides useful statistics like cancellation rates and average wait times.
+It saves these reports as markdown files, making them simple to view and analyze.
 
-You can request these reports for specific strategies and symbols, or clear the stored data completely or for a specific combination of settings. The service automatically saves these reports to files on your system, making it easy to review performance and identify any potential issues. The storage is organized so each strategy and specific configuration has its own set of reports.
+Here's a breakdown of what you can do with it:
+
+*   **Subscribe & Unsubscribe:** You tell the service to start paying attention to your signal events, and you can later stop that monitoring.
+*   **Process Events:** It handles incoming signal events (scheduling, cancellations) and keeps track of them.
+*   **Get Data:**  Retrieve statistics about scheduled signals for a specific trading setup.
+*   **Generate Reports:** Create a full markdown report showing all the signal events for a particular trading setup.
+*   **Save Reports:** Automatically save these reports to disk in an organized folder structure.
+*   **Clear Data:** You can completely wipe the recorded data, or just clear the data for a specific strategy and instrument.
+
+
+
+The service manages its data storage carefully, ensuring that data for different strategies and instruments is kept separate.
 
 ## Class RiskValidationService
 
-The RiskValidationService helps you keep track of your risk management settings and makes sure they're set up correctly before you proceed. Think of it as a central place to register and check your risk profiles. 
+This service acts like a gatekeeper for your risk management setup. It keeps track of all your defined risk profiles and makes sure they exist before you try to use them, preventing errors down the line. 
 
-It allows you to add new risk profiles with specific configurations. 
+Think of it as a central registry where you can add new risk profiles using `addRisk`.  Before running any trading strategies, you can use the `validate` function to confirm a specific risk profile is registered – it's like a quick check to ensure everything is in order. 
 
-Before any actions are taken, you can use it to validate that a particular risk profile actually exists, preventing potential errors.
-
-To speed things up, it remembers (caches) the results of previous validation checks.
-
-Finally, you can easily get a complete list of all the risk profiles you’ve registered.
+For efficiency, the service remembers previous validation checks thanks to memoization, speeding things up.  Finally, `list` allows you to see a full inventory of all the risk profiles currently registered with the system.
 
 ## Class RiskUtils
 
-The RiskUtils class helps you understand and analyze risk rejection events within your trading system. Think of it as a tool to dig into why trades were rejected and what patterns might be emerging.
+This class helps you analyze and report on risk rejections that occur during trading. Think of it as a tool to understand why your strategies are being flagged and potentially rejected. It gathers information about these rejections, like the symbol involved, the strategy used, the position taken, and the reason for the rejection.
 
-It gathers information about rejections, like when they happened, what symbol was involved, which strategy was used, and the reason for the rejection.
+You can request summarized statistics about these rejections, such as the total number of rejections for a specific symbol and strategy. 
 
-You can use it to get summarized statistics, such as the total number of rejections and how they’re distributed across different symbols and strategies.
-
-It also generates detailed reports, presented in markdown format, that list each rejection event with key details like position, price, and the reason for the rejection.  These reports include a summary of important statistics at the end.
-
-Finally, you can easily save these reports as markdown files directly to your file system for later review or sharing. The file names are organized by symbol and strategy, making it simple to find specific rejection analyses.
-
+It also allows you to create detailed reports in Markdown format, which include a table of all rejection events with relevant details, plus a summary of key statistics at the end. Finally, you can easily export these reports to files, creating organized records of your risk management activity. The class retrieves and compiles this information from a service that's listening for risk rejection events and storing them.
 
 ## Class RiskSchemaService
 
-The RiskSchemaService helps you keep track of your risk schemas in a safe and organized way. It uses a special system to ensure that the schemas are of the expected type.
+This service helps manage a collection of risk schema definitions, ensuring they are stored and accessed in a type-safe way. It uses a registry to keep track of these schemas, allowing you to easily add new ones and retrieve existing ones by name. 
 
-You can add new risk profiles to the registry using `addRisk()`, and retrieve them later by their assigned name. 
+Before a risk schema is added, a quick check is performed to verify its basic structure, making sure all necessary components are present. You can also update existing schemas, essentially replacing parts of them with new information. 
 
-The service also includes a check (`validateShallow`) to make sure new risk schemas have the necessary properties before they are added.
+Finally, when you need a specific risk schema, you can simply request it by its name, and the service will return the definition. 
 
-If a risk profile already exists, you can update parts of it using `override`.
-
-Finally, the `get` function allows you to easily find a specific risk profile by its name.
+The service also includes a logger for tracking activities and providing context.
 
 ## Class RiskReportService
 
-This service helps track and analyze why certain trading signals are being blocked by your risk management system. It listens for events when signals are rejected, recording the reason and details of the signal itself. 
+The RiskReportService helps you keep a record of when trading signals are rejected by your risk management system. It’s designed to capture these rejection events and store them in a database, making it easier to analyze why trades are being blocked and to audit your risk controls.
 
-This information is then saved in a database, allowing you to investigate patterns and potential issues in your risk controls.
+It listens for signals that have been rejected and logs details like the reason for rejection and information about the signal itself.
 
-To use it, you’ll subscribe to receive these rejection events.  The subscription is designed to prevent accidental multiple connections.  You can later unsubscribe to stop receiving those events. A logger is included to help with debugging.
+To use it, you’ll subscribe to receive these rejection events. When you're finished tracking these events, you can unsubscribe to stop receiving them. The service is designed to prevent accidental double-subscription, which could cause issues. It utilizes a logger to output debugging information, and a `tickRejection` property handles the actual logging to the database.
 
 ## Class RiskMarkdownService
 
-The RiskMarkdownService helps you automatically create reports summarizing risk rejections in a readable markdown format. It listens for risk rejection events and organizes them based on the symbol and trading strategy involved.
+The RiskMarkdownService helps you automatically generate and save reports detailing risk rejections within your trading system. It actively monitors for rejection events, keeping track of them separately for each symbol and trading strategy. 
 
-It builds detailed tables within these reports, providing a clear view of rejection information, along with overall statistics like the total number of rejections and breakdowns by symbol and strategy. These reports are then saved as files to a designated directory.
+It then assembles this data into easy-to-read markdown tables, providing a clear overview of rejection information along with summary statistics. The reports are saved to disk, making them readily accessible for review and analysis.
 
-You can subscribe to receive these rejection events, and the service handles ensuring you don't accidentally subscribe multiple times.  You can also get specific data or reports for individual symbols and strategies, or clear all the accumulated data if needed. The service relies on a storage mechanism that keeps data separate for each combination of symbol, strategy, exchange, frame and backtest.
+You can subscribe to receive rejection events, and unsubscribe when no longer needed. The `tickRejection` function handles the processing of these events.
+
+You can retrieve statistical data, generate individual reports, or save reports to disk. There's also a way to completely clear all accumulated data or just data for a specific symbol-strategy combination. The service uses a storage system that creates isolated instances for each symbol-strategy-exchange-frame-backtest combination, ensuring that data is organized and doesn't interfere with other setups.
 
 ## Class RiskGlobalService
 
-The RiskGlobalService acts as a central hub for managing risk-related operations within the backtest-kit framework. It sits between the trading strategies and the underlying risk connection service, ensuring that trades adhere to defined risk limits.
+RiskGlobalService acts as a central point for managing and enforcing risk limits within the trading system. It handles validations and checks signals against pre-defined risk configurations.
 
-It keeps track of validation activities and uses caching to make validation faster and more efficient.
+This service relies on other components like a connection service for risk data and dedicated validation services for different aspects of the system.
 
-The service offers functions to check if a trading signal should proceed based on established risk rules, and to register newly opened trades with the risk management system.  It also allows for removing completed trades from the risk register.
+Here's a breakdown of its key functions:
 
-Finally, the service provides a way to completely wipe out all accumulated risk data, or to selectively clear data associated with a specific risk profile.
+*   It validates risk configurations, remembering previously validated settings to avoid unnecessary work.
+*   `checkSignal` determines whether a trading signal should proceed based on risk limits, preventing potentially problematic trades.
+*   `addSignal` registers new trading positions, marking them within the risk management system, and `removeSignal` closes out those positions when they are exited.
+*   `clear` allows for resetting the risk data, either selectively for a specific risk setup or completely clearing all data.
+
+Essentially, RiskGlobalService provides a safety net, ensuring trading activity aligns with defined risk parameters.
 
 ## Class RiskConnectionService
 
-The RiskConnectionService acts as a central hub for managing risk checks within your trading system. It intelligently directs risk-related operations to the correct risk management component, making sure the right rules are applied based on the specific situation.
+The RiskConnectionService acts as a central hub for managing risk checks within your trading system. It intelligently routes requests to the correct risk management component based on a risk name, ensuring that each strategy and exchange operates within its defined limits. To improve performance, it remembers previously retrieved risk management components, avoiding unnecessary re-creation.
 
-It keeps track of frequently used risk management instances, a technique called memoization, to speed things up and avoid unnecessary overhead.
-
-To help with organization, it uses a `riskName` to identify which risk rules to apply. If a strategy doesn’t need custom risk rules, this name is simply left empty.
-
-Here’s a quick look at what it offers:
-
-*   **`getRisk`**: This method retrieves the correct risk management component, creating it if needed and remembering it for future use based on exchange and frame.
-*   **`checkSignal`**:  This is your primary way to ensure a trade adheres to the risk rules, performing checks like portfolio drawdown and exposure limits. If a rule is broken, it will notify you.
-*   **`addSignal` & `removeSignal`**: These methods handle the lifecycle of trades, registering new signals and removing them when they close, allowing for precise risk tracking.
-*   **`clear`**:  This allows you to manually clear the cached risk management components when needed, ensuring the system reflects the current state.
-
-
-
-It's important to note that this service relies on other services like `RiskSchemaService`, `ActionCoreService` and `ExecutionContextService` for its functionality.
+This service handles everything from validating signals before execution to tracking open and closed positions for risk assessment. Think of it as a traffic controller, making sure every trade adheres to the pre-defined risk rules specific to its strategy, exchange, and timeframe. When a signal needs to be checked, it consults the appropriate risk manager and, if the signal is rejected, it flags the event. The system also allows you to clear those remembered risk management components when needed. It's a crucial part of building a robust and controlled trading environment.
 
 ## Class ReportWriterAdapter
 
-This component helps you manage where your trading data and reports are stored. It uses a flexible design, allowing you to easily swap out different storage methods without changing your core code. 
+This component helps manage how your trading data and events are stored for analysis and review. It acts as a flexible middleman, allowing you to easily swap out the storage method without changing your core trading logic.
 
-It keeps track of your reports (like backtest results, live trading data, or walker data) in a memoized cache, ensuring you only have one version of each report type running at any time. By default, it saves reports as JSONL files.
+Think of it as a central point for controlling where your reports end up, whether that's a simple JSONL file or something more complex.
 
-You can customize how reports are stored by changing the report factory, or use convenient shortcuts like switching to a dummy adapter to ignore writes or reverting to the standard JSONL format. The `writeData` method is your primary tool for sending data to the configured storage, and it automatically handles creating storage if it doesn’t already exist. This system simplifies creating pipelines for analyzing and tracking your trading activity. It also supports lazy initialization, meaning it only starts writing when you need it.
+It keeps track of storage instances, making sure you only have one active instance for each type of report (like backtest results or live trade data). This is efficient and prevents conflicts.
+
+You can easily change the type of storage used – switching to a dummy adapter to temporarily halt writes is also an option. The default storage method is appending data to JSONL files. 
+
+The system only initializes the storage when it first needs to write data, making it lazy and resource-friendly.
+
 
 ## Class ReportUtils
 
-ReportUtils helps you control what kind of logging and reporting happens within the backtest-kit framework.
+ReportUtils helps manage how your trading system generates reports and logs data.
 
-It lets you turn on or off logging for different areas like backtesting, live trading, performance analysis, and more.
+It lets you turn on and off different types of logging, like backtest results, live trading events, or performance metrics.
 
-The `enable` method is the main way to start logging – it subscribes to the specific services you choose and returns a function that you *must* call later to stop logging everything at once. Think of it as turning on a bunch of lights, and needing a single switch to turn them all off.
+The `enable` function lets you pick which report services to activate, and it's crucial to remember to use the cleanup function it returns to avoid memory problems later.
 
-If you just want to stop a specific type of logging, the `disable` method is what you need. This is like switching off a single light without affecting the others. It doesn't give you a cleanup function; the logging stops instantly.
+The `disable` function lets you stop logging for specific services without affecting others, and it doesn't require a separate cleanup step. 
 
-ReportUtils is designed to be extended by other classes, so you can customize the reporting process further.
+Think of it as a way to precisely control what data is recorded and how.
 
 ## Class ReportBase
 
-The `ReportBase` class helps you record and analyze trading events. It's designed to write data to a file in a standardized JSONL format, one event per line, making it easy to process and search later. This class handles the complexities of writing to a file, including managing buffering, timing out slow writes, and creating necessary directories.
+The `ReportBase` class helps you reliably log event data as JSONL files, making it easy to analyze your trading strategies later. It's designed to write data continuously, ensuring no events are lost, and handles potential slowdowns gracefully.
 
-It's organized so that each report type (like order fills or strategy signals) goes into its own file.
+Each report type gets its own file, located in a directory that’s automatically created.  You can filter these logs by criteria like the trading symbol, strategy name, exchange, timeframe, signal ID, and walker name, allowing targeted analysis.
 
-You can search these reports by criteria like the trading symbol, strategy, exchange, time frame, or signal identifier, allowing you to filter and investigate specific events. The initialization happens only once, guaranteeing the safety of resource allocation and error handling.
+The class manages the file writing process, handles errors, and includes a 15-second timeout to prevent writing operations from hanging indefinitely.  Initialization happens only once, and writing is done in a safe manner that avoids buffer overflows. You just provide the data, metadata, and it takes care of formatting and appending it to the JSONL file.
 
-The `write` method is the primary way to log events, and it automatically adds metadata and a timestamp to each entry. It includes built-in protections to prevent slow writes from causing problems, automatically waiting or timing out if necessary.
 
 ## Class ReportAdapter
 
-The ReportAdapter helps manage where and how trading data is stored. Think of it as a flexible system that lets you choose different ways to save your reports – like using a simple JSON file or something more complex. 
+The ReportAdapter helps manage how your trading data and analytics are stored, making it easy to switch between different storage methods. It's designed to be flexible, allowing you to plug in different ways to save your reports. 
 
-It remembers which storage method you’re using, so you don’t have to keep telling it. The system also automatically creates a new storage location for each type of report you generate.
+Think of it as a central point for controlling where your reports go – you can easily change from saving to a JSONL file to using a different system altogether.  It remembers which storage method you've selected, so you don't have to configure it every time. 
 
-You can easily switch between storage methods, even using a "dummy" adapter to temporarily prevent any data from being saved (useful for testing).  
-
-If your working directory changes during a backtest, it's a good idea to clear the adapter's memory to ensure new storage locations are created. This system makes sure your data is stored in a consistent and organized way.
-
+If you need to refresh your storage, like when your working directory changes, you can clear the cache to ensure new storage instances are used. There's also a dummy mode that allows you to temporarily disable report writing, which can be useful for testing. Finally, the `useJsonl` method ensures that you are utilizing the default JSONL storage.
 
 ## Class PriceMetaService
 
-PriceMetaService helps you get the most recent market price for a specific trading setup. It acts like a memory, storing the latest price for each combination of symbol, strategy, exchange, frame, and whether it’s a backtest. 
+PriceMetaService helps you get the latest market price for a specific trading setup, like a symbol, strategy, exchange, and timeframe. It keeps track of these prices and updates them as new data comes in from your strategy. 
 
-Think of it as a convenient way to access the current price even when you're not actively executing a trade. 
+Think of it as a convenient way to access the price information outside of the normal trading process – for example, if you need to trigger an action between ticks.
 
-If the price isn’t immediately available, it will wait a short time, up to a few seconds, to ensure you get a valid value. It's designed to be automatically updated by the system after each trading tick, ensuring accuracy.
+It's designed to be reliable; if a price isn't immediately available, it will wait a short time before letting you know.  It also remembers the prices it has, so it doesn’t need to constantly re-fetch them.
 
-You can clear the stored prices completely or just for a specific setup to make sure you’re working with fresh data, which is particularly important at the start of a new trading session. The service itself manages everything internally, updating prices and holding onto them until you tell it to clean up.
+To keep things clean and prevent outdated information, you should clear the stored prices at the beginning of each new trading period.  You can either clear all prices or just specific ones.
+
+PriceMetaService automatically handles updating the prices based on information from your strategy and exchange connections, making it easy to use without a lot of extra work. It's set up as a central component that’s managed by the system.
+
 
 ## Class PositionSizeUtils
 
-This class helps you determine how much of your account to use for each trade. It offers different approaches to position sizing, like fixed percentages, Kelly Criterion, and ATR-based methods. Each method has built-in checks to ensure it’s being used correctly. 
+This class helps you figure out how much of an asset to trade, using different position sizing techniques. It offers pre-built methods to calculate the right size based on your risk tolerance and trading strategy. 
 
-You can use these methods by calling them directly; they don't require any setup or initialization. 
+Each method, like fixed percentage, Kelly Criterion, and ATR-based sizing, performs checks to make sure the data you provide is appropriate for the selected approach.
 
-Here's a quick look at what each method does:
+Here's a quick rundown of the available methods:
 
-*   **fixedPercentage:**  Calculates position size based on a predetermined percentage of your account balance.
-*   **kellyCriterion:**  A more complex method considering win rate and win-loss ratio to determine an optimal position size (use with caution!).
-*   **atrBased:**  Determines position size using the Average True Range (ATR) to account for market volatility. 
+*   **fixedPercentage:** Determines the position size based on a fixed percentage of your account balance, ensuring a consistent risk level.
+*   **kellyCriterion:** Calculates the optimal position size using the Kelly Criterion, which aims to maximize long-term growth by considering win rate and win-loss ratios.
+*   **atrBased:** Determines position size based on Average True Range (ATR), a measure of volatility, helping to adjust position size to the asset's price movement.
 
-Each of these calculations takes into account factors like the trading symbol, your account balance, the opening price, and other specific parameters depending on the method.
+## Class Position
+
+The Position class provides helpful tools for figuring out where to place your take profit and stop loss orders when trading. It simplifies things by automatically adjusting the direction (whether you're buying or selling) based on your position type.
+
+It offers two main functions to help with this:
+
+*   **moonbag:** This calculates take profit and stop loss levels using a specific "moonbag" strategy, placing your take profit at a fixed percentage above the current price.
+
+*   **bracket:**  This function lets you customize both your take profit and stop loss levels, providing greater control over your risk and reward. You specify the percentage for both. 
+
+Both functions return an object containing the position type, take profit price, and stop loss price.
 
 ## Class PersistStorageUtils
 
-This class provides tools for reliably saving and loading signal data, ensuring that your trading strategies don't lose progress even if something goes wrong. It helps manage how signals are stored persistently, meaning the data survives restarts and interruptions.
+This utility class helps manage how signal data is saved and loaded, ensuring reliable storage even if your program crashes. It handles the behind-the-scenes details of writing data to files and reading it back, so you don't have to.
 
-The class intelligently handles storage, creating a single storage instance for each signal and storing each as a separate file.  You can even customize how this storage works by plugging in your own adapters.
+It offers a way to customize the storage mechanism, allowing you to plug in different adapters for specialized needs. Each signal's data is stored in its own file, identified by a unique ID, simplifying organization.
 
-Importantly, writing data is done in a way that minimizes the risk of corruption if the application crashes unexpectedly.  The system also provides a way to clear the storage cache when needed, which is useful in specific scenarios.
+To ensure data integrity, the class performs write operations atomically, preventing corruption in case of unexpected interruptions.  You can also clear the storage cache if the program's working directory changes. 
 
-It provides methods for reading and writing signal data, and it allows you to switch between different storage methods – like using JSON for standard storage or using a “dummy” mode for testing where nothing is actually saved.
+There's a built-in option to switch to a “dummy” adapter that effectively disables saving, which can be helpful for testing. The class is essential for persistent storage of signals during live operation.
 
 ## Class PersistSignalUtils
 
-This class, PersistSignalUtils, helps manage how signal data is saved and retrieved, especially for strategies running in live mode. It ensures that signal information isn't lost, even if there are unexpected interruptions.
+The PersistSignalUtils class helps manage how signal data is saved and loaded, especially for trading strategies. It ensures that each strategy has its own dedicated storage space and provides a way to plug in different methods for saving data, like using JSON files or even discarding writes for testing. 
 
-It provides a way to store signal data separately for each strategy, allowing for customized storage methods. You can even plug in your own storage solutions.
+It automatically handles safely writing and reading signal data, making sure that the data isn't corrupted even if the system crashes. The class's `readSignalData` method is used to retrieve previously saved signal information, and `writeSignalData` saves new information.
 
-The class is designed to handle reading and writing signal data securely and reliably. If a signal doesn't exist, reading will return null.
+You can customize how data is stored by using the `usePersistSignalAdapter` method to integrate your own persistence adapter. 
 
-You can register different ways to store the data, like using JSON files or even a dummy adapter to simply ignore writes for testing. The `clear` method refreshes the storage cache when the working directory changes, and `useJson` and `useDummy` let you choose between default JSON persistence and a no-op storage method respectively.
+The `clear` method helps refresh the storage, which is useful when the working directory changes. Lastly, `useJson` and `useDummy` simplify switching between standard JSON persistence and a testing mode that doesn't actually save any data.
 
 ## Class PersistScheduleUtils
 
-This class helps manage how trading signals are saved and loaded, particularly for strategies that rely on scheduled signals. It ensures that these signals are kept safe even if the program crashes. 
+This class helps manage how scheduled signals are saved and loaded for trading strategies. It makes sure each strategy has its own isolated storage, and you can even use your own custom methods for saving data.
 
-Each strategy gets its own dedicated storage area for these signals, and you can even customize how the storage works by providing your own adapter.
+The system prioritizes safety; it uses special techniques to ensure that data isn't corrupted even if the program crashes unexpectedly during a save.
 
-The system carefully handles reading and writing these signals to prevent data corruption.
+Here’s a bit more detail:
 
-Here's a quick rundown of what you can do:
+*   **Reading and Writing Data:** The `readScheduleData` method retrieves existing signal data, while `writeScheduleData` saves new or updated signal data. These operations are carefully handled to prevent data loss or corruption.
+*   **Customization:** You can choose how the data is stored by using the `usePersistScheduleAdapter` method to register a custom adapter.
+*   **Convenience Options:** The `useJson` method lets you switch back to the standard JSON storage, and the `useDummy` method is helpful for testing since it essentially ignores any data you try to save.
+*   **Cache Management:** The `clear` method is useful for resetting the storage, especially when the program's working directory changes.
 
-*   **Read existing signals:** You can fetch the previously saved signal data for a specific trading symbol and strategy.
-*   **Save new signals:** This lets you store the current state of a scheduled signal.
-*   **Choose a storage method:** You can select between a standard JSON format, a dummy adapter that doesn't save anything (useful for testing), or a custom storage method.
-*   **Clear the storage:**  When the program’s working directory changes, it's important to clear out old storage to make sure the new directory is used correctly.
-
-The `ClientStrategy` uses this class to load signals when it starts and to save them when they change.
+This utility is mainly used internally by `ClientStrategy` to handle persistence, ensuring a smooth and reliable trading experience.
 
 ## Class PersistRiskUtils
 
-This class helps manage how your trading positions are saved and loaded, particularly when dealing with risk management. It's designed to keep track of active positions reliably, even if unexpected issues occur. 
+This class, `PersistRiskUtils`, helps manage and save your trading positions, particularly when dealing with different risk profiles. It’s designed to keep track of active positions and ensure that even if something goes wrong, your position data isn't lost.
 
-It remembers where your position data is stored for each risk profile, making it easy to find. You can also customize how this data is stored, using different adapters if needed.
+The class uses a clever system of memoization, meaning it remembers which storage methods to use for each risk profile, making things efficient.
 
-The `readPositionData` method retrieves saved position information, while `writePositionData` ensures that updates to your positions are saved safely to disk, preventing data loss.
+You can even customize how it saves data by plugging in your own adapters.
 
-You can also clear the existing storage cache when the working directory changes, making sure you get fresh data. 
+Importantly, it handles saving and reading data safely, so position information isn't corrupted even if the application crashes.
 
-There are built-in options to switch between different storage methods: you can use the default JSON format, or a dummy adapter that discards changes for testing purposes.
+Here’s a quick rundown of its main features:
+
+*   **Reading Positions:**  `readPositionData` retrieves the active positions that have been saved for a particular risk profile and exchange.  It’s used when starting up to load your previous state.
+*   **Saving Positions:** `writePositionData` handles saving your active position information to disk.  It does this carefully, using atomic writes to ensure data integrity.
+*   **Adapters:** `usePersistRiskAdapter` lets you swap in different ways of storing that data – think JSON, or even a dummy adapter that throws away changes for testing.
+*   **Cache Clearing:**  `clear` helps keep things running smoothly by resetting the storage cache if your working directory changes.
+*   **Default and Dummy Adapters:**  You can quickly switch back to the standard JSON storage with `useJson`, or disable storage completely with `useDummy`.
+
+
+
+This tool is essential for keeping your trading strategy’s state consistent and reliable.
 
 ## Class PersistPartialUtils
 
-This class helps manage and save your trading strategy’s partial profit/loss information, ensuring that data isn't lost even if there are unexpected interruptions. It keeps track of these values for each symbol and strategy, storing them in a way that’s reliable and prevents data corruption. 
+This class helps manage and safely store your trading strategy's partial profit and loss information. It keeps track of these values for each symbol and strategy combination, ensuring that even if your application crashes, the data isn't lost.
 
-The system automatically handles the storage, creating unique locations for each symbol and strategy combination. You can even customize how this data is stored by providing your own adapter.
+It uses a clever system to avoid creating duplicate storage instances and allows you to plug in different ways of saving the data, such as JSON files or even a "dummy" adapter that throws everything away for testing purposes. 
 
-When your strategy restarts, this class loads the previously saved information, allowing the strategy to pick up where it left off. To ensure data safety, writing and reading operations are handled carefully.
+When your strategy starts, this class loads any previously saved partial data. And when profit/loss levels change, it reliably writes the updated data back to disk using a process that’s designed to prevent corruption. 
 
-You have the option to clear the saved data, which is useful if the underlying storage location changes. Additionally, you can switch between using a standard JSON format, a dummy adapter for testing (which effectively ignores any saving), or using your custom adapter.
-
+You can clear the cached storage if your working directory changes, which is important when running strategies repeatedly. You can also quickly switch between using a standard JSON storage, a custom adapter, or a dummy adapter for testing.
 
 ## Class PersistNotificationUtils
 
-This class, `PersistNotificationUtils`, helps manage how notification data is saved and loaded. It’s designed to be reliable, even if the program crashes unexpectedly.
+This class helps manage how notifications are saved and loaded, ensuring they're handled reliably even if there are unexpected issues. It provides a way to store each notification individually as a file, identified by its unique ID, and offers safeguards against data loss.
 
-It provides a way to use different storage methods, including a default JSON option and a dummy option for testing where data isn't actually saved.
+You can customize how notifications are stored by plugging in different adapters. 
 
-You can also register your own storage adapter if you need something specialized.
+The `readNotificationData` method retrieves all previously saved notifications, rebuilding the state from disk, while `writeNotificationData` ensures changes are written to storage safely.
 
-The class automatically saves each notification as a separate file, making it easy to manage individual notifications.
-
-Importantly, when notifications are read or written, the process is designed to be safe and avoid data corruption. The `readNotificationData` function loads all saved notifications, while `writeNotificationData` saves changes to disk. The `clear` method is useful to reset the storage if the working directory changes.
+To keep things fresh, you can clear the storage cache, which is useful if your project's working directory changes. It also includes convenient options to switch between a standard JSON storage, or a dummy adapter that effectively ignores all persistence requests.
 
 ## Class PersistMemoryUtils
 
-This class helps manage how your trading data is saved and loaded from disk, ensuring that your progress isn't lost even if your application crashes. It’s designed to keep track of memory entries, grouping them by a signal ID and bucket name, and stores them in JSON files within a specific directory structure.
+This class helps manage how your application remembers information (memory entries) even when it restarts. It's designed to make sure this memory isn't lost and can be retrieved reliably.
 
-You can customize how this data is stored by using different persistence adapters, or revert to the default JSON storage. The class also provides utilities for reading, writing, and removing memory entries, and it provides a way to list all the available entries for rebuilding indexes. It includes a "dummy" mode that lets you disable persistence completely for testing purposes. To maintain accuracy, it's important to clear the storage cache when the working directory changes and to properly dispose of memory adapters when a signal is no longer needed.
+The system organizes this memory in specific folders on your computer based on identifiers like `signalId` and `bucketName`. You can customize how this memory is stored using different "adapters," allowing you to experiment with various storage methods.
+
+Here’s a breakdown of what you can do with it:
+
+*   **Load and Save Memory:** It provides functions to read, write, and delete these memory entries from disk.
+*   **Manage Storage:** The system keeps track of which storage instances are active, creating them as needed and cleaning them up when they're no longer required.  It's important to refresh these when your working directory changes.
+*   **Customization:** You can plug in your own storage adapter to change how data is persisted. There's also a "dummy" adapter that's useful for testing as it doesn’t save anything to disk.
+*   **Rebuild Indexes:** You can retrieve a list of all memory entries to rebuild indexes.
+*   **Cleanup:** The `dispose` function helps free up resources when you're finished with a particular memory storage.
 
 ## Class PersistMeasureUtils
 
-This utility class helps manage how cached data from external APIs is saved and retrieved, specifically designed for long-term storage. It keeps track of different cache buckets, ensuring each one has its own dedicated storage space.
+This class, `PersistMeasureUtils`, helps manage how cached data from external APIs is stored and retrieved persistently, like saving it to a file. It's designed to ensure that your cached data remains consistent even if your application crashes.
 
-You can customize how the data is stored by plugging in different adapters, allowing flexibility depending on your needs. The system is built to handle data updates safely, even if unexpected issues occur.
+The class manages cached data grouped by a unique identifier (a combination of timestamp and symbol), and it allows you to customize how this data is saved and loaded using different adapters.  It ensures data is written and read atomically, preventing data corruption.  
 
-It offers functions to read and write cached data, and includes methods to clear the entire cache when necessary, such as when the base directory changes. 
+You can use this class to read, write, and delete cached data. Removing an entry doesn't actually delete the file from disk – it just marks it as "soft deleted," so subsequent reads will return nothing.
 
-There's also the option to use a default JSON adapter for standard storage or a "dummy" adapter that simply discards any write operations, useful for testing or when persistent storage isn’t required.
+It also provides ways to register custom storage methods or revert back to a default JSON-based storage.  A special "dummy" adapter is available if you want to temporarily disable persistence for testing purposes.  Finally, you can clear the entire cache if the working directory changes.
 
 ## Class PersistLogUtils
 
-This class provides tools for reliably saving and retrieving log data. It acts like a central manager for how log information is stored on disk.
+This class helps manage how log data is saved and loaded, ensuring it's reliable even if things go wrong. It uses a special system to handle the storage, allowing you to swap out different ways of saving the data if needed.
 
-It intelligently handles storage, remembering the last known state and allowing you to plug in different ways to save the data, like using JSON files or even discarding the data entirely for testing purposes.
+The `readLogData` method retrieves all the saved log entries, loading them from storage, and if there’s nothing to load, it returns an empty list. The `writeLogData` method saves each individual log entry as a separate file, protecting the data from corruption in case of crashes.
 
-The `readLogData` method is used to load all previously saved log entries, ensuring your system remembers its history.  `writeLogData` saves new log entries, doing it in a way that protects against data loss even if your application crashes.
+You can also customize how the data is stored using adapters, or switch to a simple JSON-based storage, or even use a "dummy" adapter that just throws away the data for testing. Clearing the storage helps ensure everything is fresh when running different strategies in different locations on your system.
 
-You can also change how the log data is saved.  For example, you can switch to a simpler, JSON-based storage or a "dummy" adapter that ignores any saves, helpful for testing.  If your application's working directory changes, use the `clear` method to refresh the storage.
+## Class PersistIntervalUtils
 
+This framework component manages how the system remembers which time intervals have already been processed. It acts as a persistence layer, storing information about interval firing in files located in a designated directory. The presence of a file indicates that the interval has fired; its absence suggests it hasn't or that it was previously cleared.
+
+It offers several ways to interact with its persistence: you can read and write data to these files, or even mark entries as "removed" – essentially resetting their state to allow them to fire again.
+
+For flexibility, the system lets you swap out the storage mechanism, allowing custom adapters for different needs, or revert to a simple JSON-based storage or even a “dummy” adapter that does nothing. 
+
+It provides a way to list all the existing interval keys for a given time bucket, useful for cleanup operations. Finally, it includes a cache clearing function that's important when the working directory changes between strategy runs.
 
 ## Class PersistCandleUtils
 
-This utility class helps manage a cache of historical candle data, which is crucial for backtesting trading strategies. It stores each candle as a separate JSON file, making it easy to locate and retrieve specific data points.
+This class helps manage a cache of historical candle data, like price information over time. It stores each candle as a separate file to keep things organized.
 
-The cache intelligently validates itself – it only returns data if it has *all* the candles you're requesting, preventing partial or incorrect results.  If any candles are missing, it signals a cache miss and forces a refresh.
+To ensure data accuracy, it only returns cached data if the entire requested set of candles is available. If even one candle is missing, it signals that the cache isn’t complete.
 
-This system also automatically updates the cache when data is incomplete, ensuring accuracy. To keep things running smoothly, use the `clear()` method whenever your working directory changes, forcing a fresh start for the cache. 
+The system also automatically updates the cache when data is incomplete.
 
-You can choose different storage methods, including JSON or a dummy adapter for testing purposes, tailoring persistence to your specific needs. The `writeCandlesData` function requires carefully validated candle data to maintain data integrity and consistency.
+The class allows you to use different ways to store data, including a standard JSON format or a dummy adapter that simply ignores all changes – useful for testing. You can even replace the default storage with a custom implementation.
+
+When the program's working directory changes, you’ll need to clear the stored cache to prevent issues.
 
 ## Class PersistBreakevenUtils
 
-This utility class manages how breakeven data is saved and loaded from disk. It keeps track of breakeven state for different trading strategies and symbols. 
+This utility class helps manage and save breakeven data, ensuring that your trading strategies remember their progress even when they restart. It handles the behind-the-scenes work of storing and retrieving this data to disk, making it easy to persist the state of your trading strategies.
 
-Think of it as a central place to store and retrieve information about your breakeven points, ensuring that your strategies remember their progress even if you restart. It automatically creates the necessary files and folders to hold this data, organized by symbol, strategy name, and exchange. 
+The class uses a clever system to create and reuse storage locations, one for each combination of symbol (like BTCUSDT), strategy name, and exchange.  You can customize how this data is saved, switching between standard JSON files or even a "dummy" adapter that simply ignores writes.
 
-You can even customize how this data is stored, for instance, by using JSON or by pretending to save it (a "dummy" adapter useful for testing).  The system cleverly avoids writing the same data repeatedly by keeping a memoized cache and allows the system to adapt to changing working directories. This ensures a consistent and reliable way to maintain your breakeven state.
+If your working directory changes between strategy runs, you can clear the cached storage to force it to recreate the necessary files.  Essentially, it's designed to reliably save and load your strategy's breakeven state, ensuring continuity and preventing data loss.
 
 ## Class PersistBase
 
-This class provides a foundation for storing and retrieving data to files, ensuring that operations are handled reliably and without data loss. It's designed to work with file-based persistence, making sure your data stays safe even if something goes wrong during a write.
+This class provides a foundation for storing and retrieving data to files, ensuring data integrity and reliability. It's designed to handle situations where data corruption might occur.
 
-The class manages where your data is stored—you specify an entity name and a base directory.  It automatically keeps track of the exact location of files and cleans up any corrupted ones it finds.
+It keeps track of the type of data being stored (entity name) and where it's being stored (base directory). 
 
-You can easily iterate through all the entities you've stored using the `keys` method, which provides a sorted list of entity IDs.
+The framework automatically validates and cleans up any corrupted files during initialization and keeps the directory organized. 
 
-Key functions allow you to read existing data, check if data exists, and write new data, all while employing atomic file operations to guarantee data integrity. An initialization process ensures the persistence directory is ready and validates existing data when the system starts up, and this process only runs once.
+It also has built-in retry mechanisms for deleting files, and provides a way to iterate through all the stored entities using an asynchronous generator.
+
+You can easily read, write, and check for the existence of entities, and it makes sure that file operations are done safely and reliably.
+
 
 ## Class PerformanceReportService
 
-This service helps you understand how long different parts of your trading strategy take to execute. It listens for timing information from your strategy and records it in a database.
+This service helps you understand how long different parts of your trading strategy take to execute. It acts like a detective, carefully recording the time it takes for each step. 
 
-Think of it as a performance tracker that highlights potential bottlenecks in your code. 
+Think of it as listening for "performance events" – those moments when something important happens in your strategy’s execution. It then saves these timing details, including how long each step took and some extra information about the event.
 
-You can easily start monitoring your strategy's performance by subscribing to the service, and equally important, stop monitoring it when you no longer need to. The service ensures you don't accidentally subscribe multiple times, which could cause issues. 
+You can tell this service to start listening for these events, and it will keep track of everything.  When you're done, you can also tell it to stop listening.  Importantly, it only allows one subscription at a time to prevent issues.
 
-The `loggerService` property lets you add debugging output for more detailed performance insights, and the `track` property handles the actual processing and logging of these timing events.
-
+The recorded data is stored in a way that makes it easy to analyze later, letting you pinpoint bottlenecks and optimize your strategy's performance. It uses a logger to provide helpful debugging information during its operation.
 
 ## Class PerformanceMarkdownService
 
-This service is designed to monitor and analyze how your trading strategies are performing. It listens for performance data, organizes it by strategy, and then calculates key statistics like averages, minimums, maximums, and percentiles.
+This service is designed to help you understand how your trading strategies are performing. It constantly monitors and collects performance data as your strategies run.
 
-The service automatically generates reports in Markdown format, which helps you quickly identify bottlenecks and areas for improvement.  These reports are saved to your logs directory.
+The service organizes this data by symbol, strategy name, exchange, frame, and whether it's a backtest or live trading scenario, ensuring that metrics are isolated and specific.
 
-You can use the `subscribe` function to start receiving performance data, and `unsubscribe` to stop.  The `track` method is the key to feeding the service the performance information it needs.
+It automatically calculates key statistics like averages, minimums, maximums, and percentiles, providing a clear picture of your strategy's behavior. It can also generate detailed reports in markdown format, highlighting potential bottlenecks and areas for improvement. These reports are saved to disk for easy access and analysis.
 
-Need to review past performance?  The `getData` method allows you to retrieve statistics for a specific symbol and strategy. You can generate a report using `getReport`, and save that report to disk with `dump`. Finally, `clear` lets you wipe the performance data and start fresh. The service uses a logger for output and a system for managing data storage, ensuring each strategy's data remains isolated.
+You can subscribe to receive performance updates, unsubscribe to stop receiving them, and clear the accumulated data when needed. It also offers functions to retrieve specific performance data and generate reports on demand.
 
 ## Class Performance
 
-The Performance class helps you understand how well your trading strategies are performing. It offers tools to collect and analyze data related to your strategies' execution.
+The Performance class helps you understand and analyze how your trading strategies are performing. It provides tools to gather overall performance statistics for a specific symbol and strategy combination, giving you a clear picture of how things are working.
 
-You can retrieve aggregated performance statistics for a specific symbol and strategy combination, providing key metrics like counts, durations, averages, and volatility measures.
+You can request a detailed report that uses markdown format, highlighting key areas like operation durations and percentile analysis to pinpoint potential bottlenecks. This helps you identify where your strategy might be slow or inefficient.
 
-To better visualize your strategy’s performance, you can generate a detailed markdown report. This report breaks down the time spent on different operations, presents key statistics in a table, and highlights potential bottlenecks using percentile analysis.
-
-Finally, the class lets you easily save these performance reports to disk, which is handy for tracking trends and sharing results – the reports will be stored in a folder named 'dump/performance' by default.
+Furthermore, the class allows you to save these performance reports directly to your computer for later review, making it easier to track progress over time. The reports are organized into directories named after your strategies, simplifying navigation and organization. You can also customize the columns shown in the report.
 
 ## Class PartialUtils
 
-The PartialUtils class helps you analyze and report on partial profit and loss data collected during trading. Think of it as a tool for examining how your strategies are performing in smaller, more granular steps.
+The PartialUtils class helps you analyze and report on the smaller, partial profits and losses that occur during trading. Think of it as a tool to break down the bigger picture and see what’s happening in detail.
 
-It gathers information from partial profit/loss events—details like when a trade moved in your favor or against you, what symbol was involved, and the strategy used. This information is stored temporarily, allowing for analysis and reporting.
+It gives you a way to gather statistics about these partial events, like the total number of profit and loss occurrences.
 
-You can request aggregated statistics, like the total number of profit and loss events, or generate comprehensive markdown reports summarizing individual trades. These reports list key details of each event, including the action (profit or loss), symbol, price, and timestamp.
+You can also generate readable reports in markdown format, presenting the partial profit/loss events in a table with details such as the action (profit or loss), symbol traded, strategy used, signal ID, position, level, price, and timestamp.
 
-Finally, you can easily save these reports to a file, creating a persistent record of your trading performance, automatically naming the file using the symbol and strategy name.
+Finally, it allows you to save these reports to files for later review, organizing them by symbol and strategy name. The files are saved as markdown documents, making them easy to read and share.
 
 ## Class PartialReportService
 
-The `PartialReportService` is designed to keep track of every time your trading strategy partially closes a position, whether it's a profit or a loss. Think of it as a detailed record of those intermediate steps in your trades.
+The PartialReportService helps you keep track of smaller, partial exits from your trading positions. It specifically records when you take profits or losses before closing a position completely.
 
-It listens for signals indicating partial profit and partial loss events, capturing information like the price and level at which these exits occur. This information is then logged to a database.
+It listens for signals indicating these partial profit and loss events, and carefully logs details like the price and level at which they occurred. This information is then stored in a database for later review and analysis.
 
-You can use the `subscribe` function to activate this monitoring; it ensures you don’t accidentally subscribe multiple times and provides a way to stop listening with the returned unsubscribe function. The `unsubscribe` function provides a convenient way to stop the service from listening, although it does nothing if you haven't subscribed in the first place. The service also has a logger to help debug any issues.
-
+You can use the `subscribe` method to tell the service to start listening for these events, and `unsubscribe` to stop. It prevents accidental duplicate subscriptions.
+The `loggerService` property lets you control the debug output, while `tickProfit` and `tickLoss` handle profit and loss event processing respectively.
 
 ## Class PartialMarkdownService
 
-The PartialMarkdownService helps you track and report on partial profits and losses during trading. It listens for these events and keeps a running tally for each symbol and strategy you're using. 
+The PartialMarkdownService helps you keep track of and report on your partial profits and losses during trading. It listens for events indicating profits and losses, keeping a record of each one for a specific trading symbol and strategy. 
 
-It automatically generates easy-to-read markdown reports that detail each profit and loss event, providing a clear picture of how your strategies are performing. You can also request overall statistics, like the total number of profits and losses.
+It then compiles this information into nicely formatted markdown reports, including summaries of total profit/loss events. These reports are saved to disk, making it easy to review your progress.
 
-The service saves these reports as markdown files, organized by symbol and strategy, making it simple to review your trading history. It also offers a way to clear out this stored data when you want to start fresh. You can even customize which data points appear in the reports and where they're saved. It provides a dedicated method to stop and start listening for new events, preventing multiple subscriptions.
+You can subscribe to receive these events, and the service makes it simple to retrieve statistics, generate reports, and save them to files. There's also a way to clear the accumulated data when it’s no longer needed, either for a specific setup or everything at once. Each unique combination of symbol, strategy, exchange, frame, and backtest has its own dedicated storage space for its data.
 
 ## Class PartialGlobalService
 
-This service acts as a central hub for managing partial profit and loss tracking within the system. Think of it as a middleman – it receives requests related to profit, loss, and clearing partial states and then passes them on to the connection service to handle the actual work. It’s designed to be injected into strategies, streamlining how they interact with the system and providing a single point for managing these interactions.
+This service acts as a central hub for managing and tracking partial profits and losses within the trading system. It's designed to be injected into the core trading strategy, providing a single point of access for these operations.
 
-A key feature is its logging capability; every action taken – whether it's registering a profit, a loss, or clearing a position – is recorded for monitoring and debugging. This service relies on other components like validation and schema services to ensure configurations are correct before proceeding.
+Essentially, it sits between the strategy and the underlying connection service, allowing for centralized logging of all partial actions. This makes it easier to monitor what's happening with profits and losses across the entire system.
 
-Essentially, it makes the system more organized, easier to monitor, and more reliable when dealing with partial profit and loss calculations.
+Think of it as a middleman that ensures all profit/loss calculations are logged for monitoring before they're handled by the connection service. It uses other services to validate components like the strategy and risk configurations.
+
+The `profit`, `loss`, and `clear` functions handle specific events, logging them before passing the work to the connection service.  The `validate` function ensures the components involved are valid and avoids repeated checks.
 
 ## Class PartialConnectionService
 
-The PartialConnectionService manages and tracks partial profit and loss information for trading signals. It's designed to avoid creating unnecessary instances and ensures that each signal has its own dedicated record.
+The PartialConnectionService manages how profit and loss information is tracked for individual trading signals. It acts like a central hub, making sure there's only one tracking instance for each signal.
 
-Think of it as a central hub: when a profit or loss is detected for a signal, this service finds or creates a record for it, configures it, and then hands off the actual profit/loss calculation to that record.
+Think of it as a smart factory that creates and remembers these tracking instances (ClientPartial) for each signal. This process uses a technique called memoization to avoid creating unnecessary duplicates.
 
-It cleverly remembers these records using a technique called memoization, so it doesn’t have to recreate them every time. When a signal is finished, this service cleans up those records, making sure nothing is left behind.
+When a signal reaches a profit or loss threshold, this service handles the details, sending out notifications and updating the relevant tracking instance. When a signal is closed out, it cleans up the tracking data, making sure resources aren't wasted.
 
-This service works closely with the ClientStrategy and uses a combination of caching and event emissions to keep things running smoothly and efficiently. You'll find it’s automatically injected into the ClientStrategy, streamlining the process. The getPartial property is what creates the memoized instances. The profit and loss methods handle the updating of these partial records, and the clear method makes sure they are cleaned up when no longer needed.
+The service is designed to work with the ClientStrategy, and uses other services for logging and handling actions, which makes it a well-integrated part of the overall trading framework. It effectively handles the lifecycle of partial profit/loss tracking for each signal you're trading.
 
 ## Class NotificationLiveAdapter
 
-This component provides a flexible way to manage notifications during live trading. It acts as a central point, letting you easily swap out different notification methods without changing your core trading logic.
+The `NotificationLiveAdapter` acts as a central hub for sending notifications related to your trading strategies. Think of it as a flexible messenger that can deliver updates in different ways.
 
-You can choose how notifications are handled – storing them in memory, persisting them to disk, or even discarding them entirely with a dummy adapter. The adapter pattern allows you to plug in custom notification backends if the built-in options don’t meet your needs.
+It's designed to be adaptable – you can easily swap out the way notifications are sent, whether that's keeping them in memory, saving them to a file, or just discarding them (for testing purposes). The default behavior stores notifications in memory.
 
-The `handleSignal`, `handlePartialProfit`, `handlePartialLoss` and other methods simply pass notification events to the currently active adapter.  You can retrieve all stored notifications with `getData` and clear them with `dispose`.
+You can switch between different notification methods: a dummy adapter that does nothing, an in-memory adapter for temporary storage, or a persistent adapter that saves notifications to disk.
 
-To switch notification methods, use methods like `useDummy`, `useMemory` (the default), or `usePersist`. The `useNotificationAdapter` method gives you the most control, allowing you to specify a custom adapter. If the process directory changes, it's important to `clear` the cached utils instance to ensure correct behavior.
+The adapter provides a suite of methods for handling different events – signals, profit/loss updates, strategy commitments, errors, and more. Each of these methods simply passes the information along to the currently configured notification system.
+
+You can also retrieve all the notifications that have been stored, or clear them out entirely. If your base directory changes (like when a strategy runs multiple times), you should reset the adapter to ensure it uses the correct path.
 
 ## Class NotificationBacktestAdapter
 
-This component provides a flexible way to handle notifications during backtesting, allowing you to choose where those notifications are stored or processed. It's designed to be adaptable, letting you easily swap out different notification "backends" without changing the core backtesting logic. By default, notifications are stored in memory, but you can switch to persistent storage on disk or use a "dummy" adapter that simply ignores the notifications.
+This component acts as a central hub for managing notifications during backtesting. It’s designed to be flexible, allowing you to easily swap out different notification methods – like storing data in memory, persisting it to a file, or discarding notifications entirely (using a dummy adapter). The default behavior keeps notifications in memory for quick access.
 
-You can manage how notifications are handled by using methods like `useDummy`, `useMemory`, and `usePersist` to quickly change the underlying adapter. The `handleSignal`, `handlePartialProfit`, and similar methods are all wrappers that forward the notification events to the currently selected adapter.  You can also retrieve all stored notifications with `getData` and clear them with `dispose`.  Finally, `clear` is important to call when your working directory changes between backtest runs to ensure a fresh start with the default memory-based adapter.
+You can switch between these notification methods using convenient helper functions: `useDummy`, `useMemory`, and `usePersist`. `useDummy` is useful for quickly silencing notifications during testing. `useMemory` is the standard, and `usePersist` ensures your notifications are saved for later review.
+
+It provides methods for handling various events during backtesting, such as signals, partial profits, losses, and errors. All these event handling functions simply pass the information to the currently selected notification method.
+
+The `getData` method lets you retrieve all the notifications that have been captured so far, and `dispose` clears the stored notifications. If you change the working directory between backtesting runs, it’s recommended to call `clear` to ensure the adapter resets to its default in-memory configuration.
 
 ## Class NotificationAdapter
 
-This component handles all your notifications, whether you're running a backtest or a live trading session. It automatically keeps track of notifications as they come in, and provides a simple way to retrieve them.
+This component handles and organizes all your trading notifications, whether you're running a backtest or a live trading system. It automatically keeps track of notifications as they come in, ensuring you don't miss anything. 
 
-To prevent confusion and duplicate notifications, it ensures subscriptions happen only once.  You can turn notification tracking on and off as needed, and it’s safe to disable it even if it’s already off.
+It makes it easy to access both backtest and live notifications in a single place, and it's designed to prevent accidental duplicate notifications.
 
-Retrieving your notifications is as easy as asking for either the backtest or live data, and you can completely clear out all stored notifications when you're finished with a backtest or live session.
+You can turn it on and off as needed, and it's safe to turn it off multiple times.  When you're finished, you can clear out all the notifications it has stored.
+
 
 ## Class MemoryAdapter
 
-The MemoryAdapter helps manage and store data related to signals and buckets, like keeping track of information for a specific trading strategy. It's designed to be efficient by only creating a data storage area (an "instance") when it's actually needed, and reusing it whenever possible.
+The MemoryAdapter acts as a central hub for managing and accessing memory instances, specifically for data related to signals and buckets. It's designed to efficiently handle these instances, ensuring they are created and managed in a controlled way.
 
-You can easily switch between different storage methods: a simple in-memory solution, persistent storage to files, or even a dummy adapter that throws away any data you try to save. The default storage method combines in-memory storage with file persistence for a balance of speed and data safety.
+Think of it as a smart way to keep track of data linked to specific signals and buckets, avoiding duplicates and ensuring data consistency.
 
-Before you start using any data storage functions, you need to activate the adapter. Disabling the adapter later simply stops it from tracking signal lifecycle events.
+You can easily change how this data is stored – choosing between a simple in-memory solution, persistent storage on your file system, or even a "dummy" mode that just ignores any data changes.
 
-You can add data using `writeMemory`, search using text-based scoring with `searchMemory`, list everything with `listMemory`, delete entries with `removeMemory`, or retrieve a single item with `readMemory`. The `clear` function resets the adapter's internal cache, useful for scenarios where your working directory changes, and `dispose` releases resources, ensuring a clean shutdown.
+The `enable` and `disable` functions control how the adapter interacts with the signal lifecycle, automatically cleaning up memory when a signal is finished, which prevents issues caused by leftover data. You *must* `enable` before using any of the memory functions.
+
+You have methods to write, search, list, remove, and read data, all while leveraging BM25 full-text scoring for powerful searching capabilities.
+
+If you're experimenting or need a fresh start, `clear` wipes the slate clean, rebuilding memory instances. Finally, `dispose` releases the resources used by the adapter, cleaning up after it’s done.
 
 ## Class MaxDrawdownUtils
 
-This class helps you understand and analyze the maximum drawdown experienced during trading simulations or live trading. It acts as a central place to gather and present information about how much your strategies lost from peak to trough.
+This class helps you understand and report on the maximum drawdown experienced during trading. It acts as a central place to access information collected about those drawdown events.
 
-Think of it as a tool to get reports and statistics about drawdown events. You can request data on specific symbols and strategies, defining what data you're interested in.
+Think of it as a way to create reports or get summary statistics regarding your trading performance concerning potential losses.
 
-It provides a few key functions:
+You can retrieve data about the drawdown, generate a comprehensive markdown report outlining the events, or even save that report directly to a file. To access and work with this data, you'll specify the trading symbol, strategy name, exchange, and timeframe you're interested in. This is particularly useful for assessing risk and optimizing strategies.
 
-*   `getData` allows you to fetch numerical statistics related to drawdown.
-*   `getReport` creates a human-readable markdown report summarizing drawdown events.
-*   `dump` generates the same markdown report and saves it directly to a file.
-
-Essentially, it simplifies accessing and presenting drawdown information to help you assess and improve your trading strategies.
 
 ## Class MaxDrawdownReportService
 
-The MaxDrawdownReportService is designed to automatically track and record maximum drawdown events, which are crucial for evaluating trading strategies. It essentially listens for drawdown updates and saves these events as JSON files, allowing for detailed analysis later.
+The `MaxDrawdownReportService` is responsible for recording maximum drawdown events, which are crucial for assessing risk in trading strategies. It keeps track of these drawdown occurrences and saves them to a database in a JSONL format for later analysis. 
 
-Think of it as a dedicated recorder for significant losses in your trading tests.
+It listens for drawdown notifications and, whenever a new drawdown happens, it logs a record containing detailed information such as the timestamp, symbol, strategy name, exchange, frame, backtest details, signal ID, position size, current price, and even the effective take profit and stop loss prices from the signal itself.
 
-To get it working, you need to tell it to start listening.  It only subscribes once; further attempts just give you the same way to stop it.
+To start the process of saving these drawdown events, you need to "subscribe" to the service.  Importantly, it prevents you from accidentally subscribing multiple times – subsequent subscription attempts simply return the existing unsubscribe function. 
 
-When it's actively tracking, it gathers all the important details of each drawdown event – including timestamps, symbols, strategy names, and even the specifics of the trading signals involved.  This rich data allows for a complete picture of what happened during those drawdown moments.
-
-Finally, you can tell it to stop listening when you no longer need it to track drawdowns.
+You can then "unsubscribe" from the service to stop it from recording further drawdown events. This disconnection is done using the function returned when you initially subscribed.
 
 
 ## Class MaxDrawdownMarkdownService
 
-This service is designed to automatically create and save reports detailing maximum drawdown metrics for your trading strategies. It keeps track of drawdown data for specific symbols, strategies, exchanges, and timeframes.
+This service is responsible for creating and saving reports about maximum drawdown, a key risk metric in trading. It actively monitors drawdown events and organizes them based on the trading symbol, strategy, exchange, and timeframe. 
 
-You need to tell it to start listening for drawdown events using the `subscribe` method. When it receives these events, it gathers and organizes the data.
+You can subscribe to receive these drawdown events and conversely unsubscribe to stop monitoring and clear any stored data.  The `tick` method handles the processing of each individual drawdown event. 
 
-You can then retrieve the accumulated data using `getData`, generate a formatted markdown report with `getReport`, or directly save the report to a file with `dump`. 
-
-The `clear` function lets you erase this stored data – you can clear everything at once, or just the data for a specific symbol and strategy combination. Be careful, clearing all data will reset everything. The service also handles unsubscribing and stopping the data collection process through the `unsubscribe` method.
+To retrieve the accumulated drawdown statistics for a specific trading context, use the `getData` method. The `getReport` method takes this data and transforms it into a user-friendly markdown report.  If you want the report saved directly to a file, the `dump` method will generate the report and write it to the specified path. Finally, the `clear` method allows you to reset the stored data, either for a specific trading combination or a complete reset.
 
 ## Class MarkdownWriterAdapter
 
-The MarkdownWriterAdapter helps you manage how your trading reports are saved, offering flexibility in storage methods. It allows you to choose between creating individual markdown files for each report, centralizing them in a single JSONL file, or completely disabling markdown output for testing or efficiency. 
+The MarkdownWriterAdapter helps you manage how your trading reports are saved. Think of it as a flexible tool that lets you choose where and how your reports are stored – whether it's in individual files, combined into a single JSONL file, or discarded entirely. 
 
-You can easily switch between these storage options using functions like `useMd`, `useJsonl`, and `useDummy`.
+You can easily switch between different storage methods using functions like `useMd`, `useJsonl`, or `useDummy`. `useMd` creates a separate markdown file for each report, `useJsonl` appends everything to one file, and `useDummy` effectively turns off markdown generation.
 
-Under the hood, it efficiently manages storage instances, ensuring that only one is created for each report type, like backtest or live trading data.
-
-The `useMarkdownAdapter` function lets you customize the storage mechanism entirely, and the `clear` function is useful for situations where you need to refresh the storage location. The adapter automatically creates storage when you first write data, simplifying the process of saving your trading information.
+Behind the scenes, it's designed to be efficient.  It keeps track of storage instances and only creates new ones when needed.  If you need to change how your markdown is created, you can adjust the `MarkdownFactory` to customize the adapter. The `clear` function is useful if your working directory changes, ensuring that new storage is created properly.
 
 ## Class MarkdownUtils
 
-The MarkdownUtils class helps control the creation of markdown reports for various parts of the backtest-kit framework, like backtesting, live trading, and strategy performance analysis.
+The MarkdownUtils class helps you control when and how markdown reports are generated within the backtest-kit framework.
 
-It lets you turn on or off markdown reporting for specific features.
+It lets you turn on markdown reporting for specific areas like backtests, live trading, or performance analysis, choosing exactly what you want to see in markdown format.
 
-The `enable` method lets you choose which services should generate markdown reports and returns a function you *must* call to clean up and prevent memory issues. Think of it as subscribing to these services – when you’re done, you need to unsubscribe them.
+When you enable markdown reporting, it starts listening for data, gathers information, and creates markdown files when needed.  It’s important to remember that enabling a service comes with a cleanup function – use it to stop the reporting and prevent memory issues.
 
-The `disable` method allows you to stop markdown reporting for certain services without affecting others, giving you fine-grained control over report generation.  This stops data accumulation and report creation for those services, freeing up resources.
+Conversely, you can disable markdown reporting for certain areas without affecting others, allowing for targeted control over report generation. This is useful if you want to focus on specific aspects of your trading. Disabling doesn’t require a cleanup function; it immediately stops the markdown process for the specified areas.
 
 ## Class MarkdownFolderBase
 
-This class helps you create organized reports where each report is saved as its own markdown file. Think of it as a way to keep your backtesting results neatly separated into individual files, making them easy to browse and understand.
+This adapter is designed for creating reports with a structured directory layout, where each report is saved as its own individual markdown file. Think of it as the go-to choice when you want easily navigable and human-readable reports.
 
-It creates a folder structure based on your specified path and filename, so you don't have to worry about creating those directories yourself.  Each report is written directly to a file without any complex stream management.
+The adapter automatically handles creating the necessary directories for your reports, making organization effortless. Each file's location is determined by the `path` and `file` settings you provide.
 
-The `waitForInit` method is essentially a placeholder; it doesn't actually do anything because this adapter operates directly with files.
+The `waitForInit` method doesn’t actually do anything – it's just included because the base class requires it. 
 
-The main function to use is `dump`, which takes the markdown content and options (like the file path) and writes the content to the correct file, ensuring the file and directory structure exist.
+The core functionality lies in the `dump` method, which takes your markdown content and writes it to a file, handling the creation of directories along the way.
 
 
 ## Class MarkdownFileBase
 
-The `MarkdownFileBase` class provides a way to consistently write your markdown reports as JSONL files, making them easier to manage and process. It's designed to append data to a single file for each report type, and it handles the writing process efficiently.
+This class, `MarkdownFileBase`, helps you write markdown reports in a structured way as JSONL files. Think of it as a system for creating standardized, append-only logs of your trading reports.
 
-This adapter creates a dedicated directory to store these JSONL files and automatically creates it if it doesn't exist.  It also includes safeguards to prevent writing errors and ensures writes complete within a reasonable time (15 seconds), helping to avoid issues with slow or unresponsive systems.
+It organizes reports into individual files based on their type, making it easy to find and process specific kinds of information later. The system handles writing data in streams, managing buffer sizes to prevent slowdowns, and even includes a timeout to prevent writes from getting stuck.  It automatically creates the necessary directories to keep everything organized.
 
-You can filter these reports later by searching for specific criteria like the trading symbol, strategy name, exchange, frame, or signal ID. 
+You can filter these reports by criteria like the trading symbol, strategy used, exchange, timeframe, and signal ID, making it simple to pinpoint the data you need.
 
-To start using it, you specify the report type during creation, and the class handles initializing the file and write stream.  The `dump` method is then used to add new markdown content along with important metadata for organization and searching. It’s a great tool for centralized logging and integrating with other JSONL-aware tools.
-
+The initialization process is handled automatically, and you can call the initialization multiple times without issue.  Finally, the `dump` method lets you write a single markdown report line with all the necessary metadata attached.
 
 ## Class MarkdownAdapter
 
-The MarkdownAdapter helps manage how your markdown data is stored, offering flexibility and efficiency. It lets you choose different ways to store markdown—either as individual files or in a single JSONL file—and it remembers which method you've chosen so you don't have to keep setting it. 
+The MarkdownAdapter helps manage how your markdown files are stored and organized. It's designed to be flexible, allowing you to choose different ways to store markdown data.
 
-You can easily switch between storage methods using shortcuts like `useMd` for individual files or `useJsonl` for a combined JSONL approach.
+You can easily switch between storing each markdown file as a separate `.md` file or appending them to a single `.jsonl` file. 
 
-If your project directory changes, it’s a good idea to clear the adapter's memory using `clear` to make sure new storage is initialized correctly.
+The adapter also remembers the storage setup you choose, preventing unnecessary re-initialization.
 
-For testing or situations where you don’t want to save any markdown data, `useDummy` provides a way to simulate writes without actually writing anything to disk.
-
+If your project directory changes, you can clear the adapter's memory to ensure files are written to the correct location. A dummy adapter is available for testing or situations where you don't want any markdown files to be saved.
 
 ## Class LoggerService
 
-The LoggerService helps ensure consistent logging across your trading strategies and backtests by automatically adding useful context to each log message. Think of it as a central hub for all your logging needs.
+The LoggerService is designed to provide consistent logging across the entire backtest-kit framework. It's a central place for managing log messages and automatically adding important contextual information to them.
 
-It allows you to plug in your own preferred logger, but it smartly adds information like the strategy and exchange being used, as well as details about the current trade execution. If you don't provide your own logger, it will use a simple "no-op" logger that doesn't actually log anything.
+Think of it as a helper that takes your logging requests and enhances them with details like which strategy is running, which exchange is involved, and what part of the process is executing. 
 
-You can use the `log`, `debug`, `info`, and `warn` methods to record different levels of information. Each method automatically enriches the message with the relevant context, so you don't have to do it manually.  The `setLogger` method lets you swap in a completely different logging solution if you need to. 
+You can plug in your own preferred logger, or if you don’t specify one, it will use a basic, "do nothing" logger.
 
-Essentially, it simplifies logging and provides a standardized way to understand what’s happening within your backtests and strategies.
+It offers different logging levels – log, debug, info, and warn – all with the benefit of automatic context addition. 
+
+To customize the logging, you can set your own logger implementation using the `setLogger` method.  The service relies on `methodContextService` and `executionContextService` to automatically add information to the logs.
 
 ## Class LogAdapter
 
-The `LogAdapter` provides a flexible way to manage and store log messages within the backtest-kit framework. Think of it as a central hub for all your logging needs, allowing you to easily swap out how those logs are handled.
+The `LogAdapter` component provides a flexible way to manage and store your trading logs. Think of it as a central hub for all your logging needs, allowing you to easily switch between different storage methods.
 
-By default, logs are stored in memory, which is quick and convenient. However, you can switch to persistent storage on disk or even use a dummy adapter that essentially ignores all log messages – useful for performance testing or situations where you don't need logging at all.
+By default, logs are stored in memory, which is quick and easy for testing. However, you can swap this out for persistent storage on disk, a dummy adapter that doesn't log anything at all, or a JSONL file adapter for more structured logging.
 
-You can change how logging is done at any time using methods like `usePersist`, `useMemory`, and `useDummy`.  You also have the option to create and use your own custom log adapters.  The `clear` method is a good idea to call at the beginning of each new backtest run to reset logging. Getting all log entries is done through `getList` and logging messages of different levels (debug, info, warn) is facilitated by corresponding methods.
+You can change the logging mechanism at any time using methods like `usePersist`, `useMemory`, `useDummy`, and `useJsonl`. The `useLogger` method lets you completely customize the adapter by providing your own logging class. 
+
+The `clear` method is useful for situations where your application's working directory changes; it effectively resets the log adapter to its initial state. You can retrieve all logged entries at once with `getList`, and use `log`, `debug`, `info`, `warn` to log different levels of information.
 
 ## Class LiveUtils
 
-The `LiveUtils` class provides tools for managing live trading operations, acting as a central hub for interacting with the live trading system. It simplifies access to core functions and includes features like crash recovery and real-time tracking.
+LiveUtils provides tools for managing live trading operations, acting as a central point for interacting with the live trading system. It offers simplified access to running live trades and includes features like crash recovery and real-time progress tracking.
 
-You can think of `LiveUtils` as a manager for your live trading sessions. It helps you run trading strategies, handle errors, and monitor their progress.
+The `run` method starts live trading for a specific symbol and strategy, continuously generating trading results and automatically recovering from crashes by persisting state.  The `background` method allows you to run live trades silently without seeing the generated results, useful for tasks like persistence or callbacks.
 
-Here's a breakdown of what it does:
+You can also retrieve specific signal details such as pending, scheduled, or breakeven points using methods like `getPendingSignal`, `getScheduledSignal`, and `getBreakeven`.  There are functions to check for the presence or absence of signals, too.
 
-*   **Running Strategies:** `run()` starts a live trading session for a specific symbol and strategy. This session continues indefinitely, even if the program crashes, thanks to built-in recovery mechanisms.  `background()` is similar but runs the trade silently without displaying results, useful for tasks like persistent data storage.
-*   **Signals and Positions:** Various methods like `getPendingSignal()`, `getTotalPercentClosed()`, and `getPositionPnlCost()` allow you to retrieve information about the current state of a trading position -  like pending orders, profitability, and entry prices.
-*   **Control & Safety:** `stop()` pauses live trading, `commitCancelScheduled()` and `commitClosePending()` let you prematurely end signals.  `commitBreakeven()` automatically moves stop-loss levels for profit protection.
-*   **DCA Management:**  Methods like `commitAverageBuy()` and `getPositionEntries()` are crucial for managing dollar-cost averaging (DCA) strategies, adding entries and tracking their costs and prices.
-*   **Data and Reporting:** `getData()` provides statistical information. `getReport()` and `dump()` generate comprehensive reports for analysis and record-keeping.
-*   **Overlap Protection:**  Methods like `getPositionEntryOverlap()` and `getPositionPartialOverlap()` help avoid errors by preventing duplicate entries or closes at similar price levels.
+A variety of methods let you inspect the state of a live position, including its cost basis, invested units, percentage closed, PnL, entry levels, and more. You can also adjust the trailing stop and take-profit levels.
 
-
-
-The `LiveUtils` class uses a singleton pattern, meaning you always access the same instance, ensuring consistent management of your live trading operations.
+The framework offers methods for controlling live trading, such as `stop` (to halt a strategy), `commitCancelScheduled` (to cancel a scheduled signal), and `commitClosePending` (to immediately close a pending position). Several commit methods facilitate actions like partial profit/loss closures and DCA entries. The `list` method allows you to see a summary of all active live trading instances and their statuses. Finally, `getData` and `getReport` facilitate reporting and data analysis on live trading activities.
 
 ## Class LiveReportService
 
-The LiveReportService helps you keep a real-time record of your trading activity as it happens. It's designed to capture every key event in your trading signal's lifecycle—when it's idle, when a trade is opened, when it’s active, and when it’s closed.
+LiveReportService helps you track what's happening with your trading strategy in real-time by recording every significant event – from when it's waiting for a signal to when a trade is opened, active, or closed.
 
-It listens for these events and diligently logs them, including all the relevant details, directly to a SQLite database. This detailed record is invaluable for monitoring how your trading strategy performs and analyzing its behavior.
+It connects directly to your live trading signals and saves all the details of these events into a database. 
 
-To make sure you don't accidentally overload the system, it prevents multiple subscriptions to the live signal feed. When you want to start receiving these updates, the `subscribe` method does this and returns a function you can use to stop it. The `unsubscribe` method cleanly stops the reporting process, ensuring it only does something when it's actually subscribed.
+Here's a breakdown of how it works:
+
+*   It listens for those live trading signal events.
+*   It logs all types of tick events, providing a complete record.
+*   It then stores this information persistently.
+*   The `subscribe` method lets you connect to the live signal flow, and crucially, it prevents you from accidentally subscribing multiple times, which could cause problems.  You'll get a function back that you need to call to stop listening.
+*   The `unsubscribe` method cleanly disconnects from the live signal flow, ensuring everything shuts down properly.
+
+
+
+
 
 
 ## Class LiveMarkdownService
 
-The LiveMarkdownService helps you automatically generate and save reports of your live trading activity. It essentially listens for updates related to your trading strategies, like when a trade is opened, active, or closed.
+The LiveMarkdownService helps you create and save detailed reports about your live trading activity. It keeps track of various events happening in your strategies – like when a strategy is idle, when it opens a position, when it's actively trading, and when a position is closed. 
 
-It gathers this information and organizes it into nicely formatted markdown tables that include details about each trading event. You'll also get useful statistics such as win rate and average profit/loss.
+It gathers this information for each strategy and then formats it into easy-to-read markdown tables, also providing key statistics such as win rate and average profit/loss. These reports are automatically saved to files in a logs directory, making it simple to review and analyze your trading performance.
 
-The service saves these reports as `.md` files, making them easy to read and analyze – typically found in a `logs/live/` directory, named after your strategy.
-
-Here's a breakdown of what you can do with it:
-
-*   **Subscription:** You subscribe to receive tick events from your trading system. Importantly, you can only subscribe once to avoid duplicate events.
-*   **Data Retrieval:** You can request specific data or a complete report for a given symbol, strategy, exchange, frame, and backtest configuration.
-*   **Report Generation:** It creates markdown reports detailing all the events associated with a particular trading strategy.
-*   **Saving Reports:** You can save these reports directly to disk.
-*   **Clearing Data:** You can clear accumulated event data, either for all strategies or just a specific combination of symbol, strategy, exchange, frame, and backtest.
-
-The `tick` method is key – it’s the place where the service processes each update and records the relevant details for each strategy. It relies on a `loggerService` for debug output and a `getStorage` function to manage the data storage.
+You subscribe to receive real-time trading signals, and the service handles the process of collecting and storing data. The `tick` function is the core of the reporting process, handling all event types as they come in. You can request specific data or reports for a particular trading symbol and strategy, or clear out all accumulated data if needed. The system ensures that data is organized and isolated for each unique combination of symbol, strategy, exchange, timeframe, and backtest setting.
 
 ## Class LiveLogicPublicService
 
-This service manages live trading operations, handling the behind-the-scenes coordination. It simplifies things by automatically passing information about the trading strategy and exchange to the relevant functions, so you don’t have to manually include it every time.
+This service manages live trading, making it easier to work with. It automatically handles things like the trading strategy's name and the exchange it's using, so you don't have to keep passing that information around.
 
-The service continuously runs a trading simulation, pulling in data and generating trading signals.  If the process unexpectedly stops, it’s designed to recover and resume from where it left off using saved data.
+Think of it as a central coordinator for your live trading process. 
 
-It’s built to keep running indefinitely, tracking time using the system clock to ensure everything stays synchronized.  Essentially, it provides a convenient and robust way to execute your trading strategies in real-time.
+It constantly runs, providing a stream of trading results - signals to open, close, or cancel trades.
 
-You can start the trading process for a specific symbol, and it will provide a stream of data representing trading events, such as when a position is opened, closed, or canceled.
+If things go wrong and the process crashes, it can recover and pick up where it left off, thanks to saved state. It’s designed to keep going indefinitely and adjusts to the current time.
 
+You give it a symbol to trade, and it handles the rest, providing a continuous flow of updates.
 
 ## Class LiveLogicPrivateService
 
-This service manages the live trading process, continuously monitoring and reacting to signals. It operates as an ongoing, never-ending loop, constantly checking for new signals and processing them.
+This service manages live trading operations, constantly monitoring and reacting to market changes. It functions as an infinite loop, continuously checking for new trading signals. 
 
-Each cycle involves creating a timestamp to track the real-time progression and using the `tick()` method to evaluate the signal status. The service then streams the results—specifically when positions are opened or closed— rather than active or idle states.
+Each cycle involves creating a timestamp, evaluating the current signal status, and then reporting any new trades that were opened or closed – essentially skipping over signals that are still active or inactive. 
 
-To conserve resources, it delivers results as a memory-efficient stream using an asynchronous generator. If the process encounters a crash, it will recover the trading state from disk, ensuring continuity. The `run` method takes a symbol as input and initiates this ongoing, streaming live trading operation for that symbol.
+There's a short pause between each cycle to manage resource usage. The system is designed to be robust, automatically recovering from crashes and resuming trading from where it left off. The results are streamed to you efficiently as a generator, so you only process the signals that matter.
+
 
 ## Class LiveCommandService
 
-The LiveCommandService makes it easy to interact with the live trading parts of the backtest-kit framework. Think of it as a central hub for managing live trades. 
+This service is your gateway to live trading functionality within the backtest-kit framework. It acts as a central point of access, making it easier to integrate live trading into your applications.
 
-It handles things like validating your trading strategies and exchanges, and it provides a clean way to inject dependencies, keeping your code organized.
+Think of it as a helper that simplifies using the underlying live trading logic.
 
-The core function, `run`, is what kicks off the live trading process. You give it a symbol (like a stock ticker), and some context about your strategy and exchange.  It then continuously generates results, handling potential issues and automatically attempting to recover from crashes to keep trading running. This is all done asynchronously, so your application won't freeze up while trading.
+It provides a `run` method which is the core of live trading. This method continuously executes trading strategies for a specified symbol, while also gracefully handling unexpected errors and keeping the process running. The `run` method returns a stream of results, letting you know what's happening with each trade – whether it's opening, closing, or being cancelled. You’ll need to provide the strategy and exchange names when starting the live trading process.
 
+
+## Class IntervalUtils
+
+IntervalUtils provides a way to control how often certain functions are executed, especially useful in trading strategies. Think of it as a way to ensure a task only runs once per defined time period, like every minute or every hour.
+
+There are two main ways to use this: in-memory, where the state is kept in the program’s memory, and file-based, where the state is saved to a file so it persists even if the program restarts. The file-based version is good for critical operations you want to guarantee happen only once per interval.
+
+It works by creating unique "instances" for each function you want to control, so each function operates independently. You can also clear or dispose of these instances to reset the behavior or remove them completely. This is important if you change the location where your program is run, ensuring fresh instances are created. Essentially, it's a toolbox for managing the timing of your functions in a predictable and reliable way.
 
 ## Class HighestProfitUtils
 
-This class helps you access and understand the best-performing trades recorded by the backtest system. Think of it as a tool for analyzing which strategies and symbols are generating the most profit.
+This class is your go-to for understanding the highest profit performance of your trading strategies. Think of it as a tool that gathers and presents the best results your strategies have achieved.
 
-It works by collecting data from events that mark highest profit points.
+It provides a few key functions:
 
-You can use the `getData` method to get detailed statistics about the highest profit events for a specific trading symbol, strategy, and exchange.  The `getReport` method creates a readable markdown report summarizing these events. Finally, `dump` lets you automatically save that report to a file, making it easy to share or archive your findings.  This allows for easy analysis of the most profitable strategies in a given context.
+*   **getData:** This lets you pull specific statistics for a given trading symbol, strategy, and environment. You can use it to see exactly how a strategy performed in a particular scenario.
+*   **getReport:** This function creates a detailed markdown report showcasing all the highest profit events for a specific symbol and strategy combination.  Essentially, it compiles a comprehensive overview of that strategy's top moments.
+*   **dump:**  It’s similar to `getReport`, but instead of just showing the report, it automatically saves it to a file – perfect for archiving or sharing your results. You can specify the file path and choose which columns of data to include.
 
 ## Class HighestProfitReportService
 
-The `HighestProfitReportService` keeps track of the highest profit achieved during a backtest and records this information for later analysis. It actively monitors for new highest profit events and saves them to a JSONL database.
+This service is responsible for tracking and recording the highest profit achieved during a trading backtest. It monitors a specific data stream, `highestProfitSubject`, and whenever a new highest profit is detected, it creates a record containing detailed information about that event.
 
-This service connects to a specific data stream, `highestProfitSubject`, to listen for these events. When a new highest profit is detected, it captures all the relevant details—including timestamps, symbols, strategy names, exchange information, and price levels—and saves this snapshot to the database. 
+The record includes key data like the timestamp, symbol, strategy name, exchange, timeframe, backtest ID, signal ID, position size, current price, and the effective price levels for opening, take profit, and stop loss. Crucially, this information comes from the signal itself, providing a complete snapshot of the conditions when the highest profit was reached.
 
-The `subscribe` function allows you to begin monitoring for these events, ensuring that only one subscription is active at a time to prevent redundant data. The `unsubscribe` function is then used to stop the data recording process.
+To start capturing this data, you'll use the `subscribe` method. This method prevents accidental multiple subscriptions; attempting to subscribe again simply returns the original unsubscribe function.  When you’re finished, use `unsubscribe` to stop the recording process. It's essentially calling the function returned by `subscribe`.
 
 ## Class HighestProfitMarkdownService
 
-This service is designed to automatically create and save reports detailing the highest profit achieved for specific trading setups. It listens for data about these setups and organizes it based on symbol, strategy, exchange, and timeframe.
+This service is designed to create and save reports detailing the highest profit achieved for a given trading setup. It listens for incoming data about potential profits and organizes them based on the symbol, strategy, exchange, and timeframe being used.
 
-You can subscribe to receive updates as these profit events occur. This subscription is handled carefully to avoid repeated subscriptions – the first subscription returns a way to unsubscribe, and subsequent calls return the same unsubscribe function.
+You can subscribe to receive these profit events, but it's designed to avoid unnecessary re-subscriptions – the initial subscription is remembered, and subsequent attempts just return a way to unsubscribe. When you’re done, you can unsubscribe to stop listening and clear all the accumulated data.
 
-The service provides ways to retrieve the accumulated data, generate formatted markdown reports, and save those reports as files. If no data has been recorded for a particular combination of symbol, strategy, exchange, and timeframe, it will return a report with zero events.
+Whenever a new profit event comes in, this service efficiently routes it to a specific storage area based on its details. You can then request reports, either as raw data or a nicely formatted markdown table, showing the highest profits recorded.  The reports can also be saved directly to a file, with filenames that clearly indicate the symbol, strategy, exchange, and whether it's a backtest or live data.
 
-It also offers a way to clear the accumulated data for specific combinations or to completely wipe the slate clean, effectively resetting the tracked data. This clearing process is also what happens when you unsubscribe from the data feed.
+Finally, a `clear` function allows you to completely wipe out the stored data – either for a specific trading setup or everything at once, essentially resetting the system.
 
 ## Class HeatUtils
 
-HeatUtils helps you visualize and understand how your trading strategies are performing. It’s like a tool to quickly create and save reports that show a heatmap of your portfolio’s results.
+HeatUtils helps you visualize and analyze your trading portfolio's performance using heatmaps. It's a handy tool that gathers statistics across all your symbols and strategies, making it easier to understand what's working and what isn't. 
 
-This tool automatically gathers data from all your closed trades to give you a clear picture of how each symbol and your overall portfolio did.
+You can use it to get a snapshot of your portfolio's performance, showing things like total profit, Sharpe ratio, and maximum drawdown for each symbol.
 
-You can get the raw data, generate a formatted markdown report, or even save that report directly to a file on your computer. The report displays key metrics like total profit/loss, Sharpe Ratio, maximum drawdown, and the number of trades for each symbol, sorted by profitability. 
+It can also generate a nicely formatted markdown report that summarizes the heatmap data, sorted by total profit. This report can be saved directly to a file on your computer. 
 
-It’s designed to be easy to use; think of it as a single, convenient place to access and work with your portfolio heatmap data.
+Think of it as a central place to access and export these important performance metrics for your strategies. It’s readily available for use in your backtesting workflow.
+
 
 ## Class HeatReportService
 
-The HeatReportService is designed to keep track of your trading signals, specifically when a signal closes and generates profit or loss. It's like a dedicated recorder for those key moments in your trading activity.
+HeatReportService is designed to track and record closed trading signals, specifically focusing on profit and loss (PNL) data, to create a portfolio-wide heatmap. It listens for these closed signal events and saves them to a SQLite database for later analysis. 
 
-It listens for signals and only focuses on events where a signal has closed, capturing important information like the profit and loss involved.
+The service uses a logger to provide debugging information and a mechanism to prevent multiple subscriptions to the signal events. 
 
-This service then stores this data in a database, allowing you to analyze your trading performance across different assets.
-
-To ensure you don’t accidentally flood the database with multiple entries, the service prevents it from being subscribed to more than once.
-
-You can easily start and stop its monitoring using the `subscribe` method, which provides a function to unsubscribe when you no longer need it.
+To start receiving signal events, you’ll use the `subscribe` function, which also gives you a way to stop listening by returning an unsubscribe function.  If you no longer need to track these events, calling the `unsubscribe` function will ensure you’re no longer receiving updates.
 
 ## Class HeatMarkdownService
 
-This service helps you visualize and analyze your trading performance using heatmaps, particularly useful for backtesting. It gathers data from your trading signals and organizes it into meaningful statistics for each strategy and symbol.
+The Heatmap Service helps you understand how your trading strategies are performing by creating a portfolio-wide view of your signals. It collects data on closed trades, organizes it by strategy and symbol, and then generates reports that are easy to read and understand.
 
-It keeps track of closed trades and calculates key metrics like total profit/loss, Sharpe ratio, and maximum drawdown for each symbol, as well as aggregated portfolio-level information.
+It essentially keeps track of statistics like total profit/loss, Sharpe Ratio (a measure of risk-adjusted return), maximum drawdown (the largest peak-to-trough decline), and the number of trades executed for each symbol.
 
-You can subscribe to receive updates as new trades happen, or unsubscribe when you don't need the real-time data. It handles potential errors when doing calculations and ensures data is organized efficiently.
+You subscribe the service to receive trade updates, and it manages a storage system to hold this data, making sure that each exchange, timeframe, and backtest mode has its own independent storage.  It can generate reports in Markdown format for easy sharing and analysis, and safely handles calculations to avoid errors caused by unexpected data.
 
-The service can generate reports in markdown format, making it easy to share and review your results. It also offers the ability to save these reports to disk with automatically generated filenames that include the strategy name, exchange, and backtest mode. If needed, you can clear all stored data, or selectively clear data for specific strategies or exchanges.
+To keep things tidy, you can clear out the collected data when it's no longer needed, either for specific combinations of exchange, timeframe, and backtest settings or for everything at once. It offers a way to save the report directly to a file on your disk for later reference.
 
 ## Class FrameValidationService
 
-The FrameValidationService helps you keep track of and verify your trading timeframes, often referred to as frames. It acts like a central record-keeper, storing all your defined timeframes and checking to make sure they are valid before you use them in your strategies.
+The FrameValidationService helps you keep track of and verify the different timeframes your trading strategies use. It acts as a central place to register your timeframes and then quickly check if a particular timeframe is valid before you try to use it.
 
-It's designed to be efficient too, remembering previous validation results to speed things up. 
+Think of it like a checklist – you add all your timeframes to the service, and then when you need to use one, it confirms it's on the list. 
 
-Here's what you can do with it:
-
-*   **Register Timeframes:** Use `addFrame()` to tell the service about a new timeframe you're using. You'll provide a name and a description of its structure.
-*   **Validate Existence:** `validate()` checks if a given timeframe actually exists in your registered list. This prevents errors down the line.
-*   **Get a List of Timeframes:** `list()` provides you with a complete inventory of all the timeframes you’ve registered.
-
-
-
-Essentially, this service ensures you're working with the correct and existing timeframes, which is crucial for reliable backtesting and trading.
+It also remembers its checks, so it doesn’t have to re-validate the same timeframe repeatedly, which speeds things up.  You can use `addFrame` to register new timeframes, `validate` to confirm a timeframe's existence, and `list` to see all the timeframes you've registered. The service also has a `loggerService` and an internal `_frameMap` for managing the registered timeframes.
 
 ## Class FrameSchemaService
 
-The FrameSchemaService helps you keep track of your frame schemas in a structured and organized way. It acts like a central repository for these schemas, ensuring consistency and type safety. 
+This service is responsible for keeping track of different frame schemas, which are like blueprints for how your trading strategies are structured. It uses a special system to ensure that the schemas are stored in a consistent and type-safe way.
 
-You can add new frame schemas using the `register` method, giving each one a unique name. If a schema already exists, you can update it using the `override` method – this lets you modify just specific parts of the existing schema.
+You can add new schemas using the `register` method, and retrieve existing ones using `get`. If a schema already exists, you can update it using the `override` method to modify specific parts without replacing the entire schema. 
 
-Need to find a particular schema?  The `get` method will retrieve it based on its name.  
-
-Before a new schema is registered, the service performs a quick check with `validateShallow` to make sure it has all the essential properties in the right format, helping catch potential errors early on.
-
+Before a schema is registered, it's checked by `validateShallow` to make sure it has all the necessary components and that their types are correct – this helps prevent errors later on. The `loggerService` provides ways to monitor what's happening.
 
 ## Class FrameCoreService
 
-FrameCoreService is a central component that handles the creation and management of timeframes for your backtesting process. It works closely with the FrameConnectionService to fetch and organize data. Think of it as the engine that provides the chronological sequence of data points your trading strategies will be evaluated against.
+This service manages how your trading backtests handle time. It acts as a central point for getting the timeframe data needed to run a backtest.
 
-It’s a foundational piece, primarily used behind the scenes by the BacktestLogicPrivateService, so you typically won't interact with it directly.
+Essentially, it uses another service, `FrameConnectionService`, to fetch the actual time data, and then provides a straightforward way to retrieve timeframe arrays for specific symbols and timeframe names.
 
-The service is equipped with logging, connection management, and validation capabilities for ensuring the integrity of the timeframes.
+You can think of it as the engine that provides the chronological sequence of data your trading strategies will be evaluated against.
 
-The `getTimeframe` method is its key function; it allows you to specify a symbol (like a stock ticker) and a timeframe name (like "1m" for one-minute intervals) and receive back an array of dates that represent the period you want to backtest.
+Specifically, `getTimeframe` is the key function to use – it's what you'll call to get the array of dates that define the period your backtest will cover.
 
 ## Class FrameConnectionService
 
-The FrameConnectionService helps manage and access different frames of data used in trading strategies. It automatically directs requests to the correct frame implementation based on the currently active context.
+The FrameConnectionService helps manage and access different frame implementations within the backtest environment. It acts as a central hub, automatically directing requests to the correct frame based on the current context. 
 
-To improve efficiency, it remembers previously created frames, so it doesn't need to recreate them every time they're needed.
+Think of it as a smart router that makes sure your commands go to the right place. 
 
-This service also provides a way to get the timeframe boundaries for a specific trading symbol, allowing you to control the period of a backtest. It uses information stored in the frame configuration to define the start and end dates.
+To improve speed, it remembers which frames it has already created, avoiding unnecessary work. 
 
-When operating in live mode, there are no frame constraints, meaning the frame name will be empty.
+It also handles the timeframe for backtesting, allowing you to define a specific start and end date for your analysis. If you're operating in live mode, the frame name will be empty, meaning there are no specific frame constraints.
+
+Here's a breakdown of its core components:
+
+*   It uses a logger service, frame schema service, and method context service to function correctly.
+*   The `getFrame` method is the main way to access a specific frame, and it utilizes caching for efficiency.
+*   The `getTimeframe` method helps limit backtesting to a particular date range.
 
 ## Class ExchangeValidationService
 
-This service helps you keep track of and verify your trading exchanges. It acts as a central place to register your exchange configurations, ensuring they are available before you try to use them in your backtesting or live trading. The service remembers if an exchange is valid, so it doesn’t have to re-check repeatedly, making things run faster. 
+The ExchangeValidationService helps keep track of your configured exchanges and ensures they're properly set up before you start trading. It acts like a central manager for your exchanges.
 
-You can add new exchanges using the `addExchange` function. To make sure an exchange is good to go before you start trading with it, use the `validate` function. If you need to see a list of all exchanges you’ve registered, the `list` function will provide them. Essentially, this service is your guide to managing and confirming your exchange setups.
+You can add new exchanges using the `addExchange` function, essentially registering them with the service. 
+
+Before performing any actions related to an exchange, you should use the `validate` function to confirm it exists and is ready to go.  This prevents unexpected errors later on.
+
+If you need to see all the exchanges you've registered, the `list` function will give you a comprehensive overview of them. 
+
+The service also remembers previous validation results to make things faster and more efficient.
 
 ## Class ExchangeUtils
 
-The ExchangeUtils class is a helpful tool for working with different cryptocurrency exchanges within the backtest-kit framework. It acts as a central point, ensuring that interactions with each exchange follow a consistent and validated process. Think of it as a manager that handles common exchange-related tasks.
+The ExchangeUtils class provides helpful tools for interacting with exchanges, simplifying common tasks and ensuring data consistency. It’s designed as a single, readily available resource.
 
-It provides methods to retrieve historical candle data, calculate average prices, and format quantities and prices to match the specific rules of each exchange. Getting order book and aggregated trades is also easy with this class. 
+It handles fetching candles (historical price data) and calculating the appropriate start time based on the interval and number of candles you need. You can also use it to determine the average price (VWAP) for a trading pair.
 
-Importantly, the `getCandles` function automatically figures out the correct date range for historical data, and the system ensures consistency with how candles are retrieved previously. The class is designed to be readily available, ensuring ease of use and avoiding repetitive code throughout your trading strategies.
+For placing orders or displaying market information, ExchangeUtils helps format quantities and prices to match the specific rules of each exchange.
+
+Need to see what orders are currently open? The class retrieves order book data. It also allows you to retrieve aggregated trade data and raw candle data with custom date ranges for more advanced analysis. Essentially, it provides a convenient and validated interface for many common exchange-related operations.
 
 ## Class ExchangeSchemaService
 
-This service helps keep track of information about different cryptocurrency exchanges, ensuring everything is structured correctly and consistently. It uses a special system to store this information in a safe and type-aware manner. 
+The ExchangeSchemaService helps keep track of information about different cryptocurrency exchanges, ensuring that the data is well-organized and consistent. It uses a special system to store these exchange details safely and accurately.
 
-You can add new exchanges using `addExchange()`, and retrieve existing ones by their name using `get()`. 
+You can add new exchanges using `addExchange()` and easily find them again by their names. 
 
-Before an exchange is added, a quick check (`validateShallow`) makes sure it has all the essential details.  If you need to update an existing exchange, the `override` method allows you to change just the parts that need modification. The service relies on several other internal tools to manage logging and storage.
+Before an exchange is added, a quick check (`validateShallow`) makes sure it has all the necessary information in the right format.
+
+If an exchange already exists, you can update parts of its information using `override`.
+
+Finally, `get` lets you retrieve a specific exchange's details whenever you need them.
 
 ## Class ExchangeCoreService
 
-The ExchangeCoreService acts as a central hub for interacting with exchanges within the backtest-kit framework. It handles tasks like retrieving historical and future candle data, calculating average prices, and fetching order books. This service injects crucial information like the trading symbol, time, and whether the process is a backtest into the execution environment, ensuring consistency across operations.
+ExchangeCoreService acts as a central hub for interacting with exchanges, providing a way to access historical and simulated data. It’s designed to work seamlessly with other parts of the backtesting framework, ensuring that all requests are aware of the current simulation parameters like the trading symbol, specific date, and whether it's a backtest or live execution.
 
-The service also validates exchange configurations, remembers previous validations to speed things up, and provides formatted price and quantity representations. It provides methods to obtain aggregated trades, and raw candle data with configurable date and limit parameters. Essentially, it streamlines exchange-related actions while providing the context needed for both historical analysis (backtesting) and live trading.
+The service manages connections to the exchange and adds details about the execution context – things like the trading symbol and the point in time – to requests.  This allows the exchange to potentially adjust its behavior depending on whether it’s a backtest or a real-time trade.
+
+You'll find methods to retrieve:
+
+*   Historical candle data, including future candles for backtesting.
+*   VWAP (volume-weighted average price).
+*   Formatted price and quantity information.
+*   Order book data.
+*   Aggregated trade data.
+*   Raw candle data with advanced date filtering.
+
+The validation process for exchange configurations is optimized to avoid unnecessary repetition, while also logging its progress.  Each request takes into account the current execution context to ensure accuracy and consistency throughout the backtesting process.
 
 ## Class ExchangeConnectionService
 
-The ExchangeConnectionService acts as a central hub for interacting with different cryptocurrency exchanges. It intelligently directs requests to the correct exchange implementation based on the context of your trading logic. 
+The ExchangeConnectionService acts as a central hub for interacting with different cryptocurrency exchanges. It automatically directs your requests – like fetching candles or order books – to the correct exchange based on the context of your trading activity. To make things efficient, it remembers which exchanges it's already connected to, so it doesn’t have to repeatedly establish connections. 
 
-This service keeps things efficient by remembering (caching) exchange connections to avoid repeatedly creating them, speeding up your backtesting or live trading processes. 
+This service handles common tasks like retrieving historical price data (candles), getting the next batch of candles based on the current time, calculating the average price, and formatting prices and quantities to match the specific requirements of each exchange. It also provides access to order books and aggregated trade data. Essentially, it simplifies the process of communicating with various exchanges while ensuring data is handled correctly. You don't need to worry about which exchange to use directly; the service figures it out for you.
 
-You can use it to retrieve historical price data (candles), fetch the latest candles relative to a specific time, get the average price (either from real-time data or by calculating it from historical data), and obtain order book information and aggregated trades. 
-
-It also handles formatting prices and quantities to ensure they adhere to the specific rules and precision requirements of each exchange, crucial for order placement. The service intelligently routes all requests to the right exchange and provides logging for better transparency.
 
 ## Class DumpAdapter
 
-The `DumpAdapter` helps you save information about your trading strategy, like messages, records, tables, and errors, in different formats and locations. It acts as a central point for managing how this data is stored, allowing you to easily change the storage method without modifying the core logic.
+The DumpAdapter helps manage and store information during your backtesting process, offering flexibility in how that information is saved. It acts as a central point for different storage methods, allowing you to switch between writing to markdown files, storing data in memory, or even discarding the data entirely (useful for testing). 
 
-Initially, it defaults to saving data as individual markdown files. However, you can switch the storage to memory (for temporary storage), a dummy backend (to discard data entirely for testing), or even provide your own custom storage implementation.
+Before using any of its functions, you need to activate it using `enable`, which ensures it listens for signal lifecycle events and cleans up old data. Conversely, `disable` stops that listening.
 
-Before you can start saving data, you need to "enable" the adapter. This registers it to listen for signal lifecycle events. When a signal is finished, the adapter cleans up any temporary data associated with it.  You can then "disable" it when you're done.
+You can use functions like `dumpAgentAnswer`, `dumpRecord`, `dumpTable`, `dumpText`, `dumpError`, and `dumpJson` to save different types of data. These functions accept a context object, which provides additional information about where the data should be stored.
 
-The adapter provides methods like `dumpAgentAnswer`, `dumpRecord`, `dumpTable`, `dumpText`, and `dumpJson` for saving different kinds of data.  You can also clear the adapter's internal cache, which is useful when the working directory changes during a trading strategy run. Using `useDumpAdapter` allows for maximum flexibility, enabling you to integrate custom dumping logic.
+The adapter defaults to storing data in markdown files. However, you can easily change this behavior by using functions like `useMarkdown`, `useMemory`, `useDummy`, or `useDumpAdapter` to switch to alternative storage options or provide your own custom storage mechanism. `useDumpAdapter` lets you completely replace the underlying storage with your own implementation.
+
+Finally, `clear` helps maintain a fresh start by clearing out any cached data, ensuring the adapter works correctly when your working directory changes.
 
 ## Class ConstantUtils
 
-The `ConstantUtils` class provides a set of predefined percentages that help manage take-profit and stop-loss levels in a trading strategy. These values are derived from the Kelly Criterion and incorporate a mechanism for gradually reducing risk. Think of them as incremental steps toward your overall profit target or a way to limit potential losses.
+The `ConstantUtils` class provides a set of pre-calculated values used for managing take-profit and stop-loss levels in a trading strategy. These constants are based on the Kelly Criterion and incorporate a mechanism for risk decay.
 
-For instance, `TP_LEVEL1` represents the point where 30% of the distance to your final take-profit target has been reached, while `SL_LEVEL1` indicates an early warning for potential losses based on 40% of the distance to your stop-loss. Subsequent levels – `TP_LEVEL2`, `TP_LEVEL3`, `SL_LEVEL2` – offer progressively more conservative exits, helping to secure gains and minimize risk as the trade progresses. These constants allow you to structure your risk management in a systematic, mathematically-informed way.
+Think of it like this: the strategy uses multiple take-profit and stop-loss levels to gradually exit a trade, rather than one large exit.
+
+The take-profit levels (`TP_LEVEL1`, `TP_LEVEL2`, `TP_LEVEL3`) are percentages representing how far the price needs to move towards the final target profit before triggering a partial exit.  For example, `TP_LEVEL1` at 30% means the first partial profit is taken when the price reaches 30% of the distance to the total take-profit goal.
+
+Similarly, the stop-loss levels (`SL_LEVEL1`, `SL_LEVEL2`) represent points at which the strategy reduces its exposure by exiting a portion of the trade if the price moves unfavorably. `SL_LEVEL1` at 40% triggers a small exit to limit potential losses.
 
 ## Class ConfigValidationService
 
-The ConfigValidationService acts as a safety net for your trading configurations. It meticulously checks your settings to prevent errors and ensure your strategies have a chance to be profitable. 
+The ConfigValidationService is designed to safeguard your trading configurations by verifying the settings in GLOBAL_CONFIG. It's like a built-in safety check to catch potential errors that could lead to unprofitable trades.
 
-It focuses on making sure things like slippage, fees, and profit margins are set correctly, ensuring they're all positive values.
+It meticulously examines your settings, making sure percentages like slippage and fees are positive values, and that the take profit distance is enough to cover those costs. The service also confirms that your time-related settings, such as timeouts, are represented by positive whole numbers. It also checks ranges and candle parameters to ensure their validity. 
 
-The service also verifies that your take-profit settings are realistic, guaranteeing enough distance to cover trading costs.
+Essentially, it's here to make sure your configurations are mathematically sound and designed for success.
 
-Beyond percentages, it confirms other parameters like timeouts and candle request limits are also set appropriately with positive integer values. 
-
-Essentially, it's designed to catch potential configuration mistakes before they impact your backtesting results.
 
 ## Class ColumnValidationService
 
-The ColumnValidationService helps you ensure your column configurations are set up correctly and avoid errors. It acts as a safeguard to verify that each column definition adheres to specific rules.
+The ColumnValidationService helps keep your column configurations in good shape, ensuring they follow the rules set by the ColumnModel interface. It’s like a quality control check for your column definitions.
 
-Essentially, it checks your column setups for essential elements like a unique key, a descriptive label, a formatting function, and visibility control.
+This service examines all of your column configurations, looking for a few key things:
 
-It makes sure these keys and labels are properly formatted as strings, that the formatting and visibility elements are actually functions, and that each key is unique within its group. 
+*   It makes sure every column has the essential properties: key, label, format, and isVisible.
+*   Each 'key' value has to be unique within its group of columns.
+*   It verifies that the 'format' and 'isVisible' properties are actually functions, not just some other kind of data.
+*   Finally, it confirms that your 'key' and 'label' values are strings and aren’t empty.
 
-The `validate` method performs this entire check on all your column configurations at once.
+The `validate` method does all of this checking at once. The service also uses a `loggerService` to report any problems it finds.
 
 ## Class ClientSizing
 
-The ClientSizing class helps determine how much of an asset to trade, acting as the brains behind position sizing. It offers flexibility with various sizing approaches like fixed percentages, Kelly Criterion, and using Average True Range (ATR). You can set limits on minimum and maximum position sizes, as well as a maximum percentage of your capital to risk.
+The ClientSizing class helps determine how much of an asset to trade based on your strategy's goals. It's a flexible tool that uses different methods, like fixed percentages or the Kelly Criterion, to calculate position sizes. 
 
-It’s designed to be easily customized with callbacks that allow you to validate sizing decisions or track sizing activity. The `calculate` method is the core of the class, taking input data and returning the calculated position size. This class is a key component in the backtest-kit framework, used during strategy execution to ensure well-managed trades.
+You can set limits on minimum and maximum positions, as well as a maximum percentage of your capital to risk on each trade. 
+
+The `calculate` method is the core—it takes into account all your settings and returns the calculated position size. Think of it as the engine that figures out the right amount to buy or sell. It's what the strategy execution uses to decide how much to trade.
+
 
 ## Class ClientRisk
 
-ClientRisk helps manage risk across your entire portfolio, preventing trades that could violate your pre-defined limits. It’s designed to work at the portfolio level, analyzing the combined impact of multiple trading strategies.
+ClientRisk helps manage risk across your entire portfolio of trading strategies. It acts as a gatekeeper, making sure new trades don't violate any predefined limits.
 
-This framework keeps track of all active positions, regardless of which strategy opened them, allowing for a comprehensive view of your risk exposure. It’s particularly useful for limiting the maximum number of positions you hold simultaneously.
+It's designed to prevent you from exceeding maximum position sizes and to enforce any custom risk rules you've set up.  
 
-ClientRisk also allows you to define your own custom risk checks, accessing details about all your current positions to ensure any new trading signals align with your specific risk rules. It ensures that signals are only executed if they pass these risk checks.
+Think of it as a central control point for all your strategies – they all share the same risk management rules.  This allows for a comprehensive view of risk across all strategies.
 
-Think of it as a safety net for your trading, preventing unintended consequences from multiple strategies acting independently. The system automatically saves and loads positions to manage the data and simplifies integrating new strategies into your portfolio.
+It’s integrated into the strategy execution process, so signals are checked *before* any trades are actually made.
 
-Here’s what you can do with it:
+The system keeps track of all currently open positions, using a unique identifier for each one. It also handles loading and saving this position data, though this feature is skipped when you're backtesting.
 
-*   **Track Active Positions:**  It automatically knows what positions are open across all your trading strategies.
-*   **Define Limits:**  Control how many positions you hold.
-*   **Custom Risk Checks:**  Add your own rules for when a trade is allowed.
-*   **Cross-Strategy Analysis:**  See the overall risk picture, considering how multiple strategies interact.
-*   **Automated Persistence:** Manages saving and loading position data.
+You can register new trades (signals) with `addSignal` and remove them when they’re closed, using `removeSignal`.
 
-
-
-To add a new signal, use `addSignal` to register when a position is opened. Use `removeSignal` to notify the system when a position has been closed.
+The `checkSignal` method is the key to risk management, evaluating new trades against those constraints and allowing or rejecting them as needed.
 
 ## Class ClientFrame
 
-The ClientFrame component is responsible for creating the timelines used during backtesting. Think of it as the engine that produces the sequence of timestamps representing historical data.
+The `ClientFrame` class is responsible for creating the timeline of timestamps that a backtest will run through. Think of it as the engine that sequences the historical data. It avoids repeating this process by caching the timestamps it generates, making things more efficient. You can adjust how far apart these timestamps are—from one minute to three days—to match the level of detail you need.
 
-It's designed to avoid unnecessary work by caching generated timelines, so it doesn't recalculate them repeatedly.
+It also allows you to add custom checks or logging during timeframe generation.
 
-You can customize the spacing between timestamps – from one-minute intervals to three-day gaps – depending on the granularity of your backtest.
+The `getTimeframe` method is the core functionality, and it returns a promise containing the array of dates for the backtest period. This method remembers its results, so it doesn’t regenerate them needlessly.
 
-The ClientFrame also lets you hook into the process to verify the data or record events as the timelines are created.
-
-This component works closely with the core backtesting logic, providing the foundational timeline for analysis.
-
-
-
-The `getTimeframe` property is the main way to get a timeline.  It takes a symbol (like a stock ticker) and returns a promise that resolves to an array of dates representing the timeframe for backtesting that symbol. Because it utilizes a "singleshot" approach, the results are cached for future use.
 
 ## Class ClientExchange
 
-This class, `ClientExchange`, acts as a bridge to get data from an exchange, designed for backtesting trading strategies. It's built for efficiency, reusing code where possible.
+This component handles fetching data from an exchange, acting as a bridge between your backtesting system and the actual market data. It provides ways to retrieve historical and future candle data, calculate the volume-weighted average price (VWAP), and format trade quantities and prices according to exchange-specific rules. The system is designed for efficiency, using prototypes to minimize memory usage.
 
-It lets you retrieve historical and future candle data (price charts), which is essential for analyzing past performance and predicting future movements.  You can also calculate the Volume Weighted Average Price (VWAP) to gauge the average price based on trading volume.
+You can use this to get past candles to analyze trends or look ahead to get future candles to simulate a backtest.
 
-The class offers convenient functions to format quantities and prices, ensuring they adhere to the specific rules of the exchange you're using. It also provides a way to fetch order book data and aggregated trades.
+Here’s a breakdown of what it does:
 
-When retrieving candles, it takes care to align timestamps correctly to ensure accurate data and prevent "looking into the future" which would invalidate a backtest.  It’s flexible with how you specify date ranges for candle retrieval, and includes checks to prevent errors.
+*   **Candle Data:** Retrieves historical and future candles for a given symbol and time interval.
+*   **VWAP Calculation:** Determines the VWAP based on recent 1-minute candles.
+*   **Formatting:**  Properly formats trade quantities and prices based on the trading pair’s specific requirements, ensuring accurate representation.
+*   **Raw Candle Retrieval:**  Provides flexible methods for fetching candles with customizable start and end dates and limits, all while avoiding the risk of looking into the future.
+*   **Order Book and Trades:** Fetches order book data and aggregated trade history.
 
-
-
-Finally, the `getAggregatedTrades` method efficiently retrieves trade data, aligning timestamps to prevent look-ahead bias and handling different pagination strategies.
+The whole process is carefully designed to prevent "look-ahead bias" - a crucial element to ensure accurate and reliable backtest results. Each function is thoughtfully structured to ensure data integrity and reliable results.
 
 ## Class ClientAction
 
-The `ClientAction` component manages the execution of custom action handlers, which are essential for extending the framework's capabilities. Think of it as a central hub for connecting your own logic to the trading process. It handles setting up the action handler, making sure it's initialized just once, and then routes different types of events to the handler, like signals from live trading, backtesting, or breakeven/profit/loss levels. 
+The `ClientAction` class is a central component that manages and executes your custom action handlers within the backtest-kit framework. Think of it as a conductor orchestrating the interactions between your strategy and external systems. It handles the lifecycle of your action handlers, ensuring they're properly initialized and cleaned up. 
 
-You can use action handlers to integrate things like state management libraries (Redux, MobX), log trading activity, send notifications (Telegram, Discord), or track performance metrics. 
+It's designed to make it easy to integrate your custom logic, such as state management (like Redux), event logging, notifications (like Telegram or Discord), and analytics. This allows your strategies to react to events and communicate their status.
 
-Importantly, `ClientAction` takes care of cleaning up resources when the handler is no longer needed, ensuring a clean and stable environment. The `signalSync` method provides a specific gateway for managing position openings and closings through limit orders, and is designed to directly pass any errors encountered during the process.
+Specifically, `ClientAction` uses a special mechanism to ensure that each handler is initialized and disposed of only once, preventing unexpected behavior.
+
+The framework provides specific methods like `signal`, `signalLive`, and `signalBacktest` to route different types of events to your handlers. There are also specialized event handlers for things like breakeven triggers, partial profit/loss milestones, scheduled pings, risk rejections, and synchronization signals. Note that the `signalSync` method is a critical gateway for managing orders and any errors it encounters will propagate directly.
 
 ## Class CacheUtils
 
-CacheUtils provides tools to automatically cache the results of your functions, making your backtesting more efficient. It's designed to avoid redundant calculations by storing and reusing previously computed values.
+CacheUtils provides a way to easily cache the results of your functions, which can significantly speed up backtesting and other processes. It's designed to avoid redundant calculations by storing and reusing results based on time intervals.
 
-You can use `fn` to wrap regular functions and `file` to wrap asynchronous functions, both based on timeframe intervals. The `file` option additionally persists cached results to disk, improving performance for frequently used asynchronous operations. Each wrapped function gets its own dedicated cache, preventing conflicts between different strategies or exchanges.
+Think of it as a way to remember what your function calculated for a specific timeframe, so it doesn't have to recalculate it every time.
 
-To free up memory and data, you can use `dispose` to remove a specific function's cache, or `clear` to completely wipe out all cached data, which is helpful when your working directory changes.  Think of `clear` as a way to reset the caching system to its initial state.
+There's a `fn` method to cache regular functions and a `file` method for caching asynchronous functions that need to persist data to disk.  File caching stores results in files, making them available even if your program restarts.
+
+You can also clean up the cached data using `dispose` to force a recalculation, or `clear` to wipe everything and start fresh, useful when your working directory changes.  The system ensures each function gets its own isolated cache, preventing unexpected interactions.
 
 ## Class BrokerBase
 
-This class provides a foundational structure for connecting your trading strategy to real exchanges. Think of it as a template you customize to interact with a specific brokerage. It's designed to simplify the process of placing orders, managing stop-loss and take-profit levels, tracking positions, and sending notifications.
+This `BrokerBase` class is your starting point for connecting your trading strategy to a real exchange. Think of it as a customizable bridge between your automated strategy and the actual trading platform. It provides a solid foundation with pre-built functions for key actions, like opening and closing positions, adjusting stop-loss and take-profit orders, and recording trades.
 
-The framework provides default "no-op" implementations for all common trading actions, which means you only need to override the methods relevant to your brokerage’s specific functionality. You'll use this to manage things like placing orders (both market and limit), updating stop-losses, and tracking positions. 
+You don't have to reinvent the wheel—most of the common tasks are already set up with default logging. To actually trade on an exchange, you'll extend this class, plugging in the specific API calls needed for that exchange.
 
-The lifecycle begins with an initialization step (`waitForInit`) where you'll connect to your exchange and authenticate. Then, as your strategy runs, it calls different methods - `onSignalOpenCommit` to open a position, `onSignalCloseCommit` to close it, and several others for managing partial profits, losses, trailing stops, and average buy entries.  All these actions are automatically logged, making debugging and monitoring easier.
+Here's a breakdown of how it works:
 
-Essentially, this class lets you focus on the trading logic, while the framework handles the complexities of interacting with an external broker. It provides a consistent way to manage your trades regardless of the specific exchange you're using.
+*   **Initialization:**  `waitForInit()` is your chance to set up the connection to the exchange (e.g., log in to your account).
+*   **Event Handling:**  A series of methods (`onSignalOpenCommit`, `onSignalCloseCommit`, etc.) are triggered by your strategy when certain conditions are met.  These are where you'll put the code to execute the orders on the exchange.
+*   **Actions covered:** These events handle opening and closing trades, managing partial profits and losses, adjusting trailing stops, and adding to DCA positions.
+
+Essentially, `BrokerBase` handles the mechanics of interacting with the exchange, allowing you to focus on designing and refining your trading strategies. It makes it easier to build a robust and reliable trading system.
 
 ## Class BrokerAdapter
 
-The `BrokerAdapter` acts as a middleman between your trading logic and your actual brokerage. It’s designed to make sure that any actions you want to perform, like sending signals or adjusting stop losses, are handled safely and consistently, whether you're testing strategies or trading live.
+The `BrokerAdapter` acts as a crucial intermediary between your trading strategies and the actual broker. Think of it as a safety net and a traffic controller – it intercepts certain actions, like sending signals or adjusting stop-loss orders, before they directly impact your trading data.
 
-Think of it as a checkpoint; before any changes are made to your core trading data, the `BrokerAdapter` gets a chance to step in. This is crucial because if something goes wrong during that process, the changes are automatically rolled back, keeping your system in a known state.
+When testing strategies in a simulated environment (backtesting), these actions are skipped entirely, preventing them from affecting the backtest results. However, when trading live, the `BrokerAdapter` forwards these actions to the connected broker.
 
-When you’re backtesting, the `BrokerAdapter` quietly sits out—it doesn't actually communicate with a real brokerage. However, when you're trading live, it routes these actions to your configured brokerage connection. The `BrokerAdapter` handles events like signal openings and closures, partial profit and loss adjustments, trailing stops and take profits, breakeven orders, and average buy entries, intercepting each action before they impact your core data.
+It manages signal events (opening and closing positions), as well as adjustments to profit, loss, stop-loss, and take-profit levels. Crucially, if any of these actions fail, the system rolls back any changes made to the data, preventing data corruption.
 
-You need to tell the `BrokerAdapter` which brokerage to work with by registering an instance or its constructor using `useBrokerAdapter` before you activate it with `enable`.  `enable` subscribes to a system that automatically handles signal events. You can later deactivate it and reset the system using `disable` or `clear` as needed. The `clear` function is particularly useful when your environment changes, like when the working directory updates, to ensure you’re using a fresh broker instance.
+You'll need to register your specific broker adapter with the `useBrokerAdapter` method before activating the adapter using `enable`. The `enable` function subscribes to events that automatically route signal opening and closing requests, and it’s important to remember to `disable` when you’re finished to avoid unnecessary subscriptions. It's also important to `clear` the adapter if your working directory changes.
 
 ## Class BreakevenUtils
 
-The BreakevenUtils class helps you analyze and understand your breakeven performance. It's like a central place to gather information about when your strategies hit breakeven points.
+BreakevenUtils helps you analyze and report on breakeven events, offering a way to understand how your strategies are performing. It’s a handy tool for accessing and summarizing data collected by the BreakevenMarkdownService.
 
-It provides a way to get statistical summaries of breakeven events, showing you things like the total number of times a strategy reached breakeven.
+You can easily retrieve statistical data like the total number of breakeven events.
 
-You can also generate detailed reports in Markdown format, which includes tables listing individual breakeven events with key details like the symbol, strategy used, entry price, and the price at which breakeven was achieved.
+It can also generate detailed markdown reports that show individual breakeven events in a table format, including information like the symbol traded, strategy used, entry price, and the time of the event.
 
-Finally, it allows you to save these reports as Markdown files directly to your computer, making it easy to share or archive your breakeven analysis. It organizes the reports neatly by symbol and strategy name. The whole process involves listening to event data and storing it for analysis.
+Finally, this tool allows you to export those reports directly to files, automatically creating the necessary folders if they don’t already exist, so you can keep a record of your breakeven performance.
 
 ## Class BreakevenReportService
 
-The BreakevenReportService helps you keep track of when your trading signals reach their breakeven point. It's designed to automatically record these events, along with details about the signal, and save them to a database.
+The BreakevenReportService helps you keep track of when your trading signals become profitable, marking the moment they reach breakeven. It essentially listens for these "breakeven" events and records them.
 
-Think of it as a dedicated recorder for those crucial moments in your backtesting process.
+Think of it as a dedicated recorder for important milestones in your trading strategy.
 
-To use it, you'll subscribe to a signal emitter to receive updates about breakeven events. You can then unsubscribe later to stop receiving those updates.
+The service logs all the details of each breakeven event, including information about the signal itself, allowing you to analyze performance later. It safely handles subscriptions, preventing accidental multiple registrations.
 
-The service also includes a logger to help you debug and understand what’s happening. It uses a special mechanism to ensure you don’t accidentally subscribe multiple times.
-
+You can tell it to start listening for these events using the `subscribe` function, which gives you a way to stop listening later with the returned function. Similarly, the `unsubscribe` function allows you to completely stop the service from monitoring.
 
 ## Class BreakevenMarkdownService
 
-The BreakevenMarkdownService is designed to automatically create and save reports detailing breakeven events for your trading strategies. It keeps track of these events for each symbol and strategy you're using, generating clear, readable markdown tables.
+This service is designed to automatically create and save reports detailing breakeven events for your trading strategies. It keeps track of these events—moments when a trade reaches its break-even point—for each symbol and strategy you're using.
 
-This service listens for breakeven signals, organizes them, and provides summaries including the total number of breakeven events. It then saves these reports to your computer in a structured directory.
+The service listens for "breakeven" signals and compiles information about each event.  It then neatly organizes this data into markdown tables, providing a clear overview of these events, along with summary statistics.
 
-You can subscribe to receive these breakeven signals and unsubscribe when you no longer need them. The service also allows you to retrieve specific data, generate reports, or clear accumulated data. If you need to generate a report for a particular symbol and strategy, the service takes care of creating it, saving it, and giving you the statistics.
-
+You can trigger the creation of these reports, which are saved to a specific directory on your system, to help you analyze and understand the performance of your trading strategies. It's possible to clear the accumulated data, either for a specific symbol and strategy or to clear everything. The service ensures data is organized into isolated storage areas based on your symbol, strategy, exchange, frame, and backtest configuration.
 
 ## Class BreakevenGlobalService
 
-The BreakevenGlobalService acts as a central hub for managing breakeven calculations within the trading system. It's designed to be a single point of access for the core trading strategy, receiving instructions and then passing them on to the underlying connection service. Think of it as a gatekeeper that also keeps a record of all breakeven related actions.
+This service, called BreakevenGlobalService, acts as a central hub for managing breakeven calculations within the backtest-kit framework. Think of it as a go-between—it receives requests for breakeven operations and passes them on to a lower-level service while also keeping a record of everything happening.
 
-It's injected into the trading strategy, so it's always available when needed. The service doesn't actually *do* the calculations itself; instead, it forwards those tasks to another service while adding important logging to monitor what's happening.
+It’s designed to be easily incorporated into trading strategies and provides a convenient place to monitor breakeven-related activity. The service relies on several other services, like validation and schema services, to ensure everything is set up correctly before any calculations take place.
 
-Several validation services are also integrated, ensuring that strategies, risks, exchanges, and frames are all correctly configured before any breakeven checks are performed.
-
-The `validate` function provides a quick check to confirm strategy and risk settings. The `check` function determines if a breakeven event should happen, and the `clear` function resets the state when a signal is closed, all while maintaining detailed logs.
+The `validate` function ensures the strategy and its related configurations are valid, and caches these validations to avoid repeated checks. The `check` function is responsible for determining if a breakeven trigger should occur, and the `clear` function resets the breakeven state when a signal is closed. Logging is handled centrally, giving you a clear view of breakeven operations at a global level.
 
 ## Class BreakevenConnectionService
 
-The BreakevenConnectionService helps track and manage breakeven points for trading signals. It’s designed to efficiently handle multiple signals by creating and caching breakeven data, ensuring a single breakeven instance exists for each signal ID.
+This service helps track when a trading signal has reached a breakeven point. It efficiently manages and creates instances to monitor each signal, ensuring we don't create unnecessary objects.
 
-This service acts as a central point for creating and managing these instances, providing them with necessary tools like logging and event handling. It works closely with the ClientStrategy, providing a streamlined way to check for and clear breakeven conditions. 
+It keeps a record of these signal-specific calculations, using a clever caching system for faster access. When you need to check if a signal has broken even, or when it's time to clear the breakeven status, this service handles the process.
 
-Essentially, it’s responsible for making sure the breakeven calculations are done, events are triggered, and resources are cleaned up properly for each signal, all while keeping things efficient through caching. If a signal closes, the service takes care of clearing the breakeven state and removing the associated data.
+The service relies on other components for logging and managing actions, and it communicates changes to a central tracking mechanism. Think of it as a central hub for managing breakeven calculations for each trading signal.
+
 
 ## Class BacktestUtils
 
-This utility class provides helpful tools for running and analyzing backtests within the trading framework. It simplifies interactions with the backtest engine, logging operations, and retrieving key data about strategy performance.
+This class provides helpful tools for running and analyzing backtests within the trading framework. It acts as a central hub for managing backtest operations and accessing key data points.
 
-You can easily start a backtest for a specific symbol and configuration using the `run` method, or execute it in the background with `background` to avoid blocking the main process.  Need to grab a signal?  `getPendingSignal` and `getScheduledSignal` help with that.
+You can use it to run backtests for specific symbols and strategies, either in a standard way or in the background for tasks like logging.  It also provides shortcuts for retrieving important information about active positions, such as pending signals, open positions, and profit/loss data. The `run` method is the primary way to execute a backtest and receive results, while `background` allows for background execution without directly processing the results.
 
-For insights into existing positions, functions like `getTotalPercentClosed`, `getTotalCostClosed`, and `getBreakeven` offer details about current holdings and potential breakeven points.  You can also query for various position attributes using methods like `getPositionInvestedCount` and `getPositionPnlPercent`.
-
-`stop` halts a backtest, while `commitCancelScheduled` and `commitClosePending` allow manual intervention during the backtest process. Convenient functions like `commitAverageBuy` and `commitTrailingStop` help manage position adjustments. Finally, `getData` and `getReport` help with analysis after a backtest completes.
-
-
-
-The `_getInstance` property ensures that each symbol-strategy combination has its own isolated backtest instance, preventing conflicts.
+Need to know the current pending signal?  Methods like `getPendingSignal` and `hasNoPendingSignal` are available.  Want to understand the performance of a position?  You can fetch information such as breakeven price, average entry price, position size, and realized profit/loss.  The `commit...` methods let you manually interact with a running backtest, such as setting trailing stops or taking partial profits. Finally, `getReport` and `dump` are used to generate and save reports summarizing backtest results.  Think of it as a toolkit to streamline and analyze your backtesting process.
 
 ## Class BacktestReportService
 
-The BacktestReportService helps you keep a record of what's happening during your backtests. It listens for signals from your trading strategy – when it’s waiting, opening a position, actively trading, or closing a position – and saves these details. Think of it as a detailed logbook for your backtest.
+The BacktestReportService helps you track what's happening during your backtests. It diligently records all the changes in your trading signals—when they're inactive, when they start, when they're actively trading, and when they close. 
 
-It uses a special logging system and stores all the information about each tick event in a database. This lets you examine your strategy’s behavior later on to find areas for improvement.
+Think of it as a detailed logbook for your backtest strategies. It listens for these signal events and saves them along with lots of information about each event to a database.
 
-To make sure things don’t get messy, it ensures that it only listens for these signals once.
+You can easily start the service to listen for these signal events, and when you’re finished, you can stop it. The service is designed to prevent accidentally subscribing multiple times.
 
-You can start listening for events using the `subscribe` function, which will return a way to stop listening later.  The `unsubscribe` function conveniently handles stopping those events. If it's not already listening, calling `unsubscribe` won't cause any problems.
+Here’s what the service offers:
+
+*   A way to log all the important events related to your trading signals.
+*   Automatic saving of these events to a database for later review.
+*   Simple methods for starting and stopping the logging process.
 
 
 ## Class BacktestMarkdownService
 
-The BacktestMarkdownService helps you create and save detailed reports about your backtesting results. It works by listening for trading signals as they happen during a backtest. 
+The BacktestMarkdownService helps you create and save reports summarizing the performance of your trading strategies during backtests. It listens for signals as your backtest runs and keeps track of how those signals performed – specifically, when they closed. 
 
-It keeps track of closed trades for each strategy, using a clever system to store this data separately for each symbol, strategy, exchange, timeframe, and backtest run. This ensures your reports are organized and easy to understand.
+It organizes this information, creating detailed markdown tables that you can easily read and analyze. These reports are saved to your logs directory, making it simple to review your strategy’s history.
 
-You can request data or generate markdown reports summarizing the performance of a particular strategy on a specific symbol. The service automatically saves these reports as markdown files to your logs directory, making it simple to review and share your backtesting findings.
+You can retrieve statistics and generate reports for specific symbols, strategies, exchanges, and timeframes. The service also allows you to clear out all the accumulated data if you want to start fresh, or clear data for a specific backtest configuration.
 
-The service also provides ways to clear out old data and to subscribe to and unsubscribe from backtest events. It ensures that you’re only processing closed trades and keeps things tidy.
+To get started, you'll subscribe to the backtest signal emitter; once subscribed, the service automatically processes tick events to capture signal performance. When you're finished, remember to unsubscribe to stop receiving those events.
 
 ## Class BacktestLogicPublicService
 
-The BacktestLogicPublicService helps you run backtests in a straightforward way. It handles the complexities of managing context, like the strategy name, exchange, and frame, so you don't have to pass them around manually.
+This service helps manage and run backtests in a streamlined way. It automatically handles the context needed for your backtesting process – things like the strategy name, exchange, and frame – so you don't have to pass them around explicitly. 
 
-Think of it as a helper that simplifies your backtesting code.
+Think of it as a convenient layer on top of the private backtesting logic.
 
-It uses a private service underneath, but it exposes a public interface to make things easier.
-
-The `run` method is the core of this service. It takes a symbol and runs the backtest, automatically injecting the context needed for functions like fetching historical data or generating signals. The backtest results (signals) are streamed back to you as an asynchronous generator.
-
+The `run` method is key; it allows you to start a backtest for a specific symbol. It returns a stream of results – signals representing trades (opens, closes, cancellations) – and those results will already have the necessary context attached. You don't need to worry about setting that up yourself. The service uses a logger and the private backtesting logic internally to do the work.
 
 ## Class BacktestLogicPrivateService
 
-The BacktestLogicPrivateService helps orchestrate the backtesting process, particularly when dealing with lots of data. It works by first obtaining the timeframes you need, then stepping through them one by one.
+The BacktestLogicPrivateService manages the process of running a backtest, handling the flow of data efficiently. It starts by retrieving timeframes, then iterates through them, processing each one and triggering actions based on signals.
 
-When a trading signal appears (like a buy or sell indication), it fetches the necessary historical price data (candles) and runs the backtest calculations for that specific signal. The service keeps track of open signals and skips over timeframes until those signals are closed.
+When a signal indicates a trade should be opened, the service fetches relevant candle data and executes the backtest logic. To manage trade durations, it skips timeframes until a signal indicates a trade should be closed. 
 
-Importantly, it delivers the results of the backtest—like whether a trade was profitable or not—as a stream of data, rather than storing everything in memory at once. This makes it much more efficient for handling large datasets. You can also stop the backtest early if needed.
+The service then reports the result, continuing the cycle with the next timeframe. Importantly, it streams the results as they become available, avoiding the buildup of large arrays and optimizing memory usage. You can also interrupt the backtest early if needed.
 
-The service relies on several other core services like the StrategyCoreService, ExchangeCoreService, and FrameCoreService to handle the actual backtesting logic, data retrieval, and timeframe management. To start a backtest for a specific stock ticker symbol, you use the `run` method which generates a sequence of results showing the outcome of each trade.
+This class depends on several other services: the strategy core, exchange core, frame core, action core, and method context. The `run` method is the main entry point, allowing you to specify the symbol you want to backtest and receive results as a stream.
 
 ## Class BacktestCommandService
 
-This service acts as a central point for running backtests within the backtest-kit framework. Think of it as the main entry point to start a backtest.
+The BacktestCommandService acts as a central point for starting and managing backtests within the system. Think of it as a go-between, making it easy for different parts of the application to request and receive backtest results.
 
-It bundles together several supporting services to handle things like validating your strategy and the data it's using.
+It's designed to be used for dependency injection, meaning it's a clean way to provide access to backtesting capabilities without directly exposing complex internal details.
 
-The core function, `run`, is how you initiate a backtest, specifying the trading symbol and details about the strategy, exchange, and data frame being used.  It returns a sequence of results representing what would have happened for each tick during the backtest period, including orders opened, closed, and cancelled. Essentially, it's your gateway to seeing how a strategy would have performed historically.
+Several services—like those handling strategy, risk, action, and exchange validations—are essential parts of this service, ensuring everything is set up correctly before a backtest begins. 
+
+The primary function, `run`, is how you initiate a backtest. You provide a symbol to test and context (like the strategy, exchange, and frame names) to set the parameters for the backtest, and it returns a series of results describing the actions taken during the backtest.
+
 
 ## Class ActionValidationService
 
-The ActionValidationService helps you keep track of and confirm that your action handlers are properly set up and available. Think of it as a central manager for your actions, ensuring things don’t break when you try to use them.
+The ActionValidationService helps you keep track of and verify your trading actions. It acts like a central manager for all your action handlers, ensuring they're properly registered before your trading logic runs. 
 
-It lets you register new actions, providing details about their structure.  You can then use it to double-check that a particular action is actually registered before you try to execute it. 
+Think of it as a checklist: you add action definitions using `addAction`, and then `validate` confirms that those actions actually exist before they're used. 
 
-To make things fast, the service remembers the results of these checks (memoization), so it doesn’t have to repeatedly validate the same actions.
+To speed things up, it remembers previous validation results, so checks aren’t repeated unnecessarily. 
 
-Finally, you can get a full list of all the actions you've registered to see everything you're working with.
+Finally, `list` provides a handy way to see all the action handlers that are currently registered with the service. 
 
+It also uses a logger service for any important notifications and stores the action configurations internally.
 
 ## Class ActionSchemaService
 
-The ActionSchemaService is responsible for managing and organizing the definitions of actions within your trading system. It acts like a central library for action schemas, ensuring they are correctly structured and validated.
+The ActionSchemaService helps you keep track of and manage your action schemas – think of them as blueprints for how actions are executed within your system. It makes sure everything is type-safe and organized, leveraging a registry to store these schemas.
 
-It uses a type-safe registry to store these action schemas, and it checks that the methods used within your action handlers are valid according to predefined rules. This helps prevent errors and makes sure your actions behave as expected.
+It checks that your action handlers (the code that actually *does* the actions) only use the methods they're supposed to, ensuring a secure and predictable process.
 
-You can register new actions, update existing ones by making small changes without a full re-registration, and retrieve existing action configurations whenever needed. The service helps keep things organized and reliable, especially when your system needs to execute actions based on these schemas. It validates the structure of the schema, verifies that the methods are allowed, and manages private method support.
+You can register new action schemas, with the service validating them to make sure they’re set up correctly, or update existing ones with just the changes you need.
+
+Retrieving a schema is also straightforward, providing you with all the details necessary to create and use client actions. 
+
+The service uses a logger to help with debugging and monitoring, and it utilizes a registry for safe and structured storage. It also allows for private methods, and provides shallow validation for basic correctness.
+
 
 ## Class ActionProxy
 
-The `ActionProxy` acts like a safety net around your custom trading logic. It’s designed to prevent errors in your code from crashing the entire trading system. Think of it as a wrapper that automatically catches errors when your action handlers (like `init`, `signal`, `breakevenAvailable`, etc.) are executed.
+The `ActionProxy` acts as a safety net when you’re using custom logic within your trading strategy. It's designed to prevent errors in your custom code from bringing down the entire backtesting or live trading system. Think of it as a wrapper around your custom action handlers that automatically catches and logs any errors that might occur, allowing the system to continue running.
 
-If an error occurs within any of those handlers, the `ActionProxy` logs it, sends it to an error reporting system, and then continues execution—it won't abruptly stop the process. This is particularly useful because your action handlers might be missing methods, or have unexpected issues; the `ActionProxy` gracefully handles those situations.
+It’s a factory-pattern class, meaning you create instances of it using `fromInstance`, which takes your partial implementation of an action and a set of parameters.
 
-You don't directly create `ActionProxy` instances; they are created via `fromInstance`, which takes your user-defined action handlers and wraps them in this protective layer.  There's one method, `signalSync`, that isn't wrapped – errors there are passed through to another part of the system.  Essentially, it’s a framework component that ensures your custom trading logic runs as smoothly as possible.
+Here's a breakdown of its key functions:
 
+*   **`init()`**: Runs your initialization code and catches any errors during setup.
+*   **`signal()`**: Handles regular signal events, wrapping your code to prevent crashes.
+*   **`signalLive()`**: Specifically handles signal events during live trading.
+*   **`signalBacktest()`**: Specifically handles signal events during backtesting.
+*   **`breakevenAvailable()`**, **`partialProfitAvailable()`**, **`partialLossAvailable()`**, **`pingScheduled()`**, **`pingActive()`**, **`riskRejection()`**: Similar error-capturing wrappers for different event types.
+*   **`dispose()`**: Cleans up resources when the strategy ends, safely handling potential errors.
+*   **`signalSync()`**: A special case where errors *aren't* caught, as they need to be passed along directly.
+
+Essentially, `ActionProxy` is there to make sure your custom trading logic doesn't unexpectedly stop the whole process, logging errors and continuing execution whenever possible.
 
 ## Class ActionCoreService
 
-The ActionCoreService acts as a central hub for managing and executing actions within your trading strategies. It essentially takes the instructions defined in your strategy's schema and makes sure they're handled correctly.
+The ActionCoreService is the central hub for handling actions within your trading strategies. It automatically manages the execution of actions defined in your strategy schemas, ensuring they're invoked in the correct order and with the right data.
 
-Think of it as a traffic controller, ensuring that events like new signals, breakeven points, or risk rejections are properly distributed to the appropriate actions.
+Think of it as a conductor leading an orchestra of actions – it retrieves the list of actions from your strategy’s blueprint, validates everything to make sure it's set up correctly, and then makes sure each action gets its turn to run.
 
 Here's a breakdown of what it does:
 
-*   **Action Management:** It reads the list of actions from your strategy's schema.
-*   **Validation:** It meticulously checks that your strategy's setup—the strategy name, exchange, frame—and any related configurations (like risks and actions) are all valid.  This avoids errors later on.
-*   **Event Routing:**  It directs various events (signals, profits, losses, pings, etc.) to the corresponding action handlers. Each event type has its own dedicated function (e.g., `signal`, `breakevenAvailable`).
-*   **Initialization & Cleanup:** It's responsible for setting up (initializing) actions at the beginning and cleaning them up (disposing) at the end of a strategy execution.
-*   **Synchronization:** `signalSync` provides a way to coordinate actions across your strategy, ensuring they all agree before proceeding.
-*   **Data Clearing:** The `clear` function allows you to reset action data, either for a specific action or all actions.
+*   **Initialization:** Sets up individual actions with `initFn`, allowing them to load any necessary data or state.
+*   **Signal Handling:** It routes different types of events (like market ticks, breakeven confirmations, or scheduled pings) to the appropriate actions within the strategy. There are dedicated methods for backtesting, live trading, and specific events like `signalLive` and `signalBacktest`.
+*   **Validation:** The `validate` function ensures your strategy's context and configurations (strategy name, exchange, frame, risks, and actions) are all valid before proceeding. This avoids errors later on.
+*   **Synchronization:**  `signalSync` provides a way to coordinate actions, making sure all registered actions agree before proceeding.
+*   **Cleanup:** The `dispose` function cleans up resources when a strategy is finished, ensuring a tidy exit.
+*   **Data Clearing:** The `clear` function removes action data, either for a specific action or all actions, to ensure a fresh start.
 
-
-
-It’s a crucial component, working behind the scenes to make your strategies run smoothly and reliably.
+This service relies on several other validation and connection services to function, acting as a critical component in orchestrating complex trading strategies.
 
 ## Class ActionConnectionService
 
-This service acts as a central hub for handling actions within your trading strategies. It takes an action name and intelligently routes it to the correct implementation, ensuring the right logic runs for each action. To improve performance, it remembers (caches) these implementations so it doesn't have to recreate them every time.
+The ActionConnectionService is responsible for directing different types of events – like signals, breakeven notifications, and scheduled pings – to the correct action handler within your trading strategy. It intelligently manages these actions, creating them only when needed and storing them for later use to improve performance.
 
-It’s designed to work with various events like signals, breakeven points, and scheduled pings, directing each one to the appropriate action handler.  The caching is very specific; it considers the strategy, exchange, and frame to make sure the correct action is used for a particular setup.
+When an event needs to be processed, the service uses the action name, strategy name, exchange name, and frame name to find the appropriate handler. It keeps a record of these handlers, so it doesn’t have to recreate them every time. This memoization ensures efficiency across your strategies.
 
-You can clear the cache if you need to, which can be useful in certain situations. The `initFn` method prepares the action for use, loading any necessary data. Finally, when an action is no longer needed, `dispose` cleans it up.
+The service also provides methods for initializing, disposing of, and clearing these action handlers, allowing for proper setup and cleanup. Different versions of events, such as those for backtesting vs. live trading, are handled separately using dedicated signal functions. Essentially, it's a centralized hub for routing and managing your strategy's actions.
 
 ## Class ActionBase
 
-This class, `ActionBase`, is designed to help you build custom extensions for your trading strategies within the backtest-kit framework. Think of it as a starting point for adding your own logic – like sending notifications, tracking performance, or connecting to external systems. It takes care of the basic event logging for you, so you don't have to write that repetitive code each time.
+This framework provides a base class, `ActionBase`, to help you extend the core trading logic with custom actions. Think of it as a foundation for building specialized components that handle things like sending notifications, logging events, or managing your strategy's state.
 
-When you extend this class, you'll have access to key information about the strategy's name, the timeframe, and the specific action being triggered.
+When you create your own actions, you inherit from `ActionBase`, which handles the common setup and logging for you. You only need to implement the specific functions that your custom actions require.
 
-The lifecycle of an action handler involves initialization (`init`), responding to various events like signal generation (`signal`, `signalLive`, `signalBacktest`), profit/loss milestones (`partialProfitAvailable`, `partialLossAvailable`), and cleanup (`dispose`). Each event type provides a default implementation, logging what's happening, which you can override with your custom code. For example, you can use `signalLive` to send notifications when a trade is opened in a live environment, or `signalBacktest` to collect metrics during backtesting. The `dispose` method ensures that resources are released when the strategy is complete. Essentially, it simplifies adding custom behavior to your trading strategies.
+Here's a breakdown of how it works:
 
+*   **Lifecycle:** When your strategy runs, `ActionBase` manages the lifecycle of your custom actions—initialization, execution during signal events, and cleanup afterward.
+*   **Events:** It provides various event methods like `signal`, `breakevenAvailable`, and `partialLossAvailable` that are triggered at specific points during the trading process. You can override these methods to perform actions based on these events. `signalLive` is specifically for actions running in a live trading environment.
+*   **Flexibility:** You can use this base class to integrate with external services like databases, email providers, or messaging platforms.
+*   **Logging:**  All important events are automatically logged, making it easier to debug and monitor your custom actions.
+*   **Context:** You get access to key information about your strategy, such as its name and the timeframe it's running on.
+
+
+
+Ultimately, `ActionBase` simplifies the process of creating and managing custom logic within the trading framework.

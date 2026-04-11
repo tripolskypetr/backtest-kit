@@ -382,6 +382,50 @@ Returns the PnL cost (in quote currency) at the moment the worst loss price was 
 
 Returns null if no pending signal exists.
 
+### getPositionHighestProfitDistancePnlPercentage
+
+```ts
+getPositionHighestProfitDistancePnlPercentage: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL percentage between the current price and the highest profit peak.
+
+Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+Returns null if no pending signal exists.
+
+### getPositionHighestProfitDistancePnlCost
+
+```ts
+getPositionHighestProfitDistancePnlCost: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL cost between the current price and the highest profit peak.
+
+Computed as: max(0, peakPnlCost - currentPnlCost).
+Returns null if no pending signal exists.
+
+### getPositionHighestMaxDrawdownPnlPercentage
+
+```ts
+getPositionHighestMaxDrawdownPnlPercentage: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+
+Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+Returns null if no pending signal exists.
+
+### getPositionHighestMaxDrawdownPnlCost
+
+```ts
+getPositionHighestMaxDrawdownPnlCost: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL cost between the current price and the worst drawdown trough.
+
+Computed as: max(0, currentPnlCost - fallPnlCost).
+Returns null if no pending signal exists.
+
 ### getPositionEntryOverlap
 
 ```ts

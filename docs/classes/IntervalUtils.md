@@ -38,7 +38,7 @@ Each function reference gets its own isolated persistent instance.
 ### fn
 
 ```ts
-fn: (run: TIntervalFn, context: { interval: CandleInterval; }) => TIntervalFn & { clear(): void; }
+fn: <T extends object>(run: TIntervalFn<T>, context: { interval: CandleInterval; }) => TIntervalWrappedFn<T> & { clear(): void; }
 ```
 
 Wrap a signal function with in-memory once-per-interval firing.
@@ -52,7 +52,7 @@ The `run` function reference is used as the memoization key for the underlying
 ### file
 
 ```ts
-file: <T extends TIntervalFileFn>(run: T, context: { interval: CandleInterval; name: string; }) => T & { clear(): Promise<void>; }
+file: <T extends object>(run: TIntervalFn<T>, context: { interval: CandleInterval; name: string; }) => TIntervalWrappedFn<T> & { clear(): Promise<...>; }
 ```
 
 Wrap an async signal function with persistent file-based once-per-interval firing.
@@ -67,7 +67,7 @@ The `run` function reference is used as the memoization key for the underlying
 ### dispose
 
 ```ts
-dispose: (run: TIntervalFn) => void
+dispose: (run: TIntervalFn<object>) => void
 ```
 
 Dispose (remove) the memoized `IntervalFnInstance` for a specific function.

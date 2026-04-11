@@ -6,10 +6,8 @@ group: docs
 # TIntervalFn
 
 ```ts
-type TIntervalFn = (symbol: string, when: Date) => Promise<ISignalIntervalDto | null>;
+type TIntervalFn<T extends object = object> = (symbol: string, when: Date) => Promise<T | null>;
 ```
 
-Signal function type for in-memory once-per-interval firing.
-Called at most once per interval boundary per symbol.
-Must return a non-null `ISignalIntervalDto` to start the interval countdown,
-or `null` to defer firing until the next call.
+User-implemented function fired once per interval boundary.
+Receives `when` from the caller (sourced from execution context).

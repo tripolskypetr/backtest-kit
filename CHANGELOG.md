@@ -1,3 +1,105 @@
+# Peak/Fall Distance Queries (v6.10.0, 11/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.10.0)
+
+v6.10.0 adds four new distance-query methods that measure how far a position has moved from its best and worst points
+
+## New Distance-Query Methods
+
+Four new methods are added symmetrically across every public layer (strategy functions, `BacktestUtils`, `LiveUtils`, `ClientStrategy`, `StrategyCoreService`, `StrategyConnectionService`, and `IStrategy`):
+
+| Method | Formula | Semantic |
+|---|---|---|
+| `getPositionHighestProfitDistancePnlPercentage` | `max(0, peak% − current%)` | How much PnL% has been given back from the highest profit point |
+| `getPositionHighestProfitDistancePnlCost` | `max(0, peakCost − currentCost)` | Same in absolute dollar terms |
+| `getPositionHighestMaxDrawdownPnlPercentage` | `max(0, current% − fall%)` | How much PnL% has been recovered from the worst drawdown trough |
+| `getPositionHighestMaxDrawdownPnlCost` | `max(0, currentCost − fallCost)` | Same in absolute dollar terms |
+
+All four return `null` when there is no active pending signal, and `≥ 0` otherwise. They read from the existing `_peak` and `_fall` snapshots on `ISignalRow` introduced in v6.7.0.
+
+## `Interval` — Generic Refactor
+
+`TIntervalFn` and the two instance classes are now fully generic:
+
+- **`TIntervalFn<T extends object>`** — replaces the concrete `(symbol, when) => Promise<ISignalIntervalDto | null>` signature. Any object type can be returned.
+- **`TIntervalWrappedFn<T extends object>`** — new type for the wrapped function returned by `Interval.fn` and `Interval.file`. Callers pass only `symbol`; `when` is resolved internally from the execution context.
+- **`IntervalFnInstance<T>`** — generic class; `run()` now returns `Promise<T | null>`.
+- **`IntervalFileInstance<T>`** — generic class; `run(symbol)` signature replaces the previous variadic `...args`. The `symbol` is extracted before the call; `when` is pulled from the execution context inside `run`.
+- `TIntervalFileFn` type alias is removed; `IntervalFileInstance` no longer uses it as its type parameter.
+
+## Exports Added to `src/index.ts`
+
+- `TIntervalFn` — exported from `./classes/Interval` so callers can type their own interval functions without importing from the internal path.
+- `ISignalIntervalDto` — re-exported from `./interfaces/Strategy.interface` (was previously only available via the internal interface path).
+
+
+
+
+
+# Once-per-Interval Signal Firing (v6.9.0, 10/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.9.0)
+
+
+v6.9.0 adds two new utility classes — `Interval` for once-per-interval signal firing and `Position` for TP/SL level calculation — renames `CacheInstance` to `CacheFnInstance`, adds soft-delete support to `CacheFileInstance` and a new `PersistIntervalUtils` persistence layer.
+
+## `Interval` — Once-per-Interval Signal Firing
+
+New `src/classes/Interval.ts` provides a mechanism to fire a signal function at most once per candle-interval boundary per symbol.
+
+- **`IntervalFnInstance`** — in-memory instance. Stores the last aligned timestamp per context+symbol key. On the first call within a new interval boundary the wrapped function is invoked; all subsequent calls within the same interval return `null`. If the function itself returns `null`, the countdown does not start and the next call retries.
+- **`IntervalFileInstance`** — persistent file-based instance backed by `PersistIntervalAdapter` (stored under `./dump/data/interval/`). Fired state survives process restarts. Supports `clear()` to soft-delete all persisted records so the function fires again.
+- **`IntervalUtils`** — utility class (exported as singleton `Interval`) with two factory methods:
+  - `Interval.fn(run, { interval })` — wraps a `TIntervalFn` with in-memory once-per-interval firing. Returns the wrapped function plus a synchronous `clear()` method.
+  - `Interval.file(run, { interval, name })` — wraps a `TIntervalFileFn` with persistent once-per-interval firing. Returns the wrapped function plus an async `clear()` method that deletes disk records.
+  - `Interval.dispose(run)` — removes the memoized `IntervalFnInstance` for a specific function.
+  - `Interval.clear()` — clears all memoized instances and resets the `IntervalFileInstance` index counter (call when `process.cwd()` changes between iterations).
+
+### `ISignalIntervalDto`
+
+New interface extending `ISignalDto` with a required `id: string` field (UUID v4). `TIntervalFn` and `TIntervalFileFn` return `Promise<ISignalIntervalDto | null>`.
+
+## `Position` — TP/SL Level Calculator
+
+New `src/classes/Position.ts` provides static helpers for calculating take-profit and stop-loss price levels. Direction is automatically inverted for short positions.
+
+- **`Position.moonbag(dto)`** — fixed 50% TP from current price; SL at `percentStopLoss` from current price.
+- **`Position.bracket(dto)`** — custom TP at `percentTakeProfit` and SL at `percentStopLoss` from current price.
+
+Both methods accept `{ position: "long" | "short", currentPrice, percentStopLoss, ... }` and return `{ position, priceTakeProfit, priceStopLoss }`.
+
+## `CacheInstance` Renamed to `CacheFnInstance`
+
+`CacheInstance` is renamed to `CacheFnInstance` in `src/classes/Cache.ts` for naming consistency with `CacheFileInstance`. All internal references, error messages, and JSDoc examples are updated accordingly.
+
+## `CacheFileInstance.clear()` — Soft-Delete All Cached Records
+
+`CacheFileInstance` gains a new async `clear()` method that iterates all non-removed entries in the instance's bucket via `PersistMeasureAdapter.listMeasureData` and marks each one as removed via `PersistMeasureAdapter.removeMeasureData`. After this call the next `run()` recomputes and re-caches the value.
+
+`Cache.file(...).clear()` is now `async` (was `void`), delegating to `CacheFileInstance.clear()` via the memoized instance accessor.
+
+## `PersistMeasureUtils` — `removeMeasureData` + `listMeasureData`
+
+Two new methods on `PersistMeasureUtils`:
+
+- `removeMeasureData(bucket, key)` — soft-deletes a cached entry by setting `removed: true` on the stored record. Subsequent `readMeasureData` calls for the same key return `null`.
+- `listMeasureData(bucket)` — async generator yielding all non-removed entity keys for a bucket.
+
+`MeasureData` type gains a `removed: boolean` field; all `writeMeasureData` calls now include `removed: false` on new writes.
+
+## `PersistIntervalUtils` — New Persistence Layer for `Interval.file`
+
+New `PersistIntervalUtils` class (exported as `PersistIntervalAdapter`) stores fired-interval markers under `./dump/data/interval/`. Supports `readIntervalData`, `writeIntervalData`, `removeIntervalData`, `listIntervalData`, `clear`, `useJson`, `useDummy`, and `usePersistIntervalAdapter` for custom adapter injection.
+
+`IntervalData` type: `{ id: string; data: unknown; removed: boolean }`.
+
+## Exports
+
+`Position`, `Interval`, `PersistIntervalAdapter`, and `IntervalData` are added to the public API in `src/index.ts` and `types.d.ts`.
+
+
+
+
 # Code Refactoring (v6.8.1, 08/04/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.8.1)

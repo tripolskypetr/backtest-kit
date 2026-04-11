@@ -492,6 +492,54 @@ Returns the PnL cost (in quote currency) at the moment the worst loss price was 
 Delegates to ClientStrategy.getPositionMaxDrawdownPnlCost().
 Returns null if no pending signal exists.
 
+### getPositionHighestProfitDistancePnlPercentage
+
+```ts
+getPositionHighestProfitDistancePnlPercentage: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL percentage between the current price and the highest profit peak.
+
+Resolves current price via priceMetaService and delegates to
+ClientStrategy.getPositionHighestProfitDistancePnlPercentage().
+Returns null if no pending signal exists.
+
+### getPositionHighestProfitDistancePnlCost
+
+```ts
+getPositionHighestProfitDistancePnlCost: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL cost between the current price and the highest profit peak.
+
+Resolves current price via priceMetaService and delegates to
+ClientStrategy.getPositionHighestProfitDistancePnlCost().
+Returns null if no pending signal exists.
+
+### getPositionHighestMaxDrawdownPnlPercentage
+
+```ts
+getPositionHighestMaxDrawdownPnlPercentage: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+
+Resolves current price via priceMetaService and delegates to
+ClientStrategy.getPositionHighestMaxDrawdownPnlPercentage().
+Returns null if no pending signal exists.
+
+### getPositionHighestMaxDrawdownPnlCost
+
+```ts
+getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the distance in PnL cost between the current price and the worst drawdown trough.
+
+Resolves current price via priceMetaService and delegates to
+ClientStrategy.getPositionHighestMaxDrawdownPnlCost().
+Returns null if no pending signal exists.
+
 ### dispose
 
 ```ts

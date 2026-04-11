@@ -12,6 +12,7 @@ import {
   alignToInterval,
   Log,
   Cache,
+  Interval,
 } from "backtest-kit";
 import { createAwaiter, singleshot } from "functools-kit";
 import { getArgs, getPositionals } from "../../../helpers/getArgs";
@@ -109,7 +110,8 @@ export class WalkerMainService {
           strategyMap.set(strategyName, entryPoint)
         }
 
-        Cache.clear();
+        Cache.resetCounter();
+        Interval.resetCounter();
       }
 
       await this.moduleConnectionService.loadModule("./walker.module");
