@@ -150,7 +150,7 @@ export const partial_columns: ColumnModel<PartialEvent>[] = [
   {
     key: "note",
     label: "Note",
-    format: (data) => data.note || "",
+    format: (data) => toPlainString(data.note ?? "N/A"),
     isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
   },
   {

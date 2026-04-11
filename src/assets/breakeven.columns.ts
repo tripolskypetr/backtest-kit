@@ -1,6 +1,7 @@
 import { ColumnModel } from "../model/Column.model";
 import { BreakevenEvent } from "../model/BreakevenStatistics.model";
 import { GLOBAL_CONFIG } from "../config/params";
+import toPlainString from "../helpers/toPlainString";
 
 /**
  * Column configuration for breakeven markdown reports.
@@ -134,7 +135,7 @@ export const breakeven_columns: ColumnModel<BreakevenEvent>[] = [
   {
     key: "note",
     label: "Note",
-    format: (data) => data.note || "",
+    format: (data) => toPlainString(data.note ?? "N/A"),
     isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
   },
   {

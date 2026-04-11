@@ -38,7 +38,6 @@ import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
-import toPlainString from "../helpers/toPlainString";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
@@ -559,7 +558,7 @@ const GET_SIGNAL_FN = trycatch(
           cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
           priceOpen: signal.priceOpen, // Используем priceOpen из сигнала
           position: signal.position,
-          note: toPlainString(signal.note),
+          note: signal.note || "",
           priceTakeProfit: signal.priceTakeProfit,
           priceStopLoss: signal.priceStopLoss,
           minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
@@ -588,7 +587,7 @@ const GET_SIGNAL_FN = trycatch(
         cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
         priceOpen: signal.priceOpen,
         position: signal.position,
-        note: toPlainString(signal.note),
+        note: signal.note || "",
         priceTakeProfit: signal.priceTakeProfit,
         priceStopLoss: signal.priceStopLoss,
         minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
@@ -616,7 +615,7 @@ const GET_SIGNAL_FN = trycatch(
       cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
       priceOpen: currentPrice,
       ...structuredClone(signal),
-      note: toPlainString(signal.note),
+      note: signal.note || "",
       minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
