@@ -19,8 +19,8 @@ import { research } from "logic";
 const MAX_DRAWDOWN_PERCENT = 3.5;
 const MAX_MINUTES_AFTER_PEAK = 60;
 
-const POSITION_FILE_SHORT = File.fromPath("position_short.pine", "../math");
-const POSITION_FILE_LONG = File.fromPath("position_long.pine", "../math");
+const POSITION_FILE_SHORT = File.fromPath("position_short.pine", "./math");
+const POSITION_FILE_LONG = File.fromPath("position_long.pine", "./math");
 
 const POSITION_FILE_MAP = {
   BUY: POSITION_FILE_LONG,
