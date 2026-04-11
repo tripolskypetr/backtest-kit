@@ -20228,7 +20228,7 @@ type CacheFileFunction = (symbol: string, ...args: any[]) => Promise<any>;
  * For example, for a function type `(symbol: string, arg1: number, arg2: string) => Promise<void>`,
  * this type will infer the rest of the arguments as `[arg1: number, arg2: string]`.
  */
-type DropFirst<T extends (...args: any) => any> = T extends (first: any, ...rest: infer R) => any ? R : never;
+type DropFirst$1<T extends (...args: any) => any> = T extends (first: any, ...rest: infer R) => any ? R : never;
 /**
  * Extracts the `key` generator argument tuple from a `CacheFileFunction`.
  * The first two arguments are always `symbol: string` and `alignMs: number` (aligned timestamp),
@@ -20240,7 +20240,7 @@ type DropFirst<T extends (...args: any) => any> = T extends (first: any, ...rest
 type CacheFileKeyArgs<T extends CacheFileFunction> = [
     symbol: string,
     alignMs: number,
-    ...rest: DropFirst<T>
+    ...rest: DropFirst$1<T>
 ];
 /**
  * Utility class for function caching with timeframe-based invalidation.
@@ -20403,14 +20403,34 @@ declare const Cache: CacheUtils;
 
 /**
  * User-implemented function fired once per interval boundary.
- * Receives `when` from the caller (sourced from execution context).
+ * First argument is always `symbol: string`, followed by optional spread args.
+ * `when` is injected by the system and is not part of the user-facing signature.
  */
-type TIntervalFn<T extends object = object> = (symbol: string, when: Date) => Promise<T | null>;
+type TIntervalFn<T extends object = object> = (symbol: string, ...args: any[]) => Promise<T | null>;
 /**
  * Wrapped function returned by `Interval.fn` and `Interval.file`.
- * `when` is resolved internally from the execution context — callers pass only `symbol`.
+ * Callers pass `symbol` and extra args; `when` is resolved from the execution context internally.
  */
-type TIntervalWrappedFn<T extends object = object> = (symbol: string) => Promise<T | null>;
+type TIntervalWrappedFn<T extends object = object, TArgs extends any[] = []> = (symbol: string, ...args: TArgs) => Promise<T | null>;
+/**
+ * Utility type to drop the first argument from a function type.
+ * For example, for `(symbol: string, arg1: number, arg2: string) => Promise<void>`,
+ * this will infer `[arg1: number, arg2: string]`.
+ */
+type DropFirst<T extends (...args: any) => any> = T extends (first: any, ...rest: infer R) => any ? R : never;
+/**
+ * Extracts the `key` generator argument tuple from a `TIntervalFn`.
+ * The first two arguments are always `symbol: string` and `when: Date` (injected by the system),
+ * followed by the rest of the original function's arguments.
+ *
+ * For example, for `(symbol: string, arg1: number) => Promise<void>`,
+ * this will produce `[symbol: string, when: Date, arg1: number]`.
+ */
+type IntervalFileKeyArgs<T extends TIntervalFn> = [
+    symbol: string,
+    alignMs: number,
+    ...rest: DropFirst<T>
+];
 /**
  * Utility class for wrapping signal functions with once-per-interval firing.
  * Provides two modes: in-memory (`fn`) and persistent file-based (`file`).
@@ -20447,19 +20467,29 @@ declare class IntervalUtils {
      *
      * @param run - Signal function to wrap
      * @param context.interval - Candle interval that controls the firing boundary
-     * @returns Wrapped function with the same signature as `TIntervalFn<T>`, plus a `clear()` method
+     * @param context.key - Optional key generator for argument-based state separation
+     * @returns Wrapped function that accepts `(symbol, ...args)`, plus a `clear()` method
      *
      * @example
      * ```typescript
+     * // Without extra args
      * const fireOnce = Interval.fn(mySignalFn, { interval: "15m" });
-     *
      * await fireOnce("BTCUSDT"); // → T or null  (fn called)
      * await fireOnce("BTCUSDT"); // → null       (same interval, skipped)
+     *
+     * // With extra args and key
+     * const fireOnce = Interval.fn(mySignalFn, {
+     *   interval: "15m",
+     *   key: ([symbol, when, period]) => `${symbol}_${period}`,
+     * });
+     * await fireOnce("BTCUSDT", 14); // → T or null
+     * await fireOnce("BTCUSDT", 28); // → T or null (separate state)
      * ```
      */
-    fn: <T extends object>(run: TIntervalFn<T>, context: {
+    fn: <T extends object, F extends TIntervalFn<T>>(run: F, context: {
         interval: CandleInterval;
-    }) => TIntervalWrappedFn<T> & {
+        key?: (args: Parameters<F>) => string;
+    }) => F & {
         clear(): void;
     };
     /**
@@ -20472,24 +20502,31 @@ declare class IntervalUtils {
      * The `run` function reference is used as the memoization key for the underlying
      * `IntervalFileInstance`, so each unique function reference gets its own isolated instance.
      *
-     * @template T - Async function type to wrap
+     * @template T - Return type of the signal function
+     * @template F - Concrete function type (captures extra args)
      * @param run - Async signal function to wrap with persistent once-per-interval firing
      * @param context.interval - Candle interval that controls the firing boundary
      * @param context.name - Human-readable bucket name; becomes the directory prefix
-     * @returns Wrapped function with the same signature as `T`, plus an async `clear()` method
-     *   that deletes persisted records from disk and disposes the memoized instance
+     * @param context.key - Optional entity key generator. Receives `[symbol, alignedWhen, ...rest]`.
+     *                      Default: `([symbol, when]) => \`${symbol}_${when.getTime()}\``
+     * @returns Wrapped function that accepts `(symbol, ...args)`, plus an async `clear()` method
      *
      * @example
      * ```typescript
-     * const fetchSignal = async (symbol: string, when: Date) => { ... };
-     * const fireOnce = Interval.file(fetchSignal, { interval: "1h", name: "fetchSignal" });
-     * await fireOnce.clear(); // delete disk records so the function fires again next call
+     * const fetchSignal = async (symbol: string, period: number) => { ... };
+     * const fireOnce = Interval.file(fetchSignal, {
+     *   interval: "1h",
+     *   name: "fetchSignal",
+     *   key: ([symbol, when, period]) => `${symbol}_${when.getTime()}_${period}`,
+     * });
+     * await fireOnce("BTCUSDT", 14);
      * ```
      */
-    file: <T extends object>(run: TIntervalFn<T>, context: {
+    file: <T extends object, F extends TIntervalFn<T>>(run: F, context: {
         interval: CandleInterval;
         name: string;
-    }) => TIntervalWrappedFn<T> & {
+        key?: (args: IntervalFileKeyArgs<F>) => string;
+    }) => TIntervalWrappedFn<T, DropFirst<F>> & {
         clear(): Promise<void>;
     };
     /**
@@ -20509,8 +20546,7 @@ declare class IntervalUtils {
      */
     dispose: (run: TIntervalFn<object>) => void;
     /**
-     * Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects and
-     * resets the `IntervalFileInstance` index counter.
+     * Clears all memoized `IntervalFnInstance` and `IntervalFileInstance` objects.
      * Call this when `process.cwd()` changes between strategy iterations
      * so new instances are created with the updated base path.
      */
