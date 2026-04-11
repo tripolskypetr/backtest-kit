@@ -60,6 +60,10 @@ const GET_POSITION_MAX_DRAWDOWN_PRICE_METHOD_NAME = "strategy.getPositionMaxDraw
 const GET_POSITION_MAX_DRAWDOWN_TIMESTAMP_METHOD_NAME = "strategy.getPositionMaxDrawdownTimestamp";
 const GET_POSITION_MAX_DRAWDOWN_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionMaxDrawdownPnlPercentage";
 const GET_POSITION_MAX_DRAWDOWN_PNL_COST_METHOD_NAME = "strategy.getPositionMaxDrawdownPnlCost";
+const GET_POSITION_HIGHEST_PROFIT_DISTANCE_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionHighestProfitDistancePnlPercentage";
+const GET_POSITION_HIGHEST_PROFIT_DISTANCE_PNL_COST_METHOD_NAME = "strategy.getPositionHighestProfitDistancePnlCost";
+const GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionHighestMaxDrawdownPnlPercentage";
+const GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_COST_METHOD_NAME = "strategy.getPositionHighestMaxDrawdownPnlCost";
 const GET_POSITION_ENTRY_OVERLAP_METHOD_NAME = "strategy.getPositionEntryOverlap";
 const GET_POSITION_PARTIAL_OVERLAP_METHOD_NAME = "strategy.getPositionPartialOverlap";
 const HAS_NO_PENDING_SIGNAL_METHOD_NAME = "strategy.hasNoPendingSignal";
@@ -2208,6 +2212,142 @@ export async function getPositionMaxDrawdownPnlCost(symbol: string) {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionMaxDrawdownPnlCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the distance in PnL percentage between the current price and the highest profit peak.
+ *
+ * Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestProfitDistancePnlPercentage } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestProfitDistancePnlPercentage("BTCUSDT");
+ * // e.g. 1.5 (gave back 1.5% from peak)
+ * ```
+ */
+export async function getPositionHighestProfitDistancePnlPercentage(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_HIGHEST_PROFIT_DISTANCE_PNL_PERCENTAGE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitDistancePnlPercentage requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitDistancePnlPercentage requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionHighestProfitDistancePnlPercentage(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the distance in PnL cost between the current price and the highest profit peak.
+ *
+ * Computed as: max(0, peakPnlCost - currentPnlCost).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestProfitDistancePnlCost } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestProfitDistancePnlCost("BTCUSDT");
+ * // e.g. 3.2 (gave back $3.2 from peak)
+ * ```
+ */
+export async function getPositionHighestProfitDistancePnlCost(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_HIGHEST_PROFIT_DISTANCE_PNL_COST_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitDistancePnlCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitDistancePnlCost requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionHighestProfitDistancePnlCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+ *
+ * Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestMaxDrawdownPnlPercentage } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestMaxDrawdownPnlPercentage("BTCUSDT");
+ * // e.g. 2.1 (recovered 2.1% from trough)
+ * ```
+ */
+export async function getPositionHighestMaxDrawdownPnlPercentage(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_PERCENTAGE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionHighestMaxDrawdownPnlPercentage requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionHighestMaxDrawdownPnlPercentage requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionHighestMaxDrawdownPnlPercentage(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+ *
+ * Computed as: max(0, currentPnlCost - fallPnlCost).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestMaxDrawdownPnlCost } from "backtest-kit";
+ *
+ * const dist = await getPositionHighestMaxDrawdownPnlCost("BTCUSDT");
+ * // e.g. 4.8 (recovered $4.8 from trough)
+ * ```
+ */
+export async function getPositionHighestMaxDrawdownPnlCost(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_COST_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionHighestMaxDrawdownPnlCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionHighestMaxDrawdownPnlCost requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionHighestMaxDrawdownPnlCost(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },

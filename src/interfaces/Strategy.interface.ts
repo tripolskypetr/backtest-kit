@@ -1653,6 +1653,50 @@ export interface IStrategy {
   getPositionMaxDrawdownPnlCost: (symbol: string) => Promise<number | null>;
 
   /**
+   * Returns the distance in PnL percentage between the current price and the highest profit peak.
+   *
+   * Computed as: max(0, peakPnlPercentage - currentPnlPercentage).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+   */
+  getPositionHighestProfitDistancePnlPercentage: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
+   * Returns the distance in PnL cost between the current price and the highest profit peak.
+   *
+   * Computed as: max(0, peakPnlCost - currentPnlCost).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+   */
+  getPositionHighestProfitDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
+   * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+   *
+   * Computed as: max(0, currentPnlPercentage - fallPnlPercentage).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to recovery distance in PnL% (≥ 0) or null
+   */
+  getPositionHighestMaxDrawdownPnlPercentage: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
+   * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+   *
+   * Computed as: max(0, currentPnlCost - fallPnlCost).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
+   */
+  getPositionHighestMaxDrawdownPnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
    * Disposes the strategy instance and cleans up resources.
    *
    * Called when the strategy is being removed from cache or shut down.
