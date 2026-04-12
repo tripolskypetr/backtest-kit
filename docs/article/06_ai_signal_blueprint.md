@@ -83,15 +83,9 @@ I wrote the following code. Lucky timing: the US president decided to get involv
 ## Fundamental Analysis for All of April 2026
 
 ```
-PS C:\Users\User\Documents\GitHub\node-ccxt-backtest-final> bun .\scripts\run_signal.ts
-Searching Bitcoin breaking news April 6 2026
-Searching Bitcoin SEC enforcement action April 6 2026
-Searching Bitcoin flash crash April 6 2026
-Searching April 6 2026 Bitcoin price dip
 {
-  id: "5f7b9988-c41b-4000-a848-cf8712a84000",
-  reasoning: "The report is dominated by a negative driver: Donald Trump's tweet about military escalation with Iran triggered an oil price spike, dollar strengthening, and a sharp Bitcoin drop below $69,000. Against this backdrop, funding rates turned deeply negative — signaling growing short positions — while liquidation volume hit $400M and may accelerate the decline, especially on a break of the $66,000 level. Positive signals (Michael Saylor's purchase plan, Grayscale ETF price growth) are limited and unable to offset the intensified risk-off sentiment and short-side pressure. Further price decline expected in the coming hours.",
-  signal: "SELL",
+"reasoning": "All the reports provided focus on negative signals: 1) macroeconomics - the Fed keeps rates high, the dollar is strong, employment growth → risk-off sentiment, limited demand for risky assets. 2) on-chain indicators - a decrease in the LTH substitution, an increase in short-term holders, a drop in the hashprice to a level close to breakeven, outflows from ETFs and a lack of inflows into the largest Spot ETF BlackRock. 3) market metrics - low volume with a price increase, high funding rate (≈15%), no confirming volumes when the resistance is broken, a price drop to $57-$66k and a strong fear index (28). 4) institutional flows - although there are individual large purchases (MicroStrategy, large \"whales\"), their total volume is less than the negative pressures (outflow from ETFs, lack of active whale buying, outflows from large funds). 5) Technical signals – possible false breakout above $68.5k without volume, weak liquidity, high funding rate indicates an overvaluation of bullish positions.\n\nThus, the dominant theme is increasing bearish pressure from macroeconomics and on-chain fundamentals, as well as a lack of convincing institutional demand. Contradictions (some institutional buying and growing BTC dominance) are not enough to redefine the overall picture.\n\nTherefore, the optimal single signal is **SELL**, as the current situation indicates a high risk of a price decline in the coming weeks.\n\n",
+"signal": "SELL"
 }
 ```
 
