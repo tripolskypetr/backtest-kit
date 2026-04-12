@@ -40,6 +40,8 @@ import {
 } from "../../../../model/Explorer.model";
 import { Background } from "../../../../components/common/Background";
 
+const MAX_ITEMS_SHOWN = 25;
+
 const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
@@ -130,6 +132,7 @@ export const MainView = ({
             <RecordView
                 component={Paper}
                 withExpandRoot
+                maxItems={MAX_ITEMS_SHOWN}
                 search={search$.current}
                 onSearchChanged={(search) => setSearch(search)}
                 sx={{
