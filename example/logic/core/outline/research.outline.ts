@@ -97,6 +97,7 @@ const commitSignalSearch = async (
       await commitAssistantMessage("OK", clientId, agentName);
       const request = str.newline(
         `Найди в интернете краткосрочные сигналы для ${query}`,
+        `Сигналы ищи не только по дате но и по времени, важно не попадать на новости, которые уже отыграны в цене`,
         `Только события актуальные на ${dayjs(date).format("DD MMMM YYYY HH:mm")}`,
         `Сформируй отчёт о краткосрочных рисках и возможностях`,
       );
