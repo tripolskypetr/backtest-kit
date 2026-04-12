@@ -1,6 +1,10 @@
-import { addExchangeSchema, addFrameSchema, roundTicks } from "backtest-kit";
+import { addExchangeSchema, addFrameSchema, roundTicks, setConfig } from "backtest-kit";
 import { singleshot } from "functools-kit";
 import ccxt from "ccxt";
+
+setConfig({
+  CC_MAX_STOPLOSS_DISTANCE_PERCENT: 100,
+});
 
 const getExchange = singleshot(async () => {
   const exchange = new ccxt.binance({

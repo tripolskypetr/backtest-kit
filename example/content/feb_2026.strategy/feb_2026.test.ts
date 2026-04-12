@@ -11,13 +11,14 @@ import {
   getPositionHighestProfitMinutes,
   getPositionHighestProfitDistancePnlCost,
   commitClosePending,
+  getPositionHighestMaxDrawdownPnlCost,
+  getDate,
 } from "backtest-kit";
 import { errorData, getErrorMessage } from "functools-kit";
 import { run, File, extract } from "@backtest-kit/pinets";
 import { research } from "logic";
 
-const MAX_DRAWDOWN_PERCENT = 3.5;
-const MAX_MINUTES_AFTER_PEAK = 60;
+const MAX_DRAWDOWN_PERCENT = 50;
 
 const POSITION_FILE_SHORT = File.fromPath("position_short.pine", "./math");
 const POSITION_FILE_LONG = File.fromPath("position_long.pine", "./math");
@@ -75,6 +76,13 @@ const signalSource = Interval.fn(
       currentPrice,
       percentStopLoss: MAX_DRAWDOWN_PERCENT,
     });
+    console.log("signal generated", {
+      symbol,
+      when,
+      position,
+      priceStopLoss,
+      priceTakeProfit,
+    });
     return {
       position,
       priceStopLoss,
@@ -103,21 +111,29 @@ addStrategySchema({
   },
 });
 
-listenActivePing(async ({ symbol }) => {
-  const peakMinutes = await getPositionHighestProfitMinutes(symbol);
-  const peakDrawdown = await getPositionHighestProfitDistancePnlCost(symbol);
-  Log.info("active ping", {
+listenActivePing(async ({ symbol, data }) => {
+  const peakProfitDistance = await getPositionHighestProfitDistancePnlCost(symbol);
+  const peakMaxDrawdown = await getPositionHighestMaxDrawdownPnlCost(symbol);
+  Log.info("position active", {
     symbol,
-    peakMinutes,
-    peakDrawdown,
+    data,
+    peakProfitDistance,
+    peakMaxDrawdown,
   });
-  if (peakMinutes > MAX_MINUTES_AFTER_PEAK) {
-    Log.info("active ping: closing position due to time after peak", {
-      symbol,
-      peakMinutes,
-    });
-    await commitClosePending(symbol);
+});
+
+listenActivePing(async ({ symbol, data }) => {
+  const when = await getDate();
+  const research = await researchSource(symbol, when);
+  const position = POSITION_LABEL_MAP[research.signal];
+  if (position === data.position) {
+    return;
   }
+  await commitClosePending(symbol);
+  Log.info("position closed", {
+    symbol,
+    data,
+  });
 });
 
 listenError((error) => {
