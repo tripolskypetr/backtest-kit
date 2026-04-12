@@ -38,16 +38,22 @@ const POSITION_LABEL_MAP = {
 };
 
 const researchSource = Cache.file(
-  async (symbol: string, when: Date) => {
+  async (symbol: string, when: Date, currentPrice: number) => {
     const result = await research(symbol, when);
-    return result;
+    return { ...result, currentPrice };
   },
   { interval: "8h", name: "research_source" },
 );
 
 const signalSource = Interval.fn(
-  async (symbol: string, when: Date): Promise<ISignalDto> => {
-    const research = await researchSource(symbol, when);
+  async (symbol: string, when: Date, currentPrice: number): Promise<ISignalDto> => {
+    const research = await researchSource(symbol, when, currentPrice);
+    if (research.signal === "SELL" && currentPrice > research.currentPrice) {
+      return null;
+    }
+    if (research.signal === "BUY" && currentPrice < research.currentPrice) {
+      return null;
+    }
     const file = POSITION_FILE_MAP[research.signal];
     const position = POSITION_LABEL_MAP[research.signal];
     {
@@ -72,7 +78,6 @@ const signalSource = Interval.fn(
     if (activate !== 1) {
       return null;
     }
-    const currentPrice = await getAveragePrice(symbol);
     const { priceStopLoss, priceTakeProfit } = Position.moonbag({
       position,
       currentPrice,
@@ -100,12 +105,12 @@ const signalSource = Interval.fn(
 addStrategySchema({
   strategyName: "feb_2026_strategy",
   interval: "1m",
-  getSignal: async (symbol, when) => {
-    const research = await researchSource(symbol, when);
+  getSignal: async (symbol, when, currentPrice) => {
+    const research = await researchSource(symbol, when, currentPrice);
     if (research.signal === "WAIT") {
       return null;
     }
-    const signal = await signalSource(symbol, when);
+    const signal = await signalSource(symbol, when, currentPrice);
     if (!signal) {
       return null;
     }
