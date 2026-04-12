@@ -1701,6 +1701,28 @@ export interface IStrategy {
   getPositionHighestMaxDrawdownPnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
 
   /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+   */
+  getMaxDrawdownDistancePnlPercentage: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlCost - fallPnlCost).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+   */
+  getMaxDrawdownDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
    * Disposes the strategy instance and cleans up resources.
    *
    * Called when the strategy is being removed from cache or shut down.

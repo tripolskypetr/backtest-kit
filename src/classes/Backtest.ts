@@ -93,6 +93,10 @@ const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_PERCENTAGE =
   "BacktestUtils.getPositionHighestMaxDrawdownPnlPercentage";
 const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_COST =
   "BacktestUtils.getPositionHighestMaxDrawdownPnlCost";
+const BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE =
+  "BacktestUtils.getMaxDrawdownDistancePnlPercentage";
+const BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST =
+  "BacktestUtils.getMaxDrawdownDistancePnlCost";
 const BACKTEST_METHOD_NAME_GET_POSITION_ENTRY_OVERLAP =
   "BacktestUtils.getPositionEntryOverlap";
 const BACKTEST_METHOD_NAME_GET_POSITION_PARTIAL_OVERLAP =
@@ -2755,6 +2759,130 @@ export class BacktestUtils {
     }
 
     return await backtest.strategyCoreService.getPositionHighestMaxDrawdownPnlCost(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns peak-to-trough PnL percentage distance (≥ 0) or null if no active position
+   */
+  public getMaxDrawdownDistancePnlPercentage = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getMaxDrawdownDistancePnlPercentage(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlCost - fallPnlCost).
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns peak-to-trough PnL cost distance (≥ 0) or null if no active position
+   */
+  public getMaxDrawdownDistancePnlCost = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getMaxDrawdownDistancePnlCost(
       true,
       symbol,
       context,

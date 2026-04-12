@@ -1608,6 +1608,58 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getMaxDrawdownDistancePnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+   */
+  public getMaxDrawdownDistancePnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getMaxDrawdownDistancePnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getMaxDrawdownDistancePnlPercentage(symbol, currentPrice);
+  };
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getMaxDrawdownDistancePnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+   */
+  public getMaxDrawdownDistancePnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getMaxDrawdownDistancePnlCost", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getMaxDrawdownDistancePnlCost(symbol, currentPrice);
+  };
+
+  /**
    * Disposes the ClientStrategy instance for the given context.
    *
    * Calls dispose callback, then removes strategy from cache.

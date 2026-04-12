@@ -57,6 +57,8 @@ export {
   getPositionHighestMaxDrawdownPnlPercentage,
   getPositionHighestProfitDistancePnlCost,
   getPositionHighestProfitDistancePnlPercentage,
+  getMaxDrawdownDistancePnlCost,
+  getMaxDrawdownDistancePnlPercentage,
   hasNoPendingSignal,
   hasNoScheduledSignal,
 } from "./function/strategy";

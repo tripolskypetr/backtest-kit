@@ -4961,6 +4961,46 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Measures the total swing from the stored `_peak.pnlPercentage` to the stored `_fall.pnlPercentage`.
+   * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+   */
+  public async getMaxDrawdownDistancePnlPercentage(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getMaxDrawdownDistancePnlPercentage", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.max(0, this._pendingSignal._peak.pnlPercentage - this._pendingSignal._fall.pnlPercentage);
+  }
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Measures the total swing from the stored `_peak.pnlCost` to the stored `_fall.pnlCost`.
+   * Computed as: max(0, peakPnlCost - fallPnlCost).
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+   */
+  public async getMaxDrawdownDistancePnlCost(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getMaxDrawdownDistancePnlCost", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.max(0, this._pendingSignal._peak.pnlCost - this._pendingSignal._fall.pnlCost);
+  }
+
+  /**
    * Performs a single tick of strategy execution.
    *
    * Flow (LIVE mode):
