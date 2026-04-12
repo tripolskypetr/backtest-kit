@@ -1,5 +1,5 @@
 ---
-title: article/06_react_signal_blueprint
+title: article/06_ai_signal_blueprint
 group: article
 ---
 
@@ -33,7 +33,7 @@ LLMs learn to justify an answer faster than they learn to reason carefully. When
 2. **There's no backtesting tool to verify this hypothesis, so we don't think about it**
 3. **Stoch RSI is overbought — I'm not looking at this anymore, I already have my answer**
 
-If you hard-code priority weights for the indicators, the system stops being adaptive and bleeds money. [In this article](https://habr.com/ru/articles/1017622/) I showed how to build an environment that lets an agent dynamically set indicator priorities — but the price is steep: 200k tokens per backtest ($1.20 for Haiku 4.5, $3.60 for Sonnet 4.6, $6.00 for Opus 4.6). Don't update it frequently enough and you're back to static priorities. In other words, TauricResearch is just a coin flip.
+If you hard-code priority weights for the indicators, the system stops being adaptive and bleeds money. [In this article](./05_ai_strategy_workflow.md) I showed how to build an environment that lets an agent dynamically set indicator priorities — but the price is steep: 200k tokens per backtest ($1.20 for Haiku 4.5, $3.60 for Sonnet 4.6, $6.00 for Opus 4.6). Don't update it frequently enough and you're back to static priorities. In other words, TauricResearch is just a coin flip.
 
 ![tauric_research_vacuum_cleaner](../../assets/images/tauric_research_vacuum_cleaner.png)
 
