@@ -11,13 +11,18 @@ import {
   getPositionHighestProfitMinutes,
   getPositionHighestProfitDistancePnlCost,
   commitClosePending,
+  getPositionHighestMaxDrawdownPnlCost,
+  getPositionHighestPnlCost,
+  getPositionPnlCost,
 } from "backtest-kit";
 import { errorData, getErrorMessage } from "functools-kit";
 import { run, File, extract } from "@backtest-kit/pinets";
 import { research } from "logic";
 
-const MAX_DRAWDOWN_PERCENT = 3.5;
-const MAX_MINUTES_AFTER_PEAK = 60;
+const PNL_TRAILING_STOP_PERCENT = 3;
+const PNL_HARD_STOP_PERCENT = 2.5;
+
+const MAX_DRAWDOWN_PERCENT = 5;
 
 const POSITION_FILE_SHORT = File.fromPath("position_short.pine", "./math");
 const POSITION_FILE_LONG = File.fromPath("position_long.pine", "./math");
@@ -34,9 +39,7 @@ const POSITION_LABEL_MAP = {
 
 const researchSource = Cache.file(
   async (symbol: string, when: Date) => {
-    console.log("Running research", when);
     const result = await research(symbol, when);
-    console.log(result, when);
     return result;
   },
   { interval: "8h", name: "research_source" },
@@ -75,6 +78,13 @@ const signalSource = Interval.fn(
       currentPrice,
       percentStopLoss: MAX_DRAWDOWN_PERCENT,
     });
+    console.log("signal generated", {
+      symbol,
+      when,
+      position,
+      priceStopLoss,
+      priceTakeProfit,
+    });
     return {
       position,
       priceStopLoss,
@@ -103,18 +113,35 @@ addStrategySchema({
   },
 });
 
-listenActivePing(async ({ symbol }) => {
-  const peakMinutes = await getPositionHighestProfitMinutes(symbol);
-  const peakDrawdown = await getPositionHighestProfitDistancePnlCost(symbol);
-  Log.info("active ping", {
+listenActivePing(async ({ symbol, data }) => {
+  const peakProfitDistance = await getPositionHighestProfitDistancePnlCost(symbol);
+  const peakMaxDrawdown = await getPositionHighestMaxDrawdownPnlCost(symbol);
+  Log.info("position active", {
     symbol,
-    peakMinutes,
-    peakDrawdown,
+    data,
+    peakProfitDistance,
+    peakMaxDrawdown,
   });
-  if (peakMinutes > MAX_MINUTES_AFTER_PEAK) {
-    Log.info("active ping: closing position due to time after peak", {
+});
+
+listenActivePing(async ({ symbol }) => {
+  const peakPnl = await getPositionHighestPnlCost(symbol);
+  const peakProfitDistance = await getPositionHighestProfitDistancePnlCost(symbol);
+  if (peakPnl > 0 && peakProfitDistance > PNL_TRAILING_STOP_PERCENT) {
+    Log.info("position trailing stop triggered", {
       symbol,
-      peakMinutes,
+      peakProfitDistance,
+    });
+    await commitClosePending(symbol);
+  }
+});
+
+listenActivePing(async ({ symbol, data }) => {
+  const currentPnl = await getPositionPnlCost(symbol);
+  if (currentPnl < -PNL_HARD_STOP_PERCENT) {
+    Log.info("position hard stop triggered", {
+      symbol,
+      currentPnl,
     });
     await commitClosePending(symbol);
   }

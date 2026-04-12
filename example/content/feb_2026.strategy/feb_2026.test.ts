@@ -35,9 +35,7 @@ const POSITION_LABEL_MAP = {
 
 const researchSource = Cache.file(
   async (symbol: string, when: Date) => {
-    console.log("Running research", when);
     const result = await research(symbol, when);
-    console.log(result, when);
     return result;
   },
   { interval: "8h", name: "research_source" },
