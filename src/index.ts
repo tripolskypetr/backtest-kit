@@ -435,6 +435,7 @@ export { Position } from "./classes/Position";
 export { Partial } from "./classes/Partial";
 export { HighestProfit } from "./classes/HighestProfit";
 export { MaxDrawdown } from "./classes/MaxDrawdown";
+export { Reflect } from "./classes/Reflect";
 export { Constant } from "./classes/Constant";
 export { Risk } from "./classes/Risk";
 export { Sync } from "./classes/Sync";
