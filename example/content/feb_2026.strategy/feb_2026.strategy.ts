@@ -14,6 +14,7 @@ import {
   getPositionHighestMaxDrawdownPnlCost,
   getPositionHighestPnlCost,
   getPositionPnlCost,
+  getDate,
 } from "backtest-kit";
 import { errorData, getErrorMessage } from "functools-kit";
 import { run, File, extract } from "@backtest-kit/pinets";
@@ -149,6 +150,23 @@ listenActivePing(async ({ symbol, data }) => {
     });
     await commitClosePending(symbol);
   }
+});
+
+listenActivePing(async ({ symbol, data, currentPrice }) => {
+  const when = await getDate();
+  const research = await researchSource(symbol, when, currentPrice);
+  if (research.signal === "WAIT") {
+    return;
+  }
+  const position = POSITION_LABEL_MAP[research.signal];
+  if (position === data.position) {
+    return;
+  }
+  await commitClosePending(symbol);
+  Log.info("position closed", {
+    symbol,
+    data,
+  });
 });
 
 listenError((error) => {

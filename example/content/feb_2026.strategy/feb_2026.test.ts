@@ -121,6 +121,9 @@ listenActivePing(async ({ symbol, data }) => {
 listenActivePing(async ({ symbol, data, currentPrice }) => {
   const when = await getDate();
   const research = await researchSource(symbol, when, currentPrice);
+  if (research.signal === "WAIT") {
+    return;
+  }
   const position = POSITION_LABEL_MAP[research.signal];
   if (position === data.position) {
     return;
