@@ -42,7 +42,7 @@ const researchSource = Cache.file(
     const result = await research(symbol, when);
     return { ...result, currentPrice };
   },
-  { interval: "8h", name: "research_source" },
+  { interval: "1h", name: "research_source" },
 );
 
 const signalSource = Interval.fn(
@@ -104,7 +104,6 @@ const signalSource = Interval.fn(
 
 addStrategySchema({
   strategyName: "feb_2026_strategy",
-  interval: "1m",
   getSignal: async (symbol, when, currentPrice) => {
     const research = await researchSource(symbol, when, currentPrice);
     if (research.signal === "WAIT") {
