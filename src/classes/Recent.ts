@@ -78,6 +78,11 @@ export type TRecentUtilsCtor = new () => IRecentUtils;
  * Use this adapter for backtest recent signal persistence across sessions.
  */
 export class RecentPersistBacktestUtils implements IRecentUtils {
+  /**
+   * Handles active ping event.
+   * Persists the latest signal to disk via PersistRecentAdapter.
+   * @param event - Active ping contract with signal data and backtest flag
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     lib.loggerService.info(RECENT_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -92,6 +97,15 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
     );
   };
 
+  /**
+   * Retrieves the latest persisted signal for the given context.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns The latest signal or null if not found
+   */
   public getLatestSignal = async (
     symbol: string,
     strategyName: StrategyName,
@@ -104,7 +118,7 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
       strategyName,
       exchangeName,
       frameName,
-      backtest: backtest,
+      backtest,
     });
     return await PersistRecentAdapter.readRecentData(
       symbol,
@@ -127,8 +141,37 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
  * Use this adapter for testing or when persistence is not required.
  */
 export class RecentMemoryBacktestUtils implements IRecentUtils {
+  /** Map of composite context keys to the latest signal */
   private _signals: Map<string, IPublicSignalRow> = new Map();
 
+  /**
+   * Builds a composite storage key from context parts.
+   * Includes backtest flag as the last segment to prevent live/backtest collisions.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Composite key string
+   */
+  private createKeyParts = (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ) => {
+    const parts = [symbol, strategyName, exchangeName];
+    if (frameName) parts.push(frameName);
+    parts.push(backtest ? "backtest" : "live");
+    return parts.join(":");
+  }
+
+  /**
+   * Handles active ping event.
+   * Stores the latest signal in memory under the composite context key.
+   * @param event - Active ping contract with signal data and backtest flag
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     lib.loggerService.info(RECENT_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -143,19 +186,15 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
     this._signals.set(key, event.data);
   };
 
-  private createKeyParts = (
-    symbol: string,
-    strategyName: StrategyName,
-    exchangeName: ExchangeName,
-    frameName: FrameName,
-    backtest: boolean,
-  ) => {
-    const parts = [symbol, strategyName, exchangeName];
-    if (frameName) parts.push(frameName);
-    parts.push(backtest ? "backtest" : "live");
-    return parts.join(":");
-  }
-
+  /**
+   * Retrieves the latest in-memory signal for the given context.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns The latest signal or null if not found
+   */
   public getLatestSignal = async (
     symbol: string,
     strategyName: StrategyName,
@@ -185,6 +224,11 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
  * Use this adapter (default) for live recent signal persistence across sessions.
  */
 export class RecentPersistLiveUtils implements IRecentUtils {
+  /**
+   * Handles active ping event.
+   * Persists the latest signal to disk via PersistRecentAdapter.
+   * @param event - Active ping contract with signal data and backtest flag
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     lib.loggerService.info(RECENT_PERSIST_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -199,6 +243,15 @@ export class RecentPersistLiveUtils implements IRecentUtils {
     );
   };
 
+  /**
+   * Retrieves the latest persisted signal for the given context.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns The latest signal or null if not found
+   */
   public getLatestSignal = async (
     symbol: string,
     strategyName: StrategyName,
@@ -211,7 +264,7 @@ export class RecentPersistLiveUtils implements IRecentUtils {
       strategyName,
       exchangeName,
       frameName,
-      backtest: backtest,
+      backtest,
     });
     return await PersistRecentAdapter.readRecentData(
       symbol,
@@ -234,8 +287,19 @@ export class RecentPersistLiveUtils implements IRecentUtils {
  * Use this adapter for testing or when persistence is not required.
  */
 export class RecentMemoryLiveUtils implements IRecentUtils {
+  /** Map of composite context keys to the latest signal */
   private _signals: Map<string, IPublicSignalRow> = new Map();
 
+  /**
+   * Builds a composite storage key from context parts.
+   * Includes backtest flag as the last segment to prevent live/backtest collisions.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Composite key string
+   */
   private createKeyParts = (
     symbol: string,
     strategyName: StrategyName,
@@ -249,6 +313,11 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
     return parts.join(":");
   }
 
+  /**
+   * Handles active ping event.
+   * Stores the latest signal in memory under the composite context key.
+   * @param event - Active ping contract with signal data and backtest flag
+   */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     lib.loggerService.info(RECENT_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
@@ -263,6 +332,15 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
     this._signals.set(key, event.data);
   };
 
+  /**
+   * Retrieves the latest in-memory signal for the given context.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns The latest signal or null if not found
+   */
   public getLatestSignal = async (
     symbol: string,
     strategyName: StrategyName,
@@ -286,13 +364,29 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
  * - Convenience methods: usePersist(), useMemory()
  */
 export class RecentBacktestAdapter implements IRecentUtils {
+  /** Internal storage utils instance */
   private _recentBacktestUtils: IRecentUtils = new RecentMemoryBacktestUtils();
 
-  handleActivePing = async (event: ActivePingContract): Promise<void> => {
+  /**
+   * Handles active ping event.
+   * Proxies call to the underlying storage adapter.
+   * @param event - Active ping contract with signal data
+   */
+  public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     return await this._recentBacktestUtils.handleActivePing(event);
   };
 
-  getLatestSignal = async (
+  /**
+   * Retrieves the latest signal for the given context.
+   * Proxies call to the underlying storage adapter.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns The latest signal or null if not found
+   */
+  public getLatestSignal = async (
     symbol: string,
     strategyName: StrategyName,
     exchangeName: ExchangeName,
@@ -300,9 +394,9 @@ export class RecentBacktestAdapter implements IRecentUtils {
     backtest: boolean,
   ): Promise<IPublicSignalRow | null> => {
     return await this._recentBacktestUtils.getLatestSignal(
-      symbol, 
-      strategyName, 
-      exchangeName, 
+      symbol,
+      strategyName,
+      exchangeName,
       frameName,
       backtest,
     );
@@ -311,10 +405,9 @@ export class RecentBacktestAdapter implements IRecentUtils {
   /**
    * Sets the storage adapter constructor.
    * All future storage operations will use this adapter.
-   *
    * @param Ctor - Constructor for recent adapter
    */
-  useRecentAdapter = (Ctor: TRecentUtilsCtor): void => {
+  public useRecentAdapter = (Ctor: TRecentUtilsCtor): void => {
     lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_ADAPTER);
     this._recentBacktestUtils = Reflect.construct(Ctor, []);
   };
@@ -323,7 +416,7 @@ export class RecentBacktestAdapter implements IRecentUtils {
    * Switches to persistent storage adapter.
    * Signals will be persisted to disk.
    */
-  usePersist = (): void => {
+  public usePersist = (): void => {
     lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST);
     this._recentBacktestUtils = new RecentPersistBacktestUtils();
   };
@@ -332,7 +425,7 @@ export class RecentBacktestAdapter implements IRecentUtils {
    * Switches to in-memory storage adapter (default).
    * Signals will be stored in memory only.
    */
-  useMemory = (): void => {
+  public useMemory = (): void => {
     lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_MEMORY);
     this._recentBacktestUtils = new RecentMemoryBacktestUtils();
   };
@@ -356,13 +449,29 @@ export class RecentBacktestAdapter implements IRecentUtils {
  * - Convenience methods: usePersist(), useMemory()
  */
 export class RecentLiveAdapter implements IRecentUtils {
+  /** Internal storage utils instance */
   private _recentLiveUtils: IRecentUtils = new RecentPersistLiveUtils();
 
-  handleActivePing = async (event: ActivePingContract): Promise<void> => {
+  /**
+   * Handles active ping event.
+   * Proxies call to the underlying storage adapter.
+   * @param event - Active ping contract with signal data
+   */
+  public handleActivePing = async (event: ActivePingContract): Promise<void> => {
     return await this._recentLiveUtils.handleActivePing(event);
   };
 
-  getLatestSignal = async (
+  /**
+   * Retrieves the latest signal for the given context.
+   * Proxies call to the underlying storage adapter.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns The latest signal or null if not found
+   */
+  public getLatestSignal = async (
     symbol: string,
     strategyName: StrategyName,
     exchangeName: ExchangeName,
@@ -381,10 +490,9 @@ export class RecentLiveAdapter implements IRecentUtils {
   /**
    * Sets the storage adapter constructor.
    * All future storage operations will use this adapter.
-   *
    * @param Ctor - Constructor for recent adapter
    */
-  useRecentAdapter = (Ctor: TRecentUtilsCtor): void => {
+  public useRecentAdapter = (Ctor: TRecentUtilsCtor): void => {
     lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_USE_ADAPTER);
     this._recentLiveUtils = Reflect.construct(Ctor, []);
   };
@@ -393,7 +501,7 @@ export class RecentLiveAdapter implements IRecentUtils {
    * Switches to persistent storage adapter (default).
    * Signals will be persisted to disk.
    */
-  usePersist = (): void => {
+  public usePersist = (): void => {
     lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST);
     this._recentLiveUtils = new RecentPersistLiveUtils();
   };
@@ -402,7 +510,7 @@ export class RecentLiveAdapter implements IRecentUtils {
    * Switches to in-memory storage adapter.
    * Signals will be stored in memory only.
    */
-  useMemory = (): void => {
+  public useMemory = (): void => {
     lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_USE_MEMORY);
     this._recentLiveUtils = new RecentMemoryLiveUtils();
   };
@@ -463,7 +571,7 @@ export class RecentAdapter {
       () => unBacktest(),
       () => unLive(),
       () => unEnable(),
-    )
+    );
   });
 
   /**
@@ -484,6 +592,7 @@ export class RecentAdapter {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @param backtest - Flag indicating if the context is backtest or live
    * @returns The latest signal or null if not found
    * @throws Error if RecentAdapter is not enabled
    */

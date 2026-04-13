@@ -11,7 +11,6 @@ import {
 } from "functools-kit";
 import { join } from "path";
 import { writeFileAtomic } from "../utils/writeFileAtomic";
-import swarm, { backtest } from "../lib";
 import {
   ISignalRow,
   IScheduledSignalRow,
