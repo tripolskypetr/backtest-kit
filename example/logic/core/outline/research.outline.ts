@@ -1,22 +1,20 @@
 import {
   addOutline,
-  commitAssistantMessage,
-  commitUserMessage,
+  ask,
   dumpOutlineResult,
-  execute,
-  fork,
   IOutlineHistory,
-  IOutlineResult,
 } from "agent-swarm-kit";
 import { str } from "functools-kit";
 import { OutlineName } from "../../enum/OutlineName";
 import { CompletionName } from "../../enum/CompletionName";
-import { SwarmName } from "../../enum/SwarmName";
-import dayjs from "dayjs";
+import { AdvisorName } from "../../enum/AdvisorName";
+import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
 import { ResearchResponseContract } from "../../contract/ResearchResponse.contract";
+import { formatPrice, formatQuantity, getCandles } from "backtest-kit";
+import dayjs from "dayjs";
 import { errorEmitter } from "../../config/emitters";
 
-const DISPLAY_NAME_MAP = {
+const DISPLAY_NAME_MAP: Record<string, string> = {
   BTCUSDT: "Bitcoin",
   ETHUSDT: "Ethereum",
   BNBUSDT: "Binance Coin (BNB)",
@@ -24,115 +22,95 @@ const DISPLAY_NAME_MAP = {
   SOLUSDT: "Solana",
 };
 
-const SEARCH_PROMPT = str.newline(
-  "Ты ищешь острые событийные триггеры последних часов — то что только что случилось и ещё не полностью отражено в цене.",
-  "Не ищи фундаментальные данные (funding rate, ликвидации, whale wallets) — они инертны и уже в цене.",
-  "",
-  "Уровень 1 — Острые события (ищи в первую очередь):",
-  " - {asset} breaking news {date}",
-  " - {asset} SEC CFTC DOJ enforcement action {date}",
-  " - {asset} exchange hack withdrawal suspended {date}",
-  " - {asset} flash crash reason {date}",
-  " - Trump tweet statement Bitcoin crypto {date}",
-  " - Bitcoin ETF approval rejection decision {date}",
-  "",
-  "Уровень 2 — Макро-девиации от ожиданий (только если уже произошло):",
-  " - Federal Reserve decision surprise Bitcoin reaction {date}",
-  " - CPI inflation data surprise {date} Bitcoin",
-  " - dollar DXY sudden move Bitcoin correlation {date}",
-  "",
-  "Уровень 3 — Объёмные аномалии:",
-  " - {asset} unusual volume spike {date}",
-  " - {asset} price sudden move reason {date}",
-  "",
-  "Уровень 4 — Готовые прогнозы аналитиков:",
-  " - {asset} price forecast today {date}",
-  " - {asset} price target analyst {date}",
-  "",
-  "Правила:",
-  " * Только события последних 4–12 часов — никакой инертной аналитики за неделю",
-  " * Если дату источника нельзя определить явно — не использовать",
-  " * Не копировать мнение одной статьи — искать подтверждение из нескольких источников",
-  " * Пиши только то, что нашёл, без домыслов",
-);
+const CANDLES_LIMIT = 96; // 96 x 15m = 24 часа истории
 
-const SIGNAL_PROMPT = str.newline(
-  "Ты — трейдер, который принимает решение о направлении сделки прямо сейчас на основе свежих рыночных событий.",
-  "",
-  "Ты прочитал отчёт о краткосрочных сигналах. Твоя задача — выдать один сигнал на ближайшие часы.",
+const RESEARCH_PROMPT = str.newline(
+  "Ты — внутридневной трейдер, который выдаёт ровно один направленный сигнал на следующий час.",
+  "Ты прочитал свечные данные и все аналитические отчёты. Теперь вдумчиво рассуди, прежде чем принять решение.",
   "",
   "**Как думать:**",
-  " - Острые события весомее инертной аналитики: взлом биржи, решение регулятора, аномальный объём — это факты, а не прогнозы",
-  " - Если данных мало или нет явного события — выбирай WAIT",
-  " - Если картина противоречивая — выбирай WAIT",
+  " - Смотри на свечи как на язык рынка: куда идёт цена, где объём подтверждает движение, где нет.",
+  " - Новости — катализатор. Свечи — факт. Если свечи противоречат новостям — верь свечам.",
+  " - Один сильный сигнал (резкий объём, пробой уровня, крупное событие) перевешивает несколько слабых.",
+  " - Если картина размыта или сигналы взаимоисключают друг друга — выбирай WAIT.",
+  " - Горизонт прогноза: следующий час.",
   "",
   "**Определения сигналов (выбери ровно один):**",
-  " - **BUY**:  Краткосрочные данные указывают на рост в ближайшие часы",
-  " - **SELL**: Краткосрочные данные указывают на падение в ближайшие часы",
-  " - **WAIT**: Данных недостаточно или картина размытая — не входить",
+  " - **BUY**:  Открыть длинную позицию. Доказательства указывают на рост в ближайший час.",
+  " - **SELL**: Открыть короткую позицию. Доказательства указывают на падение в ближайший час.",
+  " - **WAIT**: Картина неоднозначна, противоречива или неубедительна — не форсируй сделку.",
   "",
   "**Требуемый результат:**",
-  "1. **signal**: BUY, SELL или WAIT.",
-  "2. **reasoning**: какие конкретные события из отчёта привели к этому выводу.",
+  "1. **Сигнал**: укажи ровно один из BUY / SELL / WAIT.",
+  "2. **Рассуждение**: что говорят свечи? Что говорят новости? Где они совпадают или расходятся? Почему картина склоняется к этому решению?",
 );
 
-const commitSignalSearch = async (
-  query: string,
-  date: Date,
-  resultId: string,
-  history: IOutlineHistory,
-) => {
-  const report = await fork(
-    async (clientId, agentName) => {
-      await commitUserMessage(
-        str.newline(
-          "Прочитай что именно мне нужно найти и скажи ОК",
-          "",
-          SEARCH_PROMPT,
-        ),
-        "user",
-        clientId,
-        agentName,
-      );
-      await commitAssistantMessage("OK", clientId, agentName);
-      const request = str.newline(
-        `Найди в интернете краткосрочные сигналы для ${query}`,
-        `Сигналы ищи не только по дате но и по времени, важно не попадать на новости, которые уже отыграны в цене`,
-        `Не ищи сигналы в будущем, я дал тебе точную дату и время которые мне нужны`,
-        `Игнорируй любые технические индикаторы, мне нужен фундаментальный анализ основанный на свежих событиях`,
-        `Только события актуальные на ${dayjs(date).format("DD MMMM YYYY HH:mm UTCZ")}`,
-        `Сформируй отчёт о краткосрочных рисках и возможностях`,
-      );
-      return await Promise.race([
-        execute(request, clientId, agentName),
-        errorEmitter.toPromise(),
-      ]);
-    },
-    {
-      clientId: `${resultId}_signal`,
-      swarmName: SwarmName.WebSearchSwarm,
-      onError: (error) => console.error(`Error in SignalOutline search for ${query}:`, error),
-    },
+const commitCandles = async (symbol: string, history: IOutlineHistory) => {
+  const candles = await getCandles(symbol, "15m", CANDLES_LIMIT);
+
+  let markdown = `## 15-Minute Candles (Last ${CANDLES_LIMIT})\n`;
+  markdown += `> Symbol: ${symbol.toUpperCase()}\n\n`;
+  markdown += `| # | Time | Open | High | Low | Close | Volume | Change % | Volatility % | Body % |\n`;
+  markdown += `|---|------|------|------|-----|-------|--------|----------|--------------|--------|\n`;
+
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    const volatility = ((c.high - c.low) / c.close) * 100;
+    const bodySize = Math.abs(c.close - c.open);
+    const range = c.high - c.low;
+    const bodyPct = range > 0 ? (bodySize / range) * 100 : 0;
+    const changePct = c.open > 0 ? ((c.close - c.open) / c.open) * 100 : 0;
+    const time = dayjs.utc(c.timestamp).format("YYYY-MM-DD HH:mm") + " UTC";
+
+    const open = await formatPrice(symbol, c.open);
+    const high = await formatPrice(symbol, c.high);
+    const low = await formatPrice(symbol, c.low);
+    const close = await formatPrice(symbol, c.close);
+    const volume = formatQuantity(symbol, c.volume);
+
+    markdown += `| ${i + 1} | ${time} | ${open} | ${high} | ${low} | ${close} | ${volume} | ${changePct.toFixed(3)}% | ${volatility.toFixed(2)}% | ${bodyPct.toFixed(1)}% |\n`;
+  }
+
+  await history.push(
+    { role: "user", content: str.newline("Прочитай историю 15-минутных свечей и скажи ОК", "", markdown) },
+    { role: "assistant", content: "ОК" },
   );
-  if (!report) {
-    throw new Error("SignalOutline web search failed");
+};
+
+const commitAssetNews = async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
+  const report = await Promise.race([
+    ask<WebSearchRequestContract>(contract, AdvisorName.AssetNewsAdvisor),
+    errorEmitter.toPromise(),
+  ]);
+  if (typeof report === "symbol") {
+    throw new Error("AssetNewsAdvisor failed with error");
   }
   if (typeof report === "symbol") {
-    throw new Error("SignalOutline web search failed");
+    throw new Error("GlobalNewsAdvisor failed with error");
+  }
+  if (!report) {
+    throw new Error("AssetNewsAdvisor failed");
   }
   await history.push(
-    {
-      role: "user",
-      content: str.newline(
-        "Прочитай отчёт о краткосрочных рыночных сигналах и скажи ОК",
-        "",
-        report,
-      ),
-    },
-    {
-      role: "assistant",
-      content: "ОК",
-    },
+    { role: "user", content: str.newline("Прочитай новости по активу за последний час и скажи ОК", "", report) },
+    { role: "assistant", content: "ОК" },
+  );
+};
+
+const commitGlobalNews = async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
+  const report = await Promise.race([
+    ask<WebSearchRequestContract>(contract, AdvisorName.GlobalNewsAdvisor),
+    errorEmitter.toPromise(),
+  ]);
+  if (typeof report === "symbol") {
+    throw new Error("GlobalNewsAdvisor failed with error");
+  }
+  if (!report) {
+    throw new Error("GlobalNewsAdvisor failed");
+  }
+  await history.push(
+    { role: "user", content: str.newline("Прочитай глобальные макроэкономические новости за последний час и скажи ОК", "", report) },
+    { role: "assistant", content: "ОК" },
   );
 };
 
@@ -144,30 +122,37 @@ addOutline<ResearchResponseContract>({
     properties: {
       signal: {
         type: "string",
-        description: "Краткосрочный торговый сигнал на ближайшие часы.",
+        description: "Направленный торговый сигнал на следующий час.",
         enum: ["BUY", "SELL", "WAIT"],
       },
       reasoning: {
         type: "string",
-        description: "Конкретные события из отчёта, которые обосновывают сигнал.",
+        description: "Обоснование сигнала: что говорят свечи, что говорят новости, почему картина склоняется к этому решению.",
       },
     },
     required: ["signal", "reasoning"],
   },
   getOutlineHistory: async ({ resultId, history }, symbol: string, when: Date) => {
-    const displayName = Reflect.get(DISPLAY_NAME_MAP, symbol) || symbol;
+    const displayName = DISPLAY_NAME_MAP[symbol] ?? symbol;
+    const contract: WebSearchRequestContract = {
+      resultId,
+      date: when,
+      query: displayName,
+    };
+
     await history.push({
       role: "system",
       content: str.newline(
-        `Текущая дата и время: ${dayjs(when).format("DD MMMM YYYY HH:mm")}`,
-        `Актив: ${displayName}`,
+        `Текущая дата и время: ${dayjs.utc(when).format("DD MMMM YYYY HH:mm")} UTC`,
+        `Торгуемый актив: ${displayName} (${symbol})`,
       ),
     });
-    await commitSignalSearch(displayName, when, resultId, history);
-    await history.push({
-      role: "user",
-      content: SIGNAL_PROMPT,
-    });
+
+    await commitCandles(symbol, history);
+    await commitAssetNews(contract, history);
+    await commitGlobalNews(contract, history);
+
+    await history.push({ role: "user", content: RESEARCH_PROMPT });
   },
   validations: [
     {

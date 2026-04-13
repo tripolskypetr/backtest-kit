@@ -11,7 +11,7 @@ import { jsonrepair } from "jsonrepair";
 
 const MAX_ATTEMPTS = 3;
 
-const MODEL_NAME = "gpt-oss:120b";
+const MODEL_NAME = "glm-5.1:cloud";
 
 addCompletion({
   completionName: CompletionName.OllamaOutlineFormatCompletion,

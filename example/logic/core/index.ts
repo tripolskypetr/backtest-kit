@@ -1,3 +1,6 @@
+import "./advisor/asset_news.advisor";
+import "./advisor/global_news.advisor";
+
 import "./completion/ollama_text.completion";
 import "./completion/ollama_outline_tool.completion";
 import "./completion/ollama_outline_format.completion";
