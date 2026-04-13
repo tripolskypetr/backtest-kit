@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { IPublicSignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, StrategyName, CommitPayload } from "../interfaces/Strategy.interface";
 import { exitEmitter, doneBacktestSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import {
@@ -3125,7 +3125,7 @@ export class BacktestUtils {
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name
    * @param context - Execution context with exchangeName and frameName
-   * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when scheduled signal is cancelled
    *
    * @example
@@ -3135,7 +3135,7 @@ export class BacktestUtils {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
-   * }, "manual-cancel-001");
+   * }, { id: "manual-cancel-001" });
    * ```
    */
   public commitCancelScheduled = async (
@@ -3145,12 +3145,12 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    cancelId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_CANCEL_SCHEDULED, {
       symbol,
       context,
-      cancelId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -3189,7 +3189,7 @@ export class BacktestUtils {
       true,
       symbol,
       context,
-      cancelId,
+      payload,
     );
   };
 
@@ -3202,7 +3202,7 @@ export class BacktestUtils {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @param closeId - Optional close ID for user-initiated closes
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when pending signal is closed
    *
    * @example
@@ -3212,7 +3212,7 @@ export class BacktestUtils {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy",
    *   frameName: "1m"
-   * }, "manual-close-001");
+   * }, { id: "manual-close-001" });
    * ```
    */
   public commitClosePending = async (
@@ -3222,12 +3222,12 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    closeId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_CLOSE_PENDING, {
       symbol,
       context,
-      closeId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -3266,7 +3266,7 @@ export class BacktestUtils {
       true,
       symbol,
       context,
-      closeId,
+      payload,
     );
   };
 
@@ -4441,7 +4441,7 @@ export class BacktestUtils {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @param activateId - Optional activation ID for tracking user-initiated activations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when activation flag is set
    *
    * @example
@@ -4451,7 +4451,7 @@ export class BacktestUtils {
    *   strategyName: "my-strategy",
    *   exchangeName: "binance",
    *   frameName: "1h"
-   * }, "manual-activate-001");
+   * }, { id: "manual-activate-001" });
    * ```
    */
   public commitActivateScheduled = async (
@@ -4461,12 +4461,12 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    activateId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED, {
       symbol,
       context,
-      activateId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -4505,7 +4505,7 @@ export class BacktestUtils {
       true,
       symbol,
       context,
-      activateId,
+      payload,
     );
   };
 

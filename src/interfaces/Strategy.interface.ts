@@ -11,6 +11,17 @@ import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
 
 /**
+ * Commit payload for strategy commits.
+ * Used in activateScheduled, closePending, cancelScheduled
+ */
+export type CommitPayload = {
+  /** Commit id */
+  id: string;
+  /** Note describing the commit */
+  note: string;
+};
+
+/**
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
@@ -324,6 +335,8 @@ export interface IRiskSignalRow extends IPublicSignalRow {
 export interface IScheduledSignalCancelRow extends IScheduledSignalRow {
   /** Cancellation ID (only for user-initiated cancellations) */
   cancelId?: string;
+  /** Note from user payload (only for user-initiated cancellations) */
+  cancelNote?: string;
 }
 
 /**
@@ -333,6 +346,8 @@ export interface IScheduledSignalCancelRow extends IScheduledSignalRow {
 export interface ISignalCloseRow extends ISignalRow {
   /** Close ID (only for user-initiated closes) */
   closeId?: string;
+  /** Note from user payload (only for user-initiated closes) */
+  closeNote?: string;
 }
 
 /**
@@ -342,6 +357,8 @@ export interface ISignalCloseRow extends ISignalRow {
 export interface IScheduledSignalActivateRow extends IScheduledSignalRow {
   /** Activation ID (only for user-initiated activations) */
   activateId?: string;
+  /** Note from user payload (only for user-initiated activations) */
+  activateNote?: string;
 }
 
 /**
@@ -1041,7 +1058,7 @@ export interface IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  cancelScheduled: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>;
+  cancelScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
 
   /**
    * Activates the scheduled signal without waiting for price to reach priceOpen.
@@ -1064,7 +1081,7 @@ export interface IStrategy {
    * // Scheduled signal becomes pending signal immediately
    * ```
    */
-  activateScheduled: (symbol: string, backtest: boolean, activateId?: string) => Promise<void>;
+  activateScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
 
   /**
    * Closes the pending signal without stopping the strategy.
@@ -1087,7 +1104,7 @@ export interface IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  closePending: (symbol: string, backtest: boolean, closeId?: string) => Promise<void>;
+  closePending: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
 
   /**
    * Executes partial close at profit level (moving toward TP).

@@ -16,6 +16,7 @@ import {
   IStrategyTickResultCancelled,
   IStrategyTickResultActive,
   IPublicSignalRow,
+  CommitPayload,
 } from "../../../interfaces/Strategy.interface";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
@@ -1732,22 +1733,22 @@ export class StrategyConnectionService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param ctx - Context with strategyName, exchangeName, frameName
-   * @param cancelId - Optional cancellation ID for user-initiated cancellations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when scheduled signal is cancelled
    */
   public cancelScheduled = async (
     backtest: boolean,
     symbol: string,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    cancelId?: string
+    payload: Partial<CommitPayload> = {}
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService cancelScheduled", {
       symbol,
       context,
-      cancelId,
+      payload,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.cancelScheduled(symbol, backtest, cancelId);
+    await strategy.cancelScheduled(symbol, backtest, payload);
   };
 
   /**
@@ -1763,22 +1764,22 @@ export class StrategyConnectionService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param context - Context with strategyName, exchangeName, frameName
-   * @param closeId - Optional close ID for user-initiated closes
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when pending signal is closed
    */
   public closePending = async (
     backtest: boolean,
     symbol: string,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    closeId?: string
+    payload: Partial<CommitPayload> = {}
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService closePending", {
       symbol,
       context,
-      closeId,
+      payload,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.closePending(symbol, backtest, closeId);
+    await strategy.closePending(symbol, backtest, payload);
   };
 
   /**
@@ -2126,7 +2127,7 @@ export class StrategyConnectionService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, frameName
-   * @param activateId - Optional identifier for the activation reason
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when activation flag is set
    *
    * @example
@@ -2136,7 +2137,7 @@ export class StrategyConnectionService implements TStrategy {
    *   false,
    *   "BTCUSDT",
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
-   *   "manual-activation"
+   *   { id: "manual-activation" }
    * );
    * ```
    */
@@ -2144,16 +2145,16 @@ export class StrategyConnectionService implements TStrategy {
     backtest: boolean,
     symbol: string,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    activateId?: string
+    payload: Partial<CommitPayload> = {}
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService activateScheduled", {
       symbol,
       context,
       backtest,
-      activateId,
+      payload,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.activateScheduled(symbol, backtest, activateId);
+    return await strategy.activateScheduled(symbol, backtest, payload);
   };
 
   /**

@@ -15,7 +15,7 @@ import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
 import { IPositionOverlapLadder, POSITION_OVERLAP_LADDER_DEFAULT } from "../config/ladder";
-import { IPublicSignalRow } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, CommitPayload } from "../interfaces/Strategy.interface";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
 const CLOSE_PENDING_METHOD_NAME = "strategy.commitClosePending";
@@ -82,7 +82,7 @@ const HAS_NO_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.hasNoScheduledSignal";
  *
  * @param symbol - Trading pair symbol
  * @param strategyName - Strategy name
- * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when scheduled signal is cancelled
  *
  * @example
@@ -90,16 +90,16 @@ const HAS_NO_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.hasNoScheduledSignal";
  * import { commitCancelScheduled } from "backtest-kit";
  *
  * // Cancel scheduled signal with custom ID
- * await commitCancelScheduled("BTCUSDT", "manual-cancel-001");
+ * await commitCancelScheduled("BTCUSDT", { id: "manual-cancel-001" });
  * ```
  */
 export async function commitCancelScheduled(
   symbol: string,
-  cancelId?: string,
+  payload: Partial<CommitPayload> = {},
 ): Promise<void> {
   backtest.loggerService.info(CANCEL_SCHEDULED_METHOD_NAME, {
     symbol,
-    cancelId,
+    payload,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitCancelScheduled requires an execution context");
@@ -114,7 +114,7 @@ export async function commitCancelScheduled(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    cancelId,
+    payload,
   );
 }
 
@@ -128,7 +128,7 @@ export async function commitCancelScheduled(
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param closeId - Optional close ID for tracking user-initiated closes
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when pending signal is closed
  *
  * @example
@@ -136,16 +136,16 @@ export async function commitCancelScheduled(
  * import { commitClosePending } from "backtest-kit";
  *
  * // Close pending signal with custom ID
- * await commitClosePending("BTCUSDT", "manual-close-001");
+ * await commitClosePending("BTCUSDT", { id: "manual-close-001" });
  * ```
  */
 export async function commitClosePending(
   symbol: string,
-  closeId?: string,
+  payload: Partial<CommitPayload> = {},
 ): Promise<void> {
   backtest.loggerService.info(CLOSE_PENDING_METHOD_NAME, {
     symbol,
-    closeId,
+    payload,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitClosePending requires an execution context");
@@ -161,7 +161,7 @@ export async function commitClosePending(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    closeId,
+    payload,
   );
 }
 
@@ -857,7 +857,7 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param activateId - Optional activation ID for tracking user-initiated activations
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when activation flag is set
  *
  * @example
@@ -865,16 +865,16 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
  * import { commitActivateScheduled } from "backtest-kit";
  *
  * // Activate scheduled signal early with custom ID
- * await commitActivateScheduled("BTCUSDT", "manual-activate-001");
+ * await commitActivateScheduled("BTCUSDT", { id: "manual-activate-001" });
  * ```
  */
 export async function commitActivateScheduled(
   symbol: string,
-  activateId?: string,
+  payload: Partial<CommitPayload> = {},
 ): Promise<void> {
   backtest.loggerService.info(ACTIVATE_SCHEDULED_METHOD_NAME, {
     symbol,
-    activateId,
+    payload,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitActivateScheduled requires an execution context");
@@ -889,7 +889,7 @@ export async function commitActivateScheduled(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    activateId,
+    payload,
   );
 }
 

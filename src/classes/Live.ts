@@ -3,6 +3,7 @@ import {
   IStrategyTickResultClosed,
   IStrategyTickResultOpened,
   StrategyName,
+  CommitPayload,
 } from "../interfaces/Strategy.interface";
 import backtest from "../lib";
 import { exitEmitter, doneLiveSubject } from "../config/emitters";
@@ -3073,7 +3074,7 @@ export class LiveUtils {
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name
    * @param context - Execution context with exchangeName and frameName
-   * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when scheduled signal is cancelled
    *
    * @example
@@ -3083,7 +3084,7 @@ export class LiveUtils {
    *   exchangeName: "binance",
    *   frameName: "",
    *   strategyName: "my-strategy"
-   * }, "manual-cancel-001");
+   * }, { id: "manual-cancel-001" });
    * ```
    */
   public commitCancelScheduled = async (
@@ -3092,12 +3093,12 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     },
-    cancelId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_CANCEL_SCHEDULED, {
       symbol,
       context,
-      cancelId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -3140,7 +3141,7 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
-      cancelId,
+      payload,
     );
   };
 
@@ -3153,7 +3154,7 @@ export class LiveUtils {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName and exchangeName
-   * @param closeId - Optional close ID for user-initiated closes
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when pending signal is closed
    *
    * @example
@@ -3162,7 +3163,7 @@ export class LiveUtils {
    * await Live.commitClose("BTCUSDT", {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
-   * }, "manual-close-001");
+   * }, { id: "manual-close-001" });
    * ```
    */
   public commitClosePending = async (
@@ -3171,12 +3172,12 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     },
-    closeId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_CLOSE_PENDING, {
       symbol,
       context,
-      closeId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -3219,7 +3220,7 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
-      closeId,
+      payload,
     );
   };
 
@@ -4537,7 +4538,7 @@ export class LiveUtils {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName and exchangeName
-   * @param activateId - Optional activation ID for tracking user-initiated activations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when activation flag is set
    *
    * @example
@@ -4546,7 +4547,7 @@ export class LiveUtils {
    * await Live.commitActivateScheduled("BTCUSDT", {
    *   strategyName: "my-strategy",
    *   exchangeName: "binance"
-   * }, "manual-activate-001");
+   * }, { id: "manual-activate-001" });
    * ```
    */
   public commitActivateScheduled = async (
@@ -4555,12 +4556,12 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     },
-    activateId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_ACTIVATE_SCHEDULED, {
       symbol,
       context,
-      activateId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -4603,7 +4604,7 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
-      activateId,
+      payload,
     );
   };
 

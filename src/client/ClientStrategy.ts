@@ -30,6 +30,7 @@ import {
   StrategyName,
   StrategyCancelReason,
   ICommitRow,
+  CommitPayload,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
@@ -3009,7 +3010,8 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   averagePrice: number,
   closeTimestamp: number,
   reason: StrategyCancelReason,
-  cancelId?: string
+  cancelId?: string,
+  cancelNote?: string
 ): Promise<IStrategyTickResultCancelled> => {
   self.params.logger.info(
     "ClientStrategy backtest scheduled signal cancelled",
@@ -3040,7 +3042,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, averagePrice),
-      note: scheduled.note,
+      note: cancelNote ?? scheduled.note,
     });
   }
 
@@ -3362,7 +3364,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     totalPartials: closedSignal._partial?.length ?? 0,
     originalPriceOpen: closedSignal.priceOpen,
     pnl: toProfitLossDto(closedSignal, averagePrice),
-    note: closedSignal.note,
+    note: closedSignal.closeNote ?? closedSignal.note,
   });
 
   await CALL_CLOSE_CALLBACKS_FN(
@@ -3471,13 +3473,15 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     if (self._cancelledSignal) {
       // Сигнал был отменен через cancel() в onSchedulePing
       const cancelId = self._cancelledSignal.cancelId;
+      const cancelNote = self._cancelledSignal.cancelNote;
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
         self,
         scheduled,
         averagePrice,
         candle.timestamp,
         "user",
-        cancelId
+        cancelId,
+        cancelNote
       );
       return { outcome: "cancelled", result };
     }
@@ -3554,7 +3558,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, averagePrice),
-          note: activatedSignal.note,
+          note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return { outcome: "pending" };
       }
@@ -3596,7 +3600,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         pendingAt: publicSignalForCommit.pendingAt,
         totalEntries: publicSignalForCommit.totalEntries,
         totalPartials: publicSignalForCommit.totalPartials,
-        note: publicSignalForCommit.note,
+        note: activatedSignal.activateNote ?? publicSignalForCommit.note,
       });
 
       await CALL_OPEN_CALLBACKS_FN(
@@ -5072,7 +5076,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
-        note: cancelledSignal.note,
+        note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
       // Call onCancel callback
@@ -5155,7 +5159,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
-        note: closedSignal.note,
+        note: closedSignal.closeNote ?? closedSignal.note,
       });
 
       // Call onClose callback
@@ -5297,7 +5301,7 @@ export class ClientStrategy implements IStrategy {
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, currentPrice),
-          note: activatedSignal.note,
+          note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return await RETURN_IDLE_FN(this, currentPrice);
       }
@@ -5337,7 +5341,7 @@ export class ClientStrategy implements IStrategy {
         pendingAt: publicSignalForCommit.pendingAt,
         totalEntries: publicSignalForCommit.totalEntries,
         totalPartials: publicSignalForCommit.totalPartials,
-        note: publicSignalForCommit.note,
+        note: activatedSignal.activateNote ?? publicSignalForCommit.note,
       });
 
       // Call onOpen callback
@@ -5554,7 +5558,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
-        note: cancelledSignal.note,
+        note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
       await CALL_CANCEL_CALLBACKS_FN(
@@ -5642,7 +5646,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
-        note: closedSignal.note,
+        note: closedSignal.closeNote ?? closedSignal.note,
       });
 
       await CALL_CLOSE_CALLBACKS_FN(
@@ -5935,7 +5939,8 @@ export class ClientStrategy implements IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  public async cancelScheduled(symbol: string, backtest: boolean, cancelId?: string): Promise<void> {
+  public async cancelScheduled(symbol: string, backtest: boolean, payload: Partial<CommitPayload>): Promise<void> {
+    const cancelId = payload.id;
     this.params.logger.debug("ClientStrategy cancelScheduled", {
       symbol,
       hasScheduledSignal: this._scheduledSignal !== null,
@@ -5949,6 +5954,7 @@ export class ClientStrategy implements IStrategy {
     if (this._scheduledSignal) {
       this._cancelledSignal = Object.assign({}, this._scheduledSignal, {
         cancelId,
+        cancelNote: payload.note,
       });
       this._scheduledSignal = null;
     }
@@ -5989,7 +5995,8 @@ export class ClientStrategy implements IStrategy {
    * // Scheduled signal becomes pending signal immediately
    * ```
    */
-  public async activateScheduled(symbol: string, backtest: boolean, activateId?: string): Promise<void> {
+  public async activateScheduled(symbol: string, backtest: boolean, payload: Partial<CommitPayload>): Promise<void> {
+    const activateId = payload.id;
     this.params.logger.debug("ClientStrategy activateScheduled", {
       symbol,
       hasScheduledSignal: this._scheduledSignal !== null,
@@ -6009,6 +6016,7 @@ export class ClientStrategy implements IStrategy {
     if (this._scheduledSignal) {
       this._activatedSignal = Object.assign({}, this._scheduledSignal, {
         activateId,
+        activateNote: payload.note,
       });
       this._scheduledSignal = null;
     }
@@ -6049,7 +6057,8 @@ export class ClientStrategy implements IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  public async closePending(symbol: string, backtest: boolean, closeId?: string): Promise<void> {
+  public async closePending(symbol: string, backtest: boolean, payload: Partial<CommitPayload>): Promise<void> {
+    const closeId = payload.id;
     this.params.logger.debug("ClientStrategy closePending", {
       symbol,
       hasPendingSignal: this._pendingSignal !== null,
@@ -6062,6 +6071,7 @@ export class ClientStrategy implements IStrategy {
     if (this._pendingSignal) {
       this._closedSignal = Object.assign({}, this._pendingSignal, {
         closeId,
+        closeNote: payload.note,
       });
       this._pendingSignal = null;
     }
