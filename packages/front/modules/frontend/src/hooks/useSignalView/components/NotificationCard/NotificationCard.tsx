@@ -716,7 +716,7 @@ export const NotificationCard = forwardRef(
             </Stack>
 
             {hasNote(item) && (
-              <Box sx={{ px: 2, pb: 2 }}>
+              <Box onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} sx={{ px: 2, pb: 2 }}>
                 <Divider sx={{ mb: 1.5 }} />
                 <Box
                   component="pre"
