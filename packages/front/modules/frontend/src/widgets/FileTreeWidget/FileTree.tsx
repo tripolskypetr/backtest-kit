@@ -5,6 +5,7 @@ import {
     IconButton,
     InputBase,
     List,
+    ListItem,
     ListItemButton,
     ListItemIcon,
     ListItemText,
@@ -12,24 +13,21 @@ import {
     Typography,
 } from '@mui/material';
 import {
+    Article,
     ChevronRight,
     Close,
+    Code,
+    DataObject,
     Folder,
     FolderOpen,
+    Image,
     InsertDriveFile,
     Search,
+    TextSnippet,
 } from '@mui/icons-material';
 import { makeStyles } from '../../styles';
 import { FileNode } from './model/fileTree';
 import { useFileSearch } from './hooks/useFileSearch';
-
-/* ─── colors ─────────────────────────────────────────────────────────────── */
-
-const EXT_COLOR: Record<string, string> = {
-    tsx: '#185FA5', ts: '#0C447C', js: '#854F0B', json: '#3B6D11',
-    html: '#993C1D', css: '#533AB7', md: '#3C3489', svg: '#993556',
-    env: '#5F5E5A', ico: '#888780', folder: '#BA7517',
-};
 
 /* ─── props ──────────────────────────────────────────────────────────────── */
 
@@ -87,7 +85,6 @@ const useStyles = makeStyles()((theme) => ({
     searchInput: {
         flex: 1,
         fontSize: 13,
-        fontFamily: "'Consolas', 'Menlo', monospace",
     },
     treeRoot: {
         flex: 1,
@@ -99,34 +96,24 @@ const useStyles = makeStyles()((theme) => ({
         textAlign: 'center',
         color: theme.palette.text.disabled,
         fontSize: 13,
-        fontFamily: "'Consolas', 'Menlo', monospace",
-    },
-    itemButton: {
-        padding: '3px 8px',
-        minHeight: 28,
-        fontFamily: "'Consolas', 'Menlo', monospace",
-        fontSize: 13,
-        '&.Mui-selected': {
-            backgroundColor: theme.palette.action.selected,
-        },
-        '&.Mui-selected:hover': {
-            backgroundColor: theme.palette.action.selected,
-        },
     },
     itemIcon: {
-        minWidth: 28,
+        minWidth: 52,
         display: 'flex',
         alignItems: 'center',
-        gap: 2,
+        gap: 4,
     },
     chevron: {
-        fontSize: 16,
+        fontSize: 18,
         color: theme.palette.action.active,
         transition: 'transform 0.15s ease',
         flexShrink: 0,
     },
     chevronOpen: {
         transform: 'rotate(90deg)',
+    },
+    chevronHidden: {
+        visibility: 'hidden',
     },
     highlightMark: {
         background: '#FAC775',
@@ -141,6 +128,33 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 /* ─── helpers ────────────────────────────────────────────────────────────── */
+
+function getFileIcon(ext?: string): React.ReactElement {
+    switch (ext) {
+        case 'tsx':
+        case 'ts':
+        case 'js':
+        case 'jsx':
+            return <Code fontSize="small" color="primary" />;
+        case 'json':
+            return <DataObject fontSize="small" color="secondary" />;
+        case 'md':
+            return <Article fontSize="small" color="action" />;
+        case 'css':
+        case 'scss':
+        case 'html':
+            return <TextSnippet fontSize="small" color="action" />;
+        case 'png':
+        case 'jpg':
+        case 'jpeg':
+        case 'svg':
+        case 'gif':
+        case 'ico':
+            return <Image fontSize="small" color="action" />;
+        default:
+            return <InsertDriveFile fontSize="small" color="action" />;
+    }
+}
 
 function highlightLabel(text: string, query: string, markClass: string): React.ReactNode {
     if (!query) return text;
@@ -173,23 +187,23 @@ function renderNode(
         const isOpen = expanded.includes(node.id);
         return (
             <React.Fragment key={node.id}>
-                <ListItemButton
-                    className={classes.itemButton}
-                    sx={{ pl: depth * 2 + 1 }}
-                    onClick={() => { onToggle(node.id); onSelect(node.id, false); }}
-                >
-                    <ListItemIcon className={classes.itemIcon}>
-                        <ChevronRight className={cx(classes.chevron, isOpen && classes.chevronOpen)} />
-                        {isOpen
-                            ? <FolderOpen style={{ color: EXT_COLOR.folder, fontSize: 16 }} />
-                            : <Folder style={{ color: EXT_COLOR.folder, fontSize: 16, opacity: 0.7 }} />
-                        }
-                    </ListItemIcon>
-                    <ListItemText
-                        primary={highlightLabel(node.name, query, classes.highlightMark)}
-                        primaryTypographyProps={{ fontSize: 13, fontFamily: "'Consolas', 'Menlo', monospace" }}
-                    />
-                </ListItemButton>
+                <ListItem dense disablePadding>
+                    <ListItemButton
+                        sx={{ pl: depth * 2 + 1 }}
+                        onClick={() => { onToggle(node.id); onSelect(node.id, false); }}
+                    >
+                        <ListItemIcon className={classes.itemIcon}>
+                            <ChevronRight className={cx(classes.chevron, isOpen && classes.chevronOpen)} />
+                            {isOpen
+                                ? <FolderOpen fontSize="small" color="primary" />
+                                : <Folder fontSize="small" color="action" />
+                            }
+                        </ListItemIcon>
+                        <ListItemText
+                            primary={highlightLabel(node.name, query, classes.highlightMark)}
+                        />
+                    </ListItemButton>
+                </ListItem>
                 <Collapse in={isOpen}>
                     <List className={classes.nestedList} disablePadding>
                         {(node.children ?? []).map((child) =>
@@ -201,22 +215,21 @@ function renderNode(
         );
     }
     return (
-        <ListItemButton
-            key={node.id}
-            className={classes.itemButton}
-            sx={{ pl: depth * 2 + 1 }}
-            selected={selected === node.id}
-            onClick={() => onSelect(node.id, true)}
-        >
-            <ListItemIcon className={classes.itemIcon}>
-                <Box sx={{ width: 16, flexShrink: 0 }} />
-                <InsertDriveFile style={{ color: EXT_COLOR[node.ext ?? ''] ?? '#888780', fontSize: 16 }} />
-            </ListItemIcon>
-            <ListItemText
-                primary={highlightLabel(node.name, query, classes.highlightMark)}
-                primaryTypographyProps={{ fontSize: 13, fontFamily: "'Consolas', 'Menlo', monospace" }}
-            />
-        </ListItemButton>
+        <ListItem key={node.id} dense disablePadding>
+            <ListItemButton
+                sx={{ pl: depth * 2 + 1 }}
+                selected={selected === node.id}
+                onClick={() => onSelect(node.id, true)}
+            >
+                <ListItemIcon className={classes.itemIcon}>
+                    <ChevronRight className={cx(classes.chevron, classes.chevronHidden)} />
+                    {getFileIcon(node.ext)}
+                </ListItemIcon>
+                <ListItemText
+                    primary={highlightLabel(node.name, query, classes.highlightMark)}
+                />
+            </ListItemButton>
+        </ListItem>
     );
 }
 
@@ -288,7 +301,6 @@ export function FileTree({ nodes, onFileOpen, initialExpanded = [], search, onSe
                     )}
                 </List>
             )}
-
         </Paper>
     );
 }
