@@ -29,6 +29,7 @@ import {
 import ioc from "../../../../../lib";
 import sanitize from "../../../../../config/sanitize";
 import { t } from "../../../../../i18n"
+import Markdown from "../../../../../components/common/Markdown";
 
 interface INotificationCardProps {
   className?: string;
@@ -716,10 +717,8 @@ export const NotificationCard = forwardRef(
                     wordWrap: "break-word",
                   }}
                 >
-                  <HtmlView
-                    style={{ textWrap: "wrap" }}
-                    config={sanitize}
-                    handler={() => item.note!}
+                  <Markdown
+                    content={item.note}
                   />
                 </Box>
               </Box>
