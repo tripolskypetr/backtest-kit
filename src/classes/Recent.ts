@@ -22,11 +22,15 @@ const RECENT_MEMORY_BACKTEST_METHOD_NAME_GET_LATEST_SIGNAL = "RecentMemoryBackte
 const RECENT_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING = "RecentMemoryLiveUtils.handleActivePing";
 const RECENT_MEMORY_LIVE_METHOD_NAME_GET_LATEST_SIGNAL = "RecentMemoryLiveUtils.getLatestSignal";
 
+const RECENT_BACKTEST_ADAPTER_METHOD_NAME_HANDLE_ACTIVE_PING = "RecentBacktestAdapter.handleActivePing";
+const RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL = "RecentBacktestAdapter.getLatestSignal";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_ADAPTER = "RecentBacktestAdapter.useRecentAdapter";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST = "RecentBacktestAdapter.usePersist";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_MEMORY = "RecentBacktestAdapter.useMemory";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_CLEAR = "RecentBacktestAdapter.clear";
 
+const RECENT_LIVE_ADAPTER_METHOD_NAME_HANDLE_ACTIVE_PING = "RecentLiveAdapter.handleActivePing";
+const RECENT_LIVE_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL = "RecentLiveAdapter.getLatestSignal";
 const RECENT_LIVE_ADAPTER_METHOD_NAME_USE_ADAPTER = "RecentLiveAdapter.useRecentAdapter";
 const RECENT_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST = "RecentLiveAdapter.usePersist";
 const RECENT_LIVE_ADAPTER_METHOD_NAME_USE_MEMORY = "RecentLiveAdapter.useMemory";
@@ -351,6 +355,9 @@ export class RecentBacktestAdapter implements IRecentUtils {
    * @param event - Active ping contract with signal data
    */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_HANDLE_ACTIVE_PING, {
+      signalId: event.data.id,
+    });
     return await this._recentBacktestUtils.handleActivePing(event);
   };
 
@@ -371,6 +378,13 @@ export class RecentBacktestAdapter implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<IPublicSignalRow | null> => {
+    lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     return await this._recentBacktestUtils.getLatestSignal(
       symbol,
       strategyName,
@@ -436,6 +450,9 @@ export class RecentLiveAdapter implements IRecentUtils {
    * @param event - Active ping contract with signal data
    */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
+    lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_HANDLE_ACTIVE_PING, {
+      signalId: event.data.id,
+    });
     return await this._recentLiveUtils.handleActivePing(event);
   };
 
@@ -456,6 +473,13 @@ export class RecentLiveAdapter implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<IPublicSignalRow | null> => {
+    lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     return await this._recentLiveUtils.getLatestSignal(
       symbol,
       strategyName,

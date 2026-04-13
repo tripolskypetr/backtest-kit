@@ -446,6 +446,13 @@ export {
   IStorageUtils,
   TStorageUtilsCtor,
 } from "./classes/Storage";
+export {
+  Recent,
+  RecentLive,
+  RecentBacktest,
+  IRecentUtils,
+  TRecentUtilsCtor,
+} from "./classes/Recent";
 export { 
   Notification,
   NotificationLive,
