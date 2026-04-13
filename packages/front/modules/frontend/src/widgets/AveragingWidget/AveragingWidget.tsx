@@ -182,7 +182,11 @@ export const AveragingWidget = ({
                     beginAtZero: false,
                     min: Math.floor((yMin - yRange * 0.1) / stepSize) * stepSize,
                     max: Math.ceil((yMax + yRange * 0.1) / stepSize) * stepSize,
-                    ticks: { stepSize },
+                    ticks: {
+                        stepSize,
+                        callback: (value: number | string) =>
+                            Number(value).toFixed(3),
+                    },
                 },
                 y1: {
                     type: "linear" as const,
