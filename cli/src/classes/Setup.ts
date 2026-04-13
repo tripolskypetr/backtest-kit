@@ -9,8 +9,11 @@ import {
   StorageBacktest,
   NotificationLive,
   NotificationBacktest,
+  RecentLive,
+  RecentBacktest,
   Dump,
   Memory,
+  Recent,
   Log,
 } from "backtest-kit";
 
