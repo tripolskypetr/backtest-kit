@@ -134,10 +134,18 @@ addStrategySchema({
 });
 
 listenActivePing(async ({ symbol, data }) => {
+  const research = await resolve(researchSource);
   if (await not(resolve(reversalOutput))) {
     return;
   }
-  await commitClosePending(symbol);
+  await commitClosePending(symbol, {
+    id: research.id,
+    note: str.newline(
+      research.reasoning,
+      " ",
+      `[Research details](/pick-dump-search/${research.id})`,
+    ),
+  });
   Log.info("position closed", {
     symbol,
     data,
