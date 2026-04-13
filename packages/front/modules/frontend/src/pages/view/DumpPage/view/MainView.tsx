@@ -1,46 +1,29 @@
 import {
-    Article,
-    DataObject,
-    Folder,
-    Image,
-    InsertDriveFile,
     KeyboardArrowLeft,
     Refresh,
 } from "@mui/icons-material";
-import { Box, ButtonBase, Paper, Stack, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import {
-    ActionButton,
     Breadcrumbs2,
     Breadcrumbs2Type,
     Center,
     IBreadcrumbs2Action,
     IBreadcrumbs2Option,
     IOutletProps,
-    PaperView,
-    RECORD_NEVER_VALUE,
-    RecordView,
     ScrollView,
     Subject,
     useActualState,
-    useActualValue,
     useAsyncValue,
     useOnce,
-    useReloadTrigger,
 } from "react-declarative";
-import { set } from "lodash";
-import { useMemo } from "react";
 import ioc from "../../../../lib";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import {
-    ExplorerData,
-    ExplorerFile,
-    ExplorerMap,
     ExplorerNode,
-    ExplorerRecord,
 } from "../../../../model/Explorer.model";
 import { Background } from "../../../../components/common/Background";
-
-const MAX_ITEMS_SHOWN = 25;
+import { FileTree } from "../../../../widgets/FileTreeWidget/FileTree";
+import { FileNode } from "../../../../widgets/FileTreeWidget/model/fileTree";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -68,18 +51,26 @@ const actions: IBreadcrumbs2Action[] = [
     },
 ];
 
-const getFileIcon = (node: ExplorerFile) => {
-    if (node.mimeType.startsWith("image/")) {
-        return <Image sx={{ color: "#f57c00", fontSize: 20 }} />;
+function getExt(label: string): string | undefined {
+    const dot = label.lastIndexOf(".");
+    return dot !== -1 ? label.slice(dot + 1) : undefined;
+}
+
+function toFileNode(node: ExplorerNode): FileNode {
+    if (node.type === "directory") {
+        return {
+            id: node.id,
+            name: node.label,
+            folder: true,
+            children: node.nodes.map(toFileNode),
+        };
     }
-    if (node.mimeType === "application/json") {
-        return <DataObject sx={{ color: "#7b1fa2", fontSize: 20 }} />;
-    }
-    if (node.mimeType.startsWith("text/")) {
-        return <Article sx={{ color: "#1976d2", fontSize: 20 }} />;
-    }
-    return <InsertDriveFile sx={{ color: "#546e7a", fontSize: 20 }} />;
-};
+    return {
+        id: node.id,
+        name: node.label,
+        ext: getExt(node.label),
+    };
+}
 
 const reloadSubject = new Subject<void>();
 
@@ -89,9 +80,18 @@ export const MainView = ({
 
     const [search$, setSearch] = useActualState(params.search);
 
-    const [data, { loading, execute }] = useAsyncValue(
+    const [nodes, { loading, execute }] = useAsyncValue(
         async () => {
-            return await ioc.explorerViewService.getFolderTree();
+            const { map } = await ioc.explorerViewService.getFolderTree();
+            const roots = Object.values(map).filter(
+                (n) => n.type === "directory" && !Object.values(map).some(
+                    (m) => m.type === "directory" && m.nodes.some((c) => c.id === n.id)
+                )
+            );
+            if (roots.length) {
+                return roots.map(toFileNode);
+            }
+            return Object.values(map).map(toFileNode);
         },
         {
             onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
@@ -100,8 +100,6 @@ export const MainView = ({
     );
 
     useOnce(() => reloadSubject.subscribe(execute));
-
-    const data$ = useActualValue<ExplorerData>(data!);
 
     const handleAction = (action: string) => {
         if (action === "back-action") {
@@ -113,12 +111,8 @@ export const MainView = ({
         }
     };
 
-    const handleOpen = (id: string) => {
-        ioc.layoutService.pickDumpContent(id);
-    };
-
     const renderInner = () => {
-        if (loading || !data) {
+        if (loading || !nodes) {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
@@ -129,100 +123,14 @@ export const MainView = ({
         }
 
         return (
-            <RecordView
-                component={Paper}
-                withExpandRoot
-                maxItems={MAX_ITEMS_SHOWN}
-                search={search$.current}
-                onSearchChanged={(search) => setSearch(search)}
-                sx={{
-                    background: (theme) => theme.palette.background.default,
-                    minHeight: "calc(100vh - 160px)",
-                    p: 1,
-                }}
-                formatSearch={(key) => {
-                    const node = data$.current.map[key];
-                    if (!node) {
-                        return "";
-                    }
-                    return `${node.label}`;
-                }}
-                formatKey={(key) => {
-                    const node = data$.current.map[key];
-                    if (!node) {
-                        return null;
-                    }
-                    return (
-                        <Stack direction="row" alignItems="center" gap={1}>
-                            {node.type === "directory" && (
-                                <Folder
-                                    sx={{ color: "#1976d2", fontSize: 20 }}
-                                />
-                            )}
-                            <Typography>{node ? node.label : key}</Typography>
-                            <Box sx={{ flex: 1 }} />
-                        </Stack>
-                    );
-                }}
-                EmptyItem={() => <span>No files</span>}
-                CustomItem={({ itemKey, index, withDarkParent }) => {
-                    const node = data$.current.map[itemKey];
-                    if (!node) {
-                        return null;
-                    }
-                    if (node.type !== "file") {
-                        return null;
-                    }
-                    const fill = withDarkParent ? "#fff6" : "#ccc6";
-                    return (
-                        <ButtonBase
-                            sx={{
-                                width: "100%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "stretch",
-                                direction: "row",
-                                background: index % 2 === 0 ? "transparent" : fill,
-                                gap: 1,
-                                p: 1,
-                                mt: index === 0 ? 1 : 0,
-                            }}
-                            onClick={() => handleOpen(itemKey)}
-                        >
-                            {getFileIcon(node)}
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "stretch",
-                                    justifyContent: "stretch",
-                                    "& > *": {
-                                        width: "100%",
-                                        textAlign: "start",
-                                    },
-                                }}
-                            >
-                                <Typography variant="body2">
-                                    {node.label}
-                                </Typography>
-                                <Typography
-                                    variant="caption"
-                                    sx={{ opacity: 0.5 }}
-                                >
-                                    {node.mimeType}
-                                </Typography>
-                            </Box>
-                            <Box sx={{ flex: 1 }} />
-                            <ActionButton sx={{ mr: 2, pointerEvents: "none" }} variant="text">
-                                Open
-                            </ActionButton>
-                        </ButtonBase>
-                    );
-                }}
-                data={data.record}
-                keyWidth={3}
-                valueWidth={9}
-            />
+            <Paper sx={{ height: "calc(100vh - 180px)" }}>
+                <FileTree
+                    nodes={nodes}
+                    search={search$.current}
+                    onSearchChanged={(search) => setSearch(search)}
+                    onFileOpen={(id) => ioc.layoutService.pickDumpContent(id)}
+                />
+            </Paper>
         );
     };
 
