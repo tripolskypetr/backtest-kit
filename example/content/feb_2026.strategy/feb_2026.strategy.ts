@@ -3,133 +3,140 @@ import {
   listenError,
   Cache,
   Log,
-  getAveragePrice,
-  Interval,
-  ISignalDto,
   Position,
   listenActivePing,
-  getPositionHighestProfitMinutes,
-  getPositionHighestProfitDistancePnlCost,
   commitClosePending,
+  getPositionHighestProfitDistancePnlCost,
   getPositionHighestMaxDrawdownPnlCost,
-  getPositionHighestPnlCost,
-  getPositionPnlCost,
-  getDate,
   getCandles,
+  getAveragePrice,
+  getSymbol,
+  getPendingSignal,
 } from "backtest-kit";
 import { predict } from "garch";
-import { errorData, getErrorMessage } from "functools-kit";
-import { run, File, extract } from "@backtest-kit/pinets";
+import { errorData, getErrorMessage, not } from "functools-kit";
+import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
 import { research } from "logic";
 
-const PNL_TRAILING_STOP_PERCENT = 3;
-const PNL_HARD_STOP_PERCENT = 2.5;
-
-const MAX_DRAWDOWN_PERCENT = 5;
-
-const POSITION_FILE_SHORT = File.fromPath("position_short.pine", "./math");
-const POSITION_FILE_LONG = File.fromPath("position_long.pine", "./math");
-
-const POSITION_FILE_MAP = {
-  BUY: POSITION_FILE_LONG,
-  SELL: POSITION_FILE_SHORT,
-};
+const NEVER_DRAWDOWN_PERCENT = 5;
 
 const POSITION_LABEL_MAP = {
   BUY: "long",
   SELL: "short",
-};
+  WAIT: "wait",
+} as const;
 
-const researchSource = Cache.file(
-  async (symbol: string, when: Date, currentPrice: number) => {
-    const result = await research(symbol, when);
-    return { ...result, currentPrice };
-  },
-  { interval: "1h", name: "research_source" },
+const researchSource = sourceNode(
+  Cache.file(
+    async (symbol: string, when: Date, currentPrice: number) => {
+      const result = await research(symbol, when);
+      return { ...result, currentPrice };
+    },
+    { interval: "1h", name: "research_source" },
+  )
 );
 
-const sigmaSource = Cache.fn(
-  async (symbol: string) => {
-    const candles = await getCandles(symbol, "1h", 200);
-    return predict(candles, "1h");
-  },
-  { interval: "1h" },
+const sigmaSource = sourceNode(
+  Cache.fn(
+    async (symbol: string) => {
+      const candles = await getCandles(symbol, "1h", 200);
+      const current = predict(candles, "1h");
+      const prev = predict(candles.slice(0, -1), "1h");
+      return { current, prev };
+    },
+    { interval: "1h" },
+  )
 );
 
-const signalSource = Interval.fn(
-  async (symbol: string, when: Date, currentPrice: number): Promise<ISignalDto> => {
-    const research = await researchSource(symbol, when, currentPrice);
-    if (research.signal === "SELL" && currentPrice > research.currentPrice) {
-      return null;
+const positionOutput = outputNode(
+  async ([research]) => {
+    const symbol = await getSymbol();
+    const currentPrice = await getAveragePrice(symbol);
+    if (research.signal === "BUY" && currentPrice > research.currentPrice) {
+      return "wait";
     }
-    if (research.signal === "BUY" && currentPrice < research.currentPrice) {
-      return null;
+    if (research.signal === "SELL" && currentPrice < research.currentPrice) {
+      return "wait";
     }
-    const sigma = await sigmaSource(symbol);
-    if (!sigma.reliable) {
-      return null;
-    }
-    const file = POSITION_FILE_MAP[research.signal];
-    const position = POSITION_LABEL_MAP[research.signal];
-    {
-      if (research.signal === "WAIT") {
-        return null;
-      }
-      if (!file) {
-        return null;
-      }
-      if (!position) {
-        return null;
-      }
-    }
-    const plots = await run(file, {
-      symbol,
-      timeframe: "1m",
-      limit: 100,
-    });
-    const { activate } = await extract(plots, {
-      activate: "Position",
-    });
-    if (activate !== 1) {
-      return null;
-    }
-    const { priceStopLoss, priceTakeProfit } = Position.moonbag({
-      position,
-      currentPrice,
-      percentStopLoss: MAX_DRAWDOWN_PERCENT,
-    });
-    console.log("signal generated", {
-      symbol,
-      when,
-      position,
-      priceStopLoss,
-      priceTakeProfit,
-    });
-    return {
-      position,
-      priceStopLoss,
-      priceTakeProfit,
-      note: `Agent research: ${research.id}`,
-    };
+    return POSITION_LABEL_MAP[research.signal];
   },
-  {
-    interval: "4h",
+  researchSource,
+);
+
+const confirmOutput = outputNode(
+  ([sigma]) => {
+    const { current: sigmaCur, prev: sigmaPrev } = sigma;
+    if (!sigmaCur.reliable || !sigmaPrev.reliable) {
+      return false;
+    }
+    if (sigmaCur.sigma <= sigmaPrev.sigma) {
+      return false;
+    }
+    return true;
   },
+  sigmaSource,
+);
+
+const reversalOutput = outputNode(
+  async ([position]) => {
+    const symbol = await getSymbol();
+    const pendingSignal = await getPendingSignal(symbol);
+    if (!pendingSignal) {
+      throw new Error("no pending signal");
+    }
+    if (position === "wait") {
+      return false;
+    }
+    if (position === pendingSignal.position) {
+      return false;
+    }
+    return true;
+  },
+  positionOutput,
 );
 
 addStrategySchema({
   strategyName: "feb_2026_strategy",
   getSignal: async (symbol, when, currentPrice) => {
-    const research = await researchSource(symbol, when, currentPrice);
-    if (research.signal === "WAIT") {
+    const research = await resolve(researchSource);
+
+    const position = await resolve(positionOutput);
+    if (position === "wait") {
       return null;
     }
-    const signal = await signalSource(symbol, when, currentPrice);
-    if (!signal) {
+
+    const confirm = await resolve(confirmOutput);
+    if (!confirm) {
       return null;
     }
-    return signal;
+
+    console.log("signal generated", {
+      symbol,
+      when,
+      position,
+    });
+
+    return {
+      ...Position.moonbag({
+        position,
+        currentPrice,
+        percentStopLoss: NEVER_DRAWDOWN_PERCENT,
+      }),
+      minuteEstimatedTime: Infinity,
+      note: `Agent research: ${research.id}`,
+    };
   },
+});
+
+listenActivePing(async ({ symbol, data }) => {
+  if (await not(resolve(reversalOutput))) {
+    return;
+  }
+  await commitClosePending(symbol);
+  Log.info("position closed", {
+    symbol,
+    data,
+  });
 });
 
 listenActivePing(async ({ symbol, data }) => {
@@ -140,46 +147,6 @@ listenActivePing(async ({ symbol, data }) => {
     data,
     peakProfitDistance,
     peakMaxDrawdown,
-  });
-});
-
-listenActivePing(async ({ symbol }) => {
-  const peakPnl = await getPositionHighestPnlCost(symbol);
-  const peakProfitDistance = await getPositionHighestProfitDistancePnlCost(symbol);
-  if (peakPnl > 0 && peakProfitDistance > PNL_TRAILING_STOP_PERCENT) {
-    Log.info("position trailing stop triggered", {
-      symbol,
-      peakProfitDistance,
-    });
-    await commitClosePending(symbol);
-  }
-});
-
-listenActivePing(async ({ symbol, data }) => {
-  const currentPnl = await getPositionPnlCost(symbol);
-  if (currentPnl < -PNL_HARD_STOP_PERCENT) {
-    Log.info("position hard stop triggered", {
-      symbol,
-      currentPnl,
-    });
-    await commitClosePending(symbol);
-  }
-});
-
-listenActivePing(async ({ symbol, data, currentPrice }) => {
-  const when = await getDate();
-  const research = await researchSource(symbol, when, currentPrice);
-  if (research.signal === "WAIT") {
-    return;
-  }
-  const position = POSITION_LABEL_MAP[research.signal];
-  if (position === data.position) {
-    return;
-  }
-  await commitClosePending(symbol);
-  Log.info("position closed", {
-    symbol,
-    data,
   });
 });
 
