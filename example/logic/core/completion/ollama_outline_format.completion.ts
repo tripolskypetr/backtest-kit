@@ -42,6 +42,7 @@ addCompletion({
             })),
           })),
           format: schema,
+          think: true,
         });
 
         const message: Message = response.message;

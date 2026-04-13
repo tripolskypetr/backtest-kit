@@ -31,6 +31,7 @@ addCompletion({
         })),
       })),
       tools,
+      think: true,
     });
 
     const message: Message = response.message;

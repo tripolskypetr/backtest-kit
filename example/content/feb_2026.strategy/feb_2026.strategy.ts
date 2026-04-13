@@ -13,7 +13,6 @@ import {
   getSymbol,
   getPendingSignal,
 } from "backtest-kit";
-import { predict } from "garch";
 import { errorData, getErrorMessage, not, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
 import { research } from "logic";
@@ -36,45 +35,11 @@ const researchSource = sourceNode(
   )
 );
 
-const sigmaSource = sourceNode(
-  Cache.fn(
-    async (symbol: string) => {
-      const candles = await getCandles(symbol, "1h", 201);
-      const current = predict(candles, "1h");
-      const prev = predict(candles.slice(0, -1), "1h");
-      return { current, prev };
-    },
-    { interval: "1h" },
-  )
-);
-
 const positionOutput = outputNode(
   async ([research]) => {
-    const symbol = await getSymbol();
-    const currentPrice = await getAveragePrice(symbol);
-    if (research.signal === "BUY" && currentPrice > research.currentPrice) {
-      return "wait";
-    }
-    if (research.signal === "SELL" && currentPrice < research.currentPrice) {
-      return "wait";
-    }
     return POSITION_LABEL_MAP[research.signal];
   },
   researchSource,
-);
-
-const confirmOutput = outputNode(
-  ([sigma]) => {
-    const { current: sigmaCur, prev: sigmaPrev } = sigma;
-    if (!sigmaCur.reliable || !sigmaPrev.reliable) {
-      return false;
-    }
-    if (sigmaCur.sigma <= sigmaPrev.sigma) {
-      return false;
-    }
-    return true;
-  },
-  sigmaSource,
 );
 
 const reversalOutput = outputNode(
@@ -102,11 +67,6 @@ addStrategySchema({
 
     const position = await resolve(positionOutput);
     if (position === "wait") {
-      return null;
-    }
-
-    const confirm = await resolve(confirmOutput);
-    if (!confirm) {
       return null;
     }
 
