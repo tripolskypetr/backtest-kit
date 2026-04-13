@@ -37,6 +37,7 @@ export class SetupUtils {
     cli.loggerService.debug("SetupUtils enable");
 
     {
+      Recent.enable();
       Storage.enable();
       Notification.enable();
     }
@@ -56,6 +57,11 @@ export class SetupUtils {
     {
       StorageLive.usePersist();
       StorageBacktest.useMemory();
+    }
+
+    {
+      RecentLive.usePersist();
+      RecentBacktest.useMemory();
     }
 
     {
