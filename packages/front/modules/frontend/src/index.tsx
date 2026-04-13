@@ -91,6 +91,7 @@ createCustomTag(
     {
         onClick: (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const target = e.currentTarget as HTMLSpanElement;
             const href = target.getAttribute("href");
             if (!href) {

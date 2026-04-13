@@ -380,14 +380,17 @@ const hasPercentShift = (
 const hasNote = (
   item: NotificationModel
 ): item is NotificationModel & { note: string } => {
-  if (item.type === "activate_scheduled.commit") {
+  if (item.type === "signal.opened") {
     return "note" in item && !!item.note;
+  }
+  if (item.type === "activate_scheduled.commit") {
+    return "note" in item && !!item.note && !!item.activateId;
   }
   if (item.type === "close_pending.commit") {
-    return "note" in item && !!item.note;
+    return "note" in item && !!item.note && !!item.closeId;
   }
   if (item.type === "cancel_scheduled.commit") {
-    return "note" in item && !!item.note;
+    return "note" in item && !!item.note && !!item.cancelId;
   }
   return false;
 };
