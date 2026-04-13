@@ -41,8 +41,10 @@ const RESEARCH_PROMPT = str.newline(
   " - **WAIT**: Картина неоднозначна, противоречива или неубедительна — не форсируй сделку.",
   "",
   "**Требуемый результат:**",
-  "1. **Сигнал**: укажи ровно один из BUY / SELL / WAIT.",
-  "2. **Рассуждение**: что говорят свечи? Что говорят новости? Где они совпадают или расходятся? Почему картина склоняется к этому решению?",
+  "1. **signal**: укажи ровно один из BUY / SELL / WAIT.",
+  "2. **reasoning**: что говорят свечи? Что говорят новости? Где они совпадают или расходятся? Почему картина склоняется к этому решению?",
+  "3. **entryConfirmation**: конкретное условие, при котором сигнал считается подтверждённым и позицию стоит держать. Привязывай к цене, объёму или событию — не к индикаторам.",
+  "4. **reversalSignal**: конкретное условие разворота — при котором позицию нужно закрыть немедленно. Это не стоп-лосс в процентах, а наблюдаемый факт на рынке.",
 );
 
 const commitCandles = async (symbol: string, history: IOutlineHistory) => {
@@ -129,8 +131,16 @@ addOutline<ResearchResponseContract>({
         type: "string",
         description: "Обоснование сигнала: что говорят свечи, что говорят новости, почему картина склоняется к этому решению.",
       },
+      entryConfirmation: {
+        type: "string",
+        description: "Конкретное ценовое или событийное условие, которое должно выполниться чтобы подтвердить сигнал и оставаться в позиции. Например: цена держится выше X, объём растёт, новостной фон не меняется.",
+      },
+      reversalSignal: {
+        type: "string",
+        description: "Конкретное условие разворота — при котором позицию нужно закрыть. Например: цена пробивает уровень Y вниз, появляется противоположный новостной катализатор, объём резко растёт против позиции.",
+      },
     },
-    required: ["signal", "reasoning"],
+    required: ["signal", "reasoning", "entryConfirmation", "reversalSignal"],
   },
   getOutlineHistory: async ({ resultId, history }, symbol: string, when: Date) => {
     const displayName = DISPLAY_NAME_MAP[symbol] ?? symbol;
@@ -185,6 +195,22 @@ addOutline<ResearchResponseContract>({
         }
       },
       docDescription: "Проверяет, что сигнал обоснован.",
+    },
+    {
+      validate: ({ data }) => {
+        if (!data.entryConfirmation) {
+          throw new Error("Поле entryConfirmation не заполнено");
+        }
+      },
+      docDescription: "Проверяет, что критерий подтверждения входа определён.",
+    },
+    {
+      validate: ({ data }) => {
+        if (!data.reversalSignal) {
+          throw new Error("Поле reversalSignal не заполнено");
+        }
+      },
+      docDescription: "Проверяет, что критерий разворота определён.",
     },
   ],
   callbacks: {
