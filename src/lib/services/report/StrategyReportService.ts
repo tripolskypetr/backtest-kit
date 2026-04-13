@@ -56,6 +56,7 @@ export class StrategyReportService {
     pnl: IStrategyPnL,
     totalPartials: number,
     cancelId?: string,
+    note?: string,
   ) => {
     this.loggerService.log("strategyReportService cancelScheduled", {
       symbol,
@@ -71,6 +72,7 @@ export class StrategyReportService {
       {
         action: "cancel-scheduled",
         cancelId,
+        note,
         symbol,
         timestamp,
         createdAt,
@@ -108,6 +110,7 @@ export class StrategyReportService {
     pnl: IStrategyPnL,
     totalPartials: number,
     closeId?: string,
+    note?: string,
   ) => {
     this.loggerService.log("strategyReportService closePending", {
       symbol,
@@ -123,6 +126,7 @@ export class StrategyReportService {
       {
         action: "close-pending",
         closeId,
+        note,
         symbol,
         timestamp,
         createdAt,
@@ -543,6 +547,7 @@ export class StrategyReportService {
     totalEntries: number,
     originalPriceOpen: number,
     activateId?: string,
+    note?: string,
   ) => {
     this.loggerService.log("strategyReportService activateScheduled", {
       symbol,
@@ -559,6 +564,7 @@ export class StrategyReportService {
       {
         action: "activate-scheduled",
         activateId,
+        note,
         currentPrice,
         symbol,
         timestamp,
@@ -696,6 +702,7 @@ export class StrategyReportService {
           event.pnl,
           event.totalPartials,
           event.cancelId,
+          event.note,
         )
       );
 
@@ -715,6 +722,7 @@ export class StrategyReportService {
           event.pnl,
           event.totalPartials,
           event.closeId,
+          event.note,
         )
       );
 
@@ -894,6 +902,7 @@ export class StrategyReportService {
           event.totalEntries,
           event.originalPriceOpen,
           event.activateId,
+          event.note,
         )
       );
 

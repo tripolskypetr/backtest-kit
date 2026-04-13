@@ -337,6 +337,7 @@ export class StrategyMarkdownService {
    * @param context - Strategy context with strategyName, exchangeName, frameName
    * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    * @param cancelId - Optional identifier for the cancellation reason
+   * @param note - Optional note from commit payload
    */
   public cancelScheduled = async (
     symbol: string,
@@ -346,6 +347,7 @@ export class StrategyMarkdownService {
     signalId: string,
     pnl: IStrategyPnL,
     cancelId?: string,
+    note?: string,
   ) => {
     this.loggerService.log("strategyMarkdownService cancelScheduled", {
       symbol,
@@ -367,6 +369,7 @@ export class StrategyMarkdownService {
       action: "cancel-scheduled",
       pnl,
       cancelId,
+      note,
       createdAt,
       backtest: isBacktest,
     });
@@ -380,6 +383,7 @@ export class StrategyMarkdownService {
    * @param context - Strategy context with strategyName, exchangeName, frameName
    * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    * @param closeId - Optional identifier for the close reason
+   * @param note - Optional note from commit payload
    */
   public closePending = async (
     symbol: string,
@@ -389,6 +393,7 @@ export class StrategyMarkdownService {
     signalId: string,
     pnl: IStrategyPnL,
     closeId?: string,
+    note?: string,
   ) => {
     this.loggerService.log("strategyMarkdownService closePending", {
       symbol,
@@ -410,6 +415,7 @@ export class StrategyMarkdownService {
       action: "close-pending",
       pnl,
       closeId,
+      note,
       createdAt,
       backtest: isBacktest,
     });
@@ -813,6 +819,7 @@ export class StrategyMarkdownService {
    * @param scheduledAt - Signal creation timestamp in milliseconds
    * @param pendingAt - Pending timestamp in milliseconds
    * @param activateId - Optional identifier for the activation reason
+   * @param note - Optional note from commit payload
    */
   public activateScheduled = async (
     symbol: string,
@@ -834,6 +841,7 @@ export class StrategyMarkdownService {
     totalEntries: number,
     originalPriceOpen: number,
     activateId?: string,
+    note?: string,
   ) => {
     this.loggerService.log("strategyMarkdownService activateScheduled", {
       symbol,
@@ -857,6 +865,7 @@ export class StrategyMarkdownService {
       pnl,
       totalPartials,
       activateId,
+      note,
       currentPrice,
       createdAt,
       backtest: isBacktest,
@@ -1124,6 +1133,7 @@ export class StrategyMarkdownService {
           event.signalId,
           event.pnl,
           event.cancelId,
+          event.note,
         )
       );
 
@@ -1142,6 +1152,7 @@ export class StrategyMarkdownService {
           event.signalId,
           event.pnl,
           event.closeId,
+          event.note,
         )
       );
 
@@ -1321,6 +1332,7 @@ export class StrategyMarkdownService {
           event.totalEntries,
           event.originalPriceOpen,
           event.activateId,
+          event.note,
         )
       );
 

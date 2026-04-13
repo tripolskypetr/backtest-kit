@@ -11244,6 +11244,8 @@ interface StrategyEvent {
     pnl?: IStrategyPnL;
     /** Cost of this entry in USD (average-buy action only) */
     cost?: number;
+    /** Optional note from commit payload */
+    note?: string;
 }
 /**
  * Statistical data calculated from strategy events.
@@ -21725,12 +21727,13 @@ declare class StrategyMarkdownService {
      * @param context - Strategy context with strategyName, exchangeName, frameName
      * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param cancelId - Optional identifier for the cancellation reason
+     * @param note - Optional note from commit payload
      */
     cancelScheduled: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, cancelId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, cancelId?: string, note?: string) => Promise<void>;
     /**
      * Records a close-pending event when a pending signal is closed.
      *
@@ -21739,12 +21742,13 @@ declare class StrategyMarkdownService {
      * @param context - Strategy context with strategyName, exchangeName, frameName
      * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param closeId - Optional identifier for the close reason
+     * @param note - Optional note from commit payload
      */
     closePending: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, closeId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, closeId?: string, note?: string) => Promise<void>;
     /**
      * Records a partial-profit event when a portion of the position is closed at profit.
      *
@@ -21876,12 +21880,13 @@ declare class StrategyMarkdownService {
      * @param scheduledAt - Signal creation timestamp in milliseconds
      * @param pendingAt - Pending timestamp in milliseconds
      * @param activateId - Optional identifier for the activation reason
+     * @param note - Optional note from commit payload
      */
     activateScheduled: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
     /**
      * Records an average-buy (DCA) event when a new averaging entry is added to an open position.
      *
@@ -30817,7 +30822,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cancelId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cancelId?: string, note?: string) => Promise<void>;
     /**
      * Logs a close-pending event when a pending signal is closed.
      */
@@ -30825,7 +30830,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, closeId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, closeId?: string, note?: string) => Promise<void>;
     /**
      * Logs a partial-profit event when a portion of the position is closed at profit.
      */
@@ -30873,7 +30878,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
     /**
      * Logs an average-buy (DCA) event when a new averaging entry is added to an open position.
      */
