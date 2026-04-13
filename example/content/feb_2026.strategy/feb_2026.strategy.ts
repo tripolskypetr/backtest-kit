@@ -14,7 +14,7 @@ import {
   getPendingSignal,
 } from "backtest-kit";
 import { predict } from "garch";
-import { errorData, getErrorMessage, not } from "functools-kit";
+import { errorData, getErrorMessage, not, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
 import { research } from "logic";
 
@@ -39,7 +39,7 @@ const researchSource = sourceNode(
 const sigmaSource = sourceNode(
   Cache.fn(
     async (symbol: string) => {
-      const candles = await getCandles(symbol, "1h", 200);
+      const candles = await getCandles(symbol, "1h", 201);
       const current = predict(candles, "1h");
       const prev = predict(candles.slice(0, -1), "1h");
       return { current, prev };
@@ -117,13 +117,18 @@ addStrategySchema({
     });
 
     return {
+      id: `${research.id}_${randomString()}`,
       ...Position.moonbag({
         position,
         currentPrice,
         percentStopLoss: NEVER_DRAWDOWN_PERCENT,
       }),
       minuteEstimatedTime: Infinity,
-      note: `Agent research: ${research.id}`,
+      note: str.newline(
+        research.reasoning,
+        " ",
+        `[Research details](/pick-dump-search/${research.id})`,
+      ),
     };
   },
 });
