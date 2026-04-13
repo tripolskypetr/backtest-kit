@@ -11,10 +11,11 @@ import {
 } from "functools-kit";
 import { join } from "path";
 import { writeFileAtomic } from "../utils/writeFileAtomic";
-import swarm from "../lib";
+import swarm, { backtest } from "../lib";
 import {
   ISignalRow,
   IScheduledSignalRow,
+  IPublicSignalRow,
   StrategyName,
 } from "../interfaces/Strategy.interface";
 import { errorEmitter } from "../config/emitters";
@@ -26,6 +27,7 @@ import { IStorageSignalRow } from "../interfaces/Strategy.interface";
 import { NotificationModel } from "../model/Notification.model";
 import { ILogEntry } from "../interfaces/Logger.interface";
 import LoggerService from "../lib/services/base/LoggerService";
+import { FrameName } from "../interfaces/Frame.interface";
 
 /** Logger service injected as DI singleton */
 const LOGGER_SERVICE = new LoggerService();
@@ -201,6 +203,16 @@ const PERSIST_MEMORY_UTILS_METHOD_NAME_CLEAR =
   "PersistMemoryUtils.clear";
 const PERSIST_MEMORY_UTILS_METHOD_NAME_DISPOSE =
   "PersistMemoryUtils.dispose";
+
+const PERSIST_RECENT_UTILS_METHOD_NAME_USE_PERSIST_RECENT_ADAPTER =
+  "PersistRecentUtils.usePersistRecentAdapter";
+const PERSIST_RECENT_UTILS_METHOD_NAME_READ_DATA =
+  "PersistRecentUtils.readRecentData";
+const PERSIST_RECENT_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistRecentUtils.writeRecentData";
+const PERSIST_RECENT_UTILS_METHOD_NAME_USE_JSON = "PersistRecentUtils.useJson";
+const PERSIST_RECENT_UTILS_METHOD_NAME_USE_DUMMY = "PersistRecentUtils.useDummy";
+const PERSIST_RECENT_UTILS_METHOD_NAME_CLEAR = "PersistRecentUtils.clear";
 
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
@@ -2713,3 +2725,163 @@ export class PersistMemoryUtils {
  * ```
  */
 export const PersistMemoryAdapter = new PersistMemoryUtils();
+
+/**
+ * Type for persisted recent signal data.
+ * Stores the latest active signal per context key.
+ */
+export type RecentData = IPublicSignalRow | null;
+
+/**
+ * Utility class for managing recent signal persistence.
+ *
+ * Features:
+ * - Memoized storage instances per (symbol, strategyName, exchangeName, frameName) context
+ * - Custom adapter support
+ * - Atomic read/write operations
+ * - Crash-safe recent signal state management
+ *
+ * Used by RecentPersistBacktestUtils/RecentPersistLiveUtils for recent signal persistence.
+ */
+export class PersistRecentUtils {
+  private PersistRecentFactory: TPersistBaseCtor<string, IPublicSignalRow> =
+    PersistBase;
+
+  private getStorage = memoize(
+    ([symbol, strategyName, exchangeName, frameName, backtest]) =>
+      this.createKeyParts(symbol, strategyName, exchangeName, frameName, backtest).join(":"),
+    (
+      symbol: string,
+      strategyName: StrategyName,
+      exchangeName: ExchangeName,
+      frameName: FrameName,
+      backtest: boolean,
+    ): IPersistBase<IPublicSignalRow> => Reflect.construct(this.PersistRecentFactory, [
+      this.createKeyParts(symbol, strategyName, exchangeName, frameName, backtest).join("_"),
+      `./dump/data/recent/`,
+    ]))
+
+  private createKeyParts(
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ) {
+    const parts = [symbol, strategyName, exchangeName];
+    if (frameName) parts.push(frameName);
+    parts.push(backtest ? "backtest" : "live");
+    return parts;
+  }
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   */
+  public usePersistRecentAdapter(
+    Ctor: TPersistBaseCtor<string, IPublicSignalRow>
+  ): void {
+    LOGGER_SERVICE.info(
+      PERSIST_RECENT_UTILS_METHOD_NAME_USE_PERSIST_RECENT_ADAPTER
+    );
+    this.PersistRecentFactory = Ctor;
+  }
+
+  /**
+   * Reads the latest persisted recent signal for a given context.
+   *
+   * Returns null if no recent signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @returns Promise resolving to recent signal or null
+   */
+  public readRecentData = async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<IPublicSignalRow | null> => {
+    LOGGER_SERVICE.info(PERSIST_RECENT_UTILS_METHOD_NAME_READ_DATA);
+
+    const key = this.createKeyParts(symbol, strategyName, exchangeName, frameName, backtest).join(":");
+    const isInitial = !this.getStorage.has(key);
+    const stateStorage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
+    await stateStorage.waitForInit(isInitial);
+
+    if (await stateStorage.hasValue(symbol)) {
+      return await stateStorage.readValue(symbol);
+    }
+
+    return null;
+  };
+
+  /**
+   * Writes the latest recent signal to disk with atomic file writes.
+   *
+   * Uses symbol as the entity ID within the per-context storage instance.
+   * Uses atomic writes to prevent corruption on crashes.
+   *
+   * @param signalRow - Recent signal data to persist
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @returns Promise that resolves when write is complete
+   */
+  public writeRecentData = async (
+    signalRow: IPublicSignalRow,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_RECENT_UTILS_METHOD_NAME_WRITE_DATA);
+
+    const key = this.createKeyParts(symbol, strategyName, exchangeName, frameName, backtest).join(":");
+    const isInitial = !this.getStorage.has(key);
+    const stateStorage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
+    await stateStorage.waitForInit(isInitial);
+
+    await stateStorage.writeValue(symbol, signalRow);
+  };
+
+  /**
+   * Clears the memoized storage cache.
+   * Call this when process.cwd() changes between strategy iterations
+   * so new storage instances are created with the updated base path.
+   */
+  public clear(): void {
+    LOGGER_SERVICE.log(PERSIST_RECENT_UTILS_METHOD_NAME_CLEAR);
+    this.getStorage.clear();
+  }
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    LOGGER_SERVICE.log(PERSIST_RECENT_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistRecentAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    LOGGER_SERVICE.log(PERSIST_RECENT_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistRecentAdapter(PersistDummy);
+  }
+}
+
+/**
+ * Global singleton instance of PersistRecentUtils.
+ * Used by RecentPersistBacktestUtils/RecentPersistLiveUtils for recent signal persistence.
+ */
+export const PersistRecentAdapter = new PersistRecentUtils();
