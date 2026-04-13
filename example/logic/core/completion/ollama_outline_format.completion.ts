@@ -11,7 +11,7 @@ import { jsonrepair } from "jsonrepair";
 
 const MAX_ATTEMPTS = 3;
 
-const MODEL_NAME = "glm-5.1:cloud";
+const MODEL_NAME = "minimax-m2.7:cloud";
 
 addCompletion({
   completionName: CompletionName.OllamaOutlineFormatCompletion,

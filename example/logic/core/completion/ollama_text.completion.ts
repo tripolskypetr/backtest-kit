@@ -8,7 +8,7 @@ import { Message } from "ollama";
 import { randomString } from "functools-kit";
 import { getOllama } from "../../config/ollama";
 
-const MODEL_NAME = "glm-5.1:cloud";
+const MODEL_NAME = "minimax-m2.7:cloud";
 
 addCompletion({
   completionName: CompletionName.OllamaTextCompletion,
