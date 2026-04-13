@@ -15,7 +15,9 @@ import {
   getPositionHighestPnlCost,
   getPositionPnlCost,
   getDate,
+  getCandles,
 } from "backtest-kit";
+import { predict } from "garch";
 import { errorData, getErrorMessage } from "functools-kit";
 import { run, File, extract } from "@backtest-kit/pinets";
 import { research } from "logic";
@@ -46,6 +48,14 @@ const researchSource = Cache.file(
   { interval: "1h", name: "research_source" },
 );
 
+const sigmaSource = Cache.fn(
+  async (symbol: string) => {
+    const candles = await getCandles(symbol, "1h", 200);
+    return predict(candles, "1h");
+  },
+  { interval: "1h" },
+);
+
 const signalSource = Interval.fn(
   async (symbol: string, when: Date, currentPrice: number): Promise<ISignalDto> => {
     const research = await researchSource(symbol, when, currentPrice);
@@ -53,6 +63,10 @@ const signalSource = Interval.fn(
       return null;
     }
     if (research.signal === "BUY" && currentPrice < research.currentPrice) {
+      return null;
+    }
+    const sigma = await sigmaSource(symbol);
+    if (!sigma.reliable) {
       return null;
     }
     const file = POSITION_FILE_MAP[research.signal];

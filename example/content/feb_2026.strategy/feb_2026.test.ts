@@ -3,30 +3,19 @@ import {
   listenError,
   Cache,
   Log,
-  getAveragePrice,
-  Interval,
   ISignalDto,
   Position,
   listenActivePing,
-  getPositionHighestProfitMinutes,
   getPositionHighestProfitDistancePnlCost,
   commitClosePending,
   getPositionHighestMaxDrawdownPnlCost,
   getDate,
 } from "backtest-kit";
 import { errorData, getErrorMessage } from "functools-kit";
-import { run, File, extract } from "@backtest-kit/pinets";
 import { research } from "logic";
+import { predict } from 'garch';
 
 const MAX_DRAWDOWN_PERCENT = 50;
-
-const POSITION_FILE_SHORT = File.fromPath("position_short.pine", "./math");
-const POSITION_FILE_LONG = File.fromPath("position_long.pine", "./math");
-
-const POSITION_FILE_MAP = {
-  BUY: POSITION_FILE_LONG,
-  SELL: POSITION_FILE_SHORT,
-};
 
 const POSITION_LABEL_MAP = {
   BUY: "long",
@@ -41,56 +30,41 @@ const researchSource = Cache.file(
   { interval: "1h", name: "research_source" },
 );
 
-const signalSource = Interval.fn(
-  async (symbol: string, when: Date, currentPrice: number): Promise<ISignalDto> => {
-    const research = await researchSource(symbol, when, currentPrice);
-    const file = POSITION_FILE_MAP[research.signal];
-    const position = POSITION_LABEL_MAP[research.signal];
-    {
-      if (research.signal === "WAIT") {
-        return null;
-      }
-      if (!file) {
-        return null;
-      }
-      if (!position) {
-        return null;
-      }
-    }
-    const plots = await run(file, {
-      symbol,
-      timeframe: "1m",
-      limit: 100,
-    });
-    const { activate } = await extract(plots, {
-      activate: "Position",
-    });
-    if (activate !== 1) {
+const signalSource = async (
+  symbol: string,
+  when: Date,
+  currentPrice: number,
+): Promise<ISignalDto> => {
+  const research = await researchSource(symbol, when, currentPrice);
+  const position = POSITION_LABEL_MAP[research.signal];
+  {
+    if (research.signal === "WAIT") {
       return null;
     }
-    const { priceStopLoss, priceTakeProfit } = Position.moonbag({
-      position,
-      currentPrice,
-      percentStopLoss: MAX_DRAWDOWN_PERCENT,
-    });
-    console.log("signal generated", {
-      symbol,
-      when,
-      position,
-      priceStopLoss,
-      priceTakeProfit,
-    });
-    return {
-      position,
-      priceStopLoss,
-      priceTakeProfit,
-      note: `Agent research: ${research.id}`,
-    };
-  },
-  {
-    interval: "4h",
-  },
-);
+    if (!position) {
+      return null;
+    }
+  }
+  const { priceStopLoss, priceTakeProfit } = Position.moonbag({
+    position,
+    currentPrice,
+    percentStopLoss: MAX_DRAWDOWN_PERCENT,
+  });
+  console.log("signal generated", {
+    symbol,
+    when,
+    position,
+    priceStopLoss,
+    priceTakeProfit,
+    currentPrice,
+  });
+  return {
+    position,
+    priceStopLoss,
+    priceTakeProfit,
+    note: `Agent research: ${research.id}`,
+  };
+};
 
 addStrategySchema({
   strategyName: "feb_2026_strategy",
@@ -108,7 +82,8 @@ addStrategySchema({
 });
 
 listenActivePing(async ({ symbol, data }) => {
-  const peakProfitDistance = await getPositionHighestProfitDistancePnlCost(symbol);
+  const peakProfitDistance =
+    await getPositionHighestProfitDistancePnlCost(symbol);
   const peakMaxDrawdown = await getPositionHighestMaxDrawdownPnlCost(symbol);
   Log.info("position active", {
     symbol,
