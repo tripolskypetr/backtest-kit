@@ -386,7 +386,7 @@ export const StockChart = ({
       title: "TP",
     });
 
-    if (originalPriceTakeProfit != null && originalPriceTakeProfit !== priceTakeProfit) {
+    if (originalPriceTakeProfit != null && Number(originalPriceTakeProfit).toFixed(6) !== Number(priceTakeProfit).toFixed(6)) {
       lineSeries.createPriceLine({
         price: originalPriceTakeProfit,
         color: colors.green[500],

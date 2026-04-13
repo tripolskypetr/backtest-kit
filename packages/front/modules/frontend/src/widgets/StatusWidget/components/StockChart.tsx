@@ -193,7 +193,7 @@ export const StockChart = ({
         const positionColor = colors.blue[700];
 
         // Original Entry (dashed) — только если DCA сдвинул цену
-        if (originalPriceOpen !== priceOpen) {
+        if (Number(originalPriceOpen).toFixed(6) !== Number(priceOpen).toFixed(6)) {
             series.createPriceLine({
                 price: originalPriceOpen,
                 color: positionColor,
@@ -215,7 +215,7 @@ export const StockChart = ({
         });
 
         // Original SL (dashed)
-        if (originalPriceStopLoss !== priceStopLoss) {
+        if (Number(originalPriceStopLoss).toFixed(6) !== Number(priceStopLoss).toFixed(6)) {
             series.createPriceLine({
                 price: originalPriceStopLoss,
                 color: colors.red[500],
@@ -237,7 +237,7 @@ export const StockChart = ({
         });
 
         // Original TP (dashed)
-        if (originalPriceTakeProfit !== priceTakeProfit) {
+        if (Number(originalPriceTakeProfit).toFixed(6) !== Number(priceTakeProfit).toFixed(6)) {
             series.createPriceLine({
                 price: originalPriceTakeProfit,
                 color: colors.green[500],
