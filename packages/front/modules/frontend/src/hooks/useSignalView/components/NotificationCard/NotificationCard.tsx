@@ -379,6 +379,9 @@ const hasPercentShift = (
 const hasNote = (
   item: NotificationModel
 ): item is NotificationModel & { note: string } => {
+  if (item.type !== "signal.opened") {
+    return false
+  }
   return "note" in item && !!item.note;
 };
 
