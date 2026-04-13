@@ -12,6 +12,8 @@ import ExplorerMockService from "../mock/ExplorerMockService";
 
 const pathId = (p: string) => createHash("sha1").update(p).digest("hex").slice(0, 16);
 
+const IGNORED_DIRS = ["data", "agent"];
+
 const buildTree = async (
   dir: string,
   visited: Set<string>,
@@ -82,12 +84,16 @@ export class ExplorerViewService {
     }
     const dir = await this.getDir();
     const root = path.relative(process.cwd(), dir).replace(/\\/g, "/");
+    const seen = new Set<string>();
+    for (const ignore of IGNORED_DIRS) {
+      seen.add(path.join(dir, ignore));
+    }
     const rootNode: ExplorerDirectory = {
       id: pathId(root),
       path: root,
       label: path.basename(root),
       type: "directory",
-      nodes: await buildTree(dir, new Set([path.join(dir, "data")])),
+      nodes: await buildTree(dir, seen),
     };
     return [rootNode];
   };
