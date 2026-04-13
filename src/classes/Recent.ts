@@ -37,6 +37,29 @@ const RECENT_ADAPTER_METHOD_NAME_DISABLE = "RecentAdapter.disable";
 const RECENT_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL = "RecentAdapter.getLatestSignal";
 
 /**
+ * Builds a composite storage key from context parts.
+ * Includes backtest flag as the last segment to prevent live/backtest collisions.
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Strategy identifier
+ * @param exchangeName - Exchange identifier
+ * @param frameName - Frame identifier
+ * @param backtest - Flag indicating if the context is backtest or live
+ * @returns Composite key string
+ */
+const CREATE_KEY_FN = (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  frameName: FrameName,
+  backtest: boolean,
+) => {
+  const parts = [symbol, strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  parts.push(backtest ? "backtest" : "live");
+  return parts.join(":");
+};
+
+/**
  * Base interface for recent signal storage adapters.
  */
 export interface IRecentUtils {
@@ -145,29 +168,6 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
   private _signals: Map<string, IPublicSignalRow> = new Map();
 
   /**
-   * Builds a composite storage key from context parts.
-   * Includes backtest flag as the last segment to prevent live/backtest collisions.
-   * @param symbol - Trading pair symbol
-   * @param strategyName - Strategy identifier
-   * @param exchangeName - Exchange identifier
-   * @param frameName - Frame identifier
-   * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Composite key string
-   */
-  private createKeyParts = (
-    symbol: string,
-    strategyName: StrategyName,
-    exchangeName: ExchangeName,
-    frameName: FrameName,
-    backtest: boolean,
-  ) => {
-    const parts = [symbol, strategyName, exchangeName];
-    if (frameName) parts.push(frameName);
-    parts.push(backtest ? "backtest" : "live");
-    return parts.join(":");
-  }
-
-  /**
    * Handles active ping event.
    * Stores the latest signal in memory under the composite context key.
    * @param event - Active ping contract with signal data and backtest flag
@@ -176,7 +176,7 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
     lib.loggerService.info(RECENT_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
     });
-    const key = this.createKeyParts(
+    const key = CREATE_KEY_FN(
       event.symbol,
       event.strategyName,
       event.exchangeName,
@@ -202,7 +202,7 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<IPublicSignalRow | null> => {
-    const key = this.createKeyParts(
+    const key = CREATE_KEY_FN(
       symbol,
       strategyName,
       exchangeName,
@@ -290,28 +290,6 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
   /** Map of composite context keys to the latest signal */
   private _signals: Map<string, IPublicSignalRow> = new Map();
 
-  /**
-   * Builds a composite storage key from context parts.
-   * Includes backtest flag as the last segment to prevent live/backtest collisions.
-   * @param symbol - Trading pair symbol
-   * @param strategyName - Strategy identifier
-   * @param exchangeName - Exchange identifier
-   * @param frameName - Frame identifier
-   * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Composite key string
-   */
-  private createKeyParts = (
-    symbol: string,
-    strategyName: StrategyName,
-    exchangeName: ExchangeName,
-    frameName: FrameName,
-    backtest: boolean,
-  ) => {
-    const parts = [symbol, strategyName, exchangeName];
-    if (frameName) parts.push(frameName);
-    parts.push(backtest ? "backtest" : "live");
-    return parts.join(":");
-  }
 
   /**
    * Handles active ping event.
@@ -322,7 +300,7 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
     lib.loggerService.info(RECENT_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
     });
-    const key = this.createKeyParts(
+    const key = CREATE_KEY_FN(
       event.symbol,
       event.strategyName,
       event.exchangeName,
@@ -348,7 +326,7 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<IPublicSignalRow | null> => {
-    const key = this.createKeyParts(symbol, strategyName, exchangeName, frameName, backtest);
+    const key = CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest);
     lib.loggerService.info(RECENT_MEMORY_LIVE_METHOD_NAME_GET_LATEST_SIGNAL, { key });
     return this._signals.get(key) ?? null;
   };
