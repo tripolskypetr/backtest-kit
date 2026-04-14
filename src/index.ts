@@ -24,6 +24,7 @@ export {
   commitBreakeven,
   commitActivateScheduled,
   commitAverageBuy,
+  commitSignalNotify,
   getPendingSignal,
   getScheduledSignal,
   getBreakeven,
@@ -141,6 +142,8 @@ export {
   listenHighestProfitOnce,
   listenMaxDrawdown,
   listenMaxDrawdownOnce,
+  listenSignalNotify,
+  listenSignalNotifyOnce,
 } from "./function/event";
 export {
   getCandles,
@@ -301,6 +304,7 @@ export {
   SignalSyncOpenNotification,
   CancelScheduledCommitNotification,
   ClosePendingCommitNotification,
+  SignalInfoNotification,
 } from "./model/Notification.model";
 
 export { BacktestStatisticsModel } from "./model/BacktestStatistics.model";
@@ -332,6 +336,7 @@ export { SchedulePingContract } from "./contract/SchedulePing.contract";
 export { ActivePingContract } from "./contract/ActivePing.contract";
 export { HighestProfitContract } from "./contract/HighestProfit.contract";
 export { MaxDrawdownContract } from "./contract/MaxDrawdown.contract";
+export { SignalInfoContract } from "./contract/SignalInfo.contract";
 export { BreakevenContract } from "./contract/Breakeven.contract";
 
 export {
@@ -432,6 +437,10 @@ export {
 export {
   Session,
 } from "./classes/Session";
+
+export {
+  Signal,
+} from "./classes/Signal";
 
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";

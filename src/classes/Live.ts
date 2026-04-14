@@ -25,6 +25,7 @@ import { percentToCloseCost } from "../math/percentToCloseCost";
 import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
 import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "./Broker";
+import { Signal, SignalNotificationPayload } from "./Signal";
 import {
   IPositionOverlapLadder,
   POSITION_OVERLAP_LADDER_DEFAULT,
@@ -93,6 +94,7 @@ const LIVE_METHOD_NAME_TRAILING_PROFIT_COST =
   "LiveUtils.commitTrailingTakeCost";
 const LIVE_METHOD_NAME_ACTIVATE_SCHEDULED = "Live.commitActivateScheduled";
 const LIVE_METHOD_NAME_AVERAGE_BUY = "Live.commitAverageBuy";
+const LIVE_METHOD_NAME_SIGNAL_NOTIFY = "Live.commitSignalNotify";
 const LIVE_METHOD_NAME_HAS_NO_PENDING_SIGNAL =
   "LiveUtils.hasNoPendingSignal";
 const LIVE_METHOD_NAME_HAS_NO_SCHEDULED_SIGNAL =
@@ -4731,6 +4733,51 @@ export class LiveUtils {
         frameName: "",
       },
       cost,
+    );
+  };
+
+  /**
+   * Emits a `signal.info` notification for the currently active pending signal.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Market price at the time of the call
+   * @param context - Execution context with strategyName and exchangeName
+   * @param payload - Optional notification fields (notificationNote, notificationId)
+   *
+   * @throws {Error} If no active pending signal exists for the given symbol
+   *
+   * @example
+   * ```typescript
+   * await Live.commitSignalNotify("BTCUSDT", 42000, {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance",
+   * }, { notificationNote: "RSI crossed 70" });
+   * ```
+   */
+  public commitSignalNotify = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    },
+    payload: Partial<SignalNotificationPayload> = {},
+  ): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_SIGNAL_NOTIFY, {
+      symbol,
+      currentPrice,
+      context,
+    });
+    await Signal.commitSignalNotify(
+      payload,
+      symbol,
+      currentPrice,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+      false,
     );
   };
 

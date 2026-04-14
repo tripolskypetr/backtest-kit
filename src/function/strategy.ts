@@ -12,6 +12,7 @@ import { percentToCloseCost } from "../math/percentToCloseCost";
 import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
 import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "../classes/Broker";
+import { Signal, SignalNotificationPayload } from "../classes/Signal";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
 import { IPositionOverlapLadder, POSITION_OVERLAP_LADDER_DEFAULT } from "../config/ladder";
@@ -70,6 +71,7 @@ const GET_POSITION_ENTRY_OVERLAP_METHOD_NAME = "strategy.getPositionEntryOverlap
 const GET_POSITION_PARTIAL_OVERLAP_METHOD_NAME = "strategy.getPositionPartialOverlap";
 const HAS_NO_PENDING_SIGNAL_METHOD_NAME = "strategy.hasNoPendingSignal";
 const HAS_NO_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.hasNoScheduledSignal";
+const COMMIT_SIGNAL_NOTIFY_METHOD_NAME = "strategy.commitSignalNotify";
 
 /**
  * Cancels the scheduled signal without stopping the strategy.
@@ -2615,5 +2617,59 @@ export async function hasNoScheduledSignal(symbol: string): Promise<boolean> {
       symbol,
       { exchangeName, frameName, strategyName },
     )
+  );
+}
+
+/**
+ * Emits a `signal.info` notification for the currently active pending signal.
+ *
+ * Broadcasts a user-defined informational note without affecting position state.
+ * Useful for annotating strategy decisions, triggering external alerts, or logging
+ * mid-position events (e.g. RSI crossing a threshold, volume spike detected).
+ *
+ * Automatically reads backtest/live mode from execution context.
+ * Automatically reads strategyName, exchangeName, frameName from method context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+ * @param payload - Optional notification fields
+ * @param payload.notificationNote - Human-readable note. Falls back to signal.note if omitted.
+ * @param payload.notificationId - Optional correlation ID for external systems (e.g. Telegram message ID).
+ *
+ * @throws {Error} If called outside an execution context
+ * @throws {Error} If called outside a method context
+ * @throws {Error} If no active pending signal exists for the given symbol
+ *
+ * @example
+ * ```typescript
+ * import { commitSignalNotify } from "backtest-kit";
+ *
+ * // Inside onActivePing callback:
+ * await commitSignalNotify("BTCUSDT", {
+ *   notificationNote: "RSI crossed 70, consider closing",
+ *   notificationId: "msg-123",
+ * });
+ * ```
+ */
+export async function commitSignalNotify(
+  symbol: string,
+  payload: Partial<SignalNotificationPayload> = {},
+): Promise<void> {
+  backtest.loggerService.info(COMMIT_SIGNAL_NOTIFY_METHOD_NAME, { symbol, payload });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitSignalNotify requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitSignalNotify requires a method context");
+  }
+  const currentPrice = await getAveragePrice(symbol);
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  await Signal.commitSignalNotify(
+    payload,
+    symbol,
+    currentPrice,
+    { strategyName, exchangeName, frameName },
+    isBacktest,
   );
 }

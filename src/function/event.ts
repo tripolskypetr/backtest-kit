@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -18,6 +18,7 @@ import { queued } from "functools-kit";
 import SignalSyncContract from "../contract/SignalSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
+import { SignalInfoContract } from "../contract/SignalInfo.contract";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
 const LISTEN_SIGNAL_ONCE_METHOD_NAME = "event.listenSignalOnce";
@@ -60,6 +61,8 @@ const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
 const LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME = "event.listenMaxDrawdownOnce";
+const LISTEN_SIGNAL_NOTIFY_METHOD_NAME = "event.listenSignalNotify";
+const LISTEN_SIGNAL_NOTIFY_ONCE_METHOD_NAME = "event.listenSignalNotifyOnce";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -1660,4 +1663,59 @@ export function listenMaxDrawdownOnce(
   };
 
   return disposeFn = listenMaxDrawdown(wrappedFn);
+}
+
+/**
+ * Subscribes to signal info events with queued async processing.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * @param fn - Callback function to handle signal info events
+ * @return Unsubscribe function to stop listening to events
+ */
+export function listenSignalNotify(fn: (event: SignalInfoContract) => void) {
+  backtest.loggerService.log(LISTEN_SIGNAL_NOTIFY_METHOD_NAME);
+
+  const wrappedFn = async (event: SignalInfoContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return signalNotifySubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered signal info events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+export function listenSignalNotifyOnce(
+  filterFn: (event: SignalInfoContract) => boolean,
+  fn: (event: SignalInfoContract) => void
+) {
+  backtest.loggerService.log(LISTEN_SIGNAL_NOTIFY_ONCE_METHOD_NAME);
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: SignalInfoContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSignalNotify(wrappedFn);
 }

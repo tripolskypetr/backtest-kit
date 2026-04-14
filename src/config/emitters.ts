@@ -17,6 +17,7 @@ import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import SignalSyncContract from "../contract/SignalSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
+import { SignalInfoContract } from "../contract/SignalInfo.contract";
 
 /**
  * Exchange signal synchronization emitter.
@@ -203,3 +204,9 @@ export const highestProfitSubject = new Subject<HighestProfitContract>();
  * Allows users to track drawdown levels and implement custom risk management logic based on drawdown thresholds.
  */
 export const maxDrawdownSubject = new Subject<MaxDrawdownContract>();
+
+/**
+ * Signal info emitter for user-defined informational notes on open positions.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a custom annotation.
+ */
+export const signalNotifySubject = new Subject<SignalInfoContract>();

@@ -22,6 +22,7 @@ import {
   strategyCommitSubject,
   syncSubject,
   validationSubject,
+  signalNotifySubject,
 } from "../config/emitters";
 import { backtest } from "../lib";
 
@@ -51,6 +52,7 @@ const SUBJECT_ISOLATION_LIST: Subject<unknown>[] = [
   strategyCommitSubject,
   syncSubject,
   validationSubject,
+  signalNotifySubject,
 ];
 
 /** Event key type accepted by EventEmitter */

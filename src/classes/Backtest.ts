@@ -20,6 +20,7 @@ import { percentToCloseCost } from "../math/percentToCloseCost";
 import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
 import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "./Broker";
+import { Signal, SignalNotificationPayload } from "./Signal";
 import {
   IPositionOverlapLadder,
   POSITION_OVERLAP_LADDER_DEFAULT,
@@ -119,6 +120,7 @@ const BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST =
 const BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED =
   "Backtest.commitActivateScheduled";
 const BACKTEST_METHOD_NAME_AVERAGE_BUY = "Backtest.commitAverageBuy";
+const BACKTEST_METHOD_NAME_SIGNAL_NOTIFY = "Backtest.commitSignalNotify";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 const BACKTEST_METHOD_NAME_HAS_NO_PENDING_SIGNAL =
   "BacktestUtils.hasNoPendingSignal";
@@ -4618,6 +4620,49 @@ export class BacktestUtils {
       currentPrice,
       context,
       cost,
+    );
+  };
+
+  /**
+   * Emits a `signal.info` notification for the currently active pending signal.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Market price at the time of the call
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @param payload - Optional notification fields (notificationNote, notificationId)
+   *
+   * @throws {Error} If no active pending signal exists for the given symbol
+   *
+   * @example
+   * ```typescript
+   * await Backtest.commitSignalNotify("BTCUSDT", 42000, {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance",
+   *   frameName: "1h"
+   * }, { notificationNote: "RSI crossed 70" });
+   * ```
+   */
+  public commitSignalNotify = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    payload: Partial<SignalNotificationPayload> = {},
+  ): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_SIGNAL_NOTIFY, {
+      symbol,
+      currentPrice,
+      context,
+    });
+    await Signal.commitSignalNotify(
+      payload,
+      symbol,
+      currentPrice,
+      context,
+      true,
     );
   };
 

@@ -1219,6 +1219,71 @@ export interface ClosePendingCommitNotification {
 }
 
 /**
+ * Signal info notification.
+ * Emitted when a strategy broadcasts a user-defined informational note for an open position.
+ */
+export interface SignalInfoNotification {
+  /** Discriminator for type-safe union */
+  type: "signal.info";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the info event was emitted */
+  timestamp: number;
+  /** Whether this notification is from backtest mode (true) or live mode (false) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /** Current market price when the info event was emitted */
+  currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price for the position */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Unrealized PNL at the moment the info event was emitted (from data.pnl) */
+  pnl: IStrategyPnL;
+  /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation (adjusted with slippage and fees) */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** User-defined informational note provided by the strategy */
+  note: string;
+  /** Optional user-defined identifier for correlating this notification with external systems */
+  notificationId?: string;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
  * Root discriminated union of all notification types.
  * Type discrimination is done via the `type` field.
  *
@@ -1266,6 +1331,7 @@ export type NotificationModel =
   | SignalCancelledNotification
   | InfoErrorNotification
   | CriticalErrorNotification
-  | ValidationErrorNotification;
+  | ValidationErrorNotification
+  | SignalInfoNotification;
 
 export default NotificationModel;
