@@ -79,6 +79,8 @@ const getNotificationColor = (item: NotificationModel): string => {
       return "#FF9800";
     case "error.critical":
       return "#D32F2F";
+    case "signal.info":
+      return "#9C27B0";
     default:
       return "#9E9E9E";
   }
@@ -126,6 +128,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <NotificationImportant sx={sx} />;
     case "error.critical":
       return <ErrorIcon sx={sx} />;
+    case "signal.info":
+      return <NotificationImportant sx={sx} />;
     default:
       return <WarningIcon sx={sx} />;
   }
@@ -177,6 +181,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Validation")}: ${item.message}`;
     case "error.critical":
       return `${t("Critical")}: ${item.message}`;
+    case "signal.info":
+      return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%)`;
     default:
       return t("Unknown");
   }
@@ -228,6 +234,8 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Validation Error");
     case "error.critical":
       return t("Critical Error");
+    case "signal.info":
+      return t("Signal Info");
     default:
       return t("Unknown");
   }
@@ -382,6 +390,9 @@ const hasNote = (
 ): item is NotificationModel & { note: string } => {
   if (item.type === "signal.opened") {
     return "note" in item && !!item.note;
+  }
+  if (item.type === "signal.info") {
+    return "note" in item && !!item.note && !!item.notificationId;
   }
   if (item.type === "activate_scheduled.commit") {
     return "note" in item && !!item.note && !!item.activateId;
