@@ -5,7 +5,7 @@ import {
   IOutlineHistory,
 } from "agent-swarm-kit";
 import { Cache } from "backtest-kit";
-import { str, trycatch } from "functools-kit";
+import { not, str, trycatch } from "functools-kit";
 import { OutlineName } from "../../enum/OutlineName";
 import { CompletionName } from "../../enum/CompletionName";
 import { AdvisorName } from "../../enum/AdvisorName";
@@ -61,7 +61,6 @@ const commitAssetNews = Cache.fn(
       if (typeof report === "symbol") {
         throw new Error("AssetNewsAdvisor failed");
       }
-      console.log("Asset news report:", report);
       await history.push(
         {
           role: "user",
@@ -73,9 +72,11 @@ const commitAssetNews = Cache.fn(
         },
         { role: "assistant", content: "ОК" },
       );
+      return true;
     },
     {
       fallback: () => commitAssetNews.clear(),
+      defaultValue: false,
     },
   ),
   {
@@ -96,7 +97,6 @@ const commitGlobalNews = Cache.fn(
       if (typeof report === "symbol") {
         throw new Error("GlobalNewsAdvisor failed");
       }
-      console.log("Global news report:", report);
       await history.push(
         {
           role: "user",
@@ -108,9 +108,11 @@ const commitGlobalNews = Cache.fn(
         },
         { role: "assistant", content: "ОK" },
       );
+      return true;
     },
     {
       fallback: () => commitGlobalNews.clear(),
+      defaultValue: false,
     },
   ),
   {
@@ -126,7 +128,9 @@ const commitStockData = async (
     contract,
     AdvisorName.StockDataAdvisor,
   );
-  if (!report) throw new Error("StockDataAdvisor failed");
+  if (!report) {
+    throw new Error("StockDataAdvisor failed");
+  }
   await history.push(
     {
       role: "user",
@@ -193,23 +197,35 @@ addOutline<ResearchResponseContract>({
       history,
     );
 
-    await commitAssetNews(
-      {
-        resultId,
-        date: when,
-        query: displayName,
-      },
-      history,
-    );
+    if (
+      await not(
+        commitAssetNews(
+          {
+            resultId,
+            date: when,
+            query: displayName,
+          },
+          history,
+        ),
+      )
+    ) {
+      throw new Error("Fetch asset news failed");
+    }
 
-    await commitGlobalNews(
-      {
-        resultId,
-        date: when,
-        query: displayName,
-      },
-      history,
-    );
+    if (
+      await not(
+        commitGlobalNews(
+          {
+            resultId,
+            date: when,
+            query: displayName,
+          },
+          history,
+        ),
+      )
+    ) {
+      throw new Error("Fetch global news failed");
+    }
 
     await history.push({ role: "user", content: RESEARCH_PROMPT });
   },
