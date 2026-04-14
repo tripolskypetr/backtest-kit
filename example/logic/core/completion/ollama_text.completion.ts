@@ -5,11 +5,14 @@ import {
 } from "agent-swarm-kit";
 import { CompletionName } from "../../enum/CompletionName";
 import { Message } from "ollama";
-import { randomString, retry } from "functools-kit";
+import { randomString, retry, sleep } from "functools-kit";
 import { getOllama } from "../../config/ollama";
 
 const COMPLETION_MAX_RETRIES = 5;
 const COMPLETION_RETRY_DELAY = 5_000;
+
+const COMPLETION_TIMEOUT = 20_000;
+const COMPLETION_TIMEOUT_SYMBOL = Symbol("COMPLETION_TIMEOUT");
 
 const MODEL_NAME = "minimax-m2.7:cloud";
 
@@ -23,18 +26,25 @@ const fetchCompletion = retry(async ({
 
   const ollama = getOllama();
 
-  const response = await ollama.chat({
-    model: MODEL_NAME,
-    messages: messages.map((message) => ({
-      content: message.content,
-      role: message.role,
-      tool_calls: message.tool_calls?.map((call) => ({
-        function: call.function,
+  const response = await Promise.race([
+    ollama.chat({
+      model: MODEL_NAME,
+      messages: messages.map((message) => ({
+        content: message.content,
+        role: message.role,
+        tool_calls: message.tool_calls?.map((call) => ({
+          function: call.function,
+        })),
       })),
-    })),
-    tools,
-    think: false,
-  });
+      tools,
+      think: false,
+    }),
+    sleep(COMPLETION_TIMEOUT).then(() => COMPLETION_TIMEOUT_SYMBOL)
+  ]);
+
+  if (typeof response === "symbol") {
+    throw new Error("Completion timed out");
+  }
 
   const message: Message = response.message;
 

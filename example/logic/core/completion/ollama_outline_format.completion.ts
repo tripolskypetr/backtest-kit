@@ -8,11 +8,14 @@ import { CompletionName } from "../../enum/CompletionName";
 import { Message } from "ollama";
 import { getOllama } from "../../config/ollama";
 import { jsonrepair } from "jsonrepair";
-import { retry } from "functools-kit";
+import { retry, sleep } from "functools-kit";
 
 const COMPLETION_MAX_ATTEMPTS = 3;
 const COMPLETION_MAX_RETRIES = 5;
 const COMPLETION_RETRY_DELAY = 5_000;
+
+const COMPLETION_TIMEOUT = 20_000;
+const COMPLETION_TIMEOUT_SYMBOL = Symbol("COMPLETION_TIMEOUT");
 
 const MODEL_NAME = "minimax-m2.7:cloud";
 
@@ -32,18 +35,25 @@ const fetchCompletion = retry(async ({
           ? (Reflect.get(format, "json_schema.schema") ?? format)
           : format;
 
-      const response = await ollama.chat({
-        model: MODEL_NAME,
-        messages: messages.map((message) => ({
-          content: message.content,
-          role: message.role,
-          tool_calls: message.tool_calls?.map((call) => ({
-            function: call.function,
+      const response = await Promise.race([
+        ollama.chat({
+          model: MODEL_NAME,
+          messages: messages.map((message) => ({
+            content: message.content,
+            role: message.role,
+            tool_calls: message.tool_calls?.map((call) => ({
+              function: call.function,
+            })),
           })),
-        })),
-        format: schema,
-        think: false,
-      });
+          format: schema,
+          think: false,
+        }),
+        sleep(COMPLETION_TIMEOUT).then(() => COMPLETION_TIMEOUT_SYMBOL)
+      ]);
+
+      if (typeof response === "symbol") {
+        throw new Error("Completion timed out");
+      }
 
       const message: Message = response.message;
 
