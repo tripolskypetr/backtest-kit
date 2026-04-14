@@ -12,6 +12,7 @@ const CACHE_METHOD_NAME_RUN = "CacheFnInstance.run";
 const CACHE_METHOD_NAME_FN = "CacheUtils.fn";
 const CACHE_METHOD_NAME_FN_CLEAR = "CacheUtils.fn.clear";
 const CACHE_METHOD_NAME_FN_GC = "CacheUtils.fn.gc";
+const CACHE_METHOD_NAME_FN_HAS_VALUE = "CacheUtils.fn.hasValue";
 const CACHE_METHOD_NAME_FILE = "CacheUtils.file";
 const CACHE_METHOD_NAME_FILE_CLEAR = "CacheUtils.file.clear";
 const CACHE_METHOD_NAME_DISPOSE = "CacheUtils.dispose";
@@ -267,6 +268,42 @@ export class CacheFnInstance<T extends Function = Function, K = string> {
         this._cacheMap.delete(key);
       }
     }
+  };
+
+  /**
+   * Check whether a valid (non-expired) cache entry exists for the current context and arguments.
+   *
+   * Returns `true` if a cached value exists and its interval is still current.
+   * Returns `false` if there is no entry or the cached entry has expired.
+   *
+   * Requires active execution context and method context.
+   *
+   * @param args - Arguments to look up in the cache
+   * @returns `true` if a fresh cached value exists, `false` otherwise
+   */
+  public hasValue = (...args: Parameters<T>): boolean => {
+    if (!MethodContextService.hasContext()) {
+      return false;
+    }
+    if (!ExecutionContextService.hasContext()) {
+      return false;
+    }
+    const contextKey = CREATE_KEY_FN(
+      backtest.methodContextService.context.strategyName,
+      backtest.methodContextService.context.exchangeName,
+      backtest.methodContextService.context.frameName,
+      backtest.executionContextService.context.backtest
+    );
+    const argKey = String(this.key(args));
+    const key = `${contextKey}:${argKey}`;
+    const cached = this._cacheMap.get(key);
+    if (!cached) {
+      return false;
+    }
+    const currentWhen = backtest.executionContextService.context.when;
+    const currentAligned = align(currentWhen.getTime(), this.interval);
+    const cachedAligned = align(cached.when.getTime(), this.interval);
+    return currentAligned === cachedAligned;
   };
 
   /**
@@ -541,7 +578,7 @@ export class CacheUtils {
       interval: CandleInterval;
       key?: (args: Parameters<T>) => K;
     }
-  ): T & { clear(): void; gc(): number | undefined } => {
+  ): T & { clear(): void; gc(): number | undefined; hasValue(...args: Parameters<T>): boolean } => {
     backtest.loggerService.info(CACHE_METHOD_NAME_FN, {
       context,
     });
@@ -573,7 +610,20 @@ export class CacheUtils {
       return this._getFnInstance.get(run)?.gc();
     };
 
-    return wrappedFn as unknown as T & { clear(): void; gc(): number | undefined };
+    wrappedFn.hasValue = (...args: Parameters<T>): boolean => {
+      backtest.loggerService.info(CACHE_METHOD_NAME_FN_HAS_VALUE);
+      if (!MethodContextService.hasContext()) {
+        backtest.loggerService.warn(`${CACHE_METHOD_NAME_FN_HAS_VALUE} called without method context, skipping`);
+        return false;
+      }
+      if (!ExecutionContextService.hasContext()) {
+        backtest.loggerService.warn(`${CACHE_METHOD_NAME_FN_HAS_VALUE} called without execution context, skipping`);
+        return false;
+      }
+      return this._getFnInstance.get(run)?.hasValue(...args) ?? false;
+    };
+
+    return wrappedFn as unknown as T & { clear(): void; gc(): number | undefined; hasValue(...args: Parameters<T>): boolean };
   };
 
   /**

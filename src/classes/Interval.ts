@@ -10,6 +10,7 @@ const INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN = "IntervalFileInstance.run";
 const INTERVAL_METHOD_NAME_FN = "IntervalUtils.fn";
 const INTERVAL_METHOD_NAME_FN_CLEAR = "IntervalUtils.fn.clear";
 const INTERVAL_METHOD_NAME_FN_GC = "IntervalUtils.fn.gc";
+const INTERVAL_METHOD_NAME_FN_HAS_VALUE = "IntervalUtils.fn.hasValue";
 const INTERVAL_METHOD_NAME_FILE = "IntervalUtils.file";
 const INTERVAL_METHOD_NAME_FILE_CLEAR = "IntervalUtils.file.clear";
 const INTERVAL_METHOD_NAME_DISPOSE = "IntervalUtils.dispose";
@@ -247,6 +248,37 @@ export class IntervalFnInstance<F extends Function = Function> {
   };
 
   /**
+   * Check whether the function has already fired for the current interval and context.
+   *
+   * Returns `true` if the function fired (non-null result) within the current interval boundary.
+   * Returns `false` if there is no recorded firing for this interval.
+   *
+   * Requires active method context and execution context.
+   *
+   * @param args - Arguments to look up in the state map
+   * @returns `true` if the function has already fired this interval, `false` otherwise
+   */
+  public hasValue = (...args: Parameters<F>): boolean => {
+    if (!MethodContextService.hasContext()) {
+      return false;
+    }
+    if (!ExecutionContextService.hasContext()) {
+      return false;
+    }
+    const contextKey = CREATE_KEY_FN(
+      backtest.methodContextService.context.strategyName,
+      backtest.methodContextService.context.exchangeName,
+      backtest.methodContextService.context.frameName,
+      backtest.executionContextService.context.backtest
+    );
+    const currentWhen = backtest.executionContextService.context.when;
+    const currentAligned = align(currentWhen.getTime(), this.interval);
+    const argKey = this.key(args);
+    const stateKey = `${contextKey}:${argKey}`;
+    return this._stateMap.get(stateKey) === currentAligned;
+  };
+
+  /**
    * Garbage collect expired state entries.
    *
    * Removes all entries whose aligned timestamp differs from the current interval boundary.
@@ -468,7 +500,7 @@ export class IntervalUtils {
   public fn = <F extends Function>(
     run: F,
     context: { interval: CandleInterval; key?: (args: Parameters<F>) => string }
-  ): F & { clear(): void; gc(): number | undefined } => {
+  ): F & { clear(): void; gc(): number | undefined; hasValue(...args: Parameters<F>): boolean } => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_FN, { context });
 
     const wrappedFn = (...args: Parameters<F>): ReturnType<F> => {
@@ -498,7 +530,20 @@ export class IntervalUtils {
       return this._getInstance.get(run)?.gc();
     };
 
-    return wrappedFn as unknown as F & { clear(): void; gc(): number | undefined };
+    wrappedFn.hasValue = (...args: Parameters<F>): boolean => {
+      backtest.loggerService.info(INTERVAL_METHOD_NAME_FN_HAS_VALUE);
+      if (!MethodContextService.hasContext()) {
+        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_HAS_VALUE} called without method context, skipping`);
+        return false;
+      }
+      if (!ExecutionContextService.hasContext()) {
+        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_HAS_VALUE} called without execution context, skipping`);
+        return false;
+      }
+      return this._getInstance.get(run)?.hasValue(...args) ?? false;
+    };
+
+    return wrappedFn as unknown as F & { clear(): void; gc(): number | undefined; hasValue(...args: Parameters<F>): boolean };
   };
 
   /**
