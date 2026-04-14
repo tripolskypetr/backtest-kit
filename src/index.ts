@@ -429,6 +429,10 @@ export {
   TLogCtor,
 } from "./classes/Log";
 
+export {
+  Session,
+} from "./classes/Session";
+
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
 export { Schedule } from "./classes/Schedule";
