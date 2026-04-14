@@ -1,4 +1,4 @@
 import "./config/setup";
 import "./core";
 
-export { grid } from "./main/grid";
+export { research } from "./main/research";

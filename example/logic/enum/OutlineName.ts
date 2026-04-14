@@ -1,5 +1,5 @@
 enum OutlineName {
-    GridOutline = "grid_outline",
+    ResearchOutline = "research_outline",
 }
 
 export { OutlineName }

@@ -1,6 +1,6 @@
 import { runInMockContext } from "backtest-kit";
 
-import { grid } from "../logic";
+import { research } from "../logic";
 
 import { addExchangeSchema, roundTicks } from "backtest-kit";
 import { singleshot } from "functools-kit";
@@ -60,7 +60,7 @@ addExchangeSchema({
 
 
 runInMockContext(async () => {
-  console.log(await grid("BTCUSDT", new Date("2026-04-05T11:00:00.000Z")));
+  console.log(await research("BTCUSDT", new Date("2026-04-05T11:00:00.000Z")));
 }, {
     when: new Date("2026-04-05T11:00:00.000Z"),
     symbol: "BTCUSDT",
