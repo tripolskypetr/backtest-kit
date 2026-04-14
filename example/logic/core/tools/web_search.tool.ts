@@ -8,6 +8,7 @@ import { ERROR_SYMBOL } from "../../config/constant";
 
 const SEARCH_MAX_RESULTS = 10;
 const SEARCH_RETRY_COUNT = 5;
+const SEARCH_RETRY_DELAY = 5_000;
 
 const fetchNews = retry(async (query: string) => {
   const ollama = getOllama();
@@ -16,7 +17,7 @@ const fetchNews = retry(async (query: string) => {
     maxResults: SEARCH_MAX_RESULTS,
   });
   return JSON.stringify(results, null, 2);
-}, SEARCH_RETRY_COUNT);
+}, SEARCH_RETRY_COUNT, SEARCH_RETRY_DELAY);
 
 addTool<WebSearchRequestContract>({
   toolName: ToolName.WebSearchTool,

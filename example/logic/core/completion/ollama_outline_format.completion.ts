@@ -10,8 +10,9 @@ import { getOllama } from "../../config/ollama";
 import { jsonrepair } from "jsonrepair";
 import { retry } from "functools-kit";
 
-const MAX_ATTEMPTS = 3;
-const MAX_RETRIES = 5;
+const COMPLETION_MAX_ATTEMPTS = 3;
+const COMPLETION_MAX_RETRIES = 5;
+const COMPLETION_RETRY_DELAY = 5_000;
 
 const MODEL_NAME = "minimax-m2.7:cloud";
 
@@ -24,7 +25,7 @@ const fetchCompletion = retry(async ({
   const ollama = getOllama();
   let attempt = 0;
 
-  while (attempt < MAX_ATTEMPTS) {
+  while (attempt < COMPLETION_MAX_ATTEMPTS) {
     try {
       const schema =
         "json_schema" in format
@@ -70,7 +71,7 @@ const fetchCompletion = retry(async ({
   }
 
   throw new Error("Model failed to use tool after maximum attempts");
-}, MAX_RETRIES);
+}, COMPLETION_MAX_RETRIES, COMPLETION_RETRY_DELAY);
 
 addCompletion({
   completionName: CompletionName.OllamaOutlineFormatCompletion,

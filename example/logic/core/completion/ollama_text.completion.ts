@@ -8,7 +8,8 @@ import { Message } from "ollama";
 import { randomString, retry } from "functools-kit";
 import { getOllama } from "../../config/ollama";
 
-const MAX_RETRIES = 5;
+const COMPLETION_MAX_RETRIES = 5;
+const COMPLETION_RETRY_DELAY = 5_000;
 
 const MODEL_NAME = "minimax-m2.7:cloud";
 
@@ -53,7 +54,7 @@ const fetchCompletion = retry(async ({
   response.message.thinking && Reflect.set(result, "_thinking", response.message.thinking);
 
   return result;
-}, MAX_RETRIES);
+}, COMPLETION_MAX_RETRIES, COMPLETION_RETRY_DELAY);
 
 addCompletion({
   completionName: CompletionName.OllamaTextCompletion,
