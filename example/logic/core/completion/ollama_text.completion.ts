@@ -33,7 +33,7 @@ const fetchCompletion = retry(async ({
       })),
     })),
     tools,
-    think: true,
+    think: false,
   });
 
   const message: Message = response.message;

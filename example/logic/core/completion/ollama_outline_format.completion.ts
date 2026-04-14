@@ -42,7 +42,7 @@ const fetchCompletion = retry(async ({
           })),
         })),
         format: schema,
-        think: true,
+        think: false,
       });
 
       const message: Message = response.message;

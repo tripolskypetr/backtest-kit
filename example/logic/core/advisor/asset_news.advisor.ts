@@ -9,26 +9,29 @@ import { str } from "functools-kit";
 import { AdvisorName } from "../../enum/AdvisorName";
 import { SwarmName } from "../../enum/SwarmName";
 import dayjs from "dayjs";
-import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
+import utc from "dayjs/plugin/utc";
+import { WebSearchRequestContract } from "logic/contract/WebSearchRequest.contract";
+dayjs.extend(utc);
 
 const SEARCH_PROMPT = str.newline(
-  "Новости по конкретному активу за последний час — настроения рынка, события, sentiment.",
+  "Новости по конкретному активу за последние 8 часов — события, sentiment, крупные движения.",
   "",
   "Искомые метрики (запросы для web_search):",
-  " - Bitcoin news last hour {datetime}",
+  " - Bitcoin news last 8 hours {datetime}",
   " - BTC breaking news {datetime}",
   " - Bitcoin ETF flow {datetime}",
   " - Bitcoin whale alert {datetime}",
   " - BTC exchange inflow outflow {datetime}",
   " - Bitcoin hack exploit {datetime}",
   " - BTC liquidations {datetime}",
+  " - Bitcoin institutional buy sell {datetime}",
   "",
-  "Влияние на краткосрочное движение цены (1 час):",
+  "Влияние на построение сетки (8-часовой горизонт):",
   "🐂 БЫЧЬЕ:",
   " - Крупный институциональный buy / ETF inflow",
   " - Позитивное регуляторное заявление",
   " - Whale accumulation on-chain",
-  " - Squeeze шортов (short liquidation cascade)",
+  " - Short squeeze / ликвидация шортов",
   "🐻 МЕДВЕЖЬЕ:",
   " - Взлом биржи / протокола",
   " - Крупный ETF outflow",
@@ -39,32 +42,28 @@ const SEARCH_PROMPT = str.newline(
 addAdvisor({
   advisorName: AdvisorName.AssetNewsAdvisor,
   getChat: async ({ resultId, date, query }: WebSearchRequestContract) => {
-    console.log(`HourlyAssetNewsAdvisor called with query: ${query}, date: ${date}`);
+    console.log(`AssetNewsAdvisor called with query: ${query}, date: ${date}`);
     return await fork(
       async (clientId, agentName) => {
         await commitUserMessage(
-          str.newline("Прочитай что именно мне нужно найти и скажи ОK", "", SEARCH_PROMPT),
+          str.newline("Прочитай что именно мне нужно найти и скажи ОК", "", SEARCH_PROMPT),
           "user",
           clientId,
           agentName,
         );
-
         await commitAssistantMessage("OK", clientId, agentName);
-
         const request = str.newline(
           `Найди в интернете нужную мне информацию для ${query}`,
           `Дай только последние новости актуальные на ${dayjs.utc(date).format("DD MMMM YYYY HH:mm")} UTC`,
-          `Ищи новости за последний час`,
+          `Ищи новости за последние 8 часов`,
           `Сформируй отчет влияющий на краткосрочное движение цены`,
         );
-
         return await execute(request, clientId, agentName);
       },
       {
-        clientId: `${resultId}_hourly-asset-news`,
+        clientId: `${resultId}_asset-news`,
         swarmName: SwarmName.WebSearchSwarm,
-        onError: (error) =>
-          console.error(`Error in HourlyAssetNewsAdvisor for query ${query}:`, error),
+        onError: (error) => console.error(`Error in AssetNewsAdvisor for query ${query}:`, error),
       },
     );
   },

@@ -58,7 +58,7 @@ const fetchCompletion = retry(async ({
       model: MODEL_NAME,
       messages,
       tools: [toolDefinition],
-      think: true,
+      think: false,
     });
 
     const { tool_calls } = response.message;
