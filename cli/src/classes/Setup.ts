@@ -91,6 +91,19 @@ export class SetupUtils {
     this.enable.clear();
 
     {
+      Recent.disable();
+      Storage.disable();
+      Notification.disable();
+    }
+
+    {
+      Markdown.disable();
+      Report.disable();
+      Dump.disable();
+      Memory.disable();
+    }
+
+    {
       PersistSignalAdapter.clear();
       PersistRiskAdapter.clear();
       PersistScheduleAdapter.clear();
