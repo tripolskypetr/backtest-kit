@@ -9,11 +9,9 @@ import {
 } from "../../../config/params";
 import ExplorerMockService from "../mock/ExplorerMockService";
 import {
-    ExplorerData,
     ExplorerFile,
     ExplorerNode,
 } from "../../../model/Explorer.model";
-import ExplorerHelperService from "../helpers/ExplorerHelperService";
 
 const TTL_TIMEOUT = 45_000;
 
@@ -22,15 +20,12 @@ export class ExplorerViewService {
     private readonly explorerMockService = inject<ExplorerMockService>(
         TYPES.explorerMockService,
     );
-    private readonly explorerHelperService = inject<ExplorerHelperService>(
-        TYPES.explorerHelperService,
-    );
 
-    private getFolderTreeRaw = ttl(
+    public getFolderTree = ttl(
         async (): Promise<ExplorerNode[]> => {
             this.loggerService.log("explorerViewService getFolderTreeRaw");
             if (CC_ENABLE_MOCK) {
-                return await this.explorerMockService.getFolderTreeRaw();
+                return await this.explorerMockService.getFolderTree();
             }
             const { data, error } = await fetchApi(
                 "/api/v1/explorer_view/tree",
@@ -48,23 +43,6 @@ export class ExplorerViewService {
                 throw new Error(error);
             }
             return data;
-        },
-        {
-            timeout: TTL_TIMEOUT,
-        },
-    );
-
-    public getFolderTree = ttl(
-        async (): Promise<ExplorerData> => {
-            this.loggerService.log("explorerViewService getFolderTree");
-            if (CC_ENABLE_MOCK) {
-                return await this.explorerMockService.getFolderTree();
-            }
-            const raw = await this.getFolderTreeRaw();
-            return {
-                record: this.explorerHelperService.treeToRecord(raw),
-                map: this.explorerHelperService.treeToMap(raw),
-            };
         },
         {
             timeout: TTL_TIMEOUT,
@@ -119,7 +97,6 @@ export class ExplorerViewService {
         if (CC_ENABLE_MOCK) {
             this.explorerMockService.clear();
         }
-        this.getFolderTreeRaw.clear();
         this.getFolderTree.clear();
     };
 }

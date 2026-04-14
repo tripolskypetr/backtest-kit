@@ -7,21 +7,16 @@ import {
     CC_USER_ID,
 } from "../../../config/params";
 import {
-    ExplorerData,
     ExplorerFile,
     ExplorerNode,
 } from "../../../model/Explorer.model";
-import ExplorerHelperService from "../helpers/ExplorerHelperService";
 
 const TTL_TIMEOUT = 45_000;
 
 export class ExplorerMockService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-    private readonly explorerHelperService = inject<ExplorerHelperService>(
-        TYPES.explorerHelperService,
-    );
 
-    public getFolderTreeRaw = ttl(
+    public getFolderTree = ttl(
         async (): Promise<ExplorerNode[]> => {
             this.loggerService.log("explorerMockService getFolderTreeRaw");
             const { data, error } = await fetchApi(
@@ -40,20 +35,6 @@ export class ExplorerMockService {
                 throw new Error(error);
             }
             return data;
-        },
-        {
-            timeout: TTL_TIMEOUT,
-        },
-    );
-
-    public getFolderTree = ttl(
-        async (): Promise<ExplorerData> => {
-            this.loggerService.log("explorerMockService getFolderTree");
-            const raw = await this.getFolderTreeRaw();
-            return {
-                record: this.explorerHelperService.treeToRecord(raw),
-                map: this.explorerHelperService.treeToMap(raw),
-            };
         },
         {
             timeout: TTL_TIMEOUT,
@@ -99,10 +80,7 @@ export class ExplorerMockService {
 
     public clear = () => {
         this.loggerService.log("explorerMockService clear");
-        {
-            this.getFolderTreeRaw.clear();
-            this.getFolderTree.clear();
-        }
+        this.getFolderTree.clear();
     };
 }
 

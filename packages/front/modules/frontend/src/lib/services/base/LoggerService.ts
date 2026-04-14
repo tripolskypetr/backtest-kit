@@ -3,7 +3,7 @@ import { Subject } from "react-declarative";
 export class LoggerService {
   private readonly reloadSubject = new Subject<void>();
 
-  _enabled = false;
+  _enabled = true;
 
   public error = (error: Error) => {
     console.error(error);
