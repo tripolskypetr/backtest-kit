@@ -295,6 +295,9 @@ const handleNotificationClick = (item: NotificationModel) => {
     case "close_pending.commit":
       ioc.layoutService.pickClosePending(item.id);
       break;
+    case "signal.info":
+      ioc.layoutService.pickSignalNotify(item.id);
+      break;
   }
 };
 
