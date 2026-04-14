@@ -127,7 +127,7 @@ const listItems = async (search: string, nodes: ExplorerNode[]) => {
             result.push(node);
         }
         if (++chunk % CHUNK_SIZE === 0) {
-            await sleep();
+            await sleep(0);
         }
         if (result.length > MAX_ROWS) {
             break;
