@@ -12,6 +12,7 @@ import {
   getAveragePrice,
   getSymbol,
   getPendingSignal,
+  getDate,
 } from "backtest-kit";
 import { errorData, getErrorMessage, not, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
@@ -25,14 +26,16 @@ const POSITION_LABEL_MAP = {
   WAIT: "wait",
 } as const;
 
+const researchFetch = Cache.file(
+  async (symbol: string, when: Date, currentPrice: number) => {
+    const result = await research(symbol, when);
+    return { ...result, currentPrice };
+  },
+  { interval: "1h", name: "research_source" },
+);
+
 const researchSource = sourceNode(
-  Cache.file(
-    async (symbol: string, when: Date, currentPrice: number) => {
-      const result = await research(symbol, when);
-      return { ...result, currentPrice };
-    },
-    { interval: "1h", name: "research_source" },
-  )
+  researchFetch,
 );
 
 const positionOutput = outputNode(
@@ -63,6 +66,11 @@ const reversalOutput = outputNode(
 addStrategySchema({
   strategyName: "feb_2026_strategy",
   getSignal: async (symbol, when, currentPrice) => {
+
+    if (await not(researchFetch.hasValue(symbol, when, currentPrice))) {
+      return null;
+    }
+
     const research = await resolve(researchSource);
 
     const position = await resolve(positionOutput);
@@ -93,7 +101,12 @@ addStrategySchema({
   },
 });
 
-listenActivePing(async ({ symbol, data }) => {
+listenActivePing(async ({ symbol, data, currentPrice }) => {
+  const when = await getDate();
+  if (await not(researchFetch.hasValue(symbol, when, currentPrice))) {
+    return null;
+  }
+
   const research = await resolve(researchSource);
   if (await not(resolve(reversalOutput))) {
     return;
