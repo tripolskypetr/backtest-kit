@@ -12,7 +12,7 @@ import ExplorerMockService from "../mock/ExplorerMockService";
 
 const pathId = (p: string) => createHash("sha1").update(p).digest("hex").slice(0, 16);
 
-const IGNORED_DIRS = ["data", "agent"];
+const IGNORED_DIRS = ["data"];
 
 const buildTree = async (
   dir: string,
