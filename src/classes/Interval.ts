@@ -7,12 +7,14 @@ import { PersistIntervalAdapter } from "./Persist";
 
 const INTERVAL_METHOD_NAME_RUN = "IntervalFnInstance.run";
 const INTERVAL_FILE_INSTANCE_METHOD_NAME_RUN = "IntervalFileInstance.run";
+const INTERVAL_FILE_INSTANCE_METHOD_NAME_HAS_VALUE = "IntervalFileInstance.hasValue";
 const INTERVAL_METHOD_NAME_FN = "IntervalUtils.fn";
 const INTERVAL_METHOD_NAME_FN_CLEAR = "IntervalUtils.fn.clear";
 const INTERVAL_METHOD_NAME_FN_GC = "IntervalUtils.fn.gc";
 const INTERVAL_METHOD_NAME_FN_HAS_VALUE = "IntervalUtils.fn.hasValue";
 const INTERVAL_METHOD_NAME_FILE = "IntervalUtils.file";
 const INTERVAL_METHOD_NAME_FILE_CLEAR = "IntervalUtils.file.clear";
+const INTERVAL_METHOD_NAME_FILE_HAS_VALUE = "IntervalUtils.file.hasValue";
 const INTERVAL_METHOD_NAME_DISPOSE = "IntervalUtils.dispose";
 const INTERVAL_METHOD_NAME_CLEAR = "IntervalUtils.clear";
 const INTERVAL_METHOD_NAME_RESET_COUNTER = "IntervalUtils.resetCounter";
@@ -260,10 +262,10 @@ export class IntervalFnInstance<F extends Function = Function> {
    */
   public hasValue = (...args: Parameters<F>): boolean => {
     if (!MethodContextService.hasContext()) {
-      return false;
+      throw new Error("IntervalFnInstance hasValue requires method context");
     }
     if (!ExecutionContextService.hasContext()) {
-      return false;
+      throw new Error("IntervalFnInstance hasValue requires execution context");
     }
     const contextKey = CREATE_KEY_FN(
       backtest.methodContextService.context.strategyName,
@@ -421,6 +423,34 @@ export class IntervalFileInstance<F extends IntervalFileFunction = IntervalFileF
   };
 
   /**
+   * Check whether the function has already fired for the current interval on disk.
+   *
+   * Returns `true` if a persisted record exists for the current aligned timestamp.
+   * Returns `false` if no record is found.
+   *
+   * Requires active execution context and method context.
+   *
+   * @param args - Arguments forwarded to the key generator
+   * @returns `true` if a fired record exists, `false` otherwise
+   */
+  public hasValue = async (...args: Parameters<F>): Promise<boolean> => {
+    backtest.loggerService.debug(INTERVAL_FILE_INSTANCE_METHOD_NAME_HAS_VALUE, { args });
+    if (!MethodContextService.hasContext()) {
+      throw new Error("IntervalFileInstance hasValue requires method context");
+    }
+    if (!ExecutionContextService.hasContext()) {
+      throw new Error("IntervalFileInstance hasValue requires execution context");
+    }
+    const [symbol, ...rest] = args;
+    const { when } = backtest.executionContextService.context;
+    const alignedMs = align(when.getTime(), this.interval);
+    const bucket = `${this.name}_${this.interval}_${this.index}`;
+    const entityKey = this.key([symbol, alignedMs, ...rest as DropFirst<F>]);
+    const cached = await PersistIntervalAdapter.readIntervalData(bucket, entityKey);
+    return cached !== null;
+  };
+
+  /**
    * Soft-delete all persisted records for this instance's bucket.
    * After this call the function will fire again on the next `run()`.
    */
@@ -511,12 +541,10 @@ export class IntervalUtils {
     wrappedFn.clear = () => {
       backtest.loggerService.info(INTERVAL_METHOD_NAME_FN_CLEAR);
       if (!MethodContextService.hasContext()) {
-        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_CLEAR} called without method context, skipping`);
-        return;
+        throw new Error(`${INTERVAL_METHOD_NAME_FN_CLEAR} requires method context`);
       }
       if (!ExecutionContextService.hasContext()) {
-        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_CLEAR} called without execution context, skipping`);
-        return;
+        throw new Error(`${INTERVAL_METHOD_NAME_FN_CLEAR} requires execution context`);
       }
       this._getInstance.get(run)?.clear();
     };
@@ -524,8 +552,7 @@ export class IntervalUtils {
     wrappedFn.gc = () => {
       backtest.loggerService.info(INTERVAL_METHOD_NAME_FN_GC);
       if (!ExecutionContextService.hasContext()) {
-        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_GC} called without execution context, skipping`);
-        return;
+        throw new Error(`${INTERVAL_METHOD_NAME_FN_GC} requires execution context`);
       }
       return this._getInstance.get(run)?.gc();
     };
@@ -533,12 +560,10 @@ export class IntervalUtils {
     wrappedFn.hasValue = (...args: Parameters<F>): boolean => {
       backtest.loggerService.info(INTERVAL_METHOD_NAME_FN_HAS_VALUE);
       if (!MethodContextService.hasContext()) {
-        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_HAS_VALUE} called without method context, skipping`);
-        return false;
+        throw new Error(`${INTERVAL_METHOD_NAME_FN_HAS_VALUE} requires method context`);
       }
       if (!ExecutionContextService.hasContext()) {
-        backtest.loggerService.warn(`${INTERVAL_METHOD_NAME_FN_HAS_VALUE} called without execution context, skipping`);
-        return false;
+        throw new Error(`${INTERVAL_METHOD_NAME_FN_HAS_VALUE} requires execution context`);
       }
       return this._getInstance.get(run)?.hasValue(...args) ?? false;
     };
@@ -582,7 +607,7 @@ export class IntervalUtils {
       name: string;
       key?: (args: IntervalFileKeyArgs<F>) => string;
     }
-  ): F & { clear(): Promise<void> } => {
+  ): F & { clear(): Promise<void>; hasValue(...args: Parameters<F>): Promise<boolean> } => {
     backtest.loggerService.info(INTERVAL_METHOD_NAME_FILE, { context });
 
     {
@@ -599,7 +624,19 @@ export class IntervalUtils {
       await this._getFileInstance.get(run)?.clear();
     };
 
-    return wrappedFn as unknown as F & { clear(): Promise<void> };
+    wrappedFn.hasValue = async (...args: Parameters<F>): Promise<boolean> => {
+      backtest.loggerService.info(INTERVAL_METHOD_NAME_FILE_HAS_VALUE);
+      if (!MethodContextService.hasContext()) {
+        throw new Error(`${INTERVAL_METHOD_NAME_FILE_HAS_VALUE} requires method context`);
+      }
+      if (!ExecutionContextService.hasContext()) {
+        throw new Error(`${INTERVAL_METHOD_NAME_FILE_HAS_VALUE} requires execution context`);
+      }
+      const instance = this._getFileInstance<F>(run, context.interval, context.name, context.key);
+      return await instance.hasValue(...args);
+    };
+
+    return wrappedFn as unknown as F & { clear(): Promise<void>; hasValue(...args: Parameters<F>): Promise<boolean> };
   };
 
   /**

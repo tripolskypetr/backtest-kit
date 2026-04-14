@@ -15,10 +15,12 @@ const CACHE_METHOD_NAME_FN_GC = "CacheUtils.fn.gc";
 const CACHE_METHOD_NAME_FN_HAS_VALUE = "CacheUtils.fn.hasValue";
 const CACHE_METHOD_NAME_FILE = "CacheUtils.file";
 const CACHE_METHOD_NAME_FILE_CLEAR = "CacheUtils.file.clear";
+const CACHE_METHOD_NAME_FILE_HAS_VALUE = "CacheUtils.file.hasValue";
 const CACHE_METHOD_NAME_DISPOSE = "CacheUtils.dispose";
 const CACHE_METHOD_NAME_CLEAR = "CacheUtils.clear";
 const CACHE_METHOD_NAME_RESET_COUNTER = "CacheUtils.resetCounter";
 const CACHE_FILE_INSTANCE_METHOD_NAME_RUN = "CacheFileInstance.run";
+const CACHE_FILE_INSTANCE_METHOD_NAME_HAS_VALUE = "CacheFileInstance.hasValue";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -283,10 +285,10 @@ export class CacheFnInstance<T extends Function = Function, K = string> {
    */
   public hasValue = (...args: Parameters<T>): boolean => {
     if (!MethodContextService.hasContext()) {
-      return false;
+      throw new Error("CacheFnInstance hasValue requires method context");
     }
     if (!ExecutionContextService.hasContext()) {
-      return false;
+      throw new Error("CacheFnInstance hasValue requires execution context");
     }
     const contextKey = CREATE_KEY_FN(
       backtest.methodContextService.context.strategyName,
@@ -485,6 +487,34 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
   };
 
   /**
+   * Check whether a cached value exists on disk for the given arguments and current interval.
+   *
+   * Returns `true` if a persisted record exists for the current aligned timestamp.
+   * Returns `false` if no record is found.
+   *
+   * Requires active execution context and method context.
+   *
+   * @param args - Arguments forwarded to the key generator
+   * @returns `true` if a cached record exists, `false` otherwise
+   */
+  public hasValue = async (...args: Parameters<T>): Promise<boolean> => {
+    backtest.loggerService.debug(CACHE_FILE_INSTANCE_METHOD_NAME_HAS_VALUE, { args });
+    if (!MethodContextService.hasContext()) {
+      throw new Error("CacheFileInstance hasValue requires method context");
+    }
+    if (!ExecutionContextService.hasContext()) {
+      throw new Error("CacheFileInstance hasValue requires execution context");
+    }
+    const [symbol, ...rest] = args;
+    const { when } = backtest.executionContextService.context;
+    const alignedTs = align(when.getTime(), this.interval);
+    const bucket = `${this.name}_${this.interval}_${this.index}`;
+    const entityKey = this.key([symbol, alignedTs, ...rest as DropFirst<T>]);
+    const cached = await PersistMeasureAdapter.readMeasureData(bucket, entityKey);
+    return cached !== null;
+  };
+
+  /**
    * Soft-delete all persisted records for this instance's bucket.
    * After this call the next `run()` will recompute and re-cache the value.
    */
@@ -591,12 +621,10 @@ export class CacheUtils {
     wrappedFn.clear = () => {
       backtest.loggerService.info(CACHE_METHOD_NAME_FN_CLEAR);
       if (!MethodContextService.hasContext()) {
-        backtest.loggerService.warn(`${CACHE_METHOD_NAME_FN_CLEAR} called without method context, skipping`);
-        return;
+        throw new Error(`${CACHE_METHOD_NAME_FN_CLEAR} requires method context`);
       }
       if (!ExecutionContextService.hasContext()) {
-        backtest.loggerService.warn(`${CACHE_METHOD_NAME_FN_CLEAR} called without execution context, skipping`);
-        return;
+        throw new Error(`${CACHE_METHOD_NAME_FN_CLEAR} requires execution context`);
       }
       this._getFnInstance.get(run)?.clear();
     };
@@ -604,8 +632,7 @@ export class CacheUtils {
     wrappedFn.gc = () => {
       backtest.loggerService.info(CACHE_METHOD_NAME_FN_GC);
       if (!ExecutionContextService.hasContext()) {
-        backtest.loggerService.warn(`${CACHE_METHOD_NAME_FN_GC} called without execution context, skipping`);
-        return;
+        throw new Error(`${CACHE_METHOD_NAME_FN_GC} requires execution context`);
       }
       return this._getFnInstance.get(run)?.gc();
     };
@@ -613,12 +640,10 @@ export class CacheUtils {
     wrappedFn.hasValue = (...args: Parameters<T>): boolean => {
       backtest.loggerService.info(CACHE_METHOD_NAME_FN_HAS_VALUE);
       if (!MethodContextService.hasContext()) {
-        backtest.loggerService.warn(`${CACHE_METHOD_NAME_FN_HAS_VALUE} called without method context, skipping`);
-        return false;
+        throw new Error(`${CACHE_METHOD_NAME_FN_HAS_VALUE} requires method context`);
       }
       if (!ExecutionContextService.hasContext()) {
-        backtest.loggerService.warn(`${CACHE_METHOD_NAME_FN_HAS_VALUE} called without execution context, skipping`);
-        return false;
+        throw new Error(`${CACHE_METHOD_NAME_FN_HAS_VALUE} requires execution context`);
       }
       return this._getFnInstance.get(run)?.hasValue(...args) ?? false;
     };
@@ -671,7 +696,7 @@ export class CacheUtils {
       name: string;
       key?: (args:  CacheFileKeyArgs<T>) => string;
     }
-  ): T & { clear(): Promise<void> } => {
+  ): T & { clear(): Promise<void>; hasValue(...args: Parameters<T>): Promise<boolean> } => {
     backtest.loggerService.info(CACHE_METHOD_NAME_FILE, { context });
 
     {
@@ -688,7 +713,19 @@ export class CacheUtils {
       await this._getFileInstance.get(run)?.clear();
     };
 
-    return wrappedFn as unknown as T & { clear(): Promise<void> };
+    wrappedFn.hasValue = async (...args: Parameters<T>): Promise<boolean> => {
+      backtest.loggerService.info(CACHE_METHOD_NAME_FILE_HAS_VALUE);
+      if (!MethodContextService.hasContext()) {
+        throw new Error(`${CACHE_METHOD_NAME_FILE_HAS_VALUE} requires method context`);
+      }
+      if (!ExecutionContextService.hasContext()) {
+        throw new Error(`${CACHE_METHOD_NAME_FILE_HAS_VALUE} requires execution context`);
+      }
+      const instance = this._getFileInstance(run, context.interval, context.name, context.key);
+      return await instance.hasValue(...args);
+    };
+
+    return wrappedFn as unknown as T & { clear(): Promise<void>; hasValue(...args: Parameters<T>): Promise<boolean> };
   };
 
   /**
