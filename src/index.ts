@@ -159,6 +159,9 @@ export {
   hasTradeContext,
 } from "./function/exchange";
 export {
+  getLatestSignal,
+} from "./function/signal";
+export {
   listMemory,
   readMemory,
   removeMemory,

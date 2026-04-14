@@ -605,7 +605,6 @@ export class RecentAdapter {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    backtest: boolean,
   ): Promise<IPublicSignalRow | null> => {
     lib.loggerService.info(RECENT_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
       symbol,
@@ -614,23 +613,30 @@ export class RecentAdapter {
     if (!this.enable.hasValue()) {
       throw new Error("RecentAdapter is not enabled. Call enable() first.");
     }
-    const backtestResult = await RecentBacktest.getLatestSignal(
-      symbol,
-      context.strategyName,
-      context.exchangeName,
-      context.frameName,
-      backtest,
-    );
-    if (backtestResult) {
-      return backtestResult;
+    let result: IPublicSignalRow | null = null;
+    if (
+      result = await RecentBacktest.getLatestSignal(
+        symbol,
+        context.strategyName,
+        context.exchangeName,
+        context.frameName,
+        true,
+      )
+    ) {
+      return result;
     }
-    return await RecentLive.getLatestSignal(
-      symbol,
-      context.strategyName,
-      context.exchangeName,
-      context.frameName,
-      backtest,
-    );
+    if (
+      result = await RecentLive.getLatestSignal(
+        symbol,
+        context.strategyName,
+        context.exchangeName,
+        context.frameName,
+        false,
+      )
+    ) {
+      return result;
+    }
+    return null;
   };
 }
 

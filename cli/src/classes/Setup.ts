@@ -121,6 +121,11 @@ export class SetupUtils {
       NotificationLive.clear();
       NotificationBacktest.clear();
     }
+
+    {
+      RecentLive.clear();
+      RecentBacktest.clear();
+    }
   };
 }
 
