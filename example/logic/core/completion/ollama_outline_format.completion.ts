@@ -17,7 +17,7 @@ const COMPLETION_RETRY_DELAY = 5_000;
 const COMPLETION_TIMEOUT = 30_000;
 const COMPLETION_TIMEOUT_SYMBOL = Symbol("COMPLETION_TIMEOUT");
 
-const MODEL_NAME = "minimax-m2.7:cloud";
+const MODEL_NAME = "glm-4.7:cloud";
 
 const fetchCompletion = retry(async ({
   messages: rawMessages,
