@@ -5,20 +5,21 @@ import {
   Log,
 } from "backtest-kit";
 import { errorData, getErrorMessage } from "functools-kit";
-import { grid } from "logic";
+import { research } from "logic";
 
 const gridSource = Cache.file(
-  async (symbol: string, when: Date) => {
-    const result = await grid(symbol, when);
-    return result;
+  async (symbol: string, when: Date, currentPrice: number) => {
+    const result = await research(symbol, when);
+    console.log(result, when);
+    return { ...result, currentPrice };
   },
   { interval: "8h", name: "grid_source" },
 );
 
 addStrategySchema({
   strategyName: "feb_2026_strategy",
-  getSignal: async (symbol, when) => {
-    await gridSource(symbol, when);
+  getSignal: async (symbol, when, currentPrice) => {
+    await gridSource(symbol, when, currentPrice);
     return null;
   },
 });
