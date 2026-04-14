@@ -3,8 +3,8 @@ import {
   ask,
   dumpOutlineResult,
   IOutlineHistory,
-  IOutlineResult,
 } from "agent-swarm-kit";
+import { Cache } from "backtest-kit";
 import { str } from "functools-kit";
 import { OutlineName } from "../../enum/OutlineName";
 import { CompletionName } from "../../enum/CompletionName";
@@ -48,7 +48,7 @@ const RESEARCH_PROMPT = str.newline(
   "4. **reversalSignal**: конкретное условие разворота — при котором позицию нужно закрыть. Это наблюдаемый факт на рынке, не стоп в процентах.",
 );
 
-const commitAssetNews = async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
+const commitAssetNews = Cache.fn(async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
   const report = await Promise.race([
     ask<WebSearchRequestContract>(contract, AdvisorName.AssetNewsAdvisor),
     errorEmitter.toPromise(),
@@ -64,9 +64,11 @@ const commitAssetNews = async (contract: WebSearchRequestContract, history: IOut
     { role: "user", content: str.newline("Прочитай новости по активу за последние 8 часов и скажи ОК", "", report) },
     { role: "assistant", content: "ОК" },
   );
-};
+}, {
+  interval: "1d"
+});
 
-const commitGlobalNews = async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
+const commitGlobalNews = Cache.fn(async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
   const report = await Promise.race([
     ask<WebSearchRequestContract>(contract, AdvisorName.GlobalNewsAdvisor),
     errorEmitter.toPromise(),
@@ -82,7 +84,9 @@ const commitGlobalNews = async (contract: WebSearchRequestContract, history: IOu
     { role: "user", content: str.newline("Прочитай глобальные макроэкономические новости за последние 8 часов и скажи ОК", "", report) },
     { role: "assistant", content: "ОK" },
   );
-};
+}, {
+  interval: "1d"
+});
 
 const commitStockData = async (contract: StockDataRequestContract, history: IOutlineHistory) => {
   const report = await ask<StockDataRequestContract>(contract, AdvisorName.StockDataAdvisor);
