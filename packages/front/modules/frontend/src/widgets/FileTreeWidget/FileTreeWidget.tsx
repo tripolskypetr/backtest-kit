@@ -1,5 +1,6 @@
 import {
     Center,
+    CopyButton,
     LoaderView,
     PaperView,
     sleep,
@@ -218,6 +219,10 @@ export const FileTreeWidget = ({
                         <ListItemText
                             primary={node.label}
                             secondary={node.path}
+                        />
+                        <CopyButton
+                            content={node.path}
+                            label="Copy path"
                         />
                     </ListItem>
                 ))}
