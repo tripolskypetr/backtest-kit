@@ -29,6 +29,7 @@ import {
   PersistLogAdapter,
   PersistMeasureAdapter,
   PersistMemoryAdapter,
+  PersistIntervalAdapter,
   PersistRecentAdapter,
 } from "backtest-kit";
 
@@ -100,6 +101,7 @@ export class SetupUtils {
       PersistNotificationAdapter.clear();
       PersistLogAdapter.clear();
       PersistMeasureAdapter.clear();
+      PersistIntervalAdapter.clear();
       PersistMemoryAdapter.clear();
       PersistRecentAdapter.clear();
     }
