@@ -249,6 +249,102 @@ export class MarkdownUtils {
       backtest.maxDrawdownMarkdownService.unsubscribe();
     }
   };
+
+  /**
+   * Clears markdown report data selectively.
+   *
+   * Clears accumulated data for specified markdown services without unsubscribing.
+   * Use this method to reset report data for specific services while keeping them active.
+   * 
+   * Each cleared service will:
+   * - Clear accumulated data for all reports
+   * - Start fresh with new data for future events
+   * - Not affect event subscriptions or report generation status
+   *
+   * @param config - Service configuration object specifying which services to clear. Defaults to clearing all services.
+   * @param config.backtest - Clear backtest result report data
+   * @param config.breakeven - Clear breakeven event tracking data
+   * @param config.partial - Clear partial profit/loss event tracking data
+   * @param config.heat - Clear portfolio heatmap analysis data
+   * @param config.walker - Clear walker strategy comparison report data
+   * @param config.performance - Clear performance bottleneck analysis data
+   * @param config.risk - Clear risk rejection tracking data
+   * @param config.schedule - Clear scheduled signal tracking data
+   * @param config.live - Clear live trading event report data
+   * @param config.strategy - Clear strategy report data
+   * @param config.sync - Clear sync report data
+   * @param config.highest_profit - Clear highest profit report data
+   * @param config.max_drawdown - Clear max drawdown report data
+   */
+  public clear = ({
+    backtest: bt = false,
+    breakeven = false,
+    heat = false,
+    live = false,
+    partial = false,
+    performance = false,
+    risk = false,
+    strategy = false,
+    schedule = false,
+    walker = false,
+    sync = false,
+    highest_profit = false,
+    max_drawdown = false,
+  }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
+    LOGGER_SERVICE.debug(MARKDOWN_METHOD_NAME_CLEAR, {
+      backtest: bt,
+      breakeven,
+      heat,
+      live,
+      partial,
+      performance,
+      risk,
+      strategy,
+      schedule,
+      walker,
+      sync,
+      highest_profit,
+    });
+    if (bt) {
+      backtest.backtestMarkdownService.clear();
+    }
+    if (breakeven) {
+      backtest.breakevenMarkdownService.clear();
+    }
+    if (heat) {
+      backtest.heatMarkdownService.clear();
+    }
+    if (live) {
+      backtest.liveMarkdownService.clear();
+    }
+    if (partial) {
+      backtest.partialMarkdownService.clear();
+    }
+    if (performance) {
+      backtest.performanceMarkdownService.clear();
+    }
+    if (risk) {
+      backtest.riskMarkdownService.clear();
+    }
+    if (strategy) {
+      backtest.strategyMarkdownService.clear();
+    }
+    if (schedule) {
+      backtest.scheduleMarkdownService.clear();
+    }
+    if (walker) {
+      backtest.walkerMarkdownService.clear();
+    }
+    if (sync) {
+      backtest.syncMarkdownService.clear();
+    }
+    if (highest_profit) {
+      backtest.highestProfitMarkdownService.clear();
+    }
+    if (max_drawdown) {
+      backtest.maxDrawdownMarkdownService.clear();
+    }
+  }
 }
 
 /**
@@ -293,16 +389,6 @@ export class MarkdownAdapter extends MarkdownUtils {
   public useJsonl() {
     LOGGER_SERVICE.debug(MARKDOWN_METHOD_NAME_USE_JSONL);
     MarkdownWriter.useJsonl();
-  }
-
-  /**
-   * Clears the memoized storage cache.
-   * Call this when process.cwd() changes between strategy iterations
-   * so new storage instances are created with the updated base path.
-   */
-  public clear(): void {
-    LOGGER_SERVICE.log(MARKDOWN_METHOD_NAME_CLEAR);
-    MarkdownWriter.clear();
   }
 
   /**

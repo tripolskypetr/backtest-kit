@@ -15,6 +15,8 @@ import {
   Memory,
   Recent,
   Log,
+  MarkdownWriter,
+  ReportWriter,
 } from "backtest-kit";
 
 import {
@@ -101,6 +103,12 @@ export class SetupUtils {
       Report.disable();
       Dump.disable();
       Memory.disable();
+    }
+
+    {
+      Markdown.clear();
+      MarkdownWriter.clear();
+      ReportWriter.clear();
     }
 
     {
