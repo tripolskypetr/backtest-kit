@@ -122,7 +122,7 @@ const listItems = async (search: string, nodes: ExplorerNode[]) => {
     for (const node of ioc.explorerHelperService.deepFlat(nodes)) {
         if (
             node.type === "file" &&
-            (!query || node.label.toLowerCase().includes(query))
+            (!query || node.path.toLowerCase().includes(query))
         ) {
             result.push(node);
         }
@@ -168,7 +168,10 @@ export const FileTreeWidget = ({
     };
 
     const handleClear = () => {
-        searchChanges.once(flush);
+        searchChanges.once(async () => {
+            await sleep(500);
+            flush();
+        });
         setSearch("");
     }
 
