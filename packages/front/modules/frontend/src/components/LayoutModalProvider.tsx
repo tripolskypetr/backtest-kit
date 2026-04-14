@@ -16,6 +16,9 @@ import useSignalClosedView from "../hooks/useSignalClosedView";
 import useSignalScheduledView from "../hooks/useSignalScheduledView";
 import useSignalCancelledView from "../hooks/useSignalCancelledView";
 
+// Signal info notification hook
+import useSignalNotifyView from "../hooks/useSignalNotifyView";
+
 // Partial profit hooks (2 types)
 import usePartialProfitAvailableView from "../hooks/usePartialProfitAvailableView";
 import usePartialProfitCommitView from "../hooks/usePartialProfitCommitView";
@@ -100,6 +103,9 @@ export const LayoutModalProvider = ({
     const pickSignalScheduled = useSignalScheduledView();
     const pickSignalCancelled = useSignalCancelledView();
 
+    // Signal info notification hook
+    const pickSignalNotify = useSignalNotifyView();
+
     // Partial profit hooks (2 types)
     const pickPartialProfitAvailable = usePartialProfitAvailableView();
     const pickPartialProfitCommit = usePartialProfitCommitView();
@@ -166,6 +172,7 @@ export const LayoutModalProvider = ({
 
     // Signal notification subscriptions (4 types)
     useOnce(() => ioc.layoutService.pickSignalOpenedSubject.subscribe(pickSignalOpened));
+    useOnce(() => ioc.layoutService.pickSignalNotifySubject.subscribe(pickSignalNotify));
     useOnce(() => ioc.layoutService.pickSignalClosedSubject.subscribe(pickSignalClosed));
     useOnce(() => ioc.layoutService.pickSignalScheduledSubject.subscribe(pickSignalScheduled));
     useOnce(() => ioc.layoutService.pickSignalCancelledSubject.subscribe(pickSignalCancelled));
