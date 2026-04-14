@@ -35,7 +35,8 @@ addTool<WebSearchRequestContract>({
   toolName: ToolName.WebSearchTool,
   isAvailable: async (clientId, agentName) => {
     const history = await getAgentHistory(clientId, agentName);
-    return history.length <= MAX_SEARCH_ATTEMPTS;  
+    const { length } = history.filter(({ role }) => role === "tool");
+    return length <= MAX_SEARCH_ATTEMPTS;  
   },
   call: async ({ toolId, params, clientId, agentName, isLast }) => {
     if (!params.query) {
