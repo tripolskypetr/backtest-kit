@@ -3,6 +3,8 @@ import { AgentName } from "../../enum/AgentName";
 import { CompletionName } from "../../enum/CompletionName";
 import { ToolName } from "../../enum/ToolName";
 import { str } from "functools-kit";
+import { errorEmitter } from "../../config/emitters";
+import { ERROR_SYMBOL } from "../../config/constant";
 
 addAgent({
   agentName: AgentName.WebSearchAgent,
@@ -31,4 +33,9 @@ addAgent({
     "",
   ),
   tools: [ToolName.WebSearchTool],
+  callbacks: {
+    async onResurrect() {
+        await errorEmitter.next(ERROR_SYMBOL);
+    },
+  }
 });
