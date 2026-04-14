@@ -238,7 +238,7 @@ export const FileTreeWidget = ({
                     className={classes.input}
                     endAdornment={
                         <InputAdornment position="end">
-                            <IconButton disabled={loading} onClick={handleClear} edge="end">
+                            <IconButton disabled={loading || !search} onClick={handleClear} edge="end">
                                 {!!search ? <Close /> : <Search />}
                             </IconButton>
                         </InputAdornment>
