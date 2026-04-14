@@ -388,6 +388,8 @@ export {
   PersistMemoryAdapter,
   IntervalData,
   PersistIntervalAdapter,
+  RecentData,
+  PersistRecentAdapter,
 } from "./classes/Persist";
 
 export {

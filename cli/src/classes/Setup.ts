@@ -29,6 +29,7 @@ import {
   PersistLogAdapter,
   PersistMeasureAdapter,
   PersistMemoryAdapter,
+  PersistRecentAdapter,
 } from "backtest-kit";
 
 import { cli } from "../lib";
@@ -100,6 +101,7 @@ export class SetupUtils {
       PersistLogAdapter.clear();
       PersistMeasureAdapter.clear();
       PersistMemoryAdapter.clear();
+      PersistRecentAdapter.clear();
     }
 
     {
