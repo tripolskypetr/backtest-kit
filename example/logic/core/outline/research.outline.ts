@@ -5,7 +5,7 @@ import {
   IOutlineHistory,
 } from "agent-swarm-kit";
 import { Cache } from "backtest-kit";
-import { str } from "functools-kit";
+import { str, trycatch } from "functools-kit";
 import { OutlineName } from "../../enum/OutlineName";
 import { CompletionName } from "../../enum/CompletionName";
 import { AdvisorName } from "../../enum/AdvisorName";
@@ -48,51 +48,94 @@ const RESEARCH_PROMPT = str.newline(
   "4. **reversalSignal**: конкретное условие разворота — при котором позицию нужно закрыть. Это наблюдаемый факт на рынке, не стоп в процентах.",
 );
 
-const commitAssetNews = Cache.fn(async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
-  const report = await Promise.race([
-    ask<WebSearchRequestContract>(contract, AdvisorName.AssetNewsAdvisor),
-    errorEmitter.toPromise(),
-  ]);
-  if (!report) {
-    throw new Error("AssetNewsAdvisor failed");
-  }
-  if (typeof report === "symbol") {
-    throw new Error("AssetNewsAdvisor failed");
-  }
-  console.log("Asset news report:", report);
-  await history.push(
-    { role: "user", content: str.newline("Прочитай новости по активу за последние 8 часов и скажи ОК", "", report) },
-    { role: "assistant", content: "ОК" },
-  );
-}, {
-  interval: "1d"
-});
+const commitAssetNews = Cache.fn(
+  trycatch(
+    async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
+      const report = await Promise.race([
+        ask<WebSearchRequestContract>(contract, AdvisorName.AssetNewsAdvisor),
+        errorEmitter.toPromise(),
+      ]);
+      if (!report) {
+        throw new Error("AssetNewsAdvisor failed");
+      }
+      if (typeof report === "symbol") {
+        throw new Error("AssetNewsAdvisor failed");
+      }
+      console.log("Asset news report:", report);
+      await history.push(
+        {
+          role: "user",
+          content: str.newline(
+            "Прочитай новости по активу за последние 8 часов и скажи ОК",
+            "",
+            report,
+          ),
+        },
+        { role: "assistant", content: "ОК" },
+      );
+    },
+    {
+      fallback: () => commitAssetNews.clear(),
+    },
+  ),
+  {
+    interval: "1d",
+  },
+);
 
-const commitGlobalNews = Cache.fn(async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
-  const report = await Promise.race([
-    ask<WebSearchRequestContract>(contract, AdvisorName.GlobalNewsAdvisor),
-    errorEmitter.toPromise(),
-  ]);
-  if (!report) {
-    throw new Error("GlobalNewsAdvisor failed");
-  }
-  if (typeof report === "symbol") {
-    throw new Error("GlobalNewsAdvisor failed");
-  }
-  console.log("Global news report:", report);
-  await history.push(
-    { role: "user", content: str.newline("Прочитай глобальные макроэкономические новости за последние 8 часов и скажи ОК", "", report) },
-    { role: "assistant", content: "ОK" },
-  );
-}, {
-  interval: "1d"
-});
+const commitGlobalNews = Cache.fn(
+  trycatch(
+    async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
+      const report = await Promise.race([
+        ask<WebSearchRequestContract>(contract, AdvisorName.GlobalNewsAdvisor),
+        errorEmitter.toPromise(),
+      ]);
+      if (!report) {
+        throw new Error("GlobalNewsAdvisor failed");
+      }
+      if (typeof report === "symbol") {
+        throw new Error("GlobalNewsAdvisor failed");
+      }
+      console.log("Global news report:", report);
+      await history.push(
+        {
+          role: "user",
+          content: str.newline(
+            "Прочитай глобальные макроэкономические новости за последние 8 часов и скажи ОК",
+            "",
+            report,
+          ),
+        },
+        { role: "assistant", content: "ОK" },
+      );
+    },
+    {
+      fallback: () => commitGlobalNews.clear(),
+    },
+  ),
+  {
+    interval: "1d",
+  },
+);
 
-const commitStockData = async (contract: StockDataRequestContract, history: IOutlineHistory) => {
-  const report = await ask<StockDataRequestContract>(contract, AdvisorName.StockDataAdvisor);
+const commitStockData = async (
+  contract: StockDataRequestContract,
+  history: IOutlineHistory,
+) => {
+  const report = await ask<StockDataRequestContract>(
+    contract,
+    AdvisorName.StockDataAdvisor,
+  );
   if (!report) throw new Error("StockDataAdvisor failed");
   await history.push(
-    { role: "user", content: str.newline("Прочитай исторические данные свечей и скажи ОК", "", report) },
+    {
+      role: "user",
+      content: str.newline(
+        "Прочитай исторические данные свечей и скажи ОК",
+        "",
+        report,
+      ),
+    },
     { role: "assistant", content: "ОК" },
   );
 };
@@ -110,20 +153,27 @@ addOutline<ResearchResponseContract>({
       },
       reasoning: {
         type: "string",
-        description: "Обоснование сигнала: что говорят свечи, что говорят новости, почему картина склоняется к этому решению.",
+        description:
+          "Обоснование сигнала: что говорят свечи, что говорят новости, почему картина склоняется к этому решению.",
       },
       entryConfirmation: {
         type: "string",
-        description: "Конкретное ценовое или событийное условие, которое должно выполниться чтобы подтвердить сигнал и оставаться в позиции.",
+        description:
+          "Конкретное ценовое или событийное условие, которое должно выполниться чтобы подтвердить сигнал и оставаться в позиции.",
       },
       reversalSignal: {
         type: "string",
-        description: "Конкретное условие разворота — при котором позицию нужно закрыть немедленно.",
+        description:
+          "Конкретное условие разворота — при котором позицию нужно закрыть немедленно.",
       },
     },
     required: ["signal", "reasoning", "entryConfirmation", "reversalSignal"],
   },
-  getOutlineHistory: async ({ resultId, history }, symbol: string, when: Date) => {
+  getOutlineHistory: async (
+    { resultId, history },
+    symbol: string,
+    when: Date,
+  ) => {
     const displayName = DISPLAY_NAME_MAP[symbol] ?? symbol;
 
     await history.push({
@@ -134,30 +184,40 @@ addOutline<ResearchResponseContract>({
       ),
     });
 
-    await commitStockData({
-      resultId,
-      date: when,
-      symbol,
-    }, history);
+    await commitStockData(
+      {
+        resultId,
+        date: when,
+        symbol,
+      },
+      history,
+    );
 
-    await commitAssetNews({
-      resultId,
-      date: when,
-      query: displayName,
-    }, history);
+    await commitAssetNews(
+      {
+        resultId,
+        date: when,
+        query: displayName,
+      },
+      history,
+    );
 
-    await commitGlobalNews({
-      resultId,
-      date: when,
-      query: displayName,
-    }, history);
+    await commitGlobalNews(
+      {
+        resultId,
+        date: when,
+        query: displayName,
+      },
+      history,
+    );
 
     await history.push({ role: "user", content: RESEARCH_PROMPT });
   },
-    validations: [
+  validations: [
     {
       validate: ({ data }) => {
-        if (!["BUY", "SELL", "WAIT"].includes(data.signal)) throw new Error("signal должен быть BUY, SELL или WAIT");
+        if (!["BUY", "SELL", "WAIT"].includes(data.signal))
+          throw new Error("signal должен быть BUY, SELL или WAIT");
       },
       docDescription: "Проверяет допустимое значение signal.",
     },
@@ -169,7 +229,8 @@ addOutline<ResearchResponseContract>({
     },
     {
       validate: ({ data }) => {
-        if (!data.entryConfirmation) throw new Error("entryConfirmation не заполнен");
+        if (!data.entryConfirmation)
+          throw new Error("entryConfirmation не заполнен");
       },
       docDescription: "Проверяет, что критерий входа определён.",
     },
