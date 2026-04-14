@@ -14,6 +14,7 @@ import { GridResponseContract } from "../../contract/GridResponse.contract";
 import { StockDataRequestContract } from "../../contract/StockDataRequest.contract";
 
 import dayjs from "dayjs";
+import { errorEmitter } from "../../config/emitters";
 
 const DISPLAY_NAME_MAP: Record<string, string> = {
   BTCUSDT: "Bitcoin",
@@ -58,8 +59,17 @@ const GRID_PROMPT = str.newline(
 );
 
 const commitAssetNews = async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
-  const report = await ask<WebSearchRequestContract>(contract, AdvisorName.AssetNewsAdvisor);
-  if (!report) throw new Error("AssetNewsAdvisor failed");
+  const report = await Promise.race([
+    ask<WebSearchRequestContract>(contract, AdvisorName.AssetNewsAdvisor),
+    errorEmitter.toPromise(),
+  ]);
+  if (!report) {
+    throw new Error("AssetNewsAdvisor failed");
+  }
+  if (typeof report === "symbol") {
+    throw new Error("AssetNewsAdvisor failed");
+  }
+  console.log("Asset news report:", report);
   await history.push(
     { role: "user", content: str.newline("Прочитай новости по активу за последние 8 часов и скажи ОК", "", report) },
     { role: "assistant", content: "ОК" },
@@ -67,8 +77,17 @@ const commitAssetNews = async (contract: WebSearchRequestContract, history: IOut
 };
 
 const commitGlobalNews = async (contract: WebSearchRequestContract, history: IOutlineHistory) => {
-  const report = await ask<WebSearchRequestContract>(contract, AdvisorName.GlobalNewsAdvisor);
-  if (!report) throw new Error("GlobalNewsAdvisor failed");
+  const report = await Promise.race([
+    ask<WebSearchRequestContract>(contract, AdvisorName.GlobalNewsAdvisor),
+    errorEmitter.toPromise(),
+  ]);
+  if (!report) {
+    throw new Error("GlobalNewsAdvisor failed");
+  }
+  if (typeof report === "symbol") {
+    throw new Error("GlobalNewsAdvisor failed");
+  }
+  console.log("Global news report:", report);
   await history.push(
     { role: "user", content: str.newline("Прочитай глобальные макроэкономические новости за последние 8 часов и скажи ОК", "", report) },
     { role: "assistant", content: "ОK" },
