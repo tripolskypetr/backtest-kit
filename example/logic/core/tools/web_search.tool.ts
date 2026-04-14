@@ -10,7 +10,7 @@ const SEARCH_MAX_RESULTS = 10;
 const SEARCH_RETRY_COUNT = 5;
 const SEARCH_RETRY_DELAY = 5_000;
 
-const SEARCH_TIMEOUT = 20_000;
+const SEARCH_TIMEOUT = 30_000;
 const SEARCH_TIMEOUT_SYMBOL = Symbol("SEARCH_TIMEOUT");
 
 const fetchNews = retry(async (query: string) => {
@@ -23,6 +23,7 @@ const fetchNews = retry(async (query: string) => {
     sleep(SEARCH_TIMEOUT).then(() => SEARCH_TIMEOUT_SYMBOL)
   ]);
   if (typeof data === "symbol") {
+    console.warn("Web search timed out, retrying...");
     throw new Error("Web search timed out");
   }
   return JSON.stringify(data.results, null, 2);

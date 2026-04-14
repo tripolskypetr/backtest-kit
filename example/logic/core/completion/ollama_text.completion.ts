@@ -11,7 +11,7 @@ import { getOllama } from "../../config/ollama";
 const COMPLETION_MAX_RETRIES = 5;
 const COMPLETION_RETRY_DELAY = 5_000;
 
-const COMPLETION_TIMEOUT = 20_000;
+const COMPLETION_TIMEOUT = 30_000;
 const COMPLETION_TIMEOUT_SYMBOL = Symbol("COMPLETION_TIMEOUT");
 
 const MODEL_NAME = "minimax-m2.7:cloud";
@@ -43,6 +43,7 @@ const fetchCompletion = retry(async ({
   ]);
 
   if (typeof response === "symbol") {
+    console.warn("Completion timed out, retrying...");
     throw new Error("Completion timed out");
   }
 
