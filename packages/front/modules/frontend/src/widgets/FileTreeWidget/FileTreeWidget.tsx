@@ -5,6 +5,7 @@ import {
     useAsyncValue,
     useChangeSubject,
     useDebounce,
+    useSinglerunAction,
     VirtualView,
 } from "react-declarative";
 import { ExplorerFile, ExplorerNode } from "../../model/Explorer.model";
@@ -163,8 +164,15 @@ export const FileTreeWidget = ({
         },
     );
 
-    const handleOpen = (id: string) => {
-        ioc.layoutService.pickDumpContent(id);
+    const { execute: doOpen } = useSinglerunAction(async (id: string) => {
+        await ioc.layoutService.pickDumpContent(id);
+    }, {
+        onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
+        onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
+    });
+
+    const handleOpen = async (id: string) => {
+        await doOpen(id);
     };
 
     const handleClear = () => {
