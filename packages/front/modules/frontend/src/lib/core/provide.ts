@@ -32,6 +32,7 @@ import PriceGlobalService from "../services/global/PriceGlobalService";
 import BacktestGlobalService from "../services/global/BacktestGlobalService";
 import LiveGlobalService from "../services/global/LiveGlobalService";
 import MarkdownHelperService from "../services/helpers/MarkdownHelperService";
+import ExplorerHelperService from "../services/helpers/ExplorerHelperService";
 
 {
     provide(TYPES.errorService, () => new ErrorService());
@@ -50,6 +51,7 @@ import MarkdownHelperService from "../services/helpers/MarkdownHelperService";
 }
 
 {
+    provide(TYPES.explorerHelperService, () => new ExplorerHelperService());
     provide(TYPES.markdownHelperService, () => new MarkdownHelperService());
 }
 

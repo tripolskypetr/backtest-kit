@@ -15,3 +15,5 @@ export interface ExplorerDirectory {
 }
 
 export type ExplorerNode = ExplorerFile | ExplorerDirectory;
+
+export type ExplorerMap = Record<string, ExplorerNode>;

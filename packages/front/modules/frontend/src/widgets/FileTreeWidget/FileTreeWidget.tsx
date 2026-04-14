@@ -44,7 +44,7 @@ interface IFileTreeWidgetProps {
 }
 
 const SEARCH_DEBOUNCE = 2_500;
-const CHUNK_SIZE = 500;
+const CHUNK_SIZE = 10_000;
 
 const HEADER_HEIGHT = "65px";
 
@@ -113,27 +113,11 @@ const useStyles = makeStyles()((theme) => ({
     },
 }));
 
-function* deepFlat(arr: ExplorerNode[]): Generator<ExplorerNode> {
-    const seen = new Set<ExplorerNode>();
-    const stack: ExplorerNode[] = [...arr];
-    while (stack.length) {
-        const entry = stack.pop()!;
-        if (seen.has(entry)) {
-            continue;
-        }
-        seen.add(entry);
-        if (entry.type === "directory") {
-            stack.push(...entry.nodes);
-        }
-        yield entry;
-    }
-}
-
 const listItems = async (search: string, nodes: ExplorerNode[]) => {
     const query = search.trim().toLowerCase();
     const result: ExplorerFile[] = [];
     let chunk = 0;
-    for (const node of deepFlat(nodes)) {
+    for (const node of ioc.explorerHelperService.deepFlat(nodes)) {
         if (
             node.type === "file" &&
             (!query || node.label.toLowerCase().includes(query))
@@ -163,7 +147,7 @@ export const FileTreeWidget = ({
 
     const [search$, { flush }] = useDebounce(search, SEARCH_DEBOUNCE);
 
-    const [items] = useAsyncValue(
+    const [items, { loading }] = useAsyncValue(
         async () => {
             return await listItems(search$, nodes);
         },
@@ -218,10 +202,11 @@ export const FileTreeWidget = ({
         >
             <div className={classes.header}>
                 <InputBase
+                    disabled={loading}
                     className={classes.input}
                     endAdornment={
                         <InputAdornment position="end">
-                            <IconButton onClick={handleClear} edge="end">
+                            <IconButton disabled={loading} onClick={handleClear} edge="end">
                                 {!!search ? <Close /> : <Search />}
                             </IconButton>
                         </InputAdornment>

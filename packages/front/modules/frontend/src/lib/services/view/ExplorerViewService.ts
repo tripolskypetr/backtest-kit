@@ -10,8 +10,10 @@ import {
 import ExplorerMockService from "../mock/ExplorerMockService";
 import {
     ExplorerFile,
+    ExplorerMap,
     ExplorerNode,
 } from "../../../model/Explorer.model";
+import ExplorerHelperService from "../helpers/ExplorerHelperService";
 
 const TTL_TIMEOUT = 45_000;
 
@@ -20,6 +22,7 @@ export class ExplorerViewService {
     private readonly explorerMockService = inject<ExplorerMockService>(
         TYPES.explorerMockService,
     );
+    private readonly explorerHelperService = inject<ExplorerHelperService>(TYPES.explorerHelperService);
 
     public getFolderTree = ttl(
         async (): Promise<ExplorerNode[]> => {
@@ -43,6 +46,24 @@ export class ExplorerViewService {
                 throw new Error(error);
             }
             return data;
+        },
+        {
+            timeout: TTL_TIMEOUT,
+        },
+    );
+
+    public getFolderMap = ttl(
+        async (): Promise<ExplorerMap> => {
+            this.loggerService.log("explorerViewService getFolderMap");
+            if (CC_ENABLE_MOCK) {
+                return await this.explorerMockService.getFolderMap();
+            }
+            const result: ExplorerMap = {};
+            const folderTree = await this.getFolderTree();
+            for (const node of this.explorerHelperService.deepFlat(folderTree)) {
+                result[node.id] = node;
+            }
+            return result;
         },
         {
             timeout: TTL_TIMEOUT,
@@ -77,7 +98,7 @@ export class ExplorerViewService {
         if (CC_ENABLE_MOCK) {
             return await this.explorerMockService.getFileInfo(id);
         }
-        const { map } = await this.getFolderTree();
+        const map = await this.getFolderMap();
         const value = map[id];
         if (!value) {
             throw new Error(

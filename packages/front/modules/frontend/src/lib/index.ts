@@ -30,6 +30,7 @@ import PriceGlobalService from "./services/global/PriceGlobalService";
 import BacktestGlobalService from "./services/global/BacktestGlobalService";
 import LiveGlobalService from "./services/global/LiveGlobalService";
 
+import ExplorerHelperService from "./services/helpers/ExplorerHelperService";
 import MarkdownHelperService from "./services/helpers/MarkdownHelperService";
 import SignalViewService from "./services/view/SignalViewService";
 import HeatViewService from "./services/view/HeatViewService";
@@ -55,6 +56,7 @@ const globalServices = {
 }
 
 const helperServices = {
+  explorerHelperService: inject<ExplorerHelperService>(TYPES.explorerHelperService),
   markdownHelperService: inject<MarkdownHelperService>(TYPES.markdownHelperService),
 }
 

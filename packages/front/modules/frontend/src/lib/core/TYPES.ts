@@ -15,6 +15,7 @@ const globalServices = {
 }
 
 const helperServices = {
+  explorerHelperService: Symbol("explorerHelperService"),
   markdownHelperService: Symbol("markdownHelperService"),
 }
 
