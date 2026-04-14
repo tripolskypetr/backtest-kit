@@ -90,6 +90,7 @@ const useStyles = makeStyles()((theme) => ({
     input: {
         height: HEADER_HEIGHT,
         paddingRight: theme.spacing(2),
+        paddingLeft: theme.spacing(1),
         width: "100%",
     },
     container: {
