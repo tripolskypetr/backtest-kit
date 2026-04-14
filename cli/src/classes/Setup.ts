@@ -107,6 +107,7 @@ export class SetupUtils {
 
     {
       Markdown.clear();
+      Report.clear();
       MarkdownWriter.clear();
       ReportWriter.clear();
     }
@@ -131,8 +132,6 @@ export class SetupUtils {
       Dump.clear();
       Log.clear();
       Markdown.clear();
-      Memory.clear();
-      Report.clear();
     }
 
     {

@@ -13556,6 +13556,33 @@ declare class MarkdownUtils {
      * ```
      */
     disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void;
+    /**
+     * Clears markdown report data selectively.
+     *
+     * Clears accumulated data for specified markdown services without unsubscribing.
+     * Use this method to reset report data for specific services while keeping them active.
+     *
+     * Each cleared service will:
+     * - Clear accumulated data for all reports
+     * - Start fresh with new data for future events
+     * - Not affect event subscriptions or report generation status
+     *
+     * @param config - Service configuration object specifying which services to clear. Defaults to clearing all services.
+     * @param config.backtest - Clear backtest result report data
+     * @param config.breakeven - Clear breakeven event tracking data
+     * @param config.partial - Clear partial profit/loss event tracking data
+     * @param config.heat - Clear portfolio heatmap analysis data
+     * @param config.walker - Clear walker strategy comparison report data
+     * @param config.performance - Clear performance bottleneck analysis data
+     * @param config.risk - Clear risk rejection tracking data
+     * @param config.schedule - Clear scheduled signal tracking data
+     * @param config.live - Clear live trading event report data
+     * @param config.strategy - Clear strategy report data
+     * @param config.sync - Clear sync report data
+     * @param config.highest_profit - Clear highest profit report data
+     * @param config.max_drawdown - Clear max drawdown report data
+     */
+    clear: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void;
 }
 /**
  * Markdown adapter with pluggable storage backend and instance memoization.
@@ -13588,12 +13615,6 @@ declare class MarkdownAdapter extends MarkdownUtils {
      * All dumps append to a single .jsonl file per markdown type.
      */
     useJsonl(): void;
-    /**
-     * Clears the memoized storage cache.
-     * Call this when process.cwd() changes between strategy iterations
-     * so new storage instances are created with the updated base path.
-     */
-    clear(): void;
     /**
      * Switches to a dummy markdown adapter that discards all writes.
      * All future markdown writes will be no-ops.
