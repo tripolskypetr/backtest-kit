@@ -46,6 +46,8 @@ interface IFileTreeWidgetProps {
 const SEARCH_DEBOUNCE = 2_500;
 const CHUNK_SIZE = 10_000;
 
+const MAX_ROWS = 25_000;
+
 const HEADER_HEIGHT = "65px";
 
 const getFileIcon = (node: ExplorerFile) => {
@@ -126,6 +128,9 @@ const listItems = async (search: string, nodes: ExplorerNode[]) => {
         }
         if (++chunk % CHUNK_SIZE === 0) {
             await sleep();
+        }
+        if (result.length > MAX_ROWS) {
+            break;
         }
     }
     return result;

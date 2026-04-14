@@ -2,7 +2,7 @@ import {
     KeyboardArrowLeft,
     Refresh,
 } from "@mui/icons-material";
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, Container, Paper, Typography } from "@mui/material";
 import {
     Breadcrumbs2,
     Breadcrumbs2Type,
@@ -95,7 +95,7 @@ export const MainView = ({
     };
 
     return (
-        <>
+        <Container>
             <Breadcrumbs2
                 items={options}
                 actions={actions}
@@ -107,7 +107,7 @@ export const MainView = ({
                 </Box>
             </ScrollView>
             <Background />
-        </>
+        </Container>
     );
 };
 
