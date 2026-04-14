@@ -5131,5 +5131,42 @@
     "pnlPriceClose": 43122.48,
     "pnlCost": 0,
     "pnlEntries": 100
+  },
+  {
+    "type": "signal.info",
+    "id": "f1e2d3c4-1234-4000-b5a6-c7d8e9f0a1b2",
+    "timestamp": 1708877200000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "a1b2c3d4-5678-4000-a0b1-c2d3e4f5a6b7",
+    "notificationId": "msg-telegram-42",
+    "currentPrice": 52340.0,
+    "position": "long",
+    "priceOpen": 51900.0,
+    "priceTakeProfit": 53457.0,
+    "priceStopLoss": 50862.0,
+    "originalPriceTakeProfit": 53457.0,
+    "originalPriceStopLoss": 50862.0,
+    "originalPriceOpen": 51900.0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "pnl": {
+      "pnlPercentage": 0.85,
+      "priceOpen": 51900.0,
+      "priceClose": 52340.0,
+      "pnlCost": 0.85,
+      "pnlEntries": 100
+    },
+    "pnlPercentage": 0.85,
+    "pnlPriceOpen": 51900.0,
+    "pnlPriceClose": 52340.0,
+    "pnlCost": 0.85,
+    "pnlEntries": 100,
+    "note": "RSI crossed 70 — consider partial close",
+    "scheduledAt": 1708876600000,
+    "pendingAt": 1708876700000,
+    "createdAt": 1708877200000
   }
 ]
