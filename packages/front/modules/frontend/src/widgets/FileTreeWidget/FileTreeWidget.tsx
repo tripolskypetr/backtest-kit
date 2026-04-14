@@ -1,4 +1,5 @@
 import {
+    Center,
     LoaderView,
     PaperView,
     sleep,
@@ -31,6 +32,7 @@ import {
     ListItemAvatar,
     ListItemText,
     SxProps,
+    Typography,
 } from "@mui/material";
 import { useState } from "react";
 import { Search } from "@mui/icons-material";
@@ -186,6 +188,20 @@ export const FileTreeWidget = ({
     const renderInner = () => {
         if (!items) {
             return <LoaderView className={classes.loader} />;
+        }
+        if (!items.length) {
+            return (
+                <Center
+                    sx={{
+                        height: "100%",
+                        width: "100%",
+                    }}
+                >
+                    <Typography variant="h6" sx={{ opacity: 0.5 }}>
+                        Not found
+                    </Typography>
+                </Center>
+            )
         }
         return (
             <VirtualView withScrollbar>
