@@ -621,6 +621,12 @@ export class IntervalUtils {
 
     wrappedFn.clear = async () => {
       backtest.loggerService.info(INTERVAL_METHOD_NAME_FILE_CLEAR);
+      if (!MethodContextService.hasContext()) {
+        throw new Error(`${INTERVAL_METHOD_NAME_FILE_CLEAR} requires method context`);
+      }
+      if (!ExecutionContextService.hasContext()) {
+        throw new Error(`${INTERVAL_METHOD_NAME_FILE_CLEAR} requires execution context`);
+      }
       await this._getFileInstance.get(run)?.clear();
     };
 

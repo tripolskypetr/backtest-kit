@@ -710,6 +710,12 @@ export class CacheUtils {
 
     wrappedFn.clear = async () => {
       backtest.loggerService.info(CACHE_METHOD_NAME_FILE_CLEAR);
+      if (!MethodContextService.hasContext()) {
+        throw new Error(`${CACHE_METHOD_NAME_FILE_CLEAR} requires method context`);
+      }
+      if (!ExecutionContextService.hasContext()) {
+        throw new Error(`${CACHE_METHOD_NAME_FILE_CLEAR} requires execution context`);
+      }
       await this._getFileInstance.get(run)?.clear();
     };
 
