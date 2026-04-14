@@ -1,6 +1,6 @@
 import { addTool, commitToolOutput, execute } from "agent-swarm-kit";
 import { getOllama } from "../../config/ollama";
-import { retry, str } from "functools-kit";
+import { retry, sleep, str } from "functools-kit";
 import { ToolName } from "../../enum/ToolName";
 import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
 import { errorEmitter } from "../../config/emitters";
@@ -10,13 +10,22 @@ const SEARCH_MAX_RESULTS = 10;
 const SEARCH_RETRY_COUNT = 5;
 const SEARCH_RETRY_DELAY = 5_000;
 
+const SEARCH_TIMEOUT = 20_000;
+const SEARCH_TIMEOUT_SYMBOL = Symbol("SEARCH_TIMEOUT");
+
 const fetchNews = retry(async (query: string) => {
   const ollama = getOllama();
-  const { results } = await ollama.webSearch({
-    query: String(query),
-    maxResults: SEARCH_MAX_RESULTS,
-  });
-  return JSON.stringify(results, null, 2);
+  const data = await Promise.race([
+    ollama.webSearch({
+      query: String(query),
+      maxResults: SEARCH_MAX_RESULTS,
+    }),
+    sleep(SEARCH_TIMEOUT).then(() => SEARCH_TIMEOUT_SYMBOL)
+  ]);
+  if (typeof data === "symbol") {
+    throw new Error("Web search timed out");
+  }
+  return JSON.stringify(data.results, null, 2);
 }, SEARCH_RETRY_COUNT, SEARCH_RETRY_DELAY);
 
 addTool<WebSearchRequestContract>({
