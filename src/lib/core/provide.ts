@@ -73,6 +73,7 @@ import TimeMetaService from "../services/meta/TimeMetaService";
 import { MaxDrawdownReportService } from "../services/report/MaxDrawdownReportService";
 import { MaxDrawdownMarkdownService } from "../services/markdown/MaxDrawdownMarkdownService";
 import ContextMetaService from "../services/meta/ContextMetaService";
+import NotificationHelperService from "../services/helpers/NotificationHelperService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -172,6 +173,10 @@ import ContextMetaService from "../services/meta/ContextMetaService";
     provide(TYPES.syncReportService, () => new SyncReportService());
     provide(TYPES.highestProfitReportService, () => new HighestProfitReportService());
     provide(TYPES.maxDrawdownReportService, () => new MaxDrawdownReportService());
+}
+
+{
+    provide(TYPES.notificationHelperService, () => new NotificationHelperService());
 }
 
 {

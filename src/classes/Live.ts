@@ -25,11 +25,11 @@ import { percentToCloseCost } from "../math/percentToCloseCost";
 import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
 import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "./Broker";
-import { Signal, SignalNotificationPayload } from "./Signal";
 import {
   IPositionOverlapLadder,
   POSITION_OVERLAP_LADDER_DEFAULT,
 } from "../config/ladder";
+import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
 const LIVE_METHOD_NAME_BACKGROUND = "LiveUtils.background";
@@ -4768,7 +4768,7 @@ export class LiveUtils {
       currentPrice,
       context,
     });
-    await Signal.commitSignalNotify(
+    await backtest.notificationHelperService.commitSignalNotify(
       payload,
       symbol,
       currentPrice,

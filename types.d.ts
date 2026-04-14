@@ -4749,6 +4749,79 @@ interface IPositionOverlapLadder {
 }
 
 /**
+ * Optional payload for signal info notifications.
+ * Both fields are optional — omitting notificationNote falls back to the signal's own note.
+ */
+type SignalNotificationPayload = {
+    /** Optional user-defined identifier for correlating the notification with external systems (e.g. Telegram message ID) */
+    notificationId: string;
+    /** Human-readable note to attach to the notification. Falls back to signal.note if omitted. */
+    notificationNote: string;
+};
+/**
+ * Helper service for emitting signal info notifications.
+ *
+ * Handles validation (memoized per context) and emission of `signal.info` events
+ * via `signalNotifySubject`. Used internally by the framework action pipeline —
+ * end users interact with this via `commitSignalNotify()` in `onActivePing` callbacks.
+ */
+declare class NotificationHelperService {
+    private readonly loggerService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
+    private readonly strategyValidationService;
+    private readonly exchangeValidationService;
+    private readonly frameValidationService;
+    private readonly actionValidationService;
+    private readonly strategyCoreService;
+    private readonly timeMetaService;
+    /**
+     * Validates strategy, exchange, frame, risk, and action schemas for the given context.
+     *
+     * Memoized per unique `"strategyName:exchangeName[:frameName]"` key — subsequent calls
+     * with the same context are no-ops, so validation runs at most once per context.
+     *
+     * @param context - Routing context: strategyName, exchangeName, frameName
+     * @throws {Error} If any registered schema fails validation
+     */
+    validate: ((context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<void>>;
+    /**
+     * Emits a `signal.info` notification for the currently active pending signal.
+     *
+     * Validates all schemas (via memoized `validate`), resolves the pending signal
+     * for the given symbol, then emits a `SignalInfoContract` via `signalNotifySubject`,
+     * which is routed to all registered `listenSignalNotify` callbacks and persisted
+     * by `NotificationAdapter`.
+     *
+     * @param payload - Optional notification fields (notificationId, notificationNote)
+     * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+     * @param currentPrice - Market price at the time of the call
+     * @param context - Routing context: strategyName, exchangeName, frameName
+     * @param backtest - true when called during a backtest run
+     *
+     * @throws {Error} If no active pending signal is found for the given symbol
+     *
+     * @example
+     * ```typescript
+     * // Inside onActivePing callback:
+     * await commitSignalNotify("BTCUSDT", {
+     *   notificationNote: "RSI crossed 70, consider closing",
+     *   notificationId: "msg-123",
+     * });
+     * ```
+     */
+    commitSignalNotify: (payload: Partial<SignalNotificationPayload>, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest: boolean) => Promise<void>;
+}
+
+/**
  * Cancels the scheduled signal without stopping the strategy.
  *
  * Clears the scheduled signal (waiting for priceOpen activation).
@@ -5868,6 +5941,38 @@ declare function hasNoPendingSignal(symbol: string): Promise<boolean>;
  * ```
  */
 declare function hasNoScheduledSignal(symbol: string): Promise<boolean>;
+/**
+ * Emits a `signal.info` notification for the currently active pending signal.
+ *
+ * Broadcasts a user-defined informational note without affecting position state.
+ * Useful for annotating strategy decisions, triggering external alerts, or logging
+ * mid-position events (e.g. RSI crossing a threshold, volume spike detected).
+ *
+ * Automatically reads backtest/live mode from execution context.
+ * Automatically reads strategyName, exchangeName, frameName from method context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+ * @param payload - Optional notification fields
+ * @param payload.notificationNote - Human-readable note. Falls back to signal.note if omitted.
+ * @param payload.notificationId - Optional correlation ID for external systems (e.g. Telegram message ID).
+ *
+ * @throws {Error} If called outside an execution context
+ * @throws {Error} If called outside a method context
+ * @throws {Error} If no active pending signal exists for the given symbol
+ *
+ * @example
+ * ```typescript
+ * import { commitSignalNotify } from "backtest-kit";
+ *
+ * // Inside onActivePing callback:
+ * await commitSignalNotify("BTCUSDT", {
+ *   notificationNote: "RSI crossed 70, consider closing",
+ *   notificationId: "msg-123",
+ * });
+ * ```
+ */
+declare function commitSignalNotify(symbol: string, payload?: Partial<SignalNotificationPayload>): Promise<void>;
 
 /**
  * Stops the strategy from generating new signals.
@@ -7582,6 +7687,89 @@ interface MaxDrawdownContract {
 }
 
 /**
+ * Contract for signal info notification events.
+ *
+ * Emitted by signalNotifySubject when a strategy calls commitSignalInfo() to broadcast
+ * a user-defined informational message for an open position.
+ * Used for custom strategy annotations, debug output, and external notification routing.
+ *
+ * Consumers:
+ * - User callbacks via listenSignalNotify() / listenSignalNotifyOnce()
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalNotify } from "backtest-kit";
+ *
+ * // Listen to all signal info events
+ * listenSignalNotify((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Signal ${event.data.id}: ${event.note}`);
+ *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
+ * });
+ *
+ * // Wait for the first info event on BTCUSDT
+ * listenSignalNotifyOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT info:", event.note)
+ * );
+ * ```
+ */
+interface SignalInfoContract {
+    /**
+     * Trading pair symbol (e.g., "BTCUSDT").
+     * Identifies which market this info event belongs to.
+     */
+    symbol: string;
+    /**
+     * Strategy name that generated this signal.
+     * Identifies which strategy execution this info event belongs to.
+     */
+    strategyName: StrategyName;
+    /**
+     * Exchange name where this signal is being executed.
+     * Identifies which exchange this info event belongs to.
+     */
+    exchangeName: ExchangeName;
+    /**
+     * Frame name where this signal is being executed.
+     * Identifies which frame this info event belongs to (empty string for live mode).
+     */
+    frameName: FrameName;
+    /**
+     * Complete signal row data with original prices.
+     * Contains all signal information including originalPriceStopLoss, originalPriceTakeProfit, and partialExecuted.
+     */
+    data: IPublicSignalRow;
+    /**
+     * Current market price at the moment the info event was emitted.
+     */
+    currentPrice: number;
+    /**
+     * User-defined informational note attached to this event.
+     * Provided by the strategy when calling commitSignalInfo().
+     */
+    note: string;
+    /**
+     * Optional user-defined identifier for correlating this event with external systems.
+     * Provided by the strategy when calling commitSignalInfo().
+     */
+    notificationId?: string;
+    /**
+     * Execution mode flag.
+     * - true: Event from backtest execution (historical candle data)
+     * - false: Event from live trading (real-time tick)
+     */
+    backtest: boolean;
+    /**
+     * Event timestamp in milliseconds since Unix epoch.
+     *
+     * Timing semantics:
+     * - Live mode: when.getTime() at the moment the info event was emitted
+     * - Backtest mode: candle.timestamp of the candle that triggered the event
+     */
+    timestamp: number;
+}
+
+/**
  * Subscribes to all signal events with queued async processing.
  *
  * Events are processed sequentially in order received, even if callback is async.
@@ -8636,6 +8824,24 @@ declare function listenMaxDrawdown(fn: (event: MaxDrawdownContract) => void): ()
  * @return Unsubscribe function to cancel the listener before it fires
  */
 declare function listenMaxDrawdownOnce(filterFn: (event: MaxDrawdownContract) => boolean, fn: (event: MaxDrawdownContract) => void): () => void;
+/**
+ * Subscribes to signal info events with queued async processing.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * @param fn - Callback function to handle signal info events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenSignalNotify(fn: (event: SignalInfoContract) => void): () => void;
+/**
+ * Subscribes to filtered signal info events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenSignalNotifyOnce(filterFn: (event: SignalInfoContract) => boolean, fn: (event: SignalInfoContract) => void): () => void;
 
 /**
  * Checks if trade context is active (execution and method contexts).
@@ -10579,6 +10785,70 @@ interface ClosePendingCommitNotification {
     createdAt: number;
 }
 /**
+ * Signal info notification.
+ * Emitted when a strategy broadcasts a user-defined informational note for an open position.
+ */
+interface SignalInfoNotification {
+    /** Discriminator for type-safe union */
+    type: "signal.info";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the info event was emitted */
+    timestamp: number;
+    /** Whether this notification is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Current market price when the info event was emitted */
+    currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Unrealized PNL at the moment the info event was emitted (from data.pnl) */
+    pnl: IStrategyPnL;
+    /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation (adjusted with slippage and fees) */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** User-defined informational note provided by the strategy */
+    note: string;
+    /** Optional user-defined identifier for correlating this notification with external systems */
+    notificationId?: string;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
  * Root discriminated union of all notification types.
  * Type discrimination is done via the `type` field.
  *
@@ -10604,7 +10874,7 @@ interface ClosePendingCommitNotification {
  * }
  * ```
  */
-type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | SignalSyncOpenNotification | SignalSyncCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification;
+type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | SignalSyncOpenNotification | SignalSyncCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | SignalInfoNotification;
 
 /**
  * Unified tick event data for report generation.
@@ -14800,6 +15070,30 @@ declare class BacktestUtils {
         frameName: FrameName;
     }, cost?: number) => Promise<boolean>;
     /**
+     * Emits a `signal.info` notification for the currently active pending signal.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Market price at the time of the call
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param payload - Optional notification fields (notificationNote, notificationId)
+     *
+     * @throws {Error} If no active pending signal exists for the given symbol
+     *
+     * @example
+     * ```typescript
+     * await Backtest.commitSignalNotify("BTCUSDT", 42000, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     *   frameName: "1h"
+     * }, { notificationNote: "RSI crossed 70" });
+     * ```
+     */
+    commitSignalNotify: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<SignalNotificationPayload>) => Promise<void>;
+    /**
      * Gets statistical data from all closed signals for a symbol-strategy pair.
      *
      * @param symbol - Trading pair symbol
@@ -16211,6 +16505,28 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }, cost?: number) => Promise<boolean>;
+    /**
+     * Emits a `signal.info` notification for the currently active pending signal.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Market price at the time of the call
+     * @param context - Execution context with strategyName and exchangeName
+     * @param payload - Optional notification fields (notificationNote, notificationId)
+     *
+     * @throws {Error} If no active pending signal exists for the given symbol
+     *
+     * @example
+     * ```typescript
+     * await Live.commitSignalNotify("BTCUSDT", 42000, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     * }, { notificationNote: "RSI crossed 70" });
+     * ```
+     */
+    commitSignalNotify: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }, payload?: Partial<SignalNotificationPayload>) => Promise<void>;
     /**
      * Gets statistical data from all live trading events for a symbol-strategy pair.
      *
@@ -20371,6 +20687,7 @@ interface INotificationUtils {
      * @param data - The strategy tick result data
      */
     handleSignal(data: IStrategyTickResult): Promise<void>;
+    handleSignalNotify(data: SignalInfoContract): Promise<void>;
     /**
      * Handles partial profit availability event.
      * @param data - The partial profit contract data
@@ -20449,6 +20766,7 @@ declare class NotificationBacktestAdapter implements INotificationUtils {
      * @param data - The strategy tick result data
      */
     handleSignal: (data: IStrategyTickResult) => Promise<void>;
+    handleSignalNotify: (data: SignalInfoContract) => Promise<void>;
     /**
      * Handles partial profit availability event.
      * Proxies call to the underlying notification adapter.
@@ -20561,6 +20879,7 @@ declare class NotificationLiveAdapter implements INotificationUtils {
      * @param data - The strategy tick result data
      */
     handleSignal: (data: IStrategyTickResult) => Promise<void>;
+    handleSignalNotify: (data: SignalInfoContract) => Promise<void>;
     /**
      * Handles partial profit availability event.
      * Proxies call to the underlying notification adapter.
@@ -24051,6 +24370,11 @@ declare const highestProfitSubject: Subject<HighestProfitContract>;
  * Allows users to track drawdown levels and implement custom risk management logic based on drawdown thresholds.
  */
 declare const maxDrawdownSubject: Subject<MaxDrawdownContract>;
+/**
+ * Signal info emitter for user-defined informational notes on open positions.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a custom annotation.
+ */
+declare const signalNotifySubject: Subject<SignalInfoContract>;
 
 declare const emitters_activePingSubject: typeof activePingSubject;
 declare const emitters_backtestScheduleOpenSubject: typeof backtestScheduleOpenSubject;
@@ -24073,6 +24397,7 @@ declare const emitters_shutdownEmitter: typeof shutdownEmitter;
 declare const emitters_signalBacktestEmitter: typeof signalBacktestEmitter;
 declare const emitters_signalEmitter: typeof signalEmitter;
 declare const emitters_signalLiveEmitter: typeof signalLiveEmitter;
+declare const emitters_signalNotifySubject: typeof signalNotifySubject;
 declare const emitters_strategyCommitSubject: typeof strategyCommitSubject;
 declare const emitters_syncSubject: typeof syncSubject;
 declare const emitters_validationSubject: typeof validationSubject;
@@ -24080,7 +24405,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_activePingSubject as activePingSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_activePingSubject as activePingSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -31388,6 +31713,7 @@ declare class MaxDrawdownReportService {
 }
 
 declare const backtest: {
+    notificationHelperService: NotificationHelperService;
     exchangeValidationService: ExchangeValidationService;
     strategyValidationService: StrategyValidationService;
     frameValidationService: FrameValidationService;
@@ -31579,4 +31905,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRecentAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TRecentUtilsCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRecentAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TRecentUtilsCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };

@@ -438,10 +438,6 @@ export {
   Session,
 } from "./classes/Session";
 
-export {
-  Signal,
-} from "./classes/Signal";
-
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
 export { Schedule } from "./classes/Schedule";

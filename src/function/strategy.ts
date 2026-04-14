@@ -12,11 +12,11 @@ import { percentToCloseCost } from "../math/percentToCloseCost";
 import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
 import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "../classes/Broker";
-import { Signal, SignalNotificationPayload } from "../classes/Signal";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
 import { IPositionOverlapLadder, POSITION_OVERLAP_LADDER_DEFAULT } from "../config/ladder";
 import { IPublicSignalRow, CommitPayload } from "../interfaces/Strategy.interface";
+import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
 const CLOSE_PENDING_METHOD_NAME = "strategy.commitClosePending";
@@ -2665,7 +2665,7 @@ export async function commitSignalNotify(
   const currentPrice = await getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
-  await Signal.commitSignalNotify(
+  await backtest.notificationHelperService.commitSignalNotify(
     payload,
     symbol,
     currentPrice,

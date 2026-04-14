@@ -99,6 +99,10 @@ const reportServices = {
     maxDrawdownReportService: Symbol('maxDrawdownReportService'),
 }
 
+const helperServices = {
+    notificationHelperService: Symbol('notificationHelperService'),
+}
+
 const validationServices = {
     exchangeValidationService: Symbol('exchangeValidationService'),
     strategyValidationService: Symbol('strategyValidationService'),
@@ -125,6 +129,7 @@ export const TYPES = {
     ...markdownServices,
     ...reportServices,
     ...validationServices,
+    ...helperServices,
 }
 
 export default TYPES;

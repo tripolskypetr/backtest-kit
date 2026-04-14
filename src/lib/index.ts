@@ -78,6 +78,7 @@ import MaxDrawdownMarkdownService from "./services/markdown/MaxDrawdownMarkdownS
 import TimeMetaService from "./services/meta/TimeMetaService";
 import PriceMetaService from "./services/meta/PriceMetaService";
 import { TContextMetaService } from "./services/meta/ContextMetaService";
+import NotificationHelperService from "./services/helpers/NotificationHelperService";
 
 const baseServices = {
   loggerService: inject<TLoggerService>(TYPES.loggerService),
@@ -247,6 +248,10 @@ const reportServices = {
   maxDrawdownReportService: inject<MaxDrawdownReportService>(TYPES.maxDrawdownReportService),
 };
 
+const helperServices = {
+  notificationHelperService: inject<NotificationHelperService>(TYPES.notificationHelperService),
+};
+
 const validationServices = {
   exchangeValidationService: inject<ExchangeValidationService>(
     TYPES.exchangeValidationService
@@ -291,6 +296,7 @@ export const backtest = {
   ...markdownServices,
   ...reportServices,
   ...validationServices,
+  ...helperServices,
 };
 
 init();

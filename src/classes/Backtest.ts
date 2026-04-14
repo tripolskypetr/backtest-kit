@@ -20,11 +20,11 @@ import { percentToCloseCost } from "../math/percentToCloseCost";
 import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
 import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "./Broker";
-import { Signal, SignalNotificationPayload } from "./Signal";
 import {
   IPositionOverlapLadder,
   POSITION_OVERLAP_LADDER_DEFAULT,
 } from "../config/ladder";
+import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
 const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
@@ -4657,7 +4657,7 @@ export class BacktestUtils {
       currentPrice,
       context,
     });
-    await Signal.commitSignalNotify(
+    await backtest.notificationHelperService.commitSignalNotify(
       payload,
       symbol,
       currentPrice,
