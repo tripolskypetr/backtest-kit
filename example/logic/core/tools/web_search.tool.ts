@@ -1,12 +1,22 @@
 import { addTool, commitToolOutput, execute } from "agent-swarm-kit";
 import { getOllama } from "../../config/ollama";
-import { str } from "functools-kit";
+import { retry, str } from "functools-kit";
 import { ToolName } from "../../enum/ToolName";
 import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
 import { errorEmitter } from "../../config/emitters";
 import { ERROR_SYMBOL } from "../../config/constant";
 
 const SEARCH_MAX_RESULTS = 10;
+const SEARCH_RETRY_COUNT = 5;
+
+const fetchNews = retry(async (query: string) => {
+  const ollama = getOllama();
+  const { results } = await ollama.webSearch({
+    query: String(query),
+    maxResults: SEARCH_MAX_RESULTS,
+  });
+  return JSON.stringify(results, null, 2);
+}, SEARCH_RETRY_COUNT);
 
 addTool<WebSearchRequestContract>({
   toolName: ToolName.WebSearchTool,
@@ -19,12 +29,7 @@ addTool<WebSearchRequestContract>({
     }
     if (params.query) {
       console.log(`Searching ${params.query}`);
-      const ollama = getOllama();
-      const { results } = await ollama.webSearch({
-        query: String(params.query),
-        maxResults: SEARCH_MAX_RESULTS,
-      });
-      const content = JSON.stringify(results, null, 2);
+      const content = <string> await fetchNews(params.query);
       await commitToolOutput(toolId, content, clientId, agentName);
     }
     if (isLast) {
