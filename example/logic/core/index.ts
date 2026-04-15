@@ -1,13 +1,8 @@
-import "./advisor/asset_news.advisor";
-import "./advisor/global_news.advisor";
+import "./advisor/perplexity_news.advisor";
+import "./advisor/tavily_news.advisor";
 import "./advisor/stock_data.advisor";
 
-import "./completion/ollama_text.completion";
 import "./completion/ollama_outline_tool.completion";
 import "./completion/ollama_outline_format.completion";
-
-import "./tools/web_search.tool";
-import "./agent/web_search.agent";
-import "./swarm/web_search.swarm";
 
 import "./outline/research.outline";

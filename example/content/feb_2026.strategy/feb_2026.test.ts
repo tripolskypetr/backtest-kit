@@ -13,7 +13,7 @@ const gridSource = Cache.file(
     console.log(result, when);
     return { ...result, currentPrice };
   },
-  { interval: "8h", name: "research_source" },
+  { interval: "1h", name: "research_source" },
 );
 
 addStrategySchema({
