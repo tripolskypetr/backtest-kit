@@ -1,6 +1,5 @@
 enum AdvisorName {
     TavilyNewsAdvisor = "tavily_news_advisor",
-    PerplexityNewsAdvisor = "perplexity_news_advisor",
     StockDataAdvisor = "stock_data_advisor",
 }
 

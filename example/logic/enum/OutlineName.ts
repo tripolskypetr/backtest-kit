@@ -1,5 +1,5 @@
 enum OutlineName {
-    ResearchOutline = "research_outline",
+    ForecastOutline = "forecast_outline",
 }
 
 export { OutlineName }

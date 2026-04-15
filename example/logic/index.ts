@@ -1,4 +1,4 @@
 import "./config/setup";
 import "./core";
 
-export { research } from "./main/research";
+export { forecast } from "./main/forecast";

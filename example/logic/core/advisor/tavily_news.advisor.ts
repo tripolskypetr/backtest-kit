@@ -19,6 +19,7 @@ addAdvisor({
       ),
       {
         includeAnswer: "basic",
+        topic: "news",
         maxResults: 10,
         max_tokens: 25000,
         searchDepth: "advanced",
@@ -26,10 +27,11 @@ addAdvisor({
         endDate: dayjs(to).format("YYYY-MM-DD"),
       },
     );
-    const results = search.results.map(({ title, content }) => ({
+    const results = search.results.map(({ title, content, publishedDate }) => ({
       title,
       content,
+      publishedDate,
     }));
-    return JSON.stringify({ answer, results });
+    return JSON.stringify(results);
   },
 });

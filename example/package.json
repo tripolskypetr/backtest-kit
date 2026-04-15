@@ -16,7 +16,6 @@
     "@backtest-kit/pinets": "6.13.0",
     "@backtest-kit/signals": "6.13.0",
     "@backtest-kit/ui": "6.13.0",
-    "@perplexity-ai/perplexity_ai": "0.27.0",
     "@tavily/core": "0.7.2",
     "agent-swarm-kit": "2.3.0",
     "backtest-kit": "6.13.0",
