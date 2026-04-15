@@ -3,57 +3,49 @@ import {
   ask,
   dumpOutlineResult,
   IOutlineHistory,
-} from "agent-swarm-kit";
-import { not, str } from "functools-kit";
-import { OutlineName } from "../../enum/OutlineName";
-import { CompletionName } from "../../enum/CompletionName";
-import { AdvisorName } from "../../enum/AdvisorName";
-import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
-import { ForecastResponseContract } from "../../contract/ForecastResponse.contract";
-import { StockDataRequestContract } from "../../contract/StockDataRequest.contract";
+} from 'agent-swarm-kit';
+import { str } from 'functools-kit';
+import { OutlineName } from '../../enum/OutlineName';
+import { CompletionName } from '../../enum/CompletionName';
+import { AdvisorName } from '../../enum/AdvisorName';
+import { WebSearchRequestContract } from '../../contract/WebSearchRequest.contract';
+import { ForecastResponseContract } from '../../contract/ForecastResponse.contract';
 
-import dayjs from "dayjs";
+import dayjs from 'dayjs';
 
 const DISPLAY_NAME_MAP: Record<string, string> = {
-  BTCUSDT: "Bitcoin",
-  ETHUSDT: "Ethereum",
-  BNBUSDT: "Binance Coin (BNB)",
-  XRPUSDT: "Ripple",
-  SOLUSDT: "Solana",
+  BTCUSDT: 'Bitcoin',
+  ETHUSDT: 'Ethereum',
+  BNBUSDT: 'Binance Coin (BNB)',
+  XRPUSDT: 'Ripple',
+  SOLUSDT: 'Solana',
 };
 
 const FORECAST_PROMPT = str.newline(
-  "Ты — аналитик, который сопоставляет макроновости со свечными данными.",
-  "Новости определяют критические уровни и ожидания рынка. Свечи — факт того, что произошло.",
-  "Твоя задача: проверить, подтверждают ли свечи то, что предполагают новости.",
-  "",
-  "**Алгоритм:**",
-  " 1. Из новостей выдели ключевые события: что должно давить на цену вниз, что тянуть вверх.",
-  " 2. Посмотри на свечи: цена движется в направлении, которое предполагают новости, или против?",
-  " 3. Явно сравни последние 3–5 свечей с предыдущими: есть ли разворот, отскок, или замедление падения/роста?",
-  "    - Если после падения последние свечи закрываются выше предыдущих — это отскок, даже при негативных новостях.",
-  "    - Если после роста последние свечи закрываются ниже предыдущих — это откат, даже при позитивных новостях.",
-  "    - Отскок/откат на последних свечах — приоритетный сигнал: он отражает текущее намерение рынка.",
-  " 4. Если направление совпадает — сентимент подтверждён. Если цена идёт против новостей — рынок не верит в нарратив.",
-  " 5. sideways — только если новости прямо противоречат друг другу И свечи не дают направления.",
-  "",
-  "**Сентимент (выбери ровно один):**",
-  " - **bullish**: новости позитивны, свечи подтверждают рост.",
-  " - **bearish**: новости негативны, свечи подтверждают падение.",
-  " - **neutral**: новости без выраженного направления, свечи спокойны.",
-  " - **sideways**: новости противоречат друг другу, свечи не дают чёткого направления.",
-  "",
-  "**Сигнал (выбери ровно один):**",
-  " - **BUY**: хороший момент для входа в покупку — цена недавно сделала дно и разворачивается вверх, движение ещё не исчерпано.",
-  "   Не ставь BUY если последние свечи уже показали сильный рост — это пик, а не точка входа.",
-  " - **SELL**: хороший момент для входа в продажу — цена недавно сделала локальный максимум и разворачивается вниз.",
-  "   Не ставь SELL если последние свечи уже показали сильное падение — движение может быть исчерпано.",
-  " - **WAIT**: движение уже в значительной мере произошло, точка входа упущена; либо направление неясно.",
-  "",
-  "**Требуемый результат:**",
-  "1. **sentiment**: bullish, bearish, neutral или sideways.",
-  "2. **signal**: BUY, SELL или WAIT.",
-  "3. **reasoning**: какие новости создали ожидание? Что показывают свечи? Совпадает или расходится?",
+  'Ты — макроаналитик рынка. На основе новостного фона определи текущий рыночный сентимент по активу.',
+  'Опирайся только на новости и макроэкономический контекст.',
+  '',
+  '**Как думать:**',
+  ' - Читай новости как сигналы настроения участников рынка: что пугает, что вдохновляет, что вызывает неопределённость.',
+  ' - Крупные события (регуляторные решения, макростатистика, геополитика) имеют больший вес, чем мелкий информационный шум.',
+  ' - Противоречивые новости не отменяют друг друга — найди доминирующую силу.',
+  ' - Если поток новостей слаб, разнонаправлен или отсутствует — это тоже информация.',
+  '',
+  '**Сентимент (выбери ровно один):**',
+  ' - **bullish**: новостной фон преимущественно позитивен, участники рынка настроены на рост.',
+  ' - **bearish**: новостной фон преимущественно негативен, участники рынка ожидают падения.',
+  ' - **neutral**: новостной фон сбалансирован или отсутствует, выраженного давления нет.',
+  ' - **sideways**: новости противоречат друг другу, рынок в состоянии неопределённости без чёткого направления.',
+  '',
+  '**Сигнал (выбери ровно один):**',
+  ' - **BUY**: новостной фон позитивен — сегодня хороший день для покупки.',
+  ' - **SELL**: новостной фон негативен — сегодня хороший день для продажи.',
+  ' - **WAIT**: новости противоречивы или нейтральны — входить в позицию преждевременно.',
+  '',
+  '**Требуемый результат:**',
+  '1. **sentiment**: bullish, bearish, neutral или sideways.',
+  '2. **signal**: BUY, SELL или WAIT.',
+  '3. **reasoning**: какие новости определили этот сентимент и сигнал? Почему именно это значение?',
 );
 
 const commitGlobalNews = async (
@@ -63,64 +55,39 @@ const commitGlobalNews = async (
   const report = await ask<WebSearchRequestContract>(contract, AdvisorName.TavilyNewsAdvisor);
   await history.push(
     {
-      role: "user",
+      role: 'user',
       content: str.newline(
-        "Прочитай глобальные макроэкономические новости за последние 24 часа, запомни их и скажи ОК",
-        "",
+        'Прочитай глобальные макроэкономические новости за последние 24 часа, запомни их и скажи ОК',
+        '',
         report,
       ),
     },
-    { role: "assistant", content: "ОK" },
+    { role: 'assistant', content: 'ОK' },
   );
 };
-
-const commitStockData = async (
-  contract: StockDataRequestContract,
-  history: IOutlineHistory,
-) => {
-  const report = await ask<StockDataRequestContract>(
-    contract,
-    AdvisorName.StockDataAdvisor,
-  );
-  if (!report) {
-    throw new Error("StockDataAdvisor failed");
-  }
-  await history.push(
-    {
-      role: "user",
-      content: str.newline(
-        "Прочитай исторические данные свечей и скажи ОК",
-        "",
-        report,
-      ),
-    },
-    { role: "assistant", content: "ОК" },
-  );
-};
-
 
 addOutline<ForecastResponseContract>({
   outlineName: OutlineName.ForecastOutline,
   completion: CompletionName.OllamaOutlineToolCompletion,
   format: {
-    type: "object",
+    type: 'object',
     properties: {
       sentiment: {
-        type: "string",
-        enum: ["bullish", "bearish", "neutral", "sideways"],
-        description: "Рыночный сентимент: совпадение новостного нарратива и свечного движения.",
+        type: 'string',
+        enum: ['bullish', 'bearish', 'neutral', 'sideways'],
+        description: 'Рыночный сентимент на основе новостного фона.',
       },
       signal: {
-        type: "string",
-        enum: ["BUY", "SELL", "WAIT"],
-        description: "Торговый сигнал на текущий день.",
+        type: 'string',
+        enum: ['BUY', 'SELL', 'WAIT'],
+        description: 'Торговый сигнал на текущий день.',
       },
       reasoning: {
-        type: "string",
-        description: "Что говорят новости, что показывают свечи, совпадают ли они.",
+        type: 'string',
+        description: 'Какие новости определили этот сентимент и сигнал.',
       },
     },
-    required: ["sentiment", "signal", "reasoning"],
+    required: ['sentiment', 'signal', 'reasoning'],
   },
   getOutlineHistory: async (
     { resultId, history },
@@ -130,7 +97,7 @@ addOutline<ForecastResponseContract>({
     const displayName = DISPLAY_NAME_MAP[symbol] ?? symbol;
 
     await history.push({
-      role: "system",
+      role: 'system',
       content: str.newline(
         `Текущая дата и время: ${dayjs.utc(when).format("DD MMMM YYYY HH:mm")} UTC`,
         `Актив: ${displayName} (${symbol})`,
@@ -147,62 +114,53 @@ addOutline<ForecastResponseContract>({
       history,
     );
 
-    await commitStockData(
-      {
-        resultId,
-        symbol,
-        date: when,
-      },
-      history,
-    );
-
-    await history.push({ role: "user", content: FORECAST_PROMPT });
+    await history.push({ role: 'user', content: FORECAST_PROMPT });
   },
   validations: [
     {
       validate: ({ data }) => {
-        if (data.sentiment === "bullish") {
+        if (data.sentiment === 'bullish') {
           return;
         }
-        if (data.sentiment === "bearish") {
+        if (data.sentiment === 'bearish') {
           return;
         }
-        if (data.sentiment === "neutral") {
+        if (data.sentiment === 'neutral') {
           return;
         }
-        if (data.sentiment === "sideways") {
+        if (data.sentiment === 'sideways') {
           return;
         }
-        throw new Error("sentiment должен быть bullish, bearish, neutral или sideways");
+        throw new Error('sentiment должен быть bullish, bearish, neutral или sideways');
       },
-      docDescription: "Проверяет допустимое значение sentiment.",
+      docDescription: 'Проверяет допустимое значение sentiment.',
     },
     {
       validate: ({ data }) => {
-        if (data.signal === "BUY") {
+        if (data.signal === 'BUY') {
           return;
         }
-        if (data.signal === "SELL") {
+        if (data.signal === 'SELL') {
           return;
         }
-        if (data.signal === "WAIT") {
+        if (data.signal === 'WAIT') {
           return;
         }
-        throw new Error("signal должен быть BUY, SELL или WAIT");
+        throw new Error('signal должен быть BUY, SELL или WAIT');
       },
-      docDescription: "Проверяет допустимое значение signal.",
+      docDescription: 'Проверяет допустимое значение signal.',
     },
     {
       validate: ({ data }) => {
-        if (!data.reasoning) throw new Error("reasoning не заполнен");
+        if (!data.reasoning) throw new Error('reasoning не заполнен');
       },
-      docDescription: "Проверяет, что решение обосновано.",
+      docDescription: 'Проверяет, что решение обосновано.',
     },
   ],
   callbacks: {
     async onValidDocument(result) {
       if (!result.data) return;
-      await dumpOutlineResult(result, "./dump/outline/forecast");
+      await dumpOutlineResult(result, './dump/outline/forecast');
     },
   },
 });
