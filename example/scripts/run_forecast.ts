@@ -60,10 +60,10 @@ addExchangeSchema({
   },
 });
 
-const BUY_DATE = "2026-04-07T21:00:00.000Z";
-const WAIT_DATE = "2026-04-07T10:00:00.000Z";
+const WAIT_DATE = "2026-04-12T21:00:00.000Z"; // 02:00 Ташкент
+const BUY_DATE = "2026-04-13T13:00:00.000Z";  // 18:00 Ташкент
 
-const when = new Date(BUY_DATE);
+const when = new Date(WAIT_DATE);
 const symbol = "BTCUSDT";
 
 runInMockContext(async () => {

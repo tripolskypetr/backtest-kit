@@ -4,16 +4,16 @@ import { StockDataRequestContract } from "../../contract/StockDataRequest.contra
 import { formatPrice, formatQuantity, getCandles } from "backtest-kit";
 import dayjs from "dayjs";
 
-const CANDLES_LIMIT = 24; // 24 x 1h = 24 часа истории
+const CANDLES_LIMIT = 240; // 240 x 1m = 4 часа истории
 
 addAdvisor({
   advisorName: AdvisorName.StockDataAdvisor,
   getChat: async ({ symbol }: StockDataRequestContract) => {
     console.log(`${AdvisorName.StockDataAdvisor} called symbol=${symbol}`);
 
-    const candles = await getCandles(symbol, "1h", CANDLES_LIMIT);
+    const candles = await getCandles(symbol, "1m", CANDLES_LIMIT);
 
-    let markdown = `## 1-Hour Candles (Last ${CANDLES_LIMIT})\n`;
+    let markdown = `## 1-Minute Candles (Last ${CANDLES_LIMIT})\n`;
     markdown += `> Symbol: ${String(symbol).toUpperCase()}\n\n`;
     markdown += `| # | Time | Open | High | Low | Close | Volume | Change % | Volatility % | Body % |\n`;
     markdown += `|---|------|------|------|-----|-------|--------|----------|--------------|--------|\n`;
