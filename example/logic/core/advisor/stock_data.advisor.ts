@@ -31,7 +31,7 @@ addAdvisor({
       const high = await formatPrice(symbol, c.high);
       const low = await formatPrice(symbol, c.low);
       const close = await formatPrice(symbol, c.close);
-      const volume = formatQuantity(symbol, c.volume);
+      const volume = await formatQuantity(symbol, c.volume);
 
       markdown += `| ${i + 1} | ${time} | ${open} | ${high} | ${low} | ${close} | ${volume} | ${changePct.toFixed(3)}% | ${volatility.toFixed(2)}% | ${bodyPct.toFixed(1)}% |\n`;
     }

@@ -60,7 +60,7 @@ addExchangeSchema({
   },
 });
 
-const BUY_DATE = "2026-04-07T19:00:00.000Z";
+const BUY_DATE = "2026-04-07T21:00:00.000Z";
 const WAIT_DATE = "2026-04-07T10:00:00.000Z";
 
 const when = new Date(BUY_DATE);
