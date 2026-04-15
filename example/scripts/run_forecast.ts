@@ -19,8 +19,10 @@ const getExchange = singleshot(async () => {
   return exchange;
 });
 
+const exchangeName = "ccxt-exchange";
+
 addExchangeSchema({
-  exchangeName: "ccxt-exchange",
+  exchangeName,
   getCandles: async (symbol, interval, since, limit) => {
     const exchange = await getExchange();
     const candles = await exchange.fetchOHLCV(
@@ -58,13 +60,16 @@ addExchangeSchema({
   },
 });
 
-// Сопротивление пробито "2026-04-07T18:00:00.000Z"
-// Всё ещё боковик "2026-04-07T10:00:00.000Z"
+const BUY_DATE = "2026-04-07T19:00:00.000Z";
+const WAIT_DATE = "2026-04-07T10:00:00.000Z";
+
+const when = new Date(BUY_DATE);
+const symbol = "BTCUSDT";
 
 runInMockContext(async () => {
-  console.log(await forecast("BTCUSDT", new Date("2026-04-07T10:00:00.000Z")));
+  console.log(await forecast(symbol, when));
 }, {
-    when: new Date("2026-04-08T00:00:00.000Z"),
-    symbol: "BTCUSDT",
-    exchangeName: "ccxt-exchange",
+    when,
+    symbol,
+    exchangeName,
 });
