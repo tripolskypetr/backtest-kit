@@ -1,5 +1,5 @@
 interface ForecastResponseContract {
-    signal: "BUY" | "SELL" | "WAIT";
+    sentiment: "bullish" | "bearish" | "neutral" | "sideways";
     reasoning: string;
 }
 

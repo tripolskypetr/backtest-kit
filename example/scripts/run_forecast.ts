@@ -60,9 +60,9 @@ addExchangeSchema({
 
 
 runInMockContext(async () => {
-  console.log(await forecast("BTCUSDT", new Date("2026-04-05T11:00:00.000Z")));
+  console.log(await forecast("BTCUSDT", new Date("2026-04-07T11:00:00.000Z")));
 }, {
-    when: new Date("2026-04-05T11:00:00.000Z"),
+    when: new Date("2026-04-08T00:00:00.000Z"),
     symbol: "BTCUSDT",
     exchangeName: "ccxt-exchange",
 });
