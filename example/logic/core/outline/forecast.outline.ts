@@ -10,6 +10,7 @@ import { CompletionName } from "../../enum/CompletionName";
 import { AdvisorName } from "../../enum/AdvisorName";
 import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contract";
 import { ForecastResponseContract } from "../../contract/ForecastResponse.contract";
+import { StockDataRequestContract } from "../../contract/StockDataRequest.contract";
 
 import dayjs from "dayjs";
 
@@ -22,24 +23,31 @@ const DISPLAY_NAME_MAP: Record<string, string> = {
 };
 
 const FORECAST_PROMPT = str.newline(
-  "Ты — макроаналитик рынка. На основе новостного фона определи текущий рыночный сентимент по активу.",
-  "Технические индикаторы, свечи и графики полностью исключены из анализа — опирайся только на новости и макроэкономический контекст.",
+  "Ты — аналитик, который сопоставляет макроновости со свечными данными.",
+  "Новости определяют критические уровни и ожидания рынка. Свечи — факт того, что произошло.",
+  "Твоя задача: проверить, подтверждают ли свечи то, что предполагают новости.",
   "",
-  "**Как думать:**",
-  " - Читай новости как сигналы настроения участников рынка: что пугает, что вдохновляет, что вызывает неопределённость.",
-  " - Крупные события (регуляторные решения, макростатистика, геополитика) имеют больший вес, чем мелкий информационный шум.",
-  " - Противоречивые новости не отменяют друг друга — найди доминирующую силу.",
-  " - Если поток новостей слаб, разнонаправлен или отсутствует — это тоже информация.",
+  "**Алгоритм:**",
+  " 1. Из новостей выдели ключевые события: что должно давить на цену вниз, что тянуть вверх.",
+  " 2. Посмотри на свечи: цена движется в направлении, которое предполагают новости, или против?",
+  " 3. Если направление совпадает — сентимент подтверждён. Если цена идёт против новостей — рынок не верит в нарратив.",
+  " 4. sideways — только если новости прямо противоречат друг другу И свечи не дают направления.",
   "",
-  "**Определения сентимента (выбери ровно один):**",
-  " - **bullish**: новостной фон преимущественно позитивен, участники рынка настроены на рост.",
-  " - **bearish**: новостной фон преимущественно негативен, участники рынка ожидают падения.",
-  " - **neutral**: новостной фон сбалансирован или отсутствует, выраженного давления нет.",
-  " - **sideways**: новости противоречат друг другу, рынок находится в состоянии неопределённости без чёткого направления.",
+  "**Сентимент (выбери ровно один):**",
+  " - **bullish**: новости позитивны, свечи подтверждают рост.",
+  " - **bearish**: новости негативны, свечи подтверждают падение.",
+  " - **neutral**: новости без выраженного направления, свечи спокойны.",
+  " - **sideways**: новости противоречат друг другу, свечи не дают чёткого направления.",
+  "",
+  "**Сигнал (выбери ровно один):**",
+  " - **BUY**: сегодня хороший день для покупки — bullish сентимент подтверждён свечами.",
+  " - **SELL**: сегодня хороший день для продажи — bearish сентимент подтверждён свечами.",
+  " - **WAIT**: сентимент neutral или sideways, либо свечи не подтверждают новостной нарратив.",
   "",
   "**Требуемый результат:**",
   "1. **sentiment**: bullish, bearish, neutral или sideways.",
-  "2. **reasoning**: какие новости определили этот сентимент? Почему именно это значение, а не другое?",
+  "2. **signal**: BUY, SELL или WAIT.",
+  "3. **reasoning**: какие новости создали ожидание? Что показывают свечи? Совпадает или расходится?",
 );
 
 const commitGlobalNews = async (
@@ -60,6 +68,31 @@ const commitGlobalNews = async (
   );
 };
 
+const commitStockData = async (
+  contract: StockDataRequestContract,
+  history: IOutlineHistory,
+) => {
+  const report = await ask<StockDataRequestContract>(
+    contract,
+    AdvisorName.StockDataAdvisor,
+  );
+  if (!report) {
+    throw new Error("StockDataAdvisor failed");
+  }
+  await history.push(
+    {
+      role: "user",
+      content: str.newline(
+        "Прочитай исторические данные свечей и скажи ОК",
+        "",
+        report,
+      ),
+    },
+    { role: "assistant", content: "ОК" },
+  );
+};
+
+
 addOutline<ForecastResponseContract>({
   outlineName: OutlineName.ForecastOutline,
   completion: CompletionName.OllamaOutlineToolCompletion,
@@ -69,15 +102,19 @@ addOutline<ForecastResponseContract>({
       sentiment: {
         type: "string",
         enum: ["bullish", "bearish", "neutral", "sideways"],
-        description: "Рыночный сентимент на основе новостного фона.",
+        description: "Рыночный сентимент: совпадение новостного нарратива и свечного движения.",
+      },
+      signal: {
+        type: "string",
+        enum: ["BUY", "SELL", "WAIT"],
+        description: "Торговый сигнал на текущий день.",
       },
       reasoning: {
         type: "string",
-        description:
-          "Обоснование сентимента: какие новости определили это значение и почему.",
+        description: "Что говорят новости, что показывают свечи, совпадают ли они.",
       },
     },
-    required: ["sentiment", "reasoning"],
+    required: ["sentiment", "signal", "reasoning"],
   },
   getOutlineHistory: async (
     { resultId, history },
@@ -100,6 +137,15 @@ addOutline<ForecastResponseContract>({
         from: dayjs(when).subtract(1, 'day').toDate(),
         to: when,
         query: displayName,
+      },
+      history,
+    );
+
+    await commitStockData(
+      {
+        resultId,
+        symbol,
+        date: when,
       },
       history,
     );
@@ -127,9 +173,24 @@ addOutline<ForecastResponseContract>({
     },
     {
       validate: ({ data }) => {
+        if (data.signal === "BUY") {
+          return;
+        }
+        if (data.signal === "SELL") {
+          return;
+        }
+        if (data.signal === "WAIT") {
+          return;
+        }
+        throw new Error("signal должен быть BUY, SELL или WAIT");
+      },
+      docDescription: "Проверяет допустимое значение signal.",
+    },
+    {
+      validate: ({ data }) => {
         if (!data.reasoning) throw new Error("reasoning не заполнен");
       },
-      docDescription: "Проверяет, что сентимент обоснован.",
+      docDescription: "Проверяет, что решение обосновано.",
     },
   ],
   callbacks: {

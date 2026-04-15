@@ -58,9 +58,11 @@ addExchangeSchema({
   },
 });
 
+// Сопротивление пробито "2026-04-07T18:00:00.000Z"
+// Всё ещё боковик "2026-04-07T10:00:00.000Z"
 
 runInMockContext(async () => {
-  console.log(await forecast("BTCUSDT", new Date("2026-04-07T11:00:00.000Z")));
+  console.log(await forecast("BTCUSDT", new Date("2026-04-07T10:00:00.000Z")));
 }, {
     when: new Date("2026-04-08T00:00:00.000Z"),
     symbol: "BTCUSDT",
