@@ -14,7 +14,7 @@ const COMPLETION_MAX_ATTEMPTS = 3;
 const COMPLETION_MAX_RETRIES = 5;
 const COMPLETION_RETRY_DELAY = 5_000;
 
-const COMPLETION_TIMEOUT = 30_000;
+const COMPLETION_TIMEOUT = 90_000;
 const COMPLETION_TIMEOUT_SYMBOL = Symbol("COMPLETION_TIMEOUT");
 
 const MODEL_NAME = "glm-4.7:cloud";
@@ -23,6 +23,9 @@ const fetchCompletion = retry(async ({
   messages: rawMessages,
   format,
 }: IOutlineCompletionArgs): Promise<IOutlineMessage> => {
+
+  console.log(`${CompletionName.OllamaOutlineFormatCompletion} messagesLen=${rawMessages.length}`);
+
   const messages = [...rawMessages];
 
   const ollama = getOllama();

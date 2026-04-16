@@ -13,7 +13,7 @@ const forecastSource = Cache.file(
     console.log(result, when);
     return { ...result, currentPrice };
   },
-  { interval: "1d", name: "forecast_source" },
+  { interval: "4h", name: "forecast_source" },
 );
 
 addStrategySchema({

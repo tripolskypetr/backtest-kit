@@ -96,9 +96,7 @@ addOutline<ForecastResponseContract>({
     await commitGlobalNews(
       {
         resultId,
-        from: dayjs(when).subtract(1, 'day').toDate(),
-        to: when,
-        query: displayName,
+        symbol,
       },
       history,
     );
@@ -126,14 +124,18 @@ addOutline<ForecastResponseContract>({
     },
     {
       validate: ({ data }) => {
-        if (!data.reasoning) throw new Error('reasoning не заполнен');
+        if (!data.reasoning) {
+          throw new Error('reasoning не заполнен');
+        }
       },
       docDescription: 'Проверяет, что решение обосновано.',
     },
   ],
   callbacks: {
     async onValidDocument(result) {
-      if (!result.data) return;
+      if (!result.data) {
+        return;
+      }
       await dumpOutlineResult(result, './dump/outline/forecast');
     },
   },

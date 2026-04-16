@@ -1,7 +1,5 @@
 interface WebSearchRequestContract {
-    query: string;
-    from: Date;
-    to: Date;
+    symbol: string;
     resultId: string;
 }
 

@@ -13,6 +13,42 @@ interface INews {
 const SCORE_THRESHOLD = 0.68;
 const NEWS_WINDOW_HOURS = 4;
 
+const TAVILY_DOMAINS = [
+  // Крипто-СМИ — без изменений, все живы
+  "coindesk.com",
+  "cointelegraph.com",
+  "theblock.co",
+  "decrypt.co",
+  "blockworks.co",        // 👈 добавить — вырос в tier-2 по влиянию
+
+  // Финансовые СМИ
+  "reuters.com",
+  "bloomberg.com",
+  "wsj.com",
+
+  // Регуляторы
+  "sec.gov",
+  "federalreserve.gov",
+  "whitehouse.gov",
+
+  // Биржи — анонсы
+  "binance.com",
+  "coinbase.com",
+  "bybit.com",            // остаётся, несмотря на hack — крупнейшая по объёму
+  "okx.com",
+  "kraken.com",
+  "hyperliquid.xyz",      // 👈 добавить — tier-1 по on-chain деривативам сейчас
+
+  // Институционалы — новый важный tier
+  "blackrock.com",        // 👈 ETF flows, официальные заявления
+  "grayscale.com",        // 👈 GBTC/ETHE отчёты двигают рынок
+  "microstrategy.com",    // 👈 Сэйлор анонсирует покупки здесь первым
+
+  // Персоны
+  "truthsocial.com",
+  "stocktwits.com",
+];
+
 /**
  * Fetches financial news from Tavily API for the given date range.
  * Results are filtered by relevance score (> 0.68).
@@ -21,21 +57,16 @@ const search = async (query: string, from: Date, to: Date) => {
   const tavily = getTavily();
   const { answer, ...search } = await tavily.search(query, {
     includeAnswer: false,
-    topic: "finance",
+    topic: "news",
     maxResults: 10,
     max_tokens: 25000,
     searchDepth: "advanced",
+    include_domains: TAVILY_DOMAINS,
     startDate: dayjs(from).format("YYYY-MM-DD"),
     endDate: dayjs(to).format("YYYY-MM-DD"),
   });
   return search.results
     .filter(({ score }) => score > SCORE_THRESHOLD)
-    .map(({ title, url, content, publishedDate }) => ({
-      url,
-      title,
-      content,
-      publishedDate,
-    }));
 };
 
 /**
@@ -44,8 +75,8 @@ const search = async (query: string, from: Date, to: Date) => {
  * Fetches all news for the full day; the caller (fetchNews) then narrows to the
  * NEWS_WINDOW_HOURS slice around the current backtest timestamp.
  */
-const fetchNewsInBacktest = Cache.file(async (symbol: string, query: string, when: Date): Promise<INews[]> => {
-    console.log(`fetchNewsInBacktest symbol=${symbol} when=${when} query=${query}`);
+const fetchNewsInBacktest = Cache.file(async (symbol: string, topic: string, query: string, when: Date): Promise<INews[]> => {
+    console.log(`fetchNewsInBacktest symbol=${symbol} topic=${topic} when=${when} query=${query}`);
 
     const dateFrom = alignToInterval(when, "1d");
     const dateTo = dayjs(when).add(1, 'day').toDate();
@@ -59,7 +90,7 @@ const fetchNewsInBacktest = Cache.file(async (symbol: string, query: string, whe
     return newsList;
 }, {
     interval: "1d",
-    key: ([symbol, alignMs, query]) => `${symbol}_${alignMs}_${slugify(query)}`,
+    key: ([symbol, topic, alignMs, query]) => `${symbol}_${topic}_${alignMs}_${slugify(query)}`,
     name: "news-backtest",
 });
 
@@ -67,8 +98,8 @@ const fetchNewsInBacktest = Cache.file(async (symbol: string, query: string, whe
  * Live variant. Fetches news for the last NEWS_WINDOW_HOURS hours on every call.
  * No caching — always reflects the current market moment.
  */
-const fetchNewsInLive = async (symbol: string, query: string, when: Date): Promise<INews[]> => {
-    console.log(`fetchNewsInBacktest symbol=${symbol} when=${when} query=${query}`);
+const fetchNewsInLive = async (symbol: string, topic: string, query: string, when: Date): Promise<INews[]> => {
+    console.log(`fetchNewsInBacktest symbol=${symbol} topic=${topic} when=${when} query=${query}`);
 
     const dateFrom = dayjs(when).subtract(NEWS_WINDOW_HOURS, 'hour').toDate();
     const dateTo = dayjs(when).toDate();
@@ -87,7 +118,9 @@ const fetchNewsInLive = async (symbol: string, query: string, when: Date): Promi
  * current mode, then filters results to the NEWS_WINDOW_HOURS window ending at
  * the current timestamp. This ensures no future news leaks into backtest signals.
  */
-const fetchNews = async (symbol: string, query: string) => {
+const fetchNews = async (symbol: string, topic: string, query: string) => {
+    console.log(`fetchNews symbol=${symbol} topic=${topic} query=${query}`);
+    
     const mode = await getMode();
     const when = await getDate();
 
@@ -97,11 +130,11 @@ const fetchNews = async (symbol: string, query: string) => {
     let newsList: INews[] = [];
 
     if (mode === "live") {
-        newsList = await fetchNewsInLive(symbol, query, when);
+        newsList = await fetchNewsInLive(symbol, topic, query, when);
     }
 
     if (mode === "backtest") {
-        newsList = await fetchNewsInBacktest(symbol, query, when);
+        newsList = await fetchNewsInBacktest(symbol, topic, query, when);
     }
     
     return newsList
@@ -114,4 +147,4 @@ const fetchNews = async (symbol: string, query: string) => {
         });
 };
 
-export { fetchNews };
+export { fetchNews, type INews };
