@@ -37,15 +37,9 @@ const FORECAST_PROMPT = str.newline(
   ' - **neutral**: новостной фон сбалансирован или отсутствует, выраженного давления нет.',
   ' - **sideways**: новости противоречат друг другу, рынок в состоянии неопределённости без чёткого направления.',
   '',
-  '**Сигнал (выбери ровно один):**',
-  ' - **BUY**: новостной фон позитивен — сегодня хороший день для покупки.',
-  ' - **SELL**: новостной фон негативен — сегодня хороший день для продажи.',
-  ' - **WAIT**: новости противоречивы или нейтральны — входить в позицию преждевременно.',
-  '',
   '**Требуемый результат:**',
   '1. **sentiment**: bullish, bearish, neutral или sideways.',
-  '2. **signal**: BUY, SELL или WAIT.',
-  '3. **reasoning**: какие новости определили этот сентимент и сигнал? Почему именно это значение?',
+  '2. **reasoning**: какие новости определили этот сентимент? Почему именно это значение?',
 );
 
 const commitGlobalNews = async (
@@ -77,17 +71,12 @@ addOutline<ForecastResponseContract>({
         enum: ['bullish', 'bearish', 'neutral', 'sideways'],
         description: 'Рыночный сентимент на основе новостного фона.',
       },
-      signal: {
-        type: 'string',
-        enum: ['BUY', 'SELL', 'WAIT'],
-        description: 'Торговый сигнал на текущий день.',
-      },
       reasoning: {
         type: 'string',
-        description: 'Какие новости определили этот сентимент и сигнал.',
+        description: 'Какие новости определили этот сентимент.',
       },
     },
-    required: ['sentiment', 'signal', 'reasoning'],
+    required: ['sentiment', 'reasoning'],
   },
   getOutlineHistory: async (
     { resultId, history },
@@ -134,21 +123,6 @@ addOutline<ForecastResponseContract>({
         throw new Error('sentiment должен быть bullish, bearish, neutral или sideways');
       },
       docDescription: 'Проверяет допустимое значение sentiment.',
-    },
-    {
-      validate: ({ data }) => {
-        if (data.signal === 'BUY') {
-          return;
-        }
-        if (data.signal === 'SELL') {
-          return;
-        }
-        if (data.signal === 'WAIT') {
-          return;
-        }
-        throw new Error('signal должен быть BUY, SELL или WAIT');
-      },
-      docDescription: 'Проверяет допустимое значение signal.',
     },
     {
       validate: ({ data }) => {
