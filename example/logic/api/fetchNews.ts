@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { getTavily } from "../config/tavily";
 import { getDate, Cache, getMode, alignToInterval } from "backtest-kit";
 import slugify from "slugify";
+import { singleshot } from "functools-kit";
 
 interface INews {
     url: string;
@@ -38,6 +39,14 @@ const ALLOWED_DOMAINS = [
   "stocktwits.com",
 ];
 
+const getDomainList = singleshot(() => {
+    let disallowed: string;
+    if (disallowed = ALLOWED_DOMAINS.find((domain) => DISALLOWED_DOMAINS.includes(domain))) {
+        throw new Error(`fetchNews getDomainList ${disallowed} is disallowed`);
+    }
+    return ALLOWED_DOMAINS;
+})
+
 /**
  * Fetches financial news from Tavily API for the given date range.
  * Results are filtered by relevance score (> 0.68).
@@ -51,8 +60,7 @@ const search = async (query: string, from: Date, to: Date) => {
     maxResults: 20,
     maxTokens: 25000,
     searchDepth: "advanced",
-    includeDomains: ALLOWED_DOMAINS,
-    excludeDomains: DISALLOWED_DOMAINS,
+    includeDomains: getDomainList(),
     startDate: dayjs(from).format("YYYY-MM-DD"),
     endDate: dayjs(to).format("YYYY-MM-DD"),
   });
