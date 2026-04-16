@@ -54,19 +54,43 @@ const TAVILY_DOMAINS = [
  * Results are filtered by relevance score (> 0.68).
  */
 const search = async (query: string, from: Date, to: Date) => {
+  console.log(`fetchNews search query=${query} from=${from} to=${to}`);
   const tavily = getTavily();
   const { answer, ...search } = await tavily.search(query, {
     includeAnswer: false,
     topic: "news",
-    maxResults: 10,
+    maxResults: 5,
     max_tokens: 25000,
     searchDepth: "advanced",
     include_domains: TAVILY_DOMAINS,
     startDate: dayjs(from).format("YYYY-MM-DD"),
     endDate: dayjs(to).format("YYYY-MM-DD"),
   });
+  if (!search.results.length) {
+    console.warn(`fetchNews search missing results query=${query} from=${from} to=${to}`)
+    return [];
+  }
   return search.results
-    .filter(({ score }) => score > SCORE_THRESHOLD)
+    .filter(({ score }) => {
+        if (score < SCORE_THRESHOLD) {
+            console.warn(`fetchNews search score too low query=${query} from=${from} to=${to}`)
+            return false;
+        }
+        return true;
+    })
+    .filter(({ publishedDate }) => {
+        if (!publishedDate) {
+            console.warn(`fetchNews search missing publishedDate query=${query} from=${from} to=${to}`)
+            return false;
+        }
+        const hour = dayjs(publishedDate).utc().get("hour");
+        const minute = dayjs(publishedDate).utc().get("minute");
+        if (hour === 0 && minute === 0) {
+            console.warn(`fetchNews search invalid publishedDate query=${query} from=${from} to=${to}`)
+            return false;
+        }
+        return true;
+    });
 };
 
 /**
@@ -138,7 +162,7 @@ const fetchNews = async (symbol: string, topic: string, query: string) => {
     }
     
     return newsList
-        .filter(({ publishedDate}) => !!publishedDate)
+        .filter(({ publishedDate }) => !!publishedDate)
         .filter(({ publishedDate }) => {
             let isOk = true;
             isOk = isOk && dayjs(publishedDate).isBefore(dateTo);
