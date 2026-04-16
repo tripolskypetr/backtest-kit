@@ -20,7 +20,7 @@ const NEWS_WINDOW_HOURS = 4;
 const search = async (query: string, from: Date, to: Date) => {
   const tavily = getTavily();
   const { answer, ...search } = await tavily.search(query, {
-    includeAnswer: "basic",
+    includeAnswer: false,
     topic: "finance",
     maxResults: 10,
     max_tokens: 25000,
