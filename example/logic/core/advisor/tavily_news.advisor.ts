@@ -4,10 +4,10 @@ import { WebSearchRequestContract } from "../../contract/WebSearchRequest.contra
 import { fetchNews, INews } from "../../api/fetchNews";
 
 /**
- * Market sentiment
+ * Search topics
  */
 const TOPIC_QUERIES = {
-  forecast: [
+  sentiment: [
     "Bitcoin market sentiment. Can be bullish, bearish, neutral or sideways"
   ]
 };

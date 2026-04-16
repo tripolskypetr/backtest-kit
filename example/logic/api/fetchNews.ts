@@ -13,7 +13,7 @@ interface INews {
 const NEWS_WINDOW_HOURS = 4;
 
 const DISALLOWED_DOMAINS = [
-  "coindesk.com",
+  "coindesk.com", // нет даты публикации
 ];
 
 const ALLOWED_DOMAINS = [
