@@ -10,16 +10,18 @@ interface INews {
     publishedDate: string;
 }
 
-const SCORE_THRESHOLD = 0.68;
 const NEWS_WINDOW_HOURS = 4;
 
-const TAVILY_DOMAINS = [
-  // Крипто-СМИ — без изменений, все живы
+const DISALLOWED_DOMAINS = [
   "coindesk.com",
+];
+
+const ALLOWED_DOMAINS = [
+  // Крипто-СМИ
   "cointelegraph.com",
   "theblock.co",
   "decrypt.co",
-  "blockworks.co",        // 👈 добавить — вырос в tier-2 по влиянию
+  "blockworks.co",
 
   // Финансовые СМИ
   "reuters.com",
@@ -30,19 +32,6 @@ const TAVILY_DOMAINS = [
   "sec.gov",
   "federalreserve.gov",
   "whitehouse.gov",
-
-  // Биржи — анонсы
-  "binance.com",
-  "coinbase.com",
-  "bybit.com",            // остаётся, несмотря на hack — крупнейшая по объёму
-  "okx.com",
-  "kraken.com",
-  "hyperliquid.xyz",      // 👈 добавить — tier-1 по on-chain деривативам сейчас
-
-  // Институционалы — новый важный tier
-  "blackrock.com",        // 👈 ETF flows, официальные заявления
-  "grayscale.com",        // 👈 GBTC/ETHE отчёты двигают рынок
-  "microstrategy.com",    // 👈 Сэйлор анонсирует покупки здесь первым
 
   // Персоны
   "truthsocial.com",
@@ -59,10 +48,11 @@ const search = async (query: string, from: Date, to: Date) => {
   const { answer, ...search } = await tavily.search(query, {
     includeAnswer: false,
     topic: "news",
-    maxResults: 5,
-    max_tokens: 25000,
+    maxResults: 20,
+    maxTokens: 25000,
     searchDepth: "advanced",
-    include_domains: TAVILY_DOMAINS,
+    includeDomains: ALLOWED_DOMAINS,
+    excludeDomains: DISALLOWED_DOMAINS,
     startDate: dayjs(from).format("YYYY-MM-DD"),
     endDate: dayjs(to).format("YYYY-MM-DD"),
   });
@@ -71,22 +61,15 @@ const search = async (query: string, from: Date, to: Date) => {
     return [];
   }
   return search.results
-    .filter(({ score }) => {
-        if (score < SCORE_THRESHOLD) {
-            console.warn(`fetchNews search score too low query=${query} from=${from} to=${to}`)
-            return false;
-        }
-        return true;
-    })
-    .filter(({ publishedDate }) => {
+    .filter(({ url, publishedDate }) => {
         if (!publishedDate) {
-            console.warn(`fetchNews search missing publishedDate query=${query} from=${from} to=${to}`)
+            console.warn(`fetchNews search missing publishedDate query=${query} url=${url} from=${from} to=${to}`)
             return false;
         }
         const hour = dayjs(publishedDate).utc().get("hour");
         const minute = dayjs(publishedDate).utc().get("minute");
         if (hour === 0 && minute === 0) {
-            console.warn(`fetchNews search invalid publishedDate query=${query} from=${from} to=${to}`)
+            console.warn(`fetchNews search invalid publishedDate query=${query} url=${url} from=${from} to=${to}`)
             return false;
         }
         return true;

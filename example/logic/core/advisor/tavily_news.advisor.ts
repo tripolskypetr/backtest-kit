@@ -8,7 +8,7 @@ import { fetchNews, INews } from "../../api/fetchNews";
  */
 const TOPIC_QUERIES = {
   forecast: [
-    "Bitcoin price forecast"
+    "Bitcoin market sentiment. Can be bullish, bearish, neutral or sideways"
   ]
 };
 
