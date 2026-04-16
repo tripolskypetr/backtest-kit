@@ -9,7 +9,7 @@
     "backtest-kit": "6.13.0",
     "@backtest-kit/ollama": "6.13.0",
     "ccxt": "4.5.24",
-    "functools-kit": "2.0.2",
+    "functools-kit": "2.1.0",
     "ollama": "0.6.3",
     "uuid": "13.0.0"
   },

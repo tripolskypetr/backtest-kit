@@ -102,7 +102,7 @@
     "di-kit": "1.1.1",
     "di-scoped": "1.0.21",
     "dotenv": "17.3.1",
-    "functools-kit": "2.0.2",
+    "functools-kit": "2.1.0",
     "get-moment-stamp": "1.1.2",
     "image-size": "1.1.1",
     "jsdom": "26.1.0",
