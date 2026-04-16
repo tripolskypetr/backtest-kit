@@ -77,7 +77,7 @@
   "dependencies": {
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
-    "functools-kit": "^2.1.0",
+    "functools-kit": "^2.2.0",
     "get-moment-stamp": "^1.1.2"
   },
   "publishConfig": {
