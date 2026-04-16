@@ -187,7 +187,7 @@ export class IntervalFnInstance<F extends Function = Function> {
    *   within the same interval or when `fn` itself returned `null`
    * @throws Error if method context, execution context, or interval is missing
    */
-  public run = async (...args: Parameters<F>): Promise<ReturnType<F>> => {
+  public run = (...args: Parameters<F>): ReturnType<F> => {
     backtest.loggerService.debug(INTERVAL_METHOD_NAME_RUN, { args });
 
     const step = INTERVAL_MINUTES[this.interval];
@@ -219,10 +219,18 @@ export class IntervalFnInstance<F extends Function = Function> {
       return null as ReturnType<F>;
     }
 
-    const result = await this.fn.apply(null, args);
+    const result = this.fn.apply(null, args);
+
     if (result !== null) {
       this._stateMap.set(stateKey, currentAligned);
     }
+
+    if (result && result instanceof Promise) {
+      result.catch(() => {
+        this._stateMap.delete(stateKey);
+      });
+    }
+
     return result;
   };
 

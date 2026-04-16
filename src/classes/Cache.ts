@@ -228,11 +228,19 @@ export class CacheFnInstance<T extends Function = Function, K = string> {
       }
     }
 
+    const value = this.fn(...args);
+
     const newCache: ICache<T> = {
       when: currentWhen,
-      value: this.fn(...args),
+      value,
     };
     this._cacheMap.set(key, newCache);
+
+    if (value && value instanceof Promise) {
+      value.catch(() => {
+        this._cacheMap.delete(key);
+      });
+    }
 
     return newCache;
   };
