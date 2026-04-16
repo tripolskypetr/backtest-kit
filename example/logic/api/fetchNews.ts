@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import { getTavily } from "../config/tavily";
 import { getDate, Cache, getMode, alignToInterval } from "backtest-kit";
+import slugify from "slugify";
 
 interface INews {
     url: string;
@@ -43,8 +44,8 @@ const search = async (query: string, from: Date, to: Date) => {
  * Fetches all news for the full day; the caller (fetchNews) then narrows to the
  * NEWS_WINDOW_HOURS slice around the current backtest timestamp.
  */
-const fetchNewsInBacktest = Cache.file(async (_symbol: string, query: string): Promise<INews[]> => {
-    const when = await getDate();
+const fetchNewsInBacktest = Cache.file(async (symbol: string, query: string, when: Date): Promise<INews[]> => {
+    console.log(`fetchNewsInBacktest symbol=${symbol} when=${when} query=${query}`);
 
     const dateFrom = alignToInterval(when, "1d");
     const dateTo = dayjs(when).add(1, 'day').toDate();
@@ -58,16 +59,16 @@ const fetchNewsInBacktest = Cache.file(async (_symbol: string, query: string): P
     return newsList;
 }, {
     interval: "1d",
+    key: ([symbol, alignMs, query]) => `${symbol}_${alignMs}_${slugify(query)}`,
     name: "news-backtest",
-})
+});
 
 /**
  * Live variant. Fetches news for the last NEWS_WINDOW_HOURS hours on every call.
  * No caching — always reflects the current market moment.
  */
-const fetchNewsInLive = async (_symbol: string, query: string): Promise<INews[]> => {
-
-    const when = await getDate();
+const fetchNewsInLive = async (symbol: string, query: string, when: Date): Promise<INews[]> => {
+    console.log(`fetchNewsInBacktest symbol=${symbol} when=${when} query=${query}`);
 
     const dateFrom = dayjs(when).subtract(NEWS_WINDOW_HOURS, 'hour').toDate();
     const dateTo = dayjs(when).toDate();
@@ -96,11 +97,11 @@ const fetchNews = async (symbol: string, query: string) => {
     let newsList: INews[] = [];
 
     if (mode === "live") {
-        newsList = await fetchNewsInLive(symbol, query);
+        newsList = await fetchNewsInLive(symbol, query, when);
     }
 
     if (mode === "backtest") {
-        newsList = await fetchNewsInBacktest(symbol, query);
+        newsList = await fetchNewsInBacktest(symbol, query, when);
     }
     
     return newsList
