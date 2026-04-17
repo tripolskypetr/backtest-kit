@@ -16,14 +16,14 @@ const forecastSource = Cache.file(
   { interval: "4h", name: "forecast_source" },
 );
 
-const reactionSource = Cache.fn(
+const reactionSource = Cache.file(
   async (symbol: string, when: Date, currentPrice: number) => {
     const forecast = await forecastSource(symbol, when, currentPrice);
     const result = await reaction(forecast, symbol, when);
     console.log(result, when);
     return { ...result, currentPrice };
   },
-  { interval: "4h" }
+  { interval: "4h", name: "reaction_source" }
 );
 
 addStrategySchema({
