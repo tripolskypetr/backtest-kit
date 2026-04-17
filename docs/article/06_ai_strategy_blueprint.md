@@ -1,5 +1,5 @@
 ---
-title: article/06_ai_signal_blueprint
+title: article/06_ai_strategy_blueprint
 group: article
 ---
 
