@@ -87,9 +87,15 @@ addOutline<VolatilityResponseContract>({
   validations: [
     {
       validate: ({ data }) => {
-        if (data.volatility === 'high') return;
-        if (data.volatility === 'normal') return;
-        if (data.volatility === 'low') return;
+        if (data.volatility === 'high') {
+          return;
+        }
+        if (data.volatility === 'normal') {
+          return;
+        }
+        if (data.volatility === 'low') {
+          return;
+        }
         throw new Error('volatility должен быть high, normal или low');
       },
       docDescription: 'Проверяет допустимое значение volatility.',

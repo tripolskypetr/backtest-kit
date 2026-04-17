@@ -31,10 +31,16 @@ const PRICE_REACTION_PROMPT = str.newline(
   ' - **reliable**: картина на 15-минутках однозначная, тренд выражен.',
   ' - **not_reliable**: картина неоднозначная — цена хаотично движется в обе стороны без формирования направления, или данные недоступны.',
   '',
+  '**Торговое решение (trade_action):**',
+  ' - Учитывая сентимент, реакцию цены и текущую картину на свечах — стоит ли сейчас входить в сделку в направлении сентимента?',
+  ' - **enter**: да, условия благоприятны.',
+  ' - **wait**: нет, лучше подождать.',
+  '',
   '**Требуемый результат:**',
   '1. **price_reaction**: priced_in, not_priced_in или pricing_in.',
   '2. **confidence**: reliable или not_reliable.',
-  '3. **reasoning**: на каких конкретных свечах или ценовых движениях основан вывод?',
+  '3. **trade_action**: enter или wait.',
+  '4. **reasoning**: на каких конкретных свечах или ценовых движениях основан вывод?',
 );
 
 const commitForecast = async (forecast: ForecastResponseContract, history: IOutlineHistory) => {
@@ -87,12 +93,17 @@ addOutline<ReactionResponseContract>({
         enum: ['reliable', 'not_reliable'],
         description: 'Уверенность в оценке: reliable — картина однозначная, not_reliable — сильный шторм, недоступные данные или неопределённость.',
       },
+      trade_action: {
+        type: 'string',
+        enum: ['enter', 'wait'],
+        description: 'enter — сентимент не отработан, входить имеет смысл. wait — движение уже состоялось, входить поздно.',
+      },
       reasoning: {
         type: 'string',
         description: 'На каких ценовых движениях основан вывод.',
       },
     },
-    required: ['price_reaction', 'confidence', 'reasoning'],
+    required: ['price_reaction', 'confidence', 'trade_action', 'reasoning'],
   },
   getOutlineHistory: async (
     { resultId, history },
@@ -140,6 +151,18 @@ addOutline<ReactionResponseContract>({
         throw new Error('confidence должен быть reliable или not_reliable');
       },
       docDescription: 'Проверяет допустимое значение confidence.',
+    },
+    {
+      validate: ({ data }) => {
+        if (data.trade_action === 'enter') {
+          return;
+        }
+        if (data.trade_action === 'wait') {
+          return;
+        }
+        throw new Error('trade_action должен быть enter или wait');
+      },
+      docDescription: 'Проверяет допустимое значение trade_action.',
     },
     {
       validate: ({ data }) => {
