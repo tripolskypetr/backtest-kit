@@ -230,7 +230,7 @@ Runs the same historical period against multiple strategy files and prints a ran
 npm run walker
 ```
 
-Each positional argument is a separate strategy entry point. All files are loaded without changing `process.cwd()` — `.env` is read from the working directory only. After loading, `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files.
+Each positional argument is a separate strategy entry point. Before loading them, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from each entry point's `dump/` directory. Pass `--noFlush` to keep existing output. All files are loaded without changing `process.cwd()` — `.env` is read from the working directory only. After loading, `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files.
 
 If no frame is registered, the CLI falls back to the last 31 days from `Date.now()` with a console warning.
 
@@ -242,6 +242,7 @@ If no frame is registered, the CLI falls back to the last 31 days from `Date.now
 | `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
 | `--cacheInterval` | string | Intervals to pre-cache (default: `"1m, 15m, 30m, 4h"`) |
 | `--noCache` | boolean | Skip candle cache warming (default: `false`) |
+| `--noFlush` | boolean | Skip removing report/log/markdown/agent folders before walker run (default: `false`) |
 | `--verbose` | boolean | Log each candle fetch and strategy progress (default: `false`) |
 | `--output` | string | Output file base name (default: `walker_{SYMBOL}_{TIMESTAMP}`) |
 | `--json` | boolean | Save results as JSON to `./dump/<output>.json` |
