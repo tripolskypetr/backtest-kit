@@ -4,7 +4,7 @@ import { StockDataRequestContract } from "../../contract/StockDataRequest.contra
 import { formatPrice, formatQuantity, getCandles } from "backtest-kit";
 import dayjs from "dayjs";
 
-const CANDLES_LIMIT = 240; // 240 x 1m = 4 часа истории
+const CANDLES_LIMIT = 360; // 360 x 1m = 6 часов истории
 
 addAdvisor({
   advisorName: AdvisorName.StockDataAdvisor,
