@@ -8,72 +8,45 @@ import {
   commitClosePending,
   getPositionHighestProfitDistancePnlCost,
   getPositionHighestMaxDrawdownPnlCost,
-  getCandles,
-  getAveragePrice,
-  getSymbol,
-  getPendingSignal,
-  getDate,
 } from "backtest-kit";
-import { errorData, getErrorMessage, not, randomString, str } from "functools-kit";
+import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
-import { research } from "logic";
+import { forecast } from "logic";
 
 const NEVER_DRAWDOWN_PERCENT = 5;
 
 const POSITION_LABEL_MAP = {
-  BUY: "long",
-  SELL: "short",
-  WAIT: "wait",
+  "bullish": "long",
+  "bearish": "short",
+  "neutral": "wait",
+  "sideways": "wait",
 } as const;
 
-const researchFetch = Cache.file(
-  async (symbol: string, when: Date, currentPrice: number) => {
-    const result = await research(symbol, when);
-    return { ...result, currentPrice };
-  },
-  { interval: "1h", name: "research_source" },
-);
-
-const researchSource = sourceNode(
-  researchFetch,
+const forecastSource = sourceNode(
+  Cache.file(
+    async (symbol: string, when: Date, currentPrice: number) => {
+      const result = await forecast(symbol, when);
+      console.log(result, when);
+      return { ...result, currentPrice };
+    },
+    { interval: "4h", name: "forecast_source" },
+  ),
 );
 
 const positionOutput = outputNode(
-  async ([research]) => {
-    return POSITION_LABEL_MAP[research.signal];
+  async ([forecast]) => {
+    return POSITION_LABEL_MAP[forecast.sentiment];
   },
-  researchSource,
-);
-
-const reversalOutput = outputNode(
-  async ([position]) => {
-    const symbol = await getSymbol();
-    const pendingSignal = await getPendingSignal(symbol);
-    if (!pendingSignal) {
-      throw new Error("no pending signal");
-    }
-    if (position === "wait") {
-      return false;
-    }
-    if (position === pendingSignal.position) {
-      return false;
-    }
-    return true;
-  },
-  positionOutput,
+  forecastSource,
 );
 
 addStrategySchema({
   strategyName: "feb_2026_strategy",
   getSignal: async (symbol, when, currentPrice) => {
 
-    if (await not(researchFetch.hasValue(symbol, when, currentPrice))) {
-      return null;
-    }
-
-    const research = await resolve(researchSource);
-
+    const forecast = await resolve(forecastSource);
     const position = await resolve(positionOutput);
+
     if (position === "wait") {
       return null;
     }
@@ -84,39 +57,43 @@ addStrategySchema({
       position,
     });
 
+    const note = str.newline(
+      "# Новостной сентимент",
+      "",
+      forecast.reasoning,
+      " ",
+      `[Показать детали](/pick-dump-search/${forecast.id})`,
+    );
+
     return {
-      id: `${research.id}_${randomString()}`,
+      id: `${forecast.id}_${randomString()}`,
       ...Position.moonbag({
         position,
         currentPrice,
         percentStopLoss: NEVER_DRAWDOWN_PERCENT,
       }),
       minuteEstimatedTime: Infinity,
-      note: str.newline(
-        research.reasoning,
-        " ",
-        `[Research details](/pick-dump-search/${research.id})`,
-      ),
+      note,
     };
   },
 });
 
-listenActivePing(async ({ symbol, data, currentPrice }) => {
-  const when = await getDate();
-  if (await not(researchFetch.hasValue(symbol, when, currentPrice))) {
-    return null;
-  }
+listenActivePing(async ({ symbol, data }) => {
+  const forecast = await resolve(forecastSource);
+  const position = await resolve(positionOutput);
 
-  const research = await resolve(researchSource);
-  if (await not(resolve(reversalOutput))) {
+  if (position === data.position) {
     return;
   }
+
   await commitClosePending(symbol, {
-    id: research.id,
+    id: forecast.id,
     note: str.newline(
-      research.reasoning,
+      "# Новостной сентимент изменился",
+      "",
+      forecast.reasoning,
       " ",
-      `[Research details](/pick-dump-search/${research.id})`,
+      `[Показать детали](/pick-dump-search/${forecast.id})`,
     ),
   });
   Log.info("position closed", {
