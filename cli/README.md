@@ -145,6 +145,7 @@ npm start -- --symbol BTCUSDT --ui
 | `--telegram`              | boolean | Enable Telegram notifications (default: `false`)                   |
 | `--verbose`               | boolean | Log each candle fetch (default: `false`)                           |
 | `--noCache`               | boolean | Skip candle cache warming before backtest (default: `false`)       |
+| `--noFlush`               | boolean | Skip removing report/log/markdown/agent folders before backtest run (default: `false`) |
 | `--symbol`                | string  | Trading pair (default: `"BTCUSDT"`)                                |
 | `--strategy`              | string  | Strategy name (default: first registered)                          |
 | `--exchange`              | string  | Exchange name (default: first registered)                          |
@@ -179,7 +180,7 @@ Runs the strategy against historical candle data using a registered `FrameSchema
 npm run backtest
 ```
 
-Before running, the CLI warms the candle cache for every interval in `--cacheInterval`. On the next run, cached data is used directly — no API calls needed. Pass `--noCache` to skip this step entirely.
+Before running, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from the strategy's `dump/` directory, then warms the candle cache for every interval in `--cacheInterval`. On the next run, cached data is used directly — no API calls needed. Pass `--noCache` to skip cache warming, `--noFlush` to keep existing output folders.
 
 ### Paper Trading
 
@@ -1037,6 +1038,7 @@ await run(mode, args);
 | `frame` | `string` | Frame name (default: first registered) |
 | `cacheInterval` | `CandleInterval[]` | Intervals to pre-cache (default: `["1m","15m","30m","1h","4h"]`) |
 | `noCache` | `boolean` | Skip candle cache warming (default: `false`) |
+| `noFlush` | `boolean` | Skip removing report/log/markdown/agent folders before the run (default: `false`) |
 | `verbose` | `boolean` | Log each candle fetch (default: `false`) |
 
 **Paper** and **Live** (`mode: "paper"` / `mode: "live"`):

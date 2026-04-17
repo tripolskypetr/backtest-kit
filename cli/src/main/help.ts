@@ -29,6 +29,7 @@ Backtest flags:
   --frame       <string>   Frame name from addFrameSchema (default: first registered)
   --cacheInterval <string> Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 4h")
   --noCache                Skip candle cache warming before the run
+  --noFlush                Skip removing report/log/markdown/agent folders before backtest run
   --verbose                Log every candle fetch to stdout
   --ui                     Start web dashboard at http://localhost:60050
   --telegram               Send trade notifications to Telegram
@@ -123,7 +124,7 @@ Environment variables:
 Examples:
 
   node ${ENTRY_PATH} --backtest ./content/feb_2026.strategy.ts
-  node ${ENTRY_PATH} --backtest --symbol BTCUSDT --noCache --ui ./content/feb_2026.strategy.ts
+  node ${ENTRY_PATH} --backtest --symbol BTCUSDT --noCache --noFlush --ui ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --walker ./content/feb_2026_v1.strategy.ts ./content/feb_2026_v2.strategy.ts ./content/feb_2026_v3.strategy.ts
   node ${ENTRY_PATH} --walker --symbol BTCUSDT --noCache --markdown ./content/feb_2026_v1.ts ./content/feb_2026_v2.ts
   node ${ENTRY_PATH} --paper --symbol ETHUSDT ./content/feb_2026.strategy.ts
