@@ -33,18 +33,6 @@ const forecastSource = sourceNode(
   ),
 );
 
-const reactionSource = sourceNode(
-  Cache.file(
-    async (symbol: string, when: Date, currentPrice: number) => {
-      const forecast = await resolve(forecastSource);
-      const result = await reaction(forecast, symbol, when);
-      console.log(result, when);
-      return { ...result, currentPrice };
-    },
-    { interval: "4h", name: "reaction_source" }
-  )
-);
-
 const positionOutput = outputNode(
   async ([forecast]) => {
     return POSITION_LABEL_MAP[forecast.sentiment];
@@ -62,19 +50,11 @@ addStrategySchema({
     if (position === "wait") {
       return null;
     }
-  
-    const reaction = await resolve(reactionSource);
 
     if (forecast.sentiment === "neutral") {
       return null;
     }
     if (forecast.sentiment === "sideways") {
-      return null;
-    }
-    if (reaction.confidence === "not_reliable") {
-      return null;
-    }
-    if (reaction.trade_action === "wait") {
       return null;
     }
 
@@ -88,10 +68,6 @@ addStrategySchema({
       "# Новостной сентимент",
       "",
       forecast.reasoning,
-      "",
-      "# Реакция рынка",
-      "",
-      reaction.reasoning,
       "",
       "# Ссылки",
       "",
