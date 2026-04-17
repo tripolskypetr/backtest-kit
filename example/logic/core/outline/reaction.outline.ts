@@ -15,21 +15,23 @@ import { ReactionResponseContract } from '../../contract/ReactionResponse.contra
 import dayjs from 'dayjs';
 
 const PRICE_REACTION_PROMPT = str.newline(
-  'На основе 15-минутных свечей за последние 24 часа определи: успела ли цена отреагировать на сентимент из предыдущего сообщения?',
+  'У тебя есть два набора свечей: 15-минутные за последние 24 часа (общая картина) и 1-минутные за последние 4 часа (детальная картина).',
+  'Определи: успела ли цена отреагировать на сентимент из предыдущего сообщения?',
   '',
   '**Как думать:**',
-  ' - Сопоставь направление сентимента с фактическим движением цены на свечах.',
-  ' - **bullish** (пример: ожидания снижения ставок ФРС, позитивный макрофон): ищи устойчивый рост цены. Если цена уверенно выросла на 1%+ и удерживается — priced_in. Если цена почти не двигалась вверх или продолжает флэт — not_priced_in. Если рост начался, но ещё не выдохся — pricing_in.',
-  ' - **bearish** (пример: геополитика, падение после ударов США/Израиля по Ирану, риск-офф): ищи устойчивое падение. Если цена уже резко упала и стабилизировалась внизу — priced_in. Если цена ещё не реагировала — not_priced_in. Если падение в процессе — pricing_in.',
-  ' - **sideways** (пример: Goldman оптимистичен, но AI-распродажа продолжается — противоречивый фон): цена должна двигаться без выраженного тренда. Если волатильность высокая без направления — priced_in. Если рынок ещё не начал хаотичное движение — not_priced_in.',
-  ' - **neutral** (пример: пустой новостной фон, нет значимых событий): цена стоит на месте или флэтует. priced_in если ничего не происходит, not_priced_in если цена почему-то движется.',
-  ' - Размер движения имеет значение: менее 0.5% — шум, 2%+ за 24 часа на 15-минутках — реальная реакция.',
-  ' - Если движение было, но цена вернулась обратно — это отработка, не реакция на сентимент.',
+  ' - Используй 15-минутные свечи чтобы понять общий тренд за сутки.',
+  ' - Используй 1-минутные свечи чтобы понять текущее состояние рынка прямо сейчас.',
+  ' - **bullish**: ищи устойчивый рост цены без возврата к начальным уровням. Если рост есть и удерживается — priced_in. Если цена не двигалась вверх — not_priced_in. Если рост начался но продолжается — pricing_in.',
+  ' - **bearish**: ищи устойчивое падение без возврата. Если цена упала и стабилизировалась внизу — priced_in. Если цена не падала — not_priced_in. Если падение продолжается — pricing_in.',
+  ' - **sideways**: ищи отсутствие направленного движения. Если рынок флэтует — priced_in. Если направление ещё не определилось — not_priced_in.',
+  ' - **neutral**: цена не реагирует ни в какую сторону. priced_in если рынок спокоен, not_priced_in если цена неожиданно движется.',
+  ' - Если движение было, но цена полностью вернулась обратно — это не реакция на сентимент. Исключение: V-образный отскок (резкое падение с немедленным восстановлением) — это priced_in, рынок отработал сентимент и нашёл покупателей/продавцов.',
   ' - Критерий **priced_in**: цена достигла ближайшего уровня поддержки (для bearish) или сопротивления (для bullish) и остановилась или консолидируется у него.',
+  ' - Если данные свечей недоступны (ошибка API, пустой ответ) — возвращай priced_in и confidence: not_reliable.',
   '',
   '**Оценка уверенности (confidence):**',
-  ' - **reliable**: движение цены чётко соответствует или противоречит сентименту, картина однозначная.',
-  ' - **not_reliable**: цену сильно штормит (резкие свечи в обе стороны без направления), данные недоступны, или невозможно однозначно определить реакцию.',
+  ' - **reliable**: тренд на 15-минутках и 1-минутках согласованы, картина однозначная.',
+  ' - **not_reliable**: рынок не видит консенсус — на 1-минутных свечах цена резко бросается в обе стороны без формирования направления, участники рынка не могут договориться о цене.',
   '',
   '**Требуемый результат:**',
   '1. **price_reaction**: priced_in, not_priced_in или pricing_in.',
@@ -51,17 +53,36 @@ const commitForecast = async (forecast: ForecastResponseContract, history: IOutl
   );
 }
 
-const commitStockData = async (resultId: string, symbol: string, when: Date, history: IOutlineHistory) => {
+const commitStockData15m = async (resultId: string, symbol: string, when: Date, history: IOutlineHistory) => {
   const stockData = await ask<StockDataRequestContract>(
     { resultId, symbol, date: when },
-    AdvisorName.StockDataAdvisor,
+    AdvisorName.StockData15mAdvisor,
   );
 
   await history.push(
     {
       role: 'user',
       content: str.newline(
-        'Прочитай 15-минутные свечи за последние 24 часа, запомни их и скажи ОК',
+        'Прочитай 15-минутные свечи за последние 24 часа (общая картина), запомни их и скажи ОК',
+        '',
+        stockData,
+      ),
+    },
+    { role: 'assistant', content: 'ОК' },
+  );
+}
+
+const commitStockData1m = async (resultId: string, symbol: string, when: Date, history: IOutlineHistory) => {
+  const stockData = await ask<StockDataRequestContract>(
+    { resultId, symbol, date: when },
+    AdvisorName.StockData1mAdvisor,
+  );
+
+  await history.push(
+    {
+      role: 'user',
+      content: str.newline(
+        'Прочитай 1-минутные свечи за последние 4 часа (детальная картина), запомни их и скажи ОК',
         '',
         stockData,
       ),
@@ -108,7 +129,8 @@ addOutline<ReactionResponseContract>({
     });
 
     await commitForecast(forecast, history);
-    await commitStockData(resultId, symbol, when, history);
+    await commitStockData15m(resultId, symbol, when, history);
+    await commitStockData1m(resultId, symbol, when, history);
 
     await history.push({ role: 'user', content: PRICE_REACTION_PROMPT });
   },
