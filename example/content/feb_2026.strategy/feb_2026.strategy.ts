@@ -74,7 +74,7 @@ addStrategySchema({
     if (reaction.confidence === "not_reliable") {
       return null;
     }
-    if (reaction.price_reaction === "priced_in") {
+    if (reaction.trade_action === "wait") {
       return null;
     }
 
