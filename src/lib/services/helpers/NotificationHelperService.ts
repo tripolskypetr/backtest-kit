@@ -182,7 +182,7 @@ export class NotificationHelperService {
       {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
-        frameName: "",
+        frameName: context.frameName,
       },
     );
     if (!pendingSignal) {
