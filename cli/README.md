@@ -41,6 +41,7 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 | **Telegram**     | `--telegram`               | Trade notifications with price charts        |
 | **PineScript**   | `--pine`                   | Run a local `.pine` indicator against exchange data |
 | **Candle Dump**  | `--dump`                   | Fetch and save raw OHLCV candles to a file   |
+| **Flush**        | `--flush`                  | Delete report/log/markdown/agent folders from strategy dump dir |
 | **Init Project** | `--init`                   | Scaffold a new backtest-kit project          |
 
 ## 🚀 Installation
@@ -826,6 +827,57 @@ Or add it to `package.json`:
 
 ```bash
 npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+```
+
+## 🗑️ Flushing Strategy Output (`--flush`)
+
+`@backtest-kit/cli` can delete generated output folders from one or more strategy dump directories without touching cached candle data.
+
+### CLI Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--flush` | boolean | Enable flush mode |
+
+**Positional arguments (required):** one or more strategy entry point files. For each entry point the CLI resolves its directory and removes the following subdirectories from `<entry-dir>/dump/`:
+
+| Folder | Contents |
+|--------|----------|
+| `report` | Backtest report files (`.jsonl`) |
+| `log` | Run logs (`log.jsonl`) |
+| `markdown` | Exported Markdown reports |
+| `agent` | Agent outline files |
+
+Candle cache (`dump/data/`) and AI forecast outlines (`dump/outline/`) are **not** removed.
+
+### Usage
+
+Flush a single strategy:
+
+```bash
+npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts
+```
+
+Flush multiple strategies at once:
+
+```bash
+npx @backtest-kit/cli --flush \
+  ./content/feb_2026.strategy/modules/backtest.module.ts \
+  ./content/mar_2026.strategy/modules/backtest.module.ts
+```
+
+Or add it to `package.json`:
+
+```json
+{
+  "scripts": {
+    "flush": "npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts"
+  }
+}
+```
+
+```bash
+npm run flush
 ```
 
 ## 🗂️ Scaffolding a New Project (`--init`)

@@ -17,6 +17,7 @@ Modes:
   --live     <entry>          Live trading with real orders
   --pine     <entry>    Execute a local .pine indicator file
   --dump                Fetch and save raw OHLCV candles
+  --flush  <entry...>   Delete report/log/markdown/agent folders from strategy dump dir
   --init                Scaffold a new project in the current directory
   --help                Print this help message
 
@@ -86,6 +87,13 @@ Candle dump flags (--dump):
 
   Module file ./modules/dump.module is loaded automatically if it exists.
 
+Flush flags (--flush):
+
+  One or more positional entry points. For each entry point the following
+  subdirectories are removed from <entry-dir>/dump/:
+
+    report   log   markdown   agent
+
 Init flags (--init):
 
   --output <string>   Target directory name (default: backtest-kit-project)
@@ -100,6 +108,8 @@ Module hooks (loaded automatically by each mode):
   modules/live.module       --live       Broker adapter for live trading
   modules/pine.module       --pine       Exchange schema for PineScript runs
   modules/dump.module       --dump       Exchange schema for candle dumps
+
+  --flush has no associated module. It only removes dump subdirectories.
 
   Extensions .ts, .mjs, .cjs are tried automatically. Missing module = soft warning.
 
@@ -120,6 +130,8 @@ Examples:
   node ${ENTRY_PATH} --live --ui --telegram ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --jsonl
   node ${ENTRY_PATH} --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+  node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts
+  node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts ./content/feb_2026.strategy/feb_2026.test.ts
   node ${ENTRY_PATH} --init --output my-trading-bot
 `.trimStart();
 

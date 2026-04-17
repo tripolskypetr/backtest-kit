@@ -14,6 +14,7 @@ import "./main/telegram";
 
 import "./main/pine";
 import "./main/dump";
+import "./main/flush";
 import "./main/init";
 import "./main/help";
 

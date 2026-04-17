@@ -85,6 +85,10 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      flush: {
+        type: "boolean",
+        default: false,
+      },
       timeframe: {
         type: "string",
         default: "",
