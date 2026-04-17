@@ -3,7 +3,7 @@ title: article/06_ai_strategy_blueprint
 group: article
 ---
 
-# 🤖 AI Agent for Trading Signals
+# 🤖 AI News Sentiment Analysis Blueprint
 
 > Existing solutions on GitHub have fatal flaws. Let's look at a few examples — pros and cons.
 
