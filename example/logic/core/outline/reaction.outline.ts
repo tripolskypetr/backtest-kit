@@ -15,14 +15,12 @@ import { ReactionResponseContract } from '../../contract/ReactionResponse.contra
 import dayjs from 'dayjs';
 
 const PRICE_REACTION_PROMPT = str.newline(
-  'У тебя есть два набора свечей: 15-минутные за последние 24 часа (общая картина) и 1-минутные за последние 4 часа (детальная картина).',
-  'Определи: успела ли цена отреагировать на сентимент из предыдущего сообщения?',
+  'На основе 15-минутных свечей за последние 24 часа определи: успела ли цена отреагировать на сентимент из предыдущего сообщения?',
   '',
   '**Как думать:**',
-  ' - Используй 15-минутные свечи чтобы понять общий тренд за сутки.',
-  ' - Используй 1-минутные свечи чтобы понять текущее состояние рынка прямо сейчас.',
-  ' - **bullish**: ищи устойчивый рост цены без возврата к начальным уровням. Если рост есть и удерживается — priced_in. Если цена не двигалась вверх — not_priced_in. Если рост начался но продолжается — pricing_in.',
-  ' - **bearish**: ищи устойчивое падение без возврата. Если цена упала и стабилизировалась внизу — priced_in. Если цена не падала — not_priced_in. Если падение продолжается — pricing_in.',
+  ' - Оценивай весь 24-часовой период целиком, а не только его конец.',
+  ' - **bullish**: за 24 часа ищи устойчивый рост. Если рост состоялся — priced_in. Если цена не двигалась вверх — not_priced_in. Если рост продолжается прямо сейчас — pricing_in.',
+  ' - **bearish**: за 24 часа ищи устойчивое падение. Если падение состоялось — priced_in, даже если в конце периода идёт отскок вверх. Если цена не падала — not_priced_in. Если падение продолжается прямо сейчас — pricing_in.',
   ' - **sideways**: ищи отсутствие направленного движения. Если рынок флэтует — priced_in. Если направление ещё не определилось — not_priced_in.',
   ' - **neutral**: цена не реагирует ни в какую сторону. priced_in если рынок спокоен, not_priced_in если цена неожиданно движется.',
   ' - Если движение было, но цена полностью вернулась обратно — это не реакция на сентимент. Исключение: V-образный отскок (резкое падение с немедленным восстановлением) — это priced_in, рынок отработал сентимент и нашёл покупателей/продавцов.',
@@ -30,8 +28,8 @@ const PRICE_REACTION_PROMPT = str.newline(
   ' - Если данные свечей недоступны (ошибка API, пустой ответ) — возвращай priced_in и confidence: not_reliable.',
   '',
   '**Оценка уверенности (confidence):**',
-  ' - **reliable**: тренд на 15-минутках и 1-минутках согласованы, картина однозначная.',
-  ' - **not_reliable**: рынок не видит консенсус — на 1-минутных свечах цена резко бросается в обе стороны без формирования направления, участники рынка не могут договориться о цене.',
+  ' - **reliable**: картина на 15-минутках однозначная, тренд выражен.',
+  ' - **not_reliable**: картина неоднозначная — цена хаотично движется в обе стороны без формирования направления, или данные недоступны.',
   '',
   '**Требуемый результат:**',
   '1. **price_reaction**: priced_in, not_priced_in или pricing_in.',
@@ -72,24 +70,6 @@ const commitStockData15m = async (resultId: string, symbol: string, when: Date, 
   );
 }
 
-const commitStockData1m = async (resultId: string, symbol: string, when: Date, history: IOutlineHistory) => {
-  const stockData = await ask<StockDataRequestContract>(
-    { resultId, symbol, date: when },
-    AdvisorName.StockData1mAdvisor,
-  );
-
-  await history.push(
-    {
-      role: 'user',
-      content: str.newline(
-        'Прочитай 1-минутные свечи за последние 4 часа (детальная картина), запомни их и скажи ОК',
-        '',
-        stockData,
-      ),
-    },
-    { role: 'assistant', content: 'ОК' },
-  );
-}
 
 addOutline<ReactionResponseContract>({
   outlineName: OutlineName.ReactionOutline,
@@ -130,7 +110,6 @@ addOutline<ReactionResponseContract>({
 
     await commitForecast(forecast, history);
     await commitStockData15m(resultId, symbol, when, history);
-    await commitStockData1m(resultId, symbol, when, history);
 
     await history.push({ role: 'user', content: PRICE_REACTION_PROMPT });
   },
