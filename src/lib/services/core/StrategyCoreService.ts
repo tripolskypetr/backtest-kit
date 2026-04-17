@@ -1251,6 +1251,48 @@ export class StrategyCoreService implements TStrategy {
   };
 
   /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  public getPositionActiveMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionActiveMinutes", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionActiveMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  public getPositionWaitingMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionWaitingMinutes", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionWaitingMinutes(backtest, symbol, context);
+  };
+
+  /**
    * Returns the best price reached in the profit direction during this position's life.
    *
    * @param backtest - Whether running in backtest mode

@@ -10,6 +10,8 @@ const REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_TIMESTAMP = "ReflectUtils.
 const REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_PNL_PERCENTAGE = "ReflectUtils.getPositionHighestPnlPercentage";
 const REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_PNL_COST = "ReflectUtils.getPositionHighestPnlCost";
 const REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_BREAKEVEN = "ReflectUtils.getPositionHighestProfitBreakeven";
+const REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES = "ReflectUtils.getPositionActiveMinutes";
+const REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES = "ReflectUtils.getPositionWaitingMinutes";
 const REFLECT_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES = "ReflectUtils.getPositionDrawdownMinutes";
 const REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_MINUTES = "ReflectUtils.getPositionHighestProfitMinutes";
 const REFLECT_METHOD_NAME_GET_POSITION_MAX_DRAWDOWN_MINUTES = "ReflectUtils.getPositionMaxDrawdownMinutes";
@@ -319,6 +321,62 @@ export class ReflectUtils {
       actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_BREAKEVEN));
     }
     return await bt.strategyCoreService.getPositionHighestProfitBreakeven(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  public getPositionActiveMinutes = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number | null> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES));
+    }
+    return await bt.strategyCoreService.getPositionActiveMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Returns null if no scheduled signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  public getPositionWaitingMinutes = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    backtest = false
+  ): Promise<number | null> => {
+    bt.loggerService.info(REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES, { symbol, context });
+    bt.strategyValidationService.validate(context.strategyName, REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES);
+    bt.exchangeValidationService.validate(context.exchangeName, REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES);
+    context.frameName && bt.frameValidationService.validate(context.frameName, REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES);
+    {
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
+      riskName && bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES);
+      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, REFLECT_METHOD_NAME_GET_POSITION_WAITING_MINUTES));
+    }
+    return await bt.strategyCoreService.getPositionWaitingMinutes(backtest, symbol, context);
   };
 
   /**

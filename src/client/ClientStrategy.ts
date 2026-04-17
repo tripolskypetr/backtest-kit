@@ -4773,6 +4773,42 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Computed as elapsed minutes since `pendingAt` (the moment the signal was activated).
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  public async getPositionActiveMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionActiveMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.floor((timestamp - this._pendingSignal.pendingAt) / 60000);
+  }
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Computed as elapsed minutes since `scheduledAt` (the moment the scheduled signal was created).
+   * Returns null if no scheduled signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  public async getPositionWaitingMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWaitingMinutes", { symbol });
+    if (!this._scheduledSignal) {
+      return null;
+    }
+    return Math.floor((timestamp - this._scheduledSignal.scheduledAt) / 60000);
+  }
+
+  /**
    * Returns the number of minutes elapsed since the highest profit price was recorded.
    *
    * Alias for getPositionDrawdownMinutes — measures how long the position has been

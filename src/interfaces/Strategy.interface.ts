@@ -1540,6 +1540,28 @@ export interface IStrategy {
   getPositionCountdownMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
 
   /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  getPositionActiveMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Returns null if no scheduled signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  getPositionWaitingMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+
+  /**
    * Returns the best price reached in the profit direction during this position's life.
    *
    * Returns null if no pending signal exists.

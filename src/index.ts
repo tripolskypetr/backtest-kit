@@ -58,6 +58,8 @@ export {
   getPositionHighestMaxDrawdownPnlPercentage,
   getPositionHighestProfitDistancePnlCost,
   getPositionHighestProfitDistancePnlPercentage,
+  getPositionActiveMinutes,
+  getPositionWaitingMinutes,
   getMaxDrawdownDistancePnlCost,
   getMaxDrawdownDistancePnlPercentage,
   hasNoPendingSignal,

@@ -62,6 +62,10 @@ const BACKTEST_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES =
   "BacktestUtils.getPositionEstimateMinutes";
 const BACKTEST_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES =
   "BacktestUtils.getPositionCountdownMinutes";
+const BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES =
+  "BacktestUtils.getPositionActiveMinutes";
+const BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES =
+  "BacktestUtils.getPositionWaitingMinutes";
 const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE =
   "BacktestUtils.getPositionHighestProfitPrice";
 const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_TIMESTAMP =
@@ -1772,6 +1776,128 @@ export class BacktestUtils {
     }
 
     return await backtest.strategyCoreService.getPositionCountdownMinutes(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Active minutes (≥ 0), or null if no active position
+   */
+  public getPositionActiveMinutes = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionActiveMinutes(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Returns null if no scheduled signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Waiting minutes (≥ 0), or null if no scheduled signal
+   */
+  public getPositionWaitingMinutes = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionWaitingMinutes(
       true,
       symbol,
       context,

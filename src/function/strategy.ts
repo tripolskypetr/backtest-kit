@@ -49,6 +49,8 @@ const GET_POSITION_PARTIALS_METHOD_NAME = "strategy.getPositionPartials";
 const GET_POSITION_ENTRIES_METHOD_NAME = "strategy.getPositionEntries";
 const GET_POSITION_ESTIMATE_MINUTES_METHOD_NAME = "strategy.getPositionEstimateMinutes";
 const GET_POSITION_COUNTDOWN_MINUTES_METHOD_NAME = "strategy.getPositionCountdownMinutes";
+const GET_POSITION_ACTIVE_MINUTES_METHOD_NAME = "strategy.getPositionActiveMinutes";
+const GET_POSITION_WAITING_MINUTES_METHOD_NAME = "strategy.getPositionWaitingMinutes";
 const GET_POSITION_HIGHEST_PROFIT_PRICE_METHOD_NAME = "strategy.getPositionHighestProfitPrice";
 const GET_POSITION_HIGHEST_PROFIT_TIMESTAMP_METHOD_NAME = "strategy.getPositionHighestProfitTimestamp";
 const GET_POSITION_HIGHEST_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionHighestPnlPercentage";
@@ -1803,6 +1805,72 @@ export async function getPositionCountdownMinutes(symbol: string) {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionCountdownMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the number of minutes the position has been active since it opened.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to active minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionActiveMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionActiveMinutes("BTCUSDT");
+ * // e.g. 120 (position has been open for 2 hours)
+ * ```
+ */
+export async function getPositionActiveMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_ACTIVE_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionActiveMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionActiveMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionActiveMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the number of minutes the scheduled signal has been waiting for activation.
+ *
+ * Returns null if no scheduled signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to waiting minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWaitingMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionWaitingMinutes("BTCUSDT");
+ * // e.g. 15 (scheduled signal has been waiting 15 minutes for activation)
+ * ```
+ */
+export async function getPositionWaitingMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WAITING_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWaitingMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWaitingMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWaitingMinutes(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
