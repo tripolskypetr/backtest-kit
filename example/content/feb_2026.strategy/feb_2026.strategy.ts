@@ -46,23 +46,10 @@ const reactionSource = sourceNode(
 );
 
 const positionOutput = outputNode(
-  async ([forecast, reaction]) => {
-    if (forecast.sentiment === "neutral") {
-      return "wait";
-    }
-    if (forecast.sentiment === "sideways") {
-      return "wait";
-    }
-    if (reaction.confidence === "not_reliable") {
-      return "wait";
-    }
-    if (reaction.price_reaction === "priced_in") {
-      return "wait";
-    }
+  async ([forecast]) => {
     return POSITION_LABEL_MAP[forecast.sentiment];
   },
   forecastSource,
-  reactionSource,
 );
 
 addStrategySchema({
@@ -70,11 +57,24 @@ addStrategySchema({
   getSignal: async (symbol, when, currentPrice) => {
 
     const forecast = await resolve(forecastSource);
-    const reaction = await resolve(reactionSource);
-
     const position = await resolve(positionOutput);
 
     if (position === "wait") {
+      return null;
+    }
+  
+    const reaction = await resolve(reactionSource);
+
+    if (forecast.sentiment === "neutral") {
+      return null;
+    }
+    if (forecast.sentiment === "sideways") {
+      return null;
+    }
+    if (reaction.confidence === "not_reliable") {
+      return null;
+    }
+    if (reaction.price_reaction === "priced_in") {
       return null;
     }
 

@@ -19,6 +19,10 @@ export class StorageViewService {
     if (CC_ENABLE_MOCK) {
       return await this.storageMockService.findSignalById(signalId);
     }
+    if (!Storage.enable.hasValue()) {
+      console.warn("@backtest-kit/ui storageViewService findSignalById storage not enabled");
+      return null;
+    }
     return await Storage.findSignalById(signalId);
   };
 
@@ -26,6 +30,10 @@ export class StorageViewService {
     this.loggerService.log("storageViewService listSignalLive");
     if (CC_ENABLE_MOCK) {
       return await this.storageMockService.listSignalLive();
+    }
+    if (!Storage.enable.hasValue()) {
+      console.warn("@backtest-kit/ui storageViewService listSignalLive storage not enabled");
+      return [];
     }
     const signalList = await Storage.listSignalLive();
     signalList.sort((a, b) => {
@@ -49,6 +57,10 @@ export class StorageViewService {
     if (CC_ENABLE_MOCK) {
       return await this.storageMockService.listSignalBacktest();
     }
+    if (!Storage.enable.hasValue()) {
+      console.warn("@backtest-kit/ui storageViewService listSignalBacktest storage not enabled");
+      return [];
+    }
     const signalList = await Storage.listSignalBacktest();
     signalList.sort((a, b) => {
       const aHasTime = "createdAt" in a;
@@ -65,14 +77,6 @@ export class StorageViewService {
     });
     return signalList;
   };
-
-  protected init = singleshot(async () => {
-    this.loggerService.log("storageViewService init");
-    if (CC_ENABLE_MOCK) {
-      return;
-    }
-    Storage.enable();
-  });
 }
 
 export default StorageViewService;
