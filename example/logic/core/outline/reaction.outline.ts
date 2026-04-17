@@ -10,7 +10,7 @@ import { CompletionName } from '../../enum/CompletionName';
 import { AdvisorName } from '../../enum/AdvisorName';
 import { StockDataRequestContract } from '../../contract/StockDataRequest.contract';
 import { ForecastResponseContract } from '../../contract/ForecastResponse.contract';
-import { PriceReactionResponseContract } from '../../contract/PriceReactionResponse.contract';
+import { ReactionResponseContract } from '../../contract/ReactionResponse.contract';
 
 import dayjs from 'dayjs';
 
@@ -26,6 +26,7 @@ const PRICE_REACTION_PROMPT = str.newline(
   ' - **neutral** (пример: пустой новостной фон, нет значимых событий): цена стоит на месте или флэтует. priced_in если ничего не происходит, not_priced_in если цена почему-то движется.',
   ' - Размер движения имеет значение: 0.1% — шум, 1%+ за 6 часов на минутках — реальная реакция.',
   ' - Если движение было, но цена вернулась обратно — это отработка, не реакция на сентимент.',
+  ' - Критерий **priced_in**: цена достигла ближайшего уровня поддержки (для bearish) или сопротивления (для bullish) и остановилась или консолидируется у него.',
   '',
   '**Требуемый результат:**',
   '1. **reaction**: priced_in, not_priced_in или pricing_in.',
@@ -65,7 +66,7 @@ const commitStockData = async (resultId: string, symbol: string, when: Date, his
   );
 }
 
-addOutline<PriceReactionResponseContract>({
+addOutline<ReactionResponseContract>({
   outlineName: OutlineName.ReactionOutline,
   completion: CompletionName.OllamaOutlineToolCompletion,
   format: {
