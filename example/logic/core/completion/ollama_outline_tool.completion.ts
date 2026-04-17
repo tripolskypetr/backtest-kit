@@ -16,7 +16,7 @@ const COMPLETION_RETRY_DELAY = 5_000;
 const COMPLETION_TIMEOUT = 300_000;
 const COMPLETION_TIMEOUT_SYMBOL = Symbol("COMPLETION_TIMEOUT");
 
-const MODEL_NAME = "gpt-oss:120b-cloud";
+const MODEL_NAME = "minimax-m2.7:cloud";
 
 const fetchCompletion = retry(async ({
   messages: rawMessages,
