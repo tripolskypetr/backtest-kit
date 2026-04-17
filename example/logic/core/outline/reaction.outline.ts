@@ -28,9 +28,14 @@ const PRICE_REACTION_PROMPT = str.newline(
   ' - Если движение было, но цена вернулась обратно — это отработка, не реакция на сентимент.',
   ' - Критерий **priced_in**: цена достигла ближайшего уровня поддержки (для bearish) или сопротивления (для bullish) и остановилась или консолидируется у него.',
   '',
+  '**Оценка уверенности (confidence):**',
+  ' - **reliable**: движение цены чётко соответствует или противоречит сентименту, картина однозначная.',
+  ' - **not_reliable**: цену сильно штормит (резкие свечи в обе стороны без направления), данные недоступны, или невозможно однозначно определить реакцию.',
+  '',
   '**Требуемый результат:**',
-  '1. **reaction**: priced_in, not_priced_in или pricing_in.',
-  '2. **reasoning**: на каких конкретных свечах или ценовых движениях основан вывод?',
+  '1. **price_reaction**: priced_in, not_priced_in или pricing_in.',
+  '2. **confidence**: reliable или not_reliable.',
+  '3. **reasoning**: на каких конкретных свечах или ценовых движениях основан вывод?',
 );
 
 const commitForecast = async (forecast: ForecastResponseContract, history: IOutlineHistory) => {
@@ -77,12 +82,17 @@ addOutline<ReactionResponseContract>({
         enum: ['priced_in', 'not_priced_in', 'pricing_in'],
         description: 'Успела ли цена отреагировать на сентимент.',
       },
+      confidence: {
+        type: 'string',
+        enum: ['reliable', 'not_reliable'],
+        description: 'Уверенность в оценке: reliable — картина однозначная, not_reliable — сильный шторм, недоступные данные или неопределённость.',
+      },
       reasoning: {
         type: 'string',
         description: 'На каких ценовых движениях основан вывод.',
       },
     },
-    required: ['price_reaction', 'reasoning'],
+    required: ['price_reaction', 'confidence', 'reasoning'],
   },
   getOutlineHistory: async (
     { resultId, history },
@@ -118,6 +128,18 @@ addOutline<ReactionResponseContract>({
         throw new Error('price_reaction должен быть priced_in, not_priced_in или pricing_in');
       },
       docDescription: 'Проверяет допустимое значение price_reaction.',
+    },
+    {
+      validate: ({ data }) => {
+        if (data.confidence === 'reliable') {
+          return;
+        }
+        if (data.confidence === 'not_reliable') {
+          return;
+        }
+        throw new Error('confidence должен быть reliable или not_reliable');
+      },
+      docDescription: 'Проверяет допустимое значение confidence.',
     },
     {
       validate: ({ data }) => {

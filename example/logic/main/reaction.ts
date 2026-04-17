@@ -8,7 +8,7 @@ const reaction = async (
     symbol: string,
     when: Date,
 ) => {
-    const response = await json<ReactionResponseContract>(OutlineName.ForecastOutline,
+    const response = await json<ReactionResponseContract>(OutlineName.ReactionOutline,
         forecast,
         symbol,
         when,
