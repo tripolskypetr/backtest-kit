@@ -11,7 +11,7 @@ import {
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
-import { forecast } from "logic";
+import { forecast, reaction } from "logic";
 
 const NEVER_DRAWDOWN_PERCENT = 5;
 
@@ -33,11 +33,36 @@ const forecastSource = sourceNode(
   ),
 );
 
+const reactionSource = sourceNode(
+  Cache.file(
+    async (symbol: string, when: Date, currentPrice: number) => {
+      const forecast = await resolve(forecastSource);
+      const result = await reaction(forecast, symbol, when);
+      console.log(result, when);
+      return { ...result, currentPrice };
+    },
+    { interval: "4h", name: "reaction_source" }
+  )
+);
+
 const positionOutput = outputNode(
-  async ([forecast]) => {
+  async ([forecast, reaction]) => {
+    if (forecast.sentiment === "neutral") {
+      return "wait";
+    }
+    if (forecast.sentiment === "sideways") {
+      return "wait";
+    }
+    if (reaction.confidence === "not_reliable") {
+      return "wait";
+    }
+    if (reaction.price_reaction === "priced_in") {
+      return "wait";
+    }
     return POSITION_LABEL_MAP[forecast.sentiment];
   },
   forecastSource,
+  reactionSource,
 );
 
 addStrategySchema({
@@ -45,6 +70,8 @@ addStrategySchema({
   getSignal: async (symbol, when, currentPrice) => {
 
     const forecast = await resolve(forecastSource);
+    const reaction = await resolve(reactionSource);
+
     const position = await resolve(positionOutput);
 
     if (position === "wait") {
@@ -61,8 +88,16 @@ addStrategySchema({
       "# Новостной сентимент",
       "",
       forecast.reasoning,
-      " ",
-      `[Показать детали](/pick-dump-search/${forecast.id})`,
+      "",
+      "# Реакция рынка",
+      "",
+      reaction.reasoning,
+      "",
+      "# Ссылки",
+      "",
+      ` - [Показать новость](/pick-dump-search/${forecast.id})`,
+      ` - [Показать реакцию рынка](/pick-dump-search/${forecast.id})`,
+      "",
     );
 
     return {
@@ -92,8 +127,11 @@ listenActivePing(async ({ symbol, data }) => {
       "# Новостной сентимент изменился",
       "",
       forecast.reasoning,
-      " ",
-      `[Показать детали](/pick-dump-search/${forecast.id})`,
+      "",
+      "# Ссылки",
+      "",
+      ` - [Показать детали](/pick-dump-search/${forecast.id})`,
+      "",
     ),
   });
   Log.info("position closed", {
