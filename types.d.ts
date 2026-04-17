@@ -20699,6 +20699,94 @@ declare const RecentLive: RecentLiveAdapter;
 declare const RecentBacktest: RecentBacktestAdapter;
 
 /**
+ * Defines which notification categories are enabled when calling `NotificationAdapter.enable()`.
+ *
+ * Pass an instance of this interface to selectively subscribe to only the event types you need.
+ * When omitted, all categories default to `true` via `WILDCARD_TARGET`.
+ *
+ * @example
+ * // Subscribe only to signal lifecycle and error events
+ * notificationAdapter.enable({ signal: true, common_error: true, critical_error: true, validation_error: true,
+ *   partial_profit: false, partial_loss: false, breakeven: false, strategy_commit: false, signal_sync: false,
+ *   risk: false, info: false });
+ */
+interface INotificationTarget {
+    /**
+     * Signal lifecycle events emitted by the strategy engine.
+     * Covers four actions: `signal.opened`, `signal.scheduled`, `signal.closed`, `signal.cancelled`.
+     * Source: `signalBacktestEmitter` / `signalLiveEmitter` (IStrategyTickResult).
+     */
+    signal: boolean;
+    /**
+     * Partial profit availability notifications (`partial_profit.available`).
+     * Fired when the price reaches a partial-profit level defined in the strategy,
+     * before the commit decision is made.
+     * Source: `partialProfitSubject` (PartialProfitContract).
+     */
+    partial_profit: boolean;
+    /**
+     * Partial loss availability notifications (`partial_loss.available`).
+     * Fired when the price reaches a partial-loss level defined in the strategy,
+     * before the commit decision is made.
+     * Source: `partialLossSubject` (PartialLossContract).
+     */
+    partial_loss: boolean;
+    /**
+     * Breakeven availability notifications (`breakeven.available`).
+     * Fired when the price reaches the breakeven level, before the commit is applied.
+     * Source: `breakevenSubject` (BreakevenContract).
+     */
+    breakeven: boolean;
+    /**
+     * Strategy commit confirmations.
+     * Covers all committed actions: `partial_profit.commit`, `partial_loss.commit`,
+     * `breakeven.commit`, `trailing_stop.commit`, `trailing_take.commit`,
+     * `activate_scheduled.commit`, `average_buy.commit`, `cancel_scheduled.commit`,
+     * `close_pending.commit`.
+     * Source: `strategyCommitSubject` (StrategyCommitContract).
+     */
+    strategy_commit: boolean;
+    /**
+     * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
+     * Fired when a limit order is confirmed filled (`signal-open`) or when an open
+     * position is confirmed exited (`signal-close`) by the exchange sync layer.
+     * Source: `syncSubject` (SignalSyncContract).
+     */
+    signal_sync: boolean;
+    /**
+     * Risk manager rejection notifications (`risk.rejection`).
+     * Fired when the risk manager blocks a new signal from opening due to
+     * active position count limits or other risk rules.
+     * Source: `riskSubject` (RiskContract).
+     */
+    risk: boolean;
+    /**
+     * Informational signal notifications (`signal.info`).
+     * Manual or strategy-triggered messages attached to an active signal,
+     * carrying a `note` and optional `notificationId`.
+     * Source: `signalNotifySubject` (SignalInfoContract).
+     */
+    info: boolean;
+    /**
+     * Non-fatal runtime errors (`error.info`).
+     * Emitted by the global `errorEmitter` for recoverable errors that are
+     * caught and logged but do not terminate the process.
+     */
+    common_error: boolean;
+    /**
+     * Critical (fatal) errors (`error.critical`).
+     * Emitted by the global `exitEmitter` when an unrecoverable error
+     * causes the backtest or live session to terminate.
+     */
+    critical_error: boolean;
+    /**
+     * Validation errors (`error.validation`).
+     * Emitted by `validationSubject` when strategy configuration or
+     * input data fails schema/business-rule validation.
+     */
+    validation_error: boolean;
+}
+/**
  * Base interface for notification adapters.
  * All notification adapters must implement this interface.
  */
@@ -21011,7 +21099,7 @@ declare class NotificationAdapter {
      *
      * @returns Cleanup function that unsubscribes from all emitters
      */
-    enable: (() => () => void) & functools_kit.ISingleshotClearable;
+    enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & functools_kit.ISingleshotClearable;
     /**
      * Disables notification storage by unsubscribing from all emitters.
      * Safe to call multiple times.
