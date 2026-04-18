@@ -39,7 +39,19 @@
         "timestamp": 1708388340000
       }
     ],
-    "_partial": []
+    "_partial": [],
+    "_peak": {
+      "price": 51800,
+      "timestamp": 1708388340000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 51800,
+      "timestamp": 1708388340000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000002",
@@ -103,7 +115,19 @@
         "entryCountAtClose": 2,
         "timestamp": 1707404580000
       }
-    ]
+    ],
+    "_peak": {
+      "price": 44950.99,
+      "timestamp": 1707400980000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 44950.99,
+      "timestamp": 1707400980000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000003",
@@ -145,7 +169,19 @@
         "timestamp": 1707494640000
       }
     ],
-    "_partial": []
+    "_partial": [],
+    "_peak": {
+      "price": 47378.01,
+      "timestamp": 1707494640000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 47378.01,
+      "timestamp": 1707494640000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000004",
@@ -187,7 +223,19 @@
         "timestamp": 1707304440000
       }
     ],
-    "_partial": []
+    "_partial": [],
+    "_peak": {
+      "price": 42969.86,
+      "timestamp": 1707304440000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 42969.86,
+      "timestamp": 1707304440000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000005",
@@ -229,7 +277,19 @@
         "timestamp": 1708784040000
       }
     ],
-    "_partial": []
+    "_partial": [],
+    "_peak": {
+      "price": 51088,
+      "timestamp": 1708784040000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 51088,
+      "timestamp": 1708784040000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000006",
@@ -271,7 +331,19 @@
         "timestamp": 1707379260000
       }
     ],
-    "_partial": []
+    "_partial": [],
+    "_peak": {
+      "price": 44614.48,
+      "timestamp": 1707379260000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 44614.48,
+      "timestamp": 1707379260000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000007",
@@ -313,7 +385,19 @@
         "timestamp": 1707699000000
       }
     ],
-    "_partial": []
+    "_partial": [],
+    "_peak": {
+      "price": 48604,
+      "timestamp": 1707699000000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 48604,
+      "timestamp": 1707699000000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000008",
@@ -355,6 +439,18 @@
         "timestamp": 1708549140000
       }
     ],
-    "_partial": []
+    "_partial": [],
+    "_peak": {
+      "price": 50957.94,
+      "timestamp": 1708549140000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    },
+    "_fall": {
+      "price": 50957.94,
+      "timestamp": 1708549140000,
+      "pnlPercentage": 0,
+      "pnlCost": 0
+    }
   }
 ]

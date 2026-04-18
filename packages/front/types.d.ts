@@ -123,6 +123,8 @@ declare class StatusMockService {
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
+        _peak: any;
+        _fall: any;
     }>;
 }
 
@@ -229,54 +231,8 @@ declare class StatusViewService {
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
-    } | {
-        signalId: string;
-        position: "long" | "short";
-        symbol: string;
-        exchangeName: string;
-        strategyName: string;
-        totalEntries: number;
-        totalPartials: number;
-        originalPriceStopLoss: number;
-        originalPriceTakeProfit: number;
-        originalPriceOpen: number;
-        priceOpen: number;
-        priceTakeProfit: number;
-        priceStopLoss: number;
-        pnlPercentage: number;
-        pnlCost: number;
-        pnlEntries: number;
-        partialExecuted: number;
-        pendingAt: number;
-        minuteEstimatedTime: number;
-        timestamp: number;
-        updatedAt: number;
-        positionEntries: {
-            price: number;
-            cost: number;
-            timestamp: number;
-        }[];
-        positionLevels: number[];
-        positionPartials: {
-            type: "profit" | "loss";
-            percent: number;
-            currentPrice: number;
-            costBasisAtClose: number;
-            entryCountAtClose: number;
-            timestamp: number;
-        }[];
-        _peak: {
-            price: number;
-            timestamp: number;
-            pnlPercentage: number;
-            pnlCost: number;
-        };
-        _fall: {
-            price: number;
-            timestamp: number;
-            pnlPercentage: number;
-            pnlCost: number;
-        };
+        _peak: any;
+        _fall: any;
     }>;
     getStatusInfo: () => Promise<any>;
 }
