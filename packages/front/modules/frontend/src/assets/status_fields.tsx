@@ -227,22 +227,23 @@ export const status_fields: TypedField[] = [
                         child: {
                             type: FieldType.Component,
                             element: ({
-                                totalPartials,
-                                pnlPercentage,
                                 payload,
-                            }) => (
-                                <IndicatorValueWidget
-                                    color={
-                                        totalPartials > 0
-                                            ? pnlColor(pnlPercentage)
-                                            : COLOR_PURPLE
-                                    }
-                                    outlinePaper={payload.outlinePaper}
-                                    label="Total Closes"
-                                    value={totalPartials}
-                                    icon={DonutSmall}
-                                />
-                            ),
+                                _fall = {},
+                            }) => {
+
+                                const maxDrawdownCost = Number(_fall.pnlCost).toFixed(1);
+                                const maxDrawdownPercentage = Number(_fall.pnlPercentage).toFixed(2);
+                                
+                                return (
+                                    <IndicatorValueWidget
+                                        color={COLOR_PURPLE}
+                                        outlinePaper={payload.outlinePaper}
+                                        label="Max Drawdown"
+                                        value={`${maxDrawdownCost}$ / ${maxDrawdownPercentage}%`}
+                                        icon={DonutSmall}
+                                    />
+                                );
+                            }
                         },
                     },
                     {
@@ -257,22 +258,26 @@ export const status_fields: TypedField[] = [
                         child: {
                             type: FieldType.Component,
                             element: ({
-                                partialExecuted,
-                                pnlPercentage,
                                 payload,
-                            }) => (
-                                <IndicatorValueWidget
-                                    color={
-                                        partialExecuted > 0
-                                            ? pnlColor(pnlPercentage)
-                                            : COLOR_BLUE
-                                    }
-                                    outlinePaper={payload.outlinePaper}
-                                    label="Total Closed %"
-                                    value={`${partialExecuted.toFixed(2)}%`}
-                                    icon={DonutSmall}
-                                />
-                            ),
+                                _peak = {},
+                            }) => {
+                                const peakProfitCost = Number(_peak.pnlCost).toFixed(1);
+                                const peakProfitPercentage = Number(_peak.pnlPercentage).toFixed(2);
+                                
+                                return (
+                                    <IndicatorValueWidget
+                                        color={
+                                            +peakProfitCost > 0
+                                                ? pnlColor(+peakProfitCost)
+                                                : COLOR_BLUE
+                                        }
+                                        outlinePaper={payload.outlinePaper}
+                                        label="Peak Profit"
+                                        value={`${peakProfitCost}$ / ${peakProfitPercentage}%`}
+                                        icon={DonutSmall}
+                                    />
+                                )
+                            }
                         },
                     },
                     {

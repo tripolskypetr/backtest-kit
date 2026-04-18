@@ -196,7 +196,6 @@ declare class NotificationViewService {
     findByFilter: <T extends object = Record<string, string>>(filterData: T, limit?: number, offset?: number) => Promise<NotificationModel[]>;
     getList: () => Promise<NotificationModel[]>;
     getOne: (id: string) => Promise<NotificationModel>;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class StatusViewService {
@@ -230,6 +229,54 @@ declare class StatusViewService {
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
+    } | {
+        signalId: string;
+        position: "long" | "short";
+        symbol: string;
+        exchangeName: string;
+        strategyName: string;
+        totalEntries: number;
+        totalPartials: number;
+        originalPriceStopLoss: number;
+        originalPriceTakeProfit: number;
+        originalPriceOpen: number;
+        priceOpen: number;
+        priceTakeProfit: number;
+        priceStopLoss: number;
+        pnlPercentage: number;
+        pnlCost: number;
+        pnlEntries: number;
+        partialExecuted: number;
+        pendingAt: number;
+        minuteEstimatedTime: number;
+        timestamp: number;
+        updatedAt: number;
+        positionEntries: {
+            price: number;
+            cost: number;
+            timestamp: number;
+        }[];
+        positionLevels: number[];
+        positionPartials: {
+            type: "profit" | "loss";
+            percent: number;
+            currentPrice: number;
+            costBasisAtClose: number;
+            entryCountAtClose: number;
+            timestamp: number;
+        }[];
+        _peak: {
+            price: number;
+            timestamp: number;
+            pnlPercentage: number;
+            pnlCost: number;
+        };
+        _fall: {
+            price: number;
+            timestamp: number;
+            pnlPercentage: number;
+            pnlCost: number;
+        };
     }>;
     getStatusInfo: () => Promise<any>;
 }
@@ -240,7 +287,6 @@ declare class StorageViewService {
     findSignalById: (signalId: string) => Promise<backtest_kit.IStorageSignalRow>;
     listSignalLive: () => Promise<backtest_kit.IStorageSignalRow[]>;
     listSignalBacktest: () => Promise<backtest_kit.IStorageSignalRow[]>;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class ExchangeViewService {
