@@ -4,6 +4,7 @@ node_modules
 .DS_Store
 wwwroot
 docs/packages
+docs/begin
 docs/cli
 logs
 tmp

@@ -339,6 +339,7 @@ export { RiskContract } from "./contract/Risk.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
 export { SchedulePingContract } from "./contract/SchedulePing.contract";
 export { ActivePingContract } from "./contract/ActivePing.contract";
+export { IdlePingContract } from "./contract/IdlePing.contract";
 export { HighestProfitContract } from "./contract/HighestProfit.contract";
 export { MaxDrawdownContract } from "./contract/MaxDrawdown.contract";
 export { SignalInfoContract } from "./contract/SignalInfo.contract";
