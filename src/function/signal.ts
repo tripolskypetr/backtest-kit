@@ -6,6 +6,7 @@ import { Recent } from "../classes/Recent";
 import { IPublicSignalRow } from "../interfaces/Strategy.interface";
 
 const GET_LATEST_SIGNAL_METHOD_NAME = "signal.getLatestSignal";
+const GET_MINUTES_SINCE_LATEST_SIGNAL_CREATED_METHOD_NAME = "signal.getMinutesSinceLatestSignalCreated";
 
 /**
  * Returns the latest signal (pending or closed) for the current strategy context.
@@ -46,6 +47,51 @@ export async function getLatestSignal(
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   return await Recent.getLatestSignal(
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+ *
+ * Does not distinguish between active and closed signals — measures time since
+ * whichever signal was recorded last. Useful for cooldown logic after a stop-loss.
+ *
+ * Searches backtest storage first, then live storage.
+ * Returns null if no signal exists at all.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param timestamp - Current timestamp in milliseconds
+ * @returns Promise resolving to whole minutes since the latest signal was created, or null
+ *
+ * @example
+ * ```typescript
+ * import { getMinutesSinceLatestSignalCreated } from "backtest-kit";
+ *
+ * const minutes = await getMinutesSinceLatestSignalCreated("BTCUSDT", Date.now());
+ * if (minutes !== null && minutes < 24 * 60) {
+ *   return; // cooldown — skip new signal for 24 hours after last signal
+ * }
+ * ```
+ */
+export async function getMinutesSinceLatestSignalCreated(
+  symbol: string,
+  timestamp: number,
+): Promise<number | null> {
+  backtest.loggerService.info(GET_MINUTES_SINCE_LATEST_SIGNAL_CREATED_METHOD_NAME, { symbol, timestamp });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getMinutesSinceLatestSignalCreated requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getMinutesSinceLatestSignalCreated requires a method context");
+  }
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  return await Recent.getMinutesSinceLatestSignalCreated(
+    timestamp,
     symbol,
     { exchangeName, frameName, strategyName },
   );

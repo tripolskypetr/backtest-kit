@@ -39,6 +39,7 @@ const RECENT_LIVE_ADAPTER_METHOD_NAME_CLEAR = "RecentLiveAdapter.clear";
 const RECENT_ADAPTER_METHOD_NAME_ENABLE = "RecentAdapter.enable";
 const RECENT_ADAPTER_METHOD_NAME_DISABLE = "RecentAdapter.disable";
 const RECENT_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL = "RecentAdapter.getLatestSignal";
+const RECENT_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL = "RecentAdapter.getMinutesSinceLatestSignalCreated";
 
 /**
  * Builds a composite storage key from context parts.
@@ -88,6 +89,24 @@ export interface IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<IPublicSignalRow | null>;
+  /**
+   * Returns the number of minutes elapsed since the latest signal's timestamp.
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @param currentTimestamp - Current timestamp in milliseconds
+   * @returns Minutes since the latest signal, or null if no signal found
+   */
+  getMinutesSinceLatestSignalCreated(
+    timestamp: number,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<number | null>;
 }
 
 /**
@@ -155,6 +174,31 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
       backtest,
     );
   };
+
+  /**
+   * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+   * @param timestamp - Current timestamp in milliseconds
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   */
+  public getMinutesSinceLatestSignalCreated = async (
+    timestamp: number,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<number | null> => {
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    if (!signal) {
+      return null;
+    }
+    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
+  };
 }
 
 /**
@@ -215,6 +259,31 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
     );
     lib.loggerService.info(RECENT_MEMORY_BACKTEST_METHOD_NAME_GET_LATEST_SIGNAL, { key });
     return this._signals.get(key) ?? null;
+  };
+
+  /**
+   * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+   * @param timestamp - Current timestamp in milliseconds
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   */
+  public getMinutesSinceLatestSignalCreated = async (
+    timestamp: number,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<number | null> => {
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    if (!signal) {
+      return null;
+    }
+    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
   };
 }
 
@@ -278,6 +347,31 @@ export class RecentPersistLiveUtils implements IRecentUtils {
       backtest,
     );
   };
+
+  /**
+   * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+   * @param timestamp - Current timestamp in milliseconds
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   */
+  public getMinutesSinceLatestSignalCreated = async (
+    timestamp: number,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<number | null> => {
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    if (!signal) {
+      return null;
+    }
+    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
+  };
 }
 
 /**
@@ -333,6 +427,31 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
     const key = CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest);
     lib.loggerService.info(RECENT_MEMORY_LIVE_METHOD_NAME_GET_LATEST_SIGNAL, { key });
     return this._signals.get(key) ?? null;
+  };
+
+  /**
+   * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+   * @param timestamp - Current timestamp in milliseconds
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   */
+  public getMinutesSinceLatestSignalCreated = async (
+    timestamp: number,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<number | null> => {
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    if (!signal) {
+      return null;
+    }
+    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
   };
 }
 
@@ -392,6 +511,40 @@ export class RecentBacktestAdapter implements IRecentUtils {
       frameName,
       backtest,
     );
+  };
+
+  /**
+   * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+   * Proxies call to the underlying storage adapter.
+   * @param timestamp - Current timestamp in milliseconds
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   */
+  public getMinutesSinceLatestSignalCreated = async (
+    timestamp: number,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<number | null> => {
+    lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+      timestamp,
+    });
+    const signal = await this._recentBacktestUtils.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    if (!signal) {
+      return null;
+    }
+    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
   };
 
   /**
@@ -487,6 +640,40 @@ export class RecentLiveAdapter implements IRecentUtils {
       frameName,
       backtest,
     );
+  };
+
+  /**
+   * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+   * Proxies call to the underlying storage adapter.
+   * @param timestamp - Current timestamp in milliseconds
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   */
+  public getMinutesSinceLatestSignalCreated = async (
+    timestamp: number,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean,
+  ): Promise<number | null> => {
+    lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+      timestamp,
+    });
+    const signal = await this._recentLiveUtils.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    if (!signal) {
+      return null;
+    }
+    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
   };
 
   /**
@@ -637,6 +824,36 @@ export class RecentAdapter {
       return result;
     }
     return null;
+  };
+
+  /**
+   * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+   * Searches backtest storage first, then live storage.
+   * @param timestamp - Current timestamp in milliseconds
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @throws Error if RecentAdapter is not enabled
+   */
+  public getMinutesSinceLatestSignalCreated = async (
+    timestamp: number,
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ): Promise<number | null> => {
+    lib.loggerService.info(RECENT_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL, {
+      symbol,
+      context,
+      timestamp,
+    });
+    const signal = await this.getLatestSignal(symbol, context);
+    if (!signal) {
+      return null;
+    }
+    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
   };
 }
 

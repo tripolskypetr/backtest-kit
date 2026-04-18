@@ -165,6 +165,7 @@ export {
 } from "./function/exchange";
 export {
   getLatestSignal,
+  getMinutesSinceLatestSignalCreated,
 } from "./function/signal";
 export {
   listMemory,
