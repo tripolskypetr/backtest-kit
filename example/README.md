@@ -1,236 +1,96 @@
-# 🧿 Backtest Kit Project
+# BTCUSDT February 2026 — AI News Sentiment Backtest
 
-> A TypeScript framework for backtesting and live trading strategies on multi-asset, crypto, forex or [DEX (peer-to-peer marketplace)](https://en.wikipedia.org/wiki/Decentralized_finance#Decentralized_exchanges), spot, futures with crash-safe persistence, signal validation, and AI optimization.
+**Strategy:** `feb_2026_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `feb_2026_frame`
 
-![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
+An LLM reads live news from Tavily every few hours, produces a bullish / bearish / wait forecast via Ollama, and opens a LONG or SHORT position at the next candle open. Positions close on a trailing take-profit or stop-loss; an opposing forecast flips the position mid-trade.
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
-[![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
-[![Build](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml/badge.svg)](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml)
+## Price Context
 
-A minimal project scaffold for [backtest-kit](https://github.com/tripolskypetr/backtest-kit). All infrastructure (exchange registration, candle caching, runner, UI, Telegram) is handled by `@backtest-kit/cli` — this project contains only your strategy files.
+| Metric | Value |
+|---|---|
+| Month open | $78,734 |
+| Month close | $65,879 |
+| Monthly high | ~$79,424 (Feb 1) |
+| Monthly low | ~$60,000 (Feb 6) |
+| Net move | **−16.4%** |
 
-## 📋 Quick Start
+February 2026 was a sustained bear month. The Kevin Warsh Fed nomination shock, AI-sector re-pricing ("SaaSpocalypse"), record Bitcoin ETF outflows ($4 B over 5 weeks), and Trump's 15% global tariffs drove BTC from ~$79 k to ~$60 k before a partial recovery to ~$66 k.
 
-```bash
-npm start         # Run the CLI (append flags below)
-npm run sync:lib  # Refresh library docs in docs/lib/
-```
+## Performance Summary
 
-## 🏃 Running Modes
+| Metric | Value |
+|---|---|
+| Total trades | 16 |
+| Net PNL | **+16.99%** |
+| Win rate | **68.8%** (11 / 16) |
+| Avg win | +2.78% |
+| Avg loss | −2.72% |
+| Profit factor | **2.25** |
+| Best trade | **+14.28%** (SHORT Feb 4, $75 740 → $64 657) |
+| Worst trade | −3.41% (SL) |
+| Direction | 14 SHORT / 2 LONG |
+| Close: trailing take | 9 |
+| Close: stop-loss | 4 |
+| Close: sentiment flip | 3 |
 
-All modes are invoked via `npm start -- <flags> <entry-point>`.
+The strategy correctly held SHORT bias for nearly the entire month while BTC fell ~24% from high to low, then switched to LONG on Feb 19 during the recovery bounce, and reversed back to SHORT when the geopolitical news (US–Iran escalation, tariffs) resumed.
 
-### 🧪 Backtest
+## Trade Log
 
-Runs the strategy against historical candle data defined by a `FrameSchema`.
+| # | Date | Dir | Open | Close | PNL% | Close | Peak% | News Driver |
+|---|------|-----|------|-------|------|-------|-------|-------------|
+| 1 | Feb 1 | SHORT | $78,733 | $78,022 | **+0.51%** | take | 3.04% | BTC breaks $80 k, Kevin Warsh Fed nomination, record ETF outflows |
+| 2 | Feb 3 | SHORT | $78,756 | $75,140 | **+4.20%** | take | 6.82% | Galaxy forecasts $58 k, MSTR below cost basis, $3 B/month outflows |
+| 3 | Feb 4 | SHORT | $75,740 | $64,657 | **+14.28%** | take | 16.72% | Institutional selloff, deleveraging, Kevin Warsh hawkish pivot |
+| 4 | Feb 5 | SHORT | $64,657 | $62,488 | **+2.96%** | take | 6.06% | $467 B market cap erased, 74% of traders turned bearish |
+| 5 | Feb 6 | SHORT | $71,098 | $69,597 | **+1.72%** | take | 4.45% | Hawkish Fed, BTC −3.1%, KBW banking index −1.5% |
+| 6 | Feb 7 | SHORT | $69,054 | $71,126 | **−3.41%** | SL | −0.13% | Amazon $200 B AI capex fears, Nasdaq −4.5%, BTC flash to $60 k |
+| 7 | Feb 8 | SHORT | $71,373 | $70,173 | **+1.29%** | take | 3.67% | WSJ "new crypto winter", Nasdaq worst 2-day drop since April |
+| 8 | Feb 9 | SHORT | $70,446 | $70,168 | **−0.01%** | flip | 0.05% | Mixed signals — Dow 50 000 record vs Goldman record short book |
+| 9 | Feb 12 | SHORT | $67,051 | $69,063 | **−3.41%** | SL | 2.34% | Kevin Warsh hawkish shift confirmed, BTC −3.1% with liquidations |
+| 10 | Feb 13 | SHORT | $69,080 | $66,442 | **+3.43%** | flip | 4.12% | Coinbase −$667 M loss, Cisco weak outlook, AI selloff continues |
+| 11 | Feb 19 | LONG | $66,442 | $66,982 | **+0.41%** | flip | 0.83% | US industrial output +0.7%, Meta–Nvidia deal, VIX −7.5% |
+| 12 | Feb 20 | SHORT | $66,982 | $66,233 | **+0.72%** | take | 3.38% | US–Iran escalation, aircraft carrier deploy, VIX back to 20+ |
+| 13 | Feb 24 | SHORT | $64,585 | $64,264 | **+0.10%** | take | 2.53% | Trump 15% global tariffs, Goldman record short positions, IBM −13% |
+| 14 | Feb 25 | SHORT | $64,069 | $65,992 | **−3.41%** | SL | −0.21% | Fear & Greed 5/100, 5-week ETF outflow streak, BTC near $60 k |
+| 15 | Feb 26 | LONG | $67,957 | $65,918 | **−3.39%** | SL | 0.80% | BTC +6.3% on Jane Street manipulation lawsuit, risk-on rally |
+| 16 | Feb 28 | SHORT | $65,879 | $64,959 | **+1.00%** | take | 3.67% | Nvidia post-earnings drop, Nasdaq −0.92%, VIX 20–21 |
 
-```bash
-npm start -- --backtest --symbol BTCUSDT --strategy feb_2026_strategy --exchange ccxt-exchange --frame feb_2026_frame ./content/feb_2026.strategy.ts
-```
+**Close legend:** `take` = trailing take-profit triggered · `SL` = stop-loss hit · `flip` = closed by opposing sentiment signal
 
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--backtest` | boolean | — | Enable backtest mode |
-| `--symbol` | string | `BTCUSDT` | Trading pair |
-| `--strategy` | string | first registered | Strategy name from `addStrategySchema` |
-| `--exchange` | string | first registered | Exchange name from `addExchangeSchema` |
-| `--frame` | string | first registered | Frame name from `addFrameSchema` |
-| `--cacheInterval` | string | `1m, 15m, 30m, 1h, 4h` | Comma-separated intervals to pre-cache before the run |
-| `--noCache` | boolean | `false` | Skip candle cache warming |
-| `--verbose` | boolean | `false` | Log every candle fetch to stdout |
-| `--ui` | boolean | `false` | Start web dashboard at `http://localhost:60050` |
-| `--telegram` | boolean | `false` | Send trade notifications to Telegram |
+## Equity Curve
 
-Before the backtest starts, the CLI warms the candle cache for every interval in `--cacheInterval`. On subsequent runs the cache is used directly — no extra API calls. Pass `--noCache` to skip this step.
+Each trade allocates $100. PNL is additive (no compounding).
 
-Module file `./modules/backtest.module.ts` (or `.mjs`) is loaded automatically if it exists.
+| After trade | Cumulative PNL% |
+|---|---|
+| 1 (Feb 1) | +0.51% |
+| 2 (Feb 3) | +4.71% |
+| 3 (Feb 4) | +18.99% |
+| 4 (Feb 5) | +21.95% |
+| 5 (Feb 6) | +23.67% |
+| 6 (Feb 7) | +20.26% |
+| 7 (Feb 8) | +21.55% |
+| 8 (Feb 9) | +21.54% |
+| 9 (Feb 12) | +18.13% |
+| 10 (Feb 13) | +21.56% |
+| 11 (Feb 19) | +21.97% |
+| 12 (Feb 20) | +22.69% |
+| 13 (Feb 24) | +22.79% |
+| 14 (Feb 25) | +19.38% |
+| 15 (Feb 26) | +15.99% |
+| 16 (Feb 28) | **+16.99%** |
 
-### 📄 Paper Trading
+Peak equity reached after trade 4 (+21.95%). Late-month losses (trades 14–15) pulled the final result back to +16.99%.
 
-Connects to the live exchange but places no real orders. Identical code path to `--live` — safe for strategy validation.
-
-```bash
-npm start -- --paper --symbol BTCUSDT --strategy feb_2026_strategy --exchange ccxt-exchange ./content/feb_2026.strategy.ts
-```
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--paper` | boolean | — | Enable paper trading mode |
-| `--symbol` | string | `BTCUSDT` | Trading pair |
-| `--strategy` | string | first registered | Strategy name |
-| `--exchange` | string | first registered | Exchange name |
-| `--verbose` | boolean | `false` | Log every candle fetch to stdout |
-| `--ui` | boolean | `false` | Start web dashboard |
-| `--telegram` | boolean | `false` | Enable Telegram notifications |
-
-Module file `./modules/paper.module.ts` is loaded automatically if it exists.
-
-### 📈 Live Trading
-
-Deploys a real trading bot. Requires exchange API keys in `.env`.
-
-```bash
-npm start -- --live --symbol BTCUSDT --ui --telegram ./content/feb_2026.strategy.ts
-```
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--live` | boolean | — | Enable live trading mode |
-| `--symbol` | string | `BTCUSDT` | Trading pair |
-| `--strategy` | string | first registered | Strategy name |
-| `--exchange` | string | first registered | Exchange name |
-| `--verbose` | boolean | `false` | Log every candle fetch to stdout |
-| `--ui` | boolean | `false` | Start web dashboard |
-| `--telegram` | boolean | `false` | Enable Telegram notifications |
-
-Module file `./modules/live.module.ts` is loaded automatically if it exists. Use it to register a `Broker` adapter that intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
-
-## ⚖️ Walker — A/B Strategy Comparison (`--walker`)
-
-Runs the same historical period across multiple strategy files and prints a ranked comparison report. Use it to pick the best variant before committing to a single strategy.
+## How to Run
 
 ```bash
-npm start -- --walker --symbol BTCUSDT --noCache \
-  ./content/feb_2026_v1.strategy.ts \
-  ./content/feb_2026_v2.strategy.ts \
-  ./content/feb_2026_v3.strategy.ts
+npm start -- --backtest --symbol BTCUSDT \
+  --strategy feb_2026_strategy \
+  --exchange ccxt-exchange \
+  --frame feb_2026_frame \
+  ./content/feb_2026.strategy/feb_2026.strategy.ts
 ```
 
-Each positional argument is a separate strategy file. All files are loaded without changing `process.cwd()` — `.env` is always read from the project root. `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files. If no frame is registered, the CLI falls back to the last 31 days from `Date.now()` with a warning.
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--walker` | boolean | — | Enable walker comparison mode |
-| `--symbol` | string | `BTCUSDT` | Trading pair |
-| `--cacheInterval` | string | `1m, 15m, 30m, 1h, 4h` | Comma-separated intervals to pre-cache |
-| `--noCache` | boolean | `false` | Skip candle cache warming |
-| `--verbose` | boolean | `false` | Log candle fetches and per-strategy progress |
-| `--output` | string | `walker_{SYMBOL}_{TIMESTAMP}` | Output file base name (no extension) |
-| `--json` | boolean | `false` | Save results as JSON to `./dump/<output>.json` |
-| `--markdown` | boolean | `false` | Save report as Markdown to `./dump/<output>.md` |
-
-Output file is created at `./dump/<output>.md` (or `.json`). Without `--json`/`--markdown` the report is printed to stdout.
-
-Module file `./modules/walker.module.ts` is loaded automatically before comparison starts (shared for all strategy files in the run).
-
-## 🌲 Running PineScript Indicators (`--pine`)
-
-Executes a local `.pine` file against a real exchange and prints the output as a Markdown table or saves it to a file.
-
-```bash
-npm start -- --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --when "2026-02-28T00:00:00.000Z" --jsonl
-```
-
-Output file is created at `./math/dump/<name>.jsonl` (next to the `.pine` file).
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--pine` | boolean | — | Enable PineScript execution mode |
-| `--symbol` | string | `BTCUSDT` | Trading pair |
-| `--timeframe` | string | `15m` | Candle interval |
-| `--limit` | string | `250` | Number of candles to fetch |
-| `--when` | string | now | End date — ISO 8601 or Unix ms |
-| `--exchange` | string | first registered | Exchange name |
-| `--output` | string | `.pine` file name | Output file base name (no extension) |
-| `--json` | boolean | `false` | Save output as JSON array |
-| `--jsonl` | boolean | `false` | Save output as JSONL (one row per line) |
-| `--markdown` | boolean | `false` | Save output as Markdown table |
-
-Module file `./modules/pine.module.ts` is loaded automatically. The project includes it pre-configured with CCXT Binance. Override it to use a different exchange.
-
-Only `plot()` calls with `display=display.data_window` produce output columns:
-
-```pine
-plot(close,    "Close",    display=display.data_window)
-plot(position, "Position", display=display.data_window)
-```
-
-## 💾 Dumping Raw Candles (`--dump`)
-
-Fetches raw OHLCV candles from an exchange and saves them to a file.
-
-```bash
-npm start -- --dump --timeframe 15m --limit 500 --when "2026-02-28T00:00:00.000Z" --jsonl
-```
-
-Output file is created at `./dump/<name>.jsonl`.
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--dump` | boolean | — | Enable candle dump mode |
-| `--symbol` | string | `BTCUSDT` | Trading pair |
-| `--timeframe` | string | `15m` | Candle interval |
-| `--limit` | string | `250` | Number of candles |
-| `--when` | string | now | End date — ISO 8601 or Unix ms |
-| `--exchange` | string | first registered | Exchange name |
-| `--output` | string | `{SYMBOL}_{LIMIT}_{TIMEFRAME}_{TIMESTAMP}` | Output file base name |
-| `--json` | boolean | `false` | Save as JSON array |
-| `--jsonl` | boolean | `false` | Save as JSONL |
-
-Module file `./modules/dump.module.ts` is loaded automatically. The project includes it pre-configured with CCXT Binance.
-
-## 🧩 Module Hooks
-
-| File | Loaded by mode | Purpose |
-|------|----------------|---------|
-| `modules/backtest.module.ts` | `--backtest` | Register a `Broker` adapter for backtest |
-| `modules/walker.module.ts` | `--walker` | Shared config loaded before walker comparison starts |
-| `modules/paper.module.ts` | `--paper` | Register a `Broker` adapter for paper trading |
-| `modules/live.module.ts` | `--live` | Register a `Broker` adapter for live trading |
-| `modules/pine.module.ts` | `--pine` | Register an exchange schema for PineScript runs |
-| `modules/dump.module.ts` | `--dump` | Register an exchange schema for candle dumps |
-
-All files are optional — a missing module is a soft warning, not an error. Extensions `.ts`, `.mjs`, `.cjs` are tried automatically.
-
-## 🌍 Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-# Telegram notifications (required for --telegram)
-CC_TELEGRAM_TOKEN=your_bot_token_here
-CC_TELEGRAM_CHANNEL=-100123456789
-
-# Web UI server (optional, defaults shown)
-CC_WWWROOT_HOST=0.0.0.0
-CC_WWWROOT_PORT=60050
-```
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CC_TELEGRAM_TOKEN` | — | Telegram bot token (from @BotFather) |
-| `CC_TELEGRAM_CHANNEL` | — | Telegram channel or chat ID |
-| `CC_WWWROOT_HOST` | `0.0.0.0` | UI server bind address |
-| `CC_WWWROOT_PORT` | `60050` | UI server port |
-
-
-## 🗂️ Project Structure
-
-```
-├── content/                  # Strategy entry points (.ts)
-│   └── feb_2026.strategy.ts
-├── docs/                     # Documentation
-│   ├── lib/                  # Auto-fetched library READMEs (via sync:lib)
-│   └── *.md                  # Backtest Kit how-to guides
-├── math/                     # PineScript indicator files (.pine)
-│   └── feb_2026.pine
-├── modules/                  # Side-effect module hooks (loaded automatically)
-│   ├── dump.module.ts        # Exchange schema for --dump mode
-│   └── pine.module.ts        # Exchange schema for --pine mode
-├── report/                   # Strategy research reports (.md)
-│   └── feb_2026.md
-├── scripts/
-│   └── fetch_docs.mjs        # Downloads library READMEs into docs/lib/
-├── CLAUDE.md                 # AI-agent guide for writing strategies
-└── package.json
-```
-
-## 📚 Updating Library Documentation
-
-```bash
-npm run sync:lib
-```
-
-Downloads the latest README files for all bundled libraries into `docs/lib/`. Run this after updating package versions or when you want fresh documentation available to the AI agent.
+Add `--ui` to open the web dashboard at `http://localhost:60050`.
