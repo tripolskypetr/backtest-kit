@@ -744,7 +744,7 @@ npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine
 
 ![pine](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot32.png)
 
-`@backtest-kit/cli` ships a browser-based Pine Script editor powered by `@backtest-kit/ui`. It lets you write, run, and iterate on indicators interactively — with a live chart that updates as you hit **▶ Run** — without leaving the terminal.
+`@backtest-kit/cli` ships a browser-based Pine Script editor powered by `@backtest-kit/ui`. It lets you write, run, and iterate on indicators interactively — with a live chart that updates as you hit **▶ Run**
 
 ### Usage
 
