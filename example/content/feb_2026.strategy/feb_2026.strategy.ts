@@ -11,6 +11,7 @@ import {
   getPositionHighestProfitDistancePnlPercentage,
   getPositionPnlPercent,
   Interval,
+  getMinutesSinceLatestSignalCreated,
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
@@ -19,6 +20,8 @@ import { forecast, reaction } from "logic";
 const TRAILING_TAKE = 2.5;
 const HARD_STOP = 3.0;
 
+const NEWS_WINDOW = 24 * 60;
+
 const POSITION_LABEL_MAP = {
   "bullish": "long",
   "bearish": "short",
@@ -26,7 +29,33 @@ const POSITION_LABEL_MAP = {
   "sideways": "wait",
 } as const;
 
-const getSignal = Interval.fn(async (symbol, when, currentPrice) => {
+const forecastSource = sourceNode(
+  Cache.file(
+    async (symbol: string, when: Date, currentPrice: number) => {
+      const result = await forecast(symbol, when);
+      console.log(result, when);
+      return { ...result, currentPrice };
+    },
+    { interval: "1d", name: "forecast_source" },
+  ),
+);
+
+const positionOutput = outputNode(
+  async ([forecast]) => {
+    return POSITION_LABEL_MAP[forecast.sentiment];
+  },
+  forecastSource,
+);
+
+addStrategySchema({
+  strategyName: "feb_2026_strategy",
+  getSignal: async (symbol, when, currentPrice) => {
+
+    const sinceEntryMinutes = await getMinutesSinceLatestSignalCreated(symbol, when.getTime());
+
+    if (sinceEntryMinutes && sinceEntryMinutes < NEWS_WINDOW) {
+      return null;
+    }
 
     const forecast = await resolve(forecastSource);
     const position = await resolve(positionOutput);
@@ -72,31 +101,7 @@ const getSignal = Interval.fn(async (symbol, when, currentPrice) => {
       minuteEstimatedTime: Infinity,
       note,
     };
-}, {
-  interval: "1d",
-});
-
-const forecastSource = sourceNode(
-  Cache.file(
-    async (symbol: string, when: Date, currentPrice: number) => {
-      const result = await forecast(symbol, when);
-      console.log(result, when);
-      return { ...result, currentPrice };
-    },
-    { interval: "1d", name: "forecast_source" },
-  ),
-);
-
-const positionOutput = outputNode(
-  async ([forecast]) => {
-    return POSITION_LABEL_MAP[forecast.sentiment];
   },
-  forecastSource,
-);
-
-addStrategySchema({
-  strategyName: "feb_2026_strategy",
-  getSignal,
 });
 
 listenActivePing(async ({ symbol, data }) => {

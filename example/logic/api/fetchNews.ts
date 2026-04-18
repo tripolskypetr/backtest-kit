@@ -116,7 +116,7 @@ const fetchNewsInBacktest = Cache.file(async (symbol: string, topic: string, que
 const fetchNewsInLive = async (symbol: string, topic: string, query: string, when: Date): Promise<INews[]> => {
     console.log(`fetchNewsInBacktest symbol=${symbol} topic=${topic} when=${when} query=${query}`);
 
-    const dateFrom = dayjs(when).subtract(NEWS_WINDOW_HOURS, 'hour').toDate();
+    const dateFrom = dayjs(when).subtract(2, 'day').toDate();
     const dateTo = dayjs(when).toDate();
 
     const newsList = await search(
