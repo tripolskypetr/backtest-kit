@@ -27,6 +27,7 @@ interface StreamOptions {
   timeframe: string;
   fromDate: string;
   toDate: string;
+  limit: number;
   code: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -125,7 +126,7 @@ export function useIndicatorStream() {
     setRunning(false);
   }
 
-  function run({ symbol, timeframe, fromDate, toDate, code, containerRef }: StreamOptions) {
+  function run({ symbol, timeframe, fromDate, toDate, limit, code, containerRef }: StreamOptions) {
     if (!containerRef.current) return;
 
     setRunning(true);
@@ -140,7 +141,7 @@ export function useIndicatorStream() {
       const sDate = fromDate ? new Date(fromDate).getTime() : undefined;
       const eDate = toDate ? new Date(toDate).getTime() : undefined;
       const provider = new CandleProvider();
-      const pineTS = new PineTS(provider, symbol, timeframe, 1000, sDate, eDate);
+      const pineTS = new PineTS(provider, symbol, timeframe, limit, sDate, eDate);
       const stream = pineTS.stream(code, { pageSize: 500, live: true, interval: 3000 });
       streamRef.current = stream;
 

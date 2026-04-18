@@ -15,15 +15,16 @@ plot(sma, "SMA", color.blue, linewidth=2)`;
 export const PinePage = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [code, setCode] = useState(DEFAULT_CODE);
-  const [symbol, setSymbol] = useState('BTCUSDC');
+  const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('1');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [limit, setLimit] = useState(250);
 
   const { run, status, running } = useIndicatorStream();
 
   function handleRun() {
-    run({ symbol, timeframe, fromDate, toDate, code, containerRef: chartContainerRef });
+    run({ symbol, timeframe, fromDate, toDate, limit, code, containerRef: chartContainerRef });
   }
 
   return (
@@ -31,10 +32,10 @@ export const PinePage = () => {
       <Toolbar
         symbol={symbol} timeframe={timeframe}
         fromDate={fromDate} toDate={toDate}
-        running={running} status={status}
+        limit={limit} running={running} status={status}
         onSymbolChange={setSymbol} onTimeframeChange={setTimeframe}
         onFromDateChange={setFromDate} onToDateChange={setToDate}
-        onRun={handleRun}
+        onLimitChange={setLimit} onRun={handleRun}
       />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <CodeEditor value={code} onChange={setCode} onRun={handleRun} />
