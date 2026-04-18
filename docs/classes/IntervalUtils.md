@@ -38,7 +38,7 @@ Each function reference gets its own isolated persistent instance.
 ### fn
 
 ```ts
-fn: <F extends Function>(run: F, context: { interval: CandleInterval; key?: (args: Parameters<F>) => string; }) => F & { clear(): void; gc(): number; }
+fn: <F extends Function>(run: F, context: { interval: CandleInterval; key?: (args: Parameters<F>) => string; }) => F & { clear(): void; gc(): number; hasValue(...args: Parameters<...>): boolean; }
 ```
 
 Wrap a signal function with in-memory once-per-interval firing.

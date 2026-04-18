@@ -40,6 +40,12 @@ handleSignal: (data: IStrategyTickResult) => Promise<void>
 Handles signal events.
 Proxies call to the underlying notification adapter.
 
+### handleSignalNotify
+
+```ts
+handleSignalNotify: (data: SignalInfoContract) => Promise<void>
+```
+
 ### handlePartialProfit
 
 ```ts

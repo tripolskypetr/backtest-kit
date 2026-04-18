@@ -6,7 +6,7 @@ group: docs
 # commitActivateScheduled
 
 ```ts
-declare function commitActivateScheduled(symbol: string, activateId?: string): Promise<void>;
+declare function commitActivateScheduled(symbol: string, payload?: Partial<CommitPayload>): Promise<void>;
 ```
 
 Activates a scheduled signal early without waiting for price to reach priceOpen.
@@ -21,4 +21,4 @@ Automatically detects backtest/live mode from execution context.
 | Parameter | Description |
 |-----------|-------------|
 | `symbol` | Trading pair symbol |
-| `activateId` | Optional activation ID for tracking user-initiated activations |
+| `payload` | Optional commit payload with id and note |

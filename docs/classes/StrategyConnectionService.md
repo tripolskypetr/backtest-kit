@@ -351,6 +351,28 @@ Resolves current timestamp via timeMetaService and delegates to
 ClientStrategy.getPositionCountdownMinutes().
 Returns null if no pending signal exists.
 
+### getPositionActiveMinutes
+
+```ts
+getPositionActiveMinutes: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the number of minutes the position has been active since it opened.
+
+Delegates to ClientStrategy.getPositionActiveMinutes().
+Returns null if no pending signal exists.
+
+### getPositionWaitingMinutes
+
+```ts
+getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the number of minutes the scheduled signal has been waiting for activation.
+
+Delegates to ClientStrategy.getPositionWaitingMinutes().
+Returns null if no scheduled signal exists.
+
 ### getPositionHighestProfitPrice
 
 ```ts
@@ -540,6 +562,30 @@ Resolves current price via priceMetaService and delegates to
 ClientStrategy.getPositionHighestMaxDrawdownPnlCost().
 Returns null if no pending signal exists.
 
+### getMaxDrawdownDistancePnlPercentage
+
+```ts
+getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+
+Resolves current price via priceMetaService and delegates to
+ClientStrategy.getMaxDrawdownDistancePnlPercentage().
+Returns null if no pending signal exists.
+
+### getMaxDrawdownDistancePnlCost
+
+```ts
+getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+
+Resolves current price via priceMetaService and delegates to
+ClientStrategy.getMaxDrawdownDistancePnlCost().
+Returns null if no pending signal exists.
+
 ### dispose
 
 ```ts
@@ -564,7 +610,7 @@ If no payload is provided, clears all strategy instances.
 ### cancelScheduled
 
 ```ts
-cancelScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+cancelScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Cancels the scheduled signal for the specified strategy.
@@ -578,7 +624,7 @@ detects the scheduled signal was cancelled.
 ### closePending
 
 ```ts
-closePending: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, closeId?: string) => Promise<void>
+closePending: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Closes the pending signal without stopping the strategy.
@@ -698,7 +744,7 @@ Delegates to ClientStrategy.breakeven() with current execution context.
 ### activateScheduled
 
 ```ts
-activateScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, activateId?: string) => Promise<void>
+activateScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Activates a scheduled signal early without waiting for price to reach priceOpen.

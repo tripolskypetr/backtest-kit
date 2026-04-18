@@ -18,6 +18,12 @@ handleSignal: (data: IStrategyTickResult) => Promise<void>
 
 Handles signal events (opened, closed, scheduled, cancelled).
 
+### handleSignalNotify
+
+```ts
+handleSignalNotify: (data: SignalInfoContract) => Promise<void>
+```
+
 ### handlePartialProfit
 
 ```ts

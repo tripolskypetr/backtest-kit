@@ -129,6 +129,14 @@ pingActive: (event: ActivePingContract, backtest: boolean, context: { actionName
 
 Routes active ping event to appropriate ClientAction instance.
 
+### pingIdle
+
+```ts
+pingIdle: (event: IdlePingContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Routes idle ping event to appropriate ClientAction instance.
+
 ### riskRejection
 
 ```ts

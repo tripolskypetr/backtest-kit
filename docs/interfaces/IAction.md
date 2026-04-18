@@ -114,6 +114,18 @@ Emitted by: StrategyConnectionService via activePingSubject
 Source: CREATE_COMMIT_ACTIVE_PING_FN callback in StrategyConnectionService
 Frequency: Every minute while pending signal is active
 
+### pingIdle
+
+```ts
+pingIdle: (event: IdlePingContract) => void | Promise<void>
+```
+
+Handles idle ping events when no signal is active.
+
+Emitted by: StrategyConnectionService via idlePingSubject
+Source: CREATE_COMMIT_IDLE_PING_FN callback in StrategyConnectionService
+Frequency: Every tick while no signal is pending or scheduled
+
 ### riskRejection
 
 ```ts

@@ -204,7 +204,7 @@ Use case: Graceful shutdown in live trading mode without abandoning open positio
 ### cancelScheduled
 
 ```ts
-cancelScheduled: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>
+cancelScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>
 ```
 
 Cancels the scheduled signal without stopping the strategy.
@@ -218,7 +218,7 @@ Use case: Cancel a scheduled entry that is no longer desired without stopping th
 ### activateScheduled
 
 ```ts
-activateScheduled: (symbol: string, backtest: boolean, activateId?: string) => Promise<void>
+activateScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>
 ```
 
 Activates the scheduled signal without waiting for price to reach priceOpen.
@@ -232,7 +232,7 @@ Use case: User-initiated early activation of a scheduled entry.
 ### closePending
 
 ```ts
-closePending: (symbol: string, backtest: boolean, closeId?: string) => Promise<void>
+closePending: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>
 ```
 
 Closes the pending signal without stopping the strategy.
@@ -560,6 +560,26 @@ Returns 0 once the estimate is exceeded (never negative).
 
 Returns null if no pending signal exists.
 
+### getPositionActiveMinutes
+
+```ts
+getPositionActiveMinutes: (symbol: string, timestamp: number) => Promise<number>
+```
+
+Returns the number of minutes the position has been active since it opened.
+
+Returns null if no pending signal exists.
+
+### getPositionWaitingMinutes
+
+```ts
+getPositionWaitingMinutes: (symbol: string, timestamp: number) => Promise<number>
+```
+
+Returns the number of minutes the scheduled signal has been waiting for activation.
+
+Returns null if no scheduled signal exists.
+
 ### getPositionHighestProfitPrice
 
 ```ts
@@ -730,6 +750,26 @@ getPositionHighestMaxDrawdownPnlCost: (symbol: string, currentPrice: number) => 
 Returns the distance in PnL cost between the current price and the worst drawdown trough.
 
 Computed as: max(0, currentPnlCost - fallPnlCost).
+
+### getMaxDrawdownDistancePnlPercentage
+
+```ts
+getMaxDrawdownDistancePnlPercentage: (symbol: string, currentPrice: number) => Promise<number>
+```
+
+Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+
+Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+
+### getMaxDrawdownDistancePnlCost
+
+```ts
+getMaxDrawdownDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number>
+```
+
+Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+
+Computed as: max(0, peakPnlCost - fallPnlCost).
 
 ### dispose
 

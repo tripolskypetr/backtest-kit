@@ -134,6 +134,17 @@ Called during active pending signal monitoring (every minute while position is a
 Triggered by: StrategyConnectionService via activePingSubject
 Frequency: Every minute while pending signal is active
 
+### onPingIdle
+
+```ts
+onPingIdle: (event: IdlePingContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+```
+
+Called every tick when no signal is active (idle state).
+
+Triggered by: StrategyConnectionService via idlePingSubject
+Frequency: Every tick while no signal is pending or scheduled
+
 ### onRiskRejection
 
 ```ts

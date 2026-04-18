@@ -244,6 +244,26 @@ Returns 0 once the estimate is exceeded (never negative).
 
 Returns null if no pending signal exists.
 
+### getPositionActiveMinutes
+
+```ts
+getPositionActiveMinutes: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the number of minutes the position has been active since it opened.
+
+Returns null if no pending signal exists.
+
+### getPositionWaitingMinutes
+
+```ts
+getPositionWaitingMinutes: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the number of minutes the scheduled signal has been waiting for activation.
+
+Returns null if no scheduled signal exists.
+
 ### getPositionHighestProfitPrice
 
 ```ts
@@ -417,6 +437,28 @@ Returns the distance in PnL cost between the current price and the worst drawdow
 Computed as: max(0, currentPnlCost - fallPnlCost).
 Returns null if no pending signal exists.
 
+### getMaxDrawdownDistancePnlPercentage
+
+```ts
+getMaxDrawdownDistancePnlPercentage: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+
+Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+Returns null if no pending signal exists.
+
+### getMaxDrawdownDistancePnlCost
+
+```ts
+getMaxDrawdownDistancePnlCost: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+
+Computed as: max(0, peakPnlCost - fallPnlCost).
+Returns null if no pending signal exists.
+
 ### getPositionEntryOverlap
 
 ```ts
@@ -458,7 +500,7 @@ Backtest will stop at the next safe point (idle state or after signal closes).
 ### commitCancelScheduled
 
 ```ts
-commitCancelScheduled: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+commitCancelScheduled: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Cancels the scheduled signal without stopping the strategy.
@@ -470,7 +512,7 @@ Does NOT set stop flag - strategy can continue generating new signals.
 ### commitClosePending
 
 ```ts
-commitClosePending: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, closeId?: string) => Promise<void>
+commitClosePending: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Closes the pending signal without stopping the strategy.
@@ -605,7 +647,7 @@ far enough in profit direction. Threshold is calculated as: (CC_PERCENT_SLIPPAGE
 ### commitActivateScheduled
 
 ```ts
-commitActivateScheduled: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, activateId?: string) => Promise<void>
+commitActivateScheduled: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Activates a scheduled signal early without waiting for price to reach priceOpen.
@@ -623,6 +665,14 @@ Adds a new DCA entry to the active pending signal.
 
 Adds a new averaging entry at currentPrice to the position's entry history.
 Updates effectivePriceOpen (mean of all entries) and emits average-buy commit event.
+
+### commitSignalNotify
+
+```ts
+commitSignalNotify: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<SignalNotificationPayload>) => Promise<...>
+```
+
+Emits a `signal.info` notification for the currently active pending signal.
 
 ### getData
 

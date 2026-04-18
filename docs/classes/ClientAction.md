@@ -129,6 +129,14 @@ pingActive(event: ActivePingContract): Promise<void>;
 
 Handles active ping events during active pending signal monitoring.
 
+### pingIdle
+
+```ts
+pingIdle(event: IdlePingContract): Promise<void>;
+```
+
+Handles idle ping events when no signal is active.
+
 ### riskRejection
 
 ```ts

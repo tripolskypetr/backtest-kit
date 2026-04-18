@@ -57,3 +57,19 @@ Each disabled service will:
 
 Unlike enable(), this method does NOT return an unsubscribe function.
 Services are unsubscribed immediately upon calling this method.
+
+### clear
+
+```ts
+clear: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void
+```
+
+Clears markdown report data selectively.
+
+Clears accumulated data for specified markdown services without unsubscribing.
+Use this method to reset report data for specific services while keeping them active.
+
+Each cleared service will:
+- Clear accumulated data for all reports
+- Start fresh with new data for future events
+- Not affect event subscriptions or report generation status

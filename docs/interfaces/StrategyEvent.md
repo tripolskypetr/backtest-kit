@@ -241,3 +241,11 @@ cost: number
 ```
 
 Cost of this entry in USD (average-buy action only)
+
+### note
+
+```ts
+note: string
+```
+
+Optional note from commit payload

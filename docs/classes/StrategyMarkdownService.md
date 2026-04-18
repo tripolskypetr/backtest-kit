@@ -56,7 +56,7 @@ Uses CREATE_KEY_FN for cache key generation.
 ### cancelScheduled
 
 ```ts
-cancelScheduled: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, cancelId?: string) => Promise<...>
+cancelScheduled: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, cancelId?: string, note?: string) => Promise<...>
 ```
 
 Records a cancel-scheduled event when a scheduled signal is cancelled.
@@ -64,7 +64,7 @@ Records a cancel-scheduled event when a scheduled signal is cancelled.
 ### closePending
 
 ```ts
-closePending: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, closeId?: string) => Promise<...>
+closePending: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, signalId: string, pnl: IStrategyPnL, closeId?: string, note?: string) => Promise<...>
 ```
 
 Records a close-pending event when a pending signal is closed.

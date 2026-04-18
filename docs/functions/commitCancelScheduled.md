@@ -6,7 +6,7 @@ group: docs
 # commitCancelScheduled
 
 ```ts
-declare function commitCancelScheduled(symbol: string, cancelId?: string): Promise<void>;
+declare function commitCancelScheduled(symbol: string, payload?: Partial<CommitPayload>): Promise<void>;
 ```
 
 Cancels the scheduled signal without stopping the strategy.
@@ -22,4 +22,4 @@ Automatically detects backtest/live mode from execution context.
 | Parameter | Description |
 |-----------|-------------|
 | `symbol` | Trading pair symbol |
-| `cancelId` | Optional cancellation ID for tracking user-initiated cancellations |
+| `payload` | Optional commit payload with id and note |

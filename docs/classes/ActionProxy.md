@@ -149,6 +149,17 @@ Handles active ping events with error capture.
 Wraps the user's pingActive() method to catch and log any errors.
 Called every minute while a pending signal is active (position open).
 
+### pingIdle
+
+```ts
+pingIdle(event: IdlePingContract): Promise<any>;
+```
+
+Handles idle ping events with error capture.
+
+Wraps the user's pingIdle() method to catch and log any errors.
+Called every tick while no signal is pending or scheduled.
+
 ### riskRejection
 
 ```ts

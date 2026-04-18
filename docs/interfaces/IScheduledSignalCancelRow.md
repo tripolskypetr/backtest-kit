@@ -17,3 +17,11 @@ cancelId: string
 ```
 
 Cancellation ID (only for user-initiated cancellations)
+
+### cancelNote
+
+```ts
+cancelNote: string
+```
+
+Note from user payload (only for user-initiated cancellations)

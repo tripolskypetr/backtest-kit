@@ -194,6 +194,18 @@ Retrieves action list from strategy schema (IStrategySchema.actions)
 and invokes the pingActive handler on each ClientAction instance sequentially.
 Called every minute during active pending signal monitoring.
 
+### pingIdle
+
+```ts
+pingIdle: (backtest: boolean, event: IdlePingContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Routes idle ping event to all registered actions for the strategy.
+
+Retrieves action list from strategy schema (IStrategySchema.actions)
+and invokes the pingIdle handler on each ClientAction instance sequentially.
+Called every tick when there is no pending or scheduled signal being monitored.
+
 ### riskRejection
 
 ```ts

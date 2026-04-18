@@ -6,7 +6,7 @@ group: docs
 # commitClosePending
 
 ```ts
-declare function commitClosePending(symbol: string, closeId?: string): Promise<void>;
+declare function commitClosePending(symbol: string, payload?: Partial<CommitPayload>): Promise<void>;
 ```
 
 Closes the pending signal without stopping the strategy.
@@ -22,4 +22,4 @@ Automatically detects backtest/live mode from execution context.
 | Parameter | Description |
 |-----------|-------------|
 | `symbol` | Trading pair symbol |
-| `closeId` | Optional close ID for tracking user-initiated closes |
+| `payload` | Optional commit payload with id and note |

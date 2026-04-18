@@ -226,6 +226,23 @@ Frequency: Every minute while pending signal is active
 
 Default implementation: Logs active ping event.
 
+### pingIdle
+
+```ts
+pingIdle(event: IdlePingContract, source?: string): void | Promise<void>;
+```
+
+Handles idle ping events when no signal is active.
+
+Called every tick while no signal is pending or scheduled.
+Use to monitor idle strategy state and implement entry condition logic.
+
+Triggered by: ActionCoreService.pingIdle() via StrategyConnectionService
+Source: idlePingSubject.next() in CREATE_COMMIT_IDLE_PING_FN callback
+Frequency: Every tick while no signal is pending or scheduled
+
+Default implementation: Logs idle ping event.
+
 ### riskRejection
 
 ```ts

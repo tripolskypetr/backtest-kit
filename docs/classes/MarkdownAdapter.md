@@ -54,16 +54,6 @@ Switches to JSONL-based markdown storage.
 Shorthand for useMarkdownAdapter(MarkdownFileBase).
 All dumps append to a single .jsonl file per markdown type.
 
-### clear
-
-```ts
-clear(): void;
-```
-
-Clears the memoized storage cache.
-Call this when process.cwd() changes between strategy iterations
-so new storage instances are created with the updated base path.
-
 ### useDummy
 
 ```ts

@@ -283,7 +283,7 @@ Does not require execution context.
 ### cancelScheduled
 
 ```ts
-cancelScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+cancelScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Cancels the scheduled signal without stopping the strategy.
@@ -295,7 +295,7 @@ Does not require execution context.
 ### closePending
 
 ```ts
-closePending: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, closeId?: string) => Promise<void>
+closePending: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Closes the pending signal without stopping the strategy.
@@ -435,7 +435,7 @@ Validates context and delegates to StrategyConnectionService.
 ### activateScheduled
 
 ```ts
-activateScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, activateId?: string) => Promise<void>
+activateScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, payload?: Partial<CommitPayload>) => Promise<void>
 ```
 
 Activates a scheduled signal early without waiting for price to reach priceOpen.
@@ -506,6 +506,22 @@ Returns the remaining time before the position expires, clamped to zero.
 
 Validates strategy existence and delegates to connection service.
 Returns null if no pending signal exists.
+
+### getPositionActiveMinutes
+
+```ts
+getPositionActiveMinutes: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the number of minutes the position has been active since it opened.
+
+### getPositionWaitingMinutes
+
+```ts
+getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the number of minutes the scheduled signal has been waiting for activation.
 
 ### getPositionHighestProfitPrice
 
@@ -660,4 +676,26 @@ getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, contex
 Returns the distance in PnL cost between the current price and the worst drawdown trough.
 
 Delegates to StrategyConnectionService.getPositionHighestMaxDrawdownPnlCost().
+Returns null if no pending signal exists.
+
+### getMaxDrawdownDistancePnlPercentage
+
+```ts
+getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+
+Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlPercentage().
+Returns null if no pending signal exists.
+
+### getMaxDrawdownDistancePnlCost
+
+```ts
+getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+```
+
+Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+
+Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlCost().
 Returns null if no pending signal exists.
