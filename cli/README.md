@@ -740,7 +740,7 @@ Print to stdout (no flag):
 npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine
 ```
 
-## 🖊️ Visual Pine Script Editor
+## 🎨 Visual Pine Script Editor
 
 `@backtest-kit/cli` ships a browser-based Pine Script editor powered by `@backtest-kit/ui`. It lets you write, run, and iterate on indicators interactively — with a live chart that updates as you hit **▶ Run** — without leaving the terminal.
 
