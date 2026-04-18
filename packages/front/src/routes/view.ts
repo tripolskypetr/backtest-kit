@@ -40,6 +40,18 @@ interface PointCandlesRequest {
   exchangeName: string;
 }
 
+interface RangeCandlesRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  interval: CandleInterval;
+  limit?: number;
+  sDate?: number;
+  eDate?: number;
+}
+
 interface NotificationListRequest {
   clientId: string;
   serviceName: string;
@@ -191,6 +203,40 @@ router.post("/api/v1/view/candles_point", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/view/candles_point error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/candles_range", async (req, res) => {
+  try {
+    const request = <RangeCandlesRequest>await micro.json(req);
+    const { symbol, interval, limit, sDate, eDate, requestId, serviceName } = request;
+    const data = await ioc.exchangeService.getRawCandles({
+      symbol,
+      interval,
+      limit,
+      sDate,
+      eDate,
+    });
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/candles_range ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/candles_range error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

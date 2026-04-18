@@ -1,4 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
+import ioc from '../../../../lib';
+
+const PINE_TF_MAP = {
+  "1": "1m",
+  "3": "3m",
+  "5": "5m",
+  "15": "15m",
+  "30": "30m",
+  "60": "1h",
+  "120": "2h",
+  "240": "4h",
+  "360": "6h",
+  "480": "8h",
+  "1D": "1d",
+  D: "1d",
+  "1W": "1w",
+  W: "1w",
+};
 
 function toOHLCV(k: PineTSContext['marketData'][number]): OHLCV {
   return { time: k.openTime, open: k.open, high: k.high, low: k.low, close: k.close, volume: k.volume };
@@ -12,6 +30,63 @@ interface StreamOptions {
   code: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
+
+class CandleProvider {
+  async getMarketData(
+    tickerId: string,
+    timeframe: string,
+    limit?: number,
+    sDate?: number,
+    eDate?: number,
+  ): Promise<any[]> {
+    const symbol = tickerId
+      .toUpperCase()
+      .replace(/^BINANCE:|^BYBIT:|^OKX:/, "");
+
+    const normalizedTimeframe = PINE_TF_MAP[timeframe] ?? timeframe;
+
+    const rawCandles = await ioc.exchangeViewService.getRangeCandles({
+      symbol,
+      interval: normalizedTimeframe,
+      limit,
+      sDate,
+      eDate,
+    });
+
+    const candles = rawCandles.map((c) => ({
+      openTime: c.timestamp,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+      volume: c.volume,
+    }));
+
+    return candles;
+  }
+
+  async getSymbolInfo(tickerId: string): Promise<any> {
+
+    const symbol = tickerId
+      .toUpperCase()
+      .replace(/^BINANCE:|^BYBIT:|^OKX:/, "");
+    const base = symbol.replace(/USDT$|BUSD$|USD$/, "");
+    const quote = symbol.replace(base, "");
+
+    const result = {
+      ticker: symbol,
+      tickerid: symbol,
+      description: `${base}/${quote}`,
+      type: "crypto",
+      basecurrency: base,
+      currency: quote || "USDT",
+      timezone: "UTC",
+    };
+
+    return result;
+  }
+}
+
 
 export function useIndicatorStream() {
   const chartRef = useRef<QFChartInstance | null>(null);
@@ -64,7 +139,8 @@ export function useIndicatorStream() {
     try {
       const sDate = fromDate ? new Date(fromDate).getTime() : undefined;
       const eDate = toDate ? new Date(toDate).getTime() : undefined;
-      const pineTS = new PineTS(PineTS.Provider.Binance, symbol, timeframe, 1000, sDate, eDate);
+      const provider = new CandleProvider();
+      const pineTS = new PineTS(provider, symbol, timeframe, 1000, sDate, eDate);
       const stream = pineTS.stream(code, { pageSize: 500, live: true, interval: 3000 });
       streamRef.current = stream;
 

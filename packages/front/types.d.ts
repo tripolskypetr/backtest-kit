@@ -60,6 +60,13 @@ declare class ExchangeService {
         exchangeName: ExchangeName$1;
         limit: number;
     }) => Promise<any>;
+    getRawCandles: (dto: {
+        symbol: string;
+        interval: CandleInterval;
+        limit?: number;
+        sDate?: number;
+        eDate?: number;
+    }) => Promise<backtest_kit.ICandleData[]>;
 }
 
 declare class NotificationMockService {
