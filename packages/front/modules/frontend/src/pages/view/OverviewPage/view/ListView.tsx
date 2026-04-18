@@ -187,7 +187,7 @@ export const ListView = ({
                                             }
                                         }}
                                     >
-                                        #{idx + 1}
+                                        #{items.length - idx}
                                     </Typography>
                                     <Typography
                                         variant="body2"
