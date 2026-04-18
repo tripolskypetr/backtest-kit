@@ -11,10 +11,13 @@ interface INews {
     publishedDate: string;
 }
 
-const NEWS_WINDOW_HOURS = 4;
+const NEWS_WINDOW_HOURS = 24;
 
 const DISALLOWED_DOMAINS = [
   "coindesk.com", // нет даты публикации
+  "reuters.com", // нет даты публикации
+  "bloomberg.com", // нет даты публикации
+  "wsj.com", // нет даты публикации
 ];
 
 const ALLOWED_DOMAINS = [
@@ -23,11 +26,6 @@ const ALLOWED_DOMAINS = [
   "theblock.co",
   "decrypt.co",
   "blockworks.co",
-
-  // Финансовые СМИ
-  "reuters.com",
-  "bloomberg.com",
-  "wsj.com",
 
   // Регуляторы
   "sec.gov",
@@ -93,8 +91,10 @@ const search = async (query: string, from: Date, to: Date) => {
 const fetchNewsInBacktest = Cache.file(async (symbol: string, topic: string, query: string, when: Date): Promise<INews[]> => {
     console.log(`fetchNewsInBacktest symbol=${symbol} topic=${topic} when=${when} query=${query}`);
 
-    const dateFrom = alignToInterval(when, "1d");
-    const dateTo = dayjs(when).add(1, 'day').toDate();
+    const align =  alignToInterval(when, "1d");
+
+    const dateFrom = dayjs(align).subtract(1, 'day').toDate();;
+    const dateTo = dayjs(align).add(1, 'day').toDate();
 
     const newsList = await search(
         query,

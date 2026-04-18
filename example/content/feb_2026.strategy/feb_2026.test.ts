@@ -13,29 +13,13 @@ const forecastSource = Cache.file(
     console.log(result, when);
     return { ...result, currentPrice };
   },
-  { interval: "4h", name: "forecast_source" },
-);
-
-const reactionSource = Cache.file(
-  async (symbol: string, when: Date, currentPrice: number) => {
-    const forecast = await forecastSource(symbol, when, currentPrice);
-    const result = await reaction(forecast, symbol, when);
-    console.log(result, when);
-    return { ...result, currentPrice };
-  },
-  { interval: "4h", name: "reaction_source" }
+  { interval: "1d", name: "forecast_source" },
 );
 
 addStrategySchema({
   strategyName: "feb_2026_strategy",
   getSignal: async (symbol, when, currentPrice) => {
-    const { sentiment } = await forecastSource(symbol, when, currentPrice);
-    if (sentiment === "bullish") {
-      await reactionSource(symbol, when, currentPrice);
-    }
-    if (sentiment === "bearish") {
-      await reactionSource(symbol, when, currentPrice);
-    }
+    await forecastSource(symbol, when, currentPrice);
     return null;
   },
 });

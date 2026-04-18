@@ -29,7 +29,7 @@ const forecastSource = sourceNode(
       console.log(result, when);
       return { ...result, currentPrice };
     },
-    { interval: "4h", name: "forecast_source" },
+    { interval: "1d", name: "forecast_source" },
   ),
 );
 
@@ -51,6 +51,9 @@ addStrategySchema({
       return null;
     }
 
+    if (forecast.confidence === "not_reliable") {
+      return null;
+    }
     if (forecast.sentiment === "neutral") {
       return null;
     }

@@ -37,9 +37,14 @@ const FORECAST_PROMPT = str.newline(
   ' - **neutral**: новостной фон сбалансирован или отсутствует, выраженного давления нет.',
   ' - **sideways**: новости противоречат друг другу, рынок в состоянии неопределённости без чёткого направления.',
   '',
+  '**Уверенность (confidence):**',
+  ' - **reliable**: новостной фон однозначен, доминирующая сила выражена чётко.',
+  ' - **not_reliable**: новости противоречивы, слабые или отсутствуют — сентимент определён с трудом.',
+  '',
   '**Требуемый результат:**',
   '1. **sentiment**: bullish, bearish, neutral или sideways.',
-  '2. **reasoning**: какие новости определили этот сентимент? Почему именно это значение?',
+  '2. **confidence**: reliable или not_reliable.',
+  '3. **reasoning**: какие новости определили этот сентимент? Почему именно это значение?',
 );
 
 const commitGlobalNews = async (
@@ -71,12 +76,17 @@ addOutline<ForecastResponseContract>({
         enum: ['bullish', 'bearish', 'neutral', 'sideways'],
         description: 'Рыночный сентимент на основе новостного фона.',
       },
+      confidence: {
+        type: 'string',
+        enum: ['reliable', 'not_reliable'],
+        description: 'Уверенность в сентименте: reliable — фон однозначен, not_reliable — новости противоречивы, слабые или отсутствуют.',
+      },
       reasoning: {
         type: 'string',
         description: 'Какие новости определили этот сентимент.',
       },
     },
-    required: ['sentiment', 'reasoning'],
+    required: ['sentiment', 'confidence', 'reasoning'],
   },
   getOutlineHistory: async (
     { resultId, history },
@@ -121,6 +131,14 @@ addOutline<ForecastResponseContract>({
         throw new Error('sentiment должен быть bullish, bearish, neutral или sideways');
       },
       docDescription: 'Проверяет допустимое значение sentiment.',
+    },
+    {
+      validate: ({ data }) => {
+        if (data.confidence === 'reliable') return;
+        if (data.confidence === 'not_reliable') return;
+        throw new Error('confidence должен быть reliable или not_reliable');
+      },
+      docDescription: 'Проверяет допустимое значение confidence.',
     },
     {
       validate: ({ data }) => {
