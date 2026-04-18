@@ -71,7 +71,7 @@ export async function getLatestSignal(
  * ```typescript
  * import { getMinutesSinceLatestSignalCreated } from "backtest-kit";
  *
- * const minutes = await getMinutesSinceLatestSignalCreated("BTCUSDT", Date.now());
+ * const minutes = await getMinutesSinceLatestSignalCreated("BTCUSDT");
  * if (minutes !== null && minutes < 24 * 60) {
  *   return; // cooldown — skip new signal for 24 hours after last signal
  * }
@@ -79,9 +79,8 @@ export async function getLatestSignal(
  */
 export async function getMinutesSinceLatestSignalCreated(
   symbol: string,
-  timestamp: number,
 ): Promise<number | null> {
-  backtest.loggerService.info(GET_MINUTES_SINCE_LATEST_SIGNAL_CREATED_METHOD_NAME, { symbol, timestamp });
+  backtest.loggerService.info(GET_MINUTES_SINCE_LATEST_SIGNAL_CREATED_METHOD_NAME, { symbol });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getMinutesSinceLatestSignalCreated requires an execution context");
   }
@@ -90,8 +89,9 @@ export async function getMinutesSinceLatestSignalCreated(
   }
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  const { when } = backtest.executionContextService.context;
   return await Recent.getMinutesSinceLatestSignalCreated(
-    timestamp,
+    when.getTime(),
     symbol,
     { exchangeName, frameName, strategyName },
   );
