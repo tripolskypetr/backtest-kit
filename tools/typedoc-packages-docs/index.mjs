@@ -11,9 +11,11 @@ import { join } from "path";
 
 const OUTPUT_DIR = "./docs/packages";
 const CLI_OUTPUT_DIR = "./docs/cli";
+const BEGIN_OUTPUT_DIR = "./docs/begin";
 
 const files = await glob("./packages/**/readme.md", { nodir: true, ignore: "**/node_modules/**" });
 const cliFiles = await glob("./cli/README.md", { nodir: true });
+const exampleFiles = await glob("./example/README.md", { nodir: true });
 
 if (existsSync(OUTPUT_DIR)) {
     await rm(OUTPUT_DIR, { recursive: true });
@@ -24,6 +26,11 @@ if (existsSync(CLI_OUTPUT_DIR)) {
     await rm(CLI_OUTPUT_DIR, { recursive: true });
 }
 await mkdir(CLI_OUTPUT_DIR, { recursive: true });
+
+if (existsSync(BEGIN_OUTPUT_DIR)) {
+    await rm(BEGIN_OUTPUT_DIR, { recursive: true });
+}
+await mkdir(BEGIN_OUTPUT_DIR, { recursive: true });
 
 await Promise.all(files.map(async (filePath) => {
     const content = await readFile(filePath, "utf-8");
@@ -70,6 +77,26 @@ await Promise.all(cliFiles.map(async (filePath) => {
             `---`,
             `title: cli/readme`,
             `group: cli`,
+            `---`,
+            ``,
+            content
+        );
+
+    await writeFile(outputPath, newContent, "utf-8");
+}));
+
+await Promise.all(exampleFiles.map(async (filePath) => {
+    const content = await readFile(filePath, "utf-8");
+
+    const outputPath = join(BEGIN_OUTPUT_DIR, "start_here.md");
+
+    const hasFrontmatter = content.trimStart().startsWith("---");
+    const newContent = hasFrontmatter
+        ? content
+        : str.newline(
+            `---`,
+            `title: begin/start_here`,
+            `group: begin`,
             `---`,
             ``,
             content
