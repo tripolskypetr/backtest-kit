@@ -15,7 +15,7 @@ import {
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
-import { forecast, reaction } from "logic";
+import { forecast } from "logic";
 
 const TRAILING_TAKE = 2.5;
 const HARD_STOP = 3.0;
