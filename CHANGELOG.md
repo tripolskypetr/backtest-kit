@@ -1,3 +1,151 @@
+# AI Strategy Example, Reflect/Recent/Session API, IdlePing Event, Pine Script GUI (v6.16.0, 19/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.16.0)
+
+
+v6.16.0 introduces a complete AI-driven strategy example with Ollama/Tavily integration, three new utility classes (`Reflect`, `Recent`, `Session`), an `IdlePing` lifecycle callback, two new strategy functions (`getLatestSignal`, `getMinutesSinceLatestSignalCreated`), a PineScript editor page in the frontend, two new CLI commands (`--editor`, `--flush`), a `FileTreeWidget`, and qfchart 0.8.7 `StockChart` components across all notification views.
+
+## `ReflectUtils` / `Reflect` — position state queries outside strategy context
+
+New `ReflectUtils` class (`src/classes/Reflect.ts`) exposes every position-state method from `StrategyCoreService` as a standalone singleton `Reflect` that can be called from any module without being inside a running strategy callback.
+
+Exported methods mirror the full set available on `IStrategy` / `BacktestUtils`:
+
+- `getPositionPnlPercent(symbol, currentPrice, context)` / `getPositionPnlCost`
+- `getPositionHighestPnlPercentage` / `getPositionHighestPnlCost` / `getPositionHighestProfitPrice` / `getPositionHighestProfitTimestamp` / `getPositionHighestProfitBreakeven`
+- `getPositionActiveMinutes` / `getPositionWaitingMinutes` / `getPositionDrawdownMinutes` / `getPositionHighestProfitMinutes` / `getPositionMaxDrawdownMinutes`
+- `getPositionMaxDrawdownPrice` / `getPositionMaxDrawdownTimestamp` / `getPositionMaxDrawdownPnlPercentage` / `getPositionMaxDrawdownPnlCost`
+- `getPositionHighestProfitDistancePnlPercentage` / `getPositionHighestProfitDistancePnlCost`
+- `getPositionHighestMaxDrawdownPnlPercentage` / `getPositionHighestMaxDrawdownPnlCost`
+- `getMaxDrawdownDistancePnlPercentage` / `getMaxDrawdownDistancePnlCost`
+
+Each method validates strategy/exchange/frame/risk/action schemas before delegating to the core service. The `backtest` parameter (default `false`) switches between live and backtest storage.
+
+## `RecentUtils` / `Recent` — latest signal tracking with persist and memory adapters
+
+New `RecentUtils` class (`src/classes/Recent.ts`) tracks the most recently closed or pending signal per `(symbol, strategyName, exchangeName, frameName)` key.
+
+Four internal implementations cover all combinations:
+
+| Class | Storage | Mode |
+|---|---|---|
+| `RecentPersistBacktestUtils` | File (PersistRecentAdapter) | Backtest |
+| `RecentPersistLiveUtils` | File (PersistRecentAdapter) | Live |
+| `RecentMemoryBacktestUtils` | In-memory Map | Backtest |
+| `RecentMemoryLiveUtils` | In-memory Map | Live |
+
+`RecentBacktestAdapter` and `RecentLiveAdapter` auto-select persist vs memory based on `useRecentAdapter()` / `usePersist()` / `useMemory()` configuration. The top-level `Recent` singleton delegates to the active adapter.
+
+`handleActivePing(event)` updates the stored signal on every active-ping tick; `getLatestSignal(symbol, context)` returns it; `getMinutesSinceLatestSignalCreated(symbol, timestamp, context)` computes elapsed whole minutes.
+
+## `SessionUtils` / `Session` — event-bus isolation for parallel backtests
+
+New `SessionUtils` class (`src/classes/Session.ts`) enables safe parallel backtest execution by snapshotting and restoring the global event-bus listener state.
+
+`Session.createSnapshot()` iterates over all global subjects (`activePingSubject`, `idlePingSubject`, `doneBacktestSubject`, `signalEmitter`, and 18 others), replaces their internal `_events` maps with empty objects, and returns a `restore()` function that puts every original listener back. This prevents one backtest session's subscribers from receiving events emitted by another session running concurrently.
+
+## `IdlePing` — new lifecycle callback when no signal is active
+
+New `idlePingSubject` emitter and `IdlePingContract` interface (`src/contract/IdlePing.contract.ts`) fire every tick while no signal is pending or scheduled for the current strategy.
+
+Fields on `IdlePingContract`:
+
+| Field | Type | Description |
+|---|---|---|
+| `symbol` | `string` | Trading pair |
+| `strategyName` | `StrategyName` | Active strategy |
+| `exchangeName` | `ExchangeName` | Exchange |
+| `frameName` | `FrameName` | Frame (backtest only) |
+| `backtest` | `boolean` | Mode flag |
+| `currentPrice` | `number` | Current market price |
+| `timestamp` | `number` | Event timestamp |
+
+`ActionBase.pingIdle(event)` provides a default no-op implementation (logs the event). `ActionProxy.pingIdle(event)` wraps it with `trycatch` error capture and guards against calling when a pending signal exists. Public API additions: `listenIdlePing()` and `listenIdlePingOnce()` in `src/function/event.ts`.
+
+## New strategy functions — `getLatestSignal` / `getMinutesSinceLatestSignalCreated`
+
+Two new top-level functions exported from `src/function/signal.ts`:
+
+- **`getLatestSignal(symbol)`** — returns the latest `IPublicSignalRow` (pending or closed) for the current execution context. Searches backtest storage first, then live. Returns `null` if no signal exists. Designed for cooldown logic: skip a new entry for N hours after a stop-loss.
+- **`getMinutesSinceLatestSignalCreated(symbol, timestamp?)`** — returns whole minutes elapsed since that signal's creation timestamp, or `null` if none exists.
+
+Both require an active `ExecutionContext` and `MethodContext` (i.e. must be called from within a strategy callback).
+
+## Frontend — `PinePage` PineScript editor with live chart rendering
+
+New `PinePage` (`packages/front/modules/frontend/src/pages/view/PinePage/`) provides an in-browser PineScript editor backed by qfchart 0.8.7.
+
+Components:
+- `CodeEditor` — Monaco-style text area for PineScript code.
+- `Toolbar` — symbol, timeframe, date-range inputs and a Run button.
+- `useIndicatorStream` hook — streams indicator output and renders it into a `StockChart` container via the qfchart 0.8.7 pinets runtime.
+
+The page is accessible at the `/pine` route and launched automatically by `--editor` CLI flag at `http://localhost:<port>?pine=1`.
+
+## Frontend — `StockChart` component and qfchart 0.8.7
+
+New shared `StockChart` component (`packages/front/modules/frontend/src/components/StockChart/`) wraps qfchart 0.8.7 (`echarts.min.js`, `pinets.js`, `qfchart.js` bundled under `public/3rdparty/qfchart_0.8.7/`).
+
+`StockChart` is wired into all notification detail views (`useSignalNotifyView`) with three chart-resolution tabs: **Candle1m**, **Candle15m**, **Candle1h**. TypeScript declarations for the qfchart public API are provided in `src/types/qfchart@0.8.7/index.d.ts`.
+
+## Frontend — `useSignalNotifyView` hook with multi-timeframe chart tabs
+
+New `useSignalNotifyView` hook (`packages/front/modules/frontend/src/hooks/useSignalNotifyView/`) renders signal notification details with three candlestick chart views:
+
+| View | File |
+|---|---|
+| `Candle1mView` | 1-minute OHLCV chart |
+| `Candle15mView` | 15-minute OHLCV chart |
+| `Candle1hView` | 1-hour OHLCV chart |
+| `SignalNotifyView` | Parent wrapper with tab routing |
+
+Tabs are defined in `tabs.ts`; route helpers in `routes.tsx`.
+
+## Frontend — `FileTreeWidget` file browser
+
+New `FileTreeWidget` (`packages/front/modules/frontend/src/widgets/FileTreeWidget/`) renders a virtual-scrolled file tree from `ExplorerViewService`. Supports folder navigation, search/filter, copy-to-clipboard, and file-type icons (Article, DataObject, Image, InsertDriveFile). Backed by `ExplorerHelperService` changes that expose recursive directory listing.
+
+## Frontend — `CopyIcon` and `MenuIcon` shared components
+
+Two new icon components added to the shared component library:
+- `CopyIcon` — clipboard copy button with success feedback.
+- `MenuIcon` — hamburger/context menu trigger.
+
+## CLI — `--editor` command
+
+New `--editor` flag (`cli/src/main/editor.ts`) starts the frontend UI server and opens the PinePage editor in the default browser at `http://localhost:<CC_WWWROOT_PORT>?pine=1`. Mutually exclusive with `--pine`. Loads `editor.module` before serving.
+
+## CLI — `--flush` command
+
+New `--flush` flag (`cli/src/main/flush.ts`) deletes the `report/`, `log/`, `markdown/`, and `agent/` subdirectories inside the `dump/` folder relative to the given entry-point file. Accepts one or more positional entry-point arguments. Useful for cleaning up accumulated backtest output before a fresh run.
+
+## `example/` — complete AI strategy workflow
+
+New `example/` directory contains a self-contained project demonstrating an AI-assisted trading strategy for February 2026:
+
+### Architecture
+
+| Layer | File | Purpose |
+|---|---|---|
+| Advisors | `stock_data_1m.advisor.ts`, `stock_data_15m.advisor.ts`, `tavily_news.advisor.ts` | Fetch OHLCV data and live news |
+| Completions | `ollama_outline_format.completion.ts`, `ollama_outline_tool.completion.ts` | Ollama LLM completions (format and tool-call modes) |
+| Outline | `forecast.outline.ts` | Orchestrates advisors → completion → `ForecastResponse` |
+| Strategy | `feb_2026.strategy.ts` | Backtest strategy using forecast output for entry signals |
+| Modules | `backtest.module.ts`, `dump.module.ts`, `pine.module.ts`, `walker.module.ts` | Wiring for backtest, dump, pine, and walker modes |
+| Config | `symbol.config.cjs`, `ollama.ts`, `tavily.ts`, `setup.ts` | 460 symbols, API endpoints, strategy setup |
+| Script | `scripts/run_forecast.ts` | Standalone forecast runner (75 lines) |
+
+### Forecast assets
+
+`assets/forecast_feb_2026.zip` — archived backtest results for the February 2026 forecast run (referenced in `example/REPORT.md`).
+
+## `ClientAction` — new action client class
+
+New `ClientAction` class (`src/client/ClientAction.ts`) provides a client-side proxy for invoking action callbacks remotely, complementing the existing `ClientStrategy`.
+
+
+
+
 # Markdown Deep Link (v6.11.0, 11/04/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.11.0)
