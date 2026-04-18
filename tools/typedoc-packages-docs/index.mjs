@@ -15,7 +15,7 @@ const BEGIN_OUTPUT_DIR = "./docs/begin";
 
 const files = await glob("./packages/**/readme.md", { nodir: true, ignore: "**/node_modules/**" });
 const cliFiles = await glob("./cli/README.md", { nodir: true });
-const exampleFiles = await glob("./example/README.md", { nodir: true });
+const beginFiles = await glob("./example/docs/*.md", { nodir: true });
 
 if (existsSync(OUTPUT_DIR)) {
     await rm(OUTPUT_DIR, { recursive: true });
@@ -85,24 +85,28 @@ await Promise.all(cliFiles.map(async (filePath) => {
     await writeFile(outputPath, newContent, "utf-8");
 }));
 
-await Promise.all(exampleFiles.map(async (filePath) => {
-    const content = await readFile(filePath, "utf-8");
-
-    const outputPath = join(BEGIN_OUTPUT_DIR, "start_here.md");
-
-    const hasFrontmatter = content.trimStart().startsWith("---");
+// begin/00-readme — example project README
+{
+    const readmeContent = await readFile("./example/README.md", "utf-8");
+    const hasFrontmatter = readmeContent.trimStart().startsWith("---");
     const newContent = hasFrontmatter
-        ? content
+        ? readmeContent
         : str.newline(
             `---`,
-            `title: begin/start_here`,
+            `title: begin/00_readme`,
             `group: begin`,
             `---`,
             ``,
-            content
+            readmeContent
         );
+    await writeFile(join(BEGIN_OUTPUT_DIR, "00-readme.md"), newContent, "utf-8");
+}
 
-    await writeFile(outputPath, newContent, "utf-8");
+// begin/NN-slug — copied from example/docs/*.md (source files, already have frontmatter)
+await Promise.all(beginFiles.map(async (filePath) => {
+    const content = await readFile(filePath, "utf-8");
+    const fileName = filePath.replace(/\\/g, "/").split("/").pop();
+    await writeFile(join(BEGIN_OUTPUT_DIR, fileName), content, "utf-8");
 }));
 
 console.log(`[typedoc-packages-docs] Prepared ${files.length} package docs in ${OUTPUT_DIR}`);
