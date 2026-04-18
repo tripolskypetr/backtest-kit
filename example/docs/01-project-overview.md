@@ -90,21 +90,21 @@ This diagram maps the conceptual components to the specific code implementations
 ```mermaid
 graph LR
     subgraph "External APIs"
-        "Tavily API"
-        "Ollama (Local/Cloud)"
-        "CCXT (Binance/Exchange)"
+        TavilyAPI["Tavily API"]
+        Ollama["Ollama (Local/Cloud)"]
+        CCXT["CCXT (Binance/Exchange)"]
     end
 
     subgraph "Project Modules"
-        "logic/" --> "Forecast Pipeline"
-        "content/" --> "Strategy Logic"
-        "modules/" --> "Exchange Adapters"
+        LogicDir["logic/"] --> ForecastPipeline["Forecast Pipeline"]
+        ContentDir["content/"] --> StrategyLogic["Strategy Logic"]
+        ModulesDir["modules/"] --> ExchangeAdapters["Exchange Adapters"]
     end
 
     subgraph "Key Code Entities"
-        "Forecast Pipeline" --- "forecast.outline.ts"
-        "Strategy Logic" --- "feb_2026_strategy.ts"
-        "Exchange Adapters" --- "ccxt-exchange"
+        ForecastPipeline --- ForecastFile["forecast.outline.ts"]
+        StrategyLogic --- StrategyFile["feb_2026_strategy.ts"]
+        ExchangeAdapters --- CcxtExchange["ccxt-exchange"]
     end
 ```
 **Sources:** `tsconfig.json` [24-35](), `package.json` [14-21](), `README.md` [1-5]()

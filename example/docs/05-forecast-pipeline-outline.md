@@ -44,7 +44,7 @@ graph TD
         FRC["ForecastResponseContract [logic/contract/ForecastResponse.contract.ts]"]
     end
 
-    F -->|calls json()| AO
+    F -->|calls json| AO
     AO -->|executes getOutlineHistory| CGN
     CGN -->|ask| TNA
     TNA -->|returns news| CGN
