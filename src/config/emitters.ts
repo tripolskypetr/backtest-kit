@@ -13,6 +13,7 @@ import { WalkerStopContract } from "../contract/WalkerStop.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
+import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import SignalSyncContract from "../contract/SignalSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
@@ -166,6 +167,12 @@ export const schedulePingSubject = new Subject<SchedulePingContract>();
  * Allows users to track active signal lifecycle and implement custom dynamic management logic.
  */
 export const activePingSubject = new Subject<ActivePingContract>();
+
+/**
+ * Idle ping emitter for strategy idle state events.
+ * Emits every tick when there is no pending or scheduled signal being monitored.
+ */
+export const idlePingSubject = new Subject<IdlePingContract>();
 
 /**
  * Strategy management signal emitter.

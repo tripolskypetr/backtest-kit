@@ -136,6 +136,8 @@ export {
   listenSchedulePingOnce,
   listenActivePing,
   listenActivePingOnce,
+  listenIdlePing,
+  listenIdlePingOnce,
   listenStrategyCommit,
   listenStrategyCommitOnce,
   listenSync,

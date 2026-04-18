@@ -4,6 +4,7 @@ import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
+import { IdlePingContract } from "../contract/IdlePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { FrameName } from "./Frame.interface";
 import { ILogger } from "./Logger.interface";
@@ -288,6 +289,20 @@ export interface IActionCallbacks {
   onPingActive(event: ActivePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
+   * Called every tick when no signal is active (idle state).
+   *
+   * Triggered by: StrategyConnectionService via idlePingSubject
+   * Frequency: Every tick while no signal is pending or scheduled
+   *
+   * @param event - Idle ping data with current price and context
+   * @param actionName - Action identifier
+   * @param strategyName - Strategy identifier
+   * @param frameName - Timeframe identifier
+   * @param backtest - True for backtest mode, false for live trading
+   */
+  onPingIdle(event: IdlePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+
+  /**
    * Called when signal is rejected by risk management.
    *
    * Triggered by: RiskConnectionService via riskSubject
@@ -564,6 +579,17 @@ export interface IAction {
    * @param event - Active pending signal monitoring data
    */
   pingActive(event: ActivePingContract): void | Promise<void>;
+
+  /**
+   * Handles idle ping events when no signal is active.
+   *
+   * Emitted by: StrategyConnectionService via idlePingSubject
+   * Source: CREATE_COMMIT_IDLE_PING_FN callback in StrategyConnectionService
+   * Frequency: Every tick while no signal is pending or scheduled
+   *
+   * @param event - Idle ping data with current price and context
+   */
+  pingIdle(event: IdlePingContract): void | Promise<void>;
 
   /**
    * Handles risk rejection events when signals fail risk validation.

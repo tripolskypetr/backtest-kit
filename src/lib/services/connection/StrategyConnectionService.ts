@@ -31,6 +31,7 @@ import {
   syncSubject,
   highestProfitSubject,
   maxDrawdownSubject,
+  idlePingSubject,
 } from "../../../config/emitters";
 import { StrategyCommitContract } from "../../../contract/StrategyCommit.contract";
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
@@ -268,10 +269,54 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
 );
 
 /**
+ * Creates a callback function for emitting idle ping events.
+ *
+ * Called by ClientStrategy when no active or scheduled signals are present.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for idle ping events
+ */
+const CREATE_COMMIT_IDLE_PING_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    currentPrice: number,
+    backtest: boolean,
+    timestamp: number
+  ): Promise<void> => {
+    const frameName = self.methodContextService.context.frameName;
+    const event = {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      currentPrice,
+      backtest,
+      timestamp,
+    };
+    await idlePingSubject.next(event);
+    await self.actionCoreService.pingIdle(backtest, event, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_IDLE_PING_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting active ping events.
  *
  * Called by ClientStrategy when an active pending signal is being monitored every minute.
- * Placeholder for future activePingSubject implementation.
  *
  * @param self - Reference to StrategyConnectionService instance
  * @returns Callback function for active ping events
@@ -600,6 +645,7 @@ export class StrategyConnectionService implements TStrategy {
         onInit: CREATE_COMMIT_INIT_FN(this),
         onSchedulePing: CREATE_COMMIT_SCHEDULE_PING_FN(this),
         onActivePing: CREATE_COMMIT_ACTIVE_PING_FN(this),
+        onIdlePing: CREATE_COMMIT_IDLE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
         onCommit: CREATE_COMMIT_FN(this),
         onSignalSync: CREATE_SYNC_FN(this, strategyName, exchangeName, frameName, backtest),

@@ -3,6 +3,7 @@ import PartialLossContract from "../contract/PartialLoss.contract";
 import PartialProfitContract from "../contract/PartialProfit.contract";
 import SchedulePingContract from "../contract/SchedulePing.contract";
 import ActivePingContract from "../contract/ActivePing.contract";
+import IdlePingContract from "../contract/IdlePing.contract";
 import RiskContract from "../contract/Risk.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
 import LoggerService from "../lib/services/base/LoggerService";
@@ -263,6 +264,44 @@ const CALL_PING_SCHEDULED_FN = trycatch(
   {
     fallback: (error) => {
       const message = "ActionProxy.pingScheduled thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      LOGGER_SERVICE.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
+ * Wrapper to call pingIdle method with error capture.
+ */
+const CALL_PING_IDLE_FN = trycatch(
+  async (event: IdlePingContract, self: ActionProxy): Promise<void> => {
+    if (!self._target.pingIdle) {
+      return;
+    }
+    if (
+      await self.params.strategy.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      return;
+    }
+    return await self._target.pingIdle(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "ActionProxy.pingIdle thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -541,6 +580,19 @@ export class ActionProxy implements IPublicAction {
    */
   public async pingActive(event: ActivePingContract) {
     return await CALL_PING_ACTIVE_FN(event, this);
+  }
+
+  /**
+   * Handles idle ping events with error capture.
+   *
+   * Wraps the user's pingIdle() method to catch and log any errors.
+   * Called every tick while no signal is pending or scheduled.
+   *
+   * @param event - Idle ping data with symbol, strategy info, current price, timestamp
+   * @returns Promise resolving to user's pingIdle() result or null on error
+   */
+  public async pingIdle(event: IdlePingContract) {
+    return await CALL_PING_IDLE_FN(event, this);
   }
 
   /**

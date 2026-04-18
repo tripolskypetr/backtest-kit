@@ -23,6 +23,7 @@ import {
   syncSubject,
   validationSubject,
   signalNotifySubject,
+  idlePingSubject,
 } from "../config/emitters";
 import { backtest } from "../lib";
 
@@ -31,6 +32,7 @@ const METHOD_NAME_CREATE_SNAPSHOT = "SessionUtils.createSnapshot";
 /** List of all global subjects whose listeners should be snapshotted for session isolation */
 const SUBJECT_ISOLATION_LIST: Subject<unknown>[] = [
   activePingSubject,
+  idlePingSubject,
   backtestScheduleOpenSubject,
   breakevenSubject,
   doneBacktestSubject,

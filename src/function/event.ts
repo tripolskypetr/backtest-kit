@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -13,8 +13,9 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
+import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { queued } from "functools-kit";
+import { not, queued } from "functools-kit";
 import SignalSyncContract from "../contract/SignalSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
@@ -53,6 +54,8 @@ const LISTEN_SCHEDULE_PING_METHOD_NAME = "event.listenSchedulePing";
 const LISTEN_SCHEDULE_PING_ONCE_METHOD_NAME = "event.listenSchedulePingOnce";
 const LISTEN_ACTIVE_PING_METHOD_NAME = "event.listenActivePing";
 const LISTEN_ACTIVE_PING_ONCE_METHOD_NAME = "event.listenActivePingOnce";
+const LISTEN_IDLE_PING_METHOD_NAME = "event.listenIdlePing";
+const LISTEN_IDLE_PING_ONCE_METHOD_NAME = "event.listenIdlePingOnce";
 const LISTEN_STRATEGY_COMMIT_METHOD_NAME = "event.listenStrategyCommit";
 const LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME = "event.listenStrategyCommitOnce";
 const LISTEN_SYNC_METHOD_NAME = "event.listenSync";
@@ -1378,6 +1381,63 @@ export function listenActivePingOnce(
   };
 
   return disposeFn = listenActivePing(wrappedFn)
+}
+
+/**
+ * Subscribes to idle ping events with queued async processing.
+ *
+ * Emits every tick when there is no pending or scheduled signal being monitored.
+ *
+ * @param fn - Callback function to handle idle ping events
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenIdlePing(fn: (event: IdlePingContract) => void) {
+  backtest.loggerService.log(LISTEN_IDLE_PING_METHOD_NAME);
+
+  const wrappedFn = async (event: IdlePingContract) => {
+    if (
+      await not(
+        backtest.strategyCoreService.hasPendingSignal(
+          event.backtest,
+          event.symbol,
+          {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+          },
+        )
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return idlePingSubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered idle ping events with one-time execution.
+ *
+ * @param filterFn - Predicate to filter events
+ * @param fn - Callback function to handle the matching event
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenIdlePingOnce(
+  filterFn: (event: IdlePingContract) => boolean,
+  fn: (event: IdlePingContract) => void
+) {
+  backtest.loggerService.log(LISTEN_IDLE_PING_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: IdlePingContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenIdlePing(wrappedFn);
 }
 
 /**

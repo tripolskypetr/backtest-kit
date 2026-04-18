@@ -1742,6 +1742,44 @@ const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
   }
 );
 
+const CALL_IDLE_PING_CALLBACKS_FN = trycatch(
+  beginTime(async (
+    self: ClientStrategy,
+    symbol: string,
+    timestamp: number,
+    backtest: boolean,
+    currentPrice: number,
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      // Call system onIdlePing callback (emits to idlePingSubject)
+      await self.params.onIdlePing(
+        self.params.execution.context.symbol,
+        self.params.method.context.strategyName,
+        self.params.method.context.exchangeName,
+        currentPrice,
+        self.params.execution.context.backtest,
+        timestamp
+      );
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    })
+  }),
+  {
+    fallback: (error, self) => {
+      const message = "ClientStrategy CALL_IDLE_PING_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
 const CALL_ACTIVE_CALLBACKS_FN = trycatch(
   beginTime(async (
     self: ClientStrategy,
@@ -2972,6 +3010,14 @@ const RETURN_IDLE_FN = async (
   currentPrice: number
 ): Promise<IStrategyTickResultIdle> => {
   const currentTime = self.params.execution.context.when.getTime();
+
+  await CALL_IDLE_PING_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest,
+    currentPrice
+  );
 
   await CALL_IDLE_CALLBACKS_FN(
     self,

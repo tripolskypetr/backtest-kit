@@ -16,6 +16,7 @@ import { PartialProfitContract } from "../../../contract/PartialProfit.contract"
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
+import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 import { SignalSyncContract } from "../../../contract/SignalSync.contract";
 import StrategySchemaService from "../schema/StrategySchemaService";
@@ -374,6 +375,35 @@ export class ActionCoreService implements TAction {
 
     for (const actionName of actions) {
       await this.actionConnectionService.pingActive(event, backtest, { actionName, ...context });
+    }
+  };
+
+  /**
+   * Routes idle ping event to all registered actions for the strategy.
+   *
+   * Retrieves action list from strategy schema (IStrategySchema.actions)
+   * and invokes the pingIdle handler on each ClientAction instance sequentially.
+   * Called every tick when there is no pending or scheduled signal being monitored.
+   *
+   * @param backtest - Whether running in backtest mode (true) or live mode (false)
+   * @param event - Idle state monitoring data
+   * @param context - Strategy execution context with strategyName, exchangeName, frameName
+   */
+  public pingIdle = async (
+    backtest: boolean,
+    event: IdlePingContract,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionCoreService pingIdle", {
+      context,
+    });
+
+    await this.validate(context);
+
+    const { actions = [] } = this.strategySchemaService.get(context.strategyName);
+
+    for (const actionName of actions) {
+      await this.actionConnectionService.pingIdle(event, backtest, { actionName, ...context });
     }
   };
 
