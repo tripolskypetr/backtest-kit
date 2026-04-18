@@ -35,24 +35,7 @@ The system's modular design separates concerns into three distinct domains:
 The following diagram illustrates the transformation of data from a news event to a finalized trade execution.
 
 **Figure 1: News-to-Trade Data Flow**
-```mermaid
-graph TD
-    subgraph "News Retrieval Layer"
-        A["TavilyNewsAdvisor"] -- "fetchNews()" --> B["Raw News Markdown"]
-    end
-
-    subgraph "LLM Forecast Engine"
-        B --> C["OllamaOutlineToolCompletion"]
-        D["StockData1mAdvisor"] -- "OHLCV Data" --> C
-        C -- "Process via FORECAST_PROMPT" --> E["ForecastResponseContract"]
-    end
-
-    subgraph "Trading Execution Framework"
-        E -- "POSITION_LABEL_MAP" --> F["Trade Signal (LONG/SHORT/WAIT)"]
-        F --> G["Backtest / Live Engine"]
-        G --> H["Position Lifecycle (Open -> Active -> Closed)"]
-    end
-```
+![Mermaid Diagram](./diagrams/03-system-architecture-overview_0.svg)
 **Sources:** [logic/fetchNews.ts:1-5](), [logic/forecast.outline.ts:12-25](), [docs/01-getting-started.md:10-18]()
 
 ---
@@ -88,51 +71,13 @@ The following diagrams bridge the gap between abstract system concepts and concr
 ### Natural Language Space to Code Entity Space
 
 **Figure 2: Component-to-Code Mapping**
-```mermaid
-graph LR
-    subgraph "Natural Language Space"
-        Direction["'Bullish' Sentiment"]
-        News["Financial News"]
-        Execution["Market Order"]
-    end
-
-    subgraph "Code Entity Space"
-        Direction --- SL["POSITION_LABEL_MAP"]
-        News --- FN["fetchNews.ts"]
-        Execution --- BE["Backtest.run()"]
-        
-        SL --> STR["feb_2026_strategy.ts"]
-        FN --> ADV["TavilyNewsAdvisor"]
-        STR --> BE
-    end
-```
+![Mermaid Diagram](./diagrams/03-system-architecture-overview_1.svg)
 **Sources:** [README.md:3-5](), [logic/fetchNews.ts:1-5](), [docs/01-getting-started.md:230-233]()
 
 ### Execution Engine Architecture
 
 **Figure 3: backtest-kit Internal Structure**
-```mermaid
-graph TD
-    subgraph "backtest-kit Framework"
-        BC["Backtest"]
-        LV["Live"]
-        RG["Registry (addStrategy, addExchange)"]
-    end
-
-    subgraph "Execution Controllers"
-        BC --> BS["listenSignalBacktest"]
-        LV --> LB["Live.background()"]
-    end
-
-    subgraph "External Adapters"
-        EX["ccxt-exchange"]
-        RG --- EX
-    end
-
-    subgraph "Persistence"
-        LB --> PD["data/signals/"]
-    end
-```
+![Mermaid Diagram](./diagrams/03-system-architecture-overview_2.svg)
 **Sources:** [docs/01-getting-started.md:226-233](), [docs/01-getting-started.md:139-147](), [README.md:88-94]()
 
 ---

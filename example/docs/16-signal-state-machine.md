@@ -28,20 +28,7 @@ A signal progresses through six distinct states. Transitions are strictly contro
 The following diagram illustrates the flow between states and the triggers for each transition.
 
 Title: Signal State Transitions
-```mermaid
-graph TD
-    IDLE["IDLE"] -- "Strategy returns signal" --> SCHED["SCHEDULED"]
-    IDLE -- "Strategy returns immediate signal" --> OPENED["OPENED"]
-    SCHED -- "Price hits priceOpen" --> OPENED
-    SCHED -- "Timeout or SL hit" --> CANCELLED["CANCELLED"]
-    OPENED -- "Next Tick" --> ACTIVE["ACTIVE"]
-    ACTIVE -- "TP / SL / Expiry hit" --> CLOSED["CLOSED"]
-    
-    subgraph Terminal_States [Terminal States]
-        CLOSED
-        CANCELLED
-    end
-```
+![Mermaid Diagram](./diagrams/16-signal-state-machine_0.svg)
 Sources: [docs/03-understanding-signals.md:26-30]()
 
 ## State Definitions
@@ -96,21 +83,7 @@ Before a signal can transition from `IDLE` to `SCHEDULED` or `OPENED`, it must p
 The system validates that the signal parameters make sense relative to the current market price [docs/03-understanding-signals.md:265-275]().
 
 Title: Signal Validation Logic (Code Entity Space)
-```mermaid
-graph TD
-    A["Strategy Result"] -- "validateSignal()" --> B{"Logical Checks"}
-    B -- "TP/SL on wrong side?" --> C["Reject: logical_consistency"]
-    B -- "TP/SL too close?" --> D["Reject: economic_viability"]
-    B -- "Pass" --> E["Risk Engine"]
-    
-    subgraph "Code Entities"
-        direction LR
-        F["IRiskValidationPayload"]
-        G["addRisk()"]
-    end
-    E -- "Check Constraints" --> F
-    F -- "Validated" --> H["State: SCHEDULED/OPENED"]
-```
+![Mermaid Diagram](./diagrams/16-signal-state-machine_1.svg)
 
 **Validation Rules:**
 *   **Logical Consistency**: For a LONG, `priceTakeProfit` must be > `priceOpen`, and `priceStopLoss` must be < `priceOpen` [docs/03-understanding-signals.md:275-285]().

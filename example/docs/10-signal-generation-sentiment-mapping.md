@@ -66,35 +66,7 @@ If all filters pass, a signal object is returned.
 The following diagram illustrates the transition from the LLM's natural language output to the structured signal used by the execution engine.
 
 Title: Signal Generation Logic Flow
-```mermaid
-graph TD
-    subgraph "Natural Language Space (logic/)"
-        A["LLM Forecast Output"] --> B["Sentiment: bullish/bearish"]
-        A --> C["Confidence: high/low/not_reliable"]
-        A --> D["Reasoning: Markdown Text"]
-    end
-
-    subgraph "Code Entity Space (feb_2026_strategy.ts)"
-        B --> E["POSITION_LABEL_MAP"]
-        E --> F["positionOutput Node"]
-        F --> G["getSignal()"]
-        
-        C --> H{"Confidence == 'not_reliable'?"}
-        H -- "Yes" --> I["Return null"]
-        H -- "No" --> G
-        
-        D --> J["note (Markdown)"]
-        J --> K["Signal Object"]
-        
-        L["NEWS_WINDOW Check"] --> G
-        G --> K
-    end
-
-    subgraph "Execution Space (backtest-kit)"
-        K --> M["Position.moonbag()"]
-        M --> N["Active Trade"]
-    end
-```
+![Mermaid Diagram](./diagrams/10-signal-generation-sentiment-mapping_0.svg)
 
 **Sources:** [content/feb_2026.strategy/feb_2026.strategy.ts:50-105](), [content/feb_2026.strategy/feb_2026.test.ts:38-70]()
 
@@ -109,31 +81,6 @@ The strategy does not just open positions; it actively monitors them for sentime
 ### Signal State Mapping Diagram
 
 Title: Code Entities and State Transitions
-```mermaid
-graph LR
-    subgraph "Forecast Engine"
-        FE["forecast()"]
-    end
-
-    subgraph "Strategy Logic"
-        SN["sourceNode (forecastSource)"]
-        ON["outputNode (positionOutput)"]
-        GS["getSignal()"]
-        LP["listenActivePing()"]
-    end
-
-    subgraph "Backtest Framework"
-        PS["Position.moonbag()"]
-        CCP["commitClosePending()"]
-    end
-
-    FE --> SN
-    SN --> ON
-    ON --> GS
-    GS --> PS
-    PS --> LP
-    LP -- "Sentiment Mismatch" --> CCP
-    ON -- "Re-evaluated" --> LP
-```
+![Mermaid Diagram](./diagrams/10-signal-generation-sentiment-mapping_1.svg)
 
 **Sources:** [content/feb_2026.strategy/feb_2026.strategy.ts:107-136]()

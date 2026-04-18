@@ -88,24 +88,7 @@ A temporal filter applied to news fetching to prevent look-ahead bias and focus 
 This diagram maps the logical transition from raw external news to a code-level `Signal`.
 
 **Forecast Pipeline Architecture**
-```mermaid
-graph TD
-    subgraph "Natural Language Space (LLM)"
-        A["Raw News (Tavily)"] --> B["ForecastOutline"]
-        B --> C["Ollama (minimax-m2.7:cloud)"]
-        C --> D["ForecastResponseContract"]
-    end
-
-    subgraph "Code Entity Space (backtest-kit)"
-        D --> E["forecastSource (sourceNode)"]
-        E --> F["positionOutput (outputNode)"]
-        F --> G["getSignal()"]
-        G --> H["Signal Object"]
-    end
-
-    style D stroke-width:2px
-    style H stroke-width:2px
-```
+![Mermaid Diagram](./diagrams/23-glossary_0.svg)
 **Sources:**
 - [logic/core/outline/forecast.outline.ts:68-90]()
 - [logic/core/completion/ollama_outline_tool.completion.ts:19-19]()
@@ -115,24 +98,7 @@ graph TD
 This diagram shows how strategy logic interacts with the framework-level exchange adapters.
 
 **Execution Logic Mapping**
-```mermaid
-graph LR
-    subgraph "Strategy Logic (content/)"
-        A["feb_2026_strategy.ts"] -- "defines" --> B["addStrategySchema"]
-        A -- "listens" --> C["listenActivePing"]
-    end
-
-    subgraph "Execution Layer (backtest-kit)"
-        B -- "triggers" --> D["Position.moonbag"]
-        C -- "calls" --> E["commitClosePending"]
-    end
-
-    subgraph "Exchange Layer (modules/)"
-        D -- "resolves via" --> F["ccxt-exchange"]
-        E -- "resolves via" --> F
-        F -- "calls" --> G["ccxt.binance"]
-    end
-```
+![Mermaid Diagram](./diagrams/23-glossary_1.svg)
 **Sources:**
 - [content/feb_2026.strategy/feb_2026.strategy.ts:50-52]()
 - [content/feb_2026.strategy/feb_2026.strategy.ts:107-107]()

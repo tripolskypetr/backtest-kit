@@ -78,21 +78,7 @@ The following diagram illustrates the transition from environment configuration 
 ### Configuration to Code Entity Mapping
 "The diagram below bridges the environment variables and configuration files to the internal `backtest-kit` initialization sequence."
 
-```mermaid
-graph TD
-    ENV[".env file"] -- "OLLAMA_TOKEN / TAVILY_TOKEN" --> CFG["GLOBAL_CONFIG"]
-    PKG["package.json"] -- "npm start" --> CLI["@backtest-kit/cli"]
-    TS["tsconfig.json"] -- "paths: logic/*" --> LOGIC["logic/index.ts"]
-    
-    subgraph "Code Entity Space"
-        CLI --> RUN["Backtest.run()"]
-        RUN --> EX["addExchange()"]
-        RUN --> FR["addFrame()"]
-        RUN --> ST["addStrategy()"]
-    end
-    
-    LOGIC --> ST
-```
+![Mermaid Diagram](./diagrams/02-getting-started-configuration_0.svg)
 
 **Sources:** [docs/01-getting-started.md:151-173](), [package.json:7-7](), [tsconfig.json:24-29]()
 
@@ -117,25 +103,7 @@ When the system starts, it performs several critical steps via the `backtest-kit
 ### Component Interaction Diagram
 "This diagram maps the system's runtime components to their respective code modules during a typical execution cycle."
 
-```mermaid
-graph LR
-    subgraph "Natural Language Space (Input)"
-        NEWS["Tavily Search Results"]
-        PROMPT["FORECAST_PROMPT"]
-    end
-
-    subgraph "Code Entity Space (Execution)"
-        CLI["@backtest-kit/cli"] --> BK["backtest-kit"]
-        BK --> AGENT["agent-swarm-kit"]
-        AGENT --> OLLAMA["Ollama (LLM)"]
-        BK --> CCXT["ccxt (Exchange)"]
-    end
-
-    NEWS --> AGENT
-    PROMPT --> AGENT
-    OLLAMA --> SIGNAL["Trade Signal"]
-    SIGNAL --> CCXT
-```
+![Mermaid Diagram](./diagrams/02-getting-started-configuration_1.svg)
 
 **Sources:** [docs/01-getting-started.md:12-17](), [package.json:14-21](), [docs/01-getting-started.md:198-202]()
 

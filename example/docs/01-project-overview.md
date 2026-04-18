@@ -39,24 +39,7 @@ The system is designed to bridge the gap between "Natural Language Space" (news 
 The following diagram illustrates how news data is transformed into a financial position.
 
 **Data Flow: News to Trade**
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["Tavily Search API"] -- "Raw News" --> B["TavilyNewsAdvisor"]
-    end
-
-    subgraph "Logic / Inference Layer"
-        B -- "Markdown Context" --> C["OllamaOutlineFormatCompletion"]
-        D["StockData1mAdvisor"] -- "Price Context" --> C
-        C -- "JSON Response" --> E["ForecastResponseContract"]
-    end
-
-    subgraph "Code Entity Space"
-        E -- "Sentiment Label" --> F["feb_2026_strategy.ts"]
-        F -- "Signal Object" --> G["backtest-kit Engine"]
-        G -- "Order Execution" --> H["ccxt-exchange"]
-    end
-```
+![Mermaid Diagram](./diagrams/01-project-overview_0.svg)
 **Sources:** `logic/index.ts`, `content/feb_2026.strategy/feb_2026.strategy.ts`, `package.json` [13-31]()
 
 ---
@@ -87,26 +70,7 @@ The underlying engine that manages the signal state machine, backtesting logic, 
 This diagram maps the conceptual components to the specific code implementations and files.
 
 **System Entity Map**
-```mermaid
-graph LR
-    subgraph "External APIs"
-        TavilyAPI["Tavily API"]
-        Ollama["Ollama (Local/Cloud)"]
-        CCXT["CCXT (Binance/Exchange)"]
-    end
-
-    subgraph "Project Modules"
-        LogicDir["logic/"] --> ForecastPipeline["Forecast Pipeline"]
-        ContentDir["content/"] --> StrategyLogic["Strategy Logic"]
-        ModulesDir["modules/"] --> ExchangeAdapters["Exchange Adapters"]
-    end
-
-    subgraph "Key Code Entities"
-        ForecastPipeline --- ForecastFile["forecast.outline.ts"]
-        StrategyLogic --- StrategyFile["feb_2026_strategy.ts"]
-        ExchangeAdapters --- CcxtExchange["ccxt-exchange"]
-    end
-```
+![Mermaid Diagram](./diagrams/01-project-overview_1.svg)
 **Sources:** `tsconfig.json` [24-35](), `package.json` [14-21](), `README.md` [1-5]()
 
 ---

@@ -35,29 +35,7 @@ The framework supports two primary execution modes: streaming and event-driven.
 The following diagram illustrates the internal command flow during a background backtest execution.
 
 **Backtest Execution Sequence**
-```mermaid
-sequenceDiagram
-    participant U as "User"
-    participant BC as "BacktestCommandService"
-    participant BL as "BacktestLogicPrivateService"
-    participant SS as "StrategyCoreService"
-    participant FC as "FrameCoreService"
-    participant EM as "Event Emitters"
-
-    U->>BC: "Backtest.background(config)"
-    BC->>FC: "Initialize Frame (Time Window)"
-    BC->>BL: "Start Execution Loop"
-    loop Every Interval
-        BL->>FC: "Get Next Timestamp"
-        BL->>SS: "getSignal(symbol, timestamp)"
-        SS-->>BL: "Signal Object / null"
-        alt Signal Generated
-            BL->>EM: "emitSignalBacktest(signal)"
-        end
-        BL->>EM: "emitBacktestProgress(percent)"
-    end
-    BL->>EM: "emitDoneBacktest(stats)"
-```
+![Mermaid Diagram](./diagrams/15-backtesting-execution-reporting_0.svg)
 Sources: [docs/02-first-backtest.md:275-277](), [docs/diagrams/02-first-backtest_4.svg:1-100]()
 
 ## Event Listeners
@@ -89,22 +67,7 @@ The `getData()` method returns a structured object containing the strategy's per
 *   **`Backtest.dump()`**: Persists the entire backtest state, including all signals and metrics, to a JSON file for later analysis [docs/02-first-backtest.md:382-385]().
 
 **Reporting Component Association**
-```mermaid
-graph LR
-    subgraph "Backtest Singleton"
-        B_DATA["Backtest.getData()"]
-        B_REPORT["Backtest.getReport()"]
-        B_DUMP["Backtest.dump()"]
-    end
-
-    STATS["Performance Stats (Sharpe, PNL)"]
-    MD["Markdown Report"]
-    FILE["JSON State Dump"]
-
-    B_DATA --> STATS
-    B_REPORT --> MD
-    B_DUMP --> FILE
-```
+![Mermaid Diagram](./diagrams/15-backtesting-execution-reporting_1.svg)
 Sources: [docs/02-first-backtest.md:370-385](), [docs/diagrams/02-first-backtest_3.svg:1-30]()
 
 ## Look-Ahead Bias Prevention

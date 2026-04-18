@@ -30,29 +30,7 @@ The integration layer abstracts the complexities of the CCXT library into a unif
 The following diagram illustrates how the abstract "Exchange Schema" in the logic space maps to concrete CCXT implementations and singleton instances in the code.
 
 **Diagram: Exchange Schema to Code Entity Mapping**
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["Exchange Adapter"]
-        B["Market Data Provider"]
-        C["Precision Handler"]
-    end
-
-    subgraph "Code Entity Space"
-        A --- D["addExchangeSchema"]
-        B --- E["getExchange (singleshot)"]
-        C --- F["roundTicks"]
-        
-        D --- G["modules/walker.module.ts"]
-        D --- H["modules/dump.module.ts"]
-        E --- I["ccxt.binance"]
-        F --- J["backtest-kit"]
-    end
-    
-    style A stroke-dasharray: 5 5
-    style B stroke-dasharray: 5 5
-    style C stroke-dasharray: 5 5
-```
+![Mermaid Diagram](./diagrams/20-exchange-integration-modules_0.svg)
 **Sources:** [modules/walker.module.ts:1-19](), [modules/dump.module.ts:1-18]()
 
 ---
@@ -97,18 +75,5 @@ For details, see [Symbol Configuration](#5.2).
 The following diagram shows how a request for market data flows from a generic module through the CCXT adapter to the physical exchange.
 
 **Diagram: Market Data Flow**
-```mermaid
-sequenceDiagram
-    participant M as "Module (e.g., walker.module.ts)"
-    participant S as "Schema (ccxt-exchange)"
-    participant G as "getExchange (Singleton)"
-    participant C as "CCXT (Binance)"
-
-    M->>S: "getCandles(symbol, interval)"
-    S->>G: "await getExchange()"
-    G-->>S: "ccxt.binance instance"
-    S->>C: "fetchOHLCV()"
-    C-->>S: "Raw Array Data"
-    S-->>M: "Mapped Candle Objects"
-```
+![Mermaid Diagram](./diagrams/20-exchange-integration-modules_1.svg)
 **Sources:** [modules/walker.module.ts:5-16](), [modules/walker.module.ts:20-35]()

@@ -62,26 +62,7 @@ To ensure the generated AI logic is actionable, the system enforces a JSON schem
 The following diagram illustrates how the Optimizer converts high-level trading concepts into internal code entities.
 
 **Diagram: Optimizer Entity Mapping**
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["Trading Rules Prompt"]
-        B["Historical News/Data"]
-    end
-
-    subgraph "Code Entity Space"
-        C["addOptimizer()"]
-        D["Ollama.chat()"]
-        E["Generated .mjs Strategy"]
-        F["addExchangeSchema()"]
-    end
-
-    A -->|"getPrompt()"| D
-    B -->|"source.fetch()"| D
-    D -->|"Synthesizes"| E
-    C -->|"Manages"| D
-    E -->|"Uses"| F
-```
+![Mermaid Diagram](./diagrams/19-ai-strategy-optimization-walker_0.svg)
 **Sources:** [docs/06-ai-optimization.md:93-127](), [docs/07-llm-trading.md:72-157](), [modules/walker.module.ts:18-19]()
 
 ---
@@ -102,29 +83,7 @@ Key functions in `modules/walker.module.ts`:
 Generated strategies often implement a "Waterfall" analysis pattern, where the LLM is prompted to analyze 1h, 15m, 5m, and 1m candles sequentially before generating a final signal [docs/07-llm-trading.md:169-234]().
 
 **Diagram: Walker Execution Flow**
-```mermaid
-graph LR
-    subgraph "Input"
-        S1["Strategy_A.mjs"]
-        S2["Strategy_B.mjs"]
-    end
-
-    subgraph "walker.module.ts"
-        E["ccxt-exchange"]
-        GC["getCandles()"]
-        FP["formatPrice()"]
-    end
-
-    subgraph "Comparison"
-        W["Walker Engine"]
-        R["Performance Report"]
-    end
-
-    S1 & S2 --> W
-    W --> E
-    E --> GC & FP
-    W --> R
-```
+![Mermaid Diagram](./diagrams/19-ai-strategy-optimization-walker_1.svg)
 **Sources:** [modules/walker.module.ts:18-75](), [docs/07-llm-trading.md:169-244]()
 
 ---

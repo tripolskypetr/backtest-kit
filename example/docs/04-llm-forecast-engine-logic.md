@@ -30,26 +30,7 @@ The forecasting logic is initialized via `logic/index.ts`, which sets up configu
 The following diagram illustrates how the `logic/` module bridges the gap between natural language data (news) and structured code entities (forecast objects).
 
 **Natural Language to Code Entity Mapping**
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["Tavily Search Results"] -- "Raw Text" --> B["Markdown Context"]
-        C["Market Candles"] -- "OHLCV Strings" --> B
-    end
-
-    subgraph "LLM Inference (agent-swarm-kit)"
-        B -- "System Prompt" --> D["Ollama Completion"]
-        D -- "JSON Response" --> E["ForecastResponseContract"]
-    end
-
-    subgraph "Code Entity Space (logic/)"
-        E -- "Validated Data" --> F["forecast() function"]
-        F -- "Signal" --> G["feb_2026_strategy.ts"]
-    end
-
-    style F stroke-width:2px
-    style G stroke-width:2px
-```
+![Mermaid Diagram](./diagrams/04-llm-forecast-engine-logic_0.svg)
 Sources: [logic/main/forecast.ts:5-11](), [logic/core/index.ts:1-8]()
 
 ---
@@ -90,23 +71,5 @@ For details, see [Ollama Completions](#2.4).
 The `logic/core/index.ts` file acts as the registry for all AI capabilities, ensuring that when `forecast()` is called, all necessary advisors and completion methods are available in the runtime environment.
 
 **Internal Logic Registry**
-```mermaid
-graph LR
-    subgraph "logic/core/index.ts"
-        direction TB
-        REG["Registry"]
-        REG --> ADV["Advisors"]
-        REG --> CMP["Completions"]
-        REG --> OUT["Outlines"]
-    end
-
-    ADV --> TNA["tavily_news.advisor"]
-    ADV --> S1M["stock_data_1m.advisor"]
-    ADV --> S15["stock_data_15m.advisor"]
-
-    CMP --> OOTC["ollama_outline_tool.completion"]
-    CMP --> OOFC["ollama_outline_format.completion"]
-
-    OUT --> FO["forecast.outline"]
-```
+![Mermaid Diagram](./diagrams/04-llm-forecast-engine-logic_1.svg)
 Sources: [logic/core/index.ts:1-8](), [logic/index.ts:1-4]()

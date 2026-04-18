@@ -34,32 +34,7 @@ The advisors bridge the gap between the "Code Entity Space" (API calls, data pro
 
 **System Entity Mapping**
 Title: Advisor Component Mapping
-```mermaid
-graph TD
-    subgraph "Natural Language Space (LLM Input)"
-        MD_CANDLES["Markdown Candle Tables"]
-        JSON_NEWS["JSON News Objects"]
-    end
-
-    subgraph "Code Entity Space (logic/core/advisor/)"
-        TNA["TavilyNewsAdvisor"]
-        SD1M["StockData1mAdvisor"]
-        SD15M["StockData15mAdvisor"]
-    end
-
-    subgraph "External Data / backtest-kit"
-        FN["fetchNews()"]
-        GC["getCandles()"]
-    end
-
-    TNA -- "returns JSON" --> JSON_NEWS
-    SD1M -- "returns Markdown" --> MD_CANDLES
-    SD15M -- "returns Markdown" --> MD_CANDLES
-
-    TNA -- "calls" --> FN
-    SD1M -- "calls" --> GC
-    SD15M -- "calls" --> GC
-```
+![Mermaid Diagram](./diagrams/06-advisors-news-market-data_0.svg)
 **Sources:** [logic/core/advisor/tavily_news.advisor.ts:15-40](), [logic/core/advisor/stock_data_1m.advisor.ts:9-41](), [logic/core/advisor/stock_data_15m.advisor.ts:9-41]()
 
 ---
@@ -110,22 +85,5 @@ Both advisors format their data into a Markdown table for the LLM. The table inc
 The following diagram illustrates how the `agent-swarm-kit` interacts with an advisor (e.g., `StockData1mAdvisor`) to produce data for the LLM.
 
 Title: Advisor Execution Flow
-```mermaid
-sequenceDiagram
-    participant LLM as LLM (Forecast Engine)
-    participant ASK as agent-swarm-kit
-    participant SDA as StockData1mAdvisor
-    participant BK as backtest-kit (getCandles)
-
-    LLM->>ASK: Request "stock_data_1m_advisor"
-    ASK->>SDA: getChat({ symbol, ... })
-    SDA->>BK: getCandles(symbol, "1m", 240)
-    BK-->>SDA: Candle[]
-    loop For each candle
-        SDA->>SDA: Calculate Volatility, Body%, Change%
-        SDA->>BK: formatPrice() / formatQuantity()
-    end
-    SDA-->>ASK: Markdown Table String
-    ASK-->>LLM: Formatted Tool Response
-```
+![Mermaid Diagram](./diagrams/06-advisors-news-market-data_1.svg)
 **Sources:** [logic/core/advisor/stock_data_1m.advisor.ts:9-41](), [logic/enum/AdvisorName.ts:1-7]()

@@ -31,28 +31,7 @@ The strategy follows a reactive model where trade entry is dictated by AI-genera
 
 The following diagram bridges the natural language concept of "News Sentiment" to the specific code entities that resolve and execute trades.
 
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["News Articles & Market Context"]
-        B["Sentiment Forecast (Bullish/Bearish)"]
-    end
-
-    subgraph "Code Entity Space"
-        C["forecast() function"]
-        D["sourceNode(forecastSource)"]
-        E["outputNode(positionOutput)"]
-        F["POSITION_LABEL_MAP"]
-        G["addStrategySchema.getSignal"]
-    end
-
-    A --> C
-    C --> D
-    D --> E
-    E -- "Maps sentiment to 'long'/'short'" --> F
-    F --> G
-    G -- "Returns Signal Object" --> H["backtest-kit Execution"]
-```
+![Mermaid Diagram](./diagrams/09-trading-strategy-feb-2026-strategy_0.svg)
 Sources: [content/feb_2026.strategy/feb_2026.strategy.ts:25-65](), [content/feb_2026.strategy/feb_2026.strategy.ts:18]()
 
 ---
@@ -86,26 +65,5 @@ For details, see [February 2026 Case Study & Performance](#3.4).
 
 The diagram below illustrates how the strategy interacts with the `backtest-kit` and the `logic` forecast engine.
 
-```mermaid
-sequenceDiagram
-    participant B as backtest-kit
-    participant S as feb_2026_strategy.ts
-    participant G as @backtest-kit/graph
-    participant L as logic/forecast
-
-    B->>S: getSignal(symbol, when)
-    S->>G: resolve(forecastSource)
-    G->>L: forecast(symbol, when)
-    L-->>G: Sentiment Result
-    G-->>S: forecast object
-    S->>S: Map sentiment via POSITION_LABEL_MAP
-    S-->>B: Signal { position, percentStopLoss, note }
-    
-    Loop Every Minute
-        B->>S: listenActivePing(positionData)
-        S->>G: resolve(forecastSource)
-        Note over S: Check for Sentiment Flip or Trailing Take
-        S->>B: commitClosePending() (if exit criteria met)
-    end
-```
+![Mermaid Diagram](./diagrams/09-trading-strategy-feb-2026-strategy_1.svg)
 Sources: [content/feb_2026.strategy/feb_2026.strategy.ts:50-105](), [content/feb_2026.strategy/feb_2026.strategy.ts:107-157]()

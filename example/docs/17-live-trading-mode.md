@@ -33,21 +33,7 @@ Live trading is governed by a `while(true)` loop within the `Live.run()` generat
 The following diagram illustrates the relationship between the `Live` process and the strategy execution components.
 
 **Live Execution and Signal Flow**
-```mermaid
-sequenceDiagram
-    participant LP as "Live.background()"
-    participant S as "Strategy (e.g., feb_2026_strategy.ts)"
-    participant E as "Exchange (CCXT)"
-    participant Q as "Event Queue (MAX_EVENTS=25)"
-
-    LP->>E: fetchOHLCV (Real-time)
-    E-->>LP: Market Data
-    LP->>S: tick(context)
-    S-->>LP: emit Signal
-    LP->>Q: Push Event
-    Note over Q: Queue limit enforced
-    Q-->>LP: listenSignalLive() callback
-```
+![Mermaid Diagram](./diagrams/17-live-trading-mode_0.svg)
 **Sources:** [docs/04-live-trading.md:98-180](), [docs/04-live-trading.md:16-25]()
 
 ## Crash Recovery and Persistence
@@ -101,37 +87,7 @@ The technical implementation of Live mode differs significantly from Backtest mo
 The live trading environment bridges high-level trading concepts with specific code entities and filesystem locations.
 
 **Entity Relationship Diagram**
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["Live Trading Loop"]
-        B["Crash Protection"]
-        C["Market Data"]
-    end
-
-    subgraph "Code Entity Space"
-        A1["Live.background()"]
-        A2["Live.run()"]
-        B1["PersistSignalAdapter"]
-        B2["PersistScheduleAdapter"]
-        C1["ccxt-exchange schema"]
-        C2["fetchOHLCV"]
-    end
-
-    subgraph "Filesystem Space"
-        D1["data/signals/*.json"]
-        D2["data/risk/*.json"]
-    end
-
-    A --> A1
-    A1 --> A2
-    B --> B1
-    B --> B2
-    B1 --> D1
-    B2 --> D1
-    C --> C1
-    C1 --> C2
-```
+![Mermaid Diagram](./diagrams/17-live-trading-mode_1.svg)
 
 **Sources:** [docs/04-live-trading.md:98-110](), [docs/04-live-trading.md:184-203](), [docs/04-live-trading.md:52-87]()
 

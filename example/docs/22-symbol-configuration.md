@@ -56,30 +56,7 @@ The system categorizes symbols into four distinct priority tiers based on the `p
 The following diagram illustrates how the `symbol_list` configuration propagates from the static config file to the functional areas of the codebase.
 
 **Title: Symbol Configuration Data Flow**
-```mermaid
-graph TD
-    subgraph "Configuration Layer"
-        Config["config/symbol.config.cjs"]
-    end
-
-    subgraph "Entity Space"
-        S_List["symbol_list (Array)"]
-        S_Item["Symbol Object"]
-    end
-
-    subgraph "System Consumption"
-        UI["Frontend Dashboard (UI)"]
-        News["News Retrieval (Tavily)"]
-        Trade["Trading Strategy (Backtest/Live)"]
-    end
-
-    Config -->|"exports"| S_List
-    S_List -->|"contains"| S_Item
-    
-    S_Item -->|"displayName/icon/color"| UI
-    S_Item -->|"symbol/priority"| News
-    S_Item -->|"symbol"| Trade
-```
+![Mermaid Diagram](./diagrams/22-symbol-configuration_0.svg)
 **Sources:**
 - [config/symbol.config.cjs:3-153]()
 
@@ -96,33 +73,7 @@ The `color` and `logo` fields are specifically designed for the frontend to crea
 This diagram bridges the natural language names of assets to their technical identifiers used in the code logic.
 
 **Title: Natural Language to Code Entity Mapping**
-```mermaid
-graph LR
-    subgraph "Natural Language Space"
-        N1["Bitcoin"]
-        N2["Ethereum"]
-        N3["Solana"]
-    end
-
-    subgraph "Code Entity Space (symbol_list)"
-        E1["BTCUSDT"]
-        E2["ETHUSDT"]
-        E3["SOLUSDT"]
-    end
-
-    subgraph "Logic Attributes"
-        P1["priority: 50"]
-        P2["priority: 100"]
-    end
-
-    N1 --- E1
-    N2 --- E2
-    N3 --- E3
-
-    E1 --> P1
-    E2 --> P1
-    E3 --> P2
-```
+![Mermaid Diagram](./diagrams/22-symbol-configuration_1.svg)
 
 **Sources:**
 - [config/symbol.config.cjs:8-11]()

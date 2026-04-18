@@ -48,28 +48,7 @@ The `feb_2026_strategy` processes news every 24 hours (the `NEWS_WINDOW`) to pre
 The following diagram illustrates how the system transitions from "Natural Language Space" (News/Reasoning) to "Code Entity Space" (Signals/Positions).
 
 **Diagram: News-to-Execution Pipeline**
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["Tavily Search API"] --> B["Raw News Markdown"]
-        B --> C["Ollama FORECAST_PROMPT"]
-        C --> D["ForecastResponseContract"]
-    end
-
-    subgraph "Code Entity Space"
-        D --> E["feb_2026_strategy.ts"]
-        E --> F["Signal State Machine"]
-        F --> G["Backtest.run()"]
-        G --> H["Position Lifecycle"]
-    end
-
-    subgraph "Specific Code Entities"
-        E -- "calls" --> E1["POSITION_LABEL_MAP"]
-        F -- "manages" --> F1["SignalState: active"]
-        H -- "triggers" --> H1["trailingTakeProfit"]
-        H -- "triggers" --> H2["hardStopLoss"]
-    end
-```
+![Mermaid Diagram](./diagrams/13-february-2026-case-study-performance_0.svg)
 **Sources:** [README.md:5](), [README.md:38-57]()
 
 ## Key News Drivers & Market Context
@@ -108,27 +87,7 @@ The strategy utilized three primary exit mechanisms to manage risk and lock in p
 The backtest is executed via the `Backtest.run()` engine within the `backtest-kit` framework.
 
 **Diagram: Backtest Execution Components**
-```mermaid
-sequenceDiagram
-    participant CLI as "npm start --backtest"
-    participant BT as "Backtest.run()"
-    participant EX as "ccxt-exchange (Binance)"
-    participant ST as "feb_2026_strategy"
-    participant LLM as "Ollama (minimax-m2.7:cloud)"
-
-    CLI->>BT: Initialize with feb_2026_frame
-    loop Every Candle (1m)
-        BT->>EX: getCandles()
-        BT->>ST: update(candle)
-        alt NEWS_WINDOW elapsed
-            ST->>LLM: generateForecast(news)
-            LLM-->>ST: ForecastResponseContract
-            ST->>BT: emitSignal(LONG/SHORT)
-        end
-        BT->>BT: updatePositionPNL()
-    end
-    BT->>CLI: dump() performance stats
-```
+![Mermaid Diagram](./diagrams/13-february-2026-case-study-performance_1.svg)
 **Sources:** [README.md:89-94](), [README.md:5]()
 
 ## Running the Case Study

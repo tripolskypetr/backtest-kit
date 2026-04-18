@@ -35,27 +35,7 @@ Risk management operates as a gatekeeper between the strategy's request for a si
 The following diagram illustrates how the `ClientRisk` entity coordinates between strategies and validation logic.
 
 **Risk Logic Sequence**
-```mermaid
-sequenceDiagram
-    participant S as "ClientStrategy"
-    participant R as "ClientRisk"
-    participant V as "Risk Validations"
-    participant P as "PersistRiskAdapter"
-    participant E as "riskSubject"
-
-    S->>R: checkSignal(symbol, params)
-    R->>R: Load Portfolio State
-    R->>V: Execute validation functions
-    alt Validation Fails
-        V-->>R: throw Error(reason)
-        R->>E: emit rejection event
-        R-->>S: Signal Rejected
-    else Validation Passes
-        V-->>R: Success
-        R->>P: Update active positions
-        R-->>S: Signal Allowed
-    end
-```
+![Mermaid Diagram](./diagrams/18-risk-management_0.svg)
 Sources: [docs/05-risk-management.md:27-38](), [docs/diagrams/05-risk-management_1.svg:1-15]()
 
 ## Registering Risk Profiles
@@ -159,26 +139,5 @@ Sources: [docs/05-risk-management.md:183-205]()
 When a signal is rejected by the risk layer, an event is emitted to the `riskSubject` [docs/05-risk-management.md:37](). This allows UI components or monitoring logs to display the specific reason for the trade failure without the strategy needing to handle the error internally [docs/05-risk-management.md:23]().
 
 **Entity Mapping: Code to Logic**
-```mermaid
-graph TD
-    subgraph "Code Entities"
-        AR["addRisk() function"]
-        CR["ClientRisk class"]
-        RS["riskSubject (RxJS)"]
-        PRA["PersistRiskAdapter"]
-    end
-
-    subgraph "Risk Logic Space"
-        PV["Portfolio Validation"]
-        RE["Rejection Events"]
-        PS["Persistence / Recovery"]
-    end
-
-    AR --> PV
-    CR --> PV
-    PV --> RS
-    RS --> RE
-    CR --> PRA
-    PRA --> PS
-```
+![Mermaid Diagram](./diagrams/18-risk-management_1.svg)
 Sources: [docs/05-risk-management.md:31-38](), [docs/diagrams/05-risk-management_0.svg:1-10]()

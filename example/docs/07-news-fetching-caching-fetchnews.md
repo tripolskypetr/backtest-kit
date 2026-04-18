@@ -36,28 +36,7 @@ The news fetching process is centralized in `logic/api/fetchNews.ts`. It utilize
 This diagram illustrates how the `fetchNews` function interacts with the `backtest-kit` state and external APIs to provide data to the forecasting logic.
 
 "fetchNews Data Flow"
-```mermaid
-graph TD
-    subgraph "Logic Layer"
-        A["fetchNews(symbol, topic, query)"] --> B{"getMode()"}
-        B -- "live" --> C["fetchNewsInLive()"]
-        B -- "backtest" --> D["fetchNewsInBacktest()"]
-        C --> E["search()"]
-        D --> E
-    end
-
-    subgraph "External & Cache"
-        E --> F["getTavily()"]
-        F --> G[("@tavily/core")]
-        D -.-> H[("Cache.file (news-backtest)")]
-    end
-
-    subgraph "Filtering"
-        E --> I["Domain Filter (ALLOWED_DOMAINS)"]
-        I --> J["Temporal Filter (NEWS_WINDOW_HOURS)"]
-        J --> K["Return INews[]"]
-    end
-```
+![Mermaid Diagram](./diagrams/07-news-fetching-caching-fetchnews_0.svg)
 **Sources:** [logic/api/fetchNews.ts:136-163](), [logic/config/tavily.ts:4-8](), [logic/api/fetchNews.ts:91-110]()
 
 ---
@@ -113,27 +92,7 @@ The system defines a global `NEWS_WINDOW_HOURS = 24`. Regardless of the mode, `f
 The `fetchNewsInBacktest` function uses `Cache.file` from the `backtest-kit`. This is vital because a 1-minute backtest for one month would otherwise trigger ~43,000 API calls. By aligning the cache to `1d` (one day), the system fetches a "daily batch" of news and stores it locally.
 
 "Backtest Cache Resolution"
-```mermaid
-sequenceDiagram
-    participant S as Strategy (1m interval)
-    participant F as fetchNews
-    participant C as Cache.file
-    participant T as Tavily API
-
-    S->>F: Request News (Time: 10:01)
-    F->>C: Check Cache (Key: 2026-02-01)
-    C->>T: API Call (Full Day)
-    T-->>C: 20 Articles
-    C-->>F: 20 Articles
-    F->>F: Filter (Only 10:01 - 24h)
-    F-->>S: 5 Articles
-
-    S->>F: Request News (Time: 10:02)
-    F->>C: Check Cache (Key: 2026-02-01)
-    C-->>F: 20 Articles (HIT)
-    F->>F: Filter (Only 10:02 - 24h)
-    F-->>S: 5 Articles
-```
+![Mermaid Diagram](./diagrams/07-news-fetching-caching-fetchnews_1.svg)
 **Sources:** [logic/api/fetchNews.ts:91-110](), [logic/api/fetchNews.ts:152-162]()
 
 ### Configuration & Localization

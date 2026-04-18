@@ -30,28 +30,7 @@ The pipeline is initiated via the `forecast` function [logic/main/forecast.ts:5-
 The following diagram illustrates the transition from the high-level `forecast` call to the internal registration and execution of the `ForecastOutline`.
 
 **Diagram: Forecast Execution Logic**
-```mermaid
-graph TD
-    subgraph "Natural Language Space (LLM Persona)"
-        FP["FORECAST_PROMPT (Macro-Analyst)"]
-    end
-
-    subgraph "Code Entity Space (logic/)"
-        F["forecast() function [logic/main/forecast.ts]"]
-        AO["addOutline registration [logic/core/outline/forecast.outline.ts]"]
-        CGN["commitGlobalNews [logic/core/outline/forecast.outline.ts]"]
-        TNA["TavilyNewsAdvisor [AdvisorName.TavilyNewsAdvisor]"]
-        FRC["ForecastResponseContract [logic/contract/ForecastResponse.contract.ts]"]
-    end
-
-    F -->|calls json| AO
-    AO -->|executes getOutlineHistory| CGN
-    CGN -->|ask| TNA
-    TNA -->|returns news| CGN
-    CGN -->|push to history| AO
-    AO -->|applies| FP
-    AO -->|validates against| FRC
-```
+![Mermaid Diagram](./diagrams/05-forecast-pipeline-outline_0.svg)
 **Sources:** [logic/main/forecast.ts:5-11](), [logic/core/outline/forecast.outline.ts:50-115](), [logic/contract/ForecastResponse.contract.ts:1-5]()
 
 ---
@@ -106,15 +85,7 @@ After the LLM generates a response, it passes through a `validations` array [log
 Once a forecast is validated, it is automatically persisted for debugging and backtesting purposes.
 
 **Diagram: Forecast Data Flow**
-```mermaid
-flowchart LR
-    A["forecast.ts"] --> B["OllamaOutlineToolCompletion"]
-    B --> C{"Validation Engine"}
-    C -- "Invalid" --> D["Retry/Error"]
-    C -- "Valid" --> E["onValidDocument Callback"]
-    E --> F["dumpOutlineResult()"]
-    F --> G["./dump/outline/forecast/"]
-```
+![Mermaid Diagram](./diagrams/05-forecast-pipeline-outline_1.svg)
 
 The `onValidDocument` callback [logic/core/outline/forecast.outline.ts:153-159]() uses `dumpOutlineResult` to save the successful forecast to the local file system at `./dump/outline/forecast`. This allows developers to inspect the LLM's reasoning for specific trades after the fact.
 

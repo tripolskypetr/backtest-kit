@@ -71,33 +71,7 @@ The following diagram illustrates how the strategy logic interacts with the `bac
 
 ### Logic to Entity Mapping
 Title: Strategy Logic to Code Entity Mapping
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["New Sentiment Signal"]
-        B["Price Retracement"]
-        C["Sentiment Reversal"]
-    end
-
-    subgraph "Code Entity Space (backtest-kit)"
-        A -->|Triggers| D["getSignal()"]
-        D -->|Returns| E["Position.moonbag"]
-        
-        B -->|Monitored by| F["listenActivePing()"]
-        F -->|Checks| G["getPositionHighestProfitDistancePnlPercentage"]
-        G -->|If > TRAILING_TAKE| H["commitClosePending()"]
-        
-        C -->|Monitored by| F
-        F -->|Resolves| I["forecastSource"]
-        I -->|If mismatch| H
-    end
-
-    subgraph "State Machine"
-        E -->|Transition| J["opened"]
-        J -->|Transition| K["active"]
-        H -->|Transition| L["closed"]
-    end
-```
+![Mermaid Diagram](./diagrams/11-position-lifecycle-exit-logic_0.svg)
 **Sources:**
 * [content/feb_2026.strategy/feb_2026.strategy.ts:52-157]()
 * [docs/03-understanding-signals.md:22-30]()
@@ -115,33 +89,7 @@ The lifecycle follows a strict state machine managed by the framework.
 
 ### Exit Execution Flow
 Title: Position Exit Execution Flow
-```mermaid
-sequenceDiagram
-    participant P as Price Tick
-    participant S as Strategy (listenActivePing)
-    participant F as Forecast Engine
-    participant BK as backtest-kit Core
-
-    P->>S: tick(symbol, currentPrice)
-    
-    rect rgb(240, 240, 240)
-    Note over S: Check Trailing Take
-    S->>BK: getPositionHighestProfitDistancePnlPercentage()
-    BK-->>S: peakDistance
-    alt peakDistance > 2.5%
-        S->>BK: commitClosePending(symbol, "trailing take")
-    end
-    end
-
-    rect rgb(240, 240, 240)
-    Note over S: Check Sentiment Flip
-    S->>F: resolve(forecastSource)
-    F-->>S: newSentiment
-    alt newSentiment != currentPosition
-        S->>BK: commitClosePending(symbol, "sentiment change")
-    end
-    end
-```
+![Mermaid Diagram](./diagrams/11-position-lifecycle-exit-logic_1.svg)
 **Sources:**
 * [content/feb_2026.strategy/feb_2026.strategy.ts:107-157]()
 * [docs/03-understanding-signals.md:120-153]()

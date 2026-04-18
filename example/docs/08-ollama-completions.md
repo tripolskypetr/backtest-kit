@@ -62,32 +62,7 @@ This implementation uses Ollama's native structured output capability. It is reg
 The following diagram illustrates how `fetchCompletion` handles the request lifecycle for both implementations.
 
 **Completion Request Lifecycle**
-```mermaid
-graph TD
-    subgraph "Natural Language Space"
-        A["User/System Messages"]
-        B["Prompt Flags: 'Reasoning: high'"]
-    end
-
-    subgraph "Code Entity Space"
-        C["fetchCompletion (retry wrapper)"]
-        D["ollama.chat()"]
-        E["Promise.race (Timeout Logic)"]
-        F["jsonrepair()"]
-        G["validateToolArguments()"]
-        H["IOutlineMessage"]
-    end
-
-    A --> C
-    B --> C
-    C --> E
-    E --> D
-    D --> F
-    F --> G
-    G -- "Success" --> H
-    G -- "Failure" --> C
-    E -- "Timeout" --> C
-```
+![Mermaid Diagram](./diagrams/08-ollama-completions_0.svg)
 Sources: [logic/core/completion/ollama_outline_format.completion.ts:22-88](), [logic/core/completion/ollama_outline_tool.completion.ts:21-135]()
 
 ---
@@ -104,23 +79,7 @@ To prevent the trading pipeline from hanging indefinitely, a `Promise.race` is u
 The following diagram maps the transformation of data from the initial call to the final structured message.
 
 **Data Transformation Pipeline**
-```mermaid
-sequenceDiagram
-    participant ASK as agent-swarm-kit
-    participant C as Completion Class
-    participant O as getOllama()
-    participant JR as jsonrepair
-    participant V as validateToolArguments
-
-    ASK->>C: getCompletion(params)
-    C->>O: ollama.chat(messages, format/tools)
-    O-->>C: response.message.content / tool_calls
-    C->>JR: repair(raw_string)
-    JR-->>C: repaired_json
-    C->>V: validate(repaired_json, schema)
-    V-->>C: validation_result
-    C-->>ASK: IOutlineMessage { role: 'assistant', content: json }
-```
+![Mermaid Diagram](./diagrams/08-ollama-completions_1.svg)
 Sources: [logic/core/completion/ollama_outline_format.completion.ts:90-97](), [logic/core/completion/ollama_outline_tool.completion.ts:137-144](), [logic/config/ollama.ts:4-12]()
 
 ### Shared Configuration Table

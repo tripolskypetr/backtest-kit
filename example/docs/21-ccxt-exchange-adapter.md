@@ -59,38 +59,7 @@ To ensure orders are accepted by the exchange, the adapter provides `formatPrice
 This diagram maps the natural language requirements of exchange interaction to the specific code entities and CCXT methods used in the implementation.
 
 **Exchange Data Flow**
-```mermaid
-graph TD
-    subgraph "backtest-kit Interface"
-        A["addExchangeSchema"]
-    end
-
-    subgraph "CCXT Adapter (ccxt-exchange)"
-        B["getCandles()"]
-        C["getOrderBook()"]
-        D["formatPrice()"]
-        E["formatQuantity()"]
-    end
-
-    subgraph "CCXT Library / Binance"
-        F["fetchOHLCV()"]
-        G["fetchOrderBook()"]
-        H["market() metadata"]
-        I["roundTicks()"]
-    end
-
-    A --> B
-    A --> C
-    A --> D
-    A --> E
-
-    B -- "maps to" --> F
-    C -- "calls" --> G
-    D -- "uses" --> H
-    D -- "calculates via" --> I
-    E -- "uses" --> H
-    E -- "calculates via" --> I
-```
+![Mermaid Diagram](./diagrams/21-ccxt-exchange-adapter_0.svg)
 **Sources:** [modules/walker.module.ts:18-75](), [scripts/run_forecast.ts:24-61]()
 
 ### Usage in Forecast Testing
@@ -98,29 +67,7 @@ graph TD
 The `run_forecast.ts` script utilizes the `ccxt-exchange` schema within a `runInMockContext` wrapper. This allows developers to test the LLM's forecasting logic against real-world historical data by mocking the execution environment (symbol and timestamp) while providing the actual exchange adapter for data resolution.
 
 **Forecast Mock Context Flow**
-```mermaid
-graph LR
-    subgraph "Test Execution"
-        A["runInMockContext"]
-    end
-
-    subgraph "Context Parameters"
-        B["symbol: 'BTCUSDT'"]
-        C["when: BUY_DATE"]
-        D["exchangeName: 'ccxt-exchange'"]
-    end
-
-    subgraph "Logic Execution"
-        E["forecast()"]
-        F["ccxt-exchange.getCandles()"]
-    end
-
-    A --> B
-    A --> C
-    A --> D
-    A --> E
-    E -- "resolves data via" --> F
-```
+![Mermaid Diagram](./diagrams/21-ccxt-exchange-adapter_1.svg)
 **Sources:** [scripts/run_forecast.ts:63-75]()
 
 ### Implementation Summary Table

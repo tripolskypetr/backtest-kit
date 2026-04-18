@@ -64,23 +64,7 @@ The `addExchangeSchema` function registers four primary methods:
 The following diagram illustrates how the `backtest-kit` framework consumes the registered `ccxt-exchange` schema during a simulation.
 
 **Diagram: Exchange Schema Execution Flow**
-```mermaid
-graph TD
-    subgraph "backtest-kit Framework"
-        A["Backtest.run()"] --> B["getCandles() Request"]
-        C["Signal Generation"] --> D["formatPrice() / formatQuantity()"]
-    end
-
-    subgraph "backtest.module.ts"
-        B --> E["ccxt-exchange Schema"]
-        D --> E
-        E --> F["getExchange() Singleton"]
-        F --> G["ccxt.binance Instance"]
-    end
-
-    G --> H["Binance API (fetchOHLCV)"]
-    H --> B
-```
+![Mermaid Diagram](./diagrams/12-backtest-module-frame-configuration_0.svg)
 **Sources:**
 - [content/feb_2026.strategy/modules/backtest.module.ts:22-40]()
 - [content/feb_2026.strategy/modules/backtest.module.ts:61-78]()
@@ -125,30 +109,7 @@ By setting `CC_MAX_STOPLOSS_DISTANCE_PERCENT` to `100`, the strategy disables th
 The following diagram maps the natural language requirements of a backtest to the specific code entities defined in the module.
 
 **Diagram: Backtest Configuration Mapping**
-```mermaid
-graph LR
-    subgraph "Natural Language Requirement"
-        R1["'I want to trade on Binance'"]
-        R2["'I want to test February 2026'"]
-        R3["'I need 1-minute precision'"]
-        R4["'Allow any stop-loss distance'"]
-    end
-
-    subgraph "Code Entity Space"
-        E1["singleshot(ccxt.binance)"]
-        E2["addFrameSchema(feb_2026_frame)"]
-        E3["interval: '1m'"]
-        E4["setConfig(CC_MAX_STOPLOSS_DISTANCE_PERCENT)"]
-    end
-
-    R1 -.-> E1
-    R2 -.-> E2
-    R3 -.-> E3
-    R4 -.-> E4
-
-    E1 ---|"registered in"| S1["addExchangeSchema"]
-    E2 ---|"defines"| S2["startDate / endDate"]
-```
+![Mermaid Diagram](./diagrams/12-backtest-module-frame-configuration_1.svg)
 
 **Sources:**
 - [content/feb_2026.strategy/modules/backtest.module.ts:9-17]()
