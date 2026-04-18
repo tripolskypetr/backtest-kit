@@ -28,7 +28,7 @@ export const main = async () => {
 
   try {
     await open(`http://localhost:${CC_WWWROOT_PORT}?pine=1`);
-  } catch {
+  } finally {
     console.log(`Editor launched: http://localhost:${CC_WWWROOT_PORT}?pine=1`)
   }
 
