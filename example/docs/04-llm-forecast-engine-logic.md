@@ -42,7 +42,7 @@ The engine is organized into four primary functional areas, each handled by spec
 #### 1. Forecast Pipeline & Outline
 The pipeline is governed by the `ForecastOutline`. This component defines the "Persona" (a Russian macro-analyst), the input requirements, and the strict `ForecastResponseContract` that the LLM must adhere to. It ensures that the output includes a sentiment (bullish/bearish/neutral), a confidence score, and detailed reasoning.
 
-For details, see [Forecast Pipeline & Outline](#2.1).
+For details, see [Forecast Pipeline & Outline](./05-forecast-pipeline-outline.md).
 
 #### 2. Advisors: News & Market Data
 Advisors are the "eyes" of the LLM. The system registers three distinct advisors via `agent-swarm-kit` to provide multi-modal context:
@@ -50,12 +50,12 @@ Advisors are the "eyes" of the LLM. The system registers three distinct advisors
 *   **StockData1mAdvisor**: Provides 240 minutes of high-resolution 1-minute candles.
 *   **StockData15mAdvisor**: Provides a broader view with 32 15-minute candles.
 
-For details, see [Advisors: News & Market Data](#2.2).
+For details, see [Advisors: News & Market Data](./06-advisors-news-market-data.md).
 
 #### 3. News Fetching & Caching
 The `fetchNews` utility is the backbone of the news advisor. It manages the integration with the Tavily API, applies domain blacklists/whitelists, and enforces a 24-hour `NEWS_WINDOW`. Crucially, it includes a file-based caching mechanism to ensure backtests are deterministic and free from look-ahead bias.
 
-For details, see [News Fetching & Caching (fetchNews)](#2.3).
+For details, see [News Fetching & Caching (fetchNews)](./07-news-fetching-caching-fetchnews.md).
 
 #### 4. Ollama Completions
 The engine supports two methods of interacting with the Ollama inference server:
@@ -63,7 +63,7 @@ The engine supports two methods of interacting with the Ollama inference server:
 *   **Format-based**: Using `OllamaOutlineFormatCompletion` for structured JSON output.
 These implementations handle the low-level communication, retries, and JSON repair logic required to maintain system stability.
 
-For details, see [Ollama Completions](#2.4).
+For details, see [Ollama Completions](./08-ollama-completions.md).
 
 ---
 

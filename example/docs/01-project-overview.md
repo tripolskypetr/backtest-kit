@@ -51,17 +51,17 @@ The system is organized into three primary layers:
 ### 1. LLM Forecast Engine (`logic/`)
 This module handles the intelligence of the system. It uses `agent-swarm-kit` to manage specialized advisors that provide the LLM with context. The engine produces a forecast containing a sentiment (bullish, bearish, or neutral), a confidence score, and a detailed reasoning string.
 *   **Key Entities**: `TavilyNewsAdvisor`, `OllamaOutlineToolCompletion`, `ForecastResponseContract`.
-*   **For details, see [LLM Forecast Engine (logic/)](#2)**.
+*   **For details, see [LLM Forecast Engine (logic/)](./04-llm-forecast-engine-logic.md)**.
 
 ### 2. Trading Strategy (`content/`)
 Strategies define how forecast data is translated into market positions. For example, the `feb_2026_strategy` maps LLM sentiment labels to LONG/SHORT signals and manages the position lifecycle using trailing take-profits and hard stop-losses.
 *   **Key Entities**: `POSITION_LABEL_MAP`, `TRAILING_TAKE`, `HARD_STOP`.
-*   **For details, see [Trading Strategy: feb_2026_strategy](#3)**.
+*   **For details, see [Trading Strategy: feb_2026_strategy](./09-trading-strategy-feb-2026-strategy.md)**.
 
 ### 3. Execution Framework (`backtest-kit`)
 The underlying engine that manages the signal state machine, backtesting logic, and exchange connectivity. It ensures that trades are executed according to the strategy's rules while preventing look-ahead bias during simulations.
 *   **Key Entities**: `Backtest.run()`, `Live.background()`, `ccxt-exchange`.
-*   **For details, see [backtest-kit Framework](#4)**.
+*   **For details, see [backtest-kit Framework](./14-backtest-kit-framework.md)**.
 
 ---
 
@@ -91,7 +91,7 @@ To get the system running, you must configure environment variables for the AI s
     ```
     [ README.md:88-94 ]()
 
-**For a detailed step-by-step guide, see [Getting Started & Configuration](#1.1).**
+**For a detailed step-by-step guide, see [Getting Started & Configuration](./02-getting-started-configuration.md).**
 
 ---
 
@@ -103,4 +103,4 @@ The system follows a modular architecture where the forecasting logic is decoupl
 *   **Signal State Machine**: Signals transition through states (idle -> scheduled -> active -> closed) managed by the `backtest-kit` core.
 *   **Persistence**: Live trading state is persisted to `data/signals/` to allow for crash recovery.
 
-**For a deep dive into the internal mechanics, see [System Architecture Overview](#1.2).**
+**For a deep dive into the internal mechanics, see [System Architecture Overview](./03-system-architecture-overview.md).**

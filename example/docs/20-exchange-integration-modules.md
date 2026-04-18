@@ -43,7 +43,7 @@ Key capabilities provided by this adapter include:
 *   **Order Book Retrieval**: Fetching depth data for live trading, with a safety guard that prevents usage during backtests [modules/walker.module.ts:37-56]().
 *   **Precision Management**: Using `tickSize` and `stepSize` from market metadata to format prices and quantities correctly via `roundTicks` [modules/walker.module.ts:57-74]().
 
-For details, see [CCXT Exchange Adapter](#5.1).
+For details, see [CCXT Exchange Adapter](./21-ccxt-exchange-adapter.md).
 
 **Sources:** [modules/walker.module.ts:5-16](), [modules/walker.module.ts:19-75]()
 
@@ -67,7 +67,7 @@ While the exchange adapter handles *how* to talk to the market, the symbol confi
 
 The configuration categorizes symbols into priority tiers (e.g., Premium 50 vs. Low 300) which influences how often or how deeply the AI analyzes specific assets.
 
-For details, see [Symbol Configuration](#5.2).
+For details, see [Symbol Configuration](./22-symbol-configuration.md).
 
 ---
 
