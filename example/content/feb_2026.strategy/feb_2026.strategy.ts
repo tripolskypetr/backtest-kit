@@ -8,12 +8,16 @@ import {
   commitClosePending,
   getPositionHighestProfitDistancePnlCost,
   getPositionHighestMaxDrawdownPnlCost,
+  getPositionHighestProfitDistancePnlPercentage,
+  getPositionPnlPercent,
+  Interval,
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
 import { forecast, reaction } from "logic";
 
-const NEVER_DRAWDOWN_PERCENT = 5;
+const TRAILING_TAKE = 2.5;
+const HARD_STOP = 3.0;
 
 const POSITION_LABEL_MAP = {
   "bullish": "long",
@@ -22,27 +26,7 @@ const POSITION_LABEL_MAP = {
   "sideways": "wait",
 } as const;
 
-const forecastSource = sourceNode(
-  Cache.file(
-    async (symbol: string, when: Date, currentPrice: number) => {
-      const result = await forecast(symbol, when);
-      console.log(result, when);
-      return { ...result, currentPrice };
-    },
-    { interval: "1d", name: "forecast_source" },
-  ),
-);
-
-const positionOutput = outputNode(
-  async ([forecast]) => {
-    return POSITION_LABEL_MAP[forecast.sentiment];
-  },
-  forecastSource,
-);
-
-addStrategySchema({
-  strategyName: "feb_2026_strategy",
-  getSignal: async (symbol, when, currentPrice) => {
+const getSignal = Interval.fn(async (symbol, when, currentPrice) => {
 
     const forecast = await resolve(forecastSource);
     const position = await resolve(positionOutput);
@@ -74,8 +58,7 @@ addStrategySchema({
       "",
       "# Ссылки",
       "",
-      ` - [Показать новость](/pick-dump-search/${forecast.id})`,
-      ` - [Показать реакцию рынка](/pick-dump-search/${forecast.id})`,
+      ` - [Показать новости](/pick-dump-search/${forecast.id})`,
       "",
     );
 
@@ -84,12 +67,36 @@ addStrategySchema({
       ...Position.moonbag({
         position,
         currentPrice,
-        percentStopLoss: NEVER_DRAWDOWN_PERCENT,
+        percentStopLoss: HARD_STOP,
       }),
       minuteEstimatedTime: Infinity,
       note,
     };
+}, {
+  interval: "1d",
+});
+
+const forecastSource = sourceNode(
+  Cache.file(
+    async (symbol: string, when: Date, currentPrice: number) => {
+      const result = await forecast(symbol, when);
+      console.log(result, when);
+      return { ...result, currentPrice };
+    },
+    { interval: "1d", name: "forecast_source" },
+  ),
+);
+
+const positionOutput = outputNode(
+  async ([forecast]) => {
+    return POSITION_LABEL_MAP[forecast.sentiment];
   },
+  forecastSource,
+);
+
+addStrategySchema({
+  strategyName: "feb_2026_strategy",
+  getSignal,
 });
 
 listenActivePing(async ({ symbol, data }) => {
@@ -97,6 +104,10 @@ listenActivePing(async ({ symbol, data }) => {
   const position = await resolve(positionOutput);
 
   if (position === data.position) {
+    return;
+  }
+
+  if (forecast.confidence === "not_reliable") {
     return;
   }
 
@@ -113,20 +124,30 @@ listenActivePing(async ({ symbol, data }) => {
       "",
     ),
   });
-  Log.info("position closed", {
+  Log.info("position closed due to the sentiment change", {
     symbol,
     data,
   });
 });
 
 listenActivePing(async ({ symbol, data }) => {
-  const peakProfitDistance = await getPositionHighestProfitDistancePnlCost(symbol);
-  const peakMaxDrawdown = await getPositionHighestMaxDrawdownPnlCost(symbol);
-  Log.info("position active", {
+  const peakProfitDistance = await getPositionHighestProfitDistancePnlPercentage(symbol);
+  const currentProfit = await getPositionPnlPercent(symbol);
+  if (currentProfit < 0) {
+    return;
+  }
+  if (peakProfitDistance < TRAILING_TAKE) {
+    return;
+  }
+  Log.info("position closed due to the trailing take", {
     symbol,
     data,
-    peakProfitDistance,
-    peakMaxDrawdown,
+  });
+  await commitClosePending(symbol, {
+    id: "unknown",
+    note: str.newline(
+      "# Позиция закрыта по trailing take",
+    ),
   });
 });
 
