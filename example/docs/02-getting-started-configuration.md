@@ -13,10 +13,10 @@ The system relies on a modern JavaScript runtime and specific AI/search provider
 
 | Requirement | Version | Purpose |
 |------------|---------|----------|
-| **Node.js** | ≥15.0.0 | Core runtime for `backtest-kit` and `ccxt` [[docs/01-getting-started.md:27-27]](). |
-| **TypeScript** | ^5.0.0 | Static typing and compilation [[docs/01-getting-started.md:28-28]](). |
-| **Ollama** | ≥0.6.3 | Local LLM server for sentiment inference [[docs/01-getting-started.md:35-35]](). |
-| **Tavily API** | - | Web search for real-time news retrieval [[package.json:19-19]](). |
+| **Node.js** | ≥15.0.0 | Core runtime for `backtest-kit` and `ccxt`. |
+| **TypeScript** | ^5.0.0 | Static typing and compilation. |
+| **Ollama** | ≥0.6.3 | Local LLM server for sentiment inference. |
+| **Tavily API** | - | Web search for real-time news retrieval. |
 
 
 ---
@@ -32,7 +32,7 @@ cd news-sentiment-ai-trader
 npm install
 ```
 
-The core logic depends on several specialized packages defined in the manifest [[package.json:13-30]]():
+The core logic depends on several specialized packages defined in the manifest:
 - `@backtest-kit/cli`: Provides the command-line interface.
 - `agent-swarm-kit`: Manages the multi-agent LLM forecasting logic.
 - `ollama`: Interface for the local LLM.
@@ -45,12 +45,12 @@ The system requires two primary API tokens to function. Copy the example environ
 cp .env.example .env
 ```
 
-**Required Variables [[.env.example:1-2]]():**
+**Required Variables:**
 - `OLLAMA_TOKEN`: Token for authenticating with your Ollama instance (if required by your setup).
 - `TAVILY_TOKEN`: API key from [Tavily](https://tavily.com/) for news search capabilities.
 
 ### 3. TypeScript Configuration
-The project is configured to use `ESNext` modules with path mapping for the `logic/` and `utils/` directories to simplify imports [[tsconfig.json:13-29]]().
+The project is configured to use `ESNext` modules with path mapping for the `logic/` and `utils/` directories to simplify imports.
 
 
 ---
@@ -70,7 +70,7 @@ The following diagram illustrates the transition from environment configuration 
 ## Running the System
 
 ### CLI Execution
-The system is started via the `@backtest-kit/cli` package, which is mapped to the `start` script in `package.json` [[package.json:7-7]]().
+The system is started via the `@backtest-kit/cli` package, which is mapped to the `start` script in `package.json`.
 
 ```bash
 npm start
@@ -79,9 +79,9 @@ npm start
 ### Framework Initialization Sequence
 When the system starts, it performs several critical steps via the `backtest-kit` framework:
 
-1.  **Logger Setup**: The framework requires a logger implementation to be set via `setLogger` to output operational data [[docs/01-getting-started.md:139-147]]().
-2.  **Global Configuration**: Parameters such as `CC_PERCENT_FEE` and `CC_SCHEDULE_AWAIT_MINUTES` are applied to the `GLOBAL_CONFIG` [[docs/01-getting-started.md:158-173]]().
-3.  **Dependency Injection**: Over 75 services are wired together using `di-kit` and `di-scoped`, managing the lifecycle of news fetchers, LLM clients, and backtesting engines [[docs/01-getting-started.md:198-202]]().
+1.  **Logger Setup**: The framework requires a logger implementation to be set via `setLogger` to output operational data.
+2.  **Global Configuration**: Parameters such as `CC_PERCENT_FEE` and `CC_SCHEDULE_AWAIT_MINUTES` are applied to the `GLOBAL_CONFIG`.
+3.  **Dependency Injection**: Over 75 services are wired together using `di-kit` and `di-scoped`, managing the lifecycle of news fetchers, LLM clients, and backtesting engines.
 
 ### Component Interaction Diagram
 "This diagram maps the system's runtime components to their respective code modules during a typical execution cycle."
@@ -110,4 +110,4 @@ const config = getDefaultConfig();
 console.log('Parameters loaded:', Object.keys(config).length);
 ```
 
-**Expected Result:** The console should indicate that 14 default parameters have been loaded [[docs/01-getting-started.md:223-243]]().
+**Expected Result:** The console should indicate that 14 default parameters have been loaded.
