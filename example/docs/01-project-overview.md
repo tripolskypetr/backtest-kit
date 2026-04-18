@@ -29,7 +29,6 @@ The following diagram illustrates how news data is transformed into a financial 
 
 **Data Flow: News to Trade**
 ![Mermaid Diagram](./diagrams/01-project-overview_0.svg)
-**Sources:** `logic/index.ts`, `content/feb_2026.strategy/feb_2026.strategy.ts`, `package.json` [13-31]()
 
 ---
 
@@ -60,7 +59,6 @@ This diagram maps the conceptual components to the specific code implementations
 
 **System Entity Map**
 ![Mermaid Diagram](./diagrams/01-project-overview_1.svg)
-**Sources:** `tsconfig.json` [24-35](), `package.json` [14-21](), `README.md` [1-5]()
 
 ---
 
@@ -69,7 +67,7 @@ This diagram maps the conceptual components to the specific code implementations
 To get the system running, you must configure environment variables for the AI services and use the `@backtest-kit/cli`.
 
 1.  **Installation**: Clone the repository and install dependencies via `npm install`.
-2.  **Configuration**: Rename `.env.example` to `.env` and provide your `OLLAMA_TOKEN` and `TAVILY_TOKEN` [ .env.example:1-3 ]().
+2.  **Configuration**: Rename `.env.example` to `.env` and provide your `OLLAMA_TOKEN` and `TAVILY_TOKEN`.
 3.  **Execution**: Run a backtest using the following command:
     ```bash
     npm start -- --backtest --symbol BTCUSDT \
@@ -78,7 +76,6 @@ To get the system running, you must configure environment variables for the AI s
       --frame feb_2026_frame \
       ./content/feb_2026.strategy/feb_2026.strategy.ts
     ```
-    [ README.md:88-94 ]()
 
 **For a detailed step-by-step guide, see [Getting Started & Configuration](./02-getting-started-configuration.md).**
 

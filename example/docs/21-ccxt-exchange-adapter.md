@@ -13,32 +13,30 @@ To prevent redundant network connections and repeated market loading, the adapte
 
 | Feature | Configuration | File Reference |
 | :--- | :--- | :--- |
-| **Exchange** | `ccxt.binance` | [modules/walker.module.ts:6-6]() |
-| **Market Type** | `spot` | [modules/walker.module.ts:8-8]() |
-| **Time Sync** | `adjustForTimeDifference: true` | [modules/walker.module.ts:9-9]() |
-| **Rate Limiting** | `enableRateLimit: true` | [modules/walker.module.ts:12-12]() |
+| **Exchange** | `ccxt.binance` | |
+| **Market Type** | `spot` | |
+| **Time Sync** | `adjustForTimeDifference: true` | |
+| **Rate Limiting** | `enableRateLimit: true` | |
 
-The `getExchange` function ensures that `exchange.loadMarkets()` is called exactly once before any trading or data fetching operations occur [modules/walker.module.ts:5-16]().
+The `getExchange` function ensures that `exchange.loadMarkets()` is called exactly once before any trading or data fetching operations occur.
 
-**Sources:** [modules/walker.module.ts:5-16](), [modules/dump.module.ts:5-16](), [scripts/run_forecast.ts:9-20]()
 
 ### Exchange Schema Implementation
 
 The adapter is registered using `addExchangeSchema`, defining how the system interacts with the physical exchange.
 
 #### OHLCV Data Mapping
-The `getCandles` function maps CCXT's `fetchOHLCV` output (an array of arrays) into the structured object format required by the `backtest-kit` engine [modules/dump.module.ts:20-36]().
+The `getCandles` function maps CCXT's `fetchOHLCV` output (an array of arrays) into the structured object format required by the `backtest-kit` engine.
 
 #### Order Book with Backtest Guard
-The `getOrderBook` implementation includes a safety check to prevent execution during backtests, as historical order book data is not supported in the default schema [modules/walker.module.ts:37-42](). In live contexts, it fetches and formats asks and bids as string-based price/quantity pairs [modules/walker.module.ts:44-55]().
+The `getOrderBook` implementation includes a safety check to prevent execution during backtests, as historical order book data is not supported in the default schema. In live contexts, it fetches and formats asks and bids as string-based price/quantity pairs.
 
 #### Precision and Tick Formatting
-To ensure orders are accepted by the exchange, the adapter provides `formatPrice` and `formatQuantity`. These functions retrieve `tickSize` and `stepSize` from the market metadata [modules/walker.module.ts:57-74]().
+To ensure orders are accepted by the exchange, the adapter provides `formatPrice` and `formatQuantity`. These functions retrieve `tickSize` and `stepSize` from the market metadata.
 - **Priority 1:** Uses `market.limits` or `market.precision` to find the minimum increment.
-- **Priority 2:** Applies `roundTicks` to align the value with the exchange's required increments [modules/walker.module.ts:62-71]().
-- **Fallback:** Uses CCXT's built-in `priceToPrecision` or `amountToPrecision` methods [modules/walker.module.ts:64-73]().
+- **Priority 2:** Applies `roundTicks` to align the value with the exchange's required increments.
+- **Fallback:** Uses CCXT's built-in `priceToPrecision` or `amountToPrecision` methods.
 
-**Sources:** [modules/walker.module.ts:18-75](), [modules/dump.module.ts:18-37](), [scripts/run_forecast.ts:24-61]()
 
 ### Code Entity Mapping: Exchange Integration
 
@@ -46,7 +44,6 @@ This diagram maps the natural language requirements of exchange interaction to t
 
 **Exchange Data Flow**
 ![Mermaid Diagram](./diagrams/21-ccxt-exchange-adapter_0.svg)
-**Sources:** [modules/walker.module.ts:18-75](), [scripts/run_forecast.ts:24-61]()
 
 ### Usage in Forecast Testing
 
@@ -54,7 +51,6 @@ The `run_forecast.ts` script utilizes the `ccxt-exchange` schema within a `runIn
 
 **Forecast Mock Context Flow**
 ![Mermaid Diagram](./diagrams/21-ccxt-exchange-adapter_1.svg)
-**Sources:** [scripts/run_forecast.ts:63-75]()
 
 ### Implementation Summary Table
 
@@ -64,5 +60,3 @@ The `run_forecast.ts` script utilizes the `ccxt-exchange` schema within a `runIn
 | `walker.module.ts` | Strategy Optimization | `getCandles`, `getOrderBook`, `formatPrice`, `formatQuantity` |
 | `pine.module.ts` | Signal Generation | `getCandles` |
 | `run_forecast.ts` | Logic Validation | `getCandles`, `formatPrice`, `formatQuantity` |
-
-**Sources:** [modules/dump.module.ts:1-37](), [modules/pine.module.ts:1-37](), [modules/walker.module.ts:1-75](), [scripts/run_forecast.ts:1-61]()

@@ -18,10 +18,9 @@ The module utilizes the `backtest-kit` registry pattern to define how the system
 | **Exchange Instance** | `getExchange` | A `singleshot` Binance singleton using CCXT. |
 | **Global Override** | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | Disables framework-level stop-loss distance constraints. |
 
-**Sources:**
-- [content/feb_2026.strategy/modules/backtest.module.ts:5-7]()
-- [content/feb_2026.strategy/modules/backtest.module.ts:22-23]()
-- [content/feb_2026.strategy/modules/backtest.module.ts:81-82]()
+-
+-
+-
 
 ---
 
@@ -32,8 +31,7 @@ The system uses the `ccxt-exchange` schema to wrap the CCXT library. This allows
 #### The Binance Singleton
 To prevent redundant connections and market loading, the module implements a `singleshot` (memoized) exchange getter. It configures the Binance spot market with `enableRateLimit` and time difference adjustments.
 
-**Sources:**
-- [content/feb_2026.strategy/modules/backtest.module.ts:9-20]()
+-
 
 #### Schema Implementation
 The `addExchangeSchema` function registers four primary methods:
@@ -43,18 +41,16 @@ The `addExchangeSchema` function registers four primary methods:
 3.  **`formatPrice`**: Ensures prices adhere to exchange-specific tick sizes. It prefers `market.limits.price.min` or `market.precision.price` and utilizes `roundTicks` for precision.
 4.  **`formatQuantity`**: Similar to price formatting, it ensures order amounts respect the `stepSize` of the specific trading pair.
 
-**Sources:**
-- [content/feb_2026.strategy/modules/backtest.module.ts:22-79]()
+-
 
 #### Data Flow: Exchange Schema to Framework
 The following diagram illustrates how the `backtest-kit` framework consumes the registered `ccxt-exchange` schema during a simulation.
 
 **Diagram: Exchange Schema Execution Flow**
 ![Mermaid Diagram](./diagrams/12-backtest-module-frame-configuration_0.svg)
-**Sources:**
-- [content/feb_2026.strategy/modules/backtest.module.ts:22-40]()
-- [content/feb_2026.strategy/modules/backtest.module.ts:61-78]()
-- [docs/02-first-backtest.md:18-31]()
+-
+-
+-
 
 ---
 
@@ -68,8 +64,7 @@ The `feb_2026_frame` defines the boundaries of the backtest. This configuration 
 
 This frame ensures that the strategy is tested against the specific volatile period of February 2026, which includes the macro-events the LLM is trained to analyze.
 
-**Sources:**
-- [content/feb_2026.strategy/modules/backtest.module.ts:81-87]()
+-
 
 ---
 
@@ -85,8 +80,7 @@ setConfig({
 
 By setting `CC_MAX_STOPLOSS_DISTANCE_PERCENT` to `100`, the strategy disables the default safety checks that would otherwise reject signals with very wide stop-losses. This is necessary for the `feb_2026_strategy` which may utilize wide stops or rely on logic-based exits (like sentiment flips) rather than tight technical stops.
 
-**Sources:**
-- [content/feb_2026.strategy/modules/backtest.module.ts:5-7]()
+-
 
 ---
 
@@ -97,8 +91,7 @@ The following diagram maps the natural language requirements of a backtest to th
 **Diagram: Backtest Configuration Mapping**
 ![Mermaid Diagram](./diagrams/12-backtest-module-frame-configuration_1.svg)
 
-**Sources:**
-- [content/feb_2026.strategy/modules/backtest.module.ts:9-17]()
-- [content/feb_2026.strategy/modules/backtest.module.ts:22-23]()
-- [content/feb_2026.strategy/modules/backtest.module.ts:81-87]()
-- [content/feb_2026.strategy/modules/backtest.module.ts:5-7]()
+-
+-
+-
+-

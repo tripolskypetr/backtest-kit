@@ -27,10 +27,9 @@ The core of the configuration is the `symbol_list` array. Each object in this ar
 | `description` | `string` | Multi-line text describing the asset, formatted via `str.newline`. |
 
 ### Description Formatting
-Descriptions are constructed using the `str.newline` utility from `functools-kit` [config/symbol.config.cjs:1](). This function accepts multiple string arguments and joins them with newline characters, allowing for clean, readable code while maintaining structured output for the UI [config/symbol.config.cjs:12-17]().
+Descriptions are constructed using the `str.newline` utility from `functools-kit`. This function accepts multiple string arguments and joins them with newline characters, allowing for clean, readable code while maintaining structured output for the UI.
 
-**Sources:**
-- [config/symbol.config.cjs:1-17]()
+-
 
 ---
 
@@ -40,9 +39,9 @@ The system categorizes symbols into four distinct priority tiers based on the `p
 
 | Tier | Priority Value | Typical Assets |
 | :--- | :--- | :--- |
-| **Premium** | `50` | BTC, ETH, UNI [config/symbol.config.cjs:5-46]() |
-| **High** | `100` | SOL, BNB, LTC, BCH, NEO, FIL, XMR [config/symbol.config.cjs:48-145]() |
-| **Medium** | `150` | XRP, AVAX, LINK, DOT, MATIC, AAVE [config/symbol.config.cjs:147-224]() |
+| **Premium** | `50` | BTC, ETH, UNI |
+| **High** | `100` | SOL, BNB, LTC, BCH, NEO, FIL, XMR |
+| **Medium** | `150` | XRP, AVAX, LINK, DOT, MATIC, AAVE |
 | **Low** | `200-300` | Long-tail altcoins and niche tokens. |
 
 ### Configuration Data Flow
@@ -50,8 +49,7 @@ The following diagram illustrates how the `symbol_list` configuration propagates
 
 **Title: Symbol Configuration Data Flow**
 ![Mermaid Diagram](./diagrams/22-symbol-configuration_0.svg)
-**Sources:**
-- [config/symbol.config.cjs:3-153]()
+-
 
 ---
 
@@ -60,7 +58,7 @@ The following diagram illustrates how the `symbol_list` configuration propagates
 The configuration uses CommonJS modules to export the `symbol_list`.
 
 ### Mapping Symbols to UI Components
-The `color` and `logo` fields are specifically designed for the frontend to create a branded experience for each asset. For example, Bitcoin is associated with `#F7931A` [config/symbol.config.cjs:10](), while Ethereum uses `#6F42C1` [config/symbol.config.cjs:23]().
+The `color` and `logo` fields are specifically designed for the frontend to create a branded experience for each asset. For example, Bitcoin is associated with `#F7931A`, while Ethereum uses `#6F42C1`.
 
 ### Symbol Association Diagram
 This diagram bridges the natural language names of assets to their technical identifiers used in the code logic.
@@ -68,10 +66,9 @@ This diagram bridges the natural language names of assets to their technical ide
 **Title: Natural Language to Code Entity Mapping**
 ![Mermaid Diagram](./diagrams/22-symbol-configuration_1.svg)
 
-**Sources:**
-- [config/symbol.config.cjs:8-11]()
-- [config/symbol.config.cjs:22-25]()
-- [config/symbol.config.cjs:65-68]()
+-
+-
+-
 
 ---
 
@@ -102,5 +99,4 @@ To add a new trading pair to the system, follow these steps:
 }
 ```
 
-**Sources:**
-- [config/symbol.config.cjs:176-188]()
+-

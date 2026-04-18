@@ -13,8 +13,8 @@ The `backtest-kit` framework is the core execution engine of the **news-sentimen
 
 ### Core Philosophy
 - **Registry Pattern**: All components (Strategies, Exchanges, Risk Profiles) are registered via `add*` functions before execution.
-- **Context Awareness**: The framework uses `di-kit` and `di-scoped` to manage service lifetimes, ensuring that logic like `getCandles` automatically fetches the correct data depending on whether it's running in a historical backtest or a live market [docs/01-getting-started.md:196-202]().
-- **State Machine Execution**: Every trade follows a strict state transition model to prevent logical errors and ensure accurate PNL calculation [docs/02-first-backtest.md:10-14]().
+- **Context Awareness**: The framework uses `di-kit` and `di-scoped` to manage service lifetimes, ensuring that logic like `getCandles` automatically fetches the correct data depending on whether it's running in a historical backtest or a live market.
+- **State Machine Execution**: Every trade follows a strict state transition model to prevent logical errors and ensure accurate PNL calculation.
 
 ### System Architecture Overview
 
@@ -22,7 +22,6 @@ The following diagram illustrates how the framework bridges high-level strategy 
 
 **Framework Entity Mapping**
 ![Mermaid Diagram](./diagrams/14-backtest-kit-framework_0.svg)
-**Sources:** [docs/02-first-backtest.md:10-14](), [docs/01-getting-started.md:226-235]()
 
 ---
 
@@ -31,7 +30,6 @@ The backtesting engine simulates market conditions by iterating through timefram
 
 For details, see [Backtesting: Execution & Reporting](./15-backtesting-execution-reporting.md).
 
-**Sources:** [docs/02-first-backtest.md:237-248](), [docs/01-getting-started.md:14-14]()
 
 ---
 
@@ -42,7 +40,6 @@ For details, see [Signal State Machine](./16-signal-state-machine.md).
 
 **State Transition Flow**
 ![Mermaid Diagram](./diagrams/14-backtest-kit-framework_1.svg)
-**Sources:** [docs/02-first-backtest.md:83-96](), [docs/01-getting-started.md:179-186]()
 
 ---
 
@@ -51,7 +48,6 @@ In live mode, the framework switches from iterating over historical frames to a 
 
 For details, see [Live Trading Mode](./17-live-trading-mode.md).
 
-**Sources:** [docs/01-getting-started.md:15-15](), [docs/01-getting-started.md:250-260]()
 
 ---
 
@@ -60,7 +56,6 @@ The risk subsystem acts as a gatekeeper between signal generation and execution.
 
 For details, see [Risk Management](./18-risk-management.md).
 
-**Sources:** [docs/01-getting-started.md:79-79](), [docs/01-getting-started.md:257-257]()
 
 ---
 
@@ -69,7 +64,6 @@ The `Walker` and `Optimizer` modules represent the meta-layer of the framework. 
 
 For details, see [AI Strategy Optimization & Walker](./19-ai-strategy-optimization-walker.md).
 
-**Sources:** [docs/01-getting-started.md:16-17](), [docs/01-getting-started.md:35-35]()
 
 ---
 
@@ -78,9 +72,8 @@ The framework behavior is tuned via `GLOBAL_CONFIG`. These parameters define the
 
 | Parameter | Default | Purpose |
 | :--- | :--- | :--- |
-| `CC_PERCENT_SLIPPAGE` | 0.1 | Simulated slippage per trade (%) [docs/01-getting-started.md:181-181]() |
-| `CC_PERCENT_FEE` | 0.1 | Trading fee per transaction (%) [docs/01-getting-started.md:182-182]() |
-| `CC_SCHEDULE_AWAIT_MINUTES` | - | Max wait for pending signal activation [docs/01-getting-started.md:179-179]() |
-| `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 1440 | Hard timeout for any open position [docs/01-getting-started.md:186-186]() |
-
-**Sources:** [docs/01-getting-started.md:175-193]()
+| `CC_PERCENT_SLIPPAGE` | 0.1 | Simulated slippage per trade (%) |
+| `CC_PERCENT_FEE` | 0.1 | Trading fee per transaction (%) |
+| `CC_SCHEDULE_AWAIT_MINUTES` | - | Max wait for pending signal activation |
+| `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 1440 | Hard timeout for any open position |
+

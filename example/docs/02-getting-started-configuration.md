@@ -18,7 +18,6 @@ The system relies on a modern JavaScript runtime and specific AI/search provider
 | **Ollama** | ≥0.6.3 | Local LLM server for sentiment inference [[docs/01-getting-started.md:35-35]](). |
 | **Tavily API** | - | Web search for real-time news retrieval [[package.json:19-19]](). |
 
-**Sources:** [docs/01-getting-started.md:21-36](), [package.json:13-30]()
 
 ---
 
@@ -53,7 +52,6 @@ cp .env.example .env
 ### 3. TypeScript Configuration
 The project is configured to use `ESNext` modules with path mapping for the `logic/` and `utils/` directories to simplify imports [[tsconfig.json:13-29]]().
 
-**Sources:** [package.json:1-31](), [.env.example:1-3](), [tsconfig.json:1-36]()
 
 ---
 
@@ -66,7 +64,6 @@ The following diagram illustrates the transition from environment configuration 
 
 ![Mermaid Diagram](./diagrams/02-getting-started-configuration_0.svg)
 
-**Sources:** [docs/01-getting-started.md:151-173](), [package.json:7-7](), [tsconfig.json:24-29]()
 
 ---
 
@@ -91,7 +88,6 @@ When the system starts, it performs several critical steps via the `backtest-kit
 
 ![Mermaid Diagram](./diagrams/02-getting-started-configuration_1.svg)
 
-**Sources:** [docs/01-getting-started.md:12-17](), [package.json:14-21](), [docs/01-getting-started.md:198-202]()
 
 ---
 
@@ -115,5 +111,3 @@ console.log('Parameters loaded:', Object.keys(config).length);
 ```
 
 **Expected Result:** The console should indicate that 14 default parameters have been loaded [[docs/01-getting-started.md:223-243]]().
-
-**Sources:** [docs/01-getting-started.md:208-243]()

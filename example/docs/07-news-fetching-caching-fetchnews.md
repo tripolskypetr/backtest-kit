@@ -24,7 +24,6 @@ This diagram illustrates how the `fetchNews` function interacts with the `backte
 
 "fetchNews Data Flow"
 ![Mermaid Diagram](./diagrams/07-news-fetching-caching-fetchnews_0.svg)
-**Sources:** [logic/api/fetchNews.ts:136-163](), [logic/config/tavily.ts:4-8](), [logic/api/fetchNews.ts:91-110]()
 
 ---
 
@@ -42,12 +41,10 @@ The system prioritizes crypto-native media, regulatory bodies, and specific soci
 | **Social/Personas** | `truthsocial.com`, `stocktwits.com` |
 | **Blacklisted** | `coindesk.com`, `reuters.com`, `bloomberg.com`, `wsj.com` (Missing `publishedDate`) |
 
-**Sources:** [logic/api/fetchNews.ts:16-38]()
 
 ### Validation Logic
 The `getDomainList` function ensures that no domain exists in both lists simultaneously. Additionally, the `search` function rejects any result where the `publishedDate` is missing or defaults to `00:00` (often indicating a placeholder date).
 
-**Sources:** [logic/api/fetchNews.ts:40-46](), [logic/api/fetchNews.ts:70-82]()
 
 ---
 
@@ -58,7 +55,6 @@ A critical requirement for valid backtesting is the prevention of "look-ahead bi
 ### The NEWS_WINDOW_HOURS Constraint
 The system defines a global `NEWS_WINDOW_HOURS = 24`. Regardless of the mode, `fetchNews` only returns articles published within the 24-hour window ending exactly at the current system time (`getDate()`).
 
-**Sources:** [logic/api/fetchNews.ts:14-14](), [logic/api/fetchNews.ts:142-143](), [logic/api/fetchNews.ts:157-162]()
 
 ### Mode-Specific Implementation
 
@@ -69,7 +65,6 @@ The system defines a global `NEWS_WINDOW_HOURS = 24`. Regardless of the mode, `f
 | **Cache Key** | N/A | `symbol_topic_alignMs_query` |
 | **API Frequency** | Every call | Once per daily candle open |
 
-**Sources:** [logic/api/fetchNews.ts:91-110](), [logic/api/fetchNews.ts:116-129]()
 
 ---
 
@@ -80,17 +75,13 @@ The `fetchNewsInBacktest` function uses `Cache.file` from the `backtest-kit`. Th
 
 "Backtest Cache Resolution"
 ![Mermaid Diagram](./diagrams/07-news-fetching-caching-fetchnews_1.svg)
-**Sources:** [logic/api/fetchNews.ts:91-110](), [logic/api/fetchNews.ts:152-162]()
 
 ### Configuration & Localization
 The module relies on a global `dayjs` configuration defined in `logic/config/setup.ts`, which enables UTC support and Russian locale formatting for LLM-friendly date strings.
 
-**Sources:** [logic/config/setup.ts:1-12]()
 
 ### API Parameters
 The `search` function configures the Tavily client with specific parameters:
 - `topic: "news"`: Restricts search to news indices.
 - `searchDepth: "advanced"`: Enables more thorough crawling.
 - `maxResults: 20`: Limits the volume of data per query to maintain LLM context window limits.
-
-**Sources:** [logic/api/fetchNews.ts:55-64]()

@@ -13,16 +13,15 @@ The primary entry point for non-blocking live execution is `Live.background()`. 
 
 ### The Infinite Loop and Pacing
 Live trading is governed by a `while(true)` loop within the `Live.run()` generator, which `Live.background()` consumes. To prevent overwhelming the exchange API and CPU, the system implements a pacing mechanism:
-*   **TICK_TTL**: The system enforces a minimum wait time between iterations, typically 1 minute + 1ms [docs/04-live-trading.md:23-23]().
-*   **Time Progression**: Uses the system clock (`new Date()`) for every tick [docs/04-live-trading.md:19-19]().
-*   **MAX_EVENTS**: The event queue is capped at 25 events to ensure stability and prevent memory leaks during high-volatility periods [docs/04-live-trading.md:22-22]().
+*   **TICK_TTL**: The system enforces a minimum wait time between iterations, typically 1 minute + 1ms.
+*   **Time Progression**: Uses the system clock (`new Date()`) for every tick.
+*   **MAX_EVENTS**: The event queue is capped at 25 events to ensure stability and prevent memory leaks during high-volatility periods.
 
 ### Background Data Flow
 The following diagram illustrates the relationship between the `Live` process and the strategy execution components.
 
 **Live Execution and Signal Flow**
 ![Mermaid Diagram](./diagrams/17-live-trading-mode_0.svg)
-**Sources:** [docs/04-live-trading.md:98-180](), [docs/04-live-trading.md:16-25]()
 
 ## Crash Recovery and Persistence
 
@@ -30,20 +29,20 @@ Live trading is designed to be resilient against process crashes. It uses a suit
 
 ### Persistence Directories
 Data is stored in two primary directories within the project root:
-*   `data/signals/`: Stores the current state of `opened` and `active` signals [docs/04-live-trading.md:198-199]().
+*   `data/signals/`: Stores the current state of `opened` and `active` signals.
 *   `data/risk/`: Stores risk-related metadata and validation states.
 
 ### Persistence Adapters
 The system utilizes specific adapters to handle different stages of the signal lifecycle:
-1.  **PersistScheduleAdapter**: Tracks signals that are `scheduled` but not yet triggered [docs/04-live-trading.md:197-197]().
-2.  **PersistSignalAdapter**: Manages the state for signals in `opened` or `active` states [docs/04-live-trading.md:198-199]().
+1.  **PersistScheduleAdapter**: Tracks signals that are `scheduled` but not yet triggered.
+2.  **PersistSignalAdapter**: Manages the state for signals in `opened` or `active` states.
 3.  **PersistPartialAdapter**: Handles incremental updates to signal metadata.
 
 ### Atomic Write Implementation
 To prevent data corruption during a crash, the persistence layer uses an atomic write strategy:
 1.  Serialize the signal state to JSON.
 2.  Write to a temporary file (e.g., `*.json.tmp`).
-3.  Perform an atomic rename to the final filename [docs/04-live-trading.md:207-225]().
+3.  Perform an atomic rename to the final filename.
 
 **Crash Recovery State Mapping**
 | Signal State | Persisted? | Adapter Class |
@@ -54,7 +53,6 @@ To prevent data corruption during a crash, the persistence layer uses an atomic 
 | `active` | Yes | `PersistSignalAdapter` |
 | `closed` | No | N/A (Finalized) |
 
-**Sources:** [docs/04-live-trading.md:184-203](), [docs/04-live-trading.md:207-225]()
 
 ## Live vs. Backtest Comparison
 
@@ -68,7 +66,6 @@ The technical implementation of Live mode differs significantly from Backtest mo
 | **Pacing** | `TICK_TTL` (1 min delay) | Immediate (No delay) |
 | **Persistence** | Enabled (Atomic FS writes) | Disabled (In-memory only) |
 
-**Sources:** [docs/04-live-trading.md:14-25]()
 
 ## System Integration: Natural Language to Code Entities
 
@@ -77,7 +74,6 @@ The live trading environment bridges high-level trading concepts with specific c
 **Entity Relationship Diagram**
 ![Mermaid Diagram](./diagrams/17-live-trading-mode_1.svg)
 
-**Sources:** [docs/04-live-trading.md:98-110](), [docs/04-live-trading.md:184-203](), [docs/04-live-trading.md:52-87]()
 
 ## Implementation Details
 
@@ -85,6 +81,4 @@ The live trading environment bridges high-level trading concepts with specific c
 In Live mode, signals are processed through a state machine. The `tick()` function is the primary driver, checking if `scheduled` signals should move to `opened`, or if `active` positions should be `closed` based on real-time price updates or strategy logic.
 
 ### Exchange Configuration
-Live trading requires `enableRateLimit: true` in the CCXT configuration to prevent IP bans [docs/04-live-trading.md:62-62](). Furthermore, `formatPrice` and `formatQuantity` must use exchange-specific precision (`priceToPrecision`, `amountToPrecision`) to ensure orders are accepted by the exchange matching engine [docs/04-live-trading.md:76-85]().
-
-**Sources:** [docs/04-live-trading.md:52-87](), [docs/04-live-trading.md:148-158]()
+Live trading requires `enableRateLimit: true` in the CCXT configuration to prevent IP bans. Furthermore, `formatPrice` and `formatQuantity` must use exchange-specific precision (`priceToPrecision`, `amountToPrecision`) to ensure orders are accepted by the exchange matching engine.

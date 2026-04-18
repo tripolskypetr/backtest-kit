@@ -22,7 +22,6 @@ The following diagram illustrates how the abstract "Exchange Schema" in the logi
 
 **Diagram: Exchange Schema to Code Entity Mapping**
 ![Mermaid Diagram](./diagrams/20-exchange-integration-modules_0.svg)
-**Sources:** [modules/walker.module.ts:1-19](), [modules/dump.module.ts:1-18]()
 
 ---
 
@@ -30,13 +29,12 @@ The following diagram illustrates how the abstract "Exchange Schema" in the logi
 The core of the exchange integration is the `ccxt-exchange` schema. It provides a standardized way to interact with the Binance spot market using the CCXT library. To prevent redundant API connections and rate-limit exhaustion, the system uses a `singleshot` singleton pattern to initialize the Binance exchange instance.
 
 Key capabilities provided by this adapter include:
-*   **OHLCV Fetching**: Mapping `fetchOHLCV` results to the internal candle format used by strategies [modules/walker.module.ts:20-36]().
-*   **Order Book Retrieval**: Fetching depth data for live trading, with a safety guard that prevents usage during backtests [modules/walker.module.ts:37-56]().
-*   **Precision Management**: Using `tickSize` and `stepSize` from market metadata to format prices and quantities correctly via `roundTicks` [modules/walker.module.ts:57-74]().
+*   **OHLCV Fetching**: Mapping `fetchOHLCV` results to the internal candle format used by strategies.
+*   **Order Book Retrieval**: Fetching depth data for live trading, with a safety guard that prevents usage during backtests.
+*   **Precision Management**: Using `tickSize` and `stepSize` from market metadata to format prices and quantities correctly via `roundTicks`.
 
 For details, see [CCXT Exchange Adapter](./21-ccxt-exchange-adapter.md).
 
-**Sources:** [modules/walker.module.ts:5-16](), [modules/walker.module.ts:19-75]()
 
 ---
 
@@ -45,11 +43,10 @@ The system utilizes several "module" files that register the exchange schema int
 
 | Module File | Purpose | Key Functionality |
 | :--- | :--- | :--- |
-| `modules/dump.module.ts` | Data Export | Registers `ccxt-exchange` for fetching historical candles to local storage [modules/dump.module.ts:18-37](). |
-| `modules/pine.module.ts` | Indicator Analysis | Provides exchange access for scripts generating TradingView-compatible data [modules/pine.module.ts:18-37](). |
-| `modules/walker.module.ts` | Strategy Optimization | Full implementation including `getOrderBook` and `formatPrice` for strategy evaluation [modules/walker.module.ts:18-75](). |
+| `modules/dump.module.ts` | Data Export | Registers `ccxt-exchange` for fetching historical candles to local storage. |
+| `modules/pine.module.ts` | Indicator Analysis | Provides exchange access for scripts generating TradingView-compatible data. |
+| `modules/walker.module.ts` | Strategy Optimization | Full implementation including `getOrderBook` and `formatPrice` for strategy evaluation. |
 
-**Sources:** [modules/dump.module.ts:1-37](), [modules/pine.module.ts:1-37](), [modules/walker.module.ts:1-75]()
 
 ---
 
@@ -66,5 +63,4 @@ For details, see [Symbol Configuration](./22-symbol-configuration.md).
 The following diagram shows how a request for market data flows from a generic module through the CCXT adapter to the physical exchange.
 
 **Diagram: Market Data Flow**
-![Mermaid Diagram](./diagrams/20-exchange-integration-modules_1.svg)
-**Sources:** [modules/walker.module.ts:5-16](), [modules/walker.module.ts:20-35]()
+![Mermaid Diagram](./diagrams/20-exchange-integration-modules_1.svg)

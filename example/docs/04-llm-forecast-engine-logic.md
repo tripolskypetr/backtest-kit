@@ -15,20 +15,19 @@ The engine follows a structured pipeline: it gathers context via specialized "Ad
 
 ### System Architecture
 
-The forecasting logic is initialized via `logic/index.ts`, which sets up configurations and imports the core components [logic/index.ts:1-4](). The main entry point for the rest of the application is the `forecast` function, which triggers the AI pipeline for a specific symbol and timestamp [logic/main/forecast.ts:5-11]().
+The forecasting logic is initialized via `logic/index.ts`, which sets up configurations and imports the core components. The main entry point for the rest of the application is the `forecast` function, which triggers the AI pipeline for a specific symbol and timestamp.
 
 #### Forecast Data Flow
 The following diagram illustrates how the `logic/` module bridges the gap between natural language data (news) and structured code entities (forecast objects).
 
 **Natural Language to Code Entity Mapping**
 ![Mermaid Diagram](./diagrams/04-llm-forecast-engine-logic_0.svg)
-Sources: [logic/main/forecast.ts:5-11](), [logic/core/index.ts:1-8]()
 
 ---
 
 ### Core Components
 
-The engine is organized into four primary functional areas, each handled by specialized sub-modules registered in the core index [logic/core/index.ts:1-8]().
+The engine is organized into four primary functional areas, each handled by specialized sub-modules registered in the core index.
 
 #### 1. Forecast Pipeline & Outline
 The pipeline is governed by the `ForecastOutline`. This component defines the "Persona" (a Russian macro-analyst), the input requirements, and the strict `ForecastResponseContract` that the LLM must adhere to. It ensures that the output includes a sentiment (bullish/bearish/neutral), a confidence score, and detailed reasoning.
@@ -62,5 +61,4 @@ For details, see [Ollama Completions](./08-ollama-completions.md).
 The `logic/core/index.ts` file acts as the registry for all AI capabilities, ensuring that when `forecast()` is called, all necessary advisors and completion methods are available in the runtime environment.
 
 **Internal Logic Registry**
-![Mermaid Diagram](./diagrams/04-llm-forecast-engine-logic_1.svg)
-Sources: [logic/core/index.ts:1-8](), [logic/index.ts:1-4]()
+![Mermaid Diagram](./diagrams/04-llm-forecast-engine-logic_1.svg)
