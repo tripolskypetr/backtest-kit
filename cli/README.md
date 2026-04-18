@@ -40,6 +40,7 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 | **UI Dashboard** | `--ui`                     | Web dashboard at `http://localhost:60050`    |
 | **Telegram**     | `--telegram`               | Trade notifications with price charts        |
 | **PineScript**   | `--pine`                   | Run a local `.pine` indicator against exchange data |
+| **Pine Editor**  | `--editor`                 | Open the visual Pine Script editor in the browser   |
 | **Candle Dump**  | `--dump`                   | Fetch and save raw OHLCV candles to a file   |
 | **Flush**        | `--flush`                  | Delete report/log/markdown/agent folders from strategy dump dir |
 | **Init Project** | `--init`                   | Scaffold a new backtest-kit project          |
@@ -737,6 +738,68 @@ Print to stdout (no flag):
 
 ```bash
 npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine
+```
+
+## 🖊️ Visual Pine Script Editor
+
+`@backtest-kit/cli` ships a browser-based Pine Script editor powered by `@backtest-kit/ui`. It lets you write, run, and iterate on indicators interactively — with a live chart that updates as you hit **▶ Run** — without leaving the terminal.
+
+### Usage
+
+```bash
+npx @backtest-kit/cli --editor
+```
+
+The CLI will:
+
+1. Load `./modules/editor.module` (if it exists) — use it to register your exchange schema, identical to `pine.module`
+2. Start the `@backtest-kit/ui` server on `http://localhost:60050` (or `CC_WWWROOT_PORT`)
+3. Open `http://localhost:{CC_WWWROOT_PORT}?pine=1` automatically in your default browser
+
+Press **Ctrl+C** to stop the server.
+
+### Exchange via `editor.module`
+
+Drop a `modules/editor.module.ts` next to your project to register the exchange that the editor's candle provider will use:
+
+```typescript
+// modules/editor.module.ts
+import { addExchangeSchema } from "backtest-kit";
+import ccxt from "ccxt";
+
+addExchangeSchema({
+  exchangeName: "my-exchange",
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.bybit({ enableRateLimit: true });
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
+      timestamp, open, high, low, close, volume,
+    }));
+  },
+  formatPrice: (symbol, price) => price.toFixed(2),
+  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+});
+```
+
+### Environment Variables
+
+| Variable          | Default   | Description                      |
+|-------------------|-----------|----------------------------------|
+| `CC_WWWROOT_HOST` | `0.0.0.0` | UI server bind address           |
+| `CC_WWWROOT_PORT` | `60050`   | UI server port                   |
+
+### `package.json` script
+
+```json
+{
+  "scripts": {
+    "editor": "npx @backtest-kit/cli --editor"
+  }
+}
+```
+
+```bash
+npm run editor
 ```
 
 ## 💾 Dumping Raw Candles

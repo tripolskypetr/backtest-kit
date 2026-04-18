@@ -16,6 +16,7 @@ Modes:
   --paper    <entry>          Paper trading (live prices, no real orders)
   --live     <entry>          Live trading with real orders
   --pine     <entry>    Execute a local .pine indicator file
+  --editor              Open the Pine Script visual editor in the browser
   --dump                Fetch and save raw OHLCV candles
   --flush  <entry...>   Delete report/log/markdown/agent folders from strategy dump dir
   --init                Scaffold a new project in the current directory
@@ -109,6 +110,7 @@ Module hooks (loaded automatically by each mode):
   modules/paper.module      --paper      Broker adapter for paper trading
   modules/live.module       --live       Broker adapter for live trading
   modules/pine.module       --pine       Exchange schema for PineScript runs
+  modules/editor.module     --editor     Exchange schema for the visual Pine editor
   modules/dump.module       --dump       Exchange schema for candle dumps
 
   --flush has no associated module. It only removes dump subdirectories.
@@ -131,6 +133,7 @@ Examples:
   node ${ENTRY_PATH} --paper --symbol ETHUSDT ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --live --ui --telegram ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --jsonl
+  node ${ENTRY_PATH} --editor
   node ${ENTRY_PATH} --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts ./content/feb_2026.strategy/feb_2026.test.ts

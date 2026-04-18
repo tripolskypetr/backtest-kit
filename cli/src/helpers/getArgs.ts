@@ -81,6 +81,10 @@ export const getArgs = singleshot(() => {
         default: "1m, 15m, 30m, 4h",
       },
       // pinescript entry
+      editor: {
+        type: "boolean",
+        default: false,
+      },
       pine: {
         type: "boolean",
         default: false,
