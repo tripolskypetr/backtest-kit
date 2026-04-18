@@ -16,7 +16,9 @@ Modes:
   --paper    <entry>          Paper trading (live prices, no real orders)
   --live     <entry>          Live trading with real orders
   --pine     <entry>    Execute a local .pine indicator file
+  --editor              Open the Pine Script visual editor in the browser
   --dump                Fetch and save raw OHLCV candles
+  --flush  <entry...>   Delete report/log/markdown/agent folders from strategy dump dir
   --init                Scaffold a new project in the current directory
   --help                Print this help message
 
@@ -28,6 +30,7 @@ Backtest flags:
   --frame       <string>   Frame name from addFrameSchema (default: first registered)
   --cacheInterval <string> Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 4h")
   --noCache                Skip candle cache warming before the run
+  --noFlush                Skip removing report/log/markdown/agent folders before backtest run
   --verbose                Log every candle fetch to stdout
   --ui                     Start web dashboard at http://localhost:60050
   --telegram               Send trade notifications to Telegram
@@ -37,6 +40,7 @@ Walker flags (--walker):
   --symbol        <string>   Trading pair (default: BTCUSDT)
   --cacheInterval <string>   Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 4h")
   --noCache                  Skip candle cache warming before the run
+  --noFlush                  Skip removing report/log/markdown/agent folders before walker run
   --verbose                  Log every candle fetch to stdout
   --output        <string>   Output file base name (default: walker_{SYMBOL}_{TIMESTAMP})
   --json                     Save results as JSON to ./dump/<output>.json
@@ -86,6 +90,13 @@ Candle dump flags (--dump):
 
   Module file ./modules/dump.module is loaded automatically if it exists.
 
+Flush flags (--flush):
+
+  One or more positional entry points. For each entry point the following
+  subdirectories are removed from <entry-dir>/dump/:
+
+    report   log   markdown   agent
+
 Init flags (--init):
 
   --output <string>   Target directory name (default: backtest-kit-project)
@@ -99,7 +110,10 @@ Module hooks (loaded automatically by each mode):
   modules/paper.module      --paper      Broker adapter for paper trading
   modules/live.module       --live       Broker adapter for live trading
   modules/pine.module       --pine       Exchange schema for PineScript runs
+  modules/editor.module     --editor     Exchange schema for the visual Pine editor
   modules/dump.module       --dump       Exchange schema for candle dumps
+
+  --flush has no associated module. It only removes dump subdirectories.
 
   Extensions .ts, .mjs, .cjs are tried automatically. Missing module = soft warning.
 
@@ -113,13 +127,16 @@ Environment variables:
 Examples:
 
   node ${ENTRY_PATH} --backtest ./content/feb_2026.strategy.ts
-  node ${ENTRY_PATH} --backtest --symbol BTCUSDT --noCache --ui ./content/feb_2026.strategy.ts
+  node ${ENTRY_PATH} --backtest --symbol BTCUSDT --noCache --noFlush --ui ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --walker ./content/feb_2026_v1.strategy.ts ./content/feb_2026_v2.strategy.ts ./content/feb_2026_v3.strategy.ts
-  node ${ENTRY_PATH} --walker --symbol BTCUSDT --noCache --markdown ./content/feb_2026_v1.ts ./content/feb_2026_v2.ts
+  node ${ENTRY_PATH} --walker --symbol BTCUSDT --noCache --noFlush --markdown ./content/feb_2026_v1.ts ./content/feb_2026_v2.ts
   node ${ENTRY_PATH} --paper --symbol ETHUSDT ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --live --ui --telegram ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --jsonl
+  node ${ENTRY_PATH} --editor
   node ${ENTRY_PATH} --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+  node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts
+  node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts ./content/feb_2026.strategy/feb_2026.test.ts
   node ${ENTRY_PATH} --init --output my-trading-bot
 `.trimStart();
 

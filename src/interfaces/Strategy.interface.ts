@@ -11,6 +11,17 @@ import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
 
 /**
+ * Commit payload for strategy commits.
+ * Used in activateScheduled, closePending, cancelScheduled
+ */
+export type CommitPayload = {
+  /** Commit id */
+  id: string;
+  /** Note describing the commit */
+  note: string;
+};
+
+/**
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
@@ -324,6 +335,8 @@ export interface IRiskSignalRow extends IPublicSignalRow {
 export interface IScheduledSignalCancelRow extends IScheduledSignalRow {
   /** Cancellation ID (only for user-initiated cancellations) */
   cancelId?: string;
+  /** Note from user payload (only for user-initiated cancellations) */
+  cancelNote?: string;
 }
 
 /**
@@ -333,6 +346,8 @@ export interface IScheduledSignalCancelRow extends IScheduledSignalRow {
 export interface ISignalCloseRow extends ISignalRow {
   /** Close ID (only for user-initiated closes) */
   closeId?: string;
+  /** Note from user payload (only for user-initiated closes) */
+  closeNote?: string;
 }
 
 /**
@@ -342,6 +357,8 @@ export interface ISignalCloseRow extends ISignalRow {
 export interface IScheduledSignalActivateRow extends IScheduledSignalRow {
   /** Activation ID (only for user-initiated activations) */
   activateId?: string;
+  /** Note from user payload (only for user-initiated activations) */
+  activateNote?: string;
 }
 
 /**
@@ -485,6 +502,8 @@ export interface IStrategyParams extends IStrategySchema {
   onSchedulePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for active ping events (emits to activePingSubject) */
   onActivePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
+  /** System callback for idle ping events (emits to idlePingSubject) */
+  onIdlePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for dispose events (emits to disposeSubject) */
   onDispose: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
   /** System callback for commit events (emits to strategyCommitSubject) */
@@ -1041,7 +1060,7 @@ export interface IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  cancelScheduled: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>;
+  cancelScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
 
   /**
    * Activates the scheduled signal without waiting for price to reach priceOpen.
@@ -1064,7 +1083,7 @@ export interface IStrategy {
    * // Scheduled signal becomes pending signal immediately
    * ```
    */
-  activateScheduled: (symbol: string, backtest: boolean, activateId?: string) => Promise<void>;
+  activateScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
 
   /**
    * Closes the pending signal without stopping the strategy.
@@ -1087,7 +1106,7 @@ export interface IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  closePending: (symbol: string, backtest: boolean, closeId?: string) => Promise<void>;
+  closePending: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
 
   /**
    * Executes partial close at profit level (moving toward TP).
@@ -1523,6 +1542,28 @@ export interface IStrategy {
   getPositionCountdownMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
 
   /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  getPositionActiveMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Returns null if no scheduled signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  getPositionWaitingMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+
+  /**
    * Returns the best price reached in the profit direction during this position's life.
    *
    * Returns null if no pending signal exists.
@@ -1699,6 +1740,28 @@ export interface IStrategy {
    * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
    */
   getPositionHighestMaxDrawdownPnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+   */
+  getMaxDrawdownDistancePnlPercentage: (symbol: string, currentPrice: number) => Promise<number | null>;
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlCost - fallPnlCost).
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+   */
+  getMaxDrawdownDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
 
   /**
    * Disposes the strategy instance and cleans up resources.

@@ -72,16 +72,28 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      noFlush: {
+        type: "boolean",
+        default: false,
+      },
       cacheInterval: {
         type: "string",
         default: "1m, 15m, 30m, 4h",
       },
       // pinescript entry
+      editor: {
+        type: "boolean",
+        default: false,
+      },
       pine: {
         type: "boolean",
         default: false,
       },
       dump: {
+        type: "boolean",
+        default: false,
+      },
+      flush: {
         type: "boolean",
         default: false,
       },

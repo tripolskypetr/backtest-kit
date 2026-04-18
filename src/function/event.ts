@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -13,11 +13,13 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
+import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { queued } from "functools-kit";
+import { not, queued } from "functools-kit";
 import SignalSyncContract from "../contract/SignalSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
+import { SignalInfoContract } from "../contract/SignalInfo.contract";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
 const LISTEN_SIGNAL_ONCE_METHOD_NAME = "event.listenSignalOnce";
@@ -52,6 +54,8 @@ const LISTEN_SCHEDULE_PING_METHOD_NAME = "event.listenSchedulePing";
 const LISTEN_SCHEDULE_PING_ONCE_METHOD_NAME = "event.listenSchedulePingOnce";
 const LISTEN_ACTIVE_PING_METHOD_NAME = "event.listenActivePing";
 const LISTEN_ACTIVE_PING_ONCE_METHOD_NAME = "event.listenActivePingOnce";
+const LISTEN_IDLE_PING_METHOD_NAME = "event.listenIdlePing";
+const LISTEN_IDLE_PING_ONCE_METHOD_NAME = "event.listenIdlePingOnce";
 const LISTEN_STRATEGY_COMMIT_METHOD_NAME = "event.listenStrategyCommit";
 const LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME = "event.listenStrategyCommitOnce";
 const LISTEN_SYNC_METHOD_NAME = "event.listenSync";
@@ -60,6 +64,8 @@ const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
 const LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME = "event.listenMaxDrawdownOnce";
+const LISTEN_SIGNAL_NOTIFY_METHOD_NAME = "event.listenSignalNotify";
+const LISTEN_SIGNAL_NOTIFY_ONCE_METHOD_NAME = "event.listenSignalNotifyOnce";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -1378,6 +1384,63 @@ export function listenActivePingOnce(
 }
 
 /**
+ * Subscribes to idle ping events with queued async processing.
+ *
+ * Emits every tick when there is no pending or scheduled signal being monitored.
+ *
+ * @param fn - Callback function to handle idle ping events
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenIdlePing(fn: (event: IdlePingContract) => void) {
+  backtest.loggerService.log(LISTEN_IDLE_PING_METHOD_NAME);
+
+  const wrappedFn = async (event: IdlePingContract) => {
+    if (
+      await not(
+        backtest.strategyCoreService.hasPendingSignal(
+          event.backtest,
+          event.symbol,
+          {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+          },
+        )
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return idlePingSubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered idle ping events with one-time execution.
+ *
+ * @param filterFn - Predicate to filter events
+ * @param fn - Callback function to handle the matching event
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenIdlePingOnce(
+  filterFn: (event: IdlePingContract) => boolean,
+  fn: (event: IdlePingContract) => void
+) {
+  backtest.loggerService.log(LISTEN_IDLE_PING_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: IdlePingContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenIdlePing(wrappedFn);
+}
+
+/**
  * Subscribes to strategy management events with queued async processing.
  *
  * Emits when strategy management actions are executed:
@@ -1660,4 +1723,59 @@ export function listenMaxDrawdownOnce(
   };
 
   return disposeFn = listenMaxDrawdown(wrappedFn);
+}
+
+/**
+ * Subscribes to signal info events with queued async processing.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * @param fn - Callback function to handle signal info events
+ * @return Unsubscribe function to stop listening to events
+ */
+export function listenSignalNotify(fn: (event: SignalInfoContract) => void) {
+  backtest.loggerService.log(LISTEN_SIGNAL_NOTIFY_METHOD_NAME);
+
+  const wrappedFn = async (event: SignalInfoContract) => {
+    if (
+      await backtest.strategyCoreService.hasPendingSignal(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      )
+    ) {
+      await fn(event);
+    }
+  };
+
+  return signalNotifySubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to filtered signal info events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+export function listenSignalNotifyOnce(
+  filterFn: (event: SignalInfoContract) => boolean,
+  fn: (event: SignalInfoContract) => void
+) {
+  backtest.loggerService.log(LISTEN_SIGNAL_NOTIFY_ONCE_METHOD_NAME);
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: SignalInfoContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSignalNotify(wrappedFn);
 }

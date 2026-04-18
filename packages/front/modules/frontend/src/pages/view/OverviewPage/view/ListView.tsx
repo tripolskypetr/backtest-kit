@@ -165,11 +165,30 @@ export const ListView = ({
                                 <Box
                                     sx={{
                                         display: "flex",
-                                        gap: 2,
+                                        gap: 1,
                                         flexWrap: "wrap",
                                         alignItems: "center",
                                     }}
                                 >
+                                    <Typography
+                                        variant="body2"
+                                        component="span"
+                                        sx={{
+                                            fontWeight: "bold",
+                                            px: 1,
+                                            py: 0.5,
+                                            opacity: 0.5,
+                                            borderRadius: 1,
+                                            transition: "opacity 500ms",
+                                            background: alpha("#9e9e9e", 0.2),
+                                            color: "#616161",
+                                            "&:hover": {
+                                                opacity: 1.0
+                                            }
+                                        }}
+                                    >
+                                        #{items.length - idx}
+                                    </Typography>
                                     <Typography
                                         variant="body2"
                                         component="span"

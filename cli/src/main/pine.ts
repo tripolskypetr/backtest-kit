@@ -38,6 +38,11 @@ export const main = async () => {
     return;
   }
 
+  if (values.editor) {
+    console.warn("--pine and --editor are mutually exclusive. Use one at a time.");
+    process.exit(1);
+  }
+
   const [entryPoint = null] = getPositionals();
 
   if (!entryPoint) {

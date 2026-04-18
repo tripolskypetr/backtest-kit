@@ -7,8 +7,8 @@ import {
     CC_USER_ID,
 } from "../../../config/params";
 import {
-    ExplorerData,
     ExplorerFile,
+    ExplorerMap,
     ExplorerNode,
 } from "../../../model/Explorer.model";
 import ExplorerHelperService from "../helpers/ExplorerHelperService";
@@ -17,13 +17,12 @@ const TTL_TIMEOUT = 45_000;
 
 export class ExplorerMockService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-    private readonly explorerHelperService = inject<ExplorerHelperService>(
-        TYPES.explorerHelperService,
-    );
 
-    public getFolderTreeRaw = ttl(
+    private readonly explorerHelperService = inject<ExplorerHelperService>(TYPES.explorerHelperService);
+
+    public getFolderTree = ttl(
         async (): Promise<ExplorerNode[]> => {
-            this.loggerService.log("explorerMockService getFolderTreeRaw");
+            this.loggerService.log("explorerMockService getFolderTree");
             const { data, error } = await fetchApi(
                 "/api/v1/explorer_mock/tree",
                 {
@@ -46,14 +45,15 @@ export class ExplorerMockService {
         },
     );
 
-    public getFolderTree = ttl(
-        async (): Promise<ExplorerData> => {
-            this.loggerService.log("explorerMockService getFolderTree");
-            const raw = await this.getFolderTreeRaw();
-            return {
-                record: this.explorerHelperService.treeToRecord(raw),
-                map: this.explorerHelperService.treeToMap(raw),
-            };
+    public getFolderMap = ttl(
+        async (): Promise<ExplorerMap> => {
+            this.loggerService.log("explorerMockService getFolderMap");
+            const result: ExplorerMap = {};
+            const folderTree = await this.getFolderTree();
+            for (const node of this.explorerHelperService.deepFlat(folderTree)) {
+                result[node.id] = node;
+            }
+            return result;
         },
         {
             timeout: TTL_TIMEOUT,
@@ -82,7 +82,7 @@ export class ExplorerMockService {
         this.loggerService.log("explorerMockService getFileInfo", {
             id,
         });
-        const { map } = await this.getFolderTree();
+        const map = await this.getFolderMap();
         const value = map[id];
         if (!value) {
             throw new Error(
@@ -99,10 +99,8 @@ export class ExplorerMockService {
 
     public clear = () => {
         this.loggerService.log("explorerMockService clear");
-        {
-            this.getFolderTreeRaw.clear();
-            this.getFolderTree.clear();
-        }
+        this.getFolderTree.clear();
+        this.getFolderMap.clear();
     };
 }
 

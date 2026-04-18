@@ -40,7 +40,9 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 | **UI Dashboard** | `--ui`                     | Web dashboard at `http://localhost:60050`    |
 | **Telegram**     | `--telegram`               | Trade notifications with price charts        |
 | **PineScript**   | `--pine`                   | Run a local `.pine` indicator against exchange data |
+| **Pine Editor**  | `--editor`                 | Open the visual Pine Script editor in the browser   |
 | **Candle Dump**  | `--dump`                   | Fetch and save raw OHLCV candles to a file   |
+| **Flush**        | `--flush`                  | Delete report/log/markdown/agent folders from strategy dump dir |
 | **Init Project** | `--init`                   | Scaffold a new backtest-kit project          |
 
 ## 🚀 Installation
@@ -144,6 +146,7 @@ npm start -- --symbol BTCUSDT --ui
 | `--telegram`              | boolean | Enable Telegram notifications (default: `false`)                   |
 | `--verbose`               | boolean | Log each candle fetch (default: `false`)                           |
 | `--noCache`               | boolean | Skip candle cache warming before backtest (default: `false`)       |
+| `--noFlush`               | boolean | Skip removing report/log/markdown/agent folders before backtest run (default: `false`) |
 | `--symbol`                | string  | Trading pair (default: `"BTCUSDT"`)                                |
 | `--strategy`              | string  | Strategy name (default: first registered)                          |
 | `--exchange`              | string  | Exchange name (default: first registered)                          |
@@ -178,7 +181,7 @@ Runs the strategy against historical candle data using a registered `FrameSchema
 npm run backtest
 ```
 
-Before running, the CLI warms the candle cache for every interval in `--cacheInterval`. On the next run, cached data is used directly — no API calls needed. Pass `--noCache` to skip this step entirely.
+Before running, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from the strategy's `dump/` directory, then warms the candle cache for every interval in `--cacheInterval`. On the next run, cached data is used directly — no API calls needed. Pass `--noCache` to skip cache warming, `--noFlush` to keep existing output folders.
 
 ### Paper Trading
 
@@ -228,7 +231,7 @@ Runs the same historical period against multiple strategy files and prints a ran
 npm run walker
 ```
 
-Each positional argument is a separate strategy entry point. All files are loaded without changing `process.cwd()` — `.env` is read from the working directory only. After loading, `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files.
+Each positional argument is a separate strategy entry point. Before loading them, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from each entry point's `dump/` directory. Pass `--noFlush` to keep existing output. All files are loaded without changing `process.cwd()` — `.env` is read from the working directory only. After loading, `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files.
 
 If no frame is registered, the CLI falls back to the last 31 days from `Date.now()` with a console warning.
 
@@ -240,6 +243,7 @@ If no frame is registered, the CLI falls back to the last 31 days from `Date.now
 | `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
 | `--cacheInterval` | string | Intervals to pre-cache (default: `"1m, 15m, 30m, 4h"`) |
 | `--noCache` | boolean | Skip candle cache warming (default: `false`) |
+| `--noFlush` | boolean | Skip removing report/log/markdown/agent folders before walker run (default: `false`) |
 | `--verbose` | boolean | Log each candle fetch and strategy progress (default: `false`) |
 | `--output` | string | Output file base name (default: `walker_{SYMBOL}_{TIMESTAMP}`) |
 | `--json` | boolean | Save results as JSON to `./dump/<output>.json` |
@@ -736,6 +740,70 @@ Print to stdout (no flag):
 npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine
 ```
 
+## 🎨 Visual Pine Script Editor
+
+![pine](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot32.png)
+
+`@backtest-kit/cli` ships a browser-based Pine Script editor powered by `@backtest-kit/ui`. It lets you write, run, and iterate on indicators interactively — with a live chart that updates as you hit **▶ Run** — without leaving the terminal.
+
+### Usage
+
+```bash
+npx @backtest-kit/cli --editor
+```
+
+The CLI will:
+
+1. Load `./modules/editor.module` (if it exists) — use it to register your exchange schema, identical to `pine.module`
+2. Start the `@backtest-kit/ui` server on `http://localhost:60050` (or `CC_WWWROOT_PORT`)
+3. Open `http://localhost:{CC_WWWROOT_PORT}?pine=1` automatically in your default browser
+
+Press **Ctrl+C** to stop the server.
+
+### Exchange via `editor.module`
+
+Drop a `modules/editor.module.ts` next to your project to register the exchange that the editor's candle provider will use:
+
+```typescript
+// modules/editor.module.ts
+import { addExchangeSchema } from "backtest-kit";
+import ccxt from "ccxt";
+
+addExchangeSchema({
+  exchangeName: "my-exchange",
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.bybit({ enableRateLimit: true });
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
+      timestamp, open, high, low, close, volume,
+    }));
+  },
+  formatPrice: (symbol, price) => price.toFixed(2),
+  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+});
+```
+
+### Environment Variables
+
+| Variable          | Default   | Description                      |
+|-------------------|-----------|----------------------------------|
+| `CC_WWWROOT_HOST` | `0.0.0.0` | UI server bind address           |
+| `CC_WWWROOT_PORT` | `60050`   | UI server port                   |
+
+### `package.json` script
+
+```json
+{
+  "scripts": {
+    "editor": "npx @backtest-kit/cli --editor"
+  }
+}
+```
+
+```bash
+npm run editor
+```
+
 ## 💾 Dumping Raw Candles
 
 `@backtest-kit/cli` can fetch raw OHLCV candles from any registered exchange and save them to a file — no strategy file required.
@@ -826,6 +894,57 @@ Or add it to `package.json`:
 
 ```bash
 npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+```
+
+## 🗑️ Flushing Strategy Output (`--flush`)
+
+`@backtest-kit/cli` can delete generated output folders from one or more strategy dump directories without touching cached candle data.
+
+### CLI Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--flush` | boolean | Enable flush mode |
+
+**Positional arguments (required):** one or more strategy entry point files. For each entry point the CLI resolves its directory and removes the following subdirectories from `<entry-dir>/dump/`:
+
+| Folder | Contents |
+|--------|----------|
+| `report` | Backtest report files (`.jsonl`) |
+| `log` | Run logs (`log.jsonl`) |
+| `markdown` | Exported Markdown reports |
+| `agent` | Agent outline files |
+
+Candle cache (`dump/data/`) and AI forecast outlines (`dump/outline/`) are **not** removed.
+
+### Usage
+
+Flush a single strategy:
+
+```bash
+npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts
+```
+
+Flush multiple strategies at once:
+
+```bash
+npx @backtest-kit/cli --flush \
+  ./content/feb_2026.strategy/modules/backtest.module.ts \
+  ./content/mar_2026.strategy/modules/backtest.module.ts
+```
+
+Or add it to `package.json`:
+
+```json
+{
+  "scripts": {
+    "flush": "npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts"
+  }
+}
+```
+
+```bash
+npm run flush
 ```
 
 ## 🗂️ Scaffolding a New Project (`--init`)
@@ -985,6 +1104,7 @@ await run(mode, args);
 | `frame` | `string` | Frame name (default: first registered) |
 | `cacheInterval` | `CandleInterval[]` | Intervals to pre-cache (default: `["1m","15m","30m","1h","4h"]`) |
 | `noCache` | `boolean` | Skip candle cache warming (default: `false`) |
+| `noFlush` | `boolean` | Skip removing report/log/markdown/agent folders before the run (default: `false`) |
 | `verbose` | `boolean` | Log each candle fetch (default: `false`) |
 
 **Paper** and **Live** (`mode: "paper"` / `mode: "live"`):

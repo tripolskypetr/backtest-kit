@@ -40,6 +40,10 @@ export class NotificationViewService {
         offset,
       );
     }
+    if (!Notification.enable.hasValue()) {
+      console.warn("@backtest-kit/ui notificationViewService findByFilter notifications not enabled");
+      return [];
+    }
     const iter = pickDocuments<NotificationModel>(limit, offset);
     const filterList = CREATE_FILTER_LIST_FN<T>(filterData);
     for (const notification of await this.getList()) {
@@ -61,6 +65,10 @@ export class NotificationViewService {
     this.loggerService.log("notificationViewService getList");
     if (CC_ENABLE_MOCK) {
       return await this.notificationMockService.getList();
+    }
+    if (!Notification.enable.hasValue()) {
+      console.warn("@backtest-kit/ui notificationViewService getList notifications not enabled");
+      return [];
     }
     const notificationList: NotificationModel[] = [];
     for (const notification of await Notification.getData(false)) {
@@ -92,17 +100,13 @@ export class NotificationViewService {
     if (CC_ENABLE_MOCK) {
       return await this.notificationMockService.getOne(id);
     }
+    if (!Notification.enable.hasValue()) {
+      console.warn("@backtest-kit/ui notificationViewService getOne notifications not enabled");
+      return null;
+    }
     const notificationList = await this.getList();
     return notificationList.find((item) => item.id === id) ?? null;
   };
-
-  protected init = singleshot(async () => {
-    this.loggerService.log("notificationViewService init");
-    if (CC_ENABLE_MOCK) {
-      return;
-    }
-    Notification.enable();
-  });
 }
 
 export default NotificationViewService;

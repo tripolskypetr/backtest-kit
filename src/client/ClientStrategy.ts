@@ -30,6 +30,7 @@ import {
   StrategyName,
   StrategyCancelReason,
   ICommitRow,
+  CommitPayload,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
@@ -1741,6 +1742,44 @@ const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
   }
 );
 
+const CALL_IDLE_PING_CALLBACKS_FN = trycatch(
+  beginTime(async (
+    self: ClientStrategy,
+    symbol: string,
+    timestamp: number,
+    backtest: boolean,
+    currentPrice: number,
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      // Call system onIdlePing callback (emits to idlePingSubject)
+      await self.params.onIdlePing(
+        self.params.execution.context.symbol,
+        self.params.method.context.strategyName,
+        self.params.method.context.exchangeName,
+        currentPrice,
+        self.params.execution.context.backtest,
+        timestamp
+      );
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    })
+  }),
+  {
+    fallback: (error, self) => {
+      const message = "ClientStrategy CALL_IDLE_PING_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
 const CALL_ACTIVE_CALLBACKS_FN = trycatch(
   beginTime(async (
     self: ClientStrategy,
@@ -2972,6 +3011,14 @@ const RETURN_IDLE_FN = async (
 ): Promise<IStrategyTickResultIdle> => {
   const currentTime = self.params.execution.context.when.getTime();
 
+  await CALL_IDLE_PING_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest,
+    currentPrice
+  );
+
   await CALL_IDLE_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
@@ -3009,7 +3056,8 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   averagePrice: number,
   closeTimestamp: number,
   reason: StrategyCancelReason,
-  cancelId?: string
+  cancelId?: string,
+  cancelNote?: string
 ): Promise<IStrategyTickResultCancelled> => {
   self.params.logger.info(
     "ClientStrategy backtest scheduled signal cancelled",
@@ -3040,7 +3088,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, averagePrice),
-      note: scheduled.note,
+      note: cancelNote ?? scheduled.note,
     });
   }
 
@@ -3362,7 +3410,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     totalPartials: closedSignal._partial?.length ?? 0,
     originalPriceOpen: closedSignal.priceOpen,
     pnl: toProfitLossDto(closedSignal, averagePrice),
-    note: closedSignal.note,
+    note: closedSignal.closeNote ?? closedSignal.note,
   });
 
   await CALL_CLOSE_CALLBACKS_FN(
@@ -3471,13 +3519,15 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     if (self._cancelledSignal) {
       // Сигнал был отменен через cancel() в onSchedulePing
       const cancelId = self._cancelledSignal.cancelId;
+      const cancelNote = self._cancelledSignal.cancelNote;
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
         self,
         scheduled,
         averagePrice,
         candle.timestamp,
         "user",
-        cancelId
+        cancelId,
+        cancelNote
       );
       return { outcome: "cancelled", result };
     }
@@ -3554,7 +3604,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, averagePrice),
-          note: activatedSignal.note,
+          note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return { outcome: "pending" };
       }
@@ -3596,7 +3646,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         pendingAt: publicSignalForCommit.pendingAt,
         totalEntries: publicSignalForCommit.totalEntries,
         totalPartials: publicSignalForCommit.totalPartials,
-        note: publicSignalForCommit.note,
+        note: activatedSignal.activateNote ?? publicSignalForCommit.note,
       });
 
       await CALL_OPEN_CALLBACKS_FN(
@@ -4769,6 +4819,42 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Computed as elapsed minutes since `pendingAt` (the moment the signal was activated).
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  public async getPositionActiveMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionActiveMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.floor((timestamp - this._pendingSignal.pendingAt) / 60000);
+  }
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Computed as elapsed minutes since `scheduledAt` (the moment the scheduled signal was created).
+   * Returns null if no scheduled signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  public async getPositionWaitingMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionWaitingMinutes", { symbol });
+    if (!this._scheduledSignal) {
+      return null;
+    }
+    return Math.floor((timestamp - this._scheduledSignal.scheduledAt) / 60000);
+  }
+
+  /**
    * Returns the number of minutes elapsed since the highest profit price was recorded.
    *
    * Alias for getPositionDrawdownMinutes — measures how long the position has been
@@ -4961,6 +5047,46 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Measures the total swing from the stored `_peak.pnlPercentage` to the stored `_fall.pnlPercentage`.
+   * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+   */
+  public async getMaxDrawdownDistancePnlPercentage(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getMaxDrawdownDistancePnlPercentage", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.max(0, this._pendingSignal._peak.pnlPercentage - this._pendingSignal._fall.pnlPercentage);
+  }
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Measures the total swing from the stored `_peak.pnlCost` to the stored `_fall.pnlCost`.
+   * Computed as: max(0, peakPnlCost - fallPnlCost).
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+   */
+  public async getMaxDrawdownDistancePnlCost(symbol: string, currentPrice: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getMaxDrawdownDistancePnlCost", { symbol, currentPrice });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.max(0, this._pendingSignal._peak.pnlCost - this._pendingSignal._fall.pnlCost);
+  }
+
+  /**
    * Performs a single tick of strategy execution.
    *
    * Flow (LIVE mode):
@@ -5032,7 +5158,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
-        note: cancelledSignal.note,
+        note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
       // Call onCancel callback
@@ -5115,7 +5241,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
-        note: closedSignal.note,
+        note: closedSignal.closeNote ?? closedSignal.note,
       });
 
       // Call onClose callback
@@ -5257,7 +5383,7 @@ export class ClientStrategy implements IStrategy {
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, currentPrice),
-          note: activatedSignal.note,
+          note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return await RETURN_IDLE_FN(this, currentPrice);
       }
@@ -5297,7 +5423,7 @@ export class ClientStrategy implements IStrategy {
         pendingAt: publicSignalForCommit.pendingAt,
         totalEntries: publicSignalForCommit.totalEntries,
         totalPartials: publicSignalForCommit.totalPartials,
-        note: publicSignalForCommit.note,
+        note: activatedSignal.activateNote ?? publicSignalForCommit.note,
       });
 
       // Call onOpen callback
@@ -5514,7 +5640,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
-        note: cancelledSignal.note,
+        note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
       await CALL_CANCEL_CALLBACKS_FN(
@@ -5602,7 +5728,7 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
-        note: closedSignal.note,
+        note: closedSignal.closeNote ?? closedSignal.note,
       });
 
       await CALL_CLOSE_CALLBACKS_FN(
@@ -5895,7 +6021,8 @@ export class ClientStrategy implements IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  public async cancelScheduled(symbol: string, backtest: boolean, cancelId?: string): Promise<void> {
+  public async cancelScheduled(symbol: string, backtest: boolean, payload: Partial<CommitPayload>): Promise<void> {
+    const cancelId = payload.id;
     this.params.logger.debug("ClientStrategy cancelScheduled", {
       symbol,
       hasScheduledSignal: this._scheduledSignal !== null,
@@ -5909,6 +6036,7 @@ export class ClientStrategy implements IStrategy {
     if (this._scheduledSignal) {
       this._cancelledSignal = Object.assign({}, this._scheduledSignal, {
         cancelId,
+        cancelNote: payload.note,
       });
       this._scheduledSignal = null;
     }
@@ -5949,7 +6077,8 @@ export class ClientStrategy implements IStrategy {
    * // Scheduled signal becomes pending signal immediately
    * ```
    */
-  public async activateScheduled(symbol: string, backtest: boolean, activateId?: string): Promise<void> {
+  public async activateScheduled(symbol: string, backtest: boolean, payload: Partial<CommitPayload>): Promise<void> {
+    const activateId = payload.id;
     this.params.logger.debug("ClientStrategy activateScheduled", {
       symbol,
       hasScheduledSignal: this._scheduledSignal !== null,
@@ -5969,6 +6098,7 @@ export class ClientStrategy implements IStrategy {
     if (this._scheduledSignal) {
       this._activatedSignal = Object.assign({}, this._scheduledSignal, {
         activateId,
+        activateNote: payload.note,
       });
       this._scheduledSignal = null;
     }
@@ -6009,7 +6139,8 @@ export class ClientStrategy implements IStrategy {
    * // Strategy continues, can generate new signals
    * ```
    */
-  public async closePending(symbol: string, backtest: boolean, closeId?: string): Promise<void> {
+  public async closePending(symbol: string, backtest: boolean, payload: Partial<CommitPayload>): Promise<void> {
+    const closeId = payload.id;
     this.params.logger.debug("ClientStrategy closePending", {
       symbol,
       hasPendingSignal: this._pendingSignal !== null,
@@ -6022,6 +6153,7 @@ export class ClientStrategy implements IStrategy {
     if (this._pendingSignal) {
       this._closedSignal = Object.assign({}, this._pendingSignal, {
         closeId,
+        closeNote: payload.note,
       });
       this._pendingSignal = null;
     }

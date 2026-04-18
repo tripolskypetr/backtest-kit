@@ -12,6 +12,7 @@ import {
   alignToInterval,
   Log,
   Cache,
+  Session,
   Interval,
 } from "backtest-kit";
 import { createAwaiter, singleshot } from "functools-kit";
@@ -46,6 +47,10 @@ const GET_CACHE_INTERVAL_LIST_FN = () => {
     .map((timeframe) => <CandleInterval>timeframe.trim());
 };
 
+type EntryPath = string;
+type StrategyName = string;
+type RestoreSnapshot = () => void;
+
 export class WalkerMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
   private resolveService = inject<ResolveService>(TYPES.resolveService);
@@ -76,7 +81,8 @@ export class WalkerMainService {
     }) => {
       this.loggerService.log("walkerMainService run", { payload });
 
-      const strategyMap = new Map();
+      const strategyMap = new Map<StrategyName, EntryPath>();
+      const sessionMap = new Map<EntryPath, RestoreSnapshot>();
 
       const cwd = process.cwd();
 
@@ -109,6 +115,8 @@ export class WalkerMainService {
           }
           strategyMap.set(strategyName, entryPoint)
         }
+
+        sessionMap.set(entryPoint, Session.createSnapshot());
 
         Cache.resetCounter();
         Interval.resetCounter();
@@ -170,6 +178,11 @@ export class WalkerMainService {
             return;
           }
 
+          const restoreSnapshot = sessionMap.get(entryPoint);
+          if (!restoreSnapshot) {
+            return;
+          }
+
           process.chdir(cwd);
 
           const absolutePath = path.resolve(entryPoint);
@@ -181,6 +194,8 @@ export class WalkerMainService {
             Setup.clear();
             Setup.enable();
           }
+
+          restoreSnapshot();
 
           {
             cwd !== moduleRoot && Log.useJsonl();

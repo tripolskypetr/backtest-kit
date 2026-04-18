@@ -86,6 +86,8 @@ export class StatusMockService {
       positionLevels,
       positionEntries,
       positionPartials,
+      _peak: status._peak,
+      _fall: status._fall,
     };
   };
 }

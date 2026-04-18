@@ -16,6 +16,7 @@ import {
   IStrategyTickResultCancelled,
   IStrategyTickResultActive,
   IPublicSignalRow,
+  CommitPayload,
 } from "../../../interfaces/Strategy.interface";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
@@ -30,6 +31,7 @@ import {
   syncSubject,
   highestProfitSubject,
   maxDrawdownSubject,
+  idlePingSubject,
 } from "../../../config/emitters";
 import { StrategyCommitContract } from "../../../contract/StrategyCommit.contract";
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
@@ -267,10 +269,54 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
 );
 
 /**
+ * Creates a callback function for emitting idle ping events.
+ *
+ * Called by ClientStrategy when no active or scheduled signals are present.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for idle ping events
+ */
+const CREATE_COMMIT_IDLE_PING_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    currentPrice: number,
+    backtest: boolean,
+    timestamp: number
+  ): Promise<void> => {
+    const frameName = self.methodContextService.context.frameName;
+    const event = {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      currentPrice,
+      backtest,
+      timestamp,
+    };
+    await idlePingSubject.next(event);
+    await self.actionCoreService.pingIdle(backtest, event, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_IDLE_PING_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting active ping events.
  *
  * Called by ClientStrategy when an active pending signal is being monitored every minute.
- * Placeholder for future activePingSubject implementation.
  *
  * @param self - Reference to StrategyConnectionService instance
  * @returns Callback function for active ping events
@@ -599,6 +645,7 @@ export class StrategyConnectionService implements TStrategy {
         onInit: CREATE_COMMIT_INIT_FN(this),
         onSchedulePing: CREATE_COMMIT_SCHEDULE_PING_FN(this),
         onActivePing: CREATE_COMMIT_ACTIVE_PING_FN(this),
+        onIdlePing: CREATE_COMMIT_IDLE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
         onCommit: CREATE_COMMIT_FN(this),
         onSignalSync: CREATE_SYNC_FN(this, strategyName, exchangeName, frameName, backtest),
@@ -1204,6 +1251,56 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Delegates to ClientStrategy.getPositionActiveMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  public getPositionActiveMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionActiveMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.getPositionActiveMinutes(symbol, timestamp);
+  };
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Delegates to ClientStrategy.getPositionWaitingMinutes().
+   * Returns null if no scheduled signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  public getPositionWaitingMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionWaitingMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.getPositionWaitingMinutes(symbol, timestamp);
+  };
+
+  /**
    * Returns the best price reached in the profit direction during this position's life.
    *
    * Delegates to ClientStrategy.getPositionHighestProfitPrice().
@@ -1608,6 +1705,58 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getMaxDrawdownDistancePnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+   */
+  public getMaxDrawdownDistancePnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getMaxDrawdownDistancePnlPercentage", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getMaxDrawdownDistancePnlPercentage(symbol, currentPrice);
+  };
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Resolves current price via priceMetaService and delegates to
+   * ClientStrategy.getMaxDrawdownDistancePnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+   */
+  public getMaxDrawdownDistancePnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getMaxDrawdownDistancePnlCost", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const currentPrice = await this.priceMetaService.getCurrentPrice(symbol, context, backtest);
+    return await strategy.getMaxDrawdownDistancePnlCost(symbol, currentPrice);
+  };
+
+  /**
    * Disposes the ClientStrategy instance for the given context.
    *
    * Calls dispose callback, then removes strategy from cache.
@@ -1680,22 +1829,22 @@ export class StrategyConnectionService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param ctx - Context with strategyName, exchangeName, frameName
-   * @param cancelId - Optional cancellation ID for user-initiated cancellations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when scheduled signal is cancelled
    */
   public cancelScheduled = async (
     backtest: boolean,
     symbol: string,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    cancelId?: string
+    payload: Partial<CommitPayload> = {}
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService cancelScheduled", {
       symbol,
       context,
-      cancelId,
+      payload,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.cancelScheduled(symbol, backtest, cancelId);
+    await strategy.cancelScheduled(symbol, backtest, payload);
   };
 
   /**
@@ -1711,22 +1860,22 @@ export class StrategyConnectionService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param context - Context with strategyName, exchangeName, frameName
-   * @param closeId - Optional close ID for user-initiated closes
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when pending signal is closed
    */
   public closePending = async (
     backtest: boolean,
     symbol: string,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    closeId?: string
+    payload: Partial<CommitPayload> = {}
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService closePending", {
       symbol,
       context,
-      closeId,
+      payload,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.closePending(symbol, backtest, closeId);
+    await strategy.closePending(symbol, backtest, payload);
   };
 
   /**
@@ -2074,7 +2223,7 @@ export class StrategyConnectionService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, frameName
-   * @param activateId - Optional identifier for the activation reason
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when activation flag is set
    *
    * @example
@@ -2084,7 +2233,7 @@ export class StrategyConnectionService implements TStrategy {
    *   false,
    *   "BTCUSDT",
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
-   *   "manual-activation"
+   *   { id: "manual-activation" }
    * );
    * ```
    */
@@ -2092,16 +2241,16 @@ export class StrategyConnectionService implements TStrategy {
     backtest: boolean,
     symbol: string,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    activateId?: string
+    payload: Partial<CommitPayload> = {}
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService activateScheduled", {
       symbol,
       context,
       backtest,
-      activateId,
+      payload,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.activateScheduled(symbol, backtest, activateId);
+    return await strategy.activateScheduled(symbol, backtest, payload);
   };
 
   /**

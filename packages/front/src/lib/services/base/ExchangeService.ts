@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "./LoggerService";
 import { TYPES } from "../../../lib/core/types";
-import { CandleInterval, Exchange, alignToInterval } from "backtest-kit";
+import { CandleInterval, Exchange, alignToInterval, listExchangeSchema } from "backtest-kit";
 
 type ExchangeName = string;
 
@@ -116,13 +116,39 @@ export class ExchangeService {
     this.loggerService.log("exchangeService getLastCandles", {
       dto,
     })
-        return await Exchange.getCandles(
+    return await Exchange.getCandles(
       dto.symbol,
       dto.interval,
       dto.limit,
       {
         exchangeName: dto.exchangeName,
       },
+    );
+  }
+
+  public getRawCandles = async (dto: {
+    symbol: string;
+    interval: CandleInterval;
+    limit?: number,
+    sDate?: number,
+    eDate?: number,
+  }) => {
+    this.loggerService.log("exchangeService getRawCandles", {
+      dto,
+    })
+    const [exchange = null] = await listExchangeSchema();
+    if (exchange === null) {
+      throw new Error("exchangeService getRawCandles no exchange registered");
+    }
+    return await Exchange.getRawCandles(
+      dto.symbol,
+      dto.interval,
+      {
+        exchangeName: exchange.exchangeName,
+      },
+      dto.limit,
+      dto.sDate,
+      dto.eDate,
     );
   }
 }

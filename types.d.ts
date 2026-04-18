@@ -1054,6 +1054,53 @@ interface ActivePingContract {
 }
 
 /**
+ * Contract for idle ping events when no signal is active.
+ *
+ * Emitted by idlePingSubject every tick/minute when there is no pending
+ * or scheduled signal being monitored.
+ * Used for tracking idle strategy lifecycle.
+ *
+ * Consumers:
+ * - User callbacks via listenIdlePing() / listenIdlePingOnce()
+ */
+interface IdlePingContract {
+    /**
+     * Trading pair symbol (e.g., "BTCUSDT").
+     */
+    symbol: string;
+    /**
+     * Strategy name that is in idle state.
+     */
+    strategyName: StrategyName;
+    /**
+     * Exchange name where this strategy is running.
+     */
+    exchangeName: ExchangeName;
+    /**
+     * Frame name (if backtest)
+     */
+    frameName: FrameName;
+    /**
+     * Current market price of the symbol at the time of the ping.
+     */
+    currentPrice: number;
+    /**
+     * Execution mode flag.
+     * - true: Event from backtest execution (historical candle data)
+     * - false: Event from live trading (real-time tick)
+     */
+    backtest: boolean;
+    /**
+     * Event timestamp in milliseconds since Unix epoch.
+     *
+     * Timing semantics:
+     * - Live mode: when.getTime() at the moment of ping
+     * - Backtest mode: candle.timestamp of the candle being processed
+     */
+    timestamp: number;
+}
+
+/**
  * Contract for risk rejection events.
  *
  * Emitted by riskSubject ONLY when a signal is REJECTED due to risk validation failure.
@@ -1568,6 +1615,19 @@ interface IActionCallbacks {
      */
     onPingActive(event: ActivePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
     /**
+     * Called every tick when no signal is active (idle state).
+     *
+     * Triggered by: StrategyConnectionService via idlePingSubject
+     * Frequency: Every tick while no signal is pending or scheduled
+     *
+     * @param event - Idle ping data with current price and context
+     * @param actionName - Action identifier
+     * @param strategyName - Strategy identifier
+     * @param frameName - Timeframe identifier
+     * @param backtest - True for backtest mode, false for live trading
+     */
+    onPingIdle(event: IdlePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    /**
      * Called when signal is rejected by risk management.
      *
      * Triggered by: RiskConnectionService via riskSubject
@@ -1835,6 +1895,16 @@ interface IAction {
      * @param event - Active pending signal monitoring data
      */
     pingActive(event: ActivePingContract): void | Promise<void>;
+    /**
+     * Handles idle ping events when no signal is active.
+     *
+     * Emitted by: StrategyConnectionService via idlePingSubject
+     * Source: CREATE_COMMIT_IDLE_PING_FN callback in StrategyConnectionService
+     * Frequency: Every tick while no signal is pending or scheduled
+     *
+     * @param event - Idle ping data with current price and context
+     */
+    pingIdle(event: IdlePingContract): void | Promise<void>;
     /**
      * Handles risk rejection events when signals fail risk validation.
      *
@@ -2145,6 +2215,16 @@ interface ActivateScheduledCommit extends SignalCommitBase {
 type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | AverageBuyCommit | ActivateScheduledCommit;
 
 /**
+ * Commit payload for strategy commits.
+ * Used in activateScheduled, closePending, cancelScheduled
+ */
+type CommitPayload = {
+    /** Commit id */
+    id: string;
+    /** Note describing the commit */
+    note: string;
+};
+/**
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
@@ -2445,6 +2525,8 @@ interface IRiskSignalRow extends IPublicSignalRow {
 interface IScheduledSignalCancelRow extends IScheduledSignalRow {
     /** Cancellation ID (only for user-initiated cancellations) */
     cancelId?: string;
+    /** Note from user payload (only for user-initiated cancellations) */
+    cancelNote?: string;
 }
 /**
  * Base interface for queued commit events.
@@ -3052,7 +3134,7 @@ interface IStrategy {
      * // Strategy continues, can generate new signals
      * ```
      */
-    cancelScheduled: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>;
+    cancelScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
     /**
      * Activates the scheduled signal without waiting for price to reach priceOpen.
      *
@@ -3074,7 +3156,7 @@ interface IStrategy {
      * // Scheduled signal becomes pending signal immediately
      * ```
      */
-    activateScheduled: (symbol: string, backtest: boolean, activateId?: string) => Promise<void>;
+    activateScheduled: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
     /**
      * Closes the pending signal without stopping the strategy.
      *
@@ -3096,7 +3178,7 @@ interface IStrategy {
      * // Strategy continues, can generate new signals
      * ```
      */
-    closePending: (symbol: string, backtest: boolean, closeId?: string) => Promise<void>;
+    closePending: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
     /**
      * Executes partial close at profit level (moving toward TP).
      *
@@ -3515,6 +3597,26 @@ interface IStrategy {
      */
     getPositionCountdownMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
     /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param timestamp - Current Unix timestamp in milliseconds
+     * @returns Promise resolving to active minutes (≥ 0) or null
+     */
+    getPositionActiveMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * Returns null if no scheduled signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param timestamp - Current Unix timestamp in milliseconds
+     * @returns Promise resolving to waiting minutes (≥ 0) or null
+     */
+    getPositionWaitingMinutes: (symbol: string, timestamp: number) => Promise<number | null>;
+    /**
      * Returns the best price reached in the profit direction during this position's life.
      *
      * Returns null if no pending signal exists.
@@ -3676,6 +3778,26 @@ interface IStrategy {
      * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
      */
     getPositionHighestMaxDrawdownPnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlPercentage: (symbol: string, currentPrice: number) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Computed as: max(0, peakPnlCost - fallPnlCost).
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlCost: (symbol: string, currentPrice: number) => Promise<number | null>;
     /**
      * Disposes the strategy instance and cleans up resources.
      *
@@ -4717,6 +4839,79 @@ interface IPositionOverlapLadder {
 }
 
 /**
+ * Optional payload for signal info notifications.
+ * Both fields are optional — omitting notificationNote falls back to the signal's own note.
+ */
+type SignalNotificationPayload = {
+    /** Optional user-defined identifier for correlating the notification with external systems (e.g. Telegram message ID) */
+    notificationId: string;
+    /** Human-readable note to attach to the notification. Falls back to signal.note if omitted. */
+    notificationNote: string;
+};
+/**
+ * Helper service for emitting signal info notifications.
+ *
+ * Handles validation (memoized per context) and emission of `signal.info` events
+ * via `signalNotifySubject`. Used internally by the framework action pipeline —
+ * end users interact with this via `commitSignalNotify()` in `onActivePing` callbacks.
+ */
+declare class NotificationHelperService {
+    private readonly loggerService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
+    private readonly strategyValidationService;
+    private readonly exchangeValidationService;
+    private readonly frameValidationService;
+    private readonly actionValidationService;
+    private readonly strategyCoreService;
+    private readonly timeMetaService;
+    /**
+     * Validates strategy, exchange, frame, risk, and action schemas for the given context.
+     *
+     * Memoized per unique `"strategyName:exchangeName[:frameName]"` key — subsequent calls
+     * with the same context are no-ops, so validation runs at most once per context.
+     *
+     * @param context - Routing context: strategyName, exchangeName, frameName
+     * @throws {Error} If any registered schema fails validation
+     */
+    validate: ((context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<void>>;
+    /**
+     * Emits a `signal.info` notification for the currently active pending signal.
+     *
+     * Validates all schemas (via memoized `validate`), resolves the pending signal
+     * for the given symbol, then emits a `SignalInfoContract` via `signalNotifySubject`,
+     * which is routed to all registered `listenSignalNotify` callbacks and persisted
+     * by `NotificationAdapter`.
+     *
+     * @param payload - Optional notification fields (notificationId, notificationNote)
+     * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+     * @param currentPrice - Market price at the time of the call
+     * @param context - Routing context: strategyName, exchangeName, frameName
+     * @param backtest - true when called during a backtest run
+     *
+     * @throws {Error} If no active pending signal is found for the given symbol
+     *
+     * @example
+     * ```typescript
+     * // Inside onActivePing callback:
+     * await commitSignalNotify("BTCUSDT", {
+     *   notificationNote: "RSI crossed 70, consider closing",
+     *   notificationId: "msg-123",
+     * });
+     * ```
+     */
+    commitSignalNotify: (payload: Partial<SignalNotificationPayload>, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest: boolean) => Promise<void>;
+}
+
+/**
  * Cancels the scheduled signal without stopping the strategy.
  *
  * Clears the scheduled signal (waiting for priceOpen activation).
@@ -4727,7 +4922,7 @@ interface IPositionOverlapLadder {
  *
  * @param symbol - Trading pair symbol
  * @param strategyName - Strategy name
- * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when scheduled signal is cancelled
  *
  * @example
@@ -4735,10 +4930,10 @@ interface IPositionOverlapLadder {
  * import { commitCancelScheduled } from "backtest-kit";
  *
  * // Cancel scheduled signal with custom ID
- * await commitCancelScheduled("BTCUSDT", "manual-cancel-001");
+ * await commitCancelScheduled("BTCUSDT", { id: "manual-cancel-001" });
  * ```
  */
-declare function commitCancelScheduled(symbol: string, cancelId?: string): Promise<void>;
+declare function commitCancelScheduled(symbol: string, payload?: Partial<CommitPayload>): Promise<void>;
 /**
  * Closes the pending signal without stopping the strategy.
  *
@@ -4749,7 +4944,7 @@ declare function commitCancelScheduled(symbol: string, cancelId?: string): Promi
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param closeId - Optional close ID for tracking user-initiated closes
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when pending signal is closed
  *
  * @example
@@ -4757,10 +4952,10 @@ declare function commitCancelScheduled(symbol: string, cancelId?: string): Promi
  * import { commitClosePending } from "backtest-kit";
  *
  * // Close pending signal with custom ID
- * await commitClosePending("BTCUSDT", "manual-close-001");
+ * await commitClosePending("BTCUSDT", { id: "manual-close-001" });
  * ```
  */
-declare function commitClosePending(symbol: string, closeId?: string): Promise<void>;
+declare function commitClosePending(symbol: string, payload?: Partial<CommitPayload>): Promise<void>;
 /**
  * Executes partial close at profit level (moving toward TP).
  *
@@ -4968,7 +5163,7 @@ declare function commitBreakeven(symbol: string): Promise<boolean>;
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param activateId - Optional activation ID for tracking user-initiated activations
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when activation flag is set
  *
  * @example
@@ -4976,10 +5171,10 @@ declare function commitBreakeven(symbol: string): Promise<boolean>;
  * import { commitActivateScheduled } from "backtest-kit";
  *
  * // Activate scheduled signal early with custom ID
- * await commitActivateScheduled("BTCUSDT", "manual-activate-001");
+ * await commitActivateScheduled("BTCUSDT", { id: "manual-activate-001" });
  * ```
  */
-declare function commitActivateScheduled(symbol: string, activateId?: string): Promise<void>;
+declare function commitActivateScheduled(symbol: string, payload?: Partial<CommitPayload>): Promise<void>;
 /**
  * Adds a new DCA entry to the active pending signal.
  *
@@ -5416,6 +5611,40 @@ declare function getPositionEstimateMinutes(symbol: string): Promise<number>;
  */
 declare function getPositionCountdownMinutes(symbol: string): Promise<number>;
 /**
+ * Returns the number of minutes the position has been active since it opened.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to active minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionActiveMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionActiveMinutes("BTCUSDT");
+ * // e.g. 120 (position has been open for 2 hours)
+ * ```
+ */
+declare function getPositionActiveMinutes(symbol: string): Promise<number>;
+/**
+ * Returns the number of minutes the scheduled signal has been waiting for activation.
+ *
+ * Returns null if no scheduled signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to waiting minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWaitingMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionWaitingMinutes("BTCUSDT");
+ * // e.g. 15 (scheduled signal has been waiting 15 minutes for activation)
+ * ```
+ */
+declare function getPositionWaitingMinutes(symbol: string): Promise<number>;
+/**
  * Returns the best price reached in the profit direction during this position's life.
  *
  * Initialized at position open with the entry price and timestamp.
@@ -5709,6 +5938,42 @@ declare function getPositionHighestMaxDrawdownPnlPercentage(symbol: string): Pro
  */
 declare function getPositionHighestMaxDrawdownPnlCost(symbol: string): Promise<number>;
 /**
+ * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+ *
+ * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getMaxDrawdownDistancePnlPercentage } from "backtest-kit";
+ *
+ * const dist = await getMaxDrawdownDistancePnlPercentage("BTCUSDT");
+ * // e.g. 3.5 (peak was +3.5% above trough)
+ * ```
+ */
+declare function getMaxDrawdownDistancePnlPercentage(symbol: string): Promise<number>;
+/**
+ * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+ *
+ * Computed as: max(0, peakPnlCost - fallPnlCost).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getMaxDrawdownDistancePnlCost } from "backtest-kit";
+ *
+ * const dist = await getMaxDrawdownDistancePnlCost("BTCUSDT");
+ * // e.g. 7.2 (peak was $7.2 above trough)
+ * ```
+ */
+declare function getMaxDrawdownDistancePnlCost(symbol: string): Promise<number>;
+/**
  * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
  * Use this to prevent duplicate DCA entries at the same price area.
  *
@@ -5800,6 +6065,38 @@ declare function hasNoPendingSignal(symbol: string): Promise<boolean>;
  * ```
  */
 declare function hasNoScheduledSignal(symbol: string): Promise<boolean>;
+/**
+ * Emits a `signal.info` notification for the currently active pending signal.
+ *
+ * Broadcasts a user-defined informational note without affecting position state.
+ * Useful for annotating strategy decisions, triggering external alerts, or logging
+ * mid-position events (e.g. RSI crossing a threshold, volume spike detected).
+ *
+ * Automatically reads backtest/live mode from execution context.
+ * Automatically reads strategyName, exchangeName, frameName from method context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+ * @param payload - Optional notification fields
+ * @param payload.notificationNote - Human-readable note. Falls back to signal.note if omitted.
+ * @param payload.notificationId - Optional correlation ID for external systems (e.g. Telegram message ID).
+ *
+ * @throws {Error} If called outside an execution context
+ * @throws {Error} If called outside a method context
+ * @throws {Error} If no active pending signal exists for the given symbol
+ *
+ * @example
+ * ```typescript
+ * import { commitSignalNotify } from "backtest-kit";
+ *
+ * // Inside onActivePing callback:
+ * await commitSignalNotify("BTCUSDT", {
+ *   notificationNote: "RSI crossed 70, consider closing",
+ *   notificationId: "msg-123",
+ * });
+ * ```
+ */
+declare function commitSignalNotify(symbol: string, payload?: Partial<SignalNotificationPayload>): Promise<void>;
 
 /**
  * Stops the strategy from generating new signals.
@@ -7514,6 +7811,89 @@ interface MaxDrawdownContract {
 }
 
 /**
+ * Contract for signal info notification events.
+ *
+ * Emitted by signalNotifySubject when a strategy calls commitSignalInfo() to broadcast
+ * a user-defined informational message for an open position.
+ * Used for custom strategy annotations, debug output, and external notification routing.
+ *
+ * Consumers:
+ * - User callbacks via listenSignalNotify() / listenSignalNotifyOnce()
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalNotify } from "backtest-kit";
+ *
+ * // Listen to all signal info events
+ * listenSignalNotify((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Signal ${event.data.id}: ${event.note}`);
+ *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
+ * });
+ *
+ * // Wait for the first info event on BTCUSDT
+ * listenSignalNotifyOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT info:", event.note)
+ * );
+ * ```
+ */
+interface SignalInfoContract {
+    /**
+     * Trading pair symbol (e.g., "BTCUSDT").
+     * Identifies which market this info event belongs to.
+     */
+    symbol: string;
+    /**
+     * Strategy name that generated this signal.
+     * Identifies which strategy execution this info event belongs to.
+     */
+    strategyName: StrategyName;
+    /**
+     * Exchange name where this signal is being executed.
+     * Identifies which exchange this info event belongs to.
+     */
+    exchangeName: ExchangeName;
+    /**
+     * Frame name where this signal is being executed.
+     * Identifies which frame this info event belongs to (empty string for live mode).
+     */
+    frameName: FrameName;
+    /**
+     * Complete signal row data with original prices.
+     * Contains all signal information including originalPriceStopLoss, originalPriceTakeProfit, and partialExecuted.
+     */
+    data: IPublicSignalRow;
+    /**
+     * Current market price at the moment the info event was emitted.
+     */
+    currentPrice: number;
+    /**
+     * User-defined informational note attached to this event.
+     * Provided by the strategy when calling commitSignalInfo().
+     */
+    note: string;
+    /**
+     * Optional user-defined identifier for correlating this event with external systems.
+     * Provided by the strategy when calling commitSignalInfo().
+     */
+    notificationId?: string;
+    /**
+     * Execution mode flag.
+     * - true: Event from backtest execution (historical candle data)
+     * - false: Event from live trading (real-time tick)
+     */
+    backtest: boolean;
+    /**
+     * Event timestamp in milliseconds since Unix epoch.
+     *
+     * Timing semantics:
+     * - Live mode: when.getTime() at the moment the info event was emitted
+     * - Backtest mode: candle.timestamp of the candle that triggered the event
+     */
+    timestamp: number;
+}
+
+/**
  * Subscribes to all signal events with queued async processing.
  *
  * Events are processed sequentially in order received, even if callback is async.
@@ -8444,6 +8824,23 @@ declare function listenActivePing(fn: (event: ActivePingContract) => void): () =
  */
 declare function listenActivePingOnce(filterFn: (event: ActivePingContract) => boolean, fn: (event: ActivePingContract) => void): () => void;
 /**
+ * Subscribes to idle ping events with queued async processing.
+ *
+ * Emits every tick when there is no pending or scheduled signal being monitored.
+ *
+ * @param fn - Callback function to handle idle ping events
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenIdlePing(fn: (event: IdlePingContract) => void): () => void;
+/**
+ * Subscribes to filtered idle ping events with one-time execution.
+ *
+ * @param filterFn - Predicate to filter events
+ * @param fn - Callback function to handle the matching event
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenIdlePingOnce(filterFn: (event: IdlePingContract) => boolean, fn: (event: IdlePingContract) => void): () => void;
+/**
  * Subscribes to strategy management events with queued async processing.
  *
  * Emits when strategy management actions are executed:
@@ -8568,6 +8965,24 @@ declare function listenMaxDrawdown(fn: (event: MaxDrawdownContract) => void): ()
  * @return Unsubscribe function to cancel the listener before it fires
  */
 declare function listenMaxDrawdownOnce(filterFn: (event: MaxDrawdownContract) => boolean, fn: (event: MaxDrawdownContract) => void): () => void;
+/**
+ * Subscribes to signal info events with queued async processing.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a user-defined note for an open position.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ * @param fn - Callback function to handle signal info events
+ * @return Unsubscribe function to stop listening to events
+ */
+declare function listenSignalNotify(fn: (event: SignalInfoContract) => void): () => void;
+/**
+ * Subscribes to filtered signal info events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenSignalNotifyOnce(filterFn: (event: SignalInfoContract) => boolean, fn: (event: SignalInfoContract) => void): () => void;
 
 /**
  * Checks if trade context is active (execution and method contexts).
@@ -8822,6 +9237,60 @@ declare function getNextCandles(symbol: string, interval: CandleInterval, limit:
  * ```
  */
 declare function getAggregatedTrades(symbol: string, limit?: number): Promise<IAggregatedTradeData[]>;
+
+/**
+ * Returns the latest signal (pending or closed) for the current strategy context.
+ *
+ * Does not distinguish between active and closed signals — returns whichever
+ * was recorded last. Useful for cooldown logic: e.g. skip opening a new position
+ * for 4 hours after a stop-loss by checking the timestamp of the latest signal
+ * regardless of its outcome.
+ *
+ * Searches backtest storage first, then live storage.
+ * Returns null if no signal exists at all.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to the latest signal or null
+ *
+ * @example
+ * ```typescript
+ * import { getLatestSignal } from "backtest-kit";
+ *
+ * const latest = await getLatestSignal("BTCUSDT");
+ * if (latest && Date.now() - latest.closedAt < 4 * 60 * 60 * 1000) {
+ *   return; // cooldown after SL — skip new signal for 4 hours
+ * }
+ * ```
+ */
+declare function getLatestSignal(symbol: string): Promise<IPublicSignalRow | null>;
+/**
+ * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+ *
+ * Does not distinguish between active and closed signals — measures time since
+ * whichever signal was recorded last. Useful for cooldown logic after a stop-loss.
+ *
+ * Searches backtest storage first, then live storage.
+ * Returns null if no signal exists at all.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param timestamp - Current timestamp in milliseconds
+ * @returns Promise resolving to whole minutes since the latest signal was created, or null
+ *
+ * @example
+ * ```typescript
+ * import { getMinutesSinceLatestSignalCreated } from "backtest-kit";
+ *
+ * const minutes = await getMinutesSinceLatestSignalCreated("BTCUSDT", Date.now());
+ * if (minutes !== null && minutes < 24 * 60) {
+ *   return; // cooldown — skip new signal for 24 hours after last signal
+ * }
+ * ```
+ */
+declare function getMinutesSinceLatestSignalCreated(symbol: string, timestamp: number): Promise<number | null>;
 
 /**
  * Writes a value to memory scoped to the current signal.
@@ -10483,6 +10952,70 @@ interface ClosePendingCommitNotification {
     createdAt: number;
 }
 /**
+ * Signal info notification.
+ * Emitted when a strategy broadcasts a user-defined informational note for an open position.
+ */
+interface SignalInfoNotification {
+    /** Discriminator for type-safe union */
+    type: "signal.info";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the info event was emitted */
+    timestamp: number;
+    /** Whether this notification is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Current market price when the info event was emitted */
+    currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Unrealized PNL at the moment the info event was emitted (from data.pnl) */
+    pnl: IStrategyPnL;
+    /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation (adjusted with slippage and fees) */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** User-defined informational note provided by the strategy */
+    note: string;
+    /** Optional user-defined identifier for correlating this notification with external systems */
+    notificationId?: string;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
  * Root discriminated union of all notification types.
  * Type discrimination is done via the `type` field.
  *
@@ -10508,7 +11041,7 @@ interface ClosePendingCommitNotification {
  * }
  * ```
  */
-type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | SignalSyncOpenNotification | SignalSyncCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification;
+type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | SignalSyncOpenNotification | SignalSyncCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | SignalInfoNotification;
 
 /**
  * Unified tick event data for report generation.
@@ -11176,6 +11709,8 @@ interface StrategyEvent {
     pnl?: IStrategyPnL;
     /** Cost of this entry in USD (average-buy action only) */
     cost?: number;
+    /** Optional note from commit payload */
+    note?: string;
 }
 /**
  * Statistical data calculated from strategy events.
@@ -12449,6 +12984,80 @@ declare class PersistMemoryUtils {
  * ```
  */
 declare const PersistMemoryAdapter: PersistMemoryUtils;
+/**
+ * Type for persisted recent signal data.
+ * Stores the latest active signal per context key.
+ */
+type RecentData = IPublicSignalRow | null;
+/**
+ * Utility class for managing recent signal persistence.
+ *
+ * Features:
+ * - Memoized storage instances per (symbol, strategyName, exchangeName, frameName) context
+ * - Custom adapter support
+ * - Atomic read/write operations
+ * - Crash-safe recent signal state management
+ *
+ * Used by RecentPersistBacktestUtils/RecentPersistLiveUtils for recent signal persistence.
+ */
+declare class PersistRecentUtils {
+    private PersistRecentFactory;
+    private getStorage;
+    private createKeyParts;
+    /**
+     * Registers a custom persistence adapter.
+     *
+     * @param Ctor - Custom PersistBase constructor
+     */
+    usePersistRecentAdapter(Ctor: TPersistBaseCtor<string, IPublicSignalRow>): void;
+    /**
+     * Reads the latest persisted recent signal for a given context.
+     *
+     * Returns null if no recent signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @returns Promise resolving to recent signal or null
+     */
+    readRecentData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<IPublicSignalRow | null>;
+    /**
+     * Writes the latest recent signal to disk with atomic file writes.
+     *
+     * Uses symbol as the entity ID within the per-context storage instance.
+     * Uses atomic writes to prevent corruption on crashes.
+     *
+     * @param signalRow - Recent signal data to persist
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @returns Promise that resolves when write is complete
+     */
+    writeRecentData: (signalRow: IPublicSignalRow, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
+    /**
+     * Clears the memoized storage cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new storage instances are created with the updated base path.
+     */
+    clear(): void;
+    /**
+     * Switches to the default JSON persist adapter.
+     * All future persistence writes will use JSON storage.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy(): void;
+}
+/**
+ * Global singleton instance of PersistRecentUtils.
+ * Used by RecentPersistBacktestUtils/RecentPersistLiveUtils for recent signal persistence.
+ */
+declare const PersistRecentAdapter: PersistRecentUtils;
 
 /**
  * Configuration interface for selective markdown service enablement.
@@ -13114,6 +13723,33 @@ declare class MarkdownUtils {
      * ```
      */
     disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void;
+    /**
+     * Clears markdown report data selectively.
+     *
+     * Clears accumulated data for specified markdown services without unsubscribing.
+     * Use this method to reset report data for specific services while keeping them active.
+     *
+     * Each cleared service will:
+     * - Clear accumulated data for all reports
+     * - Start fresh with new data for future events
+     * - Not affect event subscriptions or report generation status
+     *
+     * @param config - Service configuration object specifying which services to clear. Defaults to clearing all services.
+     * @param config.backtest - Clear backtest result report data
+     * @param config.breakeven - Clear breakeven event tracking data
+     * @param config.partial - Clear partial profit/loss event tracking data
+     * @param config.heat - Clear portfolio heatmap analysis data
+     * @param config.walker - Clear walker strategy comparison report data
+     * @param config.performance - Clear performance bottleneck analysis data
+     * @param config.risk - Clear risk rejection tracking data
+     * @param config.schedule - Clear scheduled signal tracking data
+     * @param config.live - Clear live trading event report data
+     * @param config.strategy - Clear strategy report data
+     * @param config.sync - Clear sync report data
+     * @param config.highest_profit - Clear highest profit report data
+     * @param config.max_drawdown - Clear max drawdown report data
+     */
+    clear: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => void;
 }
 /**
  * Markdown adapter with pluggable storage backend and instance memoization.
@@ -13146,12 +13782,6 @@ declare class MarkdownAdapter extends MarkdownUtils {
      * All dumps append to a single .jsonl file per markdown type.
      */
     useJsonl(): void;
-    /**
-     * Clears the memoized storage cache.
-     * Call this when process.cwd() changes between strategy iterations
-     * so new storage instances are created with the updated base path.
-     */
-    clear(): void;
     /**
      * Switches to a dummy markdown adapter that discards all writes.
      * All future markdown writes will be no-ops.
@@ -13267,6 +13897,23 @@ declare class LogAdapter implements ILog {
  * Provides unified log management with pluggable backends.
  */
 declare const Log: LogAdapter;
+
+/** Callable that restores a previously saved subject snapshot */
+type RestoreSnapshot = () => void;
+/**
+ * Manages isolation of global event-bus state between backtest sessions.
+ * Allows temporarily detaching all subject subscriptions so that one session
+ * does not interfere with another, then restoring them afterwards.
+ */
+declare class SessionUtils {
+    /**
+     * Snapshots the current listener state of every global subject by replacing
+     * their internal `_events` map with an empty object.
+     * @returns A restore function that, when called, puts all original listeners back.
+     */
+    createSnapshot: () => RestoreSnapshot;
+}
+declare const Session: SessionUtils;
 
 /**
  * Type alias for column configuration used in backtest markdown reports.
@@ -13873,6 +14520,34 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<number>;
     /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Active minutes (≥ 0), or null if no active position
+     */
+    getPositionActiveMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * Returns null if no scheduled signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Waiting minutes (≥ 0), or null if no scheduled signal
+     */
+    getPositionWaitingMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
      * Returns the best price reached in the profit direction during this position's life.
      *
      * Returns null if no pending signal exists.
@@ -14110,6 +14785,36 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<number>;
     /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns peak-to-trough PnL percentage distance (≥ 0) or null if no active position
+     */
+    getMaxDrawdownDistancePnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Computed as: max(0, peakPnlCost - fallPnlCost).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns peak-to-trough PnL cost distance (≥ 0) or null if no active position
+     */
+    getMaxDrawdownDistancePnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number>;
+    /**
      * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
      * Use this to prevent duplicate DCA entries at the same price area.
      *
@@ -14184,7 +14889,7 @@ declare class BacktestUtils {
      * @param symbol - Trading pair symbol
      * @param strategyName - Strategy name
      * @param context - Execution context with exchangeName and frameName
-     * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when scheduled signal is cancelled
      *
      * @example
@@ -14194,14 +14899,14 @@ declare class BacktestUtils {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
-     * }, "manual-cancel-001");
+     * }, { id: "manual-cancel-001" });
      * ```
      */
     commitCancelScheduled: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, cancelId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Closes the pending signal without stopping the strategy.
      *
@@ -14211,7 +14916,7 @@ declare class BacktestUtils {
      *
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName, exchangeName, and frameName
-     * @param closeId - Optional close ID for user-initiated closes
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when pending signal is closed
      *
      * @example
@@ -14221,14 +14926,14 @@ declare class BacktestUtils {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy",
      *   frameName: "1m"
-     * }, "manual-close-001");
+     * }, { id: "manual-close-001" });
      * ```
      */
     commitClosePending: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, closeId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Executes partial close at profit level (moving toward TP).
      *
@@ -14533,7 +15238,7 @@ declare class BacktestUtils {
      *
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName, exchangeName, and frameName
-     * @param activateId - Optional activation ID for tracking user-initiated activations
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when activation flag is set
      *
      * @example
@@ -14543,14 +15248,14 @@ declare class BacktestUtils {
      *   strategyName: "my-strategy",
      *   exchangeName: "binance",
      *   frameName: "1h"
-     * }, "manual-activate-001");
+     * }, { id: "manual-activate-001" });
      * ```
      */
     commitActivateScheduled: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, activateId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Adds a new DCA entry to the active pending signal.
      *
@@ -14580,6 +15285,30 @@ declare class BacktestUtils {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, cost?: number) => Promise<boolean>;
+    /**
+     * Emits a `signal.info` notification for the currently active pending signal.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Market price at the time of the call
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param payload - Optional notification fields (notificationNote, notificationId)
+     *
+     * @throws {Error} If no active pending signal exists for the given symbol
+     *
+     * @example
+     * ```typescript
+     * await Backtest.commitSignalNotify("BTCUSDT", 42000, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     *   frameName: "1h"
+     * }, { notificationNote: "RSI crossed 70" });
+     * ```
+     */
+    commitSignalNotify: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, payload?: Partial<SignalNotificationPayload>) => Promise<void>;
     /**
      * Gets statistical data from all closed signals for a symbol-strategy pair.
      *
@@ -15303,6 +16032,32 @@ declare class LiveUtils {
         exchangeName: ExchangeName;
     }) => Promise<number>;
     /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Active minutes (≥ 0), or null if no active position
+     */
+    getPositionActiveMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * Returns null if no scheduled signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Waiting minutes (≥ 0), or null if no scheduled signal
+     */
+    getPositionWaitingMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
      * Returns the best price reached in the profit direction during this position's life.
      *
      * Returns null if no pending signal exists.
@@ -15524,6 +16279,34 @@ declare class LiveUtils {
         exchangeName: ExchangeName;
     }) => Promise<number>;
     /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns peak-to-trough PnL percentage distance (≥ 0) or null if no active position
+     */
+    getMaxDrawdownDistancePnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Computed as: max(0, peakPnlCost - fallPnlCost).
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns peak-to-trough PnL cost distance (≥ 0) or null if no active position
+     */
+    getMaxDrawdownDistancePnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
+    /**
      * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
      * Use this to prevent duplicate DCA entries at the same price area.
      *
@@ -15590,7 +16373,7 @@ declare class LiveUtils {
      * @param symbol - Trading pair symbol
      * @param strategyName - Strategy name
      * @param context - Execution context with exchangeName and frameName
-     * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when scheduled signal is cancelled
      *
      * @example
@@ -15600,13 +16383,13 @@ declare class LiveUtils {
      *   exchangeName: "binance",
      *   frameName: "",
      *   strategyName: "my-strategy"
-     * }, "manual-cancel-001");
+     * }, { id: "manual-cancel-001" });
      * ```
      */
     commitCancelScheduled: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }, cancelId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Closes the pending signal without stopping the strategy.
      *
@@ -15616,7 +16399,7 @@ declare class LiveUtils {
      *
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName and exchangeName
-     * @param closeId - Optional close ID for user-initiated closes
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when pending signal is closed
      *
      * @example
@@ -15625,13 +16408,13 @@ declare class LiveUtils {
      * await Live.commitClose("BTCUSDT", {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
-     * }, "manual-close-001");
+     * }, { id: "manual-close-001" });
      * ```
      */
     commitClosePending: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }, closeId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Executes partial close at profit level (moving toward TP).
      *
@@ -15921,7 +16704,7 @@ declare class LiveUtils {
      *
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName and exchangeName
-     * @param activateId - Optional activation ID for tracking user-initiated activations
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when activation flag is set
      *
      * @example
@@ -15930,13 +16713,13 @@ declare class LiveUtils {
      * await Live.commitActivateScheduled("BTCUSDT", {
      *   strategyName: "my-strategy",
      *   exchangeName: "binance"
-     * }, "manual-activate-001");
+     * }, { id: "manual-activate-001" });
      * ```
      */
     commitActivateScheduled: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }, activateId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Adds a new DCA entry to the active pending signal.
      *
@@ -15964,6 +16747,28 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }, cost?: number) => Promise<boolean>;
+    /**
+     * Emits a `signal.info` notification for the currently active pending signal.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Market price at the time of the call
+     * @param context - Execution context with strategyName and exchangeName
+     * @param payload - Optional notification fields (notificationNote, notificationId)
+     *
+     * @throws {Error} If no active pending signal exists for the given symbol
+     *
+     * @example
+     * ```typescript
+     * await Live.commitSignalNotify("BTCUSDT", 42000, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     * }, { notificationNote: "RSI crossed 70" });
+     * ```
+     */
+    commitSignalNotify: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }, payload?: Partial<SignalNotificationPayload>) => Promise<void>;
     /**
      * Gets statistical data from all live trading events for a symbol-strategy pair.
      *
@@ -18291,6 +19096,589 @@ declare class MaxDrawdownUtils {
 declare const MaxDrawdown: MaxDrawdownUtils;
 
 /**
+ * Utility class for real-time position reflection: PNL, peak profit, and drawdown queries.
+ *
+ * Provides unified access to strategyCoreService position state methods with logging
+ * and full validation (strategy, exchange, frame, risk, actions).
+ * Works for both live and backtest modes via the `backtest` parameter.
+ * Exported as singleton instance for convenient usage.
+ *
+ * @example
+ * ```typescript
+ * import { Reflect } from "backtest-kit";
+ *
+ * // Get current unrealized PNL percentage
+ * const pnl = await Reflect.getPositionPnlPercent(
+ *   "BTCUSDT",
+ *   45000,
+ *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+ * );
+ * console.log(`PNL: ${pnl}%`);
+ *
+ * // Get peak profit reached
+ * const peakPnl = await Reflect.getPositionHighestPnlPercentage(
+ *   "BTCUSDT",
+ *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+ * );
+ * console.log(`Peak PNL: ${peakPnl}%`);
+ * ```
+ */
+declare class ReflectUtils {
+    /**
+     * Returns the unrealized PNL percentage for the current pending signal at currentPrice.
+     *
+     * Accounts for partial closes, DCA entries, slippage and fees.
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PNL percentage or null
+     *
+     * @example
+     * ```typescript
+     * const pnl = await Reflect.getPositionPnlPercent(
+     *   "BTCUSDT",
+     *   45000,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`PNL: ${pnl}%`);
+     * ```
+     */
+    getPositionPnlPercent: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the unrealized PNL in dollars for the current pending signal at currentPrice.
+     *
+     * Calculated as: pnlPercentage / 100 × totalInvestedCost.
+     * Accounts for partial closes, DCA entries, slippage and fees.
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PNL in dollars or null
+     *
+     * @example
+     * ```typescript
+     * const pnlCost = await Reflect.getPositionPnlCost(
+     *   "BTCUSDT",
+     *   45000,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`PNL: $${pnlCost}`);
+     * ```
+     */
+    getPositionPnlCost: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the best price reached in the profit direction during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to price or null
+     *
+     * @example
+     * ```typescript
+     * const peakPrice = await Reflect.getPositionHighestProfitPrice(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Peak price: ${peakPrice}`);
+     * ```
+     */
+    getPositionHighestProfitPrice: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the best profit price was recorded during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to timestamp in milliseconds or null
+     *
+     * @example
+     * ```typescript
+     * const ts = await Reflect.getPositionHighestProfitTimestamp(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Peak at: ${new Date(ts).toISOString()}`);
+     * ```
+     */
+    getPositionHighestProfitTimestamp: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the PnL percentage at the moment the best profit price was recorded during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PnL percentage or null
+     *
+     * @example
+     * ```typescript
+     * const peakPnl = await Reflect.getPositionHighestPnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Peak PNL: ${peakPnl}%`);
+     * ```
+     */
+    getPositionHighestPnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the PnL cost (in quote currency) at the moment the best profit price was recorded during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PnL cost in quote currency or null
+     *
+     * @example
+     * ```typescript
+     * const peakCost = await Reflect.getPositionHighestPnlCost(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Peak PNL: $${peakCost}`);
+     * ```
+     */
+    getPositionHighestPnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns whether breakeven was mathematically reachable at the highest profit price.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to true if breakeven was reachable at peak, false otherwise, or null
+     *
+     * @example
+     * ```typescript
+     * const wasReachable = await Reflect.getPositionHighestProfitBreakeven(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Breakeven reachable at peak: ${wasReachable}`);
+     * ```
+     */
+    getPositionHighestProfitBreakeven: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<boolean | null>;
+    /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to active minutes (≥ 0) or null
+     */
+    getPositionActiveMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * Returns null if no scheduled signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to waiting minutes (≥ 0) or null
+     */
+    getPositionWaitingMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the number of minutes elapsed since the highest profit price was recorded.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to minutes since highest profit price was recorded, or null
+     *
+     * @example
+     * ```typescript
+     * const minutes = await Reflect.getPositionDrawdownMinutes(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Pulling back from peak for ${minutes} minutes`);
+     * ```
+     */
+    getPositionDrawdownMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the number of minutes elapsed since the highest profit price was recorded.
+     *
+     * Alias for getPositionDrawdownMinutes — measures how long the position has been
+     * pulling back from its peak profit level.
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to minutes since last profit peak or null
+     *
+     * @example
+     * ```typescript
+     * const minutes = await Reflect.getPositionHighestProfitMinutes(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Pulling back from peak for ${minutes} minutes`);
+     * ```
+     */
+    getPositionHighestProfitMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the number of minutes elapsed since the worst loss price was recorded.
+     *
+     * Measures how long ago the deepest drawdown point occurred.
+     * Zero when called at the exact moment the trough was set.
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to minutes since last drawdown trough or null
+     *
+     * @example
+     * ```typescript
+     * const minutes = await Reflect.getPositionMaxDrawdownMinutes(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Drawdown trough was ${minutes} minutes ago`);
+     * ```
+     */
+    getPositionMaxDrawdownMinutes: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the worst price reached in the loss direction during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to price or null
+     *
+     * @example
+     * ```typescript
+     * const troughPrice = await Reflect.getPositionMaxDrawdownPrice(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Worst price: ${troughPrice}`);
+     * ```
+     */
+    getPositionMaxDrawdownPrice: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the timestamp when the worst loss price was recorded during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to timestamp in milliseconds or null
+     *
+     * @example
+     * ```typescript
+     * const ts = await Reflect.getPositionMaxDrawdownTimestamp(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Worst drawdown at: ${new Date(ts).toISOString()}`);
+     * ```
+     */
+    getPositionMaxDrawdownTimestamp: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the PnL percentage at the moment the worst loss price was recorded during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PnL percentage or null
+     *
+     * @example
+     * ```typescript
+     * const worstPnl = await Reflect.getPositionMaxDrawdownPnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Worst PNL: ${worstPnl}%`);
+     * ```
+     */
+    getPositionMaxDrawdownPnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the PnL cost (in quote currency) at the moment the worst loss price was recorded during this position's life.
+     *
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to PnL cost in quote currency or null
+     *
+     * @example
+     * ```typescript
+     * const worstCost = await Reflect.getPositionMaxDrawdownPnlCost(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Worst PNL: $${worstCost}`);
+     * ```
+     */
+    getPositionMaxDrawdownPnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the highest profit peak.
+     *
+     * Result is ≥ 0. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to drawdown distance in PnL% (≥ 0) or null
+     *
+     * @example
+     * ```typescript
+     * const distance = await Reflect.getPositionHighestProfitDistancePnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Dropped ${distance}% from peak`);
+     * ```
+     */
+    getPositionHighestProfitDistancePnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the highest profit peak.
+     *
+     * Result is ≥ 0. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to drawdown distance in PnL cost (≥ 0) or null
+     *
+     * @example
+     * ```typescript
+     * const distance = await Reflect.getPositionHighestProfitDistancePnlCost(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Dropped $${distance} from peak`);
+     * ```
+     */
+    getPositionHighestProfitDistancePnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL percentage between the current price and the worst drawdown trough.
+     *
+     * Result is ≥ 0. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to recovery distance from worst drawdown trough in PnL% (≥ 0) or null
+     *
+     * @example
+     * ```typescript
+     * const distance = await Reflect.getPositionHighestMaxDrawdownPnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`${distance}% above worst trough`);
+     * ```
+     */
+    getPositionHighestMaxDrawdownPnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the distance in PnL cost between the current price and the worst drawdown trough.
+     *
+     * Result is ≥ 0. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to recovery distance from worst drawdown trough in PnL cost (≥ 0) or null
+     *
+     * @example
+     * ```typescript
+     * const distance = await Reflect.getPositionHighestMaxDrawdownPnlCost(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`$${distance} above worst trough`);
+     * ```
+     */
+    getPositionHighestMaxDrawdownPnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Result is ≥ 0. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+     *
+     * @example
+     * ```typescript
+     * const distance = await Reflect.getMaxDrawdownDistancePnlPercentage(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Peak-to-trough: ${distance}%`);
+     * ```
+     */
+    getMaxDrawdownDistancePnlPercentage: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Result is ≥ 0. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName and frameName
+     * @param backtest - True if backtest mode, false if live mode (default: false)
+     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+     *
+     * @example
+     * ```typescript
+     * const distance = await Reflect.getMaxDrawdownDistancePnlCost(
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+     * );
+     * console.log(`Peak-to-trough: $${distance}`);
+     * ```
+     */
+    getMaxDrawdownDistancePnlCost: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<number | null>;
+}
+/**
+ * Singleton instance of ReflectUtils for convenient position state queries.
+ *
+ * @example
+ * ```typescript
+ * import { Reflect } from "backtest-kit";
+ *
+ * // Real-time PNL
+ * const pnl = await Reflect.getPositionPnlPercent(
+ *   "BTCUSDT",
+ *   45000,
+ *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+ * );
+ * console.log(`PNL: ${pnl}%`);
+ *
+ * // Peak profit
+ * const peakPnl = await Reflect.getPositionHighestPnlPercentage(
+ *   "BTCUSDT",
+ *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+ * );
+ * console.log(`Peak PNL: ${peakPnl}%`);
+ *
+ * // Drawdown from peak
+ * const drawdown = await Reflect.getPositionHighestProfitDistancePnlPercentage(
+ *   "BTCUSDT",
+ *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "frame1" }
+ * );
+ * console.log(`Dropped ${drawdown}% from peak`);
+ * ```
+ */
+declare const Reflect: ReflectUtils;
+
+/**
  * Utility class containing predefined trading constants for take-profit and stop-loss levels.
  *
  * Based on Kelly Criterion with exponential risk decay.
@@ -19384,6 +20772,321 @@ declare const StorageLive: StorageLiveAdapter;
 declare const StorageBacktest: StorageBacktestAdapter;
 
 /**
+ * Base interface for recent signal storage adapters.
+ */
+interface IRecentUtils {
+    /**
+     * Handles active ping event and persists the latest signal.
+     * @param event - Active ping contract with signal data
+     */
+    handleActivePing(event: ActivePingContract): Promise<void>;
+    /**
+     * Retrieves the latest active signal for the given context.
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @returns The latest signal or null if not found
+     */
+    getLatestSignal(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): Promise<IPublicSignalRow | null>;
+    /**
+     * Returns the number of minutes elapsed since the latest signal's timestamp.
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @param currentTimestamp - Current timestamp in milliseconds
+     * @returns Minutes since the latest signal, or null if no signal found
+     */
+    getMinutesSinceLatestSignalCreated(timestamp: number, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): Promise<number | null>;
+}
+/**
+ * Constructor type for recent signal storage adapters.
+ */
+type TRecentUtilsCtor = new () => IRecentUtils;
+/**
+ * Backtest recent signal adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable storage implementations
+ * - Default adapter: RecentMemoryBacktestUtils (in-memory storage)
+ * - Alternative adapter: RecentPersistBacktestUtils
+ * - Convenience methods: usePersist(), useMemory()
+ */
+declare class RecentBacktestAdapter implements IRecentUtils {
+    /** Internal storage utils instance */
+    private _recentBacktestUtils;
+    /**
+     * Handles active ping event.
+     * Proxies call to the underlying storage adapter.
+     * @param event - Active ping contract with signal data
+     */
+    handleActivePing: (event: ActivePingContract) => Promise<void>;
+    /**
+     * Retrieves the latest signal for the given context.
+     * Proxies call to the underlying storage adapter.
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @returns The latest signal or null if not found
+     */
+    getLatestSignal: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<IPublicSignalRow | null>;
+    /**
+     * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+     * Proxies call to the underlying storage adapter.
+     * @param timestamp - Current timestamp in milliseconds
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @returns Whole minutes since the latest signal was created, or null if no signal found
+     */
+    getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<number | null>;
+    /**
+     * Sets the storage adapter constructor.
+     * All future storage operations will use this adapter.
+     * @param Ctor - Constructor for recent adapter
+     */
+    useRecentAdapter: (Ctor: TRecentUtilsCtor) => void;
+    /**
+     * Switches to persistent storage adapter.
+     * Signals will be persisted to disk.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to in-memory storage adapter (default).
+     * Signals will be stored in memory only.
+     */
+    useMemory: () => void;
+    /**
+     * Clears the cached utils instance by resetting to the default in-memory adapter.
+     */
+    clear: () => void;
+}
+/**
+ * Live recent signal adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable storage implementations
+ * - Default adapter: RecentPersistLiveUtils (persistent storage)
+ * - Alternative adapter: RecentMemoryLiveUtils
+ * - Convenience methods: usePersist(), useMemory()
+ */
+declare class RecentLiveAdapter implements IRecentUtils {
+    /** Internal storage utils instance */
+    private _recentLiveUtils;
+    /**
+     * Handles active ping event.
+     * Proxies call to the underlying storage adapter.
+     * @param event - Active ping contract with signal data
+     */
+    handleActivePing: (event: ActivePingContract) => Promise<void>;
+    /**
+     * Retrieves the latest signal for the given context.
+     * Proxies call to the underlying storage adapter.
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @returns The latest signal or null if not found
+     */
+    getLatestSignal: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<IPublicSignalRow | null>;
+    /**
+     * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+     * Proxies call to the underlying storage adapter.
+     * @param timestamp - Current timestamp in milliseconds
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @returns Whole minutes since the latest signal was created, or null if no signal found
+     */
+    getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<number | null>;
+    /**
+     * Sets the storage adapter constructor.
+     * All future storage operations will use this adapter.
+     * @param Ctor - Constructor for recent adapter
+     */
+    useRecentAdapter: (Ctor: TRecentUtilsCtor) => void;
+    /**
+     * Switches to persistent storage adapter (default).
+     * Signals will be persisted to disk.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to in-memory storage adapter.
+     * Signals will be stored in memory only.
+     */
+    useMemory: () => void;
+    /**
+     * Clears the cached utils instance by resetting to the default persistent adapter.
+     */
+    clear: () => void;
+}
+/**
+ * Main recent signal adapter that manages both backtest and live recent signal storage.
+ *
+ * Features:
+ * - Subscribes to activePingSubject for automatic storage updates
+ * - Provides unified access to the latest signal for any context
+ * - Singleshot enable pattern prevents duplicate subscriptions
+ * - Cleanup function for proper unsubscription
+ */
+declare class RecentAdapter {
+    /**
+     * Enables recent signal storage by subscribing to activePingSubject.
+     * Uses singleshot to ensure one-time subscription.
+     *
+     * @returns Cleanup function that unsubscribes from all emitters
+     */
+    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable;
+    /**
+     * Disables recent signal storage by unsubscribing from all emitters.
+     * Safe to call multiple times.
+     */
+    disable: () => void;
+    /**
+     * Retrieves the latest active signal for the given symbol and context.
+     * Searches backtest storage first, then live storage.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @returns The latest signal or null if not found
+     * @throws Error if RecentAdapter is not enabled
+     */
+    getLatestSignal: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<IPublicSignalRow | null>;
+    /**
+     * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
+     * Searches backtest storage first, then live storage.
+     * @param timestamp - Current timestamp in milliseconds
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Whole minutes since the latest signal was created, or null if no signal found
+     * @throws Error if RecentAdapter is not enabled
+     */
+    getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+}
+/**
+ * Global singleton instance of RecentAdapter.
+ * Provides unified recent signal management for backtest and live trading.
+ */
+declare const Recent: RecentAdapter;
+/**
+ * Global singleton instance of RecentLiveAdapter.
+ * Provides live trading recent signal storage with pluggable backends.
+ */
+declare const RecentLive: RecentLiveAdapter;
+/**
+ * Global singleton instance of RecentBacktestAdapter.
+ * Provides backtest recent signal storage with pluggable backends.
+ */
+declare const RecentBacktest: RecentBacktestAdapter;
+
+/**
+ * Defines which notification categories are enabled when calling `NotificationAdapter.enable()`.
+ *
+ * Pass an instance of this interface to selectively subscribe to only the event types you need.
+ * When omitted, all categories default to `true` via `WILDCARD_TARGET`.
+ *
+ * @example
+ * // Subscribe only to signal lifecycle and error events
+ * notificationAdapter.enable({ signal: true, common_error: true, critical_error: true, validation_error: true,
+ *   partial_profit: false, partial_loss: false, breakeven: false, strategy_commit: false, signal_sync: false,
+ *   risk: false, info: false });
+ */
+interface INotificationTarget {
+    /**
+     * Signal lifecycle events emitted by the strategy engine.
+     * Covers four actions: `signal.opened`, `signal.scheduled`, `signal.closed`, `signal.cancelled`.
+     * Source: `signalBacktestEmitter` / `signalLiveEmitter` (IStrategyTickResult).
+     */
+    signal: boolean;
+    /**
+     * Partial profit availability notifications (`partial_profit.available`).
+     * Fired when the price reaches a partial-profit level defined in the strategy,
+     * before the commit decision is made.
+     * Source: `partialProfitSubject` (PartialProfitContract).
+     */
+    partial_profit: boolean;
+    /**
+     * Partial loss availability notifications (`partial_loss.available`).
+     * Fired when the price reaches a partial-loss level defined in the strategy,
+     * before the commit decision is made.
+     * Source: `partialLossSubject` (PartialLossContract).
+     */
+    partial_loss: boolean;
+    /**
+     * Breakeven availability notifications (`breakeven.available`).
+     * Fired when the price reaches the breakeven level, before the commit is applied.
+     * Source: `breakevenSubject` (BreakevenContract).
+     */
+    breakeven: boolean;
+    /**
+     * Strategy commit confirmations.
+     * Covers all committed actions: `partial_profit.commit`, `partial_loss.commit`,
+     * `breakeven.commit`, `trailing_stop.commit`, `trailing_take.commit`,
+     * `activate_scheduled.commit`, `average_buy.commit`, `cancel_scheduled.commit`,
+     * `close_pending.commit`.
+     * Source: `strategyCommitSubject` (StrategyCommitContract).
+     */
+    strategy_commit: boolean;
+    /**
+     * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
+     * Fired when a limit order is confirmed filled (`signal-open`) or when an open
+     * position is confirmed exited (`signal-close`) by the exchange sync layer.
+     * Source: `syncSubject` (SignalSyncContract).
+     */
+    signal_sync: boolean;
+    /**
+     * Risk manager rejection notifications (`risk.rejection`).
+     * Fired when the risk manager blocks a new signal from opening due to
+     * active position count limits or other risk rules.
+     * Source: `riskSubject` (RiskContract).
+     */
+    risk: boolean;
+    /**
+     * Informational signal notifications (`signal.info`).
+     * Manual or strategy-triggered messages attached to an active signal,
+     * carrying a `note` and optional `notificationId`.
+     * Source: `signalNotifySubject` (SignalInfoContract).
+     */
+    info: boolean;
+    /**
+     * Non-fatal runtime errors (`error.info`).
+     * Emitted by the global `errorEmitter` for recoverable errors that are
+     * caught and logged but do not terminate the process.
+     */
+    common_error: boolean;
+    /**
+     * Critical (fatal) errors (`error.critical`).
+     * Emitted by the global `exitEmitter` when an unrecoverable error
+     * causes the backtest or live session to terminate.
+     */
+    critical_error: boolean;
+    /**
+     * Validation errors (`error.validation`).
+     * Emitted by `validationSubject` when strategy configuration or
+     * input data fails schema/business-rule validation.
+     */
+    validation_error: boolean;
+}
+/**
  * Base interface for notification adapters.
  * All notification adapters must implement this interface.
  */
@@ -19393,6 +21096,7 @@ interface INotificationUtils {
      * @param data - The strategy tick result data
      */
     handleSignal(data: IStrategyTickResult): Promise<void>;
+    handleSignalNotify(data: SignalInfoContract): Promise<void>;
     /**
      * Handles partial profit availability event.
      * @param data - The partial profit contract data
@@ -19471,6 +21175,7 @@ declare class NotificationBacktestAdapter implements INotificationUtils {
      * @param data - The strategy tick result data
      */
     handleSignal: (data: IStrategyTickResult) => Promise<void>;
+    handleSignalNotify: (data: SignalInfoContract) => Promise<void>;
     /**
      * Handles partial profit availability event.
      * Proxies call to the underlying notification adapter.
@@ -19583,6 +21288,7 @@ declare class NotificationLiveAdapter implements INotificationUtils {
      * @param data - The strategy tick result data
      */
     handleSignal: (data: IStrategyTickResult) => Promise<void>;
+    handleSignalNotify: (data: SignalInfoContract) => Promise<void>;
     /**
      * Handles partial profit availability event.
      * Proxies call to the underlying notification adapter.
@@ -19693,7 +21399,7 @@ declare class NotificationAdapter {
      *
      * @returns Cleanup function that unsubscribes from all emitters
      */
-    enable: (() => () => void) & functools_kit.ISingleshotClearable;
+    enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & functools_kit.ISingleshotClearable;
     /**
      * Disables notification storage by unsubscribing from all emitters.
      * Safe to call multiple times.
@@ -20345,6 +22051,7 @@ declare class CacheUtils {
     }) => T & {
         clear(): void;
         gc(): number | undefined;
+        hasValue(...args: Parameters<T>): boolean;
     };
     /**
      * Wrap an async function with persistent file-based caching.
@@ -20390,6 +22097,7 @@ declare class CacheUtils {
         key?: (args: CacheFileKeyArgs<T>) => string;
     }) => T & {
         clear(): Promise<void>;
+        hasValue(...args: Parameters<T>): Promise<boolean>;
     };
     /**
      * Dispose (remove) the memoized CacheFnInstance for a specific function.
@@ -20529,6 +22237,7 @@ declare class IntervalUtils {
     }) => F & {
         clear(): void;
         gc(): number | undefined;
+        hasValue(...args: Parameters<F>): boolean;
     };
     /**
      * Wrap an async signal function with persistent file-based once-per-interval firing.
@@ -20565,6 +22274,7 @@ declare class IntervalUtils {
         key?: (args: IntervalFileKeyArgs<F>) => string;
     }) => F & {
         clear(): Promise<void>;
+        hasValue(...args: Parameters<F>): Promise<boolean>;
     };
     /**
      * Dispose (remove) the memoized `IntervalFnInstance` for a specific function.
@@ -21046,12 +22756,13 @@ declare class StrategyMarkdownService {
      * @param context - Strategy context with strategyName, exchangeName, frameName
      * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param cancelId - Optional identifier for the cancellation reason
+     * @param note - Optional note from commit payload
      */
     cancelScheduled: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, cancelId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, cancelId?: string, note?: string) => Promise<void>;
     /**
      * Records a close-pending event when a pending signal is closed.
      *
@@ -21060,12 +22771,13 @@ declare class StrategyMarkdownService {
      * @param context - Strategy context with strategyName, exchangeName, frameName
      * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param closeId - Optional identifier for the close reason
+     * @param note - Optional note from commit payload
      */
     closePending: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, closeId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, closeId?: string, note?: string) => Promise<void>;
     /**
      * Records a partial-profit event when a portion of the position is closed at profit.
      *
@@ -21197,12 +22909,13 @@ declare class StrategyMarkdownService {
      * @param scheduledAt - Signal creation timestamp in milliseconds
      * @param pendingAt - Pending timestamp in milliseconds
      * @param activateId - Optional identifier for the activation reason
+     * @param note - Optional note from commit payload
      */
     activateScheduled: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
     /**
      * Records an average-buy (DCA) event when a new averaging entry is added to an open position.
      *
@@ -21826,6 +23539,21 @@ declare class ActionBase implements IPublicAction {
      * ```
      */
     pingActive(event: ActivePingContract, source?: string): void | Promise<void>;
+    /**
+     * Handles idle ping events when no signal is active.
+     *
+     * Called every tick while no signal is pending or scheduled.
+     * Use to monitor idle strategy state and implement entry condition logic.
+     *
+     * Triggered by: ActionCoreService.pingIdle() via StrategyConnectionService
+     * Source: idlePingSubject.next() in CREATE_COMMIT_IDLE_PING_FN callback
+     * Frequency: Every tick while no signal is pending or scheduled
+     *
+     * Default implementation: Logs idle ping event.
+     *
+     * @param event - Idle ping data with symbol, strategy info, current price, timestamp
+     */
+    pingIdle(event: IdlePingContract, source?: string): void | Promise<void>;
     /**
      * Handles risk rejection events when signals fail risk validation.
      *
@@ -23033,6 +24761,11 @@ declare const schedulePingSubject: Subject<SchedulePingContract>;
  */
 declare const activePingSubject: Subject<ActivePingContract>;
 /**
+ * Idle ping emitter for strategy idle state events.
+ * Emits every tick when there is no pending or scheduled signal being monitored.
+ */
+declare const idlePingSubject: Subject<IdlePingContract>;
+/**
  * Strategy management signal emitter.
  * Emits when strategy management actions are executed:
  * - cancel-scheduled: Scheduled signal cancelled
@@ -23066,6 +24799,11 @@ declare const highestProfitSubject: Subject<HighestProfitContract>;
  * Allows users to track drawdown levels and implement custom risk management logic based on drawdown thresholds.
  */
 declare const maxDrawdownSubject: Subject<MaxDrawdownContract>;
+/**
+ * Signal info emitter for user-defined informational notes on open positions.
+ * Emits when a strategy calls commitSignalInfo() to broadcast a custom annotation.
+ */
+declare const signalNotifySubject: Subject<SignalInfoContract>;
 
 declare const emitters_activePingSubject: typeof activePingSubject;
 declare const emitters_backtestScheduleOpenSubject: typeof backtestScheduleOpenSubject;
@@ -23076,6 +24814,7 @@ declare const emitters_doneWalkerSubject: typeof doneWalkerSubject;
 declare const emitters_errorEmitter: typeof errorEmitter;
 declare const emitters_exitEmitter: typeof exitEmitter;
 declare const emitters_highestProfitSubject: typeof highestProfitSubject;
+declare const emitters_idlePingSubject: typeof idlePingSubject;
 declare const emitters_maxDrawdownSubject: typeof maxDrawdownSubject;
 declare const emitters_partialLossSubject: typeof partialLossSubject;
 declare const emitters_partialProfitSubject: typeof partialProfitSubject;
@@ -23088,6 +24827,7 @@ declare const emitters_shutdownEmitter: typeof shutdownEmitter;
 declare const emitters_signalBacktestEmitter: typeof signalBacktestEmitter;
 declare const emitters_signalEmitter: typeof signalEmitter;
 declare const emitters_signalLiveEmitter: typeof signalLiveEmitter;
+declare const emitters_signalNotifySubject: typeof signalNotifySubject;
 declare const emitters_strategyCommitSubject: typeof strategyCommitSubject;
 declare const emitters_syncSubject: typeof syncSubject;
 declare const emitters_validationSubject: typeof validationSubject;
@@ -23095,7 +24835,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_activePingSubject as activePingSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_activePingSubject as activePingSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -24101,6 +25841,22 @@ declare class ActionCoreService implements TAction$1 {
      * @param context - Strategy execution context with strategyName, exchangeName, frameName
      */
     pingActive: (backtest: boolean, event: ActivePingContract, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Routes idle ping event to all registered actions for the strategy.
+     *
+     * Retrieves action list from strategy schema (IStrategySchema.actions)
+     * and invokes the pingIdle handler on each ClientAction instance sequentially.
+     * Called every tick when there is no pending or scheduled signal being monitored.
+     *
+     * @param backtest - Whether running in backtest mode (true) or live mode (false)
+     * @param event - Idle state monitoring data
+     * @param context - Strategy execution context with strategyName, exchangeName, frameName
+     */
+    pingIdle: (backtest: boolean, event: IdlePingContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -25174,6 +26930,38 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<number | null>;
     /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * Delegates to ClientStrategy.getPositionActiveMinutes().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to active minutes (≥ 0) or null
+     */
+    getPositionActiveMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * Delegates to ClientStrategy.getPositionWaitingMinutes().
+     * Returns null if no scheduled signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to waiting minutes (≥ 0) or null
+     */
+    getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
      * Returns the best price reached in the profit direction during this position's life.
      *
      * Delegates to ClientStrategy.getPositionHighestProfitPrice().
@@ -25443,6 +27231,40 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<number | null>;
     /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Resolves current price via priceMetaService and delegates to
+     * ClientStrategy.getMaxDrawdownDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Resolves current price via priceMetaService and delegates to
+     * ClientStrategy.getMaxDrawdownDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
      * Disposes the ClientStrategy instance for the given context.
      *
      * Calls dispose callback, then removes strategy from cache.
@@ -25483,14 +27305,14 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param ctx - Context with strategyName, exchangeName, frameName
-     * @param cancelId - Optional cancellation ID for user-initiated cancellations
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when scheduled signal is cancelled
      */
     cancelScheduled: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, cancelId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Closes the pending signal without stopping the strategy.
      *
@@ -25504,14 +27326,14 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param context - Context with strategyName, exchangeName, frameName
-     * @param closeId - Optional close ID for user-initiated closes
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when pending signal is closed
      */
     closePending: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, closeId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Checks whether `partialProfit` would succeed without executing it.
      * Delegates to `ClientStrategy.validatePartialProfit()` — no throws, pure boolean result.
@@ -25763,7 +27585,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName, exchangeName, frameName
-     * @param activateId - Optional identifier for the activation reason
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when activation flag is set
      *
      * @example
@@ -25773,7 +27595,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
      *   false,
      *   "BTCUSDT",
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
-     *   "manual-activation"
+     *   { id: "manual-activation" }
      * );
      * ```
      */
@@ -25781,7 +27603,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, activateId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Checks whether `averageBuy` would succeed without executing it.
      * Delegates to `ClientStrategy.validateAverageBuy()` — no throws, pure boolean result.
@@ -26129,6 +27951,16 @@ declare class ActionProxy implements IPublicAction {
      */
     pingActive(event: ActivePingContract): Promise<any>;
     /**
+     * Handles idle ping events with error capture.
+     *
+     * Wraps the user's pingIdle() method to catch and log any errors.
+     * Called every tick while no signal is pending or scheduled.
+     *
+     * @param event - Idle ping data with symbol, strategy info, current price, timestamp
+     * @returns Promise resolving to user's pingIdle() result or null on error
+     */
+    pingIdle(event: IdlePingContract): Promise<any>;
+    /**
      * Handles risk rejection events with error capture.
      *
      * Wraps the user's riskRejection() method to catch and log any errors.
@@ -26283,6 +28115,10 @@ declare class ClientAction implements IAction {
      * Handles active ping events during active pending signal monitoring.
      */
     pingActive(event: ActivePingContract): Promise<void>;
+    /**
+     * Handles idle ping events when no signal is active.
+     */
+    pingIdle(event: IdlePingContract): Promise<void>;
     /**
      * Handles risk rejection events when signals fail risk validation.
      */
@@ -26465,6 +28301,19 @@ declare class ActionConnectionService implements TAction {
      * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
     pingActive: (event: ActivePingContract, backtest: boolean, context: {
+        actionName: ActionName;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Routes idle ping event to appropriate ClientAction instance.
+     *
+     * @param event - Idle ping event data
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
+     */
+    pingIdle: (event: IdlePingContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -27023,14 +28872,14 @@ declare class StrategyCoreService implements TStrategy {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param ctx - Context with strategyName, exchangeName, frameName
-     * @param cancelId - Optional cancellation ID for user-initiated cancellations
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when scheduled signal is cancelled
      */
     cancelScheduled: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, cancelId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Closes the pending signal without stopping the strategy.
      *
@@ -27045,14 +28894,14 @@ declare class StrategyCoreService implements TStrategy {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param context - Context with strategyName, exchangeName, frameName
-     * @param closeId - Optional close ID for user-initiated closes
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when pending signal is closed
      */
     closePending: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, closeId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Disposes the ClientStrategy instance for the given context.
      *
@@ -27328,7 +29177,7 @@ declare class StrategyCoreService implements TStrategy {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName, exchangeName, frameName
-     * @param activateId - Optional identifier for the activation reason
+     * @param payload - Optional commit payload with id and note
      * @returns Promise that resolves when activation flag is set
      *
      * @example
@@ -27338,7 +29187,7 @@ declare class StrategyCoreService implements TStrategy {
      *   false,
      *   "BTCUSDT",
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
-     *   "manual-activation"
+     *   { id: "manual-activation" }
      * );
      * ```
      */
@@ -27346,7 +29195,7 @@ declare class StrategyCoreService implements TStrategy {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, activateId?: string) => Promise<void>;
+    }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Checks whether `averageBuy` would succeed without executing it.
      * Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
@@ -27438,6 +29287,32 @@ declare class StrategyCoreService implements TStrategy {
      * @returns Promise resolving to remaining minutes (≥ 0) or null
      */
     getPositionCountdownMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the position has been active since it opened.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to active minutes (≥ 0) or null
+     */
+    getPositionActiveMinutes: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the number of minutes the scheduled signal has been waiting for activation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to waiting minutes (≥ 0) or null
+     */
+    getPositionWaitingMinutes: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -27673,6 +29548,38 @@ declare class StrategyCoreService implements TStrategy {
      * @returns Promise resolving to recovery distance in PnL cost (≥ 0) or null
      */
     getPositionHighestMaxDrawdownPnlCost: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+     *
+     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlPercentage().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlPercentage: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<number | null>;
+    /**
+     * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+     *
+     * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlCost().
+     * Returns null if no pending signal exists.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+     */
+    getMaxDrawdownDistancePnlCost: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -30072,7 +31979,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cancelId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cancelId?: string, note?: string) => Promise<void>;
     /**
      * Logs a close-pending event when a pending signal is closed.
      */
@@ -30080,7 +31987,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, closeId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, closeId?: string, note?: string) => Promise<void>;
     /**
      * Logs a partial-profit event when a portion of the position is closed at profit.
      */
@@ -30128,7 +32035,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
     /**
      * Logs an average-buy (DCA) event when a new averaging entry is added to an open position.
      */
@@ -30337,6 +32244,7 @@ declare class MaxDrawdownReportService {
 }
 
 declare const backtest: {
+    notificationHelperService: NotificationHelperService;
     exchangeValidationService: ExchangeValidationService;
     strategyValidationService: StrategyValidationService;
     frameValidationService: FrameValidationService;
@@ -30528,4 +32436,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRecentAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TRecentUtilsCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };

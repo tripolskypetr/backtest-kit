@@ -1,0 +1,31 @@
+{
+  "name": "example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./node_modules/@backtest-kit/cli/build/index.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@backtest-kit/cli": "6.16.0",
+    "@backtest-kit/graph": "6.16.0",
+    "@backtest-kit/pinets": "6.16.0",
+    "@backtest-kit/signals": "6.16.0",
+    "@backtest-kit/ui": "6.16.0",
+    "@tavily/core": "0.7.2",
+    "agent-swarm-kit": "2.5.1",
+    "backtest-kit": "6.16.0",
+    "dayjs": "1.11.20",
+    "functools-kit": "2.2.0",
+    "garch": "1.2.3",
+    "get-moment-stamp": "1.1.2",
+    "jsonrepair": "3.12.0",
+    "ollama": "0.6.3",
+    "slugify": "^1.6.9",
+    "volume-anomaly": "1.2.3"
+  }
+}

@@ -10,6 +10,9 @@ import {
   PersistBreakevenAdapter,
   PersistStorageAdapter,
   PersistMemoryAdapter,
+  PersistIntervalAdapter,
+  PersistMeasureAdapter,
+  PersistRecentAdapter,
   Report,
   Markdown,
   Dump,
@@ -44,6 +47,9 @@ import {
   PersistBreakevenAdapter.useDummy();
   PersistStorageAdapter.useDummy();
   PersistMemoryAdapter.useDummy();
+  PersistIntervalAdapter.useDummy();
+  PersistMeasureAdapter.useDummy();
+  PersistRecentAdapter.useDummy();
 }
 
 setConfig(

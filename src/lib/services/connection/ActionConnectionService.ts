@@ -14,6 +14,7 @@ import { PartialProfitContract } from "../../../contract/PartialProfit.contract"
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
+import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 import { SignalSyncContract } from "../../../contract/SignalSync.contract";
 import StrategyCoreService from "../core/StrategyCoreService";
@@ -295,6 +296,26 @@ export class ActionConnectionService implements TAction {
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
     await action.pingActive(event);
+  };
+
+  /**
+   * Routes idle ping event to appropriate ClientAction instance.
+   *
+   * @param event - Idle ping event data
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
+   */
+  public pingIdle = async (
+    event: IdlePingContract,
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionConnectionService pingIdle", {
+      backtest,
+      context,
+    });
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.pingIdle(event);
   };
 
   /**

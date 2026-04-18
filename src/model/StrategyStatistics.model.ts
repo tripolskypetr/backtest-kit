@@ -80,6 +80,8 @@ export interface StrategyEvent {
   pnl?: IStrategyPnL;
   /** Cost of this entry in USD (average-buy action only) */
   cost?: number;
+  /** Optional note from commit payload */
+  note?: string;
 }
 
 /**

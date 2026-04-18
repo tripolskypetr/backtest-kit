@@ -127,6 +127,8 @@ export class StatusViewService {
       positionEntries,
       positionLevels,
       positionPartials,
+      _peak: pendingSignal._peak,
+      _fall: pendingSignal._fall,
     };
   };
 

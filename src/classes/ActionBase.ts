@@ -3,6 +3,7 @@ import PartialLossContract from "../contract/PartialLoss.contract";
 import PartialProfitContract from "../contract/PartialProfit.contract";
 import SchedulePingContract from "../contract/SchedulePing.contract";
 import ActivePingContract from "../contract/ActivePing.contract";
+import IdlePingContract from "../contract/IdlePing.contract";
 import RiskContract from "../contract/Risk.contract";
 import LoggerService from "../lib/services/base/LoggerService";
 import {
@@ -26,6 +27,7 @@ const METHOD_NAME_PARTIAL_PROFIT_AVAILABLE =
 const METHOD_NAME_PARTIAL_LOSS_AVAILABLE = "ActionBase.partialLossAvailable";
 const METHOD_NAME_PING_SCHEDULED = "ActionBase.pingScheduled";
 const METHOD_NAME_PING_ACTIVE = "ActionBase.pingActive";
+const METHOD_NAME_PING_IDLE = "ActionBase.pingIdle";
 const METHOD_NAME_RISK_REJECTION = "ActionBase.riskRejection";
 const METHOD_NAME_DISPOSE = "ActionBase.dispose";
 
@@ -451,6 +453,30 @@ class ActionBase implements IPublicAction {
     source = DEFAULT_SOURCE,
   ): void | Promise<void> {
     LOGGER_SERVICE.info(METHOD_NAME_PING_ACTIVE, {
+      event,
+      source,
+    });
+  }
+
+  /**
+   * Handles idle ping events when no signal is active.
+   *
+   * Called every tick while no signal is pending or scheduled.
+   * Use to monitor idle strategy state and implement entry condition logic.
+   *
+   * Triggered by: ActionCoreService.pingIdle() via StrategyConnectionService
+   * Source: idlePingSubject.next() in CREATE_COMMIT_IDLE_PING_FN callback
+   * Frequency: Every tick while no signal is pending or scheduled
+   *
+   * Default implementation: Logs idle ping event.
+   *
+   * @param event - Idle ping data with symbol, strategy info, current price, timestamp
+   */
+  public pingIdle(
+    event: IdlePingContract,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
+    LOGGER_SERVICE.info(METHOD_NAME_PING_IDLE, {
       event,
       source,
     });

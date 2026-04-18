@@ -60,6 +60,13 @@ declare class ExchangeService {
         exchangeName: ExchangeName$1;
         limit: number;
     }) => Promise<any>;
+    getRawCandles: (dto: {
+        symbol: string;
+        interval: CandleInterval;
+        limit?: number;
+        sDate?: number;
+        eDate?: number;
+    }) => Promise<backtest_kit.ICandleData[]>;
 }
 
 declare class NotificationMockService {
@@ -123,6 +130,8 @@ declare class StatusMockService {
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
+        _peak: any;
+        _fall: any;
     }>;
 }
 
@@ -196,7 +205,6 @@ declare class NotificationViewService {
     findByFilter: <T extends object = Record<string, string>>(filterData: T, limit?: number, offset?: number) => Promise<NotificationModel[]>;
     getList: () => Promise<NotificationModel[]>;
     getOne: (id: string) => Promise<NotificationModel>;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class StatusViewService {
@@ -230,6 +238,8 @@ declare class StatusViewService {
         positionLevels: any;
         positionEntries: any;
         positionPartials: any;
+        _peak: any;
+        _fall: any;
     }>;
     getStatusInfo: () => Promise<any>;
 }
@@ -240,7 +250,6 @@ declare class StorageViewService {
     findSignalById: (signalId: string) => Promise<backtest_kit.IStorageSignalRow>;
     listSignalLive: () => Promise<backtest_kit.IStorageSignalRow[]>;
     listSignalBacktest: () => Promise<backtest_kit.IStorageSignalRow[]>;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class ExchangeViewService {

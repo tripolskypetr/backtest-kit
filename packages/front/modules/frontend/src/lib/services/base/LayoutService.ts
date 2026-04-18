@@ -13,6 +13,9 @@ export class LayoutService {
     public readonly pickSignalScheduledSubject = new Subject<string>();
     public readonly pickSignalCancelledSubject = new Subject<string>();
 
+    // Signal info notification subject
+    public readonly pickSignalNotifySubject = new Subject<string>();
+
     // Partial profit subjects (2 types)
     public readonly pickPartialProfitAvailableSubject = new Subject<string>();
     public readonly pickPartialProfitCommitSubject = new Subject<string>();
@@ -146,6 +149,10 @@ export class LayoutService {
     // Signal notification methods (4 types)
     pickSignalOpened = async (notificationId: string) => {
         await this.pickSignalOpenedSubject.next(notificationId);
+    };
+
+    pickSignalNotify = async (notificationId: string) => {
+        await this.pickSignalNotifySubject.next(notificationId);
     };
 
     pickSignalClosed = async (notificationId: string) => {

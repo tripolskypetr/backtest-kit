@@ -1,9 +1,10 @@
 import { Backtest } from "backtest-kit";
-import { getArgs } from "../helpers/getArgs";
+import { getArgs, getPositionals } from "../helpers/getArgs";
 import { singleshot } from "functools-kit";
 import notifyShutdown from "../utils/notifyShutdown";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
+import { flush } from "./flush";
 
 const BEFORE_EXIT_FN = singleshot(async () => {
   process.off("SIGINT", BEFORE_EXIT_FN);
@@ -40,6 +41,10 @@ export const main = async () => {
   const { values } = getArgs();
   if (!values.backtest) {
     return;
+  }
+  if (!values.noFlush) {
+    const [entryPoint = null] = getPositionals();
+    entryPoint && await flush(entryPoint);
   }
   await cli.backtestMainService.connect();
   listenGracefulShutdown();

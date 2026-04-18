@@ -31,8 +31,8 @@ import SymbolGlobalService from "../services/global/SymbolGlobalService";
 import PriceGlobalService from "../services/global/PriceGlobalService";
 import BacktestGlobalService from "../services/global/BacktestGlobalService";
 import LiveGlobalService from "../services/global/LiveGlobalService";
-import ExplorerHelperService from "../services/helpers/ExplorerHelperService";
 import MarkdownHelperService from "../services/helpers/MarkdownHelperService";
+import ExplorerHelperService from "../services/helpers/ExplorerHelperService";
 
 {
     provide(TYPES.errorService, () => new ErrorService());

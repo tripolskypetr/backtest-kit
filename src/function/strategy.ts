@@ -15,7 +15,8 @@ import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
 import { IPositionOverlapLadder, POSITION_OVERLAP_LADDER_DEFAULT } from "../config/ladder";
-import { IPublicSignalRow } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, CommitPayload } from "../interfaces/Strategy.interface";
+import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
 const CLOSE_PENDING_METHOD_NAME = "strategy.commitClosePending";
@@ -48,6 +49,8 @@ const GET_POSITION_PARTIALS_METHOD_NAME = "strategy.getPositionPartials";
 const GET_POSITION_ENTRIES_METHOD_NAME = "strategy.getPositionEntries";
 const GET_POSITION_ESTIMATE_MINUTES_METHOD_NAME = "strategy.getPositionEstimateMinutes";
 const GET_POSITION_COUNTDOWN_MINUTES_METHOD_NAME = "strategy.getPositionCountdownMinutes";
+const GET_POSITION_ACTIVE_MINUTES_METHOD_NAME = "strategy.getPositionActiveMinutes";
+const GET_POSITION_WAITING_MINUTES_METHOD_NAME = "strategy.getPositionWaitingMinutes";
 const GET_POSITION_HIGHEST_PROFIT_PRICE_METHOD_NAME = "strategy.getPositionHighestProfitPrice";
 const GET_POSITION_HIGHEST_PROFIT_TIMESTAMP_METHOD_NAME = "strategy.getPositionHighestProfitTimestamp";
 const GET_POSITION_HIGHEST_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionHighestPnlPercentage";
@@ -64,10 +67,13 @@ const GET_POSITION_HIGHEST_PROFIT_DISTANCE_PNL_PERCENTAGE_METHOD_NAME = "strateg
 const GET_POSITION_HIGHEST_PROFIT_DISTANCE_PNL_COST_METHOD_NAME = "strategy.getPositionHighestProfitDistancePnlCost";
 const GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_PERCENTAGE_METHOD_NAME = "strategy.getPositionHighestMaxDrawdownPnlPercentage";
 const GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_COST_METHOD_NAME = "strategy.getPositionHighestMaxDrawdownPnlCost";
+const GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE_METHOD_NAME = "strategy.getMaxDrawdownDistancePnlPercentage";
+const GET_MAX_DRAWDOWN_DISTANCE_PNL_COST_METHOD_NAME = "strategy.getMaxDrawdownDistancePnlCost";
 const GET_POSITION_ENTRY_OVERLAP_METHOD_NAME = "strategy.getPositionEntryOverlap";
 const GET_POSITION_PARTIAL_OVERLAP_METHOD_NAME = "strategy.getPositionPartialOverlap";
 const HAS_NO_PENDING_SIGNAL_METHOD_NAME = "strategy.hasNoPendingSignal";
 const HAS_NO_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.hasNoScheduledSignal";
+const COMMIT_SIGNAL_NOTIFY_METHOD_NAME = "strategy.commitSignalNotify";
 
 /**
  * Cancels the scheduled signal without stopping the strategy.
@@ -80,7 +86,7 @@ const HAS_NO_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.hasNoScheduledSignal";
  *
  * @param symbol - Trading pair symbol
  * @param strategyName - Strategy name
- * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when scheduled signal is cancelled
  *
  * @example
@@ -88,16 +94,16 @@ const HAS_NO_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.hasNoScheduledSignal";
  * import { commitCancelScheduled } from "backtest-kit";
  *
  * // Cancel scheduled signal with custom ID
- * await commitCancelScheduled("BTCUSDT", "manual-cancel-001");
+ * await commitCancelScheduled("BTCUSDT", { id: "manual-cancel-001" });
  * ```
  */
 export async function commitCancelScheduled(
   symbol: string,
-  cancelId?: string,
+  payload: Partial<CommitPayload> = {},
 ): Promise<void> {
   backtest.loggerService.info(CANCEL_SCHEDULED_METHOD_NAME, {
     symbol,
-    cancelId,
+    payload,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitCancelScheduled requires an execution context");
@@ -112,7 +118,7 @@ export async function commitCancelScheduled(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    cancelId,
+    payload,
   );
 }
 
@@ -126,7 +132,7 @@ export async function commitCancelScheduled(
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param closeId - Optional close ID for tracking user-initiated closes
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when pending signal is closed
  *
  * @example
@@ -134,16 +140,16 @@ export async function commitCancelScheduled(
  * import { commitClosePending } from "backtest-kit";
  *
  * // Close pending signal with custom ID
- * await commitClosePending("BTCUSDT", "manual-close-001");
+ * await commitClosePending("BTCUSDT", { id: "manual-close-001" });
  * ```
  */
 export async function commitClosePending(
   symbol: string,
-  closeId?: string,
+  payload: Partial<CommitPayload> = {},
 ): Promise<void> {
   backtest.loggerService.info(CLOSE_PENDING_METHOD_NAME, {
     symbol,
-    closeId,
+    payload,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitClosePending requires an execution context");
@@ -159,7 +165,7 @@ export async function commitClosePending(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    closeId,
+    payload,
   );
 }
 
@@ -855,7 +861,7 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
  * Automatically detects backtest/live mode from execution context.
  *
  * @param symbol - Trading pair symbol
- * @param activateId - Optional activation ID for tracking user-initiated activations
+ * @param payload - Optional commit payload with id and note
  * @returns Promise that resolves when activation flag is set
  *
  * @example
@@ -863,16 +869,16 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
  * import { commitActivateScheduled } from "backtest-kit";
  *
  * // Activate scheduled signal early with custom ID
- * await commitActivateScheduled("BTCUSDT", "manual-activate-001");
+ * await commitActivateScheduled("BTCUSDT", { id: "manual-activate-001" });
  * ```
  */
 export async function commitActivateScheduled(
   symbol: string,
-  activateId?: string,
+  payload: Partial<CommitPayload> = {},
 ): Promise<void> {
   backtest.loggerService.info(ACTIVATE_SCHEDULED_METHOD_NAME, {
     symbol,
-    activateId,
+    payload,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitActivateScheduled requires an execution context");
@@ -887,7 +893,7 @@ export async function commitActivateScheduled(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    activateId,
+    payload,
   );
 }
 
@@ -1806,6 +1812,72 @@ export async function getPositionCountdownMinutes(symbol: string) {
 }
 
 /**
+ * Returns the number of minutes the position has been active since it opened.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to active minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionActiveMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionActiveMinutes("BTCUSDT");
+ * // e.g. 120 (position has been open for 2 hours)
+ * ```
+ */
+export async function getPositionActiveMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_ACTIVE_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionActiveMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionActiveMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionActiveMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the number of minutes the scheduled signal has been waiting for activation.
+ *
+ * Returns null if no scheduled signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to waiting minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionWaitingMinutes } from "backtest-kit";
+ *
+ * const minutes = await getPositionWaitingMinutes("BTCUSDT");
+ * // e.g. 15 (scheduled signal has been waiting 15 minutes for activation)
+ * ```
+ */
+export async function getPositionWaitingMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_WAITING_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionWaitingMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionWaitingMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionWaitingMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
  * Returns the best price reached in the profit direction during this position's life.
  *
  * Initialized at position open with the entry price and timestamp.
@@ -2355,6 +2427,74 @@ export async function getPositionHighestMaxDrawdownPnlCost(symbol: string) {
 }
 
 /**
+ * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+ *
+ * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getMaxDrawdownDistancePnlPercentage } from "backtest-kit";
+ *
+ * const dist = await getMaxDrawdownDistancePnlPercentage("BTCUSDT");
+ * // e.g. 3.5 (peak was +3.5% above trough)
+ * ```
+ */
+export async function getMaxDrawdownDistancePnlPercentage(symbol: string) {
+  backtest.loggerService.info(GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getMaxDrawdownDistancePnlPercentage requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getMaxDrawdownDistancePnlPercentage requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getMaxDrawdownDistancePnlPercentage(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+ *
+ * Computed as: max(0, peakPnlCost - fallPnlCost).
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getMaxDrawdownDistancePnlCost } from "backtest-kit";
+ *
+ * const dist = await getMaxDrawdownDistancePnlCost("BTCUSDT");
+ * // e.g. 7.2 (peak was $7.2 above trough)
+ * ```
+ */
+export async function getMaxDrawdownDistancePnlCost(symbol: string) {
+  backtest.loggerService.info(GET_MAX_DRAWDOWN_DISTANCE_PNL_COST_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getMaxDrawdownDistancePnlCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getMaxDrawdownDistancePnlCost requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getMaxDrawdownDistancePnlCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
  * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
  * Use this to prevent duplicate DCA entries at the same price area.
  *
@@ -2545,5 +2685,59 @@ export async function hasNoScheduledSignal(symbol: string): Promise<boolean> {
       symbol,
       { exchangeName, frameName, strategyName },
     )
+  );
+}
+
+/**
+ * Emits a `signal.info` notification for the currently active pending signal.
+ *
+ * Broadcasts a user-defined informational note without affecting position state.
+ * Useful for annotating strategy decisions, triggering external alerts, or logging
+ * mid-position events (e.g. RSI crossing a threshold, volume spike detected).
+ *
+ * Automatically reads backtest/live mode from execution context.
+ * Automatically reads strategyName, exchangeName, frameName from method context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol (e.g. "BTCUSDT")
+ * @param payload - Optional notification fields
+ * @param payload.notificationNote - Human-readable note. Falls back to signal.note if omitted.
+ * @param payload.notificationId - Optional correlation ID for external systems (e.g. Telegram message ID).
+ *
+ * @throws {Error} If called outside an execution context
+ * @throws {Error} If called outside a method context
+ * @throws {Error} If no active pending signal exists for the given symbol
+ *
+ * @example
+ * ```typescript
+ * import { commitSignalNotify } from "backtest-kit";
+ *
+ * // Inside onActivePing callback:
+ * await commitSignalNotify("BTCUSDT", {
+ *   notificationNote: "RSI crossed 70, consider closing",
+ *   notificationId: "msg-123",
+ * });
+ * ```
+ */
+export async function commitSignalNotify(
+  symbol: string,
+  payload: Partial<SignalNotificationPayload> = {},
+): Promise<void> {
+  backtest.loggerService.info(COMMIT_SIGNAL_NOTIFY_METHOD_NAME, { symbol, payload });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitSignalNotify requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitSignalNotify requires a method context");
+  }
+  const currentPrice = await getAveragePrice(symbol);
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  await backtest.notificationHelperService.commitSignalNotify(
+    payload,
+    symbol,
+    currentPrice,
+    { strategyName, exchangeName, frameName },
+    isBacktest,
   );
 }

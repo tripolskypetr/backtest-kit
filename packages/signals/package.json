@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/signals",
-  "version": "6.11.0",
+  "version": "6.16.0",
   "description": "Technical analysis and trading signal generation library for AI-powered trading systems. Computes 50+ indicators across 4 timeframes and generates markdown reports for LLM consumption.",
   "author": {
     "name": "Petr Tripolsky",
@@ -66,20 +66,20 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "backtest-kit": "6.11.0",
+    "backtest-kit": "6.16.0",
     "worker-testbed": "2.0.0"
   },
   "peerDependencies": {
-    "backtest-kit": "^6.11.0",
+    "backtest-kit": "^6.16.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
-    "functools-kit": "^2.0.1",
+    "functools-kit": "^2.2.0",
     "trading-signals": "^6.9.1",
     "get-moment-stamp": "^1.1.2",
-    "agent-swarm-kit": "^2.1.0"
+    "agent-swarm-kit": "^2.5.1"
   },
   "publishConfig": {
     "access": "public"

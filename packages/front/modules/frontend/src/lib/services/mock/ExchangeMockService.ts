@@ -96,6 +96,32 @@ export class ExchangeMockService {
     }
     return data;
   };
+
+  public getRangeCandles = async (dto: {
+    symbol: string;
+    interval: CandleInterval;
+    limit?: number;
+    sDate?: number;
+    eDate?: number;
+  }): Promise<ICandleData[]> => {
+    this.loggerService.log("exchangeMockService getRangeCandles", {
+      dto,
+    });
+    const { data, error } = await fetchApi("/api/v1/mock/candles_range", {
+      method: "POST",
+      body: JSON.stringify({
+        clientId: CC_CLIENT_ID,
+        serviceName: CC_SERVICE_NAME,
+        userId: CC_USER_ID,
+        requestId: randomString(),
+        ...dto,
+      }),
+    });
+    if (error) {
+      throw new Error(error);
+    }
+    return data;
+  };
 }
 
 export default ExchangeMockService;

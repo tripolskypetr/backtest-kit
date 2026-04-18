@@ -382,7 +382,7 @@ export const StockChart = ({
     });
 
     // Original Stop Loss line (if trailing changed it)
-    if (originalPriceStopLoss != null && originalPriceStopLoss !== priceStopLoss) {
+    if (originalPriceStopLoss != null && Number(originalPriceStopLoss).toFixed(6) !== Number(priceStopLoss).toFixed(6)) {
       lineSeries.createPriceLine({
         price: originalPriceStopLoss,
         color: colors.red[500],
@@ -404,7 +404,7 @@ export const StockChart = ({
     });
 
     // Original Take Profit line (if trailing changed it)
-    if (originalPriceTakeProfit != null && originalPriceTakeProfit !== priceTakeProfit) {
+    if (originalPriceTakeProfit != null && Number(originalPriceTakeProfit).toFixed(6) !== Number(priceTakeProfit).toFixed(6)) {
       lineSeries.createPriceLine({
         price: originalPriceTakeProfit,
         color: colors.green[500],

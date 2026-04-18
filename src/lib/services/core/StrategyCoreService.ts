@@ -13,6 +13,7 @@ import {
   IStrategyTickResultCancelled,
   IStrategyTickResultActive,
   IPublicSignalRow,
+  CommitPayload,
 } from "../../../interfaces/Strategy.interface";
 import StrategyConnectionService from "../connection/StrategyConnectionService";
 import { ExchangeName, ICandleData } from "../../../interfaces/Exchange.interface";
@@ -610,18 +611,18 @@ export class StrategyCoreService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param ctx - Context with strategyName, exchangeName, frameName
-   * @param cancelId - Optional cancellation ID for user-initiated cancellations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when scheduled signal is cancelled
    */
-  public cancelScheduled = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, cancelId?: string): Promise<void> => {
+  public cancelScheduled = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, payload: Partial<CommitPayload> = {}): Promise<void> => {
     this.loggerService.log("strategyCoreService cancelScheduled", {
       symbol,
       context,
       backtest,
-      cancelId,
+      payload,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.cancelScheduled(backtest, symbol, context, cancelId);
+    return await this.strategyConnectionService.cancelScheduled(backtest, symbol, context, payload);
   };
 
   /**
@@ -638,18 +639,18 @@ export class StrategyCoreService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param context - Context with strategyName, exchangeName, frameName
-   * @param closeId - Optional close ID for user-initiated closes
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when pending signal is closed
    */
-  public closePending = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, closeId?: string): Promise<void> => {
+  public closePending = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, payload: Partial<CommitPayload> = {}): Promise<void> => {
     this.loggerService.log("strategyCoreService closePending", {
       symbol,
       context,
       backtest,
-      closeId,
+      payload,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.closePending(backtest, symbol, context, closeId);
+    return await this.strategyConnectionService.closePending(backtest, symbol, context, payload);
   };
 
   /**
@@ -1069,7 +1070,7 @@ export class StrategyCoreService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, frameName
-   * @param activateId - Optional identifier for the activation reason
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when activation flag is set
    *
    * @example
@@ -1079,7 +1080,7 @@ export class StrategyCoreService implements TStrategy {
    *   false,
    *   "BTCUSDT",
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
-   *   "manual-activation"
+   *   { id: "manual-activation" }
    * );
    * ```
    */
@@ -1087,16 +1088,16 @@ export class StrategyCoreService implements TStrategy {
     backtest: boolean,
     symbol: string,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-    activateId?: string
+    payload: Partial<CommitPayload> = {}
   ): Promise<void> => {
     this.loggerService.log("strategyCoreService activateScheduled", {
       symbol,
       context,
       backtest,
-      activateId,
+      payload,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.activateScheduled(backtest, symbol, context, activateId);
+    return await this.strategyConnectionService.activateScheduled(backtest, symbol, context, payload);
   };
 
   /**
@@ -1247,6 +1248,48 @@ export class StrategyCoreService implements TStrategy {
     });
     await this.validate(context);
     return await this.strategyConnectionService.getPositionCountdownMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to active minutes (≥ 0) or null
+   */
+  public getPositionActiveMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionActiveMinutes", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionActiveMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to waiting minutes (≥ 0) or null
+   */
+  public getPositionWaitingMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionWaitingMinutes", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionWaitingMinutes(backtest, symbol, context);
   };
 
   /**
@@ -1610,6 +1653,54 @@ export class StrategyCoreService implements TStrategy {
     });
     await this.validate(context);
     return await this.strategyConnectionService.getPositionHighestMaxDrawdownPnlCost(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlPercentage().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to peak-to-trough PnL percentage distance (≥ 0) or null
+   */
+  public getMaxDrawdownDistancePnlPercentage = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getMaxDrawdownDistancePnlPercentage", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getMaxDrawdownDistancePnlPercentage(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Delegates to StrategyConnectionService.getMaxDrawdownDistancePnlCost().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to peak-to-trough PnL cost distance (≥ 0) or null
+   */
+  public getMaxDrawdownDistancePnlCost = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getMaxDrawdownDistancePnlCost", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getMaxDrawdownDistancePnlCost(backtest, symbol, context);
   };
 }
 

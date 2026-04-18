@@ -14,17 +14,6 @@ export interface ExplorerDirectory {
   nodes: ExplorerNode[];
 }
 
-export type ExplorerRecord = {
-  [id: string]: ExplorerRecord | string;
-};
-
-export type ExplorerMap = {
-  [id: string]: ExplorerFile | ExplorerDirectory;
-}
-
-export type ExplorerData = {
-  record: ExplorerRecord;
-  map: ExplorerMap;
-}
-
 export type ExplorerNode = ExplorerFile | ExplorerDirectory;
+
+export type ExplorerMap = Record<string, ExplorerNode>;

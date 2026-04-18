@@ -6,6 +6,7 @@ import { ioc } from "../lib";
 import str from "../utils/str";
 import ErrorPage from "../pages/base/ErrorPage";
 import { HourglassTop, LiveTv } from "@mui/icons-material";
+import PinePage from "../pages/view/PinePage";
 
 export interface IRouteItem extends ISwitchItem {
     noHeader?: boolean;
@@ -36,6 +37,11 @@ export const baseRoutes: IRouteItem[] = [
         path: "/error_page",
         noHeader: true,
         element: ErrorPage,
+    },
+    {
+        path: "/pine_page",
+        noHeader: true,
+        element: heavy(() => import("../pages/view/PinePage")),
     },
 ];
 

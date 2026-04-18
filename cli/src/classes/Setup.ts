@@ -9,9 +9,14 @@ import {
   StorageBacktest,
   NotificationLive,
   NotificationBacktest,
+  RecentLive,
+  RecentBacktest,
   Dump,
   Memory,
+  Recent,
   Log,
+  MarkdownWriter,
+  ReportWriter,
 } from "backtest-kit";
 
 import {
@@ -26,9 +31,25 @@ import {
   PersistLogAdapter,
   PersistMeasureAdapter,
   PersistMemoryAdapter,
+  PersistIntervalAdapter,
+  PersistRecentAdapter,
 } from "backtest-kit";
 
 import { cli } from "../lib";
+
+const NOTIFICATION_CONFIG = {
+  signal: true,
+  risk: true,
+  info: true,
+  breakeven: true,
+  common_error: true,
+  critical_error: true,
+  validation_error: true,
+  partial_loss: false,
+  partial_profit: false,
+  signal_sync: false,
+  strategy_commit: true,
+};
 
 export class SetupUtils {
 
@@ -36,9 +57,11 @@ export class SetupUtils {
 
     cli.loggerService.debug("SetupUtils enable");
 
+    Notification.enable(NOTIFICATION_CONFIG);
+
     {
+      Recent.enable();
       Storage.enable();
-      Notification.enable();
     }
 
     {
@@ -56,6 +79,11 @@ export class SetupUtils {
     {
       StorageLive.usePersist();
       StorageBacktest.useMemory();
+    }
+
+    {
+      RecentLive.usePersist();
+      RecentBacktest.useMemory();
     }
 
     {
@@ -80,6 +108,26 @@ export class SetupUtils {
     this.enable.clear();
 
     {
+      Recent.disable();
+      Storage.disable();
+      Notification.disable();
+    }
+
+    {
+      Markdown.disable();
+      Report.disable();
+      Dump.disable();
+      Memory.disable();
+    }
+
+    {
+      Markdown.clear();
+      Report.clear();
+      MarkdownWriter.clear();
+      ReportWriter.clear();
+    }
+
+    {
       PersistSignalAdapter.clear();
       PersistRiskAdapter.clear();
       PersistScheduleAdapter.clear();
@@ -90,15 +138,15 @@ export class SetupUtils {
       PersistNotificationAdapter.clear();
       PersistLogAdapter.clear();
       PersistMeasureAdapter.clear();
+      PersistIntervalAdapter.clear();
       PersistMemoryAdapter.clear();
+      PersistRecentAdapter.clear();
     }
 
     {
       Dump.clear();
       Log.clear();
       Markdown.clear();
-      Memory.clear();
-      Report.clear();
     }
 
     {
@@ -109,6 +157,11 @@ export class SetupUtils {
     {
       NotificationLive.clear();
       NotificationBacktest.clear();
+    }
+
+    {
+      RecentLive.clear();
+      RecentBacktest.clear();
     }
   };
 }

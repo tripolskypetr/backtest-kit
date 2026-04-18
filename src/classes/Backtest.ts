@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { IPublicSignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, StrategyName, CommitPayload } from "../interfaces/Strategy.interface";
 import { exitEmitter, doneBacktestSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import {
@@ -24,6 +24,7 @@ import {
   IPositionOverlapLadder,
   POSITION_OVERLAP_LADDER_DEFAULT,
 } from "../config/ladder";
+import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
 const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
@@ -61,6 +62,10 @@ const BACKTEST_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES =
   "BacktestUtils.getPositionEstimateMinutes";
 const BACKTEST_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES =
   "BacktestUtils.getPositionCountdownMinutes";
+const BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES =
+  "BacktestUtils.getPositionActiveMinutes";
+const BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES =
+  "BacktestUtils.getPositionWaitingMinutes";
 const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE =
   "BacktestUtils.getPositionHighestProfitPrice";
 const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_TIMESTAMP =
@@ -93,6 +98,10 @@ const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_PERCENTAGE =
   "BacktestUtils.getPositionHighestMaxDrawdownPnlPercentage";
 const BACKTEST_METHOD_NAME_GET_POSITION_HIGHEST_MAX_DRAWDOWN_PNL_COST =
   "BacktestUtils.getPositionHighestMaxDrawdownPnlCost";
+const BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE =
+  "BacktestUtils.getMaxDrawdownDistancePnlPercentage";
+const BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST =
+  "BacktestUtils.getMaxDrawdownDistancePnlCost";
 const BACKTEST_METHOD_NAME_GET_POSITION_ENTRY_OVERLAP =
   "BacktestUtils.getPositionEntryOverlap";
 const BACKTEST_METHOD_NAME_GET_POSITION_PARTIAL_OVERLAP =
@@ -115,6 +124,7 @@ const BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST =
 const BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED =
   "Backtest.commitActivateScheduled";
 const BACKTEST_METHOD_NAME_AVERAGE_BUY = "Backtest.commitAverageBuy";
+const BACKTEST_METHOD_NAME_SIGNAL_NOTIFY = "Backtest.commitSignalNotify";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 const BACKTEST_METHOD_NAME_HAS_NO_PENDING_SIGNAL =
   "BacktestUtils.hasNoPendingSignal";
@@ -1773,6 +1783,128 @@ export class BacktestUtils {
   };
 
   /**
+   * Returns the number of minutes the position has been active since it opened.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Active minutes (≥ 0), or null if no active position
+   */
+  public getPositionActiveMinutes = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_ACTIVE_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionActiveMinutes(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the number of minutes the scheduled signal has been waiting for activation.
+   *
+   * Returns null if no scheduled signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Waiting minutes (≥ 0), or null if no scheduled signal
+   */
+  public getPositionWaitingMinutes = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_POSITION_WAITING_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionWaitingMinutes(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
    * Returns the best price reached in the profit direction during this position's life.
    *
    * Returns null if no pending signal exists.
@@ -2762,6 +2894,130 @@ export class BacktestUtils {
   };
 
   /**
+   * Returns the peak-to-trough PnL percentage distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlPercentage - fallPnlPercentage).
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns peak-to-trough PnL percentage distance (≥ 0) or null if no active position
+   */
+  public getMaxDrawdownDistancePnlPercentage = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_PERCENTAGE,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getMaxDrawdownDistancePnlPercentage(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the peak-to-trough PnL cost distance between the position's highest profit and deepest drawdown.
+   *
+   * Computed as: max(0, peakPnlCost - fallPnlCost).
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns peak-to-trough PnL cost distance (≥ 0) or null if no active position
+   */
+  public getMaxDrawdownDistancePnlCost = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_MAX_DRAWDOWN_DISTANCE_PNL_COST,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getMaxDrawdownDistancePnlCost(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
    * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
    * Use this to prevent duplicate DCA entries at the same price area.
    *
@@ -2997,7 +3253,7 @@ export class BacktestUtils {
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name
    * @param context - Execution context with exchangeName and frameName
-   * @param cancelId - Optional cancellation ID for tracking user-initiated cancellations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when scheduled signal is cancelled
    *
    * @example
@@ -3007,7 +3263,7 @@ export class BacktestUtils {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
-   * }, "manual-cancel-001");
+   * }, { id: "manual-cancel-001" });
    * ```
    */
   public commitCancelScheduled = async (
@@ -3017,12 +3273,12 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    cancelId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_CANCEL_SCHEDULED, {
       symbol,
       context,
-      cancelId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -3061,7 +3317,7 @@ export class BacktestUtils {
       true,
       symbol,
       context,
-      cancelId,
+      payload,
     );
   };
 
@@ -3074,7 +3330,7 @@ export class BacktestUtils {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @param closeId - Optional close ID for user-initiated closes
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when pending signal is closed
    *
    * @example
@@ -3084,7 +3340,7 @@ export class BacktestUtils {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy",
    *   frameName: "1m"
-   * }, "manual-close-001");
+   * }, { id: "manual-close-001" });
    * ```
    */
   public commitClosePending = async (
@@ -3094,12 +3350,12 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    closeId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_CLOSE_PENDING, {
       symbol,
       context,
-      closeId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -3138,7 +3394,7 @@ export class BacktestUtils {
       true,
       symbol,
       context,
-      closeId,
+      payload,
     );
   };
 
@@ -4313,7 +4569,7 @@ export class BacktestUtils {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @param activateId - Optional activation ID for tracking user-initiated activations
+   * @param payload - Optional commit payload with id and note
    * @returns Promise that resolves when activation flag is set
    *
    * @example
@@ -4323,7 +4579,7 @@ export class BacktestUtils {
    *   strategyName: "my-strategy",
    *   exchangeName: "binance",
    *   frameName: "1h"
-   * }, "manual-activate-001");
+   * }, { id: "manual-activate-001" });
    * ```
    */
   public commitActivateScheduled = async (
@@ -4333,12 +4589,12 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
-    activateId?: string,
+    payload: Partial<CommitPayload> = {},
   ): Promise<void> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED, {
       symbol,
       context,
-      activateId,
+      payload,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
@@ -4377,7 +4633,7 @@ export class BacktestUtils {
       true,
       symbol,
       context,
-      activateId,
+      payload,
     );
   };
 
@@ -4490,6 +4746,49 @@ export class BacktestUtils {
       currentPrice,
       context,
       cost,
+    );
+  };
+
+  /**
+   * Emits a `signal.info` notification for the currently active pending signal.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Market price at the time of the call
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @param payload - Optional notification fields (notificationNote, notificationId)
+   *
+   * @throws {Error} If no active pending signal exists for the given symbol
+   *
+   * @example
+   * ```typescript
+   * await Backtest.commitSignalNotify("BTCUSDT", 42000, {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance",
+   *   frameName: "1h"
+   * }, { notificationNote: "RSI crossed 70" });
+   * ```
+   */
+  public commitSignalNotify = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    payload: Partial<SignalNotificationPayload> = {},
+  ): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_SIGNAL_NOTIFY, {
+      symbol,
+      currentPrice,
+      context,
+    });
+    await backtest.notificationHelperService.commitSignalNotify(
+      payload,
+      symbol,
+      currentPrice,
+      context,
+      true,
     );
   };
 

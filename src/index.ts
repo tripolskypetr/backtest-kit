@@ -24,6 +24,7 @@ export {
   commitBreakeven,
   commitActivateScheduled,
   commitAverageBuy,
+  commitSignalNotify,
   getPendingSignal,
   getScheduledSignal,
   getBreakeven,
@@ -57,6 +58,10 @@ export {
   getPositionHighestMaxDrawdownPnlPercentage,
   getPositionHighestProfitDistancePnlCost,
   getPositionHighestProfitDistancePnlPercentage,
+  getPositionActiveMinutes,
+  getPositionWaitingMinutes,
+  getMaxDrawdownDistancePnlCost,
+  getMaxDrawdownDistancePnlPercentage,
   hasNoPendingSignal,
   hasNoScheduledSignal,
 } from "./function/strategy";
@@ -131,6 +136,8 @@ export {
   listenSchedulePingOnce,
   listenActivePing,
   listenActivePingOnce,
+  listenIdlePing,
+  listenIdlePingOnce,
   listenStrategyCommit,
   listenStrategyCommitOnce,
   listenSync,
@@ -139,6 +146,8 @@ export {
   listenHighestProfitOnce,
   listenMaxDrawdown,
   listenMaxDrawdownOnce,
+  listenSignalNotify,
+  listenSignalNotifyOnce,
 } from "./function/event";
 export {
   getCandles,
@@ -156,6 +165,10 @@ export {
   formatQuantity,
   hasTradeContext,
 } from "./function/exchange";
+export {
+  getLatestSignal,
+  getMinutesSinceLatestSignalCreated,
+} from "./function/signal";
 export {
   listMemory,
   readMemory,
@@ -296,6 +309,7 @@ export {
   SignalSyncOpenNotification,
   CancelScheduledCommitNotification,
   ClosePendingCommitNotification,
+  SignalInfoNotification,
 } from "./model/Notification.model";
 
 export { BacktestStatisticsModel } from "./model/BacktestStatistics.model";
@@ -327,6 +341,7 @@ export { SchedulePingContract } from "./contract/SchedulePing.contract";
 export { ActivePingContract } from "./contract/ActivePing.contract";
 export { HighestProfitContract } from "./contract/HighestProfit.contract";
 export { MaxDrawdownContract } from "./contract/MaxDrawdown.contract";
+export { SignalInfoContract } from "./contract/SignalInfo.contract";
 export { BreakevenContract } from "./contract/Breakeven.contract";
 
 export {
@@ -386,6 +401,8 @@ export {
   PersistMemoryAdapter,
   IntervalData,
   PersistIntervalAdapter,
+  RecentData,
+  PersistRecentAdapter,
 } from "./classes/Persist";
 
 export {
@@ -422,6 +439,10 @@ export {
   TLogCtor,
 } from "./classes/Log";
 
+export {
+  Session,
+} from "./classes/Session";
+
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
 export { Schedule } from "./classes/Schedule";
@@ -433,6 +454,7 @@ export { Position } from "./classes/Position";
 export { Partial } from "./classes/Partial";
 export { HighestProfit } from "./classes/HighestProfit";
 export { MaxDrawdown } from "./classes/MaxDrawdown";
+export { Reflect } from "./classes/Reflect";
 export { Constant } from "./classes/Constant";
 export { Risk } from "./classes/Risk";
 export { Sync } from "./classes/Sync";
@@ -443,6 +465,13 @@ export {
   IStorageUtils,
   TStorageUtilsCtor,
 } from "./classes/Storage";
+export {
+  Recent,
+  RecentLive,
+  RecentBacktest,
+  IRecentUtils,
+  TRecentUtilsCtor,
+} from "./classes/Recent";
 export { 
   Notification,
   NotificationLive,

@@ -127,6 +127,8 @@ const getNotificationColor = (item: NotificationModel): string | undefined => {
       return "#FF9800";
     case "error.critical":
       return "#D32F2F";
+    case "signal.info":
+      return "#9C27B0";
     default:
       return undefined;
   }
@@ -174,6 +176,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <NotificationImportant sx={sx} />;
     case "error.critical":
       return <ErrorIcon sx={sx} />;
+    case "signal.info":
+      return <NotificationImportant sx={sx} />;
     default:
       return <WarningIcon sx={{ ...sx, mt: "-2px" }} />;
   }
@@ -225,6 +229,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Validation")}: ${item.message}`;
     case "error.critical":
       return `${t("Critical")}: ${item.message}`;
+    case "signal.info":
+      return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%)`;
     default:
       return `${t("Unknown")} ${get(item, "type")}`;
   }
@@ -288,6 +294,9 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "close_pending.commit":
       ioc.layoutService.pickClosePending(item.id);
+      break;
+    case "signal.info":
+      ioc.layoutService.pickSignalNotify(item.id);
       break;
   }
 };

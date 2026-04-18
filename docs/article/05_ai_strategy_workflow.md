@@ -3,7 +3,7 @@ title: article/05_ai_strategy_workflow
 group: article
 ---
 
-# ✨ Building an AI Workflow for Identifying and Updating Liquidation Cascade Criteria
+# ✨ AI Workflow for Identifying and Updating Liquidation Cascade Criteria
 
 > To get the agent code, run `npx @backtest-kit/cli --init --output my-project`
 

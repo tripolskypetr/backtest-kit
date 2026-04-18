@@ -18,6 +18,7 @@ const CustomLink = (props: LinkProps) => (
         {...props}
         onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (!props.href) {
                 return;
             }

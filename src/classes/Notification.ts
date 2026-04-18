@@ -11,6 +11,7 @@ import {
   validationSubject,
   strategyCommitSubject,
   syncSubject,
+  signalNotifySubject,
 } from "../config/emitters";
 import { NotificationModel } from "../model/Notification.model";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
@@ -20,10 +21,128 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
+import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import backtest from "../lib";
 import { PersistNotificationAdapter } from "./Persist";
 import { GLOBAL_CONFIG } from "../config/params";
 import get from "../utils/get";
+
+/**
+ * Defines which notification categories are enabled when calling `NotificationAdapter.enable()`.
+ *
+ * Pass an instance of this interface to selectively subscribe to only the event types you need.
+ * When omitted, all categories default to `true` via `WILDCARD_TARGET`.
+ *
+ * @example
+ * // Subscribe only to signal lifecycle and error events
+ * notificationAdapter.enable({ signal: true, common_error: true, critical_error: true, validation_error: true,
+ *   partial_profit: false, partial_loss: false, breakeven: false, strategy_commit: false, signal_sync: false,
+ *   risk: false, info: false });
+ */
+export interface INotificationTarget {
+  /**
+   * Signal lifecycle events emitted by the strategy engine.
+   * Covers four actions: `signal.opened`, `signal.scheduled`, `signal.closed`, `signal.cancelled`.
+   * Source: `signalBacktestEmitter` / `signalLiveEmitter` (IStrategyTickResult).
+   */
+  signal: boolean;
+
+  /**
+   * Partial profit availability notifications (`partial_profit.available`).
+   * Fired when the price reaches a partial-profit level defined in the strategy,
+   * before the commit decision is made.
+   * Source: `partialProfitSubject` (PartialProfitContract).
+   */
+  partial_profit: boolean;
+
+  /**
+   * Partial loss availability notifications (`partial_loss.available`).
+   * Fired when the price reaches a partial-loss level defined in the strategy,
+   * before the commit decision is made.
+   * Source: `partialLossSubject` (PartialLossContract).
+   */
+  partial_loss: boolean;
+
+  /**
+   * Breakeven availability notifications (`breakeven.available`).
+   * Fired when the price reaches the breakeven level, before the commit is applied.
+   * Source: `breakevenSubject` (BreakevenContract).
+   */
+  breakeven: boolean;
+
+  /**
+   * Strategy commit confirmations.
+   * Covers all committed actions: `partial_profit.commit`, `partial_loss.commit`,
+   * `breakeven.commit`, `trailing_stop.commit`, `trailing_take.commit`,
+   * `activate_scheduled.commit`, `average_buy.commit`, `cancel_scheduled.commit`,
+   * `close_pending.commit`.
+   * Source: `strategyCommitSubject` (StrategyCommitContract).
+   */
+  strategy_commit: boolean;
+
+  /**
+   * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
+   * Fired when a limit order is confirmed filled (`signal-open`) or when an open
+   * position is confirmed exited (`signal-close`) by the exchange sync layer.
+   * Source: `syncSubject` (SignalSyncContract).
+   */
+  signal_sync: boolean;
+
+  /**
+   * Risk manager rejection notifications (`risk.rejection`).
+   * Fired when the risk manager blocks a new signal from opening due to
+   * active position count limits or other risk rules.
+   * Source: `riskSubject` (RiskContract).
+   */
+  risk: boolean;
+
+  /**
+   * Informational signal notifications (`signal.info`).
+   * Manual or strategy-triggered messages attached to an active signal,
+   * carrying a `note` and optional `notificationId`.
+   * Source: `signalNotifySubject` (SignalInfoContract).
+   */
+  info: boolean;
+
+  /**
+   * Non-fatal runtime errors (`error.info`).
+   * Emitted by the global `errorEmitter` for recoverable errors that are
+   * caught and logged but do not terminate the process.
+   */
+  common_error: boolean;
+
+  /**
+   * Critical (fatal) errors (`error.critical`).
+   * Emitted by the global `exitEmitter` when an unrecoverable error
+   * causes the backtest or live session to terminate.
+   */
+  critical_error: boolean;
+
+  /**
+   * Validation errors (`error.validation`).
+   * Emitted by `validationSubject` when strategy configuration or
+   * input data fails schema/business-rule validation.
+   */
+  validation_error: boolean;
+}
+
+/**
+ * Default configuration that enables all notification types.
+ * Used when no specific configuration is provided to enable().
+ */
+const WILDCARD_TARGET: INotificationTarget = {
+  signal: true,
+  partial_profit: true,
+  partial_loss: true,
+  breakeven: true,
+  strategy_commit: true,
+  signal_sync: true,
+  risk: true,
+  info: true,
+  common_error: true,
+  critical_error: true,
+  validation_error: true,
+}
 
 /**
  * Generates a unique key for notification identification.
@@ -715,7 +834,45 @@ const CREATE_VALIDATION_ERROR_NOTIFICATION_FN = (error: Error): NotificationMode
   backtest: false,
 });
 
+/**
+ * Creates a notification model for signal info events.
+ * @param data - The signal info contract data
+ * @returns NotificationModel for signal info event
+ */
+const CREATE_SIGNAL_INFO_NOTIFICATION_FN = (data: SignalInfoContract): NotificationModel => ({
+  type: "signal.info",
+  id: CREATE_KEY_FN(),
+  timestamp: data.timestamp,
+  backtest: data.backtest,
+  symbol: data.symbol,
+  strategyName: data.strategyName,
+  exchangeName: data.exchangeName,
+  signalId: data.data.id,
+  currentPrice: data.currentPrice,
+  position: data.data.position,
+  priceOpen: data.data.priceOpen,
+  priceTakeProfit: data.data.priceTakeProfit,
+  priceStopLoss: data.data.priceStopLoss,
+  originalPriceTakeProfit: data.data.originalPriceTakeProfit,
+  originalPriceStopLoss: data.data.originalPriceStopLoss,
+  originalPriceOpen: data.data.originalPriceOpen,
+  totalEntries: data.data.totalEntries,
+  totalPartials: data.data.totalPartials,
+  pnl: data.data.pnl,
+  pnlPercentage: data.data.pnl.pnlPercentage,
+  pnlPriceOpen: data.data.pnl.priceOpen,
+  pnlPriceClose: data.data.pnl.priceClose,
+  pnlCost: data.data.pnl.pnlCost,
+  pnlEntries: data.data.pnl.pnlEntries,
+  note: data.note,
+  notificationId: data.notificationId,
+  scheduledAt: data.data.scheduledAt,
+  pendingAt: data.data.pendingAt,
+  createdAt: data.timestamp,
+});
+
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SIGNAL = "NotificationMemoryBacktestUtils.handleSignal";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SIGNAL_NOTIFY = "NotificationMemoryBacktestUtils.handleSignalNotify";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "NotificationMemoryBacktestUtils.handlePartialProfit";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationMemoryBacktestUtils.handlePartialLoss";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationMemoryBacktestUtils.handleBreakeven";
@@ -729,6 +886,7 @@ const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_GET_DATA = "NotificationMemoryBac
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_DISPOSE = "NotificationMemoryBacktestUtils.dispose";
 
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SIGNAL = "NotificationMemoryLiveUtils.handleSignal";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SIGNAL_NOTIFY = "NotificationMemoryLiveUtils.handleSignalNotify";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "NotificationMemoryLiveUtils.handlePartialProfit";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationMemoryLiveUtils.handlePartialLoss";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationMemoryLiveUtils.handleBreakeven";
@@ -761,6 +919,7 @@ const NOTIFICATION_LIVE_ADAPTER_METHOD_NAME_CLEAR = "NotificationLiveAdapter.cle
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_WAIT_FOR_INIT = "NotificationPersistBacktestUtils.waitForInit";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_UPDATE_NOTIFICATIONS = "NotificationPersistBacktestUtils._updateNotifications";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SIGNAL = "NotificationPersistBacktestUtils.handleSignal";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SIGNAL_NOTIFY = "NotificationPersistBacktestUtils.handleSignalNotify";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "NotificationPersistBacktestUtils.handlePartialProfit";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationPersistBacktestUtils.handlePartialLoss";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistBacktestUtils.handleBreakeven";
@@ -776,6 +935,7 @@ const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_DISPOSE = "NotificationPersistBa
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_WAIT_FOR_INIT = "NotificationPersistLiveUtils.waitForInit";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_UPDATE_NOTIFICATIONS = "NotificationPersistLiveUtils._updateNotifications";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SIGNAL = "NotificationPersistLiveUtils.handleSignal";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SIGNAL_NOTIFY = "NotificationPersistLiveUtils.handleSignalNotify";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "NotificationPersistLiveUtils.handlePartialProfit";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationPersistLiveUtils.handlePartialLoss";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistLiveUtils.handleBreakeven";
@@ -798,6 +958,7 @@ export interface INotificationUtils {
    * @param data - The strategy tick result data
    */
   handleSignal(data: IStrategyTickResult): Promise<void>;
+  handleSignalNotify(data: SignalInfoContract): Promise<void>;
   /**
    * Handles partial profit availability event.
    * @param data - The partial profit contract data
@@ -902,6 +1063,13 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
     if (notification) {
       this._addNotification(notification);
     }
+  };
+
+  public handleSignalNotify = async (data: SignalInfoContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SIGNAL_NOTIFY, {
+      signalId: data.data.id,
+    });
+    this._addNotification(CREATE_SIGNAL_INFO_NOTIFICATION_FN(data));
   };
 
   /**
@@ -1045,6 +1213,10 @@ export class NotificationDummyBacktestUtils implements INotificationUtils {
    * No-op handler for signal events.
    */
   public handleSignal = async (): Promise<void> => {
+    void 0;
+  };
+
+  public handleSignalNotify = async (): Promise<void> => {
     void 0;
   };
 
@@ -1218,6 +1390,15 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
       this._addNotification(notification);
       await this._updateNotifications();
     }
+  };
+
+  public handleSignalNotify = async (data: SignalInfoContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SIGNAL_NOTIFY, {
+      signalId: data.data.id,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_SIGNAL_INFO_NOTIFICATION_FN(data));
+    await this._updateNotifications();
   };
 
   /**
@@ -1412,6 +1593,13 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
     }
   };
 
+  public handleSignalNotify = async (data: SignalInfoContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SIGNAL_NOTIFY, {
+      signalId: data.data.id,
+    });
+    this._addNotification(CREATE_SIGNAL_INFO_NOTIFICATION_FN(data));
+  };
+
   /**
    * Handles partial profit availability event.
    * @param data - The partial profit contract data
@@ -1553,6 +1741,10 @@ export class NotificationDummyLiveUtils implements INotificationUtils {
    * No-op handler for signal events.
    */
   public handleSignal = async (): Promise<void> => {
+    void 0;
+  };
+
+  public handleSignalNotify = async (): Promise<void> => {
     void 0;
   };
 
@@ -1731,6 +1923,15 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
     }
   };
 
+  public handleSignalNotify = async (data: SignalInfoContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SIGNAL_NOTIFY, {
+      signalId: data.data.id,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_SIGNAL_INFO_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
   /**
    * Handles partial profit availability event.
    * @param data - The partial profit contract data
@@ -1899,6 +2100,10 @@ export class NotificationBacktestAdapter implements INotificationUtils {
    */
   handleSignal = async (data: IStrategyTickResult): Promise<void> => {
     return await this._notificationBacktestUtils.handleSignal(data);
+  };
+
+  handleSignalNotify = async (data: SignalInfoContract): Promise<void> => {
+    return await this._notificationBacktestUtils.handleSignalNotify(data);
   };
 
   /**
@@ -2072,6 +2277,10 @@ export class NotificationLiveAdapter implements INotificationUtils {
     return await this._notificationLiveUtils.handleSignal(data);
   };
 
+  handleSignalNotify = async (data: SignalInfoContract): Promise<void> => {
+    return await this._notificationLiveUtils.handleSignalNotify(data);
+  };
+
   /**
    * Handles partial profit availability event.
    * Proxies call to the underlying notification adapter.
@@ -2237,63 +2446,103 @@ export class NotificationAdapter {
    *
    * @returns Cleanup function that unsubscribes from all emitters
    */
-  public enable = singleshot(() => {
+  public enable = singleshot(({
+    signal = false,
+    info = false,
+    partial_profit = false,
+    partial_loss = false,
+    breakeven = false,
+    strategy_commit = false,
+    signal_sync = false,
+    risk = false,
+    common_error = false,
+    critical_error = false,
+    validation_error = false,
+  }: INotificationTarget = WILDCARD_TARGET) => {
     backtest.loggerService.info(NOTIFICATION_ADAPTER_METHOD_NAME_ENABLE);
     let unLive: Function;
     let unBacktest: Function;
 
     {
-      const unBacktestSignal = signalBacktestEmitter.subscribe((data: IStrategyTickResult) =>
-        NotificationBacktest.handleSignal(data),
-      );
+      const unBacktestSignal = signalBacktestEmitter.subscribe(async (data: IStrategyTickResult) => {
+        if (signal) {
+          await NotificationBacktest.handleSignal(data);
+        }
+      });
 
       const unBacktestPartialProfit = partialProfitSubject
         .filter(({ backtest }) => backtest)
-        .connect((data: PartialProfitContract) =>
-          NotificationBacktest.handlePartialProfit(data),
-        );
+        .connect(async (data: PartialProfitContract) => {
+          if (partial_profit) {
+            await NotificationBacktest.handlePartialProfit(data);
+          }
+        })
 
       const unBacktestPartialLoss = partialLossSubject
         .filter(({ backtest }) => backtest)
-        .connect((data: PartialLossContract) =>
-          NotificationBacktest.handlePartialLoss(data),
-        );
+        .connect(async (data: PartialLossContract) => {
+          if (partial_loss) {
+            await NotificationBacktest.handlePartialLoss(data);
+          }
+        });
 
       const unBacktestBreakeven = breakevenSubject
         .filter(({ backtest }) => backtest)
-        .connect((data: BreakevenContract) =>
-          NotificationBacktest.handleBreakeven(data),
-        );
+        .connect(async (data: BreakevenContract) => {
+          if (breakeven) {
+            await NotificationBacktest.handleBreakeven(data);
+          }
+        });
 
       const unBacktestStrategyCommit = strategyCommitSubject
         .filter(({ backtest }) => backtest)
-        .connect((data: StrategyCommitContract) =>
-          NotificationBacktest.handleStrategyCommit(data),
-        );
+        .connect(async (data: StrategyCommitContract) => {
+          if (strategy_commit) {
+            await NotificationBacktest.handleStrategyCommit(data);
+          }
+        });
 
       const unBacktestSync = syncSubject
         .filter(({ backtest }) => backtest)
-        .connect((data: SignalSyncContract) =>
-          NotificationBacktest.handleSync(data),
-        );
+        .connect(async (data: SignalSyncContract) => {
+          if (signal_sync) {
+            await NotificationBacktest.handleSync(data);
+          }
+        });
 
       const unBacktestRisk = riskSubject
         .filter(({ backtest }) => backtest)
-        .connect((data: RiskContract) =>
-          NotificationBacktest.handleRisk(data),
-        );
+        .connect(async (data: RiskContract) => {
+          if (risk) {
+            await NotificationBacktest.handleRisk(data);
+          }
+        });
 
-      const unBacktestError = errorEmitter.subscribe((error: Error) =>
-        NotificationBacktest.handleError(error),
-      );
+      const unBacktestError = errorEmitter.subscribe(async (error: Error) => {
+        if (common_error) {
+          await NotificationBacktest.handleError(error);
+        }
+      });
 
-      const unBacktestExit = exitEmitter.subscribe((error: Error) =>
-        NotificationBacktest.handleCriticalError(error),
-      );
+      const unBacktestExit = exitEmitter.subscribe(async (error: Error) => {
+        if (critical_error) {
+          await NotificationBacktest.handleCriticalError(error);
+        }
+      });
 
-      const unBacktestValidation = validationSubject.subscribe((error: Error) =>
-        NotificationBacktest.handleValidationError(error),
-      );
+      const unBacktestValidation = validationSubject.subscribe(async (error: Error) => {
+        if (validation_error) {
+          await NotificationBacktest.handleValidationError(error);
+        }
+      });
+
+      const unBacktestSignalNotify = signalNotifySubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (data: SignalInfoContract) => {
+          if (info) {
+            await NotificationBacktest.handleSignalNotify(data);
+          }
+        });
 
       unBacktest = compose(
         () => unBacktestSignal(),
@@ -2306,61 +2555,90 @@ export class NotificationAdapter {
         () => unBacktestError(),
         () => unBacktestExit(),
         () => unBacktestValidation(),
+        () => unBacktestSignalNotify(),
       );
     }
 
     {
-      const unLiveSignal = signalLiveEmitter.subscribe((data: IStrategyTickResult) =>
-        NotificationLive.handleSignal(data),
-      );
+      const unLiveSignal = signalLiveEmitter.subscribe(async (data: IStrategyTickResult) => {
+        if (signal) {
+          await NotificationLive.handleSignal(data);
+        }
+      });
 
       const unLivePartialProfit = partialProfitSubject
         .filter(({ backtest }) => !backtest)
-        .connect((data: PartialProfitContract) =>
-          NotificationLive.handlePartialProfit(data),
-        );
+        .connect(async (data: PartialProfitContract) => {
+          if (partial_profit) {
+            await NotificationLive.handlePartialProfit(data);
+          }
+        });
 
       const unLivePartialLoss = partialLossSubject
         .filter(({ backtest }) => !backtest)
-        .connect((data: PartialLossContract) =>
-          NotificationLive.handlePartialLoss(data),
-        );
+        .connect(async (data: PartialLossContract) => {
+          if (partial_loss) {
+            await NotificationLive.handlePartialLoss(data);
+          }
+        });
 
       const unLiveBreakeven = breakevenSubject
         .filter(({ backtest }) => !backtest)
-        .connect((data: BreakevenContract) =>
-          NotificationLive.handleBreakeven(data),
-        );
+        .connect(async (data: BreakevenContract) => {
+          if (breakeven) {
+            await NotificationLive.handleBreakeven(data);
+          }
+        });
 
       const unLiveStrategyCommit = strategyCommitSubject
         .filter(({ backtest }) => !backtest)
-        .connect((data: StrategyCommitContract) =>
-          NotificationLive.handleStrategyCommit(data),
-        );
+        .connect(async (data: StrategyCommitContract) => {
+          if (strategy_commit) {
+            await NotificationLive.handleStrategyCommit(data);
+          }
+        });
 
       const unLiveSync = syncSubject
         .filter(({ backtest }) => !backtest)
-        .connect((data: SignalSyncContract) =>
-          NotificationLive.handleSync(data),
-        );
+        .connect(async (data: SignalSyncContract) => {
+          if (signal_sync) {
+            await NotificationLive.handleSync(data);
+          }
+        });
 
       const unLiveRisk = riskSubject
         .filter(({ backtest }) => !backtest)
-        .connect((data: RiskContract) =>
-          NotificationLive.handleRisk(data),
-        );
+        .connect(async (data: RiskContract) => {
+          if (risk) {
+            await NotificationLive.handleRisk(data);
+          }
+        });
 
-      const unLiveError = errorEmitter.subscribe((error: Error) =>
-        NotificationLive.handleError(error),
-      );
+      const unLiveError = errorEmitter.subscribe(async (error: Error) => {
+        if (common_error) {
+          await NotificationLive.handleError(error);
+        }
+      });
 
-      const unLiveExit = exitEmitter.subscribe((error: Error) =>
-        NotificationLive.handleCriticalError(error),
-      );
+      const unLiveExit = exitEmitter.subscribe(async (error: Error) => {
+        if (critical_error) {
+          await NotificationLive.handleCriticalError(error);
+        }
+      });
 
-      const unLiveValidation = validationSubject.subscribe((error: Error) =>
-        NotificationLive.handleValidationError(error),
-      );
+      const unLiveValidation = validationSubject.subscribe(async (error: Error) => {
+        if (validation_error) {
+          await NotificationLive.handleValidationError(error);
+        }
+      });
+
+      const unLiveSignalNotify = signalNotifySubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (data: SignalInfoContract) => {
+          if (info) {
+            await NotificationLive.handleSignalNotify(data);
+          }
+        });
 
       unLive = compose(
         () => unLiveSignal(),
@@ -2373,6 +2651,7 @@ export class NotificationAdapter {
         () => unLiveError(),
         () => unLiveExit(),
         () => unLiveValidation(),
+        () => unLiveSignalNotify(),
       );
     }
 

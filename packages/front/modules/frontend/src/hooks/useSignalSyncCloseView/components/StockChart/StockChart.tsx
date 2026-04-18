@@ -366,7 +366,7 @@ export const StockChart = ({
       title: "SL",
     });
 
-    if (originalPriceStopLoss != null && originalPriceStopLoss !== priceStopLoss) {
+    if (originalPriceStopLoss != null && Number(originalPriceStopLoss).toFixed(6) !== Number(priceStopLoss).toFixed(6)) {
       lineSeries.createPriceLine({
         price: originalPriceStopLoss,
         color: colors.red[500],
@@ -386,7 +386,7 @@ export const StockChart = ({
       title: "TP",
     });
 
-    if (originalPriceTakeProfit != null && originalPriceTakeProfit !== priceTakeProfit) {
+    if (originalPriceTakeProfit != null && Number(originalPriceTakeProfit).toFixed(6) !== Number(priceTakeProfit).toFixed(6)) {
       lineSeries.createPriceLine({
         price: originalPriceTakeProfit,
         color: colors.green[500],
