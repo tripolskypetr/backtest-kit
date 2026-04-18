@@ -5,25 +5,6 @@ group: begin
 
 # Glossary
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [config/symbol.config.cjs](config/symbol.config.cjs)
-- [content/feb_2026.strategy/feb_2026.strategy.ts](content/feb_2026.strategy/feb_2026.strategy.ts)
-- [content/feb_2026.strategy/modules/backtest.module.ts](content/feb_2026.strategy/modules/backtest.module.ts)
-- [docs/01-getting-started.md](docs/01-getting-started.md)
-- [docs/03-understanding-signals.md](docs/03-understanding-signals.md)
-- [logic/api/fetchNews.ts](logic/api/fetchNews.ts)
-- [logic/core/completion/ollama_outline_tool.completion.ts](logic/core/completion/ollama_outline_tool.completion.ts)
-- [logic/core/outline/forecast.outline.ts](logic/core/outline/forecast.outline.ts)
-
-</details>
-
-
-
 This page provides definitions for codebase-specific terminology, domain concepts, and implementation details used within the `news-sentiment-ai-trader` system.
 
 ## 1. Core Domain Concepts

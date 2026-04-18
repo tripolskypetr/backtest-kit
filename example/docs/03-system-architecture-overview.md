@@ -5,21 +5,6 @@ group: begin
 
 # System Architecture Overview
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [docs/01-getting-started.md](docs/01-getting-started.md)
-- [docs/diagrams/01-getting-started_0.svg](docs/diagrams/01-getting-started_0.svg)
-- [docs/diagrams/01-getting-started_1.svg](docs/diagrams/01-getting-started_1.svg)
-- [docs/diagrams/01-getting-started_2.svg](docs/diagrams/01-getting-started_2.svg)
-
-</details>
-
-
-
 The **news-sentiment-ai-trader** is built on a three-layer architecture that bridges high-level natural language processing with low-level market execution. The system leverages Large Language Models (LLMs) to interpret financial news and translate qualitative sentiment into quantitative trading signals.
 
 ## Three-Layer Architecture

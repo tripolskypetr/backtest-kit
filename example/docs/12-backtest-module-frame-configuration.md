@@ -5,20 +5,6 @@ group: begin
 
 # Backtest Module & Frame Configuration
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [content/feb_2026.strategy/modules/backtest.module.ts](content/feb_2026.strategy/modules/backtest.module.ts)
-- [docs/02-first-backtest.md](docs/02-first-backtest.md)
-- [docs/diagrams/02-first-backtest_0.svg](docs/diagrams/02-first-backtest_0.svg)
-- [docs/diagrams/02-first-backtest_1.svg](docs/diagrams/02-first-backtest_1.svg)
-
-</details>
-
-
-
 The `backtest.module.ts` file serves as the configuration bridge between the `backtest-kit` framework and the specific requirements of the February 2026 trading strategy. It defines the exchange communication protocols, historical data windows, and global framework overrides necessary for executing a high-fidelity backtest.
 
 ### Configuration Overview

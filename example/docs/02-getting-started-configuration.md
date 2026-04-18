@@ -5,20 +5,6 @@ group: begin
 
 # Getting Started & Configuration
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [.env.example](.env.example)
-- [docs/01-getting-started.md](docs/01-getting-started.md)
-- [package.json](package.json)
-- [tsconfig.json](tsconfig.json)
-
-</details>
-
-
-
 This page provides a comprehensive guide for setting up the **news-sentiment-ai-trader** codebase. It covers the installation of system requirements, environment configuration, and the initial execution of the trading system using the integrated CLI.
 
 ## System Requirements

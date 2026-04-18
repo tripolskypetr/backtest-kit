@@ -5,21 +5,6 @@ group: begin
 
 # Position Lifecycle & Exit Logic
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [content/feb_2026.strategy/feb_2026.strategy.ts](content/feb_2026.strategy/feb_2026.strategy.ts)
-- [content/feb_2026.strategy/feb_2026.test.ts](content/feb_2026.strategy/feb_2026.test.ts)
-- [docs/03-understanding-signals.md](docs/03-understanding-signals.md)
-- [docs/diagrams/03-understanding-signals_0.svg](docs/diagrams/03-understanding-signals_0.svg)
-- [docs/diagrams/03-understanding-signals_1.svg](docs/diagrams/03-understanding-signals_1.svg)
-
-</details>
-
-
-
 This page documents the lifecycle of trading positions within the `feb_2026_strategy`, covering the transition from signal generation to final closure. It details the three primary exit mechanisms: trailing take-profit, hard stop-loss, and sentiment-driven reversals.
 
 ## Position Initialization

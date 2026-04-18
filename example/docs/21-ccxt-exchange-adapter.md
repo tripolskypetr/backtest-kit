@@ -5,20 +5,6 @@ group: begin
 
 # CCXT Exchange Adapter
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [modules/dump.module.ts](modules/dump.module.ts)
-- [modules/pine.module.ts](modules/pine.module.ts)
-- [modules/walker.module.ts](modules/walker.module.ts)
-- [scripts/run_forecast.ts](scripts/run_forecast.ts)
-
-</details>
-
-
-
 The CCXT Exchange Adapter provides a standardized interface between the `backtest-kit` framework and the CCXT library, specifically configured for Binance. It implements a reusable `ccxt-exchange` schema that handles market data retrieval, order book fetching, and precision formatting for prices and quantities. This adapter is shared across data dumping, strategy optimization, and forecast testing modules.
 
 ### Singleton Exchange Initialization

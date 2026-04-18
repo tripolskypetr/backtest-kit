@@ -5,16 +5,7 @@ group: begin
 
 # Exchange Integration & Modules
 
-<details>
-<summary>Relevant source files</summary>
 
-The following files were used as context for generating this wiki page:
-
-- [modules/dump.module.ts](modules/dump.module.ts)
-- [modules/pine.module.ts](modules/pine.module.ts)
-- [modules/walker.module.ts](modules/walker.module.ts)
-
-</details>
 
 
 

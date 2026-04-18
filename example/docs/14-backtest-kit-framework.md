@@ -5,15 +5,7 @@ group: begin
 
 # backtest-kit Framework
 
-<details>
-<summary>Relevant source files</summary>
 
-The following files were used as context for generating this wiki page:
-
-- [docs/01-getting-started.md](docs/01-getting-started.md)
-- [docs/02-first-backtest.md](docs/02-first-backtest.md)
-
-</details>
 
 
 

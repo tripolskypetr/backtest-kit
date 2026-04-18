@@ -5,18 +5,6 @@ group: begin
 
 # Signal Generation & Sentiment Mapping
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [content/feb_2026.strategy/feb_2026.strategy.ts](content/feb_2026.strategy/feb_2026.strategy.ts)
-- [content/feb_2026.strategy/feb_2026.test.ts](content/feb_2026.strategy/feb_2026.test.ts)
-
-</details>
-
-
-
 This page describes the implementation of signal generation within the `feb_2026_strategy`. It focuses on how the system translates high-level LLM forecasts into actionable trade signals using a graph-based data resolution pattern, sentiment mapping, and strict filtering rules.
 
 ## Sentiment to Position Mapping

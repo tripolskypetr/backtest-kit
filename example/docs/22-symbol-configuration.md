@@ -5,14 +5,7 @@ group: begin
 
 # Symbol Configuration
 
-<details>
-<summary>Relevant source files</summary>
 
-The following files were used as context for generating this wiki page:
-
-- [config/symbol.config.cjs](config/symbol.config.cjs)
-
-</details>
 
 
 

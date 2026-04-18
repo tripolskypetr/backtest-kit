@@ -5,14 +5,7 @@ group: begin
 
 # February 2026 Case Study & Performance
 
-<details>
-<summary>Relevant source files</summary>
 
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-
-</details>
 
 
 

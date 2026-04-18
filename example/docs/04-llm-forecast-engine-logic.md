@@ -5,16 +5,7 @@ group: begin
 
 # LLM Forecast Engine (logic/)
 
-<details>
-<summary>Relevant source files</summary>
 
-The following files were used as context for generating this wiki page:
-
-- [logic/core/index.ts](logic/core/index.ts)
-- [logic/index.ts](logic/index.ts)
-- [logic/main/forecast.ts](logic/main/forecast.ts)
-
-</details>
 
 
 

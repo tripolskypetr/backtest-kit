@@ -5,19 +5,6 @@ group: begin
 
 # Risk Management
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/05-risk-management.md](docs/05-risk-management.md)
-- [docs/diagrams/05-risk-management_0.svg](docs/diagrams/05-risk-management_0.svg)
-- [docs/diagrams/05-risk-management_1.svg](docs/diagrams/05-risk-management_1.svg)
-
-</details>
-
-
-
 The risk management system in `backtest-kit` provides portfolio-level validation and position tracking to prevent excessive risk exposure. Unlike individual signal validation, which checks internal parameters, risk management analyzes the state of the entire portfolio across all active strategies before a signal is permitted to execute [docs/05-risk-management.md:8-12]().
 
 ## Risk Management Architecture

@@ -5,15 +5,7 @@ group: begin
 
 # Trading Strategy: feb_2026_strategy
 
-<details>
-<summary>Relevant source files</summary>
 
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [content/feb_2026.strategy/feb_2026.strategy.ts](content/feb_2026.strategy/feb_2026.strategy.ts)
-
-</details>
 
 
 

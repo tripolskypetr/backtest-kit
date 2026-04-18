@@ -5,20 +5,6 @@ group: begin
 
 # Forecast Pipeline & Outline
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [logic/contract/ForecastResponse.contract.ts](logic/contract/ForecastResponse.contract.ts)
-- [logic/core/outline/forecast.outline.ts](logic/core/outline/forecast.outline.ts)
-- [logic/enum/OutlineName.ts](logic/enum/OutlineName.ts)
-- [logic/main/forecast.ts](logic/main/forecast.ts)
-
-</details>
-
-
-
 The Forecast Pipeline is the core intelligence layer of the system, responsible for transforming unstructured news data into structured market sentiment analysis. It utilizes a specialized LLM "Outline" that acts as a Russian macro-analyst to evaluate geopolitical and economic events.
 
 ## Pipeline Overview

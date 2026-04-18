@@ -5,20 +5,6 @@ group: begin
 
 # Backtesting: Execution & Reporting
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/02-first-backtest.md](docs/02-first-backtest.md)
-- [docs/diagrams/02-first-backtest_2.svg](docs/diagrams/02-first-backtest_2.svg)
-- [docs/diagrams/02-first-backtest_3.svg](docs/diagrams/02-first-backtest_3.svg)
-- [docs/diagrams/02-first-backtest_4.svg](docs/diagrams/02-first-backtest_4.svg)
-
-</details>
-
-
-
 The `backtest-kit` framework provides a robust engine for historical strategy evaluation. It operates through a two-phase lifecycle: **configuration** (registering components via `add*` functions) and **execution** (running the simulation and analyzing results) [docs/02-first-backtest.md:10-12]().
 
 ## Execution Models

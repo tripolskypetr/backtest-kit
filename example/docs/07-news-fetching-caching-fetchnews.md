@@ -5,19 +5,6 @@ group: begin
 
 # News Fetching & Caching (fetchNews)
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [logic/api/fetchNews.ts](logic/api/fetchNews.ts)
-- [logic/config/setup.ts](logic/config/setup.ts)
-- [logic/config/tavily.ts](logic/config/tavily.ts)
-
-</details>
-
-
-
 The `fetchNews` module serves as the primary data retrieval layer for the AI forecasting engine. It abstracts the complexity of searching for financial news, managing API rate limits via caching, and enforcing strict temporal boundaries to ensure backtest integrity.
 
 ### Purpose and Scope

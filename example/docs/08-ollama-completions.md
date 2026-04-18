@@ -5,20 +5,6 @@ group: begin
 
 # Ollama Completions
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [logic/config/ollama.ts](logic/config/ollama.ts)
-- [logic/core/completion/ollama_outline_format.completion.ts](logic/core/completion/ollama_outline_format.completion.ts)
-- [logic/core/completion/ollama_outline_tool.completion.ts](logic/core/completion/ollama_outline_tool.completion.ts)
-- [logic/enum/CompletionName.ts](logic/enum/CompletionName.ts)
-
-</details>
-
-
-
 The `news-sentiment-ai-trader` system utilizes Ollama-compatible models to perform structured sentiment analysis. The system implements two distinct completion strategies to ensure robust JSON output from LLMs: `OllamaOutlineToolCompletion` (function calling) and `OllamaOutlineFormatCompletion` (native JSON mode). Both implementations are built on top of the `agent-swarm-kit` and target the `minimax-m2.7:cloud` model.
 
 ## Model Configuration

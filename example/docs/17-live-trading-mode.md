@@ -5,18 +5,6 @@ group: begin
 
 # Live Trading Mode
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/04-live-trading.md](docs/04-live-trading.md)
-- [docs/diagrams/04-live-trading_0.svg](docs/diagrams/04-live-trading_0.svg)
-
-</details>
-
-
-
 The Live Trading mode in the `backtest-kit` framework enables continuous strategy execution against real-time market data. Unlike backtesting, which iterates through historical data frames, Live mode operates in an infinite loop, managing the complete signal lifecycle with integrated crash recovery and persistence mechanisms.
 
 ## Execution Model: Live.background()

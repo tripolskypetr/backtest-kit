@@ -5,18 +5,7 @@ group: begin
 
 # Project Overview
 
-<details>
-<summary>Relevant source files</summary>
 
-The following files were used as context for generating this wiki page:
-
-- [.env.example](.env.example)
-- [.gitignore](.gitignore)
-- [README.md](README.md)
-- [package.json](package.json)
-- [tsconfig.json](tsconfig.json)
-
-</details>
 
 
 

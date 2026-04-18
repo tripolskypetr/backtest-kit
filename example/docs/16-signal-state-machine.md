@@ -5,19 +5,6 @@ group: begin
 
 # Signal State Machine
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/03-understanding-signals.md](docs/03-understanding-signals.md)
-- [docs/diagrams/03-understanding-signals_2.svg](docs/diagrams/03-understanding-signals_2.svg)
-- [docs/diagrams/03-understanding-signals_3.svg](docs/diagrams/03-understanding-signals_3.svg)
-
-</details>
-
-
-
 The Signal State Machine is the core execution logic of the `backtest-kit` framework. It governs the lifecycle of a trading instruction from its initial generation by a strategy to its final settlement. The state machine ensures logical consistency, prevents overlapping trades for the same symbol-strategy pair, and handles precise PNL calculations including slippage and exchange fees [docs/03-understanding-signals.md:6-28]().
 
 ## Signal Lifecycle & Transitions

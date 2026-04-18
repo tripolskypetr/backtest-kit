@@ -5,22 +5,6 @@ group: begin
 
 # Advisors: News & Market Data
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [logic/contract/StockDataRequest.contract.ts](logic/contract/StockDataRequest.contract.ts)
-- [logic/contract/WebSearchRequest.contract.ts](logic/contract/WebSearchRequest.contract.ts)
-- [logic/core/advisor/stock_data_15m.advisor.ts](logic/core/advisor/stock_data_15m.advisor.ts)
-- [logic/core/advisor/stock_data_1m.advisor.ts](logic/core/advisor/stock_data_1m.advisor.ts)
-- [logic/core/advisor/tavily_news.advisor.ts](logic/core/advisor/tavily_news.advisor.ts)
-- [logic/enum/AdvisorName.ts](logic/enum/AdvisorName.ts)
-
-</details>
-
-
-
 The news-sentiment-ai-trader utilizes a set of **Advisors** to provide the LLM with the necessary context to generate market forecasts. These advisors are registered via the `agent-swarm-kit` and act as specialized data retrieval tools. They transform raw data from external APIs and internal market state into structured Markdown or JSON formats optimized for LLM consumption.
 
 The system implements three primary advisors defined in `logic/enum/AdvisorName.ts` [logic/enum/AdvisorName.ts:1-7]():

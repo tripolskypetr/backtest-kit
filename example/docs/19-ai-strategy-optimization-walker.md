@@ -5,22 +5,6 @@ group: begin
 
 # AI Strategy Optimization & Walker
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/06-ai-optimization.md](docs/06-ai-optimization.md)
-- [docs/07-llm-trading.md](docs/07-llm-trading.md)
-- [docs/diagrams/06-ai-optimization_0.svg](docs/diagrams/06-ai-optimization_0.svg)
-- [docs/diagrams/06-ai-optimization_1.svg](docs/diagrams/06-ai-optimization_1.svg)
-- [docs/diagrams/07-llm-trading_0.svg](docs/diagrams/07-llm-trading_0.svg)
-- [modules/walker.module.ts](modules/walker.module.ts)
-
-</details>
-
-
-
 The AI Strategy Optimization system is a meta-level framework within `backtest-kit` designed to automate the creation and evaluation of trading strategies. Unlike standard execution modes, the **Optimizer** uses Large Language Models (LLMs) via Ollama to synthesize executable strategy code (`.mjs` files) based on historical data and natural language prompts [docs/06-ai-optimization.md:10-12](). The **Walker** component then facilitates the multi-strategy comparison of these generated assets to identify the most robust performers.
 
 ## Optimizer Meta-System
