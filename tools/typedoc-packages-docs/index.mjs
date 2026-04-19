@@ -4,7 +4,7 @@
  */
 
 import { glob } from "glob";
-import { mkdir, readFile, writeFile, rm } from "fs/promises";
+import { mkdir, readFile, writeFile, rm, copyFile } from "fs/promises";
 import { existsSync } from "fs";
 import { str } from "functools-kit";
 import { join } from "path";
@@ -12,6 +12,7 @@ import { join } from "path";
 const OUTPUT_DIR = "./docs/packages";
 const CLI_OUTPUT_DIR = "./docs/cli";
 const BEGIN_OUTPUT_DIR = "./docs/begin";
+const BEGIN_DIAGRAMS_DIR = "./docs/begin/diagrams";
 
 const files = await glob("./packages/**/readme.md", { nodir: true, ignore: "**/node_modules/**" });
 const cliFiles = await glob("./cli/README.md", { nodir: true });
@@ -107,6 +108,15 @@ await Promise.all(beginFiles.map(async (filePath) => {
     const content = await readFile(filePath, "utf-8");
     const fileName = filePath.replace(/\\/g, "/").split("/").pop();
     await writeFile(join(BEGIN_OUTPUT_DIR, fileName), content, "utf-8");
+}));
+
+const diagramFiles = await glob("./example/docs/diagrams/*.svg", { nodir: true });
+
+await mkdir(BEGIN_DIAGRAMS_DIR, { recursive: true });
+
+await Promise.all(diagramFiles.map(async (filePath) => {
+    const fileName = filePath.replace(/\\/g, "/").split("/").pop();
+    await copyFile(filePath, join(BEGIN_DIAGRAMS_DIR, fileName));
 }));
 
 console.log(`[typedoc-packages-docs] Prepared ${files.length} package docs in ${OUTPUT_DIR}`);
