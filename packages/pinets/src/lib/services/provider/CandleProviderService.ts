@@ -29,8 +29,6 @@ const PINE_TF_MAP = {
   "480": "8h",
   "1D": "1d",
   D: "1d",
-  "1W": "1w",
-  W: "1w",
 };
 
 const GET_RAW_CANDLES_FN = async (

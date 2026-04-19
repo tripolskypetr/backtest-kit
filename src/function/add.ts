@@ -121,7 +121,7 @@ export function addExchangeSchema(exchangeSchema: IExchangeSchema) {
  *
  * @param frameSchema - Frame configuration object
  * @param frameSchema.frameName - Unique frame identifier
- * @param frameSchema.interval - Timeframe interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d")
+ * @param frameSchema.interval - Timeframe interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param frameSchema.startDate - Start date for timeframe generation
  * @param frameSchema.endDate - End date for timeframe generation
  * @param frameSchema.callbacks - Optional callback for timeframe events

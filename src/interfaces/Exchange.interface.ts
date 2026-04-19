@@ -15,8 +15,7 @@ export type CandleInterval =
   | "4h"
   | "6h"
   | "8h"
-  | "1d"
-  | "1w";
+  | "1d";
 
 /** Numeric type that can be undefined (used for optional numeric values) */
 export type Num = number | undefined; 
