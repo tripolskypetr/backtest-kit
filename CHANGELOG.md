@@ -1,3 +1,28 @@
+# Cash-Performing Milestone  (v7.0.0, 19/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/7.0.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+v7.0.0 marks the first production-ready milestone of backtest-kit. The release ships a new article on AI news sentiment as a trading signal, wires the PineScript editor to live exchange data by default, cleans up documentation links across all packages, and removes the `1w` / `1M` candle intervals that could not be made cross-exchange compatible.
+
+## Article 07 — AI News Sentiment as a Trading Signal
+
+New article `docs/article/07_ai_news_trading_signals.md` documents a practical approach to using news sentiment as a directional signal on top of technical analysis.
+
+Key takeaways from the article:
+
+- **Score as a sorting criterion, not a filter** — near-zero relevance scores capture implicit market sentiment (product placement style), while top-scoring results are direct advertising and zero-scoring results are off-topic.
+- **Domain takes priority over search query** — market sentiment is created by specific pioneering blogs and domains; a raw SEC filing moves nobody until the influential aggregators repost it.
+- **Time takes priority over publication meaning** — averaging kills directionality; what matters is a statistically significant spike in publication count per unit time, not the meaning of any single article.
+- **Find the fundamental narrative being priced in** — identify the macro story the crowd is currently trading (e.g. tariff risk, regulatory uncertainty), then query for coverage of that theme rather than querying the asset ticker directly.
+
+The article includes two annotated backtest screenshots: a neutral/bearish market case and a bullish market case, both generated from the reference example in `example/`.
+
+Homepage and documentation links across `package.json`, `packages/sidekick`, `packages/front`, `packages/graph`, `packages/ollama`, `packages/pinets`, `packages/signals`, and `cli/` have been updated to point to article 07 as the canonical entry point.
+
+
+
 # AI Strategy Example, Reflect/Recent/Session API, IdlePing Event, Pine Script GUI (v6.16.0, 19/04/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/6.16.0)
