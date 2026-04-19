@@ -20,6 +20,7 @@ But wait — how did they ever work in the first place? Is this a scam of planet
 News sentiment defines the regime. The indicator works inside the regime. Sentiment being changed every 24 hours or shorter.
 
 ![news_wsj_market_sentiment](../../assets/images/news_wsj_market_sentiment.png)
+
 *https://cn.wsj.com/articles/在萬物皆可下注的時代-我們都在-監控局勢-1abd25ab*
 
 ## A Practical Guide to Identifying Sentiment
