@@ -24,8 +24,6 @@ const INTERVAL_MINUTES: Record<FrameInterval, number> = {
   "8h": 480,
   "12h": 720,
   "1d": 1440,
-  "1w": 10080,
-  "1M": 43200,
 };
 
 /**
@@ -111,7 +109,7 @@ const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
  * Features:
  * - Generates timestamp arrays for backtest iteration
  * - Singleshot caching prevents redundant generation
- * - Configurable interval spacing (1m to 3d)
+ * - Configurable interval spacing (1m to 1d)
  * - Callback support for validation and logging
  *
  * Used by BacktestLogicPrivateService to iterate through historical periods.

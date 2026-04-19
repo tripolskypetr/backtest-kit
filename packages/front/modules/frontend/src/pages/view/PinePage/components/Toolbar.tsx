@@ -1,4 +1,4 @@
-const TIMEFRAMES = ['1', '5', '15', '60', 'D', 'W'] as const;
+const TIMEFRAMES = ['1', '5', '15', '60', 'D'] as const;
 
 interface ToolbarProps {
   symbol: string;

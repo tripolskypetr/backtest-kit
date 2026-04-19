@@ -63,9 +63,9 @@ type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
  *
  * Minutes: 1m, 3m, 5m, 15m, 30m
  * Hours: 1h, 2h, 4h, 6h, 8h, 12h
- * Days: 1d, 3d
+ * Days: 1d
  */
-type FrameInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "1w" | "1M";
+type FrameInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d";
 /**
  * Frame parameters passed to ClientFrame constructor.
  * Extends IFrameSchema with logger instance for internal logging.
@@ -3909,7 +3909,7 @@ interface ILogger {
 /**
  * Candle time interval for fetching historical data.
  */
-type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "1d" | "1w";
+type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "1d";
 /** Numeric type that can be undefined (used for optional numeric values) */
 type Num = number | undefined;
 interface IPublicCandleData {
@@ -6792,7 +6792,7 @@ declare function addExchangeSchema(exchangeSchema: IExchangeSchema): void;
  *
  * @param frameSchema - Frame configuration object
  * @param frameSchema.frameName - Unique frame identifier
- * @param frameSchema.interval - Timeframe interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d")
+ * @param frameSchema.interval - Timeframe interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d")
  * @param frameSchema.startDate - Start date for timeframe generation
  * @param frameSchema.endDate - End date for timeframe generation
  * @param frameSchema.callbacks - Optional callback for timeframe events
@@ -27643,7 +27643,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
  * Features:
  * - Generates timestamp arrays for backtest iteration
  * - Singleshot caching prevents redundant generation
- * - Configurable interval spacing (1m to 3d)
+ * - Configurable interval spacing (1m to 1d)
  * - Callback support for validation and logging
  *
  * Used by BacktestLogicPrivateService to iterate through historical periods.

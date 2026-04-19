@@ -17,7 +17,6 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "6h": 360,
   "8h": 480,
   "1d": 1440,
-  "1w": 10080,
 };
 
 const STEP_TICKS: Record<CandleInterval, number> = {
@@ -32,7 +31,6 @@ const STEP_TICKS: Record<CandleInterval, number> = {
   "6h": 960,
   "8h": 960,
   "1d": 960,
-  "1w": 960,
 };
 
 export class ExchangeService {

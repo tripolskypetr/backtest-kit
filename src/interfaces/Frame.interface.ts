@@ -6,7 +6,7 @@ import { ILogger } from "./Logger.interface";
  *
  * Minutes: 1m, 3m, 5m, 15m, 30m
  * Hours: 1h, 2h, 4h, 6h, 8h, 12h
- * Days: 1d, 3d
+ * Days: 1d
  */
 export type FrameInterval =
   | "1m"
@@ -20,9 +20,7 @@ export type FrameInterval =
   | "6h"
   | "8h"
   | "12h"
-  | "1d"
-  | "1w"
-  | "1M";
+  | "1d";
 
 /**
  * Frame parameters passed to ClientFrame constructor.

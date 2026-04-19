@@ -8,7 +8,7 @@
 [![npm](https://img.shields.io/npm/v/@backtest-kit/sidekick.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/sidekick)
 [![License](https://img.shields.io/npm/l/@backtest-kit/sidekick.svg)](https://github.com/tripolskypetr/backtest-kit/blob/master/LICENSE)
 
-📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/example_02_first_backtest.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
+📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
 ## ✨ Features
 
@@ -23,6 +23,8 @@
 - 💾 **Persistent storage** — crash-safe state with atomic persistence for both backtest and live modes
 
 ## 🚀 Quick Start
+
+> **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
 
 ### Create a New Project
 
@@ -157,10 +159,10 @@ npx -y @backtest-kit/sidekick .
 
 ## 🔗 Links
 
-- [Backtest Kit Documentation](https://backtest-kit.github.io/documents/example_02_first_backtest.html)
+- [Backtest Kit Documentation](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)
 - [GitHub Repository](https://github.com/tripolskypetr/backtest-kit)
 - [Demo Projects](https://github.com/tripolskypetr/backtest-kit/tree/master/demo)
-- [API Reference](https://backtest-kit.github.io/documents/example_02_first_backtest.html)
+- [API Reference](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)
 
 ## 🤝 Contribute
 
