@@ -27,8 +27,8 @@ The system relies on a modern JavaScript runtime and specific AI/search provider
 The project uses `npm` to manage its dependencies, which include the `backtest-kit` framework and the `agent-swarm-kit` for LLM orchestration.
 
 ```bash
-git clone https://gitlab.com/tpetrtadi-group/news-sentiment-ai-trader.git
-cd news-sentiment-ai-trader
+git clone https://github.com/tripolskypetr/backtest-kit.git backtest-kit-main
+cd backtest-kit-main/example
 npm install
 ```
 
