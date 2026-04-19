@@ -22,6 +22,10 @@ export const main = async () => {
   }
 
   await cli.moduleConnectionService.loadModule("./editor.module");
+  
+  {
+    await cli.exchangeSchemaService.addSchema();
+  }
 
   const { CC_WWWROOT_HOST, CC_WWWROOT_PORT } = getEnv();
   const unServer = serve(CC_WWWROOT_HOST, CC_WWWROOT_PORT, cli.resolveService.PROJECT_ROOT_DIR);
