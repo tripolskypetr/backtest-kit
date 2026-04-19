@@ -80,7 +80,7 @@ Repeating the experiment on a different date:
 
 ## Recommendations on Search Time Window
 
-**1. Not all news agencies include a publication time.** To avoid look-ahead bias, those sources must be excluded from the dataset. Among them:
+**1. Not all news agencies include a publication time.** To avoid [look-ahead bias](./01_look_ahead_bias.md), those sources must be excluded from the dataset. Among them:
 
 - coindesk.com
 - reuters.com
