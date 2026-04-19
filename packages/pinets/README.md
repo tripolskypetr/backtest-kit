@@ -12,7 +12,9 @@
 
 Port your TradingView strategies to backtest-kit with zero rewrite. Powered by [PineTS](https://github.com/QuantForgeOrg/PineTS) - an open-source Pine Script transpiler and runtime.
 
-📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/example_02_first_backtest.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)** | 📜 **[PineTS Docs](https://quantforgeorg.github.io/PineTS/)**
+📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)** | 📜 **[PineTS Docs](https://quantforgeorg.github.io/PineTS/)**
+
+> **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
 
 ## ✨ Features
 
