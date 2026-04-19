@@ -46,7 +46,7 @@ Sidekick generates a project where the exchange adapter, frame definitions, risk
 
 ### 📦 Manual Installation
 
-> **Want to see the code?** 👉 [Demo app](https://github.com/tripolskypetr/backtest-kit/tree/master/demo) 👈
+> **Want to see the code?** 👉 [Demo app](https://github.com/tripolskypetr/backtest-kit/tree/master/example) 👈
 
 ```bash
 npm install backtest-kit ccxt ollama uuid
