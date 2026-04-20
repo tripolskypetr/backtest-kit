@@ -850,9 +850,9 @@ export class RecentAdapter {
     if (!this.enable.hasValue()) {
       throw new Error("RecentAdapter is not enabled. Call enable() first.");
     }
-    let result: IPublicSignalRow | null = null;
+    let signal: IPublicSignalRow | null = null;
     if (
-      result = await RecentBacktest.getLatestSignal(
+      signal = await RecentBacktest.getLatestSignal(
         symbol,
         context.strategyName,
         context.exchangeName,
@@ -861,14 +861,10 @@ export class RecentAdapter {
       )
     ) {
       const timestamp = await lib.timeMetaService.getTimestamp(symbol, context, true)
-      const signal = await this.getLatestSignal(symbol, context);
-      if (!signal) {
-        return null;
-      }
       return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
     }
     if (
-      result = await RecentLive.getLatestSignal(
+      signal = await RecentLive.getLatestSignal(
         symbol,
         context.strategyName,
         context.exchangeName,
@@ -877,10 +873,6 @@ export class RecentAdapter {
       )
     ) {
       const timestamp = await lib.timeMetaService.getTimestamp(symbol, context, false)
-      const signal = await this.getLatestSignal(symbol, context);
-      if (!signal) {
-        return null;
-      }
       return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
     }
     return null;
