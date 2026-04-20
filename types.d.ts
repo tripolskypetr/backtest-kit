@@ -20976,7 +20976,7 @@ declare class RecentAdapter {
      * @returns Whole minutes since the latest signal was created, or null if no signal found
      * @throws Error if RecentAdapter is not enabled
      */
-    getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, context: {
+    getMinutesSinceLatestSignalCreated: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;

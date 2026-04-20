@@ -836,7 +836,6 @@ export class RecentAdapter {
    * @throws Error if RecentAdapter is not enabled
    */
   public getMinutesSinceLatestSignalCreated = async (
-    timestamp: number,
     symbol: string,
     context: {
       strategyName: StrategyName;
@@ -847,13 +846,44 @@ export class RecentAdapter {
     lib.loggerService.info(RECENT_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL, {
       symbol,
       context,
-      timestamp,
     });
-    const signal = await this.getLatestSignal(symbol, context);
-    if (!signal) {
-      return null;
+    if (!this.enable.hasValue()) {
+      throw new Error("RecentAdapter is not enabled. Call enable() first.");
     }
-    return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
+    let result: IPublicSignalRow | null = null;
+    if (
+      result = await RecentBacktest.getLatestSignal(
+        symbol,
+        context.strategyName,
+        context.exchangeName,
+        context.frameName,
+        true,
+      )
+    ) {
+      const timestamp = await lib.timeMetaService.getTimestamp(symbol, context, true)
+      const signal = await this.getLatestSignal(symbol, context);
+      if (!signal) {
+        return null;
+      }
+      return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
+    }
+    if (
+      result = await RecentLive.getLatestSignal(
+        symbol,
+        context.strategyName,
+        context.exchangeName,
+        context.frameName,
+        false,
+      )
+    ) {
+      const timestamp = await lib.timeMetaService.getTimestamp(symbol, context, false)
+      const signal = await this.getLatestSignal(symbol, context);
+      if (!signal) {
+        return null;
+      }
+      return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
+    }
+    return null;
   };
 }
 

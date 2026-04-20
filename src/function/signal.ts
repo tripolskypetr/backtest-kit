@@ -89,9 +89,7 @@ export async function getMinutesSinceLatestSignalCreated(
   }
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  const { when } = backtest.executionContextService.context;
   return await Recent.getMinutesSinceLatestSignalCreated(
-    when.getTime(),
     symbol,
     { exchangeName, frameName, strategyName },
   );
