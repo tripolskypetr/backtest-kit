@@ -51,7 +51,7 @@ addStrategySchema({
   strategyName: "feb_2026_strategy",
   getSignal: async (symbol, when, currentPrice) => {
 
-    const sinceEntryMinutes = await getMinutesSinceLatestSignalCreated(symbol, when.getTime());
+    const sinceEntryMinutes = await getMinutesSinceLatestSignalCreated(symbol);
 
     if (sinceEntryMinutes && sinceEntryMinutes < NEWS_WINDOW) {
       return null;
