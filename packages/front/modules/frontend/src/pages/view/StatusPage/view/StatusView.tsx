@@ -13,11 +13,13 @@ import {
     useOnce,
 } from "react-declarative";
 import { status_fields } from "../../../../assets/status_fields";
-import { Download, KeyboardArrowLeft, Refresh } from "@mui/icons-material";
+import { Download, KeyboardArrowLeft, Print, Refresh } from "@mui/icons-material";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import ioc from "../../../../lib";
 import { Background } from "../../../../components/common/Background";
 import { get } from "lodash";
+import downloadMarkdown from "../../../../utils/downloadMarkdown";
+import signal_fields from "../../../../assets/signal_fields";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -40,9 +42,20 @@ const options: IBreadcrumbs2Option[] = [
         action: "back-action",
         compute: (payload) => payload ? `${String(payload.symbol).toUpperCase()} (${payload.strategyName})` : "Live",
     },
+    {
+        type: Breadcrumbs2Type.Button,
+        action: "print-action",
+        label: "Print",
+        icon: Print,
+    }
 ];
 
 const actions: IBreadcrumbs2Action[] = [
+    {
+        action: "print-action",
+        label: "Print",
+        icon: () => <IconWrapper icon={Print} color="#4caf50" />,
+    },
     {
         action: "download-action",
         label: "Download",
@@ -94,6 +107,14 @@ export const StatusView = ({ params }: IOutletProps) => {
         ioc.layoutService.downloadFile(url, `status_${Date.now()}.json`);
     })
 
+    const handlePrintPdf = useActualCallback(async () => {
+        if (!data) {
+            return;
+        }
+        const content = ioc.markdownHelperService.buildMarkdownFromFields(signal_fields, data);
+        await downloadMarkdown(content);
+    })
+
     useOnce(() => reloadSubject.subscribe(execute));
 
     const handleBack = async () => {
@@ -115,6 +136,9 @@ export const StatusView = ({ params }: IOutletProps) => {
         }
         if (action === "download-action") {
             await handleDownload();
+        }
+        if (action === "print-action") {
+            await handlePrintPdf();
         }
     };
 
