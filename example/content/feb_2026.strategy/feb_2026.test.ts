@@ -8,8 +8,10 @@ import {
   getPositionHighestMaxDrawdownPnlCost,
   Position,
   setConfig,
+  getCandles,
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
+import { predict } from "garch";
 import { forecast } from "logic";
 
 const POSITION_MINUTES = 24 * 60;
@@ -79,6 +81,34 @@ listenActivePing(async ({ symbol, data }) => {
     peakMaxDrawdown,
   });
 });
+
+/*
+listenActivePing(async ({ symbol, data }) => {
+  const candles_1m = await getCandles(symbol, "1m", 1_500);
+  const candles_15m = await getCandles(symbol, "15m", 1_000);
+  const candles_1h = await getCandles(symbol, "1h", 500);
+  const candles_8h = await getCandles(symbol, "8h", 300);
+
+  const { sigma: sigma_1m, reliable: reliable_1m } = await predict(candles_1m, "1m");
+  const { sigma: sigma_15m, reliable: reliable_15m } = await predict(candles_15m, "15m");
+  const { sigma: sigma_1h, reliable: reliable_1h } = await predict(candles_1h, "1h");
+  const { sigma: sigma_8h, reliable: reliable_8h } = await predict(candles_8h, "8h");
+
+  const volatility_1m = { sigma_1m, reliable_1m };
+  const volatility_15m = { sigma_15m, reliable_15m };
+  const volatility_1h = { sigma_1h, reliable_1h };
+  const volatility_8h = { sigma_8h, reliable_8h };
+
+  Log.info("position active", {
+    symbol,
+    data,
+    volatility_1m,
+    volatility_15m,
+    volatility_1h,
+    volatility_8h,
+  });
+});
+*/
 
 listenError((error) => {
   console.log()
