@@ -155,7 +155,7 @@ listenIdlePing(async ({ symbol }) => {
 */
 
 listenError((error) => {
-  console.log()
+  console.log(error)
   Log.debug("error", {
     error: errorData(error),
     message: getErrorMessage(error),
