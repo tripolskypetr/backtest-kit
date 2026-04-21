@@ -404,6 +404,124 @@ export const partial_loss_available_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
+                placeholder: "Peak Profit",
+                isVisible: (obj) => !!obj.peakProfit?.priceClose,
+            },
+            {
+                type: FieldType.Outline,
+                sx: { mb: 3 },
+                isVisible: (obj) => !!obj.peakProfit?.priceClose,
+                fields: [
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.pnlPercentage",
+                        title: "Peak Profit %",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.peakProfit?.pnlPercentage;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}%`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.pnlCost",
+                        title: "Peak Profit ($)",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.peakProfit?.pnlCost;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}$`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.priceClose",
+                        title: "Peak Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfit?.priceClose
+                                ? `${obj.peakProfit.priceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
+                placeholder: "Max Drawdown",
+                isVisible: (obj) => !!obj.maxDrawdown?.priceClose,
+            },
+            {
+                type: FieldType.Outline,
+                sx: { mb: 3 },
+                isVisible: (obj) => !!obj.maxDrawdown?.priceClose,
+                fields: [
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.pnlPercentage",
+                        title: "Max Drawdown %",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.maxDrawdown?.pnlPercentage;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}%`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.pnlCost",
+                        title: "Max Drawdown ($)",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.maxDrawdown?.pnlCost;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}$`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.priceClose",
+                        title: "Drawdown Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdown?.priceClose
+                                ? `${obj.maxDrawdown.priceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
                 placeholder: "Note",
                 isVisible: (obj) => !!obj.note,
             },
