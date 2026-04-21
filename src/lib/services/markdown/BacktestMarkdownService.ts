@@ -208,8 +208,8 @@ class ReportStorage {
     const expectedYearlyReturns = avgPnl * tradesPerYear;
 
     // Calculate average peak and fall PNL across all signals
-    const avgPeakPnl = this._signalList.reduce((sum, s) => sum + (s.signal._peak?.pnlPercentage ?? 0), 0) / totalSignals;
-    const avgFallPnl = this._signalList.reduce((sum, s) => sum + (s.signal._fall?.pnlPercentage ?? 0), 0) / totalSignals;
+    const avgPeakPnl = this._signalList.reduce((sum, s) => sum + (s.signal.peakProfit?.pnlPercentage ?? 0), 0) / totalSignals;
+    const avgFallPnl = this._signalList.reduce((sum, s) => sum + (s.signal.maxDrawdown?.pnlPercentage ?? 0), 0) / totalSignals;
 
     return {
       signalList: this._signalList,

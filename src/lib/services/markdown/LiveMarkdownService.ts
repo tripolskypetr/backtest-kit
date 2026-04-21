@@ -284,8 +284,8 @@ class ReportStorage {
       duration: durationMin,
       pendingAt: data.signal.pendingAt,
       scheduledAt: data.signal.scheduledAt,
-      peakPnl: data.signal._peak?.pnlPercentage,
-      fallPnl: data.signal._fall?.pnlPercentage,
+      peakPnl: data.signal.peakProfit?.pnlPercentage,
+      fallPnl: data.signal.maxDrawdown?.pnlPercentage,
     };
 
     this._eventList.unshift(newEvent);

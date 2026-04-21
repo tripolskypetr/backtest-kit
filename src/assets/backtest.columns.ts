@@ -183,7 +183,8 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     key: "peakPnl",
     label: "Peak PNL",
     format: (data) => {
-      const v = data.signal._peak?.pnlPercentage;
+      const v = data.signal.peakProfit?.pnlPercentage;
+      if (v === undefined) return "N/A";
       return `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
     },
     isVisible: () => true,
@@ -191,7 +192,11 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
   {
     key: "fallPnl",
     label: "Max DD PNL",
-    format: (data) => `${data.signal._fall?.pnlPercentage.toFixed(2)}%`,
+    format: (data) => {
+      const v = data.signal.maxDrawdown?.pnlPercentage;
+      if (v === undefined) return "N/A";
+      return `${v.toFixed(2)}%`;
+    },
     isVisible: () => true,
   },
 ];
