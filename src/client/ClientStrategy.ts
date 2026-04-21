@@ -501,9 +501,9 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
     ? signal._partial.length
     : 0;
   const pnl = type === "scheduled" ? ZERO_PNL : toProfitLossDto(signal as ISignalRow, currentPrice);
-  const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? !!signal["_fall"] ? toProfitLossDto(signal, signal._fall.price) : ZERO_PNL : ZERO_PNL);
-  const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? signal["_peak"] ? toProfitLossDto(signal, signal._peak.price) : ZERO_PNL : ZERO_PNL);
-  const effectivePriceOpen = "_entry" in signal ? GET_EFFECTIVE_PRICE_OPEN(signal): signal.priceOpen;
+  const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? !!signal["_fall"] ? ({ ...signal._fall }) : ZERO_PNL : ZERO_PNL);
+  const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? signal["_peak"] ? ({ ...signal._peak }) : ZERO_PNL : ZERO_PNL);
+  const effectivePriceOpen = type === "scheduled" ? signal.priceOpen : "_entry" in signal ? signal["_entry"] ? GET_EFFECTIVE_PRICE_OPEN(signal) : signal.priceOpen : signal.priceOpen;
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
     priceOpen: effectivePriceOpen,
@@ -610,8 +610,8 @@ const GET_SIGNAL_FN = trycatch(
           timestamp: currentTime,
           _isScheduled: false,
           _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-          _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
-          _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+          _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+          _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
         };
 
         // Валидируем сигнал перед возвратом
@@ -639,8 +639,8 @@ const GET_SIGNAL_FN = trycatch(
         timestamp: currentTime,
         _isScheduled: true,
         _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-        _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
-        _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+        _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+        _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
       };
 
       // Валидируем сигнал перед возвратом
@@ -665,8 +665,8 @@ const GET_SIGNAL_FN = trycatch(
       timestamp: currentTime,
       _isScheduled: false,
       _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-      _peak: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
-      _fall: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+      _peak: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+      _fall: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
     };
 
     // Валидируем сигнал перед возвратом
@@ -1590,8 +1590,8 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
-    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
-    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
+    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
+    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -2846,7 +2846,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice > signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen};
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -2884,7 +2884,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentSl = Math.min(progressPercent, 100);
         if (currentPrice < signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -2939,7 +2939,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice < signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -2979,7 +2979,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentSl = Math.min(progressPercent, 100);
         if (currentPrice > signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+          signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -3224,8 +3224,8 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
-    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
-    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0 },
+    _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
+    _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3621,8 +3621,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         ...activatedSignal,
         pendingAt: candle.timestamp,
         _isScheduled: false,
-        _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0 },
-        _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0 },
+        _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
+        _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
       };
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3938,7 +3938,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
           if (averagePrice > signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -3969,7 +3969,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -4017,7 +4017,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
           if (averagePrice < signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -4050,7 +4050,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -5421,8 +5421,8 @@ export class ClientStrategy implements IStrategy {
         ...activatedSignal,
         pendingAt: currentTime,
         _isScheduled: false,
-        _peak: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
-        _fall: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0 },
+        _peak: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
+        _fall: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
       };
 
       const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);

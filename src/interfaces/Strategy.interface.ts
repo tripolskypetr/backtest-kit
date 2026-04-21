@@ -170,7 +170,7 @@ export interface ISignalRow extends ISignalDto {
    * - For LONG: maximum VWAP price seen above effective entry
    * - For SHORT: minimum VWAP price seen below effective entry
    */
-  _peak: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; };
+  _peak: { price: number; timestamp: number; } & IStrategyPnL;
   /**
    * Worst price seen in loss direction during the life of this position.
    * Initialized at position open with priceOpen/pendingAt (pnl = 0).
@@ -178,7 +178,7 @@ export interface ISignalRow extends ISignalDto {
    * - For LONG: minimum VWAP price seen below effective entry
    * - For SHORT: maximum VWAP price seen above effective entry
    */
-  _fall: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; };
+  _fall: { price: number; timestamp: number; } & IStrategyPnL;
   /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
   timestamp: number;
 }

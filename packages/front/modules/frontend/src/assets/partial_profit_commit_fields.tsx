@@ -461,12 +461,40 @@ export const partial_profit_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
+                        name: "peakProfit.priceOpen",
+                        title: "Entry Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfit?.priceOpen
+                                ? `${obj.peakProfit.priceOpen.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
                         name: "peakProfit.priceClose",
                         title: "Peak Price",
                         readonly: true,
                         compute: (obj) =>
                             obj.peakProfit?.priceClose
                                 ? `${obj.peakProfit.priceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.pnlEntries",
+                        title: "Invested",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfit?.pnlEntries
+                                ? `${obj.peakProfit.pnlEntries.toFixed(2)}$`
                                 : "N/A",
                     },
                 ],
@@ -520,12 +548,40 @@ export const partial_profit_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
+                        name: "maxDrawdown.priceOpen",
+                        title: "Entry Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdown?.priceOpen
+                                ? `${obj.maxDrawdown.priceOpen.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
                         name: "maxDrawdown.priceClose",
                         title: "Drawdown Price",
                         readonly: true,
                         compute: (obj) =>
                             obj.maxDrawdown?.priceClose
                                 ? `${obj.maxDrawdown.priceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.pnlEntries",
+                        title: "Invested",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdown?.pnlEntries
+                                ? `${obj.maxDrawdown.pnlEntries.toFixed(2)}$`
                                 : "N/A",
                     },
                 ],
