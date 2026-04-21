@@ -96,6 +96,8 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
     originalPriceOpen: signal.priceOpen ?? currentPrice,
     partialExecuted,
     pnl: toProfitLossDto(signal, currentPrice),
+    maxDrawdown: toProfitLossDto(signal, currentPrice),
+    peakProfit: toProfitLossDto(signal, currentPrice),
   };
 };
 

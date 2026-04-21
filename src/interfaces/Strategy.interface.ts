@@ -248,6 +248,18 @@ export interface IPublicSignalRow extends ISignalRow {
    * Calculated using toProfitLossDto with the currentPrice at the moment of emission.
    */
   pnl: IStrategyPnL;
+
+  /**
+   * Peak profit achieved during the life of this position up to the moment this public signal was created.
+   * Calculated using the highest favorable price reached (for long: max price above entry, for short: min price below entry) and the original entry price.
+   */
+  peakProfit: IStrategyPnL;
+
+  /**
+   * Maximum drawdown experienced during the life of this position up to the moment this public signal was created.
+   * Calculated using the worst unfavorable price reached (for long: min price below entry, for short: max price above entry) and the original entry price.
+   */
+  maxDrawdown: IStrategyPnL;
 }
 
 /**

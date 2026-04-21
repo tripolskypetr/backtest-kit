@@ -230,6 +230,7 @@ export {
   StrategyCancelReason,
   StrategyCloseReason,
   IStrategyPnL,
+  CommitPayload,
 } from "./interfaces/Strategy.interface";
 
 export {

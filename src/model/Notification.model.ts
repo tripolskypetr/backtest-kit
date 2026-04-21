@@ -43,8 +43,12 @@ export interface SignalOpenedNotification {
   totalPartials: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** Unrealized PNL at the moment of signal open (from signal.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -108,8 +112,12 @@ export interface SignalClosedNotification {
   totalPartials: number;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
-  /** Final PNL at signal close (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
   pnlPriceOpen: number;
   /** Exit price from PNL calculation (adjusted with slippage and fees) */
@@ -175,8 +183,12 @@ export interface PartialProfitAvailableNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** Unrealized PNL at the moment this level was reached (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -240,8 +252,12 @@ export interface PartialLossAvailableNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** Unrealized PNL at the moment this level was reached (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -303,8 +319,12 @@ export interface BreakevenAvailableNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** Unrealized PNL at the moment breakeven became available (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -368,8 +388,12 @@ export interface PartialProfitCommitNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** PNL at the moment of partial profit commit (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -433,8 +457,12 @@ export interface PartialLossCommitNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** PNL at the moment of partial loss commit (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -496,8 +524,12 @@ export interface BreakevenCommitNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** PNL at the moment of breakeven commit (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -563,8 +595,12 @@ export interface AverageBuyCommitNotification {
   originalPriceStopLoss: number;
   /** Original entry price at signal creation (unchanged by DCA averaging) */
   originalPriceOpen: number;
-  /** PNL at the moment of average-buy commit (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -626,8 +662,12 @@ export interface ActivateScheduledCommitNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** PNL at the moment of activate-scheduled commit (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -693,8 +733,12 @@ export interface TrailingStopCommitNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** PNL at the moment of trailing-stop commit (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -758,8 +802,12 @@ export interface TrailingTakeCommitNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** PNL at the moment of trailing-take commit (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -803,8 +851,12 @@ export interface SignalSyncOpenNotification {
   signalId: string;
   /** Current market price at activation */
   currentPrice: number;
-  /** PNL at the moment of opening */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage */
   pnlPercentage: number;
   /** Entry price from PNL calculation */
@@ -868,8 +920,12 @@ export interface SignalSyncCloseNotification {
   signalId: string;
   /** Current market price at close */
   currentPrice: number;
-  /** Final PNL at signal close */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage */
   pnlPercentage: number;
   /** Entry price from PNL calculation */
@@ -996,8 +1052,12 @@ export interface SignalScheduledNotification {
   totalPartials: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** Unrealized PNL at the moment of signal scheduled (from signal.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -1153,8 +1213,12 @@ export interface CancelScheduledCommitNotification {
   totalPartials: number;
   /** Original entry price at signal creation (unchanged by DCA averaging) */
   originalPriceOpen: number;
-  /** PNL at the moment of cancellation (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -1200,8 +1264,12 @@ export interface ClosePendingCommitNotification {
   totalPartials: number;
   /** Original entry price at signal creation (unchanged by DCA averaging) */
   originalPriceOpen: number;
-  /** PNL at the moment of close (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -1259,8 +1327,12 @@ export interface SignalInfoNotification {
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
   totalPartials: number;
-  /** Unrealized PNL at the moment the info event was emitted (from data.pnl) */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */

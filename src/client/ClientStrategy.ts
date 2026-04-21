@@ -109,6 +109,8 @@ const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
       signalId: pendingSignal.id,
       timestamp,
       signal: publicSignal,
+      maxDrawdown: publicSignal.maxDrawdown,
+      peakProfit: publicSignal.peakProfit,
       cost: pendingSignal.cost,
       currentPrice,
       position: publicSignal.position,
@@ -158,6 +160,8 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
       signalId: signal.id,
       timestamp,
       signal: publicSignal,
+      maxDrawdown: publicSignal.maxDrawdown,
+      peakProfit: publicSignal.peakProfit,
       currentPrice,
       pnl,
       position: publicSignal.position,
@@ -253,6 +257,9 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentToClose: commit.percentToClose,
         currentPrice: commit.currentPrice,
         pnl: toProfitLossDto(self._pendingSignal, commit.currentPrice),
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
         timestamp,
         totalEntries: publicSignal.totalEntries,
         totalPartials: publicSignal.totalPartials,
@@ -281,6 +288,9 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentToClose: commit.percentToClose,
         currentPrice: commit.currentPrice,
         pnl: toProfitLossDto(self._pendingSignal, commit.currentPrice),
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
         timestamp,
         totalEntries: publicSignal.totalEntries,
         totalPartials: publicSignal.totalPartials,
@@ -308,6 +318,9 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         backtest: commit.backtest,
         currentPrice: commit.currentPrice,
         pnl: toProfitLossDto(self._pendingSignal, commit.currentPrice),
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
         timestamp,
         totalEntries: publicSignal.totalEntries,
         totalPartials: publicSignal.totalPartials,
@@ -336,6 +349,9 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentShift: commit.percentShift,
         currentPrice: commit.currentPrice,
         pnl: toProfitLossDto(self._pendingSignal, commit.currentPrice),
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
         timestamp,
         totalEntries: publicSignal.totalEntries,
         totalPartials: publicSignal.totalPartials,
@@ -364,6 +380,9 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentShift: commit.percentShift,
         currentPrice: commit.currentPrice,
         pnl: toProfitLossDto(self._pendingSignal, commit.currentPrice),
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
         timestamp,
         totalEntries: publicSignal.totalEntries,
         totalPartials: publicSignal.totalPartials,
@@ -394,6 +413,9 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         cost: commit.cost,
         effectivePriceOpen,
         pnl: toProfitLossDto(self._pendingSignal, commit.currentPrice),
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
         timestamp,
         totalEntries: publicSignal.totalEntries,
         totalPartials: publicSignal.totalPartials,
@@ -473,6 +495,9 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
   const totalPartials = ("_partial" in signal && Array.isArray(signal._partial))
     ? signal._partial.length
     : 0;
+  const pnl = toProfitLossDto(signal as ISignalRow, currentPrice);
+  const maxDrawdown = "_fall" in signal ? toProfitLossDto(signal, signal._fall.price) : pnl;
+  const peakProfit = "_peak" in signal ? toProfitLossDto(signal, signal._peak.price) : pnl;
   const effectivePriceOpen = "_entry" in signal ? GET_EFFECTIVE_PRICE_OPEN(signal): signal.priceOpen;
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
@@ -482,10 +507,12 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
     originalPriceOpen: signal.priceOpen,
     originalPriceStopLoss: signal.priceStopLoss,
     originalPriceTakeProfit: signal.priceTakeProfit,
+    maxDrawdown,
+    peakProfit,
     partialExecuted,
     totalEntries,
     totalPartials,
-    pnl: toProfitLossDto(signal as ISignalRow, currentPrice),
+    pnl,
   };
 };
 
@@ -1589,6 +1616,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, scheduled.priceOpen),
+      maxDrawdown: toProfitLossDto(scheduled, scheduled.priceOpen),
+      peakProfit: toProfitLossDto(scheduled, scheduled.priceOpen),
+      signal: TO_PUBLIC_SIGNAL(scheduled, scheduled.priceOpen),
       note: scheduled.note,
     });
     return null;
@@ -3088,6 +3118,9 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, averagePrice),
+      maxDrawdown: toProfitLossDto(scheduled, averagePrice),
+      peakProfit: toProfitLossDto(scheduled, averagePrice),
+      signal: TO_PUBLIC_SIGNAL(scheduled, averagePrice),
       note: cancelNote ?? scheduled.note,
     });
   }
@@ -3214,6 +3247,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       totalPartials: scheduled._partial?.length ?? 0,
       originalPriceOpen: scheduled.priceOpen,
       pnl: toProfitLossDto(scheduled, scheduled.priceOpen),
+      maxDrawdown: toProfitLossDto(scheduled, scheduled.priceOpen),
+      peakProfit: toProfitLossDto(scheduled, scheduled.priceOpen),
+      signal: TO_PUBLIC_SIGNAL(scheduled, scheduled.priceOpen),
       note: scheduled.note,
     });
     return false;
@@ -3410,6 +3446,9 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     totalPartials: closedSignal._partial?.length ?? 0,
     originalPriceOpen: closedSignal.priceOpen,
     pnl: toProfitLossDto(closedSignal, averagePrice),
+    maxDrawdown: toProfitLossDto(closedSignal, closedSignal._fall.price),
+    peakProfit: toProfitLossDto(closedSignal, closedSignal._peak.price),
+    signal: TO_PUBLIC_SIGNAL(closedSignal, averagePrice),
     note: closedSignal.closeNote ?? closedSignal.note,
   });
 
@@ -3604,6 +3643,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, averagePrice),
+          maxDrawdown: toProfitLossDto(activatedSignal, averagePrice),
+          peakProfit: toProfitLossDto(activatedSignal, averagePrice),
+          signal: TO_PUBLIC_SIGNAL(activatedSignal, averagePrice),
           note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return { outcome: "pending" };
@@ -3635,6 +3677,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         timestamp: candle.timestamp,
         currentPrice: averagePrice,
         pnl: toProfitLossDto(pendingSignal, averagePrice),
+        maxDrawdown: toProfitLossDto(pendingSignal, averagePrice),
+        peakProfit: toProfitLossDto(pendingSignal, averagePrice),
+        signal: TO_PUBLIC_SIGNAL(pendingSignal, averagePrice),
         position: publicSignalForCommit.position,
         priceOpen: publicSignalForCommit.priceOpen,
         priceTakeProfit: publicSignalForCommit.priceTakeProfit,
@@ -5158,6 +5203,9 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
+        maxDrawdown: toProfitLossDto(cancelledSignal, currentPrice),
+        peakProfit: toProfitLossDto(cancelledSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL(cancelledSignal, currentPrice),
         note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
@@ -5241,6 +5289,9 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
+        maxDrawdown: toProfitLossDto(closedSignal, closedSignal._fall.price),
+        peakProfit: toProfitLossDto(closedSignal, closedSignal._peak.price),
+        signal: TO_PUBLIC_SIGNAL(closedSignal, currentPrice),
         note: closedSignal.closeNote ?? closedSignal.note,
       });
 
@@ -5383,6 +5434,9 @@ export class ClientStrategy implements IStrategy {
           totalPartials: activatedSignal._partial?.length ?? 0,
           originalPriceOpen: activatedSignal.priceOpen,
           pnl: toProfitLossDto(activatedSignal, currentPrice),
+          maxDrawdown: toProfitLossDto(activatedSignal, currentPrice),
+          peakProfit: toProfitLossDto(activatedSignal, currentPrice),
+          signal: TO_PUBLIC_SIGNAL(activatedSignal, currentPrice),
           note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return await RETURN_IDLE_FN(this, currentPrice);
@@ -5412,6 +5466,9 @@ export class ClientStrategy implements IStrategy {
         timestamp: currentTime,
         currentPrice,
         pnl: toProfitLossDto(pendingSignal, currentPrice),
+        maxDrawdown: toProfitLossDto(pendingSignal, currentPrice),
+        peakProfit: toProfitLossDto(pendingSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL(pendingSignal, currentPrice),
         position: publicSignalForCommit.position,
         priceOpen: publicSignalForCommit.priceOpen,
         priceTakeProfit: publicSignalForCommit.priceTakeProfit,
@@ -5640,6 +5697,9 @@ export class ClientStrategy implements IStrategy {
         totalPartials: cancelledSignal._partial?.length ?? 0,
         originalPriceOpen: cancelledSignal.priceOpen,
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
+        maxDrawdown: toProfitLossDto(cancelledSignal, currentPrice),
+        peakProfit: toProfitLossDto(cancelledSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL(cancelledSignal, currentPrice),
         note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
@@ -5728,6 +5788,9 @@ export class ClientStrategy implements IStrategy {
         totalPartials: closedSignal._partial?.length ?? 0,
         originalPriceOpen: closedSignal.priceOpen,
         pnl: toProfitLossDto(closedSignal, currentPrice),
+        maxDrawdown: toProfitLossDto(closedSignal, closedSignal._fall.price),
+        peakProfit: toProfitLossDto(closedSignal, closedSignal._peak.price),
+        signal: TO_PUBLIC_SIGNAL(closedSignal, currentPrice),
         note: closedSignal.closeNote ?? closedSignal.note,
       });
 
