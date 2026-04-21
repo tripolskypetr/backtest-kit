@@ -3,6 +3,7 @@ import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import { Box } from "@mui/material";
 import ioc from "../lib";
 import Markdown from "../components/common/Markdown";
+import toPlainString from "../helpers/toPlainString";
 
 export const signal_opened_fields: TypedField[] = [
     {
@@ -584,6 +585,15 @@ export const signal_opened_fields: TypedField[] = [
                 typoVariant: "h6",
                 placeholder: "Note",
                 isVisible: (obj) => !!obj.note,
+            },
+            {
+                type: FieldType.Div,
+                style: { display: "none" },
+                child: {
+                    type: FieldType.Text,
+                    name: "node_print",
+                    compute: ({ note }) => toPlainString(note),
+                }, 
             },
             {
                 type: FieldType.Outline,

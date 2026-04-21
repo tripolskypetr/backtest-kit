@@ -2,6 +2,7 @@ import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import ioc from "../lib";
 import Markdown from "../components/common/Markdown";
+import toPlainString from "../helpers/toPlainString";
 
 export const trailing_take_fields: TypedField[] = [
     {
@@ -604,6 +605,15 @@ export const trailing_take_fields: TypedField[] = [
                 typoVariant: "h6",
                 placeholder: "Note",
                 isVisible: (obj) => !!obj.note,
+            },
+            {
+                type: FieldType.Div,
+                style: { display: "none" },
+                child: {
+                    type: FieldType.Text,
+                    name: "node_print",
+                    compute: ({ note }) => toPlainString(note),
+                }, 
             },
             {
                 type: FieldType.Outline,

@@ -2,6 +2,7 @@ import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import ioc from "../lib";
 import Markdown from "../components/common/Markdown";
+import toPlainString from "../helpers/toPlainString";
 
 const formatDuration = (durationMinutes: number): string => {
     if (durationMinutes == null) return "N/A";
@@ -630,6 +631,15 @@ export const signal_closed_fields: TypedField[] = [
                 typoVariant: "h6",
                 placeholder: "Note",
                 isVisible: (obj) => !!obj.note,
+            },
+            {
+                type: FieldType.Div,
+                style: { display: "none" },
+                child: {
+                    type: FieldType.Text,
+                    name: "node_print",
+                    compute: ({ note }) => toPlainString(note),
+                }, 
             },
             {
                 type: FieldType.Outline,
