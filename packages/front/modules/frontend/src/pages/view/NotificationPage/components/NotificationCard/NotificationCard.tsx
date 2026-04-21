@@ -692,20 +692,6 @@ export const NotificationCard = forwardRef(
                   <>
                     <Divider sx={{ my: 1 }} />
                     <Stack direction="row" spacing={3} flexWrap="wrap">
-                      <Typography variant="body2">
-                        <Typography component="span" color="text.secondary">
-                          {t("Entry")}:{" "}
-                        </Typography>
-                        {item.priceOpen}
-                      </Typography>
-                      {hasPriceClose(item) && (
-                        <Typography variant="body2">
-                          <Typography component="span" color="text.secondary">
-                            {t("Close")}:{" "}
-                          </Typography>
-                          {item.priceClose}
-                        </Typography>
-                      )}
                       {hasCurrentPrice(item) && (
                         <Typography variant="body2">
                           <Typography component="span" color="text.secondary">
