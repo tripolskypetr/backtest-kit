@@ -554,21 +554,24 @@ export const NotificationCard = forwardRef(
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Stack mt={-1} direction="row" flexWrap="wrap">
                   <Chip
                     size="small"
                     label={getNotificationTypeLabel(item)}
                     sx={{
                       background: color,
+                      mt: 1,
+                      mr: 1,
                       color: "white",
                       fontWeight: 500,
                     }}
                   />
                   {hasSymbol(item) && (
-                    <Chip size="small" label={item.symbol} variant="outlined" />
+                    <Chip size="small" sx={{ mt: 1, mr: 1 }} label={item.symbol} variant="outlined" />
                   )}
                   {hasPosition(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={item.position.toUpperCase()}
                       variant="outlined"
@@ -577,6 +580,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasPnl(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`PnL: ${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%`}
                       color={item.pnlPercentage >= 0 ? "success" : "error"}
@@ -585,6 +589,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasLevel(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Level")}: ${item.level}%`}
                       variant="outlined"
@@ -592,6 +597,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasPercentToClose(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Close")}: ${item.percentToClose}%`}
                       variant="outlined"
@@ -599,6 +605,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasDuration(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Duration")}: ${item.duration} ${t("min")}`}
                       variant="outlined"
@@ -606,6 +613,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasCloseReason(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={item.closeReason}
                       variant="outlined"
@@ -614,6 +622,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasCancelReason(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={item.cancelReason}
                       variant="outlined"
@@ -622,6 +631,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasPercentShift(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Shift")}: ${item.percentShift > 0 ? "+" : ""}${item.percentShift}%`}
                       variant="outlined"
@@ -629,6 +639,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasActivePositionCount(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Active")}: ${item.activePositionCount}`}
                       variant="outlined"
@@ -636,6 +647,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasTotalEntries(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Entries")}: ${item.totalEntries}`}
                       variant="outlined"
@@ -643,6 +655,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasTotalPartials(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Partials")}: ${item.totalPartials}`}
                       variant="outlined"
@@ -650,6 +663,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasCost(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Cost")}: ${item.cost.toFixed(2)}$`}
                       variant="outlined"
@@ -657,6 +671,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasEffectivePriceOpen(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Avg entry")}: ${item.effectivePriceOpen}`}
                       variant="outlined"
@@ -665,6 +680,7 @@ export const NotificationCard = forwardRef(
                   )}
                   {hasOriginalPriceOpen(item) && (
                     <Chip
+                      sx={{ mt: 1, mr: 1 }}
                       size="small"
                       label={`${t("Orig entry")}: ${item.originalPriceOpen}`}
                       variant="outlined"
