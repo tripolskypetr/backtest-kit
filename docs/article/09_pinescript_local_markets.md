@@ -3,7 +3,7 @@ title: article/09_pinescript_local_markets
 group: article
 ---
 
-# Running Pine Script on Exchanges Without TradingView
+# 🌲 Running Pine Script on Exchanges Without TradingView
 
 > The source code discussed in this article is [published in this repository](https://github.com/backtest-kit/uzse-backtest-app)
 
