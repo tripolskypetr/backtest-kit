@@ -475,17 +475,25 @@ const hasPnlDetails = (
 const hasPeakProfit = (
   item: NotificationModel
 ): item is NotificationModel & {
-  peakProfit: { pnlPercentage: number; pnlCost: number; priceOpen: number; priceClose: number; pnlEntries: number };
+  peakProfitPriceOpen: number;
+  peakProfitPriceClose: number;
+  peakProfitCost: number;
+  peakProfitPercentage: number;
+  peakProfitEntries: number;
 } => {
-  return "peakProfit" in item && !!item.peakProfit?.priceClose;
+  return "peakProfitPriceClose" in item;
 };
 
 const hasMaxDrawdown = (
   item: NotificationModel
 ): item is NotificationModel & {
-  maxDrawdown: { pnlPercentage: number; pnlCost: number; priceOpen: number; priceClose: number; pnlEntries: number };
+  maxDrawdownPriceOpen: number;
+  maxDrawdownPriceClose: number;
+  maxDrawdownCost: number;
+  maxDrawdownPercentage: number;
+  maxDrawdownEntries: number;
 } => {
-  return "maxDrawdown" in item && !!item.maxDrawdown?.priceClose;
+  return "maxDrawdownPriceClose" in item;
 };
 
 export const NotificationCard = forwardRef(
@@ -750,13 +758,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("Peak Entry")}:{" "}
                         </Typography>
-                        {item.peakProfit.priceOpen}
+                        {item.peakProfitPriceOpen}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Peak Exit")}:{" "}
                         </Typography>
-                        {item.peakProfit.priceClose}
+                        {item.peakProfitPriceClose}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
@@ -764,17 +772,17 @@ export const NotificationCard = forwardRef(
                         </Typography>
                         <Typography
                           component="span"
-                          color={item.peakProfit.pnlCost >= 0 ? "success.main" : "error.main"}
+                          color={item.peakProfitCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {item.peakProfit.pnlCost >= 0 ? "+" : ""}
-                          {item.peakProfit.pnlCost.toFixed(2)}$
+                          {item.peakProfitCost >= 0 ? "+" : ""}
+                          {item.peakProfitCost.toFixed(2)}$
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {item.peakProfit.pnlEntries.toFixed(2)}$
+                        {item.peakProfitEntries.toFixed(2)}$
                       </Typography>
                     </Stack>
                   </>
@@ -787,13 +795,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("Drawdown Entry")}:{" "}
                         </Typography>
-                        {item.maxDrawdown.priceOpen}
+                        {item.maxDrawdownPriceOpen}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Drawdown Exit")}:{" "}
                         </Typography>
-                        {item.maxDrawdown.priceClose}
+                        {item.maxDrawdownPriceClose}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
@@ -801,17 +809,17 @@ export const NotificationCard = forwardRef(
                         </Typography>
                         <Typography
                           component="span"
-                          color={item.maxDrawdown.pnlCost >= 0 ? "success.main" : "error.main"}
+                          color={item.maxDrawdownCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {item.maxDrawdown.pnlCost >= 0 ? "+" : ""}
-                          {item.maxDrawdown.pnlCost.toFixed(2)}$
+                          {item.maxDrawdownCost >= 0 ? "+" : ""}
+                          {item.maxDrawdownCost.toFixed(2)}$
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {item.maxDrawdown.pnlEntries.toFixed(2)}$
+                        {item.maxDrawdownEntries.toFixed(2)}$
                       </Typography>
                     </Stack>
                   </>
