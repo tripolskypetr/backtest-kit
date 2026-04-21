@@ -472,6 +472,22 @@ const hasPnlDetails = (
   return "pnlPriceOpen" in item && "pnlPriceClose" in item && "pnlCost" in item && "pnlEntries" in item;
 };
 
+const hasPeakProfit = (
+  item: NotificationModel
+): item is NotificationModel & {
+  peakProfit: { pnlPercentage: number; pnlCost: number; priceOpen: number; priceClose: number; pnlEntries: number };
+} => {
+  return "peakProfit" in item && !!item.peakProfit?.priceClose;
+};
+
+const hasMaxDrawdown = (
+  item: NotificationModel
+): item is NotificationModel & {
+  maxDrawdown: { pnlPercentage: number; pnlCost: number; priceOpen: number; priceClose: number; pnlEntries: number };
+} => {
+  return "maxDrawdown" in item && !!item.maxDrawdown?.priceClose;
+};
+
 export const NotificationCard = forwardRef(
   (
     { item, className, style, sx }: INotificationCardProps,
@@ -722,6 +738,80 @@ export const NotificationCard = forwardRef(
                           {t("Invested")}:{" "}
                         </Typography>
                         {item.pnlEntries.toFixed(2)}$
+                      </Typography>
+                    </Stack>
+                  </>
+                )}
+                {hasPeakProfit(item) && (
+                  <>
+                    <Divider sx={{ my: 1 }} />
+                    <Stack direction="row" spacing={3} flexWrap="wrap">
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Peak Entry")}:{" "}
+                        </Typography>
+                        {item.peakProfit.priceOpen}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Peak Exit")}:{" "}
+                        </Typography>
+                        {item.peakProfit.priceClose}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Peak")}:{" "}
+                        </Typography>
+                        <Typography
+                          component="span"
+                          color={item.peakProfit.pnlCost >= 0 ? "success.main" : "error.main"}
+                        >
+                          {item.peakProfit.pnlCost >= 0 ? "+" : ""}
+                          {item.peakProfit.pnlCost.toFixed(2)}$
+                        </Typography>
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Invested")}:{" "}
+                        </Typography>
+                        {item.peakProfit.pnlEntries.toFixed(2)}$
+                      </Typography>
+                    </Stack>
+                  </>
+                )}
+                {hasMaxDrawdown(item) && (
+                  <>
+                    <Divider sx={{ my: 1 }} />
+                    <Stack direction="row" spacing={3} flexWrap="wrap">
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Drawdown Entry")}:{" "}
+                        </Typography>
+                        {item.maxDrawdown.priceOpen}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Drawdown Exit")}:{" "}
+                        </Typography>
+                        {item.maxDrawdown.priceClose}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Drawdown")}:{" "}
+                        </Typography>
+                        <Typography
+                          component="span"
+                          color={item.maxDrawdown.pnlCost >= 0 ? "success.main" : "error.main"}
+                        >
+                          {item.maxDrawdown.pnlCost >= 0 ? "+" : ""}
+                          {item.maxDrawdown.pnlCost.toFixed(2)}$
+                        </Typography>
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Invested")}:{" "}
+                        </Typography>
+                        {item.maxDrawdown.pnlEntries.toFixed(2)}$
                       </Typography>
                     </Stack>
                   </>
