@@ -272,12 +272,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                 type: FieldType.Typography,
                 typoVariant: "h6",
                 placeholder: "Peak Profit",
-                isVisible: (obj) => !!obj.peakProfit?.priceClose,
+                isVisible: (obj) => !!obj.peakProfitPriceClose,
             },
             {
                 type: FieldType.Outline,
                 sx: { mb: 3 },
-                isVisible: (obj) => !!obj.peakProfit?.priceClose,
+                isVisible: (obj) => !!obj.peakProfitPriceClose,
                 fields: [
                     {
                         type: FieldType.Text,
@@ -285,11 +285,11 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "peakProfit.pnlPercentage",
+                        name: "peakProfitPercentage",
                         title: "Peak Profit %",
                         readonly: true,
                         compute: (obj) => {
-                            const v = obj.peakProfit?.pnlPercentage;
+                            const v = obj.peakProfitPercentage;
                             if (v == null) return "N/A";
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(2)}%`;
@@ -301,11 +301,11 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "peakProfit.pnlCost",
+                        name: "peakProfitCost",
                         title: "Peak Profit ($)",
                         readonly: true,
                         compute: (obj) => {
-                            const v = obj.peakProfit?.pnlCost;
+                            const v = obj.peakProfitCost;
                             if (v == null) return "N/A";
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(2)}$`;
@@ -317,12 +317,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "peakProfit.priceOpen",
+                        name: "peakProfitPriceOpen",
                         title: "Entry Price",
                         readonly: true,
                         compute: (obj) =>
-                            obj.peakProfit?.priceOpen
-                                ? `${obj.peakProfit.priceOpen.toFixed(6)}$`
+                            obj.peakProfitPriceOpen
+                                ? `${obj.peakProfitPriceOpen.toFixed(6)}$`
                                 : "N/A",
                     },
                     {
@@ -331,12 +331,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "peakProfit.priceClose",
+                        name: "peakProfitPriceClose",
                         title: "Peak Price",
                         readonly: true,
                         compute: (obj) =>
-                            obj.peakProfit?.priceClose
-                                ? `${obj.peakProfit.priceClose.toFixed(6)}$`
+                            obj.peakProfitPriceClose
+                                ? `${obj.peakProfitPriceClose.toFixed(6)}$`
                                 : "N/A",
                     },
                     {
@@ -345,12 +345,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "peakProfit.pnlEntries",
+                        name: "peakProfitEntries",
                         title: "Invested",
                         readonly: true,
                         compute: (obj) =>
-                            obj.peakProfit?.pnlEntries
-                                ? `${obj.peakProfit.pnlEntries.toFixed(2)}$`
+                            obj.peakProfitEntries
+                                ? `${obj.peakProfitEntries.toFixed(2)}$`
                                 : "N/A",
                     },
                 ],
@@ -359,12 +359,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                 type: FieldType.Typography,
                 typoVariant: "h6",
                 placeholder: "Max Drawdown",
-                isVisible: (obj) => !!obj.maxDrawdown?.priceClose,
+                isVisible: (obj) => !!obj.maxDrawdownPriceClose,
             },
             {
                 type: FieldType.Outline,
                 sx: { mb: 3 },
-                isVisible: (obj) => !!obj.maxDrawdown?.priceClose,
+                isVisible: (obj) => !!obj.maxDrawdownPriceClose,
                 fields: [
                     {
                         type: FieldType.Text,
@@ -372,11 +372,11 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "maxDrawdown.pnlPercentage",
+                        name: "maxDrawdownPercentage",
                         title: "Max Drawdown %",
                         readonly: true,
                         compute: (obj) => {
-                            const v = obj.maxDrawdown?.pnlPercentage;
+                            const v = obj.maxDrawdownPercentage;
                             if (v == null) return "N/A";
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(2)}%`;
@@ -388,11 +388,11 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "maxDrawdown.pnlCost",
+                        name: "maxDrawdownCost",
                         title: "Max Drawdown ($)",
                         readonly: true,
                         compute: (obj) => {
-                            const v = obj.maxDrawdown?.pnlCost;
+                            const v = obj.maxDrawdownCost;
                             if (v == null) return "N/A";
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(2)}$`;
@@ -404,12 +404,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "maxDrawdown.priceOpen",
+                        name: "maxDrawdownPriceOpen",
                         title: "Entry Price",
                         readonly: true,
                         compute: (obj) =>
-                            obj.maxDrawdown?.priceOpen
-                                ? `${obj.maxDrawdown.priceOpen.toFixed(6)}$`
+                            obj.maxDrawdownPriceOpen
+                                ? `${obj.maxDrawdownPriceOpen.toFixed(6)}$`
                                 : "N/A",
                     },
                     {
@@ -418,12 +418,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "maxDrawdown.priceClose",
+                        name: "maxDrawdownPriceClose",
                         title: "Drawdown Price",
                         readonly: true,
                         compute: (obj) =>
-                            obj.maxDrawdown?.priceClose
-                                ? `${obj.maxDrawdown.priceClose.toFixed(6)}$`
+                            obj.maxDrawdownPriceClose
+                                ? `${obj.maxDrawdownPriceClose.toFixed(6)}$`
                                 : "N/A",
                     },
                     {
@@ -432,12 +432,12 @@ export const cancel_scheduled_commit_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "maxDrawdown.pnlEntries",
+                        name: "maxDrawdownEntries",
                         title: "Invested",
                         readonly: true,
                         compute: (obj) =>
-                            obj.maxDrawdown?.pnlEntries
-                                ? `${obj.maxDrawdown.pnlEntries.toFixed(2)}$`
+                            obj.maxDrawdownEntries
+                                ? `${obj.maxDrawdownEntries.toFixed(2)}$`
                                 : "N/A",
                     },
                 ],
