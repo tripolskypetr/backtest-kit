@@ -209,6 +209,6 @@ Via `npm start`:
 
 ---
 
-You can read more [about the influence of news sentiment on the market](https://habr.com/ru/articles/1025238/).
+You can read more [about the influence of news sentiment on the market](./07_ai_news_trading_signals.md).
 
 **This is exactly the reason why indicators stopped working on major markets: the new value of an indicator itself has become news.**
