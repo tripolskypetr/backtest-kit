@@ -32,7 +32,21 @@
     "pnlPriceClose": 51820.5,
     "pnlCost": -0.15,
     "pnlEntries": 100,
-    "createdAt": 1708876700000
+    "createdAt": 1708876700000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51900,
+      "priceClose": 52834.2,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51900,
+      "priceClose": 51277.2,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.cancelled",
@@ -112,7 +126,21 @@
     "duration": 60,
     "scheduledAt": 1708875240000,
     "pendingAt": 1708871700000,
-    "createdAt": 1708875300000
+    "createdAt": 1708875300000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal_sync.close",
@@ -148,7 +176,21 @@
     "closeReason": "time_expired",
     "scheduledAt": 1708871700000,
     "pendingAt": 1708871700000,
-    "createdAt": 1708875300000
+    "createdAt": 1708875300000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.commit",
@@ -184,7 +226,21 @@
     "pnlPriceClose": 51700,
     "pnlCost": -0.1,
     "pnlEntries": 100,
-    "signalId": "1a95ee20-68d5-42be-a876-3e1fe948bd0b"
+    "signalId": "1a95ee20-68d5-42be-a876-3e1fe948bd0b",
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -220,7 +276,21 @@
     "pnlEntries": 100,
     "scheduledAt": 1708873140000,
     "pendingAt": 1708873170000,
-    "createdAt": 1708873200000
+    "createdAt": 1708873200000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "trailing_take.commit",
@@ -256,7 +326,21 @@
     "pnlPriceClose": 52000,
     "pnlCost": 0.48,
     "pnlEntries": 100,
-    "signalId": "7fd557d2-b764-4e8b-bef1-dfc6b4a74b6e"
+    "signalId": "7fd557d2-b764-4e8b-bef1-dfc6b4a74b6e",
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "trailing_stop.commit",
@@ -292,7 +376,21 @@
     "pnlPriceClose": 51950.75,
     "pnlCost": 0.38,
     "pnlEntries": 100,
-    "signalId": "11a786c9-611b-44ed-a570-cdd7e1864b27"
+    "signalId": "11a786c9-611b-44ed-a570-cdd7e1864b27",
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "breakeven.commit",
@@ -326,7 +424,21 @@
     "pnlPriceClose": 51900.25,
     "pnlCost": 0.28,
     "pnlEntries": 100,
-    "createdAt": 1708872300000
+    "createdAt": 1708872300000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "breakeven.available",
@@ -361,7 +473,21 @@
     "pnlEntries": 100,
     "scheduledAt": 1708872240000,
     "pendingAt": 1708872270000,
-    "createdAt": 1708872300000
+    "createdAt": 1708872300000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.commit",
@@ -396,7 +522,21 @@
     "pnlPriceClose": 51850.5,
     "pnlCost": 0.19,
     "pnlEntries": 100,
-    "createdAt": 1708872000000
+    "createdAt": 1708872000000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "average_buy.commit",
@@ -433,7 +573,21 @@
     "pnlEntries": 200,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
-    "createdAt": 1708871800000
+    "createdAt": 1708871800000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51717,
+      "priceClose": 52647.91,
+      "pnlCost": 3.6,
+      "pnlEntries": 200
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51717,
+      "priceClose": 51096.4,
+      "pnlCost": -2.4,
+      "pnlEntries": 200
+    }
   },
   {
     "type": "partial_profit.available",
@@ -469,7 +623,21 @@
     "pnlEntries": 100,
     "scheduledAt": 1708871940000,
     "pendingAt": 1708871970000,
-    "createdAt": 1708872000000
+    "createdAt": 1708872000000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -504,7 +672,21 @@
     "pnlPriceClose": 51754,
     "pnlCost": 0,
     "pnlEntries": 100,
-    "createdAt": 1708871700000
+    "createdAt": 1708871700000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal_sync.open",
@@ -540,7 +722,21 @@
     "totalPartials": 0,
     "scheduledAt": 1708871640000,
     "pendingAt": 1708871700000,
-    "createdAt": 1708871700000
+    "createdAt": 1708871700000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51754,
+      "priceClose": 52685.57,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51754,
+      "priceClose": 51132.95,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -577,7 +773,21 @@
     "pnlPriceOpen": 51677.02,
     "pnlPriceClose": 51658.38716022372,
     "pnlCost": -0.44,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51677.02,
+      "priceClose": 52607.21,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51677.02,
+      "priceClose": 51056.9,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -612,7 +822,21 @@
     "pnlPriceOpen": 51677.02,
     "pnlPriceClose": 51677.02,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51677.02,
+      "priceClose": 52607.21,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51677.02,
+      "priceClose": 51056.9,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -649,7 +873,21 @@
     "pnlPriceOpen": 51617.56,
     "pnlPriceClose": 51696.42673346863,
     "pnlCost": -0.25,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51617.56,
+      "priceClose": 52546.68,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51617.56,
+      "priceClose": 50998.15,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -684,7 +922,21 @@
     "pnlPriceOpen": 51617.56,
     "pnlPriceClose": 51617.56,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51617.56,
+      "priceClose": 52546.68,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51617.56,
+      "priceClose": 50998.15,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -721,7 +973,21 @@
     "pnlPriceOpen": 51624.99,
     "pnlPriceClose": 51557.14480786588,
     "pnlCost": -0.53,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51624.99,
+      "priceClose": 52554.24,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51624.99,
+      "priceClose": 51005.49,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -756,7 +1022,21 @@
     "pnlPriceOpen": 51624.99,
     "pnlPriceClose": 51624.99,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51624.99,
+      "priceClose": 52554.24,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51624.99,
+      "priceClose": 51005.49,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -793,7 +1073,21 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51581.2659122087,
     "pnlCost": -0.62,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51695.22,
+      "priceClose": 52625.73,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51695.22,
+      "priceClose": 51074.88,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -829,7 +1123,21 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51582.65415952071,
     "pnlCost": -0.22,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51695.22,
+      "priceClose": 52625.73,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51695.22,
+      "priceClose": 51074.88,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -864,7 +1172,21 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51695.22,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51695.22,
+      "priceClose": 52625.73,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51695.22,
+      "priceClose": 51074.88,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -899,7 +1221,21 @@
     "pnlPriceOpen": 51695.22,
     "pnlPriceClose": 51755.37138327176,
     "pnlCost": 0.12,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51695.22,
+      "priceClose": 52625.73,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51695.22,
+      "priceClose": 51074.88,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -936,7 +1272,21 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51755.37138327176,
     "pnlCost": -0.14,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51619.48,
+      "priceClose": 52548.63,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51619.48,
+      "priceClose": 51000.05,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -972,7 +1322,21 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51784.55981361557,
     "pnlCost": 0.32,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51619.48,
+      "priceClose": 52548.63,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51619.48,
+      "priceClose": 51000.05,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -1008,7 +1372,21 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51515.3246377242,
     "pnlCost": -0.2,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51619.48,
+      "priceClose": 52548.63,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51619.48,
+      "priceClose": 51000.05,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1043,7 +1421,21 @@
     "pnlPriceOpen": 51619.48,
     "pnlPriceClose": 51619.48,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51619.48,
+      "priceClose": 52548.63,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51619.48,
+      "priceClose": 51000.05,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1080,7 +1472,21 @@
     "pnlPriceOpen": 51088,
     "pnlPriceClose": 51147.29174634819,
     "pnlCost": -0.28,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51088,
+      "priceClose": 52007.58,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51088,
+      "priceClose": 50474.94,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1115,7 +1521,21 @@
     "pnlPriceOpen": 51088,
     "pnlPriceClose": 51088,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51088,
+      "priceClose": 52007.58,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51088,
+      "priceClose": 50474.94,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -1150,7 +1570,21 @@
     "pnlPriceOpen": 51088,
     "pnlPriceClose": 51123.376318928415,
     "pnlCost": 0.07,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51088,
+      "priceClose": 52007.58,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51088,
+      "priceClose": 50474.94,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1187,7 +1621,21 @@
     "pnlPriceOpen": 51094.52,
     "pnlPriceClose": 51123.376318928415,
     "pnlCost": -0.34,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51094.52,
+      "priceClose": 52014.22,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51094.52,
+      "priceClose": 50481.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1222,7 +1670,21 @@
     "pnlPriceOpen": 51094.52,
     "pnlPriceClose": 51094.52,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51094.52,
+      "priceClose": 52014.22,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51094.52,
+      "priceClose": 50481.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1259,7 +1721,21 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50861.0242377258,
     "pnlCost": -0.17,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50977.99,
+      "priceClose": 50060.39,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50977.99,
+      "priceClose": 51589.73,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -1295,7 +1771,21 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50800.19241163556,
     "pnlCost": 0.35,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50977.99,
+      "priceClose": 50060.39,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50977.99,
+      "priceClose": 51589.73,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1330,7 +1820,21 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50977.99,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50977.99,
+      "priceClose": 50060.39,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50977.99,
+      "priceClose": 51589.73,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -1365,7 +1869,21 @@
     "pnlPriceOpen": 50977.99,
     "pnlPriceClose": 50918.45105553351,
     "pnlCost": 0.12,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50977.99,
+      "priceClose": 50060.39,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50977.99,
+      "priceClose": 51589.73,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1402,7 +1920,21 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 50918.45105553351,
     "pnlCost": -0.41,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50916.01,
+      "priceClose": 49999.52,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50916.01,
+      "priceClose": 51527,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -1438,7 +1970,21 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 51232.98823845023,
     "pnlCost": -0.62,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50916.01,
+      "priceClose": 49999.52,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50916.01,
+      "priceClose": 51527,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -1474,7 +2020,21 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 51232.98823845023,
     "pnlCost": -0.62,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50916.01,
+      "priceClose": 49999.52,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50916.01,
+      "priceClose": 51527,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -1510,7 +2070,21 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 51232.98823845023,
     "pnlCost": -0.62,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50916.01,
+      "priceClose": 49999.52,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50916.01,
+      "priceClose": 51527,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1545,7 +2119,21 @@
     "pnlPriceOpen": 50916.01,
     "pnlPriceClose": 50916.01,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50916.01,
+      "priceClose": 49999.52,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50916.01,
+      "priceClose": 51527,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1582,7 +2170,21 @@
     "pnlPriceOpen": 51616.71,
     "pnlPriceClose": 51771.80443655523,
     "pnlCost": -0.1,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51616.71,
+      "priceClose": 52545.81,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51616.71,
+      "priceClose": 50997.31,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -1618,7 +2220,21 @@
     "pnlPriceOpen": 51616.71,
     "pnlPriceClose": 51776.13314720883,
     "pnlCost": 0.31,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51616.71,
+      "priceClose": 52545.81,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51616.71,
+      "priceClose": 50997.31,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1653,7 +2269,21 @@
     "pnlPriceOpen": 51616.71,
     "pnlPriceClose": 51616.71,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51616.71,
+      "priceClose": 52545.81,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51616.71,
+      "priceClose": 50997.31,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1690,7 +2320,21 @@
     "pnlPriceOpen": 51620.87,
     "pnlPriceClose": 51588.20405345147,
     "pnlCost": -0.46,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51620.87,
+      "priceClose": 52550.05,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51620.87,
+      "priceClose": 51001.42,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -1726,7 +2370,21 @@
     "pnlPriceOpen": 51620.87,
     "pnlPriceClose": 51497.72660877685,
     "pnlCost": -0.24,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51620.87,
+      "priceClose": 52550.05,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51620.87,
+      "priceClose": 51001.42,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1761,7 +2419,21 @@
     "pnlPriceOpen": 51620.87,
     "pnlPriceClose": 51620.87,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51620.87,
+      "priceClose": 52550.05,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51620.87,
+      "priceClose": 51001.42,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1798,7 +2470,21 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51503.80803850643,
     "pnlCost": -0.63,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51385.34,
+      "priceClose": 50460.4,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51385.34,
+      "priceClose": 52001.96,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -1834,7 +2520,21 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51488.71366372467,
     "pnlCost": -0.2,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51385.34,
+      "priceClose": 50460.4,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51385.34,
+      "priceClose": 52001.96,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -1869,7 +2569,21 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51385.34,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51385.34,
+      "priceClose": 50460.4,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51385.34,
+      "priceClose": 52001.96,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -1904,7 +2618,21 @@
     "pnlPriceOpen": 51385.34,
     "pnlPriceClose": 51363.58111709624,
     "pnlCost": 0.04,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51385.34,
+      "priceClose": 50460.4,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51385.34,
+      "priceClose": 52001.96,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -1941,7 +2669,21 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51363.58111709624,
     "pnlCost": -1.2,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50957.94,
+      "priceClose": 50040.7,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50957.94,
+      "priceClose": 51569.44,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -1977,7 +2719,21 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51265.80381142919,
     "pnlCost": -0.6,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50957.94,
+      "priceClose": 50040.7,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50957.94,
+      "priceClose": 51569.44,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -2013,7 +2769,21 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51184.31465517547,
     "pnlCost": -0.44,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50957.94,
+      "priceClose": 50040.7,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50957.94,
+      "priceClose": 51569.44,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -2049,7 +2819,21 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 51074.460187261786,
     "pnlCost": -0.23,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50957.94,
+      "priceClose": 50040.7,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50957.94,
+      "priceClose": 51569.44,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2084,7 +2868,21 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 50957.94,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50957.94,
+      "priceClose": 50040.7,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50957.94,
+      "priceClose": 51569.44,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -2119,7 +2917,21 @@
     "pnlPriceOpen": 50957.94,
     "pnlPriceClose": 50940.64023284996,
     "pnlCost": 0.03,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 50957.94,
+      "priceClose": 50040.7,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 50957.94,
+      "priceClose": 51569.44,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -2156,7 +2968,21 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51614.11386594473,
     "pnlCost": -0.04,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51800,
+      "priceClose": 50867.6,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51800,
+      "priceClose": 52421.6,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -2192,7 +3018,21 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51629.19460888641,
     "pnlCost": 0.33,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51800,
+      "priceClose": 50867.6,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51800,
+      "priceClose": 52421.6,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2227,7 +3067,21 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51800,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51800,
+      "priceClose": 50867.6,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51800,
+      "priceClose": 52421.6,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -2262,7 +3116,21 @@
     "pnlPriceOpen": 51800,
     "pnlPriceClose": 51790.73439011578,
     "pnlCost": 0.02,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51800,
+      "priceClose": 50867.6,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51800,
+      "priceClose": 52421.6,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -2299,7 +3167,21 @@
     "pnlPriceOpen": 51822.13,
     "pnlPriceClose": 51790.73439011578,
     "pnlCost": -0.34,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51822.13,
+      "priceClose": 50889.33,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51822.13,
+      "priceClose": 52444,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -2335,7 +3217,21 @@
     "pnlPriceOpen": 51822.13,
     "pnlPriceClose": 51947.95924540789,
     "pnlCost": -0.24,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51822.13,
+      "priceClose": 50889.33,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51822.13,
+      "priceClose": 52444,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2370,7 +3266,21 @@
     "pnlPriceOpen": 51822.13,
     "pnlPriceClose": 51822.13,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 51822.13,
+      "priceClose": 50889.33,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 51822.13,
+      "priceClose": 52444,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -2407,7 +3317,21 @@
     "pnlPriceOpen": 52427.32,
     "pnlPriceClose": 52368.40183391254,
     "pnlCost": -0.51,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52427.32,
+      "priceClose": 53371.01,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52427.32,
+      "priceClose": 51798.19,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -2443,7 +3367,21 @@
     "pnlPriceOpen": 52427.32,
     "pnlPriceClose": 52237.10842426467,
     "pnlCost": -0.36,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52427.32,
+      "priceClose": 53371.01,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52427.32,
+      "priceClose": 51798.19,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2478,7 +3416,21 @@
     "pnlPriceOpen": 52427.32,
     "pnlPriceClose": 52427.32,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52427.32,
+      "priceClose": 53371.01,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52427.32,
+      "priceClose": 51798.19,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -2515,7 +3467,21 @@
     "pnlPriceOpen": 52357.01,
     "pnlPriceClose": 52224.491188523825,
     "pnlCost": -0.65,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52357.01,
+      "priceClose": 53299.44,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52357.01,
+      "priceClose": 51728.73,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -2551,7 +3517,21 @@
     "pnlPriceOpen": 52357.01,
     "pnlPriceClose": 52251.403048889675,
     "pnlCost": -0.2,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52357.01,
+      "priceClose": 53299.44,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52357.01,
+      "priceClose": 51728.73,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2586,7 +3566,21 @@
     "pnlPriceOpen": 52357.01,
     "pnlPriceClose": 52357.01,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52357.01,
+      "priceClose": 53299.44,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52357.01,
+      "priceClose": 51728.73,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -2623,7 +3617,21 @@
     "pnlPriceOpen": 52200.01,
     "pnlPriceClose": 52359.88169848502,
     "pnlCost": -0.09,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52200.01,
+      "priceClose": 53139.61,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52200.01,
+      "priceClose": 51573.61,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2658,7 +3666,21 @@
     "pnlPriceOpen": 52200.01,
     "pnlPriceClose": 52200.01,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52200.01,
+      "priceClose": 53139.61,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52200.01,
+      "priceClose": 51573.61,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -2693,7 +3715,21 @@
     "pnlPriceOpen": 52200.01,
     "pnlPriceClose": 52214.10540623115,
     "pnlCost": 0.03,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52200.01,
+      "priceClose": 53139.61,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52200.01,
+      "priceClose": 51573.61,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -2730,7 +3766,21 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52214.10540623115,
     "pnlCost": -0.14,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52078,
+      "priceClose": 53015.4,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52078,
+      "priceClose": 51453.06,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -2766,7 +3816,21 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52237.88281979302,
     "pnlCost": 0.31,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52078,
+      "priceClose": 53015.4,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52078,
+      "priceClose": 51453.06,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2801,7 +3865,21 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52078,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52078,
+      "priceClose": 53015.4,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52078,
+      "priceClose": 51453.06,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -2836,7 +3914,21 @@
     "pnlPriceOpen": 52078,
     "pnlPriceClose": 52128.187391537096,
     "pnlCost": 0.1,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 52078,
+      "priceClose": 53015.4,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 52078,
+      "priceClose": 51453.06,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -2873,7 +3965,21 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49773.090233467585,
     "pnlCost": 0.01,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 49568.01,
+      "priceClose": 50460.23,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 49568.01,
+      "priceClose": 48973.19,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -2909,7 +4015,21 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49723.87861223433,
     "pnlCost": 0.31,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 49568.01,
+      "priceClose": 50460.23,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 49568.01,
+      "priceClose": 48973.19,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -2944,7 +4064,21 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49568.01,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 49568.01,
+      "priceClose": 50460.23,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 49568.01,
+      "priceClose": 48973.19,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -2979,7 +4113,21 @@
     "pnlPriceOpen": 49568.01,
     "pnlPriceClose": 49606.85203357287,
     "pnlCost": 0.08,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 49568.01,
+      "priceClose": 50460.23,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 49568.01,
+      "priceClose": 48973.19,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3016,7 +4164,21 @@
     "pnlPriceOpen": 49524.64,
     "pnlPriceClose": 49606.85203357287,
     "pnlCost": -0.23,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 49524.64,
+      "priceClose": 50416.08,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 49524.64,
+      "priceClose": 48930.34,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -3051,7 +4213,21 @@
     "pnlPriceOpen": 49524.64,
     "pnlPriceClose": 49524.64,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 49524.64,
+      "priceClose": 50416.08,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 49524.64,
+      "priceClose": 48930.34,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -3086,7 +4262,21 @@
     "pnlPriceOpen": 49524.64,
     "pnlPriceClose": 49526.347967362584,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 49524.64,
+      "priceClose": 50416.08,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 49524.64,
+      "priceClose": 48930.34,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3123,7 +4313,21 @@
     "pnlPriceOpen": 47880.92,
     "pnlPriceClose": 47974.67761803693,
     "pnlCost": -0.6,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 47880.92,
+      "priceClose": 47019.06,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 47880.92,
+      "priceClose": 48455.49,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -3159,7 +4363,21 @@
     "pnlPriceOpen": 47880.92,
     "pnlPriceClose": 47987.58254913077,
     "pnlCost": -0.22,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 47880.92,
+      "priceClose": 47019.06,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 47880.92,
+      "priceClose": 48455.49,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -3194,7 +4412,21 @@
     "pnlPriceOpen": 47880.92,
     "pnlPriceClose": 47880.92,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 47880.92,
+      "priceClose": 47019.06,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 47880.92,
+      "priceClose": 48455.49,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3231,7 +4463,21 @@
     "pnlPriceOpen": 48114.01,
     "pnlPriceClose": 47986.34632448641,
     "pnlCost": -0.13,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 48114.01,
+      "priceClose": 47247.96,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 48114.01,
+      "priceClose": 48691.38,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -3266,7 +4512,21 @@
     "pnlPriceOpen": 48114.01,
     "pnlPriceClose": 48114.01,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 48114.01,
+      "priceClose": 47247.96,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 48114.01,
+      "priceClose": 48691.38,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3303,7 +4563,21 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48415.761194629704,
     "pnlCost": -0.79,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48604,
+      "priceClose": 49478.87,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48604,
+      "priceClose": 48020.75,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -3339,7 +4613,21 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48404.513339379286,
     "pnlCost": -0.41,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48604,
+      "priceClose": 49478.87,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48604,
+      "priceClose": 48020.75,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -3375,7 +4663,21 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48504.481680080266,
     "pnlCost": -0.2,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48604,
+      "priceClose": 49478.87,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48604,
+      "priceClose": 48020.75,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -3410,7 +4712,21 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48604,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48604,
+      "priceClose": 49478.87,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48604,
+      "priceClose": 48020.75,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -3445,7 +4761,21 @@
     "pnlPriceOpen": 48604,
     "pnlPriceClose": 48615.39414973843,
     "pnlCost": 0.02,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48604,
+      "priceClose": 49478.87,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48604,
+      "priceClose": 48020.75,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3482,7 +4812,21 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48615.39414973843,
     "pnlCost": 0.25,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48299.99,
+      "priceClose": 49169.39,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48299.99,
+      "priceClose": 47720.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -3518,7 +4862,21 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48591.647004992425,
     "pnlCost": 0.6,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48299.99,
+      "priceClose": 49169.39,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48299.99,
+      "priceClose": 47720.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "breakeven.available",
@@ -3553,7 +4911,21 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48591.647004992425,
     "pnlCost": 0.6,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48299.99,
+      "priceClose": 49169.39,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48299.99,
+      "priceClose": 47720.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -3589,7 +4961,21 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48480.640286992624,
     "pnlCost": 0.37,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48299.99,
+      "priceClose": 49169.39,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48299.99,
+      "priceClose": 47720.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -3625,7 +5011,21 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48167.01001433432,
     "pnlCost": -0.28,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48299.99,
+      "priceClose": 49169.39,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48299.99,
+      "priceClose": 47720.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -3660,7 +5060,21 @@
     "pnlPriceOpen": 48299.99,
     "pnlPriceClose": 48299.99,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48299.99,
+      "priceClose": 49169.39,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48299.99,
+      "priceClose": 47720.39,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3697,7 +5111,21 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48119.34714871467,
     "pnlCost": -0.74,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48284,
+      "priceClose": 49153.11,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48284,
+      "priceClose": 47704.59,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -3733,7 +5161,21 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48180.51668356712,
     "pnlCost": -0.21,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48284,
+      "priceClose": 49153.11,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48284,
+      "priceClose": 47704.59,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -3768,7 +5210,21 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48284,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48284,
+      "priceClose": 49153.11,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48284,
+      "priceClose": 47704.59,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -3803,7 +5259,21 @@
     "pnlPriceOpen": 48284,
     "pnlPriceClose": 48299.63674674899,
     "pnlCost": 0.03,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48284,
+      "priceClose": 49153.11,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48284,
+      "priceClose": 47704.59,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3840,7 +5310,21 @@
     "pnlPriceOpen": 48282.22,
     "pnlPriceClose": 48299.63674674899,
     "pnlCost": -0.36,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48282.22,
+      "priceClose": 49151.3,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48282.22,
+      "priceClose": 47702.83,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -3876,7 +5360,21 @@
     "pnlPriceOpen": 48282.22,
     "pnlPriceClose": 48165.432533539046,
     "pnlCost": -0.24,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48282.22,
+      "priceClose": 49151.3,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48282.22,
+      "priceClose": 47702.83,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -3911,7 +5409,21 @@
     "pnlPriceOpen": 48282.22,
     "pnlPriceClose": 48282.22,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 48282.22,
+      "priceClose": 49151.3,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 48282.22,
+      "priceClose": 47702.83,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -3948,7 +5460,21 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47770.70350025848,
     "pnlCost": 0.43,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47377.98,
+      "priceClose": 48230.78,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47377.98,
+      "priceClose": 46809.44,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -3984,7 +5510,21 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47700.222651160446,
     "pnlCost": 0.68,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47377.98,
+      "priceClose": 48230.78,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47377.98,
+      "priceClose": 46809.44,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "breakeven.available",
@@ -4019,7 +5559,21 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47700.222651160446,
     "pnlCost": 0.68,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47377.98,
+      "priceClose": 48230.78,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47377.98,
+      "priceClose": 46809.44,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -4055,7 +5609,21 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47521.97894283117,
     "pnlCost": 0.3,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47377.98,
+      "priceClose": 48230.78,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47377.98,
+      "priceClose": 46809.44,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -4091,7 +5659,21 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47249.33259419059,
     "pnlCost": -0.27,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47377.98,
+      "priceClose": 48230.78,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47377.98,
+      "priceClose": 46809.44,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4126,7 +5708,21 @@
     "pnlPriceOpen": 47377.98,
     "pnlPriceClose": 47377.98,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47377.98,
+      "priceClose": 48230.78,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47377.98,
+      "priceClose": 46809.44,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4163,7 +5759,21 @@
     "pnlPriceOpen": 47378.01,
     "pnlPriceClose": 47254.59506687113,
     "pnlCost": -0.66,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47378.01,
+      "priceClose": 48230.81,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47378.01,
+      "priceClose": 46809.47,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -4199,7 +5809,21 @@
     "pnlPriceOpen": 47378.01,
     "pnlPriceClose": 47202.518127277806,
     "pnlCost": -0.37,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47378.01,
+      "priceClose": 48230.81,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47378.01,
+      "priceClose": 46809.47,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4234,7 +5858,21 @@
     "pnlPriceOpen": 47378.01,
     "pnlPriceClose": 47378.01,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 47378.01,
+      "priceClose": 48230.81,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 47378.01,
+      "priceClose": 46809.47,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4271,7 +5909,21 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 45119.308804858745,
     "pnlCost": -0.54,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 45181.99,
+      "priceClose": 45995.27,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 45181.99,
+      "priceClose": 44639.81,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -4307,7 +5959,21 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 44970.67899904455,
     "pnlCost": -0.47,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 45181.99,
+      "priceClose": 45995.27,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 45181.99,
+      "priceClose": 44639.81,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -4343,7 +6009,21 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 44970.67899904455,
     "pnlCost": -0.47,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 45181.99,
+      "priceClose": 45995.27,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 45181.99,
+      "priceClose": 44639.81,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4378,7 +6058,21 @@
     "pnlPriceOpen": 45181.99,
     "pnlPriceClose": 45181.99,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 45181.99,
+      "priceClose": 45995.27,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 45181.99,
+      "priceClose": 44639.81,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4415,7 +6109,21 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44970.07948879169,
     "pnlCost": -0.02,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44799.45,
+      "priceClose": 45605.84,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44799.45,
+      "priceClose": 44261.86,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_profit.available",
@@ -4451,7 +6159,21 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44947.87126421306,
     "pnlCost": 0.33,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44799.45,
+      "priceClose": 45605.84,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44799.45,
+      "priceClose": 44261.86,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -4487,7 +6209,21 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44700.93075689441,
     "pnlCost": -0.22,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44799.45,
+      "priceClose": 45605.84,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44799.45,
+      "priceClose": 44261.86,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4522,7 +6258,21 @@
     "pnlPriceOpen": 44799.45,
     "pnlPriceClose": 44799.45,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44799.45,
+      "priceClose": 45605.84,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44799.45,
+      "priceClose": 44261.86,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4559,7 +6309,21 @@
     "pnlPriceOpen": 44624.15,
     "pnlPriceClose": 44699.067574011075,
     "pnlCost": -0.23,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44624.15,
+      "priceClose": 45427.38,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44624.15,
+      "priceClose": 44088.66,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4594,7 +6358,21 @@
     "pnlPriceOpen": 44624.15,
     "pnlPriceClose": 44624.15,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44624.15,
+      "priceClose": 45427.38,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44624.15,
+      "priceClose": 44088.66,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -4629,7 +6407,21 @@
     "pnlPriceOpen": 44624.15,
     "pnlPriceClose": 44718.045209230186,
     "pnlCost": 0.21,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44624.15,
+      "priceClose": 45427.38,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44624.15,
+      "priceClose": 44088.66,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4666,7 +6458,21 @@
     "pnlPriceOpen": 44614.48,
     "pnlPriceClose": 44718.045209230186,
     "pnlCost": -0.17,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44614.48,
+      "priceClose": 45417.54,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44614.48,
+      "priceClose": 44079.11,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4701,7 +6507,21 @@
     "pnlPriceOpen": 44614.48,
     "pnlPriceClose": 44614.48,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 44614.48,
+      "priceClose": 45417.54,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 44614.48,
+      "priceClose": 44079.11,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4738,7 +6558,21 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 43097.72901789697,
     "pnlCost": -0.77,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 42939.71,
+      "priceClose": 42166.8,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 42939.71,
+      "priceClose": 43454.99,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "partial_loss.available",
@@ -4774,7 +6608,21 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 43027.803603820954,
     "pnlCost": -0.21,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 42939.71,
+      "priceClose": 42166.8,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 42939.71,
+      "priceClose": 43454.99,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4809,7 +6657,21 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 42939.71,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 42939.71,
+      "priceClose": 42166.8,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 42939.71,
+      "priceClose": 43454.99,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -4844,7 +6706,21 @@
     "pnlPriceOpen": 42939.71,
     "pnlPriceClose": 42917.28753843722,
     "pnlCost": 0.05,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 42939.71,
+      "priceClose": 42166.8,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 42939.71,
+      "priceClose": 43454.99,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4881,7 +6757,21 @@
     "pnlPriceOpen": 42969.86,
     "pnlPriceClose": 42917.28753843722,
     "pnlCost": -0.28,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 42969.86,
+      "priceClose": 42196.4,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 42969.86,
+      "priceClose": 43485.5,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -4916,7 +6806,21 @@
     "pnlPriceOpen": 42969.86,
     "pnlPriceClose": 42969.86,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 42969.86,
+      "priceClose": 42196.4,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 42969.86,
+      "priceClose": 43485.5,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -4951,7 +6855,21 @@
     "pnlPriceOpen": 42969.86,
     "pnlPriceClose": 42880.56728618986,
     "pnlCost": 0.21,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": -1.8,
+      "priceOpen": 42969.86,
+      "priceClose": 42196.4,
+      "pnlCost": -1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": 1.2,
+      "priceOpen": 42969.86,
+      "priceClose": 43485.5,
+      "pnlCost": 1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -4988,7 +6906,21 @@
     "pnlPriceOpen": 43148.41,
     "pnlPriceClose": 43128.18457831416,
     "pnlCost": -0.45,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 43148.41,
+      "priceClose": 43925.08,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 43148.41,
+      "priceClose": 42630.63,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -5023,7 +6955,21 @@
     "pnlPriceOpen": 43148.41,
     "pnlPriceClose": 43148.41,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 43148.41,
+      "priceClose": 43925.08,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 43148.41,
+      "priceClose": 42630.63,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.scheduled",
@@ -5058,7 +7004,21 @@
     "pnlPriceOpen": 43148.41,
     "pnlPriceClose": 43157.55515625796,
     "pnlCost": 0.02,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 43148.41,
+      "priceClose": 43925.08,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 43148.41,
+      "priceClose": 42630.63,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.closed",
@@ -5095,7 +7055,21 @@
     "pnlPriceOpen": 43122.48,
     "pnlPriceClose": 43157.55515625796,
     "pnlCost": -0.32,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 43122.48,
+      "priceClose": 43898.68,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 43122.48,
+      "priceClose": 42605.01,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.opened",
@@ -5130,7 +7104,21 @@
     "pnlPriceOpen": 43122.48,
     "pnlPriceClose": 43122.48,
     "pnlCost": 0,
-    "pnlEntries": 100
+    "pnlEntries": 100,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 43122.48,
+      "priceClose": 43898.68,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 43122.48,
+      "priceClose": 42605.01,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   },
   {
     "type": "signal.info",
@@ -5142,31 +7130,45 @@
     "exchangeName": "binance_exchange",
     "signalId": "a1b2c3d4-5678-4000-a0b1-c2d3e4f5a6b7",
     "notificationId": "msg-telegram-42",
-    "currentPrice": 52340.0,
+    "currentPrice": 52340,
     "position": "long",
-    "priceOpen": 51900.0,
-    "priceTakeProfit": 53457.0,
-    "priceStopLoss": 50862.0,
-    "originalPriceTakeProfit": 53457.0,
-    "originalPriceStopLoss": 50862.0,
-    "originalPriceOpen": 51900.0,
+    "priceOpen": 51900,
+    "priceTakeProfit": 53457,
+    "priceStopLoss": 50862,
+    "originalPriceTakeProfit": 53457,
+    "originalPriceStopLoss": 50862,
+    "originalPriceOpen": 51900,
     "totalEntries": 1,
     "totalPartials": 0,
     "pnl": {
       "pnlPercentage": 0.85,
-      "priceOpen": 51900.0,
-      "priceClose": 52340.0,
+      "priceOpen": 51900,
+      "priceClose": 52340,
       "pnlCost": 0.85,
       "pnlEntries": 100
     },
     "pnlPercentage": 0.85,
-    "pnlPriceOpen": 51900.0,
-    "pnlPriceClose": 52340.0,
+    "pnlPriceOpen": 51900,
+    "pnlPriceClose": 52340,
     "pnlCost": 0.85,
     "pnlEntries": 100,
     "note": "RSI crossed 70 — consider partial close",
     "scheduledAt": 1708876600000,
     "pendingAt": 1708876700000,
-    "createdAt": 1708877200000
+    "createdAt": 1708877200000,
+    "peakProfit": {
+      "pnlPercentage": 1.8,
+      "priceOpen": 51900,
+      "priceClose": 52834.2,
+      "pnlCost": 1.8,
+      "pnlEntries": 100
+    },
+    "maxDrawdown": {
+      "pnlPercentage": -1.2,
+      "priceOpen": 51900,
+      "priceClose": 51277.2,
+      "pnlCost": -1.2,
+      "pnlEntries": 100
+    }
   }
 ]
