@@ -1,7 +1,9 @@
-import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
+import { TypedField, FieldType, dayjs, CopyButton, copyToClipboard } from "react-declarative";
 import { Box } from "@mui/material";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
+import { CopyAll } from "@mui/icons-material";
+import ioc from "../lib";
 
 export const signal_fields: TypedField[] = [
     {
@@ -110,6 +112,12 @@ export const signal_fields: TypedField[] = [
                         title: "Signal ID",
                         readonly: true,
                         compute: (obj) => obj.id || "Not specified",
+                        trailingIcon: CopyAll,
+                        trailingIconClick: async (id) => { 
+                            if (await copyToClipboard(id as string)) {
+                                ioc.alertService.notify("Copied!");
+                            }
+                        },
                     },
                 ],
             },
