@@ -496,13 +496,13 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
     : 0;
   const totalEntries = ("_entry" in signal && Array.isArray(signal._entry))
     ? signal._entry.length
-    : 0;
+    : type === "scheduled" ? 0 : 1;
   const totalPartials = ("_partial" in signal && Array.isArray(signal._partial))
     ? signal._partial.length
     : 0;
   const pnl = type === "scheduled" ? ZERO_PNL : toProfitLossDto(signal as ISignalRow, currentPrice);
-  const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? toProfitLossDto(signal, signal._fall.price) : pnl);
-  const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? toProfitLossDto(signal, signal._peak.price) : pnl);
+  const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? !!signal["_fall"] ? toProfitLossDto(signal, signal._fall.price) : ZERO_PNL : ZERO_PNL);
+  const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? signal["_peak"] ? toProfitLossDto(signal, signal._peak.price) : ZERO_PNL : ZERO_PNL);
   const effectivePriceOpen = "_entry" in signal ? GET_EFFECTIVE_PRICE_OPEN(signal): signal.priceOpen;
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
@@ -2211,7 +2211,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
   ): Promise<boolean> => {
     return await ExecutionContextService.runInContext(async () => {
       return await self.params.risk.checkSignal({
-        currentSignal: TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice),
+        currentSignal: TO_PUBLIC_SIGNAL("scheduled", pendingSignal, currentPrice),
         symbol: symbol,
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,
@@ -3639,7 +3639,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           signalId: activatedSignal.id,
         });
         await self.setScheduledSignal(null);
-        const publicSignal = TO_PUBLIC_SIGNAL("pending", activatedSignal, averagePrice);
+        const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
         await CALL_COMMIT_FN(self, {
           action: "cancel-scheduled",
           symbol: self.params.execution.context.symbol,
@@ -5432,7 +5432,7 @@ export class ClientStrategy implements IStrategy {
           signalId: activatedSignal.id,
         });
         await this.setScheduledSignal(null);
-        const publicSignal = TO_PUBLIC_SIGNAL("pending", activatedSignal, currentPrice);
+        const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, currentPrice);
         await CALL_COMMIT_FN(this, {
           action: "cancel-scheduled",
           symbol: this.params.execution.context.symbol,
