@@ -31,6 +31,7 @@ import {
   StrategyCancelReason,
   ICommitRow,
   CommitPayload,
+  IStrategyPnL,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
@@ -97,7 +98,7 @@ const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
     pendingSignal: ISignalRow,
     self: ClientStrategy
   ): Promise<boolean> => {
-    const publicSignal = TO_PUBLIC_SIGNAL(pendingSignal, currentPrice);
+    const publicSignal = TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice);
     const pnl = toProfitLossDto(pendingSignal, currentPrice);
     return await self.params.onSignalSync({
       action: "signal-open",
@@ -148,7 +149,7 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
     signal: ISignalRow,
     self: ClientStrategy
   ): Promise<boolean> => {
-    const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+    const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
     const pnl = toProfitLossDto(signal, currentPrice);
     return await self.params.onSignalSync({
       action: "signal-close",
@@ -243,7 +244,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
   }
 
   // Get public signal data for commit events (contains effective and original SL/TP)
-  const publicSignal = TO_PUBLIC_SIGNAL(self._pendingSignal, currentPrice);
+  const publicSignal = TO_PUBLIC_SIGNAL("pending", self._pendingSignal, currentPrice);
 
   for (const commit of queue) {
     if (commit.action === "partial-profit") {
@@ -483,7 +484,9 @@ const PROCESS_COMMIT_QUEUE_FN = async (
  * // publicSignal._trailingPriceTakeProfit = undefined (hidden from external API)
  * ```
  */
-const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRow>(signal: T, currentPrice: number): IPublicSignalRow => {
+const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, pnlCost: 0, pnlEntries: 0 };
+
+const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRow>(type: "pending" | "scheduled", signal: T, currentPrice: number): IPublicSignalRow => {
   const hasTrailingSL = "_trailingPriceStopLoss" in signal && signal._trailingPriceStopLoss !== undefined;
   const hasTrailingTP = "_trailingPriceTakeProfit" in signal && signal._trailingPriceTakeProfit !== undefined;
   const partialExecuted = "_partial" in signal
@@ -495,9 +498,9 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
   const totalPartials = ("_partial" in signal && Array.isArray(signal._partial))
     ? signal._partial.length
     : 0;
-  const pnl = toProfitLossDto(signal as ISignalRow, currentPrice);
-  const maxDrawdown = "_fall" in signal ? toProfitLossDto(signal, signal._fall.price) : pnl;
-  const peakProfit = "_peak" in signal ? toProfitLossDto(signal, signal._peak.price) : pnl;
+  const pnl = type === "scheduled" ? ZERO_PNL : toProfitLossDto(signal as ISignalRow, currentPrice);
+  const maxDrawdown = type === "scheduled" ? ZERO_PNL : ("_fall" in signal ? toProfitLossDto(signal, signal._fall.price) : pnl);
+  const peakProfit = type === "scheduled" ? ZERO_PNL : ("_peak" in signal ? toProfitLossDto(signal, signal._peak.price) : pnl);
   const effectivePriceOpen = "_entry" in signal ? GET_EFFECTIVE_PRICE_OPEN(signal): signal.priceOpen;
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
@@ -1420,7 +1423,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: TO_PUBLIC_SIGNAL(scheduled, currentPrice),
+    signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice),
     currentPrice: currentPrice,
     closeTimestamp: currentTime,
     strategyName: self.params.method.context.strategyName,
@@ -1507,7 +1510,7 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: TO_PUBLIC_SIGNAL(scheduled, currentPrice),
+    signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice),
     currentPrice: currentPrice,
     closeTimestamp: currentTime,
     strategyName: self.params.method.context.strategyName,
@@ -1618,7 +1621,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       pnl: toProfitLossDto(scheduled, scheduled.priceOpen),
       maxDrawdown: toProfitLossDto(scheduled, scheduled.priceOpen),
       peakProfit: toProfitLossDto(scheduled, scheduled.priceOpen),
-      signal: TO_PUBLIC_SIGNAL(scheduled, scheduled.priceOpen),
+      signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen),
       note: scheduled.note,
     });
     return null;
@@ -1647,7 +1650,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
-    signal: TO_PUBLIC_SIGNAL(self._pendingSignal, self._pendingSignal.priceOpen),
+    signal: TO_PUBLIC_SIGNAL("pending", self._pendingSignal, self._pendingSignal.priceOpen),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -1678,7 +1681,7 @@ const CALL_SCHEDULE_PING_CALLBACKS_FN = trycatch(
     currentPrice: number,
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      const publicSignal = TO_PUBLIC_SIGNAL(scheduled, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice);
 
       // Call system onSchedulePing callback first (emits to pingSubject)
       await self.params.onSchedulePing(
@@ -1730,7 +1733,7 @@ const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
     currentPrice: number,
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      const publicSignal = TO_PUBLIC_SIGNAL(pending, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", pending, currentPrice);
 
       // Call system onActivePing callback first (emits to activePingSubject)
       await self.params.onActivePing(
@@ -1821,7 +1824,7 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onActive) {
-        const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+        const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
         await self.params.callbacks.onActive(
           self.params.execution.context.symbol,
           publicSignal,
@@ -1860,7 +1863,7 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onSchedule) {
-        const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+        const publicSignal = TO_PUBLIC_SIGNAL("scheduled", signal, currentPrice);
         await self.params.callbacks.onSchedule(
           self.params.execution.context.symbol,
           publicSignal,
@@ -1899,7 +1902,7 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onCancel) {
-        const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+        const publicSignal = TO_PUBLIC_SIGNAL("scheduled", signal, currentPrice);
         await self.params.callbacks.onCancel(
           self.params.execution.context.symbol,
           publicSignal,
@@ -1938,7 +1941,7 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onOpen) {
-        const publicSignal = TO_PUBLIC_SIGNAL(signal, priceOpen);
+        const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, priceOpen);
         await self.params.callbacks.onOpen(
           self.params.execution.context.symbol,
           publicSignal,
@@ -1977,7 +1980,7 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onClose) {
-        const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+        const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
         await self.params.callbacks.onClose(
           self.params.execution.context.symbol,
           publicSignal,
@@ -2167,7 +2170,7 @@ const CALL_PARTIAL_CLEAR_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
       await self.params.partial.clear(
         symbol,
         publicSignal,
@@ -2205,7 +2208,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
   ): Promise<boolean> => {
     return await ExecutionContextService.runInContext(async () => {
       return await self.params.risk.checkSignal({
-        currentSignal: TO_PUBLIC_SIGNAL(pendingSignal, currentPrice),
+        currentSignal: TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice),
         symbol: symbol,
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,
@@ -2246,7 +2249,7 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
       await self.params.partial.profit(
         symbol,
         publicSignal,
@@ -2295,7 +2298,7 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
       await self.params.partial.loss(
         symbol,
         publicSignal,
@@ -2343,7 +2346,7 @@ const CALL_BREAKEVEN_CHECK_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
       const isBreakeven = await self.params.breakeven.check(
         symbol,
         publicSignal,
@@ -2389,7 +2392,7 @@ const CALL_BREAKEVEN_CLEAR_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
       await self.params.breakeven.clear(
         symbol,
         publicSignal,
@@ -2427,7 +2430,7 @@ const CALL_BACKTEST_SCHEDULE_OPEN_FN = trycatch(
     await ExecutionContextService.runInContext(async () => {
       backtestScheduleOpenSubject.next({
         action: "opened",
-        signal: TO_PUBLIC_SIGNAL(signal, signal.priceOpen),
+        signal: TO_PUBLIC_SIGNAL("pending", signal, signal.priceOpen),
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,
         frameName: self.params.method.context.frameName,
@@ -2476,7 +2479,7 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
 
   const result: IStrategyTickResultWaiting = {
     action: "waiting",
-    signal: TO_PUBLIC_SIGNAL(scheduled, currentPrice),
+    signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice),
     currentPrice: currentPrice,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
@@ -2529,7 +2532,7 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
 
   const result: IStrategyTickResultScheduled = {
     action: "scheduled",
-    signal: TO_PUBLIC_SIGNAL(signal, currentPrice),
+    signal: TO_PUBLIC_SIGNAL("scheduled", signal, currentPrice),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -2606,7 +2609,7 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
-    signal: TO_PUBLIC_SIGNAL(signal, signal.priceOpen),
+    signal: TO_PUBLIC_SIGNAL("pending", signal, signal.priceOpen),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -2768,7 +2771,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
-    signal: TO_PUBLIC_SIGNAL(signal, currentPrice),
+    signal: TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
     currentPrice: currentPrice,
     closeReason: closeReason,
     closeTimestamp: currentTime,
@@ -2839,7 +2842,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentTp = Math.min(progressPercent, 100);
 
         if (currentPrice > signal._peak.price) {
-          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
@@ -2855,7 +2858,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.exchangeName,
           );
           await self.params.onHighestProfit(
-            TO_PUBLIC_SIGNAL(signal, currentPrice),
+            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
             currentPrice,
             currentTime,
           )
@@ -2877,7 +2880,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         if (currentPrice < signal._fall.price) {
-          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
@@ -2893,7 +2896,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.exchangeName,
           );
           await self.params.onMaxDrawdown(
-            TO_PUBLIC_SIGNAL(signal, currentPrice),
+            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
             currentPrice,
             currentTime,
           );
@@ -2932,7 +2935,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentTp = Math.min(progressPercent, 100);
 
         if (currentPrice < signal._peak.price) {
-          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
@@ -2948,7 +2951,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.exchangeName,
           );
           await self.params.onHighestProfit(
-            TO_PUBLIC_SIGNAL(signal, currentPrice),
+            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
             currentPrice,
             currentTime,
           )
@@ -2972,7 +2975,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         if (currentPrice > signal._fall.price) {
-          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
@@ -2988,7 +2991,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.exchangeName,
           );
           await self.params.onMaxDrawdown(
-            TO_PUBLIC_SIGNAL(signal, currentPrice),
+            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
             currentPrice,
             currentTime,
           );
@@ -3010,7 +3013,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
   const result: IStrategyTickResultActive = {
     action: "active",
-    signal: TO_PUBLIC_SIGNAL(signal, currentPrice),
+    signal: TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
     currentPrice: currentPrice,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
@@ -3120,7 +3123,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       pnl: toProfitLossDto(scheduled, averagePrice),
       maxDrawdown: toProfitLossDto(scheduled, averagePrice),
       peakProfit: toProfitLossDto(scheduled, averagePrice),
-      signal: TO_PUBLIC_SIGNAL(scheduled, averagePrice),
+      signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, averagePrice),
       note: cancelNote ?? scheduled.note,
     });
   }
@@ -3136,7 +3139,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: TO_PUBLIC_SIGNAL(scheduled, averagePrice),
+    signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, averagePrice),
     currentPrice: averagePrice,
     closeTimestamp: closeTimestamp,
     strategyName: self.params.method.context.strategyName,
@@ -3249,7 +3252,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       pnl: toProfitLossDto(scheduled, scheduled.priceOpen),
       maxDrawdown: toProfitLossDto(scheduled, scheduled.priceOpen),
       peakProfit: toProfitLossDto(scheduled, scheduled.priceOpen),
-      signal: TO_PUBLIC_SIGNAL(scheduled, scheduled.priceOpen),
+      signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen),
       note: scheduled.note,
     });
     return false;
@@ -3379,7 +3382,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
-    signal: TO_PUBLIC_SIGNAL(signal, averagePrice),
+    signal: TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
     currentPrice: averagePrice,
     closeReason: closeReason,
     closeTimestamp: closeTimestamp,
@@ -3448,7 +3451,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     pnl: toProfitLossDto(closedSignal, averagePrice),
     maxDrawdown: toProfitLossDto(closedSignal, closedSignal._fall.price),
     peakProfit: toProfitLossDto(closedSignal, closedSignal._peak.price),
-    signal: TO_PUBLIC_SIGNAL(closedSignal, averagePrice),
+    signal: TO_PUBLIC_SIGNAL("pending", closedSignal, averagePrice),
     note: closedSignal.closeNote ?? closedSignal.note,
   });
 
@@ -3490,7 +3493,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
-    signal: TO_PUBLIC_SIGNAL(closedSignal, averagePrice),
+    signal: TO_PUBLIC_SIGNAL("pending", closedSignal, averagePrice),
     currentPrice: averagePrice,
     closeReason: "closed",
     closeTimestamp,
@@ -3645,7 +3648,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           pnl: toProfitLossDto(activatedSignal, averagePrice),
           maxDrawdown: toProfitLossDto(activatedSignal, averagePrice),
           peakProfit: toProfitLossDto(activatedSignal, averagePrice),
-          signal: TO_PUBLIC_SIGNAL(activatedSignal, averagePrice),
+          signal: TO_PUBLIC_SIGNAL("pending", activatedSignal, averagePrice),
           note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return { outcome: "pending" };
@@ -3664,7 +3667,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       );
 
       // Emit commit AFTER successful risk check
-      const publicSignalForCommit = TO_PUBLIC_SIGNAL(pendingSignal, averagePrice);
+      const publicSignalForCommit = TO_PUBLIC_SIGNAL("pending", pendingSignal, averagePrice);
       await CALL_COMMIT_FN(self, {
         action: "activate-scheduled",
         symbol: self.params.execution.context.symbol,
@@ -3679,7 +3682,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         pnl: toProfitLossDto(pendingSignal, averagePrice),
         maxDrawdown: toProfitLossDto(pendingSignal, averagePrice),
         peakProfit: toProfitLossDto(pendingSignal, averagePrice),
-        signal: TO_PUBLIC_SIGNAL(pendingSignal, averagePrice),
+        signal: TO_PUBLIC_SIGNAL("pending", pendingSignal, averagePrice),
         position: publicSignalForCommit.position,
         priceOpen: publicSignalForCommit.priceOpen,
         priceTakeProfit: publicSignalForCommit.priceTakeProfit,
@@ -3927,7 +3930,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (currentDistance / tpDistance) * 100;
 
           if (averagePrice > signal._peak.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
@@ -3937,7 +3940,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               );
             }
             await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL(signal, averagePrice),
+              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
@@ -3958,7 +3961,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const slDistance = effectivePriceOpen - effectiveStopLoss;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           if (averagePrice < signal._fall.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
@@ -3968,7 +3971,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               );
             }
             await self.params.onMaxDrawdown(
-              TO_PUBLIC_SIGNAL(signal, averagePrice),
+              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
@@ -4006,7 +4009,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (currentDistance / tpDistance) * 100;
 
           if (averagePrice < signal._peak.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
@@ -4016,7 +4019,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               );
             }
             await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL(signal, averagePrice),
+              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
@@ -4039,7 +4042,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const slDistance = effectiveStopLoss - effectivePriceOpen;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           if (averagePrice > signal._fall.price) {
-            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
@@ -4049,7 +4052,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               );
             }
             await self.params.onMaxDrawdown(
-              TO_PUBLIC_SIGNAL(signal, averagePrice),
+              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
@@ -4079,7 +4082,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   if (signal.minuteEstimatedTime === Infinity) {
     const result: IStrategyTickResultActive = {
       action: "active",
-      signal: TO_PUBLIC_SIGNAL(signal, lastPrice),
+      signal: TO_PUBLIC_SIGNAL("pending", signal, lastPrice),
       currentPrice: lastPrice,
       strategyName: self.params.method.context.strategyName,
       exchangeName: self.params.method.context.exchangeName,
@@ -4309,7 +4312,7 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy getPendingSignal", {
       symbol,
     });
-    return this._pendingSignal ? TO_PUBLIC_SIGNAL(this._pendingSignal, currentPrice) : null;
+    return this._pendingSignal ? TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice) : null;
   }
 
   /**
@@ -4321,7 +4324,7 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy getScheduledSignal", {
       symbol,
     });
-    return this._scheduledSignal ? TO_PUBLIC_SIGNAL(this._scheduledSignal, currentPrice) : null;
+    return this._scheduledSignal ? TO_PUBLIC_SIGNAL("scheduled", this._scheduledSignal, currentPrice) : null;
   }
 
   /**
@@ -5205,7 +5208,7 @@ export class ClientStrategy implements IStrategy {
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
         maxDrawdown: toProfitLossDto(cancelledSignal, currentPrice),
         peakProfit: toProfitLossDto(cancelledSignal, currentPrice),
-        signal: TO_PUBLIC_SIGNAL(cancelledSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("scheduled", cancelledSignal, currentPrice),
         note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
@@ -5221,7 +5224,7 @@ export class ClientStrategy implements IStrategy {
 
       const result: IStrategyTickResultCancelled = {
         action: "cancelled",
-        signal: TO_PUBLIC_SIGNAL(cancelledSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("scheduled", cancelledSignal, currentPrice),
         currentPrice,
         closeTimestamp: currentTime,
         strategyName: this.params.method.context.strategyName,
@@ -5291,7 +5294,7 @@ export class ClientStrategy implements IStrategy {
         pnl: toProfitLossDto(closedSignal, currentPrice),
         maxDrawdown: toProfitLossDto(closedSignal, closedSignal._fall.price),
         peakProfit: toProfitLossDto(closedSignal, closedSignal._peak.price),
-        signal: TO_PUBLIC_SIGNAL(closedSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("pending", closedSignal, currentPrice),
         note: closedSignal.closeNote ?? closedSignal.note,
       });
 
@@ -5336,7 +5339,7 @@ export class ClientStrategy implements IStrategy {
 
       const result: IStrategyTickResultClosed = {
         action: "closed",
-        signal: TO_PUBLIC_SIGNAL(closedSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("pending", closedSignal, currentPrice),
         currentPrice,
         closeReason: "closed",
         closeTimestamp: currentTime,
@@ -5436,7 +5439,7 @@ export class ClientStrategy implements IStrategy {
           pnl: toProfitLossDto(activatedSignal, currentPrice),
           maxDrawdown: toProfitLossDto(activatedSignal, currentPrice),
           peakProfit: toProfitLossDto(activatedSignal, currentPrice),
-          signal: TO_PUBLIC_SIGNAL(activatedSignal, currentPrice),
+          signal: TO_PUBLIC_SIGNAL("pending", activatedSignal, currentPrice),
           note: activatedSignal.activateNote ?? activatedSignal.note,
         });
         return await RETURN_IDLE_FN(this, currentPrice);
@@ -5453,7 +5456,7 @@ export class ClientStrategy implements IStrategy {
       );
 
       // Emit commit AFTER successful risk check
-      const publicSignalForCommit = TO_PUBLIC_SIGNAL(pendingSignal, currentPrice);
+      const publicSignalForCommit = TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice);
       await CALL_COMMIT_FN(this, {
         action: "activate-scheduled",
         symbol: this.params.execution.context.symbol,
@@ -5468,7 +5471,7 @@ export class ClientStrategy implements IStrategy {
         pnl: toProfitLossDto(pendingSignal, currentPrice),
         maxDrawdown: toProfitLossDto(pendingSignal, currentPrice),
         peakProfit: toProfitLossDto(pendingSignal, currentPrice),
-        signal: TO_PUBLIC_SIGNAL(pendingSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice),
         position: publicSignalForCommit.position,
         priceOpen: publicSignalForCommit.priceOpen,
         priceTakeProfit: publicSignalForCommit.priceTakeProfit,
@@ -5495,7 +5498,7 @@ export class ClientStrategy implements IStrategy {
 
       const result: IStrategyTickResultOpened = {
         action: "opened",
-        signal: TO_PUBLIC_SIGNAL(pendingSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice),
         strategyName: this.params.method.context.strategyName,
         exchangeName: this.params.method.context.exchangeName,
         frameName: this.params.method.context.frameName,
@@ -5699,7 +5702,7 @@ export class ClientStrategy implements IStrategy {
         pnl: toProfitLossDto(cancelledSignal, currentPrice),
         maxDrawdown: toProfitLossDto(cancelledSignal, currentPrice),
         peakProfit: toProfitLossDto(cancelledSignal, currentPrice),
-        signal: TO_PUBLIC_SIGNAL(cancelledSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("scheduled", cancelledSignal, currentPrice),
         note: cancelledSignal.cancelNote ?? cancelledSignal.note,
       });
 
@@ -5714,7 +5717,7 @@ export class ClientStrategy implements IStrategy {
 
       const cancelledResult: IStrategyTickResultCancelled = {
         action: "cancelled",
-        signal: TO_PUBLIC_SIGNAL(cancelledSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("scheduled", cancelledSignal, currentPrice),
         currentPrice,
         closeTimestamp: closeTimestamp,
         strategyName: this.params.method.context.strategyName,
@@ -5790,7 +5793,7 @@ export class ClientStrategy implements IStrategy {
         pnl: toProfitLossDto(closedSignal, currentPrice),
         maxDrawdown: toProfitLossDto(closedSignal, closedSignal._fall.price),
         peakProfit: toProfitLossDto(closedSignal, closedSignal._peak.price),
-        signal: TO_PUBLIC_SIGNAL(closedSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("pending", closedSignal, currentPrice),
         note: closedSignal.closeNote ?? closedSignal.note,
       });
 
@@ -5834,7 +5837,7 @@ export class ClientStrategy implements IStrategy {
 
       const closedResult: IStrategyTickResultClosed = {
         action: "closed",
-        signal: TO_PUBLIC_SIGNAL(closedSignal, currentPrice),
+        signal: TO_PUBLIC_SIGNAL("pending", closedSignal, currentPrice),
         currentPrice,
         closeReason: "closed",
         closeTimestamp: closeTimestamp,
@@ -6438,7 +6441,7 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        TO_PUBLIC_SIGNAL(this._pendingSignal, currentPrice),
+        TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
         backtest
       );
     }
@@ -6667,7 +6670,7 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        TO_PUBLIC_SIGNAL(this._pendingSignal, currentPrice),
+        TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
         backtest
       );
     }
@@ -6888,7 +6891,7 @@ export class ClientStrategy implements IStrategy {
 
     // Call onWrite callback for testing persist storage
     if (this.params.callbacks?.onWrite) {
-      const publicSignal = TO_PUBLIC_SIGNAL(this._pendingSignal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice);
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
         publicSignal,
@@ -7180,7 +7183,7 @@ export class ClientStrategy implements IStrategy {
 
     // Call onWrite callback for testing persist storage
     if (this.params.callbacks?.onWrite) {
-      const publicSignal = TO_PUBLIC_SIGNAL(this._pendingSignal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice);
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
         publicSignal,
@@ -7459,7 +7462,7 @@ export class ClientStrategy implements IStrategy {
 
     // Call onWrite callback for testing persist storage
     if (this.params.callbacks?.onWrite) {
-      const publicSignal = TO_PUBLIC_SIGNAL(this._pendingSignal, currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice);
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
         publicSignal,
@@ -7585,7 +7588,7 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        TO_PUBLIC_SIGNAL(this._pendingSignal, currentPrice),
+        TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
         backtest
       );
     }

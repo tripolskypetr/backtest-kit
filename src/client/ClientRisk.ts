@@ -21,7 +21,7 @@ import { validationSubject, errorEmitter } from "../config/emitters";
 import { get } from "../utils/get";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { IRiskSignalRow, ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { IRiskSignalRow, ISignalRow, IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import alignToInterval from "../utils/alignToInterval";
@@ -33,12 +33,16 @@ type RiskMap = Map<string, IRiskActivePosition>;
 /** Symbol indicating that positions need to be fetched from persistence */
 const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
 
+/** Get timestamp from execution context or fallback to aligned current time */
 const GET_CONTEXT_TIMESTAMP_FN = (self: ClientRisk) => {
   if (ExecutionContextService.hasContext()) {
       return self.params.execution.context.when.getTime();
   }
   return alignToInterval(new Date(), "1m").getTime();
 }
+
+/** Zero PNL constant for scheduled signals (which don't have priceOpen or PNL yet) */
+const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, pnlCost: 0, pnlEntries: 0 };
 
 /**
  * Converts signal to risk validation format.
@@ -82,6 +86,9 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
   const partialExecuted = ("_partial" in signal && Array.isArray(signal._partial))
     ? signal._partial.reduce((sum, partial) => sum + partial.percent, 0)
     : 0;
+  const pnl = signal._isScheduled ? ZERO_PNL : toProfitLossDto(signal, currentPrice);
+  const maxDrawdown = signal._isScheduled ? ZERO_PNL : pnl;
+  const peakProfit = signal._isScheduled ? ZERO_PNL : pnl;
   return {
     ...structuredClone(signal) as ISignalRow,
     cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
@@ -95,9 +102,9 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
     originalPriceTakeProfit: signal.priceTakeProfit,
     originalPriceOpen: signal.priceOpen ?? currentPrice,
     partialExecuted,
-    pnl: toProfitLossDto(signal, currentPrice),
-    maxDrawdown: toProfitLossDto(signal, currentPrice),
-    peakProfit: toProfitLossDto(signal, currentPrice),
+    pnl,
+    maxDrawdown,
+    peakProfit,
   };
 };
 
