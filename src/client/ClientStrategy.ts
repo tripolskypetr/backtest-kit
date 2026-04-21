@@ -3938,7 +3938,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
           if (averagePrice > signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -3969,7 +3969,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -4017,7 +4017,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
           if (averagePrice < signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -4050,7 +4050,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: signal.priceOpen, priceClose: averagePrice };
+            signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
