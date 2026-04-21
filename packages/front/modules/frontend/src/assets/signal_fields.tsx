@@ -627,15 +627,6 @@ export const signal_fields: TypedField[] = [
                 isVisible: (data) => !!data.note,
             },
             {
-                type: FieldType.Div,
-                style: { display: "none" },
-                child: {
-                    type: FieldType.Text,
-                    name: "node_print",
-                    compute: ({ note }) => toPlainString(note),
-                }, 
-            },
-            {
                 type: FieldType.Outline,
                 isVisible: (data) => !!data.note,
                 sx: { mb: 3 },
@@ -650,6 +641,15 @@ export const signal_fields: TypedField[] = [
                               content={note}
                             />
                         ),
+                    },
+                    {
+                        type: FieldType.Div,
+                        style: { display: "none" },
+                        child: {
+                            type: FieldType.Text,
+                            name: "node_print",
+                            compute: ({ note }) => toPlainString(note),
+                        }, 
                     },
                 ],
             },

@@ -573,15 +573,6 @@ export const signal_scheduled_fields: TypedField[] = [
                 isVisible: (obj) => !!obj.note,
             },
             {
-                type: FieldType.Div,
-                style: { display: "none" },
-                child: {
-                    type: FieldType.Text,
-                    name: "node_print",
-                    compute: ({ note }) => toPlainString(note),
-                }, 
-            },
-            {
                 type: FieldType.Outline,
                 isVisible: (obj) => !!obj.note,
                 sx: { mb: 3 },
@@ -594,6 +585,15 @@ export const signal_scheduled_fields: TypedField[] = [
                         element: ({ note }) => (
                             <Markdown content={note} />
                         ),
+                    },
+                    {
+                        type: FieldType.Div,
+                        style: { display: "none" },
+                        child: {
+                            type: FieldType.Text,
+                            name: "node_print",
+                            compute: ({ note }) => toPlainString(note),
+                        }, 
                     },
                 ],
             },

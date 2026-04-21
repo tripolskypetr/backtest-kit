@@ -1,6 +1,7 @@
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import { Box } from "@mui/material";
 import Markdown from "../components/common/Markdown";
+import toPlainString from "../helpers/toPlainString";
 
 export const risk_fields: TypedField[] = [
     {
@@ -279,6 +280,15 @@ export const risk_fields: TypedField[] = [
                         element: ({ signalNote }) => (
                             <Markdown content={signalNote} />
                         ),
+                    },
+                    {
+                        type: FieldType.Div,
+                        style: { display: "none" },
+                        child: {
+                            type: FieldType.Text,
+                            name: "node_print",
+                            compute: ({ note }) => toPlainString(note),
+                        }, 
                     },
                 ],
             },
