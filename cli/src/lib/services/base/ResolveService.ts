@@ -23,8 +23,11 @@ export class ResolveService implements IResolve{
 
     public readonly DEFAULT_TEMPLATE_DIR = path.resolve(__dirname, '..', 'template');
     public readonly DEFAULT_MODULES_DIR = path.resolve(__dirname, '..', 'modules');
+    public readonly DEFAULT_CONFIG_DIR = path.resolve(__dirname, '..', 'config');
+
     public readonly OVERRIDE_TEMPLATE_DIR = path.resolve(process.cwd(), 'template');
     public readonly OVERRIDE_MODULES_DIR = path.resolve(process.cwd(), 'modules');
+    public readonly OVERRIDE_CONFIG_DIR = path.resolve(process.cwd(), 'config');
 
     public readonly PROJECT_ROOT_DIR = process.cwd();
 

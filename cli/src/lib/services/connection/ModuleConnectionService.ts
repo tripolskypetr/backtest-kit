@@ -53,7 +53,7 @@ export class ModuleConnectionService {
   readonly loaderService = inject<LoaderService>(TYPES.loaderService);
 
   public loadModule = async (fileName: string) => {
-    this.loggerService.log("moduleConnectionService getInstance", {
+    this.loggerService.log("moduleConnectionService loadModule", {
       fileName,
     });
     return await LOAD_MODULE_MODULE_FN(fileName, this);
