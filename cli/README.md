@@ -597,6 +597,42 @@ Broker.useBrokerAdapter(MyBroker);
 Broker.enable();
 ```
 
+## 🔀 Import Aliases (`alias.module`)
+
+`@backtest-kit/cli` lets you override any nodejs module import — without touching the strategy code. Drop a `config/alias.module` file in your project root and export a mapping from module name to replacement module.
+
+The alias table is loaded once (on the first `import` call) from `{projectRoot}/config/alias.module` and applied globally to every subsequent module load via `require`/ `import`.
+
+**Use cases:**
+
+- Replace a heavy dependency with a lighter stub for backtesting
+- Swap any external api for a mock during CI runs
+
+```ts
+// config/alias.module.ts — named export
+export const ccxt = require("./stubs/ccxt.stub.cjs");
+```
+
+```js
+// config/alias.module.cjs — default export
+module.exports = {
+  ccxt: require("./stubs/ccxt.stub.cjs"),
+};
+```
+
+```js
+// config/alias.module.mjs — default export
+import ccxtStub from "./stubs/ccxt.stub.mjs";
+
+export default {
+  ccxt: ccxtStub,
+};
+```
+
+**How it works:** when strategy code calls `require("ccxt")`, the loader checks `IMPORT_ALIAS` first. If a key matches, the mapped value is returned instead of the real module — no monkey-patching of `node_modules` needed.
+
+**Important:** It is **not** per-strategy — it applies to all modules loaded in the current process.
+
 ## 📦 Supported Entry Point Formats
 
 `@backtest-kit/cli` automatically detects the format of your strategy file and loads it with the appropriate runtime — no flags or configuration required.
