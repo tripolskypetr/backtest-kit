@@ -1,3 +1,105 @@
+# CLI Import Aliases, CLI Symbol/Notification Config, Notification Model Expansion (v7.2.0, 22/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/7.2.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+v7.2.0 ships three new runtime configuration points (`alias.module`, `symbol.config`, `notification.config`), a significantly expanded notification data model with 15+ new frontend field asset components, a new `StrategyReportService`, and a `SignalSync` contract for live order-fill confirmations.
+
+## Import Aliases (`alias.module`)
+
+`@backtest-kit/cli` now supports module-level aliasing without touching strategy code. Drop a `config/alias.module` file (`.ts`, `.cjs`, `.mjs`, or `.js`) at the project root and export a mapping from module name to replacement:
+
+```ts
+// config/alias.module.ts
+export const ccxt = require("./stubs/ccxt.stub.cjs");
+```
+
+The alias table is loaded once on first `import` call and applied globally via the `IMPORT_ALIAS` map inside the loader. When strategy code calls `require("ccxt")`, the loader checks `IMPORT_ALIAS` first and returns the mapped value instead of the real module — no monkey-patching of `node_modules` needed.
+
+Primary use cases: replace heavy exchange dependencies with lightweight stubs for backtesting; swap any external API for a mock during CI runs.
+
+The feature is **process-wide** — it applies to all modules loaded in the current process, not per-strategy.
+
+New files: `cli/src/config/alias.ts`.
+
+## Symbol List Config (`symbol.config`)
+
+By default the UI shows all symbols from the exchange. Create a `config/symbol.config` file to restrict or reorder the list.
+
+**Resolution order — first match wins:**
+
+| Priority | Path | Notes |
+|----------|------|-------|
+| 1 | `{strategyDir}/config/symbol.config` | per-strategy override |
+| 2 | `{projectRoot}/config/symbol.config` | project-root override |
+| 3 | `@backtest-kit/cli/config/symbol.config` | built-in default |
+
+Each entry exposes `icon`, `logo`, `symbol`, `displayName`, `color`, `priority`, and `description` fields. A built-in default list (`cli/config/symbol.config.mjs`) with 460 lines of popular trading pairs is shipped with the package.
+
+## Notification Filter Config (`notification.config`)
+
+Controls which notification categories are shown in the UI dashboard.
+
+**Resolution order** mirrors `symbol.config` (strategy → project root → built-in).
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `signal` | `true` | Signal lifecycle: opened, scheduled, closed, cancelled |
+| `risk` | `true` | Risk manager rejection notifications |
+| `info` | `true` | Informational messages attached to an active signal |
+| `breakeven` | `true` | Breakeven level reached |
+| `common_error` | `true` | Non-fatal runtime errors |
+| `critical_error` | `true` | Fatal errors that terminate the session |
+| `validation_error` | `true` | Strategy config / input validation errors |
+| `strategy_commit` | `true` | All committed actions (partial close, DCA, trailing, etc.) |
+| `partial_loss` | `false` | Partial loss level reached (before commit) |
+| `partial_profit` | `false` | Partial profit level reached (before commit) |
+| `signal_sync` | `false` | Live order fill / exit confirmations from exchange sync |
+
+New files: `cli/config/notification.config.mjs`.
+
+## Notification Model Expansion
+
+`src/model/Notification.model.ts` and `types.d.ts` gained 468 additional lines covering new notification event shapes. Corresponding frontend field-asset components were added for every new notification type:
+
+- `activate_scheduled_fields.tsx` — scheduled signal activation
+- `average_buy_commit_fields.tsx` — DCA buy commit
+- `breakeven_available_fields.tsx` / `breakeven_commit_fields.tsx`
+- `cancel_scheduled_commit_fields.tsx`
+- `close_pending_commit_fields.tsx`
+- `partial_loss_available_fields.tsx` / `partial_loss_commit_fields.tsx`
+- `partial_profit_available_fields.tsx` / `partial_profit_commit_fields.tsx`
+- `signal_cancelled_fields.tsx` / `signal_closed_fields.tsx` / `signal_opened_fields.tsx` / `signal_scheduled_fields.tsx`
+- `signal_notify_fields.tsx` / `signal_sync_close_fields.tsx` / `signal_sync_open_fields.tsx`
+- `trailing_stop_fields.tsx` / `trailing_take_fields.tsx`
+
+`NotificationCard` component updated in both desktop and mobile variants to accommodate the new field set.
+
+## `StrategyReportService`
+
+New `src/lib/services/report/StrategyReportService.ts` (126 lines) aggregates per-strategy backtest statistics. Companion single-purpose report services were also added: `BreakevenReportService`, `HighestProfitReportService`, `MaxDrawdownReportService`, `PartialReportService`, `RiskReportService`, `SyncReportService`.
+
+## `SignalSync` Contract
+
+New `src/contract/SignalSync.contract.ts` (8 lines) defines the contract for live order-fill / exit confirmations received from exchange sync. The `signal_sync` notification category (off by default) surfaces these events in the UI.
+
+## CLI Service Refactor
+
+`cli/src/lib/services/base/LoaderService.ts` was removed and replaced by two focused services under `cli/src/lib/services/core/`:
+
+- `LoaderService.ts` — module loading and resolution
+- `ConfigService.ts` — config file discovery and parsing
+
+`ConfigConnectionService.ts` was added under `cli/src/lib/services/connection/` to handle configuration-level connection setup separately from module-level connection (`ModuleConnectionService.ts`).
+
+## Telegram Templates
+
+All Telegram notification templates (`cli/template/*.mustache`) updated to support the new notification field shapes introduced alongside the expanded `Notification.model.ts`.
+
+
+
+
 # Cash-Performing Milestone  (v7.0.0, 19/04/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/7.0.0)
