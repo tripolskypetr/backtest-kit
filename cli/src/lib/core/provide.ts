@@ -22,6 +22,7 @@ import ModuleConnectionService from "../services/connection/ModuleConnectionServ
 import BabelService from "../services/core/BabelService";
 import LoaderService from "../services/core/LoaderService";
 import ConfigConnectionService from "../services/connection/ConfigConnectionService";
+import ConfigService from "../services/core/ConfigService";
 
 {
     provide(TYPES.quickchartApiService, () => new QuickchartApiService());
@@ -36,6 +37,7 @@ import ConfigConnectionService from "../services/connection/ConfigConnectionServ
 {
     provide(TYPES.resolveService, () => new ResolveService());
     provide(TYPES.loaderService, () => new LoaderService());
+    provide(TYPES.configService, () => new ConfigService());
     provide(TYPES.babelService, () => new BabelService());
 }
 

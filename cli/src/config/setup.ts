@@ -1,7 +1,4 @@
 import { setConfig } from "backtest-kit";
-import { Setup } from "../classes/Setup";
-
-Setup.enable();
 
 setConfig({
   CC_MAX_NOTIFICATIONS: 5_000,

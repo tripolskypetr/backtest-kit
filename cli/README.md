@@ -435,7 +435,7 @@ By default the UI shows all symbols from the exchange. To restrict or reorder th
 Supported file formats (`.ts`, `.cjs`, `.mjs`, `.js` tried automatically):
 
 ```ts
-// config/symbol.config.ts — named export (recommended)
+// config/symbol.config.ts
 export const symbol_list = [
   {
     icon: "/icon/btc.png",
@@ -456,6 +456,51 @@ export const symbol_list = [
     description: "Ethereum - a blockchain platform for smart contracts",
   },
 ];
+```
+
+#### Notification Filter (`notification.config`)
+
+Controls which notification categories are shown in the UI dashboard. Create a `config/notification.config` file in your strategy directory to override the defaults.
+
+**Resolution order — first match wins:**
+
+| Priority | Path | Notes |
+|----------|------|-------|
+| 1 | `{strategyDir}/config/notification.config` | per-strategy override (cwd after `chdir`) |
+| 2 | `{projectRoot}/config/notification.config` | project-root override (cwd where `npx` was invoked) |
+| 3 | `@backtest-kit/cli/config/notification.config` | built-in default shipped with the package |
+
+**Default values (built-in):**
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `signal` | `true` | Signal lifecycle: opened, scheduled, closed, cancelled |
+| `risk` | `true` | Risk manager rejection notifications |
+| `info` | `true` | Informational messages attached to an active signal |
+| `breakeven` | `true` | Breakeven level reached |
+| `common_error` | `true` | Non-fatal runtime errors |
+| `critical_error` | `true` | Fatal errors that terminate the session |
+| `validation_error` | `true` | Strategy config / input validation errors |
+| `strategy_commit` | `true` | All committed actions (partial close, DCA, trailing, etc.) |
+| `partial_loss` | `false` | Partial loss level reached (before commit) |
+| `partial_profit` | `false` | Partial profit level reached (before commit) |
+| `signal_sync` | `false` | Live order fill / exit confirmations from exchange sync |
+
+```js
+// config/notification.config.ts
+export default {
+  signal: true,
+  risk: true,
+  info: true,
+  breakeven: true,
+  common_error: true,
+  critical_error: true,
+  validation_error: true,
+  strategy_commit: true,
+  partial_loss: false,
+  partial_profit: false,
+  signal_sync: false,
+};
 ```
 
 ### Telegram Notifications (`--telegram`)

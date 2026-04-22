@@ -1,6 +1,7 @@
 import path from "path";
 import { createRequire } from "module";
 import { getErrorMessage, memoize, singleshot } from "functools-kit";
+import * as PineTS from "pinets";
 import fs from "fs";
 
 import { ILoader, ILoaderParams } from "../interfaces/Loader.interface";
@@ -155,6 +156,7 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
   return new Proxy(baseRequire, {
     apply(_target, _this, args) {
       const id = args[0];
+      if (id === "pinets") return globalThis.PineTS;
       if (id === "backtest-kit") return globalThis.BacktestKit;
       if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
       if (id === "@backtest-kit/ui") return globalThis.BacktestKitUi;
@@ -271,6 +273,7 @@ export class ClientLoader implements ILoader {
   }
 }
 
+globalThis.PineTS = PineTS;
 globalThis.BacktestKit = BacktestKit;
 globalThis.BacktestKitCli = BacktestKitCli;
 globalThis.BacktestKitUi = BacktestKitUi;

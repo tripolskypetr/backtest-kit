@@ -4,6 +4,7 @@ import { getArgs } from "../helpers/getArgs";
 import { getEnv } from "../helpers/getEnv";
 import cli from "../lib";
 import getEntry from "../helpers/getEntry";
+import { Setup } from "../classes/Setup";
 
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
@@ -19,6 +20,11 @@ export const main = async () => {
   if (values.pine) {
     console.warn("--editor and --pine are mutually exclusive. Use one at a time.");
     process.exit(1);
+  }
+
+  {
+    await cli.configService.waitForInit();
+    Setup.enable();
   }
 
   await cli.moduleConnectionService.loadModule("./editor.module");

@@ -20,10 +20,10 @@ const GET_SYMBOL_EXPORTS_FN = async (self: FrontendProviderService) => {
     : exports;
 };
 
-const GET_SYMBOL_CONFIG_FN = async (self: FrontendProviderService): Promise<SymbolConfig[] | null> => {
+const GET_SYMBOL_CONFIG_FN = async (self: FrontendProviderService): Promise<SymbolConfig[]> => {
   const config = await GET_SYMBOL_EXPORTS_FN(self);
   if (!config) {
-    return null;
+    throw new Error("FrontendProviderService getSymbolConfig `symbol.config` is not found");
   }
   if (Array.isArray(config)) {
     return config;
@@ -31,7 +31,7 @@ const GET_SYMBOL_CONFIG_FN = async (self: FrontendProviderService): Promise<Symb
   if ("symbol_list" in config) {
     return config.symbol_list;
   }
-  return null;
+  throw new Error("FrontendProviderService getSymbolConfig `symbol.config` is not found");
 };
 
 export class FrontendProviderService {

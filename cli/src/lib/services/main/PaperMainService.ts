@@ -18,10 +18,13 @@ import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
 import notifyVerbose from "../../../utils/notifyVerbose";
 import ModuleConnectionService from "../connection/ModuleConnectionService";
+import ConfigService from "../core/ConfigService";
+import { Setup } from "../../../classes/Setup";
 
 export class PaperMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
   private resolveService = inject<ResolveService>(TYPES.resolveService);
+  private configService = inject<ConfigService>(TYPES.configService);
 
   private exchangeSchemaService = inject<ExchangeSchemaService>(
     TYPES.exchangeSchemaService,
@@ -50,6 +53,11 @@ export class PaperMainService {
       verbose: boolean;
     }) => {
       this.loggerService.log("paperMainService init");
+
+      {
+        await this.configService.waitForInit();
+        Setup.enable();
+      }
 
       {
         this.frontendProviderService.connect();

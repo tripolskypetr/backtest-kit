@@ -11,6 +11,7 @@ const baseServices = {
 const coreServices = {
     resolveService: Symbol('resolveService'),
     loaderService: Symbol('loaderService'),
+    configService: Symbol('configService'),
     babelService: Symbol('babelService'),
 }
 

@@ -21,6 +21,7 @@ declare class LoggerService implements ILogger {
 declare class PaperMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private symbolSchemaService;
     private frontendProviderService;
@@ -45,6 +46,7 @@ declare class PaperMainService {
 declare class LiveMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private symbolSchemaService;
     private frontendProviderService;
@@ -69,6 +71,7 @@ declare class LiveMainService {
 declare class BacktestMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private frameSchemaService;
     private symbolSchemaService;
@@ -101,6 +104,7 @@ declare class BacktestMainService {
 declare class WalkerMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private symbolSchemaService;
     private cacheLogicService;
@@ -298,6 +302,27 @@ declare class BabelService implements IBabel {
     transpile: (code: string) => any;
 }
 
+interface NotificationConfig {
+    signal: boolean;
+    risk: boolean;
+    info: boolean;
+    breakeven: boolean;
+    common_error: boolean;
+    critical_error: boolean;
+    validation_error: boolean;
+    partial_loss: boolean;
+    partial_profit: boolean;
+    signal_sync: boolean;
+    strategy_commit: boolean;
+}
+
+declare class ConfigService {
+    readonly loggerService: LoggerService;
+    readonly configConnectionService: ConfigConnectionService;
+    getNotificationConfig: (() => NotificationConfig) & functools_kit.ISingleshotClearable<() => NotificationConfig>;
+    waitForInit: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
+}
+
 declare const cli: {
     telegramTemplateService: TelegramTemplateService;
     telegramWebService: TelegramWebService;
@@ -316,6 +341,7 @@ declare const cli: {
     configConnectionService: ConfigConnectionService;
     resolveService: ResolveService;
     loaderService: LoaderService;
+    configService: ConfigService;
     babelService: BabelService;
     errorService: ErrorService;
     loggerService: LoggerService;
