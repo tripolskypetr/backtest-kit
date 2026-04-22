@@ -22,6 +22,7 @@ import TelegramTemplateService from "./services/template/TelegramTemplateService
 import ModuleConnectionService from "./services/connection/ModuleConnectionService";
 import BabelService from "./services/base/BabelService";
 import LoaderService from "./services/base/LoaderService";
+import ConfigConnectionService from "./services/connection/ConfigConnectionService";
 
 const apiServices = {
   telegramApiService: inject<TelegramApiService>(TYPES.telegramApiService),
@@ -38,6 +39,7 @@ const baseServices = {
 
 const connectionServices = {
   moduleConnectionService: inject<ModuleConnectionService>(TYPES.moduleConnectionService),
+  configConnectionService: inject<ConfigConnectionService>(TYPES.configConnectionService),
 };
 
 const mainServices = {

@@ -21,6 +21,7 @@ import TelegramTemplateService from "../services/template/TelegramTemplateServic
 import ModuleConnectionService from "../services/connection/ModuleConnectionService";
 import BabelService from "../services/base/BabelService";
 import LoaderService from "../services/base/LoaderService";
+import ConfigConnectionService from "../services/connection/ConfigConnectionService";
 
 {
     provide(TYPES.quickchartApiService, () => new QuickchartApiService());
@@ -37,6 +38,7 @@ import LoaderService from "../services/base/LoaderService";
 
 {
     provide(TYPES.moduleConnectionService, () => new ModuleConnectionService());
+    provide(TYPES.configConnectionService, () => new ConfigConnectionService());
 }
 
 {

@@ -13,6 +13,7 @@ const baseServices = {
 
 const connectionServices = {
     moduleConnectionService: Symbol('moduleConnectionService'),
+    configConnectionService: Symbol('configConnectionService'),
 }
 
 const mainServices = {
