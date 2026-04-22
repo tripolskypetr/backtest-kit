@@ -1,0 +1,21 @@
+**ℹ️ Signal Info**
+
+**Symbol:** `{{symbol}}` ({{data.position}})
+**Current:** `{{currentPrice}}`
+**Entry:** `{{data.priceOpen}}`
+**Orig Entry:** `{{data.originalPriceOpen}}`
+**DCA Entries:** `{{data.totalEntries}}`
+**Partials Done:** `{{data.totalPartials}}`
+**Take Profit:** `{{data.priceTakeProfit}}`
+**Stop Loss:** `{{data.priceStopLoss}}`
+**Orig TP:** `{{data.originalPriceTakeProfit}}`
+**Orig SL:** `{{data.originalPriceStopLoss}}`
+**PnL:** {{data.pnl.pnlPercentage}}% ({{data.pnl.pnlCost}} / {{data.pnl.pnlEntries}})
+**Peak Profit:** {{data.peakProfit.pnlPercentage}}% ({{data.peakProfit.pnlCost}} / {{data.peakProfit.pnlEntries}})
+**Max Drawdown:** {{data.maxDrawdown.pnlPercentage}}% ({{data.maxDrawdown.pnlCost}} / {{data.maxDrawdown.pnlEntries}})
+**Signal ID:** `{{data.id}}`
+**Time:** `{{timestamp}}`
+
+{{#backtest}}
+_🧪 Backtest_
+{{/backtest}}

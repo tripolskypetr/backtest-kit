@@ -23,6 +23,8 @@ import {
   AverageBuyCommit,
   SignalOpenContract,
   SignalCloseContract,
+  SignalInfoContract,
+  listenSignalNotify,
 } from "backtest-kit";
 import TelegramTemplateService from "../template/TelegramTemplateService";
 import TelegramWebService from "../web/TelegramWebService";
@@ -194,6 +196,17 @@ export class TelegramLogicService {
     });
   });
 
+  private notifySignalInfo = trycatch(async (event: SignalInfoContract) => {
+    this.loggerService.log("telegramLogicService notifySignalInfo", {
+      event,
+    });
+    const markdown = await this.telegramTemplateService.getSignalInfoMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  });
+
   private notifyCancelScheduled = async (event: CancelScheduledCommit) => {
     this.loggerService.log("telegramLogicService notifyCancelScheduled", {
       event,
@@ -288,6 +301,10 @@ export class TelegramLogicService {
       }
     });
 
+    const unSignalNotify = listenSignalNotify(async (event) => {
+      await this.notifySignalInfo(event);
+    });
+
     const unConnect = () => this.connect.clear();
 
     const unListen = compose(
@@ -295,6 +312,7 @@ export class TelegramLogicService {
       () => unSignal(),
       () => unCommit(),
       () => unSync(),
+      () => unSignalNotify(),
       () => unConnect(),
     );
 

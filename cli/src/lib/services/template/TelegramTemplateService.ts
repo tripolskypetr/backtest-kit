@@ -18,6 +18,7 @@ import {
   TrailingTakeCommit,
   SignalOpenContract,
   SignalCloseContract,
+  SignalInfoContract,
 } from "backtest-kit";
 import ResolveService from "../core/ResolveService";
 import { memoize } from "functools-kit";
@@ -40,7 +41,8 @@ type Data =
   | AverageBuyCommit
   | RiskContract
   | SignalOpenContract
-  | SignalCloseContract;
+  | SignalCloseContract
+  | SignalInfoContract;
 
 const READ_TEMPLATE_FN = memoize(
   ([fileName]) => `${fileName}`,
@@ -180,6 +182,13 @@ export class TelegramTemplateService {
       event,
     });
     return await RENDER_TEMPLATE_FN("close-pending.mustache", event, this);
+  };
+
+  public getSignalInfoMarkdown = async (event: SignalInfoContract) => {
+    this.loggerService.log("telegramTemplateService getSignalInfoMarkdown", {
+      event,
+    });
+    return await RENDER_TEMPLATE_FN("signal-info.mustache", event, this);
   };
 }
 
