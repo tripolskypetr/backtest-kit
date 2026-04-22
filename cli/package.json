@@ -47,7 +47,7 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "start": "npm run build && node build/index.mjs math/master_trend_15m.pine --pine --symbol BTCUSDT --timeframe 15m --limit 180"
+    "start": "npm run build && node build/index.mjs ./math/test.pine --pine --symbol BTCUSDT --timeframe 15m --limit 180"
   },
   "main": "build/index.cjs",
   "module": "build/index.mjs",
