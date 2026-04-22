@@ -509,6 +509,54 @@ Sends formatted HTML messages with 1m / 15m / 1h price charts to your Telegram c
 
 Requires `CC_TELEGRAM_TOKEN` and `CC_TELEGRAM_CHANNEL` in your environment.
 
+#### Telegram Message Adapter (`telegram.config`)
+
+By default messages are rendered from Mustache templates (`template/*.mustache`). To override rendering programmatically, create a `config/telegram.config` file and export an object with any subset of `get*Markdown` methods. Each method receives the event payload and must return a `Promise<string>` with the Markdown message body.
+
+Resolution order is the same as other configs (strategy dir → project root → package default).
+
+```ts
+// config/telegram.config.ts
+import {
+  IStrategyTickResultOpened,
+  IStrategyTickResultClosed,
+  RiskContract,
+} from "backtest-kit";
+
+export default {
+  async getOpenedMarkdown(event: IStrategyTickResultOpened): Promise<string> {
+    return `**Opened** ${event.symbol} at ${event.priceOpen}`;
+  },
+  async getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string> {
+    return `**Closed** ${event.symbol} at ${event.priceClosed}`;
+  },
+  async getRiskMarkdown(event: RiskContract): Promise<string> {
+    return `**Risk rejected** ${event.symbol}`;
+  },
+};
+```
+
+All methods are optional — unimplemented ones fall back to the Mustache template.
+
+| Method | Event type |
+|--------|------------|
+| `getOpenedMarkdown` | `IStrategyTickResultOpened` |
+| `getClosedMarkdown` | `IStrategyTickResultClosed` |
+| `getScheduledMarkdown` | `IStrategyTickResultScheduled` |
+| `getCancelledMarkdown` | `IStrategyTickResultCancelled` |
+| `getRiskMarkdown` | `RiskContract` |
+| `getPartialProfitMarkdown` | `PartialProfitCommit` |
+| `getPartialLossMarkdown` | `PartialLossCommit` |
+| `getBreakevenMarkdown` | `BreakevenCommit` |
+| `getTrailingTakeMarkdown` | `TrailingTakeCommit` |
+| `getTrailingStopMarkdown` | `TrailingStopCommit` |
+| `getAverageBuyMarkdown` | `AverageBuyCommit` |
+| `getSignalOpenMarkdown` | `SignalOpenContract` |
+| `getSignalCloseMarkdown` | `SignalCloseContract` |
+| `getCancelScheduledMarkdown` | `CancelScheduledCommit` |
+| `getClosePendingMarkdown` | `ClosePendingCommit` |
+| `getSignalInfoMarkdown` | `SignalInfoContract` |
+
 ## 🧩 Module Hooks (Broker Adapter)
 
 The CLI supports **mode-specific module files** that are loaded as side-effect imports before the strategy starts. Each file is expected to call `Broker.useBrokerAdapter()` from `backtest-kit` to register a broker adapter.

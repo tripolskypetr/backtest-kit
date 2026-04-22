@@ -50,6 +50,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getTrailingTakeMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -62,6 +65,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getTrailingStopMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -74,6 +80,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getBreakevenMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -86,6 +95,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getPartialProfitMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -98,6 +110,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getPartialLossMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -110,6 +125,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getScheduledMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -122,6 +140,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getCancelledMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -134,6 +155,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getOpenedMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -146,6 +170,9 @@ export class TelegramLogicService {
     });
     const markdown =
       await this.telegramTemplateService.getClosedMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -157,6 +184,9 @@ export class TelegramLogicService {
       event,
     });
     const markdown = await this.telegramTemplateService.getRiskMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -168,6 +198,9 @@ export class TelegramLogicService {
       event,
     });
     const markdown = await this.telegramTemplateService.getAverageBuyMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -179,6 +212,9 @@ export class TelegramLogicService {
       event,
     });
     const markdown = await this.telegramTemplateService.getSignalOpenMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -190,6 +226,9 @@ export class TelegramLogicService {
       event,
     });
     const markdown = await this.telegramTemplateService.getSignalCloseMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -201,6 +240,9 @@ export class TelegramLogicService {
       event,
     });
     const markdown = await this.telegramTemplateService.getSignalInfoMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -212,6 +254,9 @@ export class TelegramLogicService {
       event,
     });
     const markdown = await this.telegramTemplateService.getCancelScheduledMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
@@ -223,6 +268,9 @@ export class TelegramLogicService {
       event,
     });
     const markdown = await this.telegramTemplateService.getClosePendingMarkdown(event);
+    if (!markdown) {
+      return;
+    }
     await this.telegramWebService.publishNotify({
       symbol: event.symbol,
       markdown,
