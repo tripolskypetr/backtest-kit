@@ -68,7 +68,7 @@ npm install backtest-kit ccxt ollama uuid
 
 ## 📋 Supported Order Types
 
-> With the calculation of PnL
+> With the calculation of PnL, Peak Profit and Max Drawdown for each Entry
 
 - Market/Limit entries
 - TP/SL/OCO exits
