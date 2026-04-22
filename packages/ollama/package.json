@@ -95,7 +95,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "agent-swarm-kit": "^2.5.1",
+    "agent-swarm-kit": "^2.6.0",
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
     "functools-kit": "^2.3.0",

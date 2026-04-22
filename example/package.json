@@ -17,7 +17,7 @@
     "@backtest-kit/signals": "7.1.0",
     "@backtest-kit/ui": "7.1.0",
     "@tavily/core": "0.7.2",
-    "agent-swarm-kit": "2.5.1",
+    "agent-swarm-kit": "2.6.0",
     "backtest-kit": "7.1.0",
     "dayjs": "1.11.20",
     "functools-kit": "2.3.0",
