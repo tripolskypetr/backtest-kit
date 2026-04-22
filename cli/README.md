@@ -420,6 +420,44 @@ http://localhost:60050
 
 Customize host/port via environment variables `CC_WWWROOT_HOST` and `CC_WWWROOT_PORT`.
 
+#### Symbol List (`symbol.config`)
+
+By default the UI shows all symbols from the exchange. To restrict or reorder the list, create a `config/symbol.config` file in your strategy directory (next to the entry point).
+
+**Resolution order — first match wins:**
+
+| Priority | Path | Notes |
+|----------|------|-------|
+| 1 | `{strategyDir}/config/symbol.config` | per-strategy override (cwd after `chdir`) |
+| 2 | `{projectRoot}/config/symbol.config` | project-root override (cwd where `npx` was invoked) |
+| 3 | `@backtest-kit/cli/config/symbol.config` | built-in default shipped with the package |
+
+Supported file formats (`.ts`, `.cjs`, `.mjs`, `.js` tried automatically):
+
+```ts
+// config/symbol.config.ts — named export (recommended)
+export const symbol_list = [
+  {
+    icon: "/icon/btc.png",
+    logo: "/icon/128/btc.png",
+    symbol: "BTCUSDT",
+    displayName: "Bitcoin",
+    color: "#F7931A",
+    priority: 50,
+    description: "Bitcoin - the first and most popular cryptocurrency",
+  },
+  {
+    icon: "/icon/eth.png",
+    logo: "/icon/128/eth.png",
+    symbol: "ETHUSDT",
+    displayName: "Ethereum",
+    color: "#6F42C1",
+    priority: 50,
+    description: "Ethereum - a blockchain platform for smart contracts",
+  },
+];
+```
+
 ### Telegram Notifications (`--telegram`)
 
 Sends formatted HTML messages with 1m / 15m / 1h price charts to your Telegram channel for every position event: opened, closed, scheduled, cancelled, risk rejection, partial profit/loss, trailing stop/take, and breakeven.

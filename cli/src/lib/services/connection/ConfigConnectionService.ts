@@ -4,6 +4,7 @@ import TYPES from "../../../lib/core/types";
 import ResolveService from "../base/ResolveService";
 import LoaderService from "../base/LoaderService";
 import path from "path";
+import { ModuleExports } from "../../../model/Module.model";
 
 const GET_CONFIG_VARIANTS_FN = (
   fileName: string,
@@ -32,7 +33,7 @@ const GET_CONFIG_VARIANTS_FN = (
 const LOAD_CONFIG_CONFIG_FN = async (
   fileName: string,
   self: ConfigConnectionService,
-): Promise<boolean> => {
+): Promise<ModuleExports> => {
   for (const {filePath, baseDir} of GET_CONFIG_VARIANTS_FN(fileName, self)) {
     try {
       if (await self.loaderService.check(filePath, baseDir)) {
