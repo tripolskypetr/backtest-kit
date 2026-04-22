@@ -13,7 +13,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
 import FrameSchemaService from "../schema/FrameSchemaService";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
 import CacheLogicService from "../logic/CacheLogicService";

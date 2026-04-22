@@ -21,7 +21,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import CacheLogicService from "../logic/CacheLogicService";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";

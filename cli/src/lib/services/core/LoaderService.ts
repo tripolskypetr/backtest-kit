@@ -1,7 +1,7 @@
-import { inject } from "../../../lib/core/di";
+import { inject } from "../../core/di";
 import BabelService from "./BabelService";
-import TYPES from "../../../lib/core/types";
-import LoggerService from "./LoggerService";
+import TYPES from "../../core/types";
+import LoggerService from "../base/LoggerService";
 import ClientLoader from "../../../client/ClientLoader";
 import { memoize } from "functools-kit";
 import ResolveService from "./ResolveService";

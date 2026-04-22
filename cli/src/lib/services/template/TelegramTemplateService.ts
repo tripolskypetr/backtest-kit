@@ -19,7 +19,7 @@ import {
   SignalOpenContract,
   SignalCloseContract,
 } from "backtest-kit";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import { memoize } from "functools-kit";
 import fs from "fs/promises";
 import { constants } from "fs";

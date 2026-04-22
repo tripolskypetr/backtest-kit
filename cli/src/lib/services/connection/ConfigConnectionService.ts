@@ -1,8 +1,8 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import ResolveService from "../base/ResolveService";
-import LoaderService from "../base/LoaderService";
+import ResolveService from "../core/ResolveService";
+import LoaderService from "../core/LoaderService";
 import path from "path";
 import { ModuleExports } from "../../../model/Module.model";
 

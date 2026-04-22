@@ -6,7 +6,7 @@ import TYPES from "../../../lib/core/types";
 import { getArgs } from "../../../helpers/getArgs";
 import { entrySubject } from "../../../config/emitters";
 import { getEnv } from "../../../helpers/getEnv";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
 
 const GET_SYMBOL_EXPORTS_FN = async (self: FrontendProviderService) => {

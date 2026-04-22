@@ -1,6 +1,6 @@
 import ErrorService from "../services/base/ErrorService";
 import LoggerService from "../services/base/LoggerService";
-import ResolveService from "../services/base/ResolveService";
+import ResolveService from "../services/core/ResolveService";
 import ExchangeSchemaService from "../services/schema/ExchangeSchemaService";
 import FrameSchemaService from "../services/schema/FrameSchemaService";
 import SymbolSchemaService from "../services/schema/SymbolSchemaService";
@@ -19,8 +19,8 @@ import CacheLogicService from "../services/logic/CacheLogicService";
 import TelegramLogicService from "../services/logic/TelegramLogicService";
 import TelegramTemplateService from "../services/template/TelegramTemplateService";
 import ModuleConnectionService from "../services/connection/ModuleConnectionService";
-import BabelService from "../services/base/BabelService";
-import LoaderService from "../services/base/LoaderService";
+import BabelService from "../services/core/BabelService";
+import LoaderService from "../services/core/LoaderService";
 import ConfigConnectionService from "../services/connection/ConfigConnectionService";
 
 {
@@ -31,6 +31,9 @@ import ConfigConnectionService from "../services/connection/ConfigConnectionServ
 {
     provide(TYPES.errorService, () => new ErrorService());
     provide(TYPES.loggerService, () => new LoggerService());
+}
+
+{
     provide(TYPES.resolveService, () => new ResolveService());
     provide(TYPES.loaderService, () => new LoaderService());
     provide(TYPES.babelService, () => new BabelService());
