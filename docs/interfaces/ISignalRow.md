@@ -156,7 +156,7 @@ Original priceTakeProfit is preserved in persistence but ignored during executio
 ### _peak
 
 ```ts
-_peak: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; }
+_peak: { price: number; timestamp: number; } & IStrategyPnL
 ```
 
 Best price seen in profit direction during the life of this position.
@@ -168,7 +168,7 @@ Updated on every tick/candle when price moves toward TP (currentDistance &gt; 0)
 ### _fall
 
 ```ts
-_fall: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; }
+_fall: { price: number; timestamp: number; } & IStrategyPnL
 ```
 
 Worst price seen in loss direction during the life of this position.

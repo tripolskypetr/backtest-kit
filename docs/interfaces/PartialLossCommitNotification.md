@@ -168,7 +168,23 @@ Total number of partial closes executed (_partial.length). 0 = no partial closes
 pnl: IStrategyPnL
 ```
 
-PNL at the moment of partial loss commit (from data.pnl)
+Total PNL of the closed position (including all entries and partials)
+
+### peakProfit
+
+```ts
+peakProfit: IStrategyPnL
+```
+
+Peak profit achieved during the life of this position up to the moment this public signal was created
+
+### maxDrawdown
+
+```ts
+maxDrawdown: IStrategyPnL
+```
+
+Maximum drawdown experienced during the life of this position up to the moment this public signal was created
 
 ### pnlPercentage
 
@@ -209,6 +225,86 @@ pnlEntries: number
 ```
 
 Total invested capital in USD
+
+### peakProfitPriceOpen
+
+```ts
+peakProfitPriceOpen: number
+```
+
+Peak price reached in profit direction during the life of this position
+
+### peakProfitPriceClose
+
+```ts
+peakProfitPriceClose: number
+```
+
+Exit price for PNL calculation at the moment of peak profit
+
+### peakProfitCost
+
+```ts
+peakProfitCost: number
+```
+
+Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position
+
+### peakProfitPercentage
+
+```ts
+peakProfitPercentage: number
+```
+
+Profit/loss as percentage at the moment the position reached its peak profit during the life of this position
+
+### peakProfitEntries
+
+```ts
+peakProfitEntries: number
+```
+
+Number of entries executed at the moment the position reached its peak profit during the life of this position
+
+### maxDrawdownPriceOpen
+
+```ts
+maxDrawdownPriceOpen: number
+```
+
+Maximum drawdown price reached in loss direction during the life of this position
+
+### maxDrawdownPriceClose
+
+```ts
+maxDrawdownPriceClose: number
+```
+
+Exit price for PNL calculation at the moment of max drawdown
+
+### maxDrawdownCost
+
+```ts
+maxDrawdownCost: number
+```
+
+Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position
+
+### maxDrawdownPercentage
+
+```ts
+maxDrawdownPercentage: number
+```
+
+Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position
+
+### maxDrawdownEntries
+
+```ts
+maxDrawdownEntries: number
+```
+
+Number of entries executed at the moment the position reached its maximum drawdown during the life of this position
 
 ### note
 

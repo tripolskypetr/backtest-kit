@@ -50,6 +50,22 @@ pnl: IStrategyPnL
 
 Unrealized PNL at the moment of average-buy (calculated after new entry added)
 
+### peakProfit
+
+```ts
+peakProfit: IStrategyPnL
+```
+
+Peak profit achieved during the life of this position up to the moment this public signal was created
+
+### maxDrawdown
+
+```ts
+maxDrawdown: IStrategyPnL
+```
+
+Maximum drawdown experienced during the life of this position up to the moment this public signal was created
+
 ### position
 
 ```ts

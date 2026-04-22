@@ -51,7 +51,7 @@ Searches backtest storage first, then live storage.
 ### getMinutesSinceLatestSignalCreated
 
 ```ts
-getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+getMinutesSinceLatestSignalCreated: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
 ```
 
 Returns the number of whole minutes elapsed since the latest signal's creation timestamp.

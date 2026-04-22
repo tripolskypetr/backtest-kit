@@ -11,11 +11,14 @@ type BrokerSignalClosePayload = {
     cost: number;
     position: "long" | "short";
     currentPrice: number;
+    priceOpen: number;
     priceTakeProfit: number;
     priceStopLoss: number;
     totalEntries: number;
     totalPartials: number;
     pnl: IStrategyPnL;
+    peakProfit: IStrategyPnL;
+    maxDrawdown: IStrategyPnL;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

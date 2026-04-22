@@ -13,6 +13,9 @@ type BrokerSignalOpenPayload = {
     priceOpen: number;
     priceTakeProfit: number;
     priceStopLoss: number;
+    pnl: IStrategyPnL;
+    peakProfit: IStrategyPnL;
+    maxDrawdown: IStrategyPnL;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

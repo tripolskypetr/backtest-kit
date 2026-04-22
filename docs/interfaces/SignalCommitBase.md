@@ -91,6 +91,14 @@ originalPriceOpen: number
 
 Original entry price at signal creation (unchanged by DCA averaging).
 
+### signal
+
+```ts
+signal: IPublicSignalRow
+```
+
+Signal data at the moment of this event (snapshot of IPublicSignalRow)
+
 ### note
 
 ```ts
