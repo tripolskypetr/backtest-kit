@@ -2809,14 +2809,6 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
   const currentTime = self.params.execution.context.when.getTime();
 
-  await CALL_ACTIVE_PING_CALLBACKS_FN(
-    self,
-    self.params.execution.context.symbol,
-    signal,
-    currentTime,
-    self.params.execution.context.backtest,
-    currentPrice
-  );
 
   // Calculate percentage of path to TP/SL for partial fill/loss callbacks
   {
@@ -2824,18 +2816,6 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
     if (signal.position === "long") {
       // For long: calculate progress towards TP or SL
       const currentDistance = currentPrice - effectivePriceOpen;
-
-      if (currentDistance > 0) {
-        // Check if breakeven should be triggered
-        await CALL_BREAKEVEN_CHECK_FN(
-          self,
-          self.params.execution.context.symbol,
-          signal,
-          currentPrice,
-          currentTime,
-          self.params.execution.context.backtest
-        );
-      }
 
       if (currentDistance > 0) {
         // Moving towards TP (use trailing TP if set)
@@ -2866,6 +2846,25 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             currentTime,
           )
         }
+
+        await CALL_ACTIVE_PING_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentTime,
+          self.params.execution.context.backtest,
+          currentPrice
+        );
+
+        // Check if breakeven should be triggered
+        await CALL_BREAKEVEN_CHECK_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          currentTime,
+          self.params.execution.context.backtest
+        );
 
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
           self,
@@ -2904,6 +2903,14 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             currentTime,
           );
         }
+        await CALL_ACTIVE_PING_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentTime,
+          self.params.execution.context.backtest,
+          currentPrice
+        );
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
@@ -2913,22 +2920,19 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           currentTime,
           self.params.execution.context.backtest
         );
+      } else {
+        await CALL_ACTIVE_PING_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentTime,
+          self.params.execution.context.backtest,
+          currentPrice
+        );
       }
     } else if (signal.position === "short") {
       // For short: calculate progress towards TP or SL
       const currentDistance = effectivePriceOpen - currentPrice;
-
-      if (currentDistance > 0) {
-        // Check if breakeven should be triggered
-        await CALL_BREAKEVEN_CHECK_FN(
-          self,
-          self.params.execution.context.symbol,
-          signal,
-          currentPrice,
-          currentTime,
-          self.params.execution.context.backtest
-        );
-      }
 
       if (currentDistance > 0) {
         // Moving towards TP (use trailing TP if set)
@@ -2960,6 +2964,25 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           )
         }
 
+        await CALL_ACTIVE_PING_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentTime,
+          self.params.execution.context.backtest,
+          currentPrice
+        );
+
+        // Check if breakeven should be triggered
+        await CALL_BREAKEVEN_CHECK_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          currentTime,
+          self.params.execution.context.backtest
+        );
+
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
@@ -2969,9 +2992,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           currentTime,
           self.params.execution.context.backtest
         );
-      }
-
-      if (currentDistance < 0) {
+      } else if (currentDistance < 0) {
         // Moving towards SL (use trailing SL if set)
         const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
         const slDistance = effectiveStopLoss - effectivePriceOpen;
@@ -2999,6 +3020,14 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             currentTime,
           );
         }
+        await CALL_ACTIVE_PING_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentTime,
+          self.params.execution.context.backtest,
+          currentPrice
+        );
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
@@ -3007,6 +3036,15 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           percentSl,
           currentTime,
           self.params.execution.context.backtest
+        );
+      } else {
+        await CALL_ACTIVE_PING_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentTime,
+          self.params.execution.context.backtest,
+          currentPrice
         );
       }
     }
@@ -3847,8 +3885,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       return await CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN(self, self._closedSignal, averagePrice, currentCandleTimestamp);
     }
 
-    await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
-
     let shouldClose = false;
     let closeReason: "time_expired" | "take_profit" | "stop_loss" | undefined;
 
@@ -3919,18 +3955,6 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         const currentDistance = averagePrice - effectivePriceOpen;
 
         if (currentDistance > 0) {
-          // Check if breakeven should be triggered
-          await CALL_BREAKEVEN_CHECK_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-        }
-
-        if (currentDistance > 0) {
           // Moving towards TP (use trailing TP if set)
           const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
           const tpDistance = effectiveTakeProfit - effectivePriceOpen;
@@ -3952,6 +3976,17 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               currentCandleTimestamp
             );
           }
+
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
+
+          await CALL_BREAKEVEN_CHECK_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
 
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
             self,
@@ -3983,6 +4018,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               currentCandleTimestamp
             );
           }
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -3992,22 +4028,12 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             currentCandleTimestamp,
             self.params.execution.context.backtest
           );
+        } else {
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
         }
       } else if (signal.position === "short") {
         // For short: calculate progress towards TP or SL
         const currentDistance = effectivePriceOpen - averagePrice;
-
-        if (currentDistance > 0) {
-          // Check if breakeven should be triggered
-          await CALL_BREAKEVEN_CHECK_FN(
-            self,
-            self.params.execution.context.symbol,
-            signal,
-            averagePrice,
-            currentCandleTimestamp,
-            self.params.execution.context.backtest
-          );
-        }
 
         if (currentDistance > 0) {
           // Moving towards TP (use trailing TP if set)
@@ -4032,6 +4058,17 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             );
           }
 
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
+
+          await CALL_BREAKEVEN_CHECK_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
+
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -4041,9 +4078,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             currentCandleTimestamp,
             self.params.execution.context.backtest
           );
-        }
-
-        if (currentDistance < 0) {
+        } else if (currentDistance < 0) {
           // Moving towards SL (use trailing SL if set)
           const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
           const slDistance = effectiveStopLoss - effectivePriceOpen;
@@ -4064,6 +4099,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               currentCandleTimestamp
             );
           }
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -4073,6 +4109,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             currentCandleTimestamp,
             self.params.execution.context.backtest
           );
+        } else {
+          await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
         }
       }
     }
