@@ -1,7 +1,6 @@
 import path from "path";
 import { createRequire } from "module";
 import { getErrorMessage, memoize, singleshot } from "functools-kit";
-import * as PineTS from "pinets";
 import fs from "fs";
 
 import { ILoader, ILoaderParams } from "../interfaces/Loader.interface";
@@ -12,6 +11,8 @@ import * as BacktestKitGraph from "@backtest-kit/graph";
 import * as BacktestKitOllama from "@backtest-kit/ollama";
 import * as BacktestKitPinets from "@backtest-kit/pinets";
 import * as BacktestKitSignals from "@backtest-kit/signals";
+
+import { IMPORT_ALIAS } from "../config/alias";
 
 declare const __IS_ESM__: boolean;
 
@@ -156,7 +157,7 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
   return new Proxy(baseRequire, {
     apply(_target, _this, args) {
       const id = args[0];
-      if (id === "pinets") return globalThis.PineTS;
+      if (IMPORT_ALIAS[id]) return IMPORT_ALIAS[id];
       if (id === "backtest-kit") return globalThis.BacktestKit;
       if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
       if (id === "@backtest-kit/ui") return globalThis.BacktestKitUi;
@@ -273,7 +274,6 @@ export class ClientLoader implements ILoader {
   }
 }
 
-globalThis.PineTS = PineTS;
 globalThis.BacktestKit = BacktestKit;
 globalThis.BacktestKitCli = BacktestKitCli;
 globalThis.BacktestKitUi = BacktestKitUi;
