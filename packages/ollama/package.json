@@ -98,7 +98,7 @@
     "agent-swarm-kit": "^2.5.1",
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
-    "functools-kit": "^2.2.0",
+    "functools-kit": "^2.3.0",
     "get-moment-stamp": "^1.1.2",
     "jsonrepair": "^3.12.0",
     "markdown-it": "^14.1.0",
