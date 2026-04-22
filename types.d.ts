@@ -1249,6 +1249,10 @@ interface SignalOpenContract extends SignalSyncBase {
     currentPrice: number;
     /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Cost of the position at close (sum of all entry costs) */
     cost: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
@@ -1300,6 +1304,10 @@ interface SignalCloseContract extends SignalSyncBase {
     currentPrice: number;
     /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price at time of close (may differ from priceOpen after DCA averaging) */
@@ -1970,6 +1978,8 @@ interface SignalCommitBase {
     totalPartials: number;
     /** Original entry price at signal creation (unchanged by DCA averaging). */
     originalPriceOpen: number;
+    /** Signal data at the moment of this event (snapshot of IPublicSignalRow) */
+    signal: IPublicSignalRow;
     /** Optional human-readable description of signal reason */
     note?: string;
 }
@@ -1981,8 +1991,12 @@ interface CancelScheduledCommit extends SignalCommitBase {
     action: "cancel-scheduled";
     /** Optional identifier for the cancellation reason (user-provided) */
     cancelId?: string;
-    /** Unrealized PNL at the moment of cancellation */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
 }
 /**
  * Close pending signal event.
@@ -1992,8 +2006,12 @@ interface ClosePendingCommit extends SignalCommitBase {
     action: "close-pending";
     /** Optional identifier for the close reason (user-provided) */
     closeId?: string;
-    /** PNL at the moment of close */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
 }
 /**
  * Partial profit event.
@@ -2005,8 +2023,12 @@ interface PartialProfitCommit extends SignalCommitBase {
     percentToClose: number;
     /** Current market price at time of action */
     currentPrice: number;
-    /** Unrealized PNL at the moment of partial profit */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2034,8 +2056,12 @@ interface PartialLossCommit extends SignalCommitBase {
     percentToClose: number;
     /** Current market price at time of action */
     currentPrice: number;
-    /** Unrealized PNL at the moment of partial loss */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2063,8 +2089,12 @@ interface TrailingStopCommit extends SignalCommitBase {
     percentShift: number;
     /** Current market price at time of trailing adjustment */
     currentPrice: number;
-    /** Unrealized PNL at the moment of trailing stop adjustment */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2092,8 +2122,12 @@ interface TrailingTakeCommit extends SignalCommitBase {
     percentShift: number;
     /** Current market price at time of trailing adjustment */
     currentPrice: number;
-    /** Unrealized PNL at the moment of trailing take adjustment */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2119,8 +2153,12 @@ interface BreakevenCommit extends SignalCommitBase {
     action: "breakeven";
     /** Current market price at time of breakeven adjustment */
     currentPrice: number;
-    /** Unrealized PNL at the moment of breakeven adjustment */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2153,6 +2191,10 @@ interface AverageBuyCommit extends SignalCommitBase {
     effectivePriceOpen: number;
     /** Unrealized PNL at the moment of average-buy (calculated after new entry added) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Original entry price (signal.priceOpen, unchanged by averaging) */
@@ -2180,8 +2222,12 @@ interface ActivateScheduledCommit extends SignalCommitBase {
     activateId?: string;
     /** Current market price at time of activation */
     currentPrice: number;
-    /** PNL at the moment of activation (calculated at priceOpen) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price for the position */
@@ -2367,9 +2413,7 @@ interface ISignalRow extends ISignalDto {
     _peak: {
         price: number;
         timestamp: number;
-        pnlPercentage: number;
-        pnlCost: number;
-    };
+    } & IStrategyPnL;
     /**
      * Worst price seen in loss direction during the life of this position.
      * Initialized at position open with priceOpen/pendingAt (pnl = 0).
@@ -2380,9 +2424,7 @@ interface ISignalRow extends ISignalDto {
     _fall: {
         price: number;
         timestamp: number;
-        pnlPercentage: number;
-        pnlCost: number;
-    };
+    } & IStrategyPnL;
     /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
     timestamp: number;
 }
@@ -2450,6 +2492,16 @@ interface IPublicSignalRow extends ISignalRow {
      * Calculated using toProfitLossDto with the currentPrice at the moment of emission.
      */
     pnl: IStrategyPnL;
+    /**
+     * Peak profit achieved during the life of this position up to the moment this public signal was created.
+     * Calculated using the highest favorable price reached (for long: max price above entry, for short: min price below entry) and the original entry price.
+     */
+    peakProfit: IStrategyPnL;
+    /**
+     * Maximum drawdown experienced during the life of this position up to the moment this public signal was created.
+     * Calculated using the worst unfavorable price reached (for long: min price below entry, for short: max price above entry) and the original entry price.
+     */
+    maxDrawdown: IStrategyPnL;
 }
 /**
  * Base storage signal row fields shared by all status variants.
@@ -9798,8 +9850,12 @@ interface SignalOpenedNotification {
     totalPartials: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
-    /** Unrealized PNL at the moment of signal open (from signal.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -9810,6 +9866,26 @@ interface SignalOpenedNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -9862,8 +9938,12 @@ interface SignalClosedNotification {
     totalPartials: number;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
-    /** Final PNL at signal close (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
     pnlPriceOpen: number;
     /** Exit price from PNL calculation (adjusted with slippage and fees) */
@@ -9872,6 +9952,26 @@ interface SignalClosedNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
     closeReason: string;
     /** Duration of position in minutes (from pendingAt to closeTimestamp) */
@@ -9928,8 +10028,12 @@ interface PartialProfitAvailableNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** Unrealized PNL at the moment this level was reached (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -9940,6 +10044,26 @@ interface PartialProfitAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -9992,8 +10116,12 @@ interface PartialLossAvailableNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** Unrealized PNL at the moment this level was reached (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10004,6 +10132,26 @@ interface PartialLossAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10054,8 +10202,12 @@ interface BreakevenAvailableNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** Unrealized PNL at the moment breakeven became available (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10066,6 +10218,26 @@ interface BreakevenAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10118,8 +10290,12 @@ interface PartialProfitCommitNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** PNL at the moment of partial profit commit (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10130,6 +10306,26 @@ interface PartialProfitCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10182,8 +10378,12 @@ interface PartialLossCommitNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** PNL at the moment of partial loss commit (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10194,6 +10394,26 @@ interface PartialLossCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10244,8 +10464,12 @@ interface BreakevenCommitNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** PNL at the moment of breakeven commit (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10256,6 +10480,26 @@ interface BreakevenCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10310,8 +10554,12 @@ interface AverageBuyCommitNotification {
     originalPriceStopLoss: number;
     /** Original entry price at signal creation (unchanged by DCA averaging) */
     originalPriceOpen: number;
-    /** PNL at the moment of average-buy commit (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10322,6 +10570,26 @@ interface AverageBuyCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10372,8 +10640,12 @@ interface ActivateScheduledCommitNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** PNL at the moment of activate-scheduled commit (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10384,6 +10656,26 @@ interface ActivateScheduledCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -10438,8 +10730,12 @@ interface TrailingStopCommitNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** PNL at the moment of trailing-stop commit (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10450,6 +10746,26 @@ interface TrailingStopCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10502,8 +10818,12 @@ interface TrailingTakeCommitNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** PNL at the moment of trailing-take commit (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10514,6 +10834,26 @@ interface TrailingTakeCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10546,8 +10886,12 @@ interface SignalSyncOpenNotification {
     signalId: string;
     /** Current market price at activation */
     currentPrice: number;
-    /** PNL at the moment of opening */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -10558,6 +10902,26 @@ interface SignalSyncOpenNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Cost of the position entry in USD */
     cost: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
@@ -10610,8 +10974,12 @@ interface SignalSyncCloseNotification {
     signalId: string;
     /** Current market price at close */
     currentPrice: number;
-    /** Final PNL at signal close */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage */
     pnlPercentage: number;
     /** Entry price from PNL calculation */
@@ -10622,6 +10990,26 @@ interface SignalSyncCloseNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price at close */
@@ -10736,8 +11124,12 @@ interface SignalScheduledNotification {
     totalPartials: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
-    /** Unrealized PNL at the moment of signal scheduled (from signal.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10748,6 +11140,26 @@ interface SignalScheduledNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Unix timestamp in milliseconds when signal was scheduled */
     scheduledAt: number;
     /** Current market price when signal was scheduled */
@@ -10888,8 +11300,12 @@ interface CancelScheduledCommitNotification {
     totalPartials: number;
     /** Original entry price at signal creation (unchanged by DCA averaging) */
     originalPriceOpen: number;
-    /** PNL at the moment of cancellation (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10900,6 +11316,26 @@ interface CancelScheduledCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -10934,8 +11370,12 @@ interface ClosePendingCommitNotification {
     totalPartials: number;
     /** Original entry price at signal creation (unchanged by DCA averaging) */
     originalPriceOpen: number;
-    /** PNL at the moment of close (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -10946,6 +11386,26 @@ interface ClosePendingCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -10992,8 +11452,12 @@ interface SignalInfoNotification {
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
     totalPartials: number;
-    /** Unrealized PNL at the moment the info event was emitted (from data.pnl) */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
@@ -11004,6 +11468,26 @@ interface SignalInfoNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** User-defined informational note provided by the strategy */
     note: string;
     /** Optional user-defined identifier for correlating this notification with external systems */
@@ -11463,8 +11947,12 @@ interface HighestProfitEvent {
     signalId: string;
     /** Position direction */
     position: IPublicSignalRow["position"];
-    /** Unrealized PNL at the time the record was set */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Record price reached in the profit direction */
     currentPrice: number;
     /** Effective entry price at the time of the update */
@@ -11500,8 +11988,12 @@ interface MaxDrawdownEvent {
     signalId: string;
     /** Position direction */
     position: IPublicSignalRow["position"];
-    /** Unrealized PNL at the time the record was set */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Record price reached in the loss direction */
     currentPrice: number;
     /** Effective entry price at the time of the update */
@@ -20162,8 +20654,12 @@ interface SyncEvent {
     totalEntries: number;
     /** Total number of partial closes executed */
     totalPartials: number;
-    /** PNL at the moment of this event */
+    /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Why the signal was closed (signal-close only) */
     closeReason?: StrategyCloseReason;
     /** Whether this event is from backtest mode */
@@ -23643,6 +24139,12 @@ type BrokerSignalOpenPayload = {
     priceTakeProfit: number;
     /** Original stop-loss price from the signal */
     priceStopLoss: number;
+    /** Market price at the moment of activation (VWAP or candle average) */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
@@ -23684,6 +24186,8 @@ type BrokerSignalClosePayload = {
     position: "long" | "short";
     /** Market price at the moment of close */
     currentPrice: number;
+    /** Effective entry price at time of close (may differ from priceOpen after DCA averaging) */
+    priceOpen: number;
     /** Original take-profit price from the signal */
     priceTakeProfit: number;
     /** Original stop-loss price from the signal */
@@ -23694,6 +24198,10 @@ type BrokerSignalClosePayload = {
     totalPartials: number;
     /** Realized PnL breakdown for the closed position */
     pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
     /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
@@ -31979,7 +32487,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cancelId?: string, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, cancelId?: string, note?: string) => Promise<void>;
     /**
      * Logs a close-pending event when a pending signal is closed.
      */
@@ -31987,7 +32495,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, closeId?: string, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, closeId?: string, note?: string) => Promise<void>;
     /**
      * Logs a partial-profit event when a portion of the position is closed at profit.
      */
@@ -31995,7 +32503,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a partial-loss event when a portion of the position is closed at loss.
      */
@@ -32003,7 +32511,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a trailing-stop event when the stop-loss is adjusted.
      */
@@ -32011,7 +32519,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a trailing-take event when the take-profit is adjusted.
      */
@@ -32019,7 +32527,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a breakeven event when the stop-loss is moved to entry price.
      */
@@ -32027,7 +32535,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs an activate-scheduled event when a scheduled signal is activated early.
      */
@@ -32035,7 +32543,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string, note?: string) => Promise<void>;
     /**
      * Logs an average-buy (DCA) event when a new averaging entry is added to an open position.
      */
@@ -32043,7 +32551,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, signalId: string, pnl: IStrategyPnL, totalPartials: number, cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
+    }, timestamp: number, signalId: string, pnl: IStrategyPnL, peakProfit: IStrategyPnL, maxDrawdown: IStrategyPnL, totalPartials: number, cost: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Initializes the service for event logging.
      *
@@ -32436,4 +32944,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRecentAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TRecentUtilsCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, type MemoryData, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistIntervalAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistMemoryAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRecentAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TRecentUtilsCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, warmCandles, writeMemory };

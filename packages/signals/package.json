@@ -76,10 +76,10 @@
   "dependencies": {
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
-    "functools-kit": "^2.2.0",
+    "functools-kit": "^2.3.0",
     "trading-signals": "^6.9.1",
     "get-moment-stamp": "^1.1.2",
-    "agent-swarm-kit": "^2.5.1"
+    "agent-swarm-kit": "^2.6.0"
   },
   "publishConfig": {
     "access": "public"

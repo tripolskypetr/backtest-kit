@@ -21,6 +21,7 @@ declare class LoggerService implements ILogger {
 declare class PaperMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private symbolSchemaService;
     private frontendProviderService;
@@ -32,13 +33,20 @@ declare class PaperMainService {
         strategy: string;
         exchange: string;
         verbose: boolean;
-    }) => Promise<void>) & functools_kit.ISingleshotClearable;
-    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    }) => Promise<void>) & functools_kit.ISingleshotClearable<(payload: {
+        entryPoint: string;
+        symbol: string;
+        strategy: string;
+        exchange: string;
+        verbose: boolean;
+    }) => Promise<void>>;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class LiveMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private symbolSchemaService;
     private frontendProviderService;
@@ -50,13 +58,20 @@ declare class LiveMainService {
         strategy: string;
         exchange: string;
         verbose: boolean;
-    }) => Promise<void>) & functools_kit.ISingleshotClearable;
-    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    }) => Promise<void>) & functools_kit.ISingleshotClearable<(payload: {
+        entryPoint: string;
+        symbol: string;
+        strategy: string;
+        exchange: string;
+        verbose: boolean;
+    }) => Promise<void>>;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class BacktestMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private frameSchemaService;
     private symbolSchemaService;
@@ -73,13 +88,23 @@ declare class BacktestMainService {
         cacheInterval: string[];
         verbose: boolean;
         noCache: boolean;
-    }) => Promise<void>) & functools_kit.ISingleshotClearable;
-    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    }) => Promise<void>) & functools_kit.ISingleshotClearable<(payload: {
+        entryPoint: string;
+        symbol: string;
+        strategy: string;
+        exchange: string;
+        frame: string;
+        cacheInterval: string[];
+        verbose: boolean;
+        noCache: boolean;
+    }) => Promise<void>>;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class WalkerMainService {
     private loggerService;
     private resolveService;
+    private configService;
     private exchangeSchemaService;
     private symbolSchemaService;
     private cacheLogicService;
@@ -93,18 +118,27 @@ declare class WalkerMainService {
         markdown: boolean;
         verbose: boolean;
         noCache: boolean;
-    }) => Promise<void>) & functools_kit.ISingleshotClearable;
-    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    }) => Promise<void>) & functools_kit.ISingleshotClearable<(payload: {
+        entryPoints: string[];
+        symbol: string;
+        output: string;
+        cacheInterval: CandleInterval[];
+        json: boolean;
+        markdown: boolean;
+        verbose: boolean;
+        noCache: boolean;
+    }) => Promise<void>>;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class ExchangeSchemaService {
     readonly loggerService: LoggerService;
-    addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class FrameSchemaService {
     readonly loggerService: LoggerService;
-    addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class LoaderService {
@@ -129,8 +163,10 @@ declare class ResolveService implements IResolve {
     readonly loaderService: LoaderService;
     readonly DEFAULT_TEMPLATE_DIR: string;
     readonly DEFAULT_MODULES_DIR: string;
+    readonly DEFAULT_CONFIG_DIR: string;
     readonly OVERRIDE_TEMPLATE_DIR: string;
     readonly OVERRIDE_MODULES_DIR: string;
+    readonly OVERRIDE_CONFIG_DIR: string;
     readonly PROJECT_ROOT_DIR: string;
     getIsLaunched: () => boolean;
     attachPine: (pinePath: string) => Promise<string>;
@@ -141,28 +177,41 @@ declare class ResolveService implements IResolve {
 declare class ErrorService {
     handleGlobalError: (error: Error) => Promise<void>;
     private _listenForError;
-    protected init: (() => void) & functools_kit.ISingleshotClearable;
+    protected init: (() => void) & functools_kit.ISingleshotClearable<() => void>;
 }
 
 declare class SymbolSchemaService {
     readonly loggerService: LoggerService;
-    addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
+}
+
+type ModuleExports = {
+    [key: string]: any;
+    default?: any;
+};
+
+declare class ConfigConnectionService {
+    readonly loggerService: LoggerService;
+    readonly resolveService: ResolveService;
+    readonly loaderService: LoaderService;
+    loadConfig: (fileName: string) => Promise<ModuleExports>;
 }
 
 declare class FrontendProviderService {
-    private readonly loggerService;
-    private readonly resolveService;
-    enable: (() => () => void) & functools_kit.ISingleshotClearable;
+    readonly loggerService: LoggerService;
+    readonly resolveService: ResolveService;
+    readonly configConnectionService: ConfigConnectionService;
+    enable: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     disable: () => void;
-    connect: (() => Promise<() => void>) & functools_kit.ISingleshotClearable;
+    connect: (() => Promise<() => void>) & functools_kit.ISingleshotClearable<() => Promise<() => void>>;
 }
 
 declare class TelegramProviderService {
     private readonly loggerService;
     private readonly telegramLogicService;
-    enable: (() => () => void) & functools_kit.ISingleshotClearable;
+    enable: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     disable: () => void;
-    connect: (() => Promise<() => void>) & functools_kit.ISingleshotClearable;
+    connect: (() => Promise<() => void>) & functools_kit.ISingleshotClearable<() => Promise<() => void>>;
 }
 
 declare class CacheLogicService {
@@ -214,7 +263,7 @@ declare class TelegramLogicService {
     private notifySignalClose;
     private notifyCancelScheduled;
     private notifyClosePending;
-    connect: (() => () => void) & functools_kit.ISingleshotClearable;
+    connect: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
 }
 
 declare class TelegramTemplateService {
@@ -253,6 +302,27 @@ declare class BabelService implements IBabel {
     transpile: (code: string) => any;
 }
 
+interface NotificationConfig {
+    signal: boolean;
+    risk: boolean;
+    info: boolean;
+    breakeven: boolean;
+    common_error: boolean;
+    critical_error: boolean;
+    validation_error: boolean;
+    partial_loss: boolean;
+    partial_profit: boolean;
+    signal_sync: boolean;
+    strategy_commit: boolean;
+}
+
+declare class ConfigService {
+    readonly loggerService: LoggerService;
+    readonly configConnectionService: ConfigConnectionService;
+    getNotificationConfig: (() => NotificationConfig) & functools_kit.ISingleshotClearable<() => NotificationConfig>;
+    waitForInit: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
+}
+
 declare const cli: {
     telegramTemplateService: TelegramTemplateService;
     telegramWebService: TelegramWebService;
@@ -268,17 +338,19 @@ declare const cli: {
     paperMainService: PaperMainService;
     liveMainService: LiveMainService;
     moduleConnectionService: ModuleConnectionService;
-    errorService: ErrorService;
-    loggerService: LoggerService;
+    configConnectionService: ConfigConnectionService;
     resolveService: ResolveService;
     loaderService: LoaderService;
+    configService: ConfigService;
     babelService: BabelService;
+    errorService: ErrorService;
+    loggerService: LoggerService;
     telegramApiService: TelegramApiService;
     quickchartApiService: QuickchartApiService;
 };
 
 declare class SetupUtils {
-    enable: (() => void) & functools_kit.ISingleshotClearable;
+    enable: (() => void) & functools_kit.ISingleshotClearable<() => void>;
     clear: () => void;
 }
 declare const Setup: SetupUtils;

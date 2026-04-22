@@ -85,6 +85,16 @@ export class SyncReportService {
       pnlEntries: data.pnl.pnlEntries,
       pnlPriceOpen: data.pnl.priceOpen,
       pnlPriceClose: data.pnl.priceClose,
+      peakProfitPercentage: data.peakProfit.pnlPercentage,
+      peakProfitCost: data.peakProfit.pnlCost,
+      peakProfitEntries: data.peakProfit.pnlEntries,
+      peakProfitPriceOpen: data.peakProfit.priceOpen,
+      peakProfitPriceClose: data.peakProfit.priceClose,
+      maxDrawdownPercentage: data.maxDrawdown.pnlPercentage,
+      maxDrawdownCost: data.maxDrawdown.pnlCost,
+      maxDrawdownEntries: data.maxDrawdown.pnlEntries,
+      maxDrawdownPriceOpen: data.maxDrawdown.priceOpen,
+      maxDrawdownPriceClose: data.maxDrawdown.priceClose,
       currentPrice: data.currentPrice,
     };
 

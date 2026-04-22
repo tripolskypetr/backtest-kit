@@ -13,6 +13,10 @@ const ALLOWED_EXTENSIONS = [
 const DISALLOWED_PATHS = [
   "node_modules",
   "@backtest-kit",
+  "build/index.mjs",
+  "build/index.js",
+  "build\\index.mjs",
+  "build\\index.js",
 ];
 
 export const getArgs = singleshot(() => {

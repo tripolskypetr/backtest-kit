@@ -1,9 +1,9 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import path from "path";
-import LoaderService from "../base/LoaderService";
+import LoaderService from "../core/LoaderService";
 
 const GET_MODULE_VARIANTS_FN = (
   fileName: string,
@@ -53,7 +53,7 @@ export class ModuleConnectionService {
   readonly loaderService = inject<LoaderService>(TYPES.loaderService);
 
   public loadModule = async (fileName: string) => {
-    this.loggerService.log("moduleConnectionService getInstance", {
+    this.loggerService.log("moduleConnectionService loadModule", {
       fileName,
     });
     return await LOAD_MODULE_MODULE_FN(fileName, this);

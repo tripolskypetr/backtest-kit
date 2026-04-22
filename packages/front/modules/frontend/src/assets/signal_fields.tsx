@@ -1,6 +1,9 @@
-import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
+import { TypedField, FieldType, dayjs, CopyButton, copyToClipboard } from "react-declarative";
 import { Box } from "@mui/material";
 import Markdown from "../components/common/Markdown";
+import toPlainString from "../helpers/toPlainString";
+import { CopyAll } from "@mui/icons-material";
+import ioc from "../lib";
 
 export const signal_fields: TypedField[] = [
     {
@@ -109,6 +112,12 @@ export const signal_fields: TypedField[] = [
                         title: "Signal ID",
                         readonly: true,
                         compute: (obj) => obj.id || "Not specified",
+                        trailingIcon: CopyAll,
+                        trailingIconClick: async (id) => { 
+                            if (await copyToClipboard(id as string)) {
+                                ioc.alertService.notify("Copied!");
+                            }
+                        },
                     },
                 ],
             },
@@ -440,6 +449,180 @@ export const signal_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
+                placeholder: "Peak Profit",
+                isVisible: (obj) => !!obj.peakProfit?.priceClose,
+            },
+            {
+                type: FieldType.Outline,
+                sx: { mb: 3 },
+                isVisible: (obj) => !!obj.peakProfit?.priceClose,
+                fields: [
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.pnlPercentage",
+                        title: "Peak Profit %",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.peakProfit?.pnlPercentage;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}%`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.pnlCost",
+                        title: "Peak Profit ($)",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.peakProfit?.pnlCost;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}$`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.priceOpen",
+                        title: "Entry Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfit?.priceOpen
+                                ? `${obj.peakProfit.priceOpen.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.priceClose",
+                        title: "Peak Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfit?.priceClose
+                                ? `${obj.peakProfit.priceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfit.pnlEntries",
+                        title: "Invested",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfit?.pnlEntries
+                                ? `${obj.peakProfit.pnlEntries.toFixed(2)}$`
+                                : "N/A",
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
+                placeholder: "Max Drawdown",
+                isVisible: (obj) => !!obj.maxDrawdown?.priceClose,
+            },
+            {
+                type: FieldType.Outline,
+                sx: { mb: 3 },
+                isVisible: (obj) => !!obj.maxDrawdown?.priceClose,
+                fields: [
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.pnlPercentage",
+                        title: "Max Drawdown %",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.maxDrawdown?.pnlPercentage;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}%`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.pnlCost",
+                        title: "Max Drawdown ($)",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.maxDrawdown?.pnlCost;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}$`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.priceOpen",
+                        title: "Entry Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdown?.priceOpen
+                                ? `${obj.maxDrawdown.priceOpen.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.priceClose",
+                        title: "Drawdown Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdown?.priceClose
+                                ? `${obj.maxDrawdown.priceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdown.pnlEntries",
+                        title: "Invested",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdown?.pnlEntries
+                                ? `${obj.maxDrawdown.pnlEntries.toFixed(2)}$`
+                                : "N/A",
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
                 placeholder: "Note",
                 isVisible: (data) => !!data.note,
             },
@@ -458,6 +641,15 @@ export const signal_fields: TypedField[] = [
                               content={note}
                             />
                         ),
+                    },
+                    {
+                        type: FieldType.Div,
+                        style: { display: "none" },
+                        child: {
+                            type: FieldType.Text,
+                            name: "node_print",
+                            compute: ({ note }) => toPlainString(note),
+                        }, 
                     },
                 ],
             },

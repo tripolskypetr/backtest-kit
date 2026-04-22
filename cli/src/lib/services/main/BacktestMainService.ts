@@ -13,7 +13,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
 import FrameSchemaService from "../schema/FrameSchemaService";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
 import CacheLogicService from "../logic/CacheLogicService";
@@ -22,6 +22,8 @@ import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
 import notifyVerbose from "../../../utils/notifyVerbose";
 import ModuleConnectionService from "../connection/ModuleConnectionService";
+import ConfigService from "../core/ConfigService";
+import { Setup } from "../../../classes/Setup";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -38,6 +40,7 @@ const GET_CACHE_INTERVAL_LIST_FN = () => {
 export class BacktestMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
   private resolveService = inject<ResolveService>(TYPES.resolveService);
+  private configService = inject<ConfigService>(TYPES.configService);
 
   private exchangeSchemaService = inject<ExchangeSchemaService>(
     TYPES.exchangeSchemaService,
@@ -78,6 +81,11 @@ export class BacktestMainService {
       this.loggerService.log("backtestMainService run", {
         payload,
       });
+
+      {
+        await this.configService.waitForInit();
+        Setup.enable();
+      }
 
       {
         this.frontendProviderService.connect();

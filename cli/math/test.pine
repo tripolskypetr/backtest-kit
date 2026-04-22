@@ -1,0 +1,7 @@
+//@version=5
+indicator("test", overlay=false)
+
+plot(close,    "Close",     display=display.data_window)
+
+// Position: flat by default, just verify data flows
+plot(0, "Position", display=display.data_window)

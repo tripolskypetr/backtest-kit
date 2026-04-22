@@ -2,6 +2,7 @@ import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import ioc from "../lib";
 import Markdown from "../components/common/Markdown";
+import toPlainString from "../helpers/toPlainString";
 
 export const breakeven_commit_fields: TypedField[] = [
     {
@@ -401,6 +402,180 @@ export const breakeven_commit_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
+                placeholder: "Peak Profit",
+                isVisible: (obj) => !!obj.peakProfitPriceClose,
+            },
+            {
+                type: FieldType.Outline,
+                sx: { mb: 3 },
+                isVisible: (obj) => !!obj.peakProfitPriceClose,
+                fields: [
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfitPercentage",
+                        title: "Peak Profit %",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.peakProfitPercentage;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}%`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfitCost",
+                        title: "Peak Profit ($)",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.peakProfitCost;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}$`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfitPriceOpen",
+                        title: "Entry Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfitPriceOpen
+                                ? `${obj.peakProfitPriceOpen.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfitPriceClose",
+                        title: "Peak Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfitPriceClose
+                                ? `${obj.peakProfitPriceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "peakProfitEntries",
+                        title: "Invested",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.peakProfitEntries
+                                ? `${obj.peakProfitEntries.toFixed(2)}$`
+                                : "N/A",
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
+                placeholder: "Max Drawdown",
+                isVisible: (obj) => !!obj.maxDrawdownPriceClose,
+            },
+            {
+                type: FieldType.Outline,
+                sx: { mb: 3 },
+                isVisible: (obj) => !!obj.maxDrawdownPriceClose,
+                fields: [
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdownPercentage",
+                        title: "Max Drawdown %",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.maxDrawdownPercentage;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}%`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdownCost",
+                        title: "Max Drawdown ($)",
+                        readonly: true,
+                        compute: (obj) => {
+                            const v = obj.maxDrawdownCost;
+                            if (v == null) return "N/A";
+                            const sign = v >= 0 ? "+" : "";
+                            return `${sign}${v.toFixed(2)}$`;
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdownPriceOpen",
+                        title: "Entry Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdownPriceOpen
+                                ? `${obj.maxDrawdownPriceOpen.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdownPriceClose",
+                        title: "Drawdown Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdownPriceClose
+                                ? `${obj.maxDrawdownPriceClose.toFixed(6)}$`
+                                : "N/A",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "maxDrawdownEntries",
+                        title: "Invested",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.maxDrawdownEntries
+                                ? `${obj.maxDrawdownEntries.toFixed(2)}$`
+                                : "N/A",
+                    },
+                ],
+            },
+            {
+                type: FieldType.Typography,
+                typoVariant: "h6",
                 placeholder: "Note",
                 isVisible: (obj) => !!obj.note,
             },
@@ -417,6 +592,15 @@ export const breakeven_commit_fields: TypedField[] = [
                         element: ({ note }) => (
                             <Markdown content={note} />
                         ),
+                    },
+                    {
+                        type: FieldType.Div,
+                        style: { display: "none" },
+                        child: {
+                            type: FieldType.Text,
+                            name: "node_print",
+                            compute: ({ note }) => toPlainString(note),
+                        }, 
                     },
                 ],
             },

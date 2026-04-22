@@ -2,6 +2,11 @@ import MarkdownIt from "markdown-it";
 import sanitizeHtml from "sanitize-html";
 
 export const toPlainString = (content: string): string => {
+
+    if (!content) {
+        return "";
+    }
+    
     const md = new MarkdownIt({
         html: false,
         breaks: true,

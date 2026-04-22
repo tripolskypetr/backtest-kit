@@ -301,8 +301,8 @@ class HeatmapStorage {
     let avgPeakPnl: number | null = null;
     let avgFallPnl: number | null = null;
     if (signals.length > 0) {
-      avgPeakPnl = signals.reduce((acc, s) => acc + (s.signal._peak?.pnlPercentage ?? 0), 0) / signals.length;
-      avgFallPnl = signals.reduce((acc, s) => acc + (s.signal._fall?.pnlPercentage ?? 0), 0) / signals.length;
+      avgPeakPnl = signals.reduce((acc, s) => acc + (s.signal.peakProfit?.pnlPercentage ?? 0), 0) / signals.length;
+      avgFallPnl = signals.reduce((acc, s) => acc + (s.signal.maxDrawdown?.pnlPercentage ?? 0), 0) / signals.length;
     }
 
     // Apply safe math checks

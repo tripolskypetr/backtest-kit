@@ -50,8 +50,12 @@ export interface SyncEvent {
   totalEntries: number;
   /** Total number of partial closes executed */
   totalPartials: number;
-  /** PNL at the moment of this event */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Why the signal was closed (signal-close only) */
   closeReason?: StrategyCloseReason;
   /** Whether this event is from backtest mode */

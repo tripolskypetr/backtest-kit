@@ -47,6 +47,10 @@ export interface SignalOpenContract extends SignalSyncBase {
   currentPrice: number;
   /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Cost of the position at close (sum of all entry costs) */
   cost: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
@@ -99,6 +103,10 @@ export interface SignalCloseContract extends SignalSyncBase {
   currentPrice: number;
   /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Effective entry price at time of close (may differ from priceOpen after DCA averaging) */

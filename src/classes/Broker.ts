@@ -61,6 +61,12 @@ export type BrokerSignalOpenPayload = {
   priceTakeProfit: number;
   /** Original stop-loss price from the signal */
   priceStopLoss: number;
+  /** Market price at the moment of activation (VWAP or candle average) */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -103,6 +109,8 @@ export type BrokerSignalClosePayload = {
   position: "long" | "short";
   /** Market price at the moment of close */
   currentPrice: number;
+  /** Effective entry price at time of close (may differ from priceOpen after DCA averaging) */
+  priceOpen: number;
   /** Original take-profit price from the signal */
   priceTakeProfit: number;
   /** Original stop-loss price from the signal */
@@ -113,6 +121,10 @@ export type BrokerSignalClosePayload = {
   totalPartials: number;
   /** Realized PnL breakdown for the closed position */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -1013,6 +1025,9 @@ export class BrokerAdapter {
         priceTakeProfit: event.signal.priceTakeProfit,
         priceStopLoss: event.signal.priceStopLoss,
         priceOpen: event.signal.priceOpen,
+        pnl: event.signal.pnl,
+        peakProfit: event.signal.peakProfit,
+        maxDrawdown: event.signal.maxDrawdown,
         context: {
           strategyName: event.strategyName,
           exchangeName: event.exchangeName,
@@ -1031,7 +1046,10 @@ export class BrokerAdapter {
         currentPrice: event.currentPrice,
         cost: event.signal.cost,
         symbol: event.symbol,
-        pnl: event.pnl,
+        pnl: event.signal.pnl,
+        priceOpen: event.signal.priceOpen,
+        peakProfit: event.signal.peakProfit,
+        maxDrawdown: event.signal.maxDrawdown,
         totalEntries: event.totalEntries,
         totalPartials: event.totalPartials,
         priceStopLoss: event.signal.priceStopLoss,

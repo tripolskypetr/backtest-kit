@@ -420,6 +420,89 @@ http://localhost:60050
 
 Customize host/port via environment variables `CC_WWWROOT_HOST` and `CC_WWWROOT_PORT`.
 
+#### Symbol List (`symbol.config`)
+
+By default the UI shows all symbols from the exchange. To restrict or reorder the list, create a `config/symbol.config` file in your strategy directory (next to the entry point).
+
+**Resolution order — first match wins:**
+
+| Priority | Path | Notes |
+|----------|------|-------|
+| 1 | `{strategyDir}/config/symbol.config` | per-strategy override (cwd after `chdir`) |
+| 2 | `{projectRoot}/config/symbol.config` | project-root override (cwd where `npx` was invoked) |
+| 3 | `@backtest-kit/cli/config/symbol.config` | built-in default shipped with the package |
+
+Supported file formats (`.ts`, `.cjs`, `.mjs`, `.js` tried automatically):
+
+```ts
+// config/symbol.config.ts
+export const symbol_list = [
+  {
+    icon: "/icon/btc.png",
+    logo: "/icon/128/btc.png",
+    symbol: "BTCUSDT",
+    displayName: "Bitcoin",
+    color: "#F7931A",
+    priority: 50,
+    description: "Bitcoin - the first and most popular cryptocurrency",
+  },
+  {
+    icon: "/icon/eth.png",
+    logo: "/icon/128/eth.png",
+    symbol: "ETHUSDT",
+    displayName: "Ethereum",
+    color: "#6F42C1",
+    priority: 50,
+    description: "Ethereum - a blockchain platform for smart contracts",
+  },
+];
+```
+
+#### Notification Filter (`notification.config`)
+
+Controls which notification categories are shown in the UI dashboard. Create a `config/notification.config` file in your strategy directory to override the defaults.
+
+**Resolution order — first match wins:**
+
+| Priority | Path | Notes |
+|----------|------|-------|
+| 1 | `{strategyDir}/config/notification.config` | per-strategy override (cwd after `chdir`) |
+| 2 | `{projectRoot}/config/notification.config` | project-root override (cwd where `npx` was invoked) |
+| 3 | `@backtest-kit/cli/config/notification.config` | built-in default shipped with the package |
+
+**Default values (built-in):**
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `signal` | `true` | Signal lifecycle: opened, scheduled, closed, cancelled |
+| `risk` | `true` | Risk manager rejection notifications |
+| `info` | `true` | Informational messages attached to an active signal |
+| `breakeven` | `true` | Breakeven level reached |
+| `common_error` | `true` | Non-fatal runtime errors |
+| `critical_error` | `true` | Fatal errors that terminate the session |
+| `validation_error` | `true` | Strategy config / input validation errors |
+| `strategy_commit` | `true` | All committed actions (partial close, DCA, trailing, etc.) |
+| `partial_loss` | `false` | Partial loss level reached (before commit) |
+| `partial_profit` | `false` | Partial profit level reached (before commit) |
+| `signal_sync` | `false` | Live order fill / exit confirmations from exchange sync |
+
+```js
+// config/notification.config.ts
+export default {
+  signal: true,
+  risk: true,
+  info: true,
+  breakeven: true,
+  common_error: true,
+  critical_error: true,
+  validation_error: true,
+  strategy_commit: true,
+  partial_loss: false,
+  partial_profit: false,
+  signal_sync: false,
+};
+```
+
 ### Telegram Notifications (`--telegram`)
 
 Sends formatted HTML messages with 1m / 15m / 1h price charts to your Telegram channel for every position event: opened, closed, scheduled, cancelled, risk rejection, partial profit/loss, trailing stop/take, and breakeven.
@@ -513,6 +596,42 @@ Broker.useBrokerAdapter(MyBroker);
 
 Broker.enable();
 ```
+
+## 🔀 Import Aliases (`alias.module`)
+
+`@backtest-kit/cli` lets you override any nodejs module import — without touching the strategy code. Drop a `config/alias.module` file in your project root and export a mapping from module name to replacement module.
+
+The alias table is loaded once (on the first `import` call) from `{projectRoot}/config/alias.module` and applied globally to every subsequent module load via `require`/ `import`.
+
+**Use cases:**
+
+- Replace a heavy dependency with a lighter stub for backtesting
+- Swap any external api for a mock during CI runs
+
+```ts
+// config/alias.module.ts — named export
+export const ccxt = require("./stubs/ccxt.stub.cjs");
+```
+
+```js
+// config/alias.module.cjs — default export
+module.exports = {
+  ccxt: require("./stubs/ccxt.stub.cjs"),
+};
+```
+
+```js
+// config/alias.module.mjs — default export
+import ccxtStub from "./stubs/ccxt.stub.mjs";
+
+export default {
+  ccxt: ccxtStub,
+};
+```
+
+**How it works:** when strategy code calls `require("ccxt")`, the loader checks `IMPORT_ALIAS` first. If a key matches, the mapped value is returned instead of the real module — no monkey-patching of `node_modules` needed.
+
+**Important:** It is **not** per-strategy — it applies to all modules loaded in the current process.
 
 ## 📦 Supported Entry Point Formats
 

@@ -6,13 +6,18 @@ const apiServices = {
 const baseServices = {
     errorService: Symbol('errorService'),
     loggerService: Symbol('loggerService'),
+};
+
+const coreServices = {
     resolveService: Symbol('resolveService'),
     loaderService: Symbol('loaderService'),
+    configService: Symbol('configService'),
     babelService: Symbol('babelService'),
-};
+}
 
 const connectionServices = {
     moduleConnectionService: Symbol('moduleConnectionService'),
+    configConnectionService: Symbol('configConnectionService'),
 }
 
 const mainServices = {
@@ -49,6 +54,7 @@ const templateServices = {
 export const TYPES = {
     ...apiServices,
     ...baseServices,
+    ...coreServices,
     ...connectionServices,
     ...mainServices,
     ...logicServices,

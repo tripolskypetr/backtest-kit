@@ -170,7 +170,7 @@ export interface ISignalRow extends ISignalDto {
    * - For LONG: maximum VWAP price seen above effective entry
    * - For SHORT: minimum VWAP price seen below effective entry
    */
-  _peak: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; };
+  _peak: { price: number; timestamp: number; } & IStrategyPnL;
   /**
    * Worst price seen in loss direction during the life of this position.
    * Initialized at position open with priceOpen/pendingAt (pnl = 0).
@@ -178,7 +178,7 @@ export interface ISignalRow extends ISignalDto {
    * - For LONG: minimum VWAP price seen below effective entry
    * - For SHORT: maximum VWAP price seen above effective entry
    */
-  _fall: { price: number; timestamp: number; pnlPercentage: number; pnlCost: number; };
+  _fall: { price: number; timestamp: number; } & IStrategyPnL;
   /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
   timestamp: number;
 }
@@ -248,6 +248,18 @@ export interface IPublicSignalRow extends ISignalRow {
    * Calculated using toProfitLossDto with the currentPrice at the moment of emission.
    */
   pnl: IStrategyPnL;
+
+  /**
+   * Peak profit achieved during the life of this position up to the moment this public signal was created.
+   * Calculated using the highest favorable price reached (for long: max price above entry, for short: min price below entry) and the original entry price.
+   */
+  peakProfit: IStrategyPnL;
+
+  /**
+   * Maximum drawdown experienced during the life of this position up to the moment this public signal was created.
+   * Calculated using the worst unfavorable price reached (for long: min price below entry, for short: max price above entry) and the original entry price.
+   */
+  maxDrawdown: IStrategyPnL;
 }
 
 /**

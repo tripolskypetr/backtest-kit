@@ -21,7 +21,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import CacheLogicService from "../logic/CacheLogicService";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
@@ -34,6 +34,7 @@ import { constants } from "fs";
 import FrameName from "../../../enum/FrameName";
 import WalkerName from "../../../enum/WalkerName";
 import { Setup } from "../../../classes/Setup";
+import ConfigService from "../core/ConfigService";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -54,6 +55,7 @@ type RestoreSnapshot = () => void;
 export class WalkerMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
   private resolveService = inject<ResolveService>(TYPES.resolveService);
+  private configService = inject<ConfigService>(TYPES.configService);
 
   private exchangeSchemaService = inject<ExchangeSchemaService>(
     TYPES.exchangeSchemaService,
@@ -80,6 +82,11 @@ export class WalkerMainService {
       noCache: boolean;
     }) => {
       this.loggerService.log("walkerMainService run", { payload });
+
+      {
+        await this.configService.waitForInit();
+        Setup.enable();
+      }
 
       const strategyMap = new Map<StrategyName, EntryPath>();
       const sessionMap = new Map<EntryPath, RestoreSnapshot>();

@@ -3,9 +3,9 @@ import { access, readFile } from "fs/promises";
 import { constants } from "fs";
 import dotenv from "dotenv";
 import { Log } from "backtest-kit";
-import { inject } from '../../../lib/core/di';
-import LoggerService from './LoggerService';
-import TYPES from '../../../lib/core/types';
+import { inject } from '../../core/di';
+import LoggerService from '../base/LoggerService';
+import TYPES from '../../core/types';
 import { entrySubject } from '../../../config/emitters';
 import LoaderService from './LoaderService';
 import { fileURLToPath } from "url";
@@ -23,8 +23,11 @@ export class ResolveService implements IResolve{
 
     public readonly DEFAULT_TEMPLATE_DIR = path.resolve(__dirname, '..', 'template');
     public readonly DEFAULT_MODULES_DIR = path.resolve(__dirname, '..', 'modules');
+    public readonly DEFAULT_CONFIG_DIR = path.resolve(__dirname, '..', 'config');
+
     public readonly OVERRIDE_TEMPLATE_DIR = path.resolve(process.cwd(), 'template');
     public readonly OVERRIDE_MODULES_DIR = path.resolve(process.cwd(), 'modules');
+    public readonly OVERRIDE_CONFIG_DIR = path.resolve(process.cwd(), 'config');
 
     public readonly PROJECT_ROOT_DIR = process.cwd();
 

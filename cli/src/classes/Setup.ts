@@ -38,17 +38,7 @@ import {
 import { cli } from "../lib";
 
 const NOTIFICATION_CONFIG = {
-  signal: true,
-  risk: true,
-  info: true,
-  breakeven: true,
-  common_error: true,
-  critical_error: true,
-  validation_error: true,
-  partial_loss: false,
-  partial_profit: false,
-  signal_sync: false,
-  strategy_commit: true,
+
 };
 
 export class SetupUtils {
@@ -57,7 +47,10 @@ export class SetupUtils {
 
     cli.loggerService.debug("SetupUtils enable");
 
-    Notification.enable(NOTIFICATION_CONFIG);
+    {
+      const config = cli.configService.getNotificationConfig();
+      Notification.enable(config);
+    }
 
     {
       Recent.enable();

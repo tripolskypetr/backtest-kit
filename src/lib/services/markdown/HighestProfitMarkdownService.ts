@@ -95,6 +95,8 @@ class ReportStorage {
       signalId: data.id,
       position: data.position,
       pnl: data.pnl,
+      maxDrawdown: data.maxDrawdown,
+      peakProfit: data.peakProfit,
       currentPrice,
       priceOpen: data.priceOpen,
       priceTakeProfit: data.priceTakeProfit,

@@ -1,23 +1,63 @@
 import { singleshot } from "functools-kit";
-import { serve } from "@backtest-kit/ui";
+import { serve, lib } from "@backtest-kit/ui";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { getArgs } from "../../../helpers/getArgs";
 import { entrySubject } from "../../../config/emitters";
 import { getEnv } from "../../../helpers/getEnv";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
+import ConfigConnectionService from "../connection/ConfigConnectionService";
+import { SymbolConfig } from "../../../model/Config.model";
+
+const GET_SYMBOL_EXPORTS_FN = async (self: FrontendProviderService) => {
+  const exports = await self.configConnectionService.loadConfig("symbol.config");
+  if (!exports) {
+    return null;
+  }
+  return "default" in exports
+    ? exports.default
+    : exports;
+};
+
+const GET_SYMBOL_CONFIG_FN = async (self: FrontendProviderService): Promise<SymbolConfig[]> => {
+  const config = await GET_SYMBOL_EXPORTS_FN(self);
+  if (!config) {
+    throw new Error("FrontendProviderService getSymbolConfig `symbol.config` is not found");
+  }
+  if (Array.isArray(config)) {
+    return config;
+  }
+  if ("symbol_list" in config) {
+    return config.symbol_list;
+  }
+  throw new Error("FrontendProviderService getSymbolConfig `symbol.config` is not found");
+};
 
 export class FrontendProviderService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  private readonly resolveService = inject<ResolveService>(TYPES.resolveService);
+  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly resolveService = inject<ResolveService>(TYPES.resolveService);
+
+  readonly configConnectionService = inject<ConfigConnectionService>(TYPES.configConnectionService);
 
   public enable = singleshot(() => {
     this.loggerService.log("frontendProviderService enable");
     const { CC_WWWROOT_HOST, CC_WWWROOT_PORT } = getEnv();
-    const unServer = serve(CC_WWWROOT_HOST, CC_WWWROOT_PORT, this.resolveService.PROJECT_ROOT_DIR);
+    let unServer: Function;
+
+    const init = async () => {
+      {
+        const config = await GET_SYMBOL_CONFIG_FN(this);
+        if (config) {
+          lib.symbolConnectionService.getSymbolList.setValue(config)
+        }
+      }
+      unServer = serve(CC_WWWROOT_HOST, CC_WWWROOT_PORT, this.resolveService.PROJECT_ROOT_DIR);
+    }
+    init();
+
     return () => {
-      unServer();
+      unServer && unServer();
       this.enable.clear();
     };
   });

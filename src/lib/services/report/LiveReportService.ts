@@ -122,8 +122,16 @@ export class LiveReportService {
         pnlPriceClose: data.pnl.priceClose,
         totalPartials: data.signal?.totalPartials,
         cost: data.signal?.cost,
-        peakPnl: data.signal?._peak?.pnlPercentage,
-        fallPnl: data.signal?._fall?.pnlPercentage,
+        peakProfitPriceOpen: data.signal?.peakProfit?.priceOpen,
+        peakProfitPriceClose: data.signal?.peakProfit?.priceClose,
+        peakProfitPercentage: data.signal?.peakProfit?.pnlPercentage,
+        peakProfitCost: data.signal?.peakProfit?.pnlCost,
+        peakProfitEntries: data.signal?.peakProfit?.pnlEntries,
+        maxDrawdownPriceOpen: data.signal?.maxDrawdown?.priceOpen,
+        maxDrawdownPriceClose: data.signal?.maxDrawdown?.priceClose,
+        maxDrawdownPercentage: data.signal?.maxDrawdown?.pnlPercentage,
+        maxDrawdownCost: data.signal?.maxDrawdown?.pnlCost,
+        maxDrawdownEntries: data.signal?.maxDrawdown?.pnlEntries,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "opened") {
       await ReportWriter.writeData("live", {
@@ -172,8 +180,16 @@ export class LiveReportService {
         pnlPriceClose: data.pnl.priceClose,
         totalPartials: data.signal?.totalPartials,
         cost: data.signal?.cost,
-        peakPnl: data.signal?._peak?.pnlPercentage,
-        fallPnl: data.signal?._fall?.pnlPercentage,
+        peakProfitPriceOpen: data.signal?.peakProfit?.priceOpen,
+        peakProfitPriceClose: data.signal?.peakProfit?.priceClose,
+        peakProfitPercentage: data.signal?.peakProfit?.pnlPercentage,
+        peakProfitCost: data.signal?.peakProfit?.pnlCost,
+        peakProfitEntries: data.signal?.peakProfit?.pnlEntries,
+        maxDrawdownPriceOpen: data.signal?.maxDrawdown?.priceOpen,
+        maxDrawdownPriceClose: data.signal?.maxDrawdown?.priceClose,
+        maxDrawdownPercentage: data.signal?.maxDrawdown?.pnlPercentage,
+        maxDrawdownCost: data.signal?.maxDrawdown?.pnlCost,
+        maxDrawdownEntries: data.signal?.maxDrawdown?.pnlEntries,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "closed") {
       const durationMs = data.closeTimestamp - data.signal?.pendingAt;
@@ -206,8 +222,16 @@ export class LiveReportService {
         closeReason: data.closeReason,
         duration: durationMin,
         closeTime: data.closeTimestamp,
-        peakPnl: data.signal?._peak?.pnlPercentage,
-        fallPnl: data.signal?._fall?.pnlPercentage,
+        peakProfitPriceOpen: data.signal?.peakProfit?.priceOpen,
+        peakProfitPriceClose: data.signal?.peakProfit?.priceClose,
+        peakProfitPercentage: data.signal?.peakProfit?.pnlPercentage,
+        peakProfitCost: data.signal?.peakProfit?.pnlCost,
+        peakProfitEntries: data.signal?.peakProfit?.pnlEntries,
+        maxDrawdownPriceOpen: data.signal?.maxDrawdown?.priceOpen,
+        maxDrawdownPriceClose: data.signal?.maxDrawdown?.priceClose,
+        maxDrawdownPercentage: data.signal?.maxDrawdown?.pnlPercentage,
+        maxDrawdownCost: data.signal?.maxDrawdown?.pnlCost,
+        maxDrawdownEntries: data.signal?.maxDrawdown?.pnlEntries,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "cancelled") {
       await ReportWriter.writeData("live", {

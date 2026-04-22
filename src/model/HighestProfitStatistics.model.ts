@@ -14,8 +14,12 @@ export interface HighestProfitEvent {
   signalId: string;
   /** Position direction */
   position: IPublicSignalRow["position"];
-  /** Unrealized PNL at the time the record was set */
+  /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
   /** Record price reached in the profit direction */
   currentPrice: number;
   /** Effective entry price at the time of the update */

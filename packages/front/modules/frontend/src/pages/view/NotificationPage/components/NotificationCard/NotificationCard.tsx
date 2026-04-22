@@ -472,6 +472,30 @@ const hasPnlDetails = (
   return "pnlPriceOpen" in item && "pnlPriceClose" in item && "pnlCost" in item && "pnlEntries" in item;
 };
 
+const hasPeakProfit = (
+  item: NotificationModel
+): item is NotificationModel & {
+  peakProfitPriceOpen: number;
+  peakProfitPriceClose: number;
+  peakProfitCost: number;
+  peakProfitPercentage: number;
+  peakProfitEntries: number;
+} => {
+  return "peakProfitPriceClose" in item;
+};
+
+const hasMaxDrawdown = (
+  item: NotificationModel
+): item is NotificationModel & {
+  maxDrawdownPriceOpen: number;
+  maxDrawdownPriceClose: number;
+  maxDrawdownCost: number;
+  maxDrawdownPercentage: number;
+  maxDrawdownEntries: number;
+} => {
+  return "maxDrawdownPriceClose" in item;
+};
+
 export const NotificationCard = forwardRef(
   (
     { item, className, style, sx }: INotificationCardProps,
@@ -530,22 +554,25 @@ export const NotificationCard = forwardRef(
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Stack mt={-1} direction="row" flexWrap="wrap">
                   <Chip
                     size="small"
                     label={getNotificationTypeLabel(item)}
                     sx={{
                       background: color,
+                      mt: 1,
+                      mr: 1,
                       color: "white",
                       fontWeight: 500,
                     }}
                   />
                   {hasSymbol(item) && (
-                    <Chip size="small" label={item.symbol} variant="outlined" />
+                    <Chip size="small" sx={{ mt: 1, mr: 1 }} label={item.symbol} variant="outlined" />
                   )}
                   {hasPosition(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={item.position.toUpperCase()}
                       variant="outlined"
                       color={item.position === "long" ? "success" : "error"}
@@ -554,6 +581,7 @@ export const NotificationCard = forwardRef(
                   {hasPnl(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`PnL: ${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%`}
                       color={item.pnlPercentage >= 0 ? "success" : "error"}
                       variant="outlined"
@@ -562,6 +590,7 @@ export const NotificationCard = forwardRef(
                   {hasLevel(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Level")}: ${item.level}%`}
                       variant="outlined"
                     />
@@ -569,6 +598,7 @@ export const NotificationCard = forwardRef(
                   {hasPercentToClose(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Close")}: ${item.percentToClose}%`}
                       variant="outlined"
                     />
@@ -576,6 +606,7 @@ export const NotificationCard = forwardRef(
                   {hasDuration(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Duration")}: ${item.duration} ${t("min")}`}
                       variant="outlined"
                     />
@@ -583,6 +614,7 @@ export const NotificationCard = forwardRef(
                   {hasCloseReason(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={item.closeReason}
                       variant="outlined"
                       color="info"
@@ -591,6 +623,7 @@ export const NotificationCard = forwardRef(
                   {hasCancelReason(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={item.cancelReason}
                       variant="outlined"
                       color="info"
@@ -599,6 +632,7 @@ export const NotificationCard = forwardRef(
                   {hasPercentShift(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Shift")}: ${item.percentShift > 0 ? "+" : ""}${item.percentShift}%`}
                       variant="outlined"
                     />
@@ -606,6 +640,7 @@ export const NotificationCard = forwardRef(
                   {hasActivePositionCount(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Active")}: ${item.activePositionCount}`}
                       variant="outlined"
                     />
@@ -613,6 +648,7 @@ export const NotificationCard = forwardRef(
                   {hasTotalEntries(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Entries")}: ${item.totalEntries}`}
                       variant="outlined"
                     />
@@ -620,6 +656,7 @@ export const NotificationCard = forwardRef(
                   {hasTotalPartials(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Partials")}: ${item.totalPartials}`}
                       variant="outlined"
                     />
@@ -627,6 +664,7 @@ export const NotificationCard = forwardRef(
                   {hasCost(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Cost")}: ${item.cost.toFixed(2)}$`}
                       variant="outlined"
                     />
@@ -634,6 +672,7 @@ export const NotificationCard = forwardRef(
                   {hasEffectivePriceOpen(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Avg entry")}: ${item.effectivePriceOpen}`}
                       variant="outlined"
                       color="warning"
@@ -642,6 +681,7 @@ export const NotificationCard = forwardRef(
                   {hasOriginalPriceOpen(item) && (
                     <Chip
                       size="small"
+                      sx={{ mt: 1, mr: 1 }}
                       label={`${t("Orig entry")}: ${item.originalPriceOpen}`}
                       variant="outlined"
                     />
@@ -652,20 +692,6 @@ export const NotificationCard = forwardRef(
                   <>
                     <Divider sx={{ my: 1 }} />
                     <Stack direction="row" spacing={3} flexWrap="wrap">
-                      <Typography variant="body2">
-                        <Typography component="span" color="text.secondary">
-                          {t("Entry")}:{" "}
-                        </Typography>
-                        {item.priceOpen}
-                      </Typography>
-                      {hasPriceClose(item) && (
-                        <Typography variant="body2">
-                          <Typography component="span" color="text.secondary">
-                            {t("Close")}:{" "}
-                          </Typography>
-                          {item.priceClose}
-                        </Typography>
-                      )}
                       {hasCurrentPrice(item) && (
                         <Typography variant="body2">
                           <Typography component="span" color="text.secondary">
@@ -722,6 +748,80 @@ export const NotificationCard = forwardRef(
                           {t("Invested")}:{" "}
                         </Typography>
                         {item.pnlEntries.toFixed(2)}$
+                      </Typography>
+                    </Stack>
+                  </>
+                )}
+                {hasPeakProfit(item) && (
+                  <>
+                    <Divider sx={{ my: 1 }} />
+                    <Stack direction="row" spacing={3} flexWrap="wrap">
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Peak Entry")}:{" "}
+                        </Typography>
+                        {item.peakProfitPriceOpen}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Peak Exit")}:{" "}
+                        </Typography>
+                        {item.peakProfitPriceClose}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Peak")}:{" "}
+                        </Typography>
+                        <Typography
+                          component="span"
+                          color={item.peakProfitCost >= 0 ? "success.main" : "error.main"}
+                        >
+                          {item.peakProfitCost >= 0 ? "+" : ""}
+                          {item.peakProfitCost.toFixed(2)}$
+                        </Typography>
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Invested")}:{" "}
+                        </Typography>
+                        {item.peakProfitEntries.toFixed(2)}$
+                      </Typography>
+                    </Stack>
+                  </>
+                )}
+                {hasMaxDrawdown(item) && (
+                  <>
+                    <Divider sx={{ my: 1 }} />
+                    <Stack direction="row" spacing={3} flexWrap="wrap">
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Drawdown Entry")}:{" "}
+                        </Typography>
+                        {item.maxDrawdownPriceOpen}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Drawdown Exit")}:{" "}
+                        </Typography>
+                        {item.maxDrawdownPriceClose}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Drawdown")}:{" "}
+                        </Typography>
+                        <Typography
+                          component="span"
+                          color={item.maxDrawdownCost >= 0 ? "success.main" : "error.main"}
+                        >
+                          {item.maxDrawdownCost >= 0 ? "+" : ""}
+                          {item.maxDrawdownCost.toFixed(2)}$
+                        </Typography>
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Invested")}:{" "}
+                        </Typography>
+                        {item.maxDrawdownEntries.toFixed(2)}$
                       </Typography>
                     </Stack>
                   </>

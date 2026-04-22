@@ -12,6 +12,8 @@ import * as BacktestKitOllama from "@backtest-kit/ollama";
 import * as BacktestKitPinets from "@backtest-kit/pinets";
 import * as BacktestKitSignals from "@backtest-kit/signals";
 
+import { IMPORT_ALIAS } from "../config/alias";
+
 declare const __IS_ESM__: boolean;
 
 type Require = ReturnType<typeof CREATE_BASE_REQUIRE_FN>;
@@ -155,6 +157,7 @@ const CREATE_BASE_REQUIRE_FN = (self: ClientLoader, seen: Set<string>) => {
   return new Proxy(baseRequire, {
     apply(_target, _this, args) {
       const id = args[0];
+      if (IMPORT_ALIAS[id]) return IMPORT_ALIAS[id];
       if (id === "backtest-kit") return globalThis.BacktestKit;
       if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
       if (id === "@backtest-kit/ui") return globalThis.BacktestKitUi;

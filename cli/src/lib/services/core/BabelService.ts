@@ -1,8 +1,8 @@
 import { transform, registerPlugin } from "@babel/standalone";
 import pluginUMD from "@babel/plugin-transform-modules-umd";
 import LoggerService from "../base/LoggerService";
-import { inject } from "../../../lib/core/di";
-import TYPES from "../../../lib/core/types";
+import { inject } from "../../core/di";
+import TYPES from "../../core/types";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";

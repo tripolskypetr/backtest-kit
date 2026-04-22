@@ -8,7 +8,7 @@ import BacktestMainService from "./services/main/BacktestMainService";
 import WalkerMainService from "./services/main/WalkerMainService";
 import ExchangeSchemaService from "./services/schema/ExchangeSchemaService";
 import FrameSchemaService from "./services/schema/FrameSchemaService";
-import ResolveService from "./services/base/ResolveService";
+import ResolveService from "./services/core/ResolveService";
 import ErrorService from "./services/base/ErrorService";
 import SymbolSchemaService from "./services/schema/SymbolSchemaService";
 import FrontendProviderService from "./services/provider/FrontendProviderService";
@@ -20,8 +20,10 @@ import TelegramWebService from "./services/web/TelegramWebService";
 import TelegramLogicService from "./services/logic/TelegramLogicService";
 import TelegramTemplateService from "./services/template/TelegramTemplateService";
 import ModuleConnectionService from "./services/connection/ModuleConnectionService";
-import BabelService from "./services/base/BabelService";
-import LoaderService from "./services/base/LoaderService";
+import BabelService from "./services/core/BabelService";
+import LoaderService from "./services/core/LoaderService";
+import ConfigConnectionService from "./services/connection/ConfigConnectionService";
+import ConfigService from "./services/core/ConfigService";
 
 const apiServices = {
   telegramApiService: inject<TelegramApiService>(TYPES.telegramApiService),
@@ -31,13 +33,18 @@ const apiServices = {
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
   loggerService: inject<LoggerService>(TYPES.loggerService),
+};
+
+const coreServices = {
   resolveService: inject<ResolveService>(TYPES.resolveService),
   loaderService: inject<LoaderService>(TYPES.loaderService),
+  configService: inject<ConfigService>(TYPES.configService),
   babelService: inject<BabelService>(TYPES.babelService),
 };
 
 const connectionServices = {
   moduleConnectionService: inject<ModuleConnectionService>(TYPES.moduleConnectionService),
+  configConnectionService: inject<ConfigConnectionService>(TYPES.configConnectionService),
 };
 
 const mainServices = {
@@ -74,6 +81,7 @@ const templateServices = {
 export const cli = {
   ...apiServices,
   ...baseServices,
+  ...coreServices,
   ...connectionServices,
   ...mainServices,
   ...logicServices,

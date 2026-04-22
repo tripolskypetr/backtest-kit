@@ -10,7 +10,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
-import ResolveService from "../base/ResolveService";
+import ResolveService from "../core/ResolveService";
 import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
 import notifyFinish from "../../../utils/notifyFinish";
@@ -18,10 +18,13 @@ import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
 import notifyVerbose from "../../../utils/notifyVerbose";
 import ModuleConnectionService from "../connection/ModuleConnectionService";
+import ConfigService from "../core/ConfigService";
+import { Setup } from "../../../classes/Setup";
 
 export class LiveMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
   private resolveService = inject<ResolveService>(TYPES.resolveService);
+  private configService = inject<ConfigService>(TYPES.configService);
 
   private exchangeSchemaService = inject<ExchangeSchemaService>(
     TYPES.exchangeSchemaService,
@@ -50,6 +53,11 @@ export class LiveMainService {
     this.loggerService.log("liveMainService run", {
       payload,
     });
+
+    {
+      await this.configService.waitForInit();
+      Setup.enable();
+    }
 
     {
       this.frontendProviderService.connect();
