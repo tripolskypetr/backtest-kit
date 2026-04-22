@@ -8,6 +8,7 @@ import { entrySubject } from "../../../config/emitters";
 import { getEnv } from "../../../helpers/getEnv";
 import ResolveService from "../core/ResolveService";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
+import { SymbolConfig } from "../../../model/Config.model";
 
 const GET_SYMBOL_EXPORTS_FN = async (self: FrontendProviderService) => {
   const exports = await self.configConnectionService.loadConfig("symbol.config");
@@ -19,7 +20,7 @@ const GET_SYMBOL_EXPORTS_FN = async (self: FrontendProviderService) => {
     : exports;
 };
 
-const GET_SYMBOL_CONFIG_FN = async (self: FrontendProviderService) => {
+const GET_SYMBOL_CONFIG_FN = async (self: FrontendProviderService): Promise<SymbolConfig[] | null> => {
   const config = await GET_SYMBOL_EXPORTS_FN(self);
   if (!config) {
     return null;
