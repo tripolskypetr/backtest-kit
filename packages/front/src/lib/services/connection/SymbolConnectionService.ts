@@ -64,7 +64,12 @@ export class SymbolConnectionService {
 
   protected init = singleshot(async () => {
     this.loggerService.log("symbolConnectionService init");
-    serveSubject.once(getSymbolList);
+    serveSubject.once((cwd) => {
+      if (this.getSymbolList.hasValue()) {
+        return;
+      }
+      getSymbolList(cwd);
+    });
   });
 }
 
