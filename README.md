@@ -1672,7 +1672,6 @@ npm install @backtest-kit/signals backtest-kit
 ```
 
 
-
 ### @backtest-kit/sidekick
 
 > **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/sidekick)** 🚀
@@ -1695,6 +1694,52 @@ The fastest way to bootstrap a new trading bot project. Instead of manually sett
 npx -y @backtest-kit/sidekick my-trading-bot
 cd my-trading-bot
 npm start
+```
+
+
+## 🤝 Community
+
+### uzse-backtest-app
+
+> **[Explore on GitHub](https://github.com/backtest-kit/uzse-backtest-app)** 📈
+
+The **uzse-backtest-app** repository is a reference implementation for running Pine Script strategies on regional stock exchanges not available on TradingView (UZSE, MSE, DSE, and others). It downloads raw trade history, builds Japanese candlesticks, and feeds them into backtest-kit via a custom MongoDB exchange adapter.
+
+#### Key Features
+- 🌍 **Off-TradingView Markets**: Works with any exchange that exposes trade history — no TradingView dependency
+- 🕯️ **Candle Builder**: Aggregates raw trades into 1m candles, fills intraday and non-trading day gaps, builds higher timeframes up to `1d`
+- 🗄️ **MongoDB Backend**: Idempotent import with unique index — re-runs never create duplicates
+- 🔌 **Custom Exchange Adapter**: Connects MongoDB candles to backtest-kit via `addExchangeSchema`
+- 📜 **Pine Script Support**: Full `@backtest-kit/pinets` integration — run any Pine Script v5/v6 indicator on local market data
+
+#### Use Case
+Perfect for traders working with emerging or regional markets absent from TradingView. Download trade history, build candles once, then use the full backtest-kit + Pine Script toolchain for backtesting and live signal generation — with no dependency on any third-party charting platform.
+
+#### Get Started
+```bash
+git clone https://github.com/backtest-kit/uzse-backtest-app.git
+```
+
+
+### backtest-kit-skills
+
+> **[Explore on GitHub](https://github.com/backtest-kit/backtest-kit-skills)** 🤖
+
+The **backtest-kit-skills** repository is a Claude Code agent skill and Mintlify documentation source for the backtest-kit framework — AI-assisted strategy writing, debugging help, and full API reference in one place.
+
+#### Key Features
+- 🤖 **Claude Code Skill**: Installed under `~/.claude/skills/backtest-kit/` — strategy generation, debugging, and API reference
+- 📖 **Mintlify Docs**: Full documentation site runnable locally
+- 🎯 **Strategy Generation**: Complete TypeScript files with all schema registrations and runner setup
+- 🐛 **Debugging Help**: Catches common mistakes (missing `await`, wrong TP/SL direction, top-level commit calls)
+- 📚 **API Reference**: All schemas, commit functions, event listeners, LLM integration, graph pipelines, and persistence adapters
+
+#### Use Case
+Install the skill once and get AI-assisted backtest-kit development inside Claude Code. The skill knows the full API surface — schemas, commit functions, event listeners, broker adapters — so you can describe what you want in plain language and get working TypeScript strategy code.
+
+#### Get Started
+```bash
+npx skills add https://github.com/backtest-kit/backtest-kit-skills
 ```
 
 
