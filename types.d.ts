@@ -9866,6 +9866,26 @@ interface SignalOpenedNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -9932,6 +9952,26 @@ interface SignalClosedNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
     closeReason: string;
     /** Duration of position in minutes (from pendingAt to closeTimestamp) */
@@ -10004,6 +10044,26 @@ interface PartialProfitAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10072,6 +10132,26 @@ interface PartialLossAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10138,6 +10218,26 @@ interface BreakevenAvailableNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10206,6 +10306,26 @@ interface PartialProfitCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10274,6 +10394,26 @@ interface PartialLossCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10340,6 +10480,26 @@ interface BreakevenCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10410,6 +10570,26 @@ interface AverageBuyCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10476,6 +10656,26 @@ interface ActivateScheduledCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -10546,6 +10746,26 @@ interface TrailingStopCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10614,6 +10834,26 @@ interface TrailingTakeCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -10662,6 +10902,26 @@ interface SignalSyncOpenNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Cost of the position entry in USD */
     cost: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
@@ -10730,6 +10990,26 @@ interface SignalSyncCloseNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price at close */
@@ -10860,6 +11140,26 @@ interface SignalScheduledNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Unix timestamp in milliseconds when signal was scheduled */
     scheduledAt: number;
     /** Current market price when signal was scheduled */
@@ -11016,6 +11316,26 @@ interface CancelScheduledCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -11066,6 +11386,26 @@ interface ClosePendingCommitNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -11128,6 +11468,26 @@ interface SignalInfoNotification {
     pnlCost: number;
     /** Total invested capital in USD */
     pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
     /** User-defined informational note provided by the strategy */
     note: string;
     /** Optional user-defined identifier for correlating this notification with external systems */
