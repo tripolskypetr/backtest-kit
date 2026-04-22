@@ -12372,7 +12372,7 @@ declare class PersistBase<EntityName extends string = string> implements IPersis
      * @returns Full file path to entity JSON file
      */
     _getFilePath(entityId: EntityId): string;
-    [BASE_WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    [BASE_WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
     waitForInit(initial: boolean): Promise<void>;
     readValue<T extends IEntity = IEntity>(entityId: EntityId): Promise<T>;
     hasValue(entityId: EntityId): Promise<boolean>;
@@ -13675,7 +13675,7 @@ declare class MarkdownFileBase implements TMarkdownBase {
      * Protected by singleshot to ensure one-time execution.
      * Sets up error handler that emits to exitEmitter.
      */
-    [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
     /**
      * Timeout-protected write function with backpressure handling.
      * Waits for drain event if write buffer is full.
@@ -13929,7 +13929,7 @@ declare class ReportBase implements TReportBase {
      * Protected by singleshot to ensure one-time execution.
      * Sets up error handler that emits to exitEmitter.
      */
-    [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
     /**
      * Timeout-protected write function with backpressure handling.
      * Waits for drain event if write buffer is full.
@@ -14596,7 +14596,7 @@ declare class BacktestMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from backtest signal emitter to stop receiving tick events.
      * Calls the unsubscribe function returned by subscribe().
@@ -16004,7 +16004,7 @@ declare class LiveMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from live signal emitter to stop receiving tick events.
      * Calls the unsubscribe function returned by subscribe().
@@ -17448,7 +17448,7 @@ declare class ScheduleMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from signal emitter to stop receiving scheduled signal events.
      * Calls the unsubscribe function returned by subscribe().
@@ -17748,7 +17748,7 @@ declare class PerformanceMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from performance emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -18064,7 +18064,7 @@ declare class WalkerMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from walker emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -18439,7 +18439,7 @@ declare class HeatMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from signal emitter to stop receiving tick events.
      * Calls the unsubscribe function returned by subscribe().
@@ -18961,7 +18961,7 @@ declare class PartialMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from partial profit/loss signal emitters to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -19289,7 +19289,7 @@ declare class HighestProfitMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Detaches from `highestProfitSubject` and clears all accumulated data.
      *
@@ -19486,7 +19486,7 @@ declare class MaxDrawdownMarkdownService {
      * @returns Unsubscribe function; calling it tears down the subscription and
      *   clears all accumulated data
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Detaches from `maxDrawdownSubject` and clears all accumulated data.
      *
@@ -20323,7 +20323,7 @@ declare class RiskMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from risk rejection emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -20740,7 +20740,7 @@ declare class SyncMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Detaches from `syncSubject` and clears all accumulated data.
      *
@@ -21221,7 +21221,7 @@ declare class StorageAdapter {
      *
      * @returns Cleanup function that unsubscribes from all emitters
      */
-    enable: (() => () => void) & functools_kit.ISingleshotClearable;
+    enable: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Disables signal storage by unsubscribing from all emitters.
      * Safe to call multiple times.
@@ -21442,7 +21442,7 @@ declare class RecentAdapter {
      *
      * @returns Cleanup function that unsubscribes from all emitters
      */
-    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable;
+    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable<() => (...args: any[]) => any>;
     /**
      * Disables recent signal storage by unsubscribing from all emitters.
      * Safe to call multiple times.
@@ -21895,7 +21895,7 @@ declare class NotificationAdapter {
      *
      * @returns Cleanup function that unsubscribes from all emitters
      */
-    enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & functools_kit.ISingleshotClearable;
+    enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & functools_kit.ISingleshotClearable<({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void>;
     /**
      * Disables notification storage by unsubscribing from all emitters.
      * Safe to call multiple times.
@@ -22041,7 +22041,7 @@ declare class MemoryAdapter implements TMemoryInstance {
      * Idempotent — subsequent calls return the same subscription handle.
      * Must be called before any memory method is used.
      */
-    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable;
+    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable<() => (...args: any[]) => any>;
     /**
      * Deactivates the adapter by unsubscribing from signal lifecycle events.
      * No-op if enable() was never called.
@@ -22241,7 +22241,7 @@ declare class DumpAdapter {
      * Idempotent — subsequent calls return the same subscription handle.
      * Must be called before any dump method is used.
      */
-    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable;
+    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable<() => (...args: any[]) => any>;
     /**
      * Deactivates the adapter by unsubscribing from signal lifecycle events.
      * No-op if enable() was never called.
@@ -22891,7 +22891,7 @@ declare class BreakevenMarkdownService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from breakeven signal emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -23515,7 +23515,7 @@ declare class StrategyMarkdownService {
      *
      * @returns Cleanup function that clears the subscription and all accumulated data
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Stops event collection and clears all accumulated data.
      *
@@ -24789,7 +24789,7 @@ declare class BrokerAdapter {
      * dispose(); // or Broker.disable()
      * ```
      */
-    enable: (() => () => void) & functools_kit.ISingleshotClearable;
+    enable: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Deactivates the broker: unsubscribes from syncSubject and resets the singleshot guard.
      *
@@ -28167,7 +28167,7 @@ declare class ClientFrame implements IFrame {
      * @returns Promise resolving to array of Date objects
      * @throws Error if interval is invalid
      */
-    getTimeframe: ((symbol: string) => Promise<Date[]>) & functools_kit.ISingleshotClearable;
+    getTimeframe: ((symbol: string) => Promise<Date[]>) & functools_kit.ISingleshotClearable<(symbol: string) => Promise<Date[]>>;
 }
 
 /**
@@ -28590,7 +28590,7 @@ declare class ClientAction implements IAction {
      * Initializes handler instance using singleshot pattern.
      * Ensures initialization happens exactly once.
      */
-    waitForInit: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    waitForInit: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
     /**
      * Handles signal events from all modes (live + backtest).
      */
@@ -28640,7 +28640,7 @@ declare class ClientAction implements IAction {
      * Cleans up resources and subscriptions when action handler is no longer needed.
      * Uses singleshot pattern to ensure cleanup happens exactly once.
      */
-    dispose: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    dispose: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 /**
@@ -31846,7 +31846,7 @@ declare class BacktestReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from backtest signal emitter to stop receiving tick events.
      * Calls the unsubscribe function returned by subscribe().
@@ -31918,7 +31918,7 @@ declare class LiveReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from live signal emitter to stop receiving tick events.
      * Calls the unsubscribe function returned by subscribe().
@@ -31991,7 +31991,7 @@ declare class ScheduleReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from signal emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32062,7 +32062,7 @@ declare class PerformanceReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from performance emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32134,7 +32134,7 @@ declare class WalkerReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from walker emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32206,7 +32206,7 @@ declare class HeatReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from signal emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32286,7 +32286,7 @@ declare class PartialReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from partial profit/loss emitters to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32357,7 +32357,7 @@ declare class BreakevenReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from breakeven signal emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32428,7 +32428,7 @@ declare class RiskReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from risk rejection emitter to stop receiving events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32560,7 +32560,7 @@ declare class StrategyReportService {
      *
      * @returns Cleanup function that clears the subscription when called
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Stops event logging and cleans up the subscription.
      *
@@ -32626,7 +32626,7 @@ declare class SyncReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Unsubscribes from syncSubject to stop receiving sync events.
      * Calls the unsubscribe function returned by subscribe().
@@ -32687,7 +32687,7 @@ declare class HighestProfitReportService {
      * unsubscribe();
      * ```
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Detaches from `highestProfitSubject`, stopping further JSONL writes.
      *
@@ -32741,7 +32741,7 @@ declare class MaxDrawdownReportService {
      *
      * @returns Unsubscribe function; calling it tears down the subscription
      */
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
     /**
      * Detaches from `maxDrawdownSubject`, stopping further JSONL writes.
      *

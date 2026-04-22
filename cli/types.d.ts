@@ -1,5 +1,11 @@
 import * as functools_kit from 'functools-kit';
+import * as BacktestKit from 'backtest-kit';
 import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, SignalOpenContract, SignalCloseContract, CancelScheduledCommit, ClosePendingCommit } from 'backtest-kit';
+import * as BacktestKitUi from '@backtest-kit/ui';
+import * as BacktestKitGraph from '@backtest-kit/graph';
+import * as BacktestKitOllama from '@backtest-kit/ollama';
+import * as BacktestKitPinets from '@backtest-kit/pinets';
+import * as BacktestKitSignals from '@backtest-kit/signals';
 import { Input } from 'telegraf';
 
 interface ILogger {
@@ -141,13 +147,13 @@ declare class FrameSchemaService {
     addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
-declare class LoaderService {
-    private readonly babelService;
-    private readonly loggerService;
-    private readonly resolveService;
-    private getInstance;
-    import: (filePath: string, basePath?: string) => any;
-    check: (filePath: string, basePath?: string) => Promise<boolean>;
+interface IBabel {
+    transpile(code: string): string;
+}
+
+declare class BabelService implements IBabel {
+    readonly loggerService: LoggerService;
+    transpile: (code: string) => any;
 }
 
 interface IResolve {
@@ -156,6 +162,50 @@ interface IResolve {
     OVERRIDE_TEMPLATE_DIR: string;
     OVERRIDE_MODULES_DIR: string;
     PROJECT_ROOT_DIR: string;
+}
+
+interface ILoaderParams {
+    path: string;
+    logger: ILogger;
+    babel: IBabel;
+    resolve: IResolve;
+}
+interface ILoader {
+    import(filePath: string): any;
+    check(filePath: string): boolean;
+}
+
+declare const BacktestKitCli: {};
+declare global {
+    interface Window {
+        BacktestKit: typeof BacktestKit;
+        BacktestKitCli: typeof BacktestKitCli;
+        BacktestKitUi: typeof BacktestKitUi;
+        BacktestKitGraph: typeof BacktestKitGraph;
+        BacktestKitOllama: typeof BacktestKitOllama;
+        BacktestKitPinets: typeof BacktestKitPinets;
+        BacktestKitSignals: typeof BacktestKitSignals;
+    }
+}
+declare class ClientLoader implements ILoader {
+    readonly params: ILoaderParams;
+    __filename: string;
+    __dirname: string;
+    baseRequire: (() => NodeRequire) & functools_kit.ISingleshotClearable<() => NodeRequire>;
+    constructor(params: ILoaderParams);
+    fork(basePath: string): ClientLoader;
+    import(filePath: string, seen?: Set<string>): any;
+    check(filePath: string): boolean;
+}
+
+declare class LoaderService {
+    readonly babelService: BabelService;
+    readonly loggerService: LoggerService;
+    readonly resolveService: ResolveService;
+    getInstance: ((basePath: string) => ClientLoader) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientLoader>;
+    import: (filePath: string, basePath?: string) => any;
+    check: (filePath: string, basePath?: string) => Promise<boolean>;
+    init: (() => void) & functools_kit.ISingleshotClearable<() => void>;
 }
 
 declare class ResolveService implements IResolve {
@@ -293,15 +343,6 @@ declare class ModuleConnectionService {
     loadModule: (fileName: string) => Promise<boolean>;
 }
 
-interface IBabel {
-    transpile(code: string): string;
-}
-
-declare class BabelService implements IBabel {
-    readonly loggerService: LoggerService;
-    transpile: (code: string) => any;
-}
-
 interface NotificationConfig {
     signal: boolean;
     risk: boolean;
@@ -354,11 +395,6 @@ declare class SetupUtils {
     clear: () => void;
 }
 declare const Setup: SetupUtils;
-
-interface ILoader {
-    import(filePath: string): any;
-    check(filePath: string): boolean;
-}
 
 declare enum ExchangeName {
     DefaultExchange = "default_exchange"

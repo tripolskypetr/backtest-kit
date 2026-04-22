@@ -34,6 +34,33 @@ const GET_SYMBOL_CONFIG_FN = async (self: FrontendProviderService): Promise<Symb
   throw new Error("FrontendProviderService getSymbolConfig `symbol.config` is not found");
 };
 
+const MAP_SYMBOL_CONFIG_FN = (config: SymbolConfig[]) => {
+  const uniqueSymbols = new Set<string>();
+
+  const symbolList = config
+    .filter((item) => {
+      if (uniqueSymbols.has(item.symbol)) {
+        return false;
+      }
+      uniqueSymbols.add(item.symbol);
+      return true;
+    })
+    .map(({ priority, displayName, symbol, logo, icon, ...other }, idx) => ({
+      symbol,
+      icon,
+      logo: logo ?? icon,
+      priority: priority ?? idx,
+      displayName: displayName ?? symbol,
+      index: idx,
+      ...other,
+    }));
+  symbolList.sort(
+    ({ priority: a_p, index: a_x }, { priority: b_p, index: b_x }) =>
+      b_p - a_p || a_x - b_x
+  );
+  return symbolList;
+};
+
 export class FrontendProviderService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   readonly resolveService = inject<ResolveService>(TYPES.resolveService);
@@ -49,7 +76,8 @@ export class FrontendProviderService {
       {
         const config = await GET_SYMBOL_CONFIG_FN(this);
         if (config) {
-          lib.symbolConnectionService.getSymbolList.setValue(config)
+          const symbolList = MAP_SYMBOL_CONFIG_FN(config);
+          lib.symbolConnectionService.getSymbolList.setValue(Promise.resolve(symbolList));
         }
       }
       unServer = serve(CC_WWWROOT_HOST, CC_WWWROOT_PORT, this.resolveService.PROJECT_ROOT_DIR);

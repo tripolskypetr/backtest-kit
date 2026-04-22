@@ -269,7 +269,7 @@ declare class LogViewService {
     findByFilter: <T extends object = Record<string, string>>(filterData: T, limit?: number, offset?: number) => Promise<ILogEntry[]>;
     getList: () => Promise<ILogEntry[]>;
     getOne: (id: string) => Promise<ILogEntry>;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class MarkdownViewService {
@@ -336,15 +336,24 @@ declare class SymbolConnectionService {
         priority: number;
         displayName: string;
         index: number;
-    }[]>) & functools_kit.ISingleshotClearable;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    }[]>) & functools_kit.ISingleshotClearable<() => Promise<{
+        color: string;
+        description: string;
+        symbol: string;
+        icon: string;
+        logo: string;
+        priority: number;
+        displayName: string;
+        index: number;
+    }[]>>;
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
 declare class SymbolMetaService {
     private readonly symbolConnectionService;
     private readonly loggerService;
-    getSymbolList: (() => Promise<string[]>) & functools_kit.ISingleshotClearable;
-    getSymbolMap: (() => Promise<{}>) & functools_kit.ISingleshotClearable;
+    getSymbolList: (() => Promise<string[]>) & functools_kit.ISingleshotClearable<() => Promise<string[]>>;
+    getSymbolMap: (() => Promise<{}>) & functools_kit.ISingleshotClearable<() => Promise<{}>>;
     getSymbol: ((symbol: string) => Promise<{
         color: string;
         description: string;
