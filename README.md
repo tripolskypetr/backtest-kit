@@ -1697,7 +1697,7 @@ npm start
 ```
 
 
-## 🤝 Community
+## 👪 Community
 
 ### uzse-backtest-app
 
