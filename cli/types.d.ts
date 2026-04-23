@@ -317,9 +317,43 @@ declare class TelegramLogicService {
     connect: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
 }
 
-declare class TelegramTemplateService {
+interface NotificationConfig {
+    signal: boolean;
+    risk: boolean;
+    info: boolean;
+    breakeven: boolean;
+    common_error: boolean;
+    critical_error: boolean;
+    validation_error: boolean;
+    partial_loss: boolean;
+    partial_profit: boolean;
+    signal_sync: boolean;
+    strategy_commit: boolean;
+}
+interface TelegramConfig {
+    getTrailingTakeMarkdown(event: TrailingTakeCommit): Promise<string>;
+    getTrailingStopMarkdown(event: TrailingStopCommit): Promise<string>;
+    getBreakevenMarkdown(event: BreakevenCommit): Promise<string>;
+    getPartialProfitMarkdown(event: PartialProfitCommit): Promise<string>;
+    getPartialLossMarkdown(event: PartialLossCommit): Promise<string>;
+    getScheduledMarkdown(event: IStrategyTickResultScheduled): Promise<string>;
+    getCancelledMarkdown(event: IStrategyTickResultCancelled): Promise<string>;
+    getOpenedMarkdown(event: IStrategyTickResultOpened): Promise<string>;
+    getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string>;
+    getRiskMarkdown(event: RiskContract): Promise<string>;
+    getAverageBuyMarkdown(event: AverageBuyCommit): Promise<string>;
+    getSignalOpenMarkdown(event: SignalOpenContract): Promise<string>;
+    getSignalCloseMarkdown(event: SignalCloseContract): Promise<string>;
+    getCancelScheduledMarkdown(event: CancelScheduledCommit): Promise<string>;
+    getClosePendingMarkdown(event: ClosePendingCommit): Promise<string>;
+    getSignalInfoMarkdown(event: SignalInfoContract): Promise<string>;
+}
+
+declare class TelegramTemplateService implements TelegramConfig {
     readonly loggerService: LoggerService;
     readonly resolveService: ResolveService;
+    readonly configConnectionService: ConfigConnectionService;
+    private getTelegramAdapter;
     getTrailingTakeMarkdown: (event: TrailingTakeCommit) => Promise<string>;
     getTrailingStopMarkdown: (event: TrailingStopCommit) => Promise<string>;
     getBreakevenMarkdown: (event: BreakevenCommit) => Promise<string>;
@@ -343,20 +377,6 @@ declare class ModuleConnectionService {
     readonly resolveService: ResolveService;
     readonly loaderService: LoaderService;
     loadModule: (fileName: string) => Promise<boolean>;
-}
-
-interface NotificationConfig {
-    signal: boolean;
-    risk: boolean;
-    info: boolean;
-    breakeven: boolean;
-    common_error: boolean;
-    critical_error: boolean;
-    validation_error: boolean;
-    partial_loss: boolean;
-    partial_profit: boolean;
-    signal_sync: boolean;
-    strategy_commit: boolean;
 }
 
 declare class ConfigService {
