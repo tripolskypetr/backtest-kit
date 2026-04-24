@@ -5,7 +5,7 @@ import { PersistMemoryAdapter } from "./Persist";
 import { signalEmitter } from "../config/emitters";
 
 const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
-  `${signalId}-${bucketName}`;
+  `${signalId}_${bucketName}`;
 
 const LIST_MEMORY_FN = <T extends object = object>({ id, content }) => ({
   memoryId: id,

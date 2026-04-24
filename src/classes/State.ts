@@ -4,7 +4,7 @@ import { PersistStateAdapter } from "./Persist";
 import swarm from "../lib";
 
 const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
-  `${signalId}-${bucketName}`;
+  `${signalId}_${bucketName}`;
 
 /** Updater function for setState — receives current value and returns the next value. */
 type Dispatch<Value extends object = object> = (value: Value) => Value | Promise<Value>;
@@ -301,8 +301,9 @@ export class StatePersistInstance implements IStateInstance {
     } else {
       this._value = dispatch;
     }
+    const id = CREATE_KEY_FN(this.signalId, this.bucketName);
     await PersistStateAdapter.writeStateData(
-      { id: randomString(), data: this._value },
+      { id, data: this._value },
       this.signalId,
       this.bucketName,
     );
