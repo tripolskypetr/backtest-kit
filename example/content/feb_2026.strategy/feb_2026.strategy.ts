@@ -13,14 +13,11 @@ import {
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { sourceNode, outputNode, resolve } from "@backtest-kit/graph";
-import { run, File, extract } from "@backtest-kit/pinets";
 import { forecast } from "logic";
 
-// если рынок за 240 минут до входа шёл сильно против позиции — сигнал ещё не переварен в цену
-const ROC240_MOVE_THRESHOLD = 1.5;
-// не активировать trailing пока позиция не набрала достаточно прибыли
+// не активировать trailing take пока позиция не набрала достаточно прибыли
 const TRAILING_TAKE_ACTIVATION = 1.5;
-// минимальный trailing — не выскакивать раньше чем на 0.75% от пика
+// минимальный trailing take — не выскакивать раньше чем на 0.75% от пика
 const TRAILING_TAKE_MIN = 0.75;
 // масштабирование: чем больше накоплено, тем шире даём качаться
 const TRAILING_TAKE_SCALE = 0.15;
@@ -45,22 +42,6 @@ const forecastSource = sourceNode(
     },
     { interval: "1d", name: "forecast_source" },
   ),
-);
-
-const moveSource = sourceNode(
-  async (symbol) => {
-    const plots = await run(File.fromPath("roc240.pine", "./math"), {
-      symbol,
-      timeframe: "1m",
-      limit: 241,
-    });
-
-    const { value } = await extract(plots, {
-      value: "Value",
-    });
-
-    return value;
-  }
 );
 
 const positionOutput = outputNode(
@@ -94,16 +75,6 @@ addStrategySchema({
       return null;
     }
     if (forecast.sentiment === "sideways") {
-      return null;
-    }
-
-    const roc240 = await resolve(moveSource);
-
-    // рынок активно шёл против позиции — новостной сентимент ещё не переварен в цену
-    if (position === "short" && roc240 > ROC240_MOVE_THRESHOLD) {
-      return null;
-    }
-    if (position === "long" && roc240 < -ROC240_MOVE_THRESHOLD) {
       return null;
     }
 
@@ -173,6 +144,7 @@ listenActivePing(async ({ symbol, data }) => {
   const peakProfit = await getPositionHighestPnlPercentage(symbol);
   const currentProfit = await getPositionPnlPercent(symbol);
 
+  // trailing take: выход из прибыльной позиции при откате от пика
   if (currentProfit < 0) {
     return;
   }
