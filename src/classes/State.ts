@@ -19,6 +19,7 @@ const STATE_PERSIST_INSTANCE_METHOD_NAME_WAIT_FOR_INIT = "StatePersistInstance.w
 const STATE_PERSIST_INSTANCE_METHOD_NAME_GET = "StatePersistInstance.getState";
 const STATE_PERSIST_INSTANCE_METHOD_NAME_SET = "StatePersistInstance.setState";
 
+const STATE_ADAPTER_METHOD_NAME_CREATE = "StateAdapter.create";
 const STATE_ADAPTER_METHOD_NAME_DISPOSE = "StateAdapter.dispose";
 const STATE_ADAPTER_METHOD_NAME_ENABLE = "StateAdapter.enable";
 const STATE_ADAPTER_METHOD_NAME_DISABLE = "StateAdapter.disable";
@@ -350,6 +351,7 @@ export class StateAdapter implements TStateAdapter {
    * @returns Wrapper with getState/setState bound to the bucket
    */
   public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value }): IStateWrapper<Value> => {
+    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName });
     const self = this;
     return {
       async getState(signalId: string) {
