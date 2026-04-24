@@ -114,7 +114,7 @@ export const main = async () => {
     process.exit(0);
   }
 
-  console.log(`Symbol: ${symbol} | Direction: ${direction} | PriceOpen: ${priceOpen} | From: ${new Date(timestamp).toISOString()} | Minutes: ${minutes}`);
+  console.log(`Symbol: ${symbol} | Direction: ${direction} | PriceOpen: ${priceOpen} | From: ${new Date(timestamp).toISOString()} | Minutes: ${minutes}\n`);
   console.log(`${"min".padStart(5)} | ${"timestamp".padEnd(24)} | ${"close".padStart(12)} | ${"pnl%".padStart(8)} | ${"peak%".padStart(8)} | ${"drawdown%".padStart(10)}`);
   console.log("-".repeat(83));
 
