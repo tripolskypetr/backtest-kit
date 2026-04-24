@@ -13604,6 +13604,11 @@ declare class PersistStateUtils {
      */
     writeStateData: (data: StateData, signalId: string, bucketName: string) => Promise<void>;
     /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy: () => void;
+    /**
      * Clears the memoized storage cache.
      * Call this when process.cwd() changes between strategy iterations
      * so new storage instances are created with the updated base path.

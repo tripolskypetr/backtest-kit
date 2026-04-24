@@ -214,6 +214,8 @@ const PERSIST_STATE_UTILS_METHOD_NAME_DISPOSE =
   "PersistStateUtils.dispose";
 const PERSIST_STATE_UTILS_METHOD_NAME_WAIT_FOR_INIT =
   "PersistStateUtils.waitForInit";
+const PERSIST_STATE_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistStateUtils.useDummy";
 
 const PERSIST_RECENT_UTILS_METHOD_NAME_USE_PERSIST_RECENT_ADAPTER =
   "PersistRecentUtils.usePersistRecentAdapter";
@@ -3016,6 +3018,15 @@ export class PersistStateUtils {
     await stateStorage.waitForInit(isInitial);
     await stateStorage.writeValue(bucketName, data);
   };
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy = () => {
+    LOGGER_SERVICE.log(PERSIST_STATE_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistStateAdapter(PersistDummy);
+  }
 
   /**
    * Clears the memoized storage cache.
