@@ -1,4 +1,4 @@
-import { compose, memoize, randomString, singleshot } from "functools-kit";
+import { compose, memoize, queued, randomString, singleshot } from "functools-kit";
 import { signalEmitter } from "../config/emitters";
 import { PersistStateAdapter } from "./Persist";
 import swarm from "../lib";
@@ -165,7 +165,7 @@ export class StateLocalInstance implements IStateInstance {
    * @param dispatch - New value or updater function receiving current value
    * @returns Updated state value
    */
-  public async setState<Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value> {
+  public setState = queued(async <Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value> => {
     swarm.loggerService.debug(STATE_LOCAL_INSTANCE_METHOD_NAME_SET, {
       signalId: this.signalId,
       bucketName: this.bucketName,
@@ -176,7 +176,7 @@ export class StateLocalInstance implements IStateInstance {
       this._value = dispatch;
     }
     return <Value>this._value;
-  }
+  });
 
   /** Releases resources held by this instance. */
   public async dispose(): Promise<void> {
@@ -291,7 +291,7 @@ export class StatePersistInstance implements IStateInstance {
    * @param dispatch - New value or updater function receiving current value
    * @returns Updated state value
    */
-  public async setState<Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value> {
+  public setState = queued(async <Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value> => {
     swarm.loggerService.debug(STATE_PERSIST_INSTANCE_METHOD_NAME_SET, {
       signalId: this.signalId,
       bucketName: this.bucketName,
@@ -307,7 +307,7 @@ export class StatePersistInstance implements IStateInstance {
       this.bucketName,
     );
     return <Value>this._value;
-  }
+  })
 
   /** Releases resources held by this instance. */
   public async dispose(): Promise<void> {
