@@ -18,6 +18,7 @@ Modes:
   --pine     <entry>    Execute a local .pine indicator file
   --editor              Open the Pine Script visual editor in the browser
   --dump                Fetch and save raw OHLCV candles
+  --pnldebug            Simulate PnL per minute for a given entry price and direction
   --flush  <entry...>   Delete report/log/markdown/agent folders from strategy dump dir
   --init                Scaffold a new project in the current directory
   --help                Print this help message
@@ -90,6 +91,21 @@ Candle dump flags (--dump):
 
   Module file ./modules/dump.module is loaded automatically if it exists.
 
+PnL debug flags (--pnldebug):
+
+  --symbol      <string>   Trading pair (default: BTCUSDT)
+  --priceopen   <number>   Entry price (required)
+  --direction   <string>   Position direction: long or short (default: long)
+  --when        <string>   Start timestamp — ISO 8601 or Unix ms (default: now)
+  --minutes     <string>   Number of 1m candles to simulate (default: 60)
+  --exchange    <string>   Exchange name (default: first registered)
+  --output      <string>   Output file base name (default: {SYMBOL}_{DIRECTION}_{PRICEOPEN}_{TIMESTAMP})
+  --json                   Save as JSON array to ./dump/<output>.json
+  --jsonl                  Save as JSONL to ./dump/<output>.jsonl
+  --markdown               Save as Markdown table to ./dump/<output>.md
+
+  Module file ./modules/pnldebug.module is loaded automatically if it exists.
+
 Flush flags (--flush):
 
   One or more positional entry points. For each entry point the following
@@ -112,6 +128,7 @@ Module hooks (loaded automatically by each mode):
   modules/pine.module       --pine       Exchange schema for PineScript runs
   modules/editor.module     --editor     Exchange schema for the visual Pine editor
   modules/dump.module       --dump       Exchange schema for candle dumps
+  modules/pnldebug.module   --pnldebug   Exchange schema for PnL debug runs
 
   --flush has no associated module. It only removes dump subdirectories.
 
@@ -135,6 +152,8 @@ Examples:
   node ${ENTRY_PATH} --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --jsonl
   node ${ENTRY_PATH} --editor
   node ${ENTRY_PATH} --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+  node ${ENTRY_PATH} --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120
+  node ${ENTRY_PATH} --pnldebug --priceopen 67956.73 --direction long --when 1772064000000 --minutes 60 --markdown
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts ./content/feb_2026.strategy/feb_2026.test.ts
   node ${ENTRY_PATH} --init --output my-trading-bot

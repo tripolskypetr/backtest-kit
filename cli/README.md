@@ -44,6 +44,7 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 | **PineScript**   | `--pine`                   | Run a local `.pine` indicator against exchange data |
 | **Pine Editor**  | `--editor`                 | Open the visual Pine Script editor in the browser   |
 | **Candle Dump**  | `--dump`                   | Fetch and save raw OHLCV candles to a file   |
+| **PnL Debug**    | `--pnldebug`               | Simulate per-minute PnL for a given entry price and direction |
 | **Flush**        | `--flush`                  | Delete report/log/markdown/agent folders from strategy dump dir |
 | **Init Project** | `--init`                   | Scaffold a new backtest-kit project          |
 
@@ -1063,6 +1064,109 @@ Or add it to `package.json`:
 
 ```bash
 npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
+```
+
+## 🐞 PnL Debug (`--pnldebug`)
+
+`@backtest-kit/cli` can simulate a hypothetical position minute by minute and print running PnL, peak profit, and maximum drawdown for each candle — without placing any trades or loading a strategy file.
+
+### CLI Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--pnldebug` | boolean | Enable PnL debug mode |
+| `--priceopen` | number | Entry price (required) |
+| `--direction` | string | `long` or `short` (default: `long`) |
+| `--when` | string | Start timestamp — ISO 8601 or Unix ms (default: now) |
+| `--minutes` | string | Number of 1m candles to simulate (default: `60`) |
+| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
+| `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
+| `--output` | string | Output file base name (default: `{SYMBOL}_{DIRECTION}_{PRICEOPEN}_{TIMESTAMP}`) |
+| `--json` | boolean | Save results as JSON array to `./dump/<output>.json` |
+| `--jsonl` | boolean | Save results as JSONL to `./dump/<output>.jsonl` |
+| `--markdown` | boolean | Save results as Markdown table to `./dump/<output>.md` |
+
+### Output columns
+
+| Column | Description |
+|--------|-------------|
+| `min` | Minute offset from start (1-based) |
+| `timestamp` | Candle timestamp (ISO 8601) |
+| `close` | Candle close price |
+| `pnl%` | Running PnL vs entry price (signed %) |
+| `peak%` | Highest PnL reached so far (always ≥ 0) |
+| `drawdown%` | Lowest PnL reached so far (always ≤ 0) |
+
+### Exchange via `pnldebug.module`
+
+By default the CLI registers CCXT Binance automatically. To use a different exchange, create a `modules/pnldebug.module.ts` file in the current working directory — the CLI loads it automatically before fetching candles.
+
+```typescript
+// modules/pnldebug.module.ts
+import { addExchangeSchema } from "backtest-kit";
+import ccxt from "ccxt";
+
+addExchangeSchema({
+  exchangeName: "my-exchange",
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.bybit({ enableRateLimit: true });
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
+      timestamp, open, high, low, close, volume,
+    }));
+  },
+  formatPrice: (symbol, price) => price.toFixed(2),
+  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+});
+```
+
+### Usage
+
+Print to stdout (default table format):
+
+```bash
+npx @backtest-kit/cli --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120
+```
+
+Save as Markdown:
+
+```bash
+npx @backtest-kit/cli --pnldebug --priceopen 67956.73 --direction long --when 1772064000000 --minutes 60 --markdown
+# → ./dump/BTCUSDT_long_67956.73_{timestamp}.md
+```
+
+Override the output file name with `--output`:
+
+```bash
+npx @backtest-kit/cli --pnldebug --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120 \
+  --jsonl --output feb25_short_debug
+# → ./dump/feb25_short_debug.jsonl
+```
+
+Or add it to `package.json`:
+
+```json
+{
+  "scripts": {
+    "pnldebug": "npx @backtest-kit/cli --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when \"2025-02-25\" --minutes 120"
+  }
+}
+```
+
+```bash
+npm run pnldebug
+```
+
+### Example stdout output
+
+```
+Symbol: BTCUSDT | Direction: short | PriceOpen: 64069.50 | From: 2025-02-25T00:00:00.000Z | Minutes: 120
+  min | timestamp                 |        close |    pnl% |   peak% | drawdown%
+-----------------------------------------------------------------------
+    1 | 2025-02-25T00:01:00.000Z |      64020.10 |   +0.08% |   +0.08% |     0.00%
+    2 | 2025-02-25T00:02:00.000Z |      64105.30 |   -0.06% |   +0.08% |    -0.06%
+  ...
+  120 | 2025-02-25T02:00:00.000Z |      63200.00 |   +1.36% |   +1.36% |    -0.06%
 ```
 
 ## 🗑️ Flushing Strategy Output (`--flush`)
