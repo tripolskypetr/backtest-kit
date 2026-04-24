@@ -129,6 +129,22 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      pnldebug: {
+        type: "boolean",
+        default: false,
+      },
+      priceopen: {
+        type: "string",
+        default: "",
+      },
+      direction: {
+        type: "string",
+        default: "",
+      },
+      minutes: {
+        type: "string",
+        default: "",
+      },
       init: {
         type: "boolean",
         default: false,
