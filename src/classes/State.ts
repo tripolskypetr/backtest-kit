@@ -113,6 +113,13 @@ export class StateAdapter implements TStateAdapter{
     );
   });
 
+  public disable = () => {
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+    }
+  };
+
   public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName }): Promise<Value> => {
     if (!this.enable.hasValue()) {
       throw new Error("StateAdapter is not enabled. Call enable() first.");
