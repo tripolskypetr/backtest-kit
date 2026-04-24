@@ -16,6 +16,11 @@ export interface IStateInstance {
   dispose(): Promise<void>;
 }
 
+export interface IStateWrapper<Value extends object = object> {
+  getState(signalId: string): Promise<Value>;
+  setState(dispatch: Value | Dispatch<Value>, signalId: string): Promise<Value>;
+}
+
 export type TStateInstanceCtor = new (initialValue: object, signalId: string, bucketName: string) => IStateInstance;
 
 export class StateLocalInstance implements IStateInstance {
@@ -129,6 +134,18 @@ export class StateAdapter implements TStateAdapter{
     (signalId: string, bucketName: BucketName, initialValue: object): IStateInstance =>
       Reflect.construct(this.StateFactory, [initialValue, signalId, bucketName]),
   );
+
+  public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value }): IStateWrapper<Value> => {
+    const self = this;
+    return {
+      async getState(signalId: string) {
+        return await self.getState<Value>({ signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
+      },
+      async setState(dispatch, signalId) {
+        return await self.setState<Value>(dispatch, { signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
+      }
+    }
+  }
 
   public enable = singleshot(() => {
 
