@@ -4,6 +4,12 @@ import backtest, {
 } from "../lib";
 import { Recent } from "../classes/Recent";
 import { IPublicSignalRow } from "../interfaces/Strategy.interface";
+import { State } from "../classes/State";
+
+type Dispatch<Value extends object = object> = (value: Value) => Value | Promise<Value>;
+
+const GET_SIGNAL_STATE_METHOD_NAME = "signal.getSignalState";
+const SET_SIGNAL_STATE_METHOD_NAME = "signal.setSignalState";
 
 const GET_LATEST_SIGNAL_METHOD_NAME = "signal.getLatestSignal";
 const GET_MINUTES_SINCE_LATEST_SIGNAL_CREATED_METHOD_NAME = "signal.getMinutesSinceLatestSignalCreated";
@@ -94,3 +100,146 @@ export async function getMinutesSinceLatestSignalCreated(
     { exchangeName, frameName, strategyName },
   );
 }
+
+
+/**
+ * Reads the state value scoped to the current active signal.
+ *
+ * Resolves the active pending signal automatically from execution context.
+ * If no pending signal exists, logs a warning and returns the initialValue.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * Intended for LLM-driven capitulation strategies that accumulate per-trade
+ * metrics (e.g. peakPercent, minutesOpen) across onActivePing ticks.
+ * Profitable trades endure -0.5–2.5% drawdown and reach peak 2–3%+.
+ * SL trades show peak < 0.15% (Feb08, Feb13) or never go positive (Feb25).
+ * Rule: if minutesOpen >= N and peakPercent < threshold (e.g. 0.3%) — exit.
+ *
+ * @param dto.bucketName - State bucket name
+ * @param dto.initialValue - Default value when no persisted state exists
+ * @returns Promise resolving to current state value, or initialValue if no signal
+ *
+ * @deprecated Better use State.getState with manual signalId argument
+ *
+ * @example
+ * ```typescript
+ * import { getSignalState } from "backtest-kit";
+ *
+ * const { peakPercent, minutesOpen } = await getSignalState({
+ *   bucketName: "trade",
+ *   initialValue: { peakPercent: 0, minutesOpen: 0 },
+ * });
+ * if (minutesOpen >= 15 && peakPercent < 0.3) {
+ *   await commitMarketClose(symbol); // capitulate — LLM thesis not confirmed
+ * }
+ * ```
+ */
+export async function getSignalState<Value extends object = object>(dto: {
+  bucketName: string;
+  initialValue: Value;
+}): Promise<Value> {
+  const { bucketName, initialValue } = dto;
+  backtest.loggerService.info(GET_SIGNAL_STATE_METHOD_NAME, { bucketName });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getSignalState requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getSignalState requires a method context");
+  }
+  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  const currentPrice =
+    await backtest.exchangeConnectionService.getAveragePrice(symbol);
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    console.warn(`backtest-kit getSignalState no pending signal for symbol=${symbol} bucketName=${bucketName}`);
+    return initialValue;
+  }
+  return await State.getState<Value>({
+    signalId: signal.id,
+    bucketName,
+    initialValue,
+  });
+}
+
+/**
+ * Updates the state value scoped to the current active signal.
+ *
+ * Resolves the active pending signal automatically from execution context.
+ * If no pending signal exists, logs a warning and returns without writing.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * Intended for LLM-driven capitulation strategies that accumulate per-trade
+ * metrics (e.g. peakPercent, minutesOpen) across onActivePing ticks.
+ * Profitable trades endure -0.5–2.5% drawdown and reach peak 2–3%+.
+ * SL trades show peak < 0.15% (Feb08, Feb13) or never go positive (Feb25).
+ * Rule: if minutesOpen >= N and peakPercent < threshold (e.g. 0.3%) — exit.
+ *
+ * @param dto.bucketName - State bucket name
+ * @param dto.initialValue - Default value when no persisted state exists
+ * @param dto.dispatch - New value or updater function receiving current value
+ * @returns Promise resolving to updated state value, or initialValue if no signal
+ *
+ * @deprecated Better use State.setState with manual signalId argument
+ *
+ * @example
+ * ```typescript
+ * import { setSignalState } from "backtest-kit";
+ *
+ * await setSignalState(
+ *   dispatch: (s) => ({
+ *     peakPercent: Math.max(s.peakPercent, currentUnrealisedPercent),
+ *     minutesOpen: s.minutesOpen + 1,
+ *   }),
+ *   {
+ *     bucketName: "trade",
+ *     initialValue: { peakPercent: 0, minutesOpen: 0 },
+ *   }
+ * );
+ * ```
+ */
+export async function setSignalState<Value extends object = object>(
+  dispatch: Value | Dispatch<Value>,
+  dto: { 
+    bucketName: string;
+    initialValue: Value;
+  },
+): Promise<Value> {
+  const { bucketName, initialValue } = dto;
+  backtest.loggerService.info(SET_SIGNAL_STATE_METHOD_NAME, { bucketName });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("setSignalState requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("setSignalState requires a method context");
+  }
+  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  const currentPrice =
+    await backtest.exchangeConnectionService.getAveragePrice(symbol);
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    console.warn(`backtest-kit setSignalState no pending signal for symbol=${symbol} bucketName=${bucketName}`);
+    return initialValue;
+  }
+  return await State.setState<Value>(dispatch, {
+    signalId: signal.id,
+    bucketName,
+    initialValue,
+  });
+}
+

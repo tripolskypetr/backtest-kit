@@ -167,6 +167,8 @@ export {
 } from "./function/exchange";
 export {
   getLatestSignal,
+  getSignalState,
+  setSignalState,
   getMinutesSinceLatestSignalCreated,
 } from "./function/signal";
 export {
