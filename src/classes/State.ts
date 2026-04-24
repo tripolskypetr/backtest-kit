@@ -1,5 +1,6 @@
-import { compose, memoize, singleshot } from "functools-kit";
+import { compose, memoize, randomString, singleshot } from "functools-kit";
 import { signalEmitter } from "../config/emitters";
+import { PersistStateAdapter } from "./Persist";
 
 const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
   `${signalId}-${bucketName}`;
@@ -73,17 +74,60 @@ export class StateDummyInstance implements IStateInstance {
   }
 }
 
+export class StatePersistInstance implements IStateInstance {
+
+  _value: object;
+
+  constructor(
+    readonly initialValue: object,
+    readonly signalId: string,
+    readonly bucketName: string,
+  ) { }
+
+  public waitForInit = singleshot(async (initial: boolean) => {
+    await PersistStateAdapter.waitForInit(this.signalId, this.bucketName, initial);
+    const data = await PersistStateAdapter.readStateData(this.signalId, this.bucketName);
+    if (data) {
+      this._value = data.data;
+      return;
+    }
+    this._value = this.initialValue;
+  });
+
+  public async getState<Value extends object = object>(): Promise<Value> {
+    return <Value>this._value;
+  }
+
+  public async setState<Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value> {
+    if (typeof dispatch === "function") {
+      this._value = await dispatch(<Value>this._value);
+    } else {
+      this._value = dispatch;
+    }
+    await PersistStateAdapter.writeStateData(
+      { id: randomString(), data: this._value },
+      this.signalId,
+      this.bucketName,
+    );
+    return <Value>this._value;
+  }
+
+  public async dispose(): Promise<void> {
+    await PersistStateAdapter.dispose(this.signalId, this.bucketName);
+  }
+}
+
 type TStateAdapter = {
   [key in Exclude<keyof IStateInstance, "waitForInit" | "dispose">]: any;
 }
 
 export class StateAdapter implements TStateAdapter{
-  private StateFactory: TStateInstanceCtor = StateLocalInstance;
+  private StateFactory: TStateInstanceCtor = StatePersistInstance;
 
   private getInstance = memoize(
     ([signalId, bucketName]) => CREATE_KEY_FN(signalId, bucketName),
-    (signalId: string, bucketName: BucketName): IStateInstance =>
-      Reflect.construct(this.StateFactory, [signalId, bucketName]),
+    (signalId: string, bucketName: BucketName, initialValue: object): IStateInstance =>
+      Reflect.construct(this.StateFactory, [initialValue, signalId, bucketName]),
   );
 
   public enable = singleshot(() => {
@@ -120,30 +164,34 @@ export class StateAdapter implements TStateAdapter{
     }
   };
 
-  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName }): Promise<Value> => {
+  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
     if (!this.enable.hasValue()) {
       throw new Error("StateAdapter is not enabled. Call enable() first.");
     }
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
-    const instance = this.getInstance(dto.signalId, dto.bucketName);
+    const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
     await instance.waitForInit(isInitial);
     return await instance.getState();
   };
 
-  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName }): Promise<Value> => {
+  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
     if (!this.enable.hasValue()) {
       throw new Error("StateAdapter is not enabled. Call enable() first.");
     }
     const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
     const isInitial = !this.getInstance.has(key);
-    const instance = this.getInstance(dto.signalId, dto.bucketName);
+    const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
     await instance.waitForInit(isInitial);
     return await instance.setState(dispatch);
   };
 
   public useLocal = (): void => {
     this.StateFactory = StateLocalInstance;
+  };
+
+  public usePersist = (): void => {
+    this.StateFactory = StatePersistInstance;
   };
 
   public useDummy = (): void => {
@@ -154,6 +202,10 @@ export class StateAdapter implements TStateAdapter{
     this.StateFactory = Ctor;
   };
   
+  public clear = (): void => {
+    this.getInstance.clear();
+  };
+
 }
 
 export const State = new StateAdapter();

@@ -405,6 +405,8 @@ export {
   PersistIntervalAdapter,
   RecentData,
   PersistRecentAdapter,
+  StateData,
+  PersistStateAdapter,
 } from "./classes/Persist";
 
 export {
