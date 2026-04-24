@@ -487,6 +487,11 @@ export {
   TMemoryInstanceCtor
 } from "./classes/Memory";
 export {
+  State,
+  IStateInstance,
+  TStateInstanceCtor,
+} from "./classes/State";
+export {
   Dump,
   IDumpInstance,
   IDumpContext,
