@@ -46,6 +46,7 @@ const MEMORY_ADAPTER_METHOD_NAME_READ = "MemoryAdapter.readMemory";
 const MEMORY_ADAPTER_METHOD_NAME_USE_LOCAL = "MemoryAdapter.useLocal";
 const MEMORY_ADAPTER_METHOD_NAME_USE_PERSIST = "MemoryAdapter.usePersist";
 const MEMORY_ADAPTER_METHOD_NAME_USE_DUMMY = "MemoryAdapter.useDummy";
+const METHOD_NAME_USE_MEMORY_ADAPTER = "MemoryAdapter.useMemoryAdapter";
 const MEMORY_ADAPTER_METHOD_NAME_CLEAR = "MemoryAdapter.clear";
 
 /**
@@ -136,6 +137,7 @@ export type TMemoryInstance = Omit<
   },
   keyof {
     waitForInit: never;
+    dispose: never;
   }
 >;
 
@@ -495,7 +497,7 @@ export class MemoryAdapter implements TMemoryInstance {
 
   private getInstance = memoize(
     ([signalId, bucketName]) => CREATE_KEY_FN(signalId, bucketName),
-    (signalId: string, bucketName: string) =>
+    (signalId: string, bucketName: string): IMemoryInstance =>
       Reflect.construct(this.MemoryFactory, [signalId, bucketName]),
   );
 
@@ -709,6 +711,15 @@ export class MemoryAdapter implements TMemoryInstance {
   };
 
   /**
+   * Switches to a custom memory adapter implementation.
+   * @param adapter - Constructor for the custom memory instance
+   */
+  public useMemoryAdapter = (Ctor: TMemoryInstanceCtor): void => {
+    swarm.loggerService.info(METHOD_NAME_USE_MEMORY_ADAPTER);
+    this.MemoryFactory = Ctor;
+  };
+
+  /**
    * Clears the memoized instance cache.
    * Call this when process.cwd() changes between strategy iterations
    * so new instances are created with the updated base path.
@@ -716,15 +727,6 @@ export class MemoryAdapter implements TMemoryInstance {
   public clear = (): void => {
     swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_CLEAR);
     this.getInstance.clear();
-  };
-
-  /**
-   * Releases resources held by this adapter.
-   * Delegates to disable() to unsubscribe from signal lifecycle events.
-   */
-  public dispose = (): void => {
-    swarm.loggerService.info(MEMORY_ADAPTER_METHOD_NAME_DISPOSE);
-    this.disable();
   };
 }
 
