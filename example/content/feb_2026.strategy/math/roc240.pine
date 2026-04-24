@@ -1,0 +1,6 @@
+//@version=5
+indicator("ROC 240", overlay=false)
+
+roc240 = ta.roc(close, 240)
+
+plot(roc240, title="Value")
