@@ -159,8 +159,7 @@ export async function getSignalState<Value extends object = object>(dto: {
     { exchangeName, frameName, strategyName },
   );
   if (!signal) {
-    console.warn(`backtest-kit getSignalState no pending signal for symbol=${symbol} bucketName=${bucketName}`);
-    return initialValue;
+    throw new Error(`getSignalState requires an active pending signal for symbol=${symbol} bucketName=${bucketName}`);
   }
   return await State.getState<Value>({
     signalId: signal.id,
@@ -233,8 +232,7 @@ export async function setSignalState<Value extends object = object>(
     { exchangeName, frameName, strategyName },
   );
   if (!signal) {
-    console.warn(`backtest-kit setSignalState no pending signal for symbol=${symbol} bucketName=${bucketName}`);
-    return initialValue;
+    throw new Error(`setSignalState requires an active pending signal for symbol=${symbol} bucketName=${bucketName}`);
   }
   return await State.setState<Value>(dispatch, {
     signalId: signal.id,
