@@ -3,7 +3,7 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 import { Recent } from "../classes/Recent";
-import { IPublicSignalRow } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, IScheduledSignalRow } from "../interfaces/Strategy.interface";
 import { State } from "../classes/State";
 
 type Dispatch<Value extends object = object> = (value: Value) => Value | Promise<Value>;
@@ -152,20 +152,36 @@ export async function getSignalState<Value extends object = object>(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    throw new Error(`getSignalState requires an active pending signal for symbol=${symbol} bucketName=${bucketName}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await State.getState<Value>({
+      signalId: signal.id,
+      bucketName,
+      initialValue,
+    });
   }
-  return await State.getState<Value>({
-    signalId: signal.id,
-    bucketName,
-    initialValue,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await State.getState<Value>({
+      signalId: signal.id,
+      bucketName,
+      initialValue,
+    });
+  }
+  throw new Error(`getSignalState requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);
 }
 
 /**
@@ -225,19 +241,35 @@ export async function setSignalState<Value extends object = object>(
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    throw new Error(`setSignalState requires an active pending signal for symbol=${symbol} bucketName=${bucketName}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await State.setState<Value>(dispatch, {
+      signalId: signal.id,
+      bucketName,
+      initialValue,
+    });
   }
-  return await State.setState<Value>(dispatch, {
-    signalId: signal.id,
-    bucketName,
-    initialValue,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await State.setState<Value>(dispatch, {
+      signalId: signal.id,
+      bucketName,
+      initialValue,
+    });
+  }
+  throw new Error(`setSignalState requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);
 }
 
