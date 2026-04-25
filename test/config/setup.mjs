@@ -14,6 +14,7 @@ import {
   PersistMeasureAdapter,
   PersistRecentAdapter,
   PersistStateAdapter,
+  PersistSessionAdapter,
   Report,
   Markdown,
   Dump,
@@ -37,7 +38,6 @@ import {
 {
   Dump.useDummy();
   Report.useDummy();
-  Memory.useDummy();
   Markdown.useDummy();
 }
 
@@ -54,6 +54,7 @@ import {
   PersistMeasureAdapter.useDummy();
   PersistRecentAdapter.useDummy();
   PersistStateAdapter.useDummy();
+  PersistSessionAdapter.useDummy();
 }
 
 setConfig(

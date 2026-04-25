@@ -18,6 +18,8 @@ import {
   State,
   StateLive,
   StateBacktest,
+  SessionLive,
+  SessionBacktest,
   Recent,
   Log,
   MarkdownWriter,
@@ -39,6 +41,7 @@ import {
   PersistIntervalAdapter,
   PersistRecentAdapter,
   PersistStateAdapter,
+  PersistSessionAdapter,
 } from "backtest-kit";
 
 import { cli } from "../lib";
@@ -69,6 +72,11 @@ export class SetupUtils {
 
     {
       Dump.useMarkdown();
+    }
+
+    {
+      SessionLive.usePersist();
+      SessionBacktest.useMemory();
     }
 
     {
@@ -152,6 +160,7 @@ export class SetupUtils {
       PersistMemoryAdapter.clear();
       PersistRecentAdapter.clear();
       PersistStateAdapter.clear();
+      PersistSessionAdapter.clear();
     }
 
     {

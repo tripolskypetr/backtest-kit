@@ -412,6 +412,8 @@ export {
   PersistRecentAdapter,
   StateData,
   PersistStateAdapter,
+  SessionData,
+  PersistSessionAdapter,
 } from "./classes/Persist";
 
 export {
