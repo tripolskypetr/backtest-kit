@@ -6,7 +6,7 @@ group: docs
 # getSignalState
 
 ```ts
-declare function getSignalState<Value extends object = object>(dto: {
+declare function getSignalState<Value extends object = object>(symbol: string, dto: {
     bucketName: string;
     initialValue: Value;
 }): Promise<Value>;
@@ -29,4 +29,5 @@ Rule: if minutesOpen &gt;= N and peakPercent &lt; threshold (e.g. 0.3%) — exit
 
 | Parameter | Description |
 |-----------|-------------|
+| `symbol` | Trading pair symbol |
 | `dto` | |

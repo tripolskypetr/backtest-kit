@@ -6,7 +6,7 @@ group: docs
 # GetStateFn
 
 ```ts
-type GetStateFn<Value extends object = object> = () => Promise<Value>;
+type GetStateFn<Value extends object = object> = (symbol: string) => Promise<Value>;
 ```
 
 Reads the current state value for the active pending or scheduled signal.
