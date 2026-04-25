@@ -20,19 +20,22 @@ interface IStateParams<Value extends object = object> {
 /**
  * Reads the current state value for the active pending or scheduled signal.
  * Resolved from execution context — no signalId argument required.
+ * @param symbol - Trading pair symbol
  * @returns Current state value
  * @throws Error if no pending or scheduled signal exists
  */
-type GetStateFn<Value extends object = object> = () => Promise<Value>;
+type GetStateFn<Value extends object = object> = (symbol: string) => Promise<Value>;
 
 /**
  * Updates the state value for the active pending or scheduled signal.
  * Resolved from execution context — no signalId argument required.
+ * @param symbol - Trading pair symbol
  * @param dispatch - New value or updater function receiving current value
  * @returns Updated state value
  * @throws Error if no pending or scheduled signal exists
  */
 type SetStateFn<Value extends object = object> = (
+  symbol: string,
   dispatch: Value | Dispatch<Value>,
 ) => Promise<Value>;
 
@@ -44,14 +47,14 @@ type SignalStateTuple<Value extends object = object> = [GetStateFn<Value>, SetSt
 
 const CREATE_SET_STATE_FN =
   <Value extends object = object>(params: IStateParams<Value>) =>
-  async (dispatch: Value | Dispatch<Value>) => {
+  async (symbol: string, dispatch: Value | Dispatch<Value>) => {
     if (!ExecutionContextService.hasContext()) {
       throw new Error("createSignalState requires an execution context");
     }
     if (!MethodContextService.hasContext()) {
       throw new Error("createSignalState requires a method context");
     }
-    const { backtest: isBacktest, symbol } =
+    const { backtest: isBacktest } =
       lib.executionContextService.context;
     const { exchangeName, frameName, strategyName } =
       lib.methodContextService.context;
@@ -95,14 +98,14 @@ const CREATE_SET_STATE_FN =
 
 const CREATE_GET_STATE_FN =
   <Value extends object = object>(params: IStateParams<Value>) =>
-  async () => {
+  async (symbol: string) => {
     if (!ExecutionContextService.hasContext()) {
       throw new Error("createSignalState requires an execution context");
     }
     if (!MethodContextService.hasContext()) {
       throw new Error("createSignalState requires a method context");
     }
-    const { backtest: isBacktest, symbol } =
+    const { backtest: isBacktest } =
       lib.executionContextService.context;
     const { exchangeName, frameName, strategyName } =
       lib.methodContextService.context;

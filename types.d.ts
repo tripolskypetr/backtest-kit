@@ -9358,6 +9358,7 @@ declare function getMinutesSinceLatestSignalCreated(symbol: string): Promise<num
  * SL trades show peak < 0.15% (Feb08, Feb13) or never go positive (Feb25).
  * Rule: if minutesOpen >= N and peakPercent < threshold (e.g. 0.3%) — exit.
  *
+ * @param symbol - Trading pair symbol
  * @param dto.bucketName - State bucket name
  * @param dto.initialValue - Default value when no persisted state exists
  * @returns Promise resolving to current state value, or initialValue if no signal
@@ -9377,7 +9378,7 @@ declare function getMinutesSinceLatestSignalCreated(symbol: string): Promise<num
  * }
  * ```
  */
-declare function getSignalState<Value extends object = object>(dto: {
+declare function getSignalState<Value extends object = object>(symbol: string, dto: {
     bucketName: string;
     initialValue: Value;
 }): Promise<Value>;
@@ -9395,6 +9396,7 @@ declare function getSignalState<Value extends object = object>(dto: {
  * SL trades show peak < 0.15% (Feb08, Feb13) or never go positive (Feb25).
  * Rule: if minutesOpen >= N and peakPercent < threshold (e.g. 0.3%) — exit.
  *
+ * @param symbol - Trading pair symbol
  * @param dto.bucketName - State bucket name
  * @param dto.initialValue - Default value when no persisted state exists
  * @param dto.dispatch - New value or updater function receiving current value
@@ -9418,7 +9420,7 @@ declare function getSignalState<Value extends object = object>(dto: {
  * );
  * ```
  */
-declare function setSignalState<Value extends object = object>(dispatch: Value | Dispatch$1<Value>, dto: {
+declare function setSignalState<Value extends object = object>(symbol: string, dispatch: Value | Dispatch$1<Value>, dto: {
     bucketName: string;
     initialValue: Value;
 }): Promise<Value>;
@@ -9771,18 +9773,20 @@ interface IStateParams<Value extends object = object> {
 /**
  * Reads the current state value for the active pending or scheduled signal.
  * Resolved from execution context — no signalId argument required.
+ * @param symbol - Trading pair symbol
  * @returns Current state value
  * @throws Error if no pending or scheduled signal exists
  */
-type GetStateFn<Value extends object = object> = () => Promise<Value>;
+type GetStateFn<Value extends object = object> = (symbol: string) => Promise<Value>;
 /**
  * Updates the state value for the active pending or scheduled signal.
  * Resolved from execution context — no signalId argument required.
+ * @param symbol - Trading pair symbol
  * @param dispatch - New value or updater function receiving current value
  * @returns Updated state value
  * @throws Error if no pending or scheduled signal exists
  */
-type SetStateFn<Value extends object = object> = (dispatch: Value | Dispatch<Value>) => Promise<Value>;
+type SetStateFn<Value extends object = object> = (symbol: string, dispatch: Value | Dispatch<Value>) => Promise<Value>;
 /**
  * Tuple returned by createSignalState — [getState, setState] bound to the bucket.
  * Both functions resolve the active signal and backtest flag from execution context automatically.

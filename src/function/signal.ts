@@ -116,6 +116,7 @@ export async function getMinutesSinceLatestSignalCreated(
  * SL trades show peak < 0.15% (Feb08, Feb13) or never go positive (Feb25).
  * Rule: if minutesOpen >= N and peakPercent < threshold (e.g. 0.3%) — exit.
  *
+ * @param symbol - Trading pair symbol
  * @param dto.bucketName - State bucket name
  * @param dto.initialValue - Default value when no persisted state exists
  * @returns Promise resolving to current state value, or initialValue if no signal
@@ -135,19 +136,22 @@ export async function getMinutesSinceLatestSignalCreated(
  * }
  * ```
  */
-export async function getSignalState<Value extends object = object>(dto: {
-  bucketName: string;
-  initialValue: Value;
-}): Promise<Value> {
+export async function getSignalState<Value extends object = object>(
+  symbol: string, 
+  dto: {
+    bucketName: string;
+    initialValue: Value;
+  }
+): Promise<Value> {
   const { bucketName, initialValue } = dto;
-  backtest.loggerService.info(GET_SIGNAL_STATE_METHOD_NAME, { bucketName });
+  backtest.loggerService.info(GET_SIGNAL_STATE_METHOD_NAME, { symbol, bucketName });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getSignalState requires an execution context");
   }
   if (!MethodContextService.hasContext()) {
     throw new Error("getSignalState requires a method context");
   }
-  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -200,6 +204,7 @@ export async function getSignalState<Value extends object = object>(dto: {
  * SL trades show peak < 0.15% (Feb08, Feb13) or never go positive (Feb25).
  * Rule: if minutesOpen >= N and peakPercent < threshold (e.g. 0.3%) — exit.
  *
+ * @param symbol - Trading pair symbol
  * @param dto.bucketName - State bucket name
  * @param dto.initialValue - Default value when no persisted state exists
  * @param dto.dispatch - New value or updater function receiving current value
@@ -224,6 +229,7 @@ export async function getSignalState<Value extends object = object>(dto: {
  * ```
  */
 export async function setSignalState<Value extends object = object>(
+  symbol: string,
   dispatch: Value | Dispatch<Value>,
   dto: { 
     bucketName: string;
@@ -238,7 +244,7 @@ export async function setSignalState<Value extends object = object>(
   if (!MethodContextService.hasContext()) {
     throw new Error("setSignalState requires a method context");
   }
-  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
