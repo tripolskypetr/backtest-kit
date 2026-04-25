@@ -204,6 +204,25 @@ export class ExchangeConnectionService implements IExchange {
   };
 
   /**
+   * Returns the close price of the last completed candle for the given interval.
+   *
+   * Routes to exchange determined by methodContextService.context.exchangeName.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param interval - Candle interval (e.g., "1h", "1d")
+   * @returns Promise resolving to close price of the last candle
+   */
+  public getClosePrice = async (symbol: string, interval: CandleInterval) => {
+    this.loggerService.log("exchangeConnectionService getClosePrice", {
+      symbol,
+      interval,
+    });
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).getClosePrice(symbol, interval);
+  };
+
+  /**
    * Formats price according to exchange-specific precision rules.
    *
    * Ensures price meets exchange requirements for decimal places and tick size.

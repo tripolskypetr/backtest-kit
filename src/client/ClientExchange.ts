@@ -736,6 +736,33 @@ export class ClientExchange implements IExchange {
   }
 
   /**
+   * Returns the close price of the last completed candle for the given interval.
+   *
+   * Fetches a single candle for the requested interval and returns its close price.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle time interval (e.g., "1m", "1h")
+   * @returns Promise resolving to close price of the last candle
+   * @throws Error if no candles available
+   */
+  public async getClosePrice(symbol: string, interval: CandleInterval): Promise<number> {
+    this.params.logger.debug(`ClientExchange getClosePrice`, {
+      symbol,
+      interval,
+    });
+
+    const candles = await this.getCandles(symbol, interval, 1);
+
+    if (candles.length === 0) {
+      throw new Error(
+        `ClientExchange getClosePrice: no candles data for symbol=${symbol}`,
+      );
+    }
+
+    return candles[candles.length - 1].close;
+  }
+
+  /**
    * Formats quantity according to exchange-specific rules for the given symbol.
    * Applies proper decimal precision and rounding based on symbol's lot size filters.
    *

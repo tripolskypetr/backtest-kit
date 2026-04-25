@@ -198,6 +198,43 @@ export class ExchangeCoreService implements TExchange {
   };
 
   /**
+   * Returns the close price of the last completed candle for the given interval with execution context.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle interval (e.g., "1m", "1h")
+   * @param when - Timestamp for context (used in backtest mode)
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise resolving to close price of the last candle
+   */
+  public getClosePrice = async (
+    symbol: string,
+    interval: CandleInterval,
+    when: Date,
+    backtest: boolean
+  ) => {
+    this.loggerService.log("exchangeCoreService getClosePrice", {
+      symbol,
+      interval,
+      when,
+      backtest,
+    });
+    if (!MethodContextService.hasContext()) {
+      throw new Error("exchangeCoreService getClosePrice requires a method context");
+    }
+    await this.validate(this.methodContextService.context.exchangeName);
+    return await ExecutionContextService.runInContext(
+      async () => {
+        return await this.exchangeConnectionService.getClosePrice(symbol, interval);
+      },
+      {
+        symbol,
+        when,
+        backtest,
+      }
+    );
+  };
+
+  /**
    * Formats price with execution context.
    *
    * @param symbol - Trading pair symbol
