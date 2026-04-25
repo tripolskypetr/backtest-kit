@@ -6,10 +6,16 @@ import swarm from "../lib";
 const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
   `${signalId}_${bucketName}`;
 
-/** Updater function for setState — receives current value and returns the next value. */
+/** 
+ * Updater function for setState — receives current value and returns the next value.
+ * Used for functional updates to state, e.g. `setState(prev => ({ ...prev, peakPercent: newPeak }))`
+ */
 export type Dispatch<Value extends object = object> = (value: Value) => Value | Promise<Value>;
 
-/** Logical namespace for grouping state buckets within a signal, e.g. "trade" or "metrics". */
+/** 
+ * Logical namespace for grouping state buckets within a signal, e.g. "trade" or "metrics".
+ * Used to scope state values for different purposes within the same signal — e.g. "trade" bucket for tracking peakPercent and minutesOpen, "metrics" bucket for tracking other LLM confirmation metrics.
+ */
 export type BucketName = string;
 
 const STATE_LOCAL_INSTANCE_METHOD_NAME_GET = "StateLocalInstance.getState";
