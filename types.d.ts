@@ -14992,68 +14992,234 @@ declare class SystemUtils {
 }
 declare const System: SystemUtils;
 
+/**
+ * Interface for session instance implementations.
+ * Defines the contract for local, persist, and dummy backends.
+ *
+ * Intended use: per-(symbol, strategy, exchange, frame) mutable session data
+ * shared across strategy callbacks within a single run — e.g. caching LLM
+ * inference results, intermediate indicator state, or cross-candle accumulators.
+ *
+ * Example shape:
+ * ```ts
+ * { lastLlmSignal: "buy" | "sell" | null; confirmedAt: number }
+ * ```
+ */
 interface ISessionInstance {
+    /**
+     * Initialize the session instance.
+     * @param initial - Whether this is the first initialization
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Write a new session value.
+     * @param value - New value or null to clear
+     */
     setData<Value extends object = object>(value: Value | null): Promise<void>;
+    /**
+     * Read the current session value.
+     * @returns Current session value, or null if not set
+     */
     getData<Value extends object = object>(): Promise<Value | null>;
+    /**
+     * Releases any resources held by this instance.
+     */
     dispose(): Promise<void>;
 }
+/**
+ * Constructor type for session instance implementations.
+ * Used for swapping backends via SessionBacktestAdapter / SessionLiveAdapter.
+ */
 type TSessionInstanceCtor = new (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => ISessionInstance;
+/**
+ * Public surface of SessionBacktestAdapter / SessionLiveAdapter — ISessionInstance minus waitForInit and dispose.
+ * waitForInit and dispose are managed internally by the adapter.
+ */
 type TSessionAdapter = {
     [key in Exclude<keyof ISessionInstance, "waitForInit" | "dispose">]: any;
 };
+/**
+ * Backtest session adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable session instance implementations
+ * - Default backend: SessionLocalInstance (in-memory, no disk persistence)
+ * - Alternative backends: SessionPersistInstance, SessionDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useSessionAdapter()
+ * - Memoized instances per (symbol, strategyName, exchangeName, frameName) tuple
+ */
 declare class SessionBacktestAdapter implements TSessionAdapter {
     private SessionFactory;
     private getInstance;
+    /**
+     * Read the current session value for a backtest run.
+     * @param symbol - Trading pair symbol
+     * @param context.strategyName - Strategy identifier
+     * @param context.exchangeName - Exchange identifier
+     * @param context.frameName - Frame identifier
+     * @returns Current session value, or null if not set
+     */
     getData: <Value extends object = object>(symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<Value | null>;
+    /**
+     * Update the session value for a backtest run.
+     * @param symbol - Trading pair symbol
+     * @param value - New value or null to clear
+     * @param context.strategyName - Strategy identifier
+     * @param context.exchangeName - Exchange identifier
+     * @param context.frameName - Frame identifier
+     */
     setData: <Value extends object = object>(symbol: string, value: Value | null, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<void>;
+    /**
+     * Switches to in-memory adapter (default).
+     * All data lives in process memory only.
+     */
     useLocal: () => void;
+    /**
+     * Switches to file-system backed adapter.
+     * Data is persisted to disk via PersistSessionAdapter.
+     */
     usePersist: () => void;
+    /**
+     * Switches to dummy adapter that discards all writes.
+     */
     useDummy: () => void;
+    /**
+     * Switches to a custom session adapter implementation.
+     * @param Ctor - Constructor for the custom session instance
+     */
     useSessionAdapter: (Ctor: TSessionInstanceCtor) => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new instances are created with the updated base path.
+     */
     clear: () => void;
 }
+/**
+ * Live trading session adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable session instance implementations
+ * - Default backend: SessionPersistInstance (file-system backed, survives restarts)
+ * - Alternative backends: SessionLocalInstance, SessionDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useSessionAdapter()
+ * - Memoized instances per (symbol, strategyName, exchangeName, frameName) tuple
+ */
 declare class SessionLiveAdapter implements TSessionAdapter {
     private SessionFactory;
     private getInstance;
+    /**
+     * Read the current session value for a live run.
+     * @param symbol - Trading pair symbol
+     * @param context.strategyName - Strategy identifier
+     * @param context.exchangeName - Exchange identifier
+     * @param context.frameName - Frame identifier
+     * @returns Current session value, or null if not set
+     */
     getData: <Value extends object = object>(symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<Value | null>;
+    /**
+     * Update the session value for a live run.
+     * @param symbol - Trading pair symbol
+     * @param value - New value or null to clear
+     * @param context.strategyName - Strategy identifier
+     * @param context.exchangeName - Exchange identifier
+     * @param context.frameName - Frame identifier
+     */
     setData: <Value extends object = object>(symbol: string, value: Value | null, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<void>;
+    /**
+     * Switches to in-memory adapter.
+     * All data lives in process memory only.
+     */
     useLocal: () => void;
+    /**
+     * Switches to file-system backed adapter (default).
+     * Data is persisted to disk via PersistSessionAdapter.
+     */
     usePersist: () => void;
+    /**
+     * Switches to dummy adapter that discards all writes.
+     */
     useDummy: () => void;
+    /**
+     * Switches to a custom session adapter implementation.
+     * @param Ctor - Constructor for the custom session instance
+     */
     useSessionAdapter: (Ctor: TSessionInstanceCtor) => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call this when process.cwd() changes between strategy iterations
+     * so new instances are created with the updated base path.
+     */
     clear: () => void;
 }
+/**
+ * Main session adapter that manages both backtest and live session storage.
+ *
+ * Features:
+ * - Routes all operations to SessionBacktest or SessionLive based on the backtest flag
+ */
 declare class SessionAdapter {
+    /**
+     * Read the current session value for a signal.
+     * Routes to SessionBacktest or SessionLive based on backtest.
+     * @param symbol - Trading pair symbol
+     * @param context.strategyName - Strategy identifier
+     * @param context.exchangeName - Exchange identifier
+     * @param context.frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     * @returns Current session value, or null if not set
+     */
     getData: <Value extends object = object>(symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, backtest: boolean) => Promise<Value | null>;
+    /**
+     * Update the session value for a signal.
+     * Routes to SessionBacktest or SessionLive based on backtest.
+     * @param symbol - Trading pair symbol
+     * @param value - New value or null to clear
+     * @param context.strategyName - Strategy identifier
+     * @param context.exchangeName - Exchange identifier
+     * @param context.frameName - Frame identifier
+     * @param backtest - Flag indicating if the context is backtest or live
+     */
     setData: <Value extends object = object>(symbol: string, value: Value | null, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, backtest: boolean) => Promise<void>;
 }
+/**
+ * Global singleton instance of SessionAdapter.
+ * Provides unified session management for backtest and live trading.
+ */
 declare const Session: SessionAdapter;
+/**
+ * Global singleton instance of SessionLiveAdapter.
+ * Provides live trading session storage with pluggable backends.
+ */
 declare const SessionLive: SessionLiveAdapter;
+/**
+ * Global singleton instance of SessionBacktestAdapter.
+ * Provides backtest session storage with pluggable backends.
+ */
 declare const SessionBacktest: SessionBacktestAdapter;
 
 /**

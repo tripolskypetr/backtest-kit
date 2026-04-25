@@ -50,13 +50,48 @@ const SESSION_LIVE_ADAPTER_METHOD_NAME_CLEAR = "SessionLiveAdapter.clear";
 const SESSION_ADAPTER_METHOD_NAME_GET = "SessionAdapter.getData";
 const SESSION_ADAPTER_METHOD_NAME_SET = "SessionAdapter.setData";
 
+/**
+ * Interface for session instance implementations.
+ * Defines the contract for local, persist, and dummy backends.
+ *
+ * Intended use: per-(symbol, strategy, exchange, frame) mutable session data
+ * shared across strategy callbacks within a single run — e.g. caching LLM
+ * inference results, intermediate indicator state, or cross-candle accumulators.
+ *
+ * Example shape:
+ * ```ts
+ * { lastLlmSignal: "buy" | "sell" | null; confirmedAt: number }
+ * ```
+ */
 export interface ISessionInstance {
+  /**
+   * Initialize the session instance.
+   * @param initial - Whether this is the first initialization
+   */
   waitForInit(initial: boolean): Promise<void>;
+
+  /**
+   * Write a new session value.
+   * @param value - New value or null to clear
+   */
   setData<Value extends object = object>(value: Value | null): Promise<void>;
+
+  /**
+   * Read the current session value.
+   * @returns Current session value, or null if not set
+   */
   getData<Value extends object = object>(): Promise<Value | null>;
+
+  /**
+   * Releases any resources held by this instance.
+   */
   dispose(): Promise<void>;
 }
 
+/**
+ * Constructor type for session instance implementations.
+ * Used for swapping backends via SessionBacktestAdapter / SessionLiveAdapter.
+ */
 export type TSessionInstanceCtor = new (
   symbol: string,
   strategyName: StrategyName,
@@ -65,10 +100,24 @@ export type TSessionInstanceCtor = new (
   backtest: boolean,
 ) => ISessionInstance;
 
+/**
+ * Public surface of SessionBacktestAdapter / SessionLiveAdapter — ISessionInstance minus waitForInit and dispose.
+ * waitForInit and dispose are managed internally by the adapter.
+ */
 type TSessionAdapter = {
   [key in Exclude<keyof ISessionInstance, "waitForInit" | "dispose">]: any;
 };
 
+/**
+ * In-process session instance backed by a plain object reference.
+ * All data lives in process memory only — no disk persistence.
+ *
+ * Features:
+ * - Mutable in-memory session data
+ * - Scoped per (symbol, strategyName, exchangeName, frameName) tuple
+ *
+ * Use for backtesting and unit tests where persistence between runs is not needed.
+ */
 export class SessionLocalInstance implements ISessionInstance {
   _data: unknown = null;
 
@@ -80,10 +129,18 @@ export class SessionLocalInstance implements ISessionInstance {
     readonly backtest: boolean,
   ) { }
 
+  /**
+   * Initializes _data to null — local session needs no async setup.
+   * @returns Promise that resolves immediately
+   */
   public waitForInit = singleshot(async (_initial: boolean) => {
     this._data = null;
   });
 
+  /**
+   * Read the current in-memory session value.
+   * @returns Current session value, or null if not set
+   */
   public getData = async <Value extends object = object>(): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_LOCAL_INSTANCE_METHOD_NAME_GET, {
       strategyName: this.strategyName,
@@ -93,6 +150,10 @@ export class SessionLocalInstance implements ISessionInstance {
     return <Value>this._data;
   };
 
+  /**
+   * Update the in-memory session value.
+   * @param value - New value or null to clear
+   */
   public setData = async <Value extends object = object>(value: Value | null): Promise<void> => {
     swarm.loggerService.debug(SESSION_LOCAL_INSTANCE_METHOD_NAME_SET, {
       strategyName: this.strategyName,
@@ -102,6 +163,7 @@ export class SessionLocalInstance implements ISessionInstance {
     this._data = value;
   };
 
+  /** Releases resources held by this instance. */
   public async dispose(): Promise<void> {
     swarm.loggerService.debug(SESSION_BACKTEST_ADAPTER_METHOD_NAME_DISPOSE, {
       strategyName: this.strategyName,
@@ -111,6 +173,13 @@ export class SessionLocalInstance implements ISessionInstance {
   }
 }
 
+/**
+ * No-op session instance that discards all writes.
+ * Used for disabling session storage in tests or dry-run scenarios.
+ *
+ * Useful when replaying historical candles without needing to accumulate
+ * cross-candle session state — getData always returns null.
+ */
 export class SessionDummyInstance implements ISessionInstance {
   constructor(
     readonly symbol: string,
@@ -120,23 +189,46 @@ export class SessionDummyInstance implements ISessionInstance {
     readonly backtest: boolean,
   ) { }
 
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   public waitForInit = singleshot(async (_initial: boolean) => {
     void 0;
   });
 
+  /**
+   * No-op read — always returns null.
+   * @returns null
+   */
   public getData = async <Value extends object = object>(): Promise<Value | null> => {
     return null;
   };
 
+  /**
+   * No-op write — discards the value.
+   */
   public setData = async <Value extends object = object>(_value: Value | null): Promise<void> => {
     void 0;
   };
 
+  /** No-op. */
   public async dispose(): Promise<void> {
     void 0;
   }
 }
 
+/**
+ * File-system backed session instance.
+ * Data is persisted atomically to disk via PersistSessionAdapter.
+ * Session is restored from disk on waitForInit.
+ *
+ * Features:
+ * - Crash-safe atomic file writes
+ * - Scoped per (symbol, strategyName, exchangeName, frameName) tuple
+ *
+ * Use in live trading to survive process restarts mid-session.
+ */
 export class SessionPersistInstance implements ISessionInstance {
   _data: unknown = null;
 
@@ -148,6 +240,10 @@ export class SessionPersistInstance implements ISessionInstance {
     readonly backtest: boolean,
   ) { }
 
+  /**
+   * Initialize persistence storage and restore session from disk.
+   * @param initial - Whether this is the first initialization
+   */
   public waitForInit = singleshot(async (initial: boolean) => {
     swarm.loggerService.debug(SESSION_PERSIST_INSTANCE_METHOD_NAME_WAIT_FOR_INIT, {
       strategyName: this.strategyName,
@@ -164,6 +260,10 @@ export class SessionPersistInstance implements ISessionInstance {
     this._data = null;
   });
 
+  /**
+   * Read the current persisted session value.
+   * @returns Current session value, or null if not set
+   */
   public getData = async <Value extends object = object>(): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_PERSIST_INSTANCE_METHOD_NAME_GET, {
       strategyName: this.strategyName,
@@ -173,6 +273,10 @@ export class SessionPersistInstance implements ISessionInstance {
     return <Value>this._data;
   };
 
+  /**
+   * Update session value and persist to disk atomically.
+   * @param value - New value or null to clear
+   */
   public setData = async <Value extends object = object>(value: Value | null): Promise<void> => {
     swarm.loggerService.debug(SESSION_PERSIST_INSTANCE_METHOD_NAME_SET, {
       strategyName: this.strategyName,
@@ -189,6 +293,7 @@ export class SessionPersistInstance implements ISessionInstance {
     );
   };
 
+  /** Releases resources held by this instance. */
   public async dispose(): Promise<void> {
     swarm.loggerService.debug(SESSION_LIVE_ADAPTER_METHOD_NAME_DISPOSE, {
       strategyName: this.strategyName,
@@ -199,6 +304,16 @@ export class SessionPersistInstance implements ISessionInstance {
   }
 }
 
+/**
+ * Backtest session adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable session instance implementations
+ * - Default backend: SessionLocalInstance (in-memory, no disk persistence)
+ * - Alternative backends: SessionPersistInstance, SessionDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useSessionAdapter()
+ * - Memoized instances per (symbol, strategyName, exchangeName, frameName) tuple
+ */
 export class SessionBacktestAdapter implements TSessionAdapter {
   private SessionFactory: TSessionInstanceCtor = SessionLocalInstance;
 
@@ -209,6 +324,14 @@ export class SessionBacktestAdapter implements TSessionAdapter {
       Reflect.construct(this.SessionFactory, [symbol, strategyName, exchangeName, frameName, backtest]),
   );
 
+  /**
+   * Read the current session value for a backtest run.
+   * @param symbol - Trading pair symbol
+   * @param context.strategyName - Strategy identifier
+   * @param context.exchangeName - Exchange identifier
+   * @param context.frameName - Frame identifier
+   * @returns Current session value, or null if not set
+   */
   public getData = async <Value extends object = object>(symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_BACKTEST_ADAPTER_METHOD_NAME_GET, {
       strategyName: context.strategyName,
@@ -222,6 +345,14 @@ export class SessionBacktestAdapter implements TSessionAdapter {
     return await instance.getData<Value>();
   };
 
+  /**
+   * Update the session value for a backtest run.
+   * @param symbol - Trading pair symbol
+   * @param value - New value or null to clear
+   * @param context.strategyName - Strategy identifier
+   * @param context.exchangeName - Exchange identifier
+   * @param context.frameName - Frame identifier
+   */
   public setData = async <Value extends object = object>(symbol: string, value: Value | null, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<void> => {
     swarm.loggerService.debug(SESSION_BACKTEST_ADAPTER_METHOD_NAME_SET, {
       strategyName: context.strategyName,
@@ -235,32 +366,62 @@ export class SessionBacktestAdapter implements TSessionAdapter {
     return await instance.setData<Value>(value);
   };
 
+  /**
+   * Switches to in-memory adapter (default).
+   * All data lives in process memory only.
+   */
   public useLocal = (): void => {
     swarm.loggerService.info(SESSION_BACKTEST_ADAPTER_METHOD_NAME_USE_LOCAL);
     this.SessionFactory = SessionLocalInstance;
   };
 
+  /**
+   * Switches to file-system backed adapter.
+   * Data is persisted to disk via PersistSessionAdapter.
+   */
   public usePersist = (): void => {
     swarm.loggerService.info(SESSION_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST);
     this.SessionFactory = SessionPersistInstance;
   };
 
+  /**
+   * Switches to dummy adapter that discards all writes.
+   */
   public useDummy = (): void => {
     swarm.loggerService.info(SESSION_BACKTEST_ADAPTER_METHOD_NAME_USE_DUMMY);
     this.SessionFactory = SessionDummyInstance;
   };
 
+  /**
+   * Switches to a custom session adapter implementation.
+   * @param Ctor - Constructor for the custom session instance
+   */
   public useSessionAdapter = (Ctor: TSessionInstanceCtor): void => {
     swarm.loggerService.info(SESSION_BACKTEST_ADAPTER_METHOD_NAME_USE_SESSION_ADAPTER);
     this.SessionFactory = Ctor;
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call this when process.cwd() changes between strategy iterations
+   * so new instances are created with the updated base path.
+   */
   public clear = (): void => {
     swarm.loggerService.info(SESSION_BACKTEST_ADAPTER_METHOD_NAME_CLEAR);
     this.getInstance.clear();
   };
 }
 
+/**
+ * Live trading session adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable session instance implementations
+ * - Default backend: SessionPersistInstance (file-system backed, survives restarts)
+ * - Alternative backends: SessionLocalInstance, SessionDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useSessionAdapter()
+ * - Memoized instances per (symbol, strategyName, exchangeName, frameName) tuple
+ */
 export class SessionLiveAdapter implements TSessionAdapter {
   private SessionFactory: TSessionInstanceCtor = SessionPersistInstance;
 
@@ -271,6 +432,14 @@ export class SessionLiveAdapter implements TSessionAdapter {
       Reflect.construct(this.SessionFactory, [symbol, strategyName, exchangeName, frameName, backtest]),
   );
 
+  /**
+   * Read the current session value for a live run.
+   * @param symbol - Trading pair symbol
+   * @param context.strategyName - Strategy identifier
+   * @param context.exchangeName - Exchange identifier
+   * @param context.frameName - Frame identifier
+   * @returns Current session value, or null if not set
+   */
   public getData = async <Value extends object = object>(symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_LIVE_ADAPTER_METHOD_NAME_GET, {
       strategyName: context.strategyName,
@@ -284,6 +453,14 @@ export class SessionLiveAdapter implements TSessionAdapter {
     return await instance.getData<Value>();
   };
 
+  /**
+   * Update the session value for a live run.
+   * @param symbol - Trading pair symbol
+   * @param value - New value or null to clear
+   * @param context.strategyName - Strategy identifier
+   * @param context.exchangeName - Exchange identifier
+   * @param context.frameName - Frame identifier
+   */
   public setData = async <Value extends object = object>(symbol: string, value: Value | null, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<void> => {
     swarm.loggerService.debug(SESSION_LIVE_ADAPTER_METHOD_NAME_SET, {
       strategyName: context.strategyName,
@@ -297,33 +474,69 @@ export class SessionLiveAdapter implements TSessionAdapter {
     return await instance.setData<Value>(value);
   };
 
+  /**
+   * Switches to in-memory adapter.
+   * All data lives in process memory only.
+   */
   public useLocal = (): void => {
     swarm.loggerService.info(SESSION_LIVE_ADAPTER_METHOD_NAME_USE_LOCAL);
     this.SessionFactory = SessionLocalInstance;
   };
 
+  /**
+   * Switches to file-system backed adapter (default).
+   * Data is persisted to disk via PersistSessionAdapter.
+   */
   public usePersist = (): void => {
     swarm.loggerService.info(SESSION_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST);
     this.SessionFactory = SessionPersistInstance;
   };
 
+  /**
+   * Switches to dummy adapter that discards all writes.
+   */
   public useDummy = (): void => {
     swarm.loggerService.info(SESSION_LIVE_ADAPTER_METHOD_NAME_USE_DUMMY);
     this.SessionFactory = SessionDummyInstance;
   };
 
+  /**
+   * Switches to a custom session adapter implementation.
+   * @param Ctor - Constructor for the custom session instance
+   */
   public useSessionAdapter = (Ctor: TSessionInstanceCtor): void => {
     swarm.loggerService.info(SESSION_LIVE_ADAPTER_METHOD_NAME_USE_SESSION_ADAPTER);
     this.SessionFactory = Ctor;
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call this when process.cwd() changes between strategy iterations
+   * so new instances are created with the updated base path.
+   */
   public clear = (): void => {
     swarm.loggerService.info(SESSION_LIVE_ADAPTER_METHOD_NAME_CLEAR);
     this.getInstance.clear();
   };
 }
 
+/**
+ * Main session adapter that manages both backtest and live session storage.
+ *
+ * Features:
+ * - Routes all operations to SessionBacktest or SessionLive based on the backtest flag
+ */
 export class SessionAdapter {
+  /**
+   * Read the current session value for a signal.
+   * Routes to SessionBacktest or SessionLive based on backtest.
+   * @param symbol - Trading pair symbol
+   * @param context.strategyName - Strategy identifier
+   * @param context.exchangeName - Exchange identifier
+   * @param context.frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   * @returns Current session value, or null if not set
+   */
   public getData = async <Value extends object = object>(symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }, backtest: boolean): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_ADAPTER_METHOD_NAME_GET, {
       strategyName: context.strategyName,
@@ -337,6 +550,16 @@ export class SessionAdapter {
     return await SessionLive.getData<Value>(symbol, context);
   };
 
+  /**
+   * Update the session value for a signal.
+   * Routes to SessionBacktest or SessionLive based on backtest.
+   * @param symbol - Trading pair symbol
+   * @param value - New value or null to clear
+   * @param context.strategyName - Strategy identifier
+   * @param context.exchangeName - Exchange identifier
+   * @param context.frameName - Frame identifier
+   * @param backtest - Flag indicating if the context is backtest or live
+   */
   public setData = async <Value extends object = object>(symbol: string, value: Value | null, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }, backtest: boolean): Promise<void> => {
     swarm.loggerService.debug(SESSION_ADAPTER_METHOD_NAME_SET, {
       strategyName: context.strategyName,
@@ -351,8 +574,20 @@ export class SessionAdapter {
   };
 }
 
+/**
+ * Global singleton instance of SessionAdapter.
+ * Provides unified session management for backtest and live trading.
+ */
 export const Session = new SessionAdapter();
 
+/**
+ * Global singleton instance of SessionLiveAdapter.
+ * Provides live trading session storage with pluggable backends.
+ */
 export const SessionLive = new SessionLiveAdapter();
 
+/**
+ * Global singleton instance of SessionBacktestAdapter.
+ * Provides backtest session storage with pluggable backends.
+ */
 export const SessionBacktest = new SessionBacktestAdapter();
