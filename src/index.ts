@@ -172,6 +172,10 @@ export {
   getMinutesSinceLatestSignalCreated,
 } from "./function/signal";
 export {
+  getSessionData,
+  setSessionData,
+} from "./function/session";
+export {
   createSignalState,
 } from "./function/state";
 export {
