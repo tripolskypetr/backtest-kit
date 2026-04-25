@@ -182,7 +182,7 @@ export class SessionPersistInstance implements ISessionInstance {
     this._data = value;
     const id = CREATE_KEY_FN(this.symbol, this.strategyName, this.exchangeName, this.frameName, this.backtest);
     await PersistSessionAdapter.writeSessionData(
-      { id, data: value as object | null },
+      { id, data: value },
       this.strategyName,
       this.exchangeName,
       this.frameName,
