@@ -1,4 +1,4 @@
-import { compose, memoize, queued, randomString, singleshot } from "functools-kit";
+import { compose, memoize, queued, singleshot } from "functools-kit";
 import { signalEmitter } from "../config/emitters";
 import { PersistStateAdapter } from "./Persist";
 import swarm from "../lib";
@@ -19,17 +19,31 @@ const STATE_PERSIST_INSTANCE_METHOD_NAME_WAIT_FOR_INIT = "StatePersistInstance.w
 const STATE_PERSIST_INSTANCE_METHOD_NAME_GET = "StatePersistInstance.getState";
 const STATE_PERSIST_INSTANCE_METHOD_NAME_SET = "StatePersistInstance.setState";
 
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_CREATE = "StateBacktestAdapter.create";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_DISPOSE = "StateBacktestAdapter.dispose";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_GET = "StateBacktestAdapter.getState";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_SET = "StateBacktestAdapter.setState";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_LOCAL = "StateBacktestAdapter.useLocal";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST = "StateBacktestAdapter.usePersist";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_DUMMY = "StateBacktestAdapter.useDummy";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER = "StateBacktestAdapter.useStateAdapter";
+const STATE_BACKTEST_ADAPTER_METHOD_NAME_CLEAR = "StateBacktestAdapter.clear";
+
+const STATE_LIVE_ADAPTER_METHOD_NAME_CREATE = "StateLiveAdapter.create";
+const STATE_LIVE_ADAPTER_METHOD_NAME_DISPOSE = "StateLiveAdapter.dispose";
+const STATE_LIVE_ADAPTER_METHOD_NAME_GET = "StateLiveAdapter.getState";
+const STATE_LIVE_ADAPTER_METHOD_NAME_SET = "StateLiveAdapter.setState";
+const STATE_LIVE_ADAPTER_METHOD_NAME_USE_LOCAL = "StateLiveAdapter.useLocal";
+const STATE_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST = "StateLiveAdapter.usePersist";
+const STATE_LIVE_ADAPTER_METHOD_NAME_USE_DUMMY = "StateLiveAdapter.useDummy";
+const STATE_LIVE_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER = "StateLiveAdapter.useStateAdapter";
+const STATE_LIVE_ADAPTER_METHOD_NAME_CLEAR = "StateLiveAdapter.clear";
+
 const STATE_ADAPTER_METHOD_NAME_CREATE = "StateAdapter.create";
-const STATE_ADAPTER_METHOD_NAME_DISPOSE = "StateAdapter.dispose";
 const STATE_ADAPTER_METHOD_NAME_ENABLE = "StateAdapter.enable";
 const STATE_ADAPTER_METHOD_NAME_DISABLE = "StateAdapter.disable";
 const STATE_ADAPTER_METHOD_NAME_GET = "StateAdapter.getState";
 const STATE_ADAPTER_METHOD_NAME_SET = "StateAdapter.setState";
-const STATE_ADAPTER_METHOD_NAME_USE_LOCAL = "StateAdapter.useLocal";
-const STATE_ADAPTER_METHOD_NAME_USE_PERSIST = "StateAdapter.usePersist";
-const STATE_ADAPTER_METHOD_NAME_USE_DUMMY = "StateAdapter.useDummy";
-const STATE_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER = "StateAdapter.useStateAdapter";
-const STATE_ADAPTER_METHOD_NAME_CLEAR = "StateAdapter.clear";
 
 /**
  * Interface for state instance implementations.
@@ -75,13 +89,13 @@ export interface IStateInstance {
 }
 
 /**
- * Wrapper returned by StateAdapter.create() that binds bucketName and initialValue.
+ * Wrapper returned by StateBacktestAdapter.create() / StateLiveAdapter.create() that binds bucketName and initialValue.
  * Simplifies per-signal state access in strategy callbacks — no need to pass
  * bucketName/initialValue on every getState/setState call.
  *
  * Typical usage in a capitulation strategy:
  * ```ts
- * const tradeState = State.create({ bucketName: "trade", initialValue: { peakPercent: 0, minutesOpen: 0 } });
+ * const tradeState = State.create({ bucketName: "trade", initialValue: { peakPercent: 0, minutesOpen: 0 }, backtest: true });
  * // in onActivePing:
  * await tradeState.setState(s => ({ ...s, peakPercent: Math.max(s.peakPercent, current) }), signalId);
  * const { peakPercent, minutesOpen } = await tradeState.getState(signalId);
@@ -106,12 +120,12 @@ export interface IStateWrapper<Value extends object = object> {
 
 /**
  * Constructor type for state instance implementations.
- * Used for swapping backends via StateAdapter.
+ * Used for swapping backends via StateBacktestAdapter / StateLiveAdapter.
  */
 export type TStateInstanceCtor = new (initialValue: object, signalId: string, bucketName: string) => IStateInstance;
 
 /**
- * Public surface of StateAdapter - IStateInstance minus waitForInit and dispose.
+ * Public surface of StateBacktestAdapter / StateLiveAdapter — IStateInstance minus waitForInit and dispose.
  * waitForInit and dispose are managed internally by the adapter.
  */
 type TStateAdapter = {
@@ -180,7 +194,7 @@ export class StateLocalInstance implements IStateInstance {
 
   /** Releases resources held by this instance. */
   public async dispose(): Promise<void> {
-    swarm.loggerService.debug(STATE_ADAPTER_METHOD_NAME_DISPOSE, {
+    swarm.loggerService.debug(STATE_BACKTEST_ADAPTER_METHOD_NAME_DISPOSE, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
@@ -312,7 +326,7 @@ export class StatePersistInstance implements IStateInstance {
 
   /** Releases resources held by this instance. */
   public async dispose(): Promise<void> {
-    swarm.loggerService.debug(STATE_ADAPTER_METHOD_NAME_DISPOSE, {
+    swarm.loggerService.debug(STATE_LIVE_ADAPTER_METHOD_NAME_DISPOSE, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
@@ -321,13 +335,14 @@ export class StatePersistInstance implements IStateInstance {
 }
 
 /**
- * Facade for state instances scoped per (signalId, bucketName).
- * Manages lazy initialization and instance lifecycle.
+ * Backtest state adapter with pluggable storage backend.
  *
  * Features:
- * - Memoized instances per (signalId, bucketName) pair
- * - Swappable backend via useLocal(), usePersist(), useDummy()
- * - Default backend: StatePersistInstance (file-system backed)
+ * - Adapter pattern for swappable state instance implementations
+ * - Default backend: StateLocalInstance (in-memory, no disk persistence)
+ * - Alternative backends: StatePersistInstance, StateDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useStateAdapter()
+ * - Memoized instances per (signalId, bucketName) pair; cleared via disposeSignal() from StateAdapter
  *
  * Primary use case — LLM-driven capitulation rule:
  * Profitable trades endure -0.5–2.5% drawdown and still reach peak 2–3%+.
@@ -336,8 +351,8 @@ export class StatePersistInstance implements IStateInstance {
  * the LLM thesis was not confirmed by market — exit immediately.
  * State tracks `{ peakPercent, minutesOpen }` per signal across onActivePing ticks.
  */
-export class StateAdapter implements TStateAdapter {
-  private StateFactory: TStateInstanceCtor = StatePersistInstance;
+export class StateBacktestAdapter implements TStateAdapter {
+  private StateFactory: TStateInstanceCtor = StateLocalInstance;
 
   private getInstance = memoize(
     ([signalId, bucketName]) => CREATE_KEY_FN(signalId, bucketName),
@@ -346,13 +361,29 @@ export class StateAdapter implements TStateAdapter {
   );
 
   /**
+   * Disposes all memoized instances for the given signalId.
+   * Called by StateAdapter when a signal is cancelled or closed.
+   * @param signalId - Signal identifier to dispose
+   */
+  public disposeSignal = (signalId: string): void => {
+    const prefix = CREATE_KEY_FN(signalId, "");
+    for (const key of this.getInstance.keys()) {
+      if (key.startsWith(prefix)) {
+        const instance = this.getInstance.get(key);
+        instance && instance.dispose();
+        this.getInstance.clear(key);
+      }
+    }
+  };
+
+  /**
    * Creates a bound IStateWrapper for a given bucket and initial value.
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
    * @returns Wrapper with getState/setState bound to the bucket
    */
   public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value }): IStateWrapper<Value> => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName });
+    swarm.loggerService.info(STATE_BACKTEST_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName });
     const self = this;
     return {
       async getState(signalId: string) {
@@ -365,65 +396,14 @@ export class StateAdapter implements TStateAdapter {
   }
 
   /**
-   * Activates the adapter by subscribing to signal lifecycle events.
-   * Clears memoized instances for a signalId when it is cancelled or closed,
-   * preventing stale instances from accumulating in memory.
-   * Idempotent — subsequent calls return the same subscription handle.
-   * Must be called before any state method is used.
-   */
-  public enable = singleshot(() => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_ENABLE);
-
-    const handleDispose = (signalId: string) => {
-      const prefix = CREATE_KEY_FN(signalId, "");
-      for (const key of this.getInstance.keys()) {
-        if (key.startsWith(prefix)) {
-          const instance = this.getInstance.get(key);
-          instance && instance.dispose();
-          this.getInstance.clear(key);
-        }
-      }
-    };
-
-    const unCancel = signalEmitter
-      .filter(({ action }) => action === "cancelled")
-      .connect(({ signal }) => handleDispose(signal.id));
-
-    const unClose = signalEmitter
-      .filter(({ action }) => action === "closed")
-      .connect(({ signal }) => handleDispose(signal.id));
-
-    return compose(
-      () => unCancel(),
-      () => unClose(),
-    );
-  });
-
-  /**
-   * Deactivates the adapter by unsubscribing from signal lifecycle events.
-   * No-op if enable() was never called.
-   */
-  public disable = () => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_DISABLE);
-    if (this.enable.hasValue()) {
-      const lastSubscription = this.enable();
-      lastSubscription();
-    }
-  };
-
-  /**
    * Read the current state value for a signal.
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
    * @returns Current state value
-   * @throws Error if adapter is not enabled
    */
   public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
-    if (!this.enable.hasValue()) {
-      throw new Error("StateAdapter is not enabled. Call enable() first.");
-    }
-    swarm.loggerService.debug(STATE_ADAPTER_METHOD_NAME_GET, {
+    swarm.loggerService.debug(STATE_BACKTEST_ADAPTER_METHOD_NAME_GET, {
       signalId: dto.signalId,
       bucketName: dto.bucketName,
     });
@@ -441,13 +421,155 @@ export class StateAdapter implements TStateAdapter {
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
    * @returns Updated state value
-   * @throws Error if adapter is not enabled
    */
   public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
-    if (!this.enable.hasValue()) {
-      throw new Error("StateAdapter is not enabled. Call enable() first.");
+    swarm.loggerService.debug(STATE_BACKTEST_ADAPTER_METHOD_NAME_SET, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+    });
+    const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
+    const isInitial = !this.getInstance.has(key);
+    const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
+    await instance.waitForInit(isInitial);
+    return await instance.setState(dispatch);
+  };
+
+  /**
+   * Switches to in-memory adapter (default).
+   * All data lives in process memory only.
+   */
+  public useLocal = (): void => {
+    swarm.loggerService.info(STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_LOCAL);
+    this.StateFactory = StateLocalInstance;
+  };
+
+  /**
+   * Switches to file-system backed adapter.
+   * Data is persisted to disk via PersistStateAdapter.
+   */
+  public usePersist = (): void => {
+    swarm.loggerService.info(STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST);
+    this.StateFactory = StatePersistInstance;
+  };
+
+  /**
+   * Switches to dummy adapter that discards all writes.
+   */
+  public useDummy = (): void => {
+    swarm.loggerService.info(STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_DUMMY);
+    this.StateFactory = StateDummyInstance;
+  };
+
+  /**
+   * Switches to a custom state adapter implementation.
+   * @param Ctor - Constructor for the custom state instance
+   */
+  public useStateAdapter = (Ctor: TStateInstanceCtor): void => {
+    swarm.loggerService.info(STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER);
+    this.StateFactory = Ctor;
+  };
+
+  /**
+   * Clears the memoized instance cache.
+   * Call this when process.cwd() changes between strategy iterations
+   * so new instances are created with the updated base path.
+   */
+  public clear = (): void => {
+    swarm.loggerService.info(STATE_BACKTEST_ADAPTER_METHOD_NAME_CLEAR);
+    this.getInstance.clear();
+  };
+}
+
+/**
+ * Live trading state adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable state instance implementations
+ * - Default backend: StatePersistInstance (file-system backed, survives restarts)
+ * - Alternative backends: StateLocalInstance, StateDummyInstance
+ * - Convenience methods: useLocal(), usePersist(), useDummy(), useStateAdapter()
+ * - Memoized instances per (signalId, bucketName) pair; cleared via disposeSignal() from StateAdapter
+ *
+ * Primary use case — LLM-driven capitulation rule:
+ * Profitable trades endure -0.5–2.5% drawdown and still reach peak 2–3%+.
+ * SL trades never go positive (Feb25) or show peak < 0.15% (Feb08, Feb13).
+ * Rule: if position open >= N minutes and peakPercent < threshold (e.g. 0.3%),
+ * the LLM thesis was not confirmed by market — exit immediately.
+ * State persists `{ peakPercent, minutesOpen }` per signal across process restarts.
+ */
+export class StateLiveAdapter implements TStateAdapter {
+  private StateFactory: TStateInstanceCtor = StatePersistInstance;
+
+  private getInstance = memoize(
+    ([signalId, bucketName]) => CREATE_KEY_FN(signalId, bucketName),
+    (signalId: string, bucketName: BucketName, initialValue: object): IStateInstance =>
+      Reflect.construct(this.StateFactory, [initialValue, signalId, bucketName]),
+  );
+
+  /**
+   * Disposes all memoized instances for the given signalId.
+   * Called by StateAdapter when a signal is cancelled or closed.
+   * @param signalId - Signal identifier to dispose
+   */
+  public disposeSignal = (signalId: string): void => {
+    const prefix = CREATE_KEY_FN(signalId, "");
+    for (const key of this.getInstance.keys()) {
+      if (key.startsWith(prefix)) {
+        const instance = this.getInstance.get(key);
+        instance && instance.dispose();
+        this.getInstance.clear(key);
+      }
     }
-    swarm.loggerService.debug(STATE_ADAPTER_METHOD_NAME_SET, {
+  };
+
+  /**
+   * Creates a bound IStateWrapper for a given bucket and initial value.
+   * @param dto.bucketName - Bucket name
+   * @param dto.initialValue - Default value when no persisted state exists
+   * @returns Wrapper with getState/setState bound to the bucket
+   */
+  public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value }): IStateWrapper<Value> => {
+    swarm.loggerService.info(STATE_LIVE_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName });
+    const self = this;
+    return {
+      async getState(signalId: string) {
+        return await self.getState<Value>({ signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
+      },
+      async setState(dispatch, signalId) {
+        return await self.setState<Value>(dispatch, { signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
+      }
+    }
+  }
+
+  /**
+   * Read the current state value for a signal.
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   * @param dto.initialValue - Default value when no persisted state exists
+   * @returns Current state value
+   */
+  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
+    swarm.loggerService.debug(STATE_LIVE_ADAPTER_METHOD_NAME_GET, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+    });
+    const key = CREATE_KEY_FN(dto.signalId, dto.bucketName);
+    const isInitial = !this.getInstance.has(key);
+    const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
+    await instance.waitForInit(isInitial);
+    return await instance.getState();
+  };
+
+  /**
+   * Update the state value for a signal.
+   * @param dispatch - New value or updater function receiving current value
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   * @param dto.initialValue - Default value when no persisted state exists
+   * @returns Updated state value
+   */
+  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
+    swarm.loggerService.debug(STATE_LIVE_ADAPTER_METHOD_NAME_SET, {
       signalId: dto.signalId,
       bucketName: dto.bucketName,
     });
@@ -463,16 +585,16 @@ export class StateAdapter implements TStateAdapter {
    * All data lives in process memory only.
    */
   public useLocal = (): void => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_USE_LOCAL);
+    swarm.loggerService.info(STATE_LIVE_ADAPTER_METHOD_NAME_USE_LOCAL);
     this.StateFactory = StateLocalInstance;
   };
 
   /**
-   * Switches to file-system backed adapter.
+   * Switches to file-system backed adapter (default).
    * Data is persisted to disk via PersistStateAdapter.
    */
   public usePersist = (): void => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_USE_PERSIST);
+    swarm.loggerService.info(STATE_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST);
     this.StateFactory = StatePersistInstance;
   };
 
@@ -480,7 +602,7 @@ export class StateAdapter implements TStateAdapter {
    * Switches to dummy adapter that discards all writes.
    */
   public useDummy = (): void => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_USE_DUMMY);
+    swarm.loggerService.info(STATE_LIVE_ADAPTER_METHOD_NAME_USE_DUMMY);
     this.StateFactory = StateDummyInstance;
   };
 
@@ -489,7 +611,7 @@ export class StateAdapter implements TStateAdapter {
    * @param Ctor - Constructor for the custom state instance
    */
   public useStateAdapter = (Ctor: TStateInstanceCtor): void => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER);
+    swarm.loggerService.info(STATE_LIVE_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER);
     this.StateFactory = Ctor;
   };
 
@@ -499,10 +621,147 @@ export class StateAdapter implements TStateAdapter {
    * so new instances are created with the updated base path.
    */
   public clear = (): void => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_CLEAR);
+    swarm.loggerService.info(STATE_LIVE_ADAPTER_METHOD_NAME_CLEAR);
     this.getInstance.clear();
   };
-
 }
 
+/**
+ * Main state adapter that manages both backtest and live state storage.
+ *
+ * Features:
+ * - Subscribes to signal lifecycle events (cancelled/closed) to dispose stale instances
+ * - Routes all operations to StateBacktest or StateLive based on dto.backtest
+ * - Singleshot enable pattern prevents duplicate subscriptions
+ * - Cleanup function for proper unsubscription
+ */
+export class StateAdapter {
+  /**
+   * Enables state storage by subscribing to signal lifecycle events.
+   * Clears memoized instances in StateBacktest and StateLive when a signal
+   * is cancelled or closed, preventing stale instances from accumulating.
+   * Uses singleshot to ensure one-time subscription.
+   *
+   * @returns Cleanup function that unsubscribes from all emitters
+   */
+  public enable = singleshot(() => {
+    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_ENABLE);
+
+    const unCancel = signalEmitter
+      .filter(({ action }) => action === "cancelled")
+      .connect(({ signal }) => {
+        StateBacktest.disposeSignal(signal.id);
+        StateLive.disposeSignal(signal.id);
+      });
+
+    const unClose = signalEmitter
+      .filter(({ action }) => action === "closed")
+      .connect(({ signal }) => {
+        StateBacktest.disposeSignal(signal.id);
+        StateLive.disposeSignal(signal.id);
+      });
+
+    return compose(
+      () => unCancel(),
+      () => unClose(),
+      () => this.enable.clear(),
+    );
+  });
+
+  /**
+   * Disables state storage by unsubscribing from signal lifecycle events.
+   * Safe to call multiple times.
+   */
+  public disable = () => {
+    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_DISABLE);
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+    }
+  };
+
+  /**
+   * Creates a bound IStateWrapper for a given bucket, initial value, and execution context.
+   * Routes to StateBacktest or StateLive based on dto.backtest.
+   * @param dto.bucketName - Bucket name
+   * @param dto.initialValue - Default value when no persisted state exists
+   * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @returns Wrapper with getState/setState bound to the bucket
+   */
+  public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value, backtest: boolean }): IStateWrapper<Value> => {
+    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName, backtest: dto.backtest });
+    if (dto.backtest) {
+      return StateBacktest.create({ bucketName: dto.bucketName, initialValue: dto.initialValue });
+    }
+    return StateLive.create({ bucketName: dto.bucketName, initialValue: dto.initialValue });
+  };
+
+  /**
+   * Read the current state value for a signal.
+   * Routes to StateBacktest or StateLive based on dto.backtest.
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   * @param dto.initialValue - Default value when no persisted state exists
+   * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @returns Current state value
+   * @throws Error if adapter is not enabled
+   */
+  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object, backtest: boolean }): Promise<Value> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("StateAdapter is not enabled. Call enable() first.");
+    }
+    swarm.loggerService.debug(STATE_ADAPTER_METHOD_NAME_GET, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+      backtest: dto.backtest,
+    });
+    if (dto.backtest) {
+      return await StateBacktest.getState<Value>(dto);
+    }
+    return await StateLive.getState<Value>(dto);
+  };
+
+  /**
+   * Update the state value for a signal.
+   * Routes to StateBacktest or StateLive based on dto.backtest.
+   * @param dispatch - New value or updater function receiving current value
+   * @param dto.signalId - Signal identifier
+   * @param dto.bucketName - Bucket name
+   * @param dto.initialValue - Default value when no persisted state exists
+   * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @returns Updated state value
+   * @throws Error if adapter is not enabled
+   */
+  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object, backtest: boolean }): Promise<Value> => {
+    if (!this.enable.hasValue()) {
+      throw new Error("StateAdapter is not enabled. Call enable() first.");
+    }
+    swarm.loggerService.debug(STATE_ADAPTER_METHOD_NAME_SET, {
+      signalId: dto.signalId,
+      bucketName: dto.bucketName,
+      backtest: dto.backtest,
+    });
+    if (dto.backtest) {
+      return await StateBacktest.setState<Value>(dispatch, dto);
+    }
+    return await StateLive.setState<Value>(dispatch, dto);
+  };
+}
+
+/**
+ * Global singleton instance of StateAdapter.
+ * Provides unified state management for backtest and live trading.
+ */
 export const State = new StateAdapter();
+
+/**
+ * Global singleton instance of StateLiveAdapter.
+ * Provides live trading state storage with pluggable backends.
+ */
+export const StateLive = new StateLiveAdapter();
+
+/**
+ * Global singleton instance of StateBacktestAdapter.
+ * Provides backtest state storage with pluggable backends.
+ */
+export const StateBacktest = new StateBacktestAdapter();

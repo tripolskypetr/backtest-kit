@@ -13,6 +13,11 @@ import {
   RecentBacktest,
   Dump,
   Memory,
+  MemoryLive,
+  MemoryBacktest,
+  State,
+  StateLive,
+  StateBacktest,
   Recent,
   Log,
   MarkdownWriter,
@@ -33,13 +38,10 @@ import {
   PersistMemoryAdapter,
   PersistIntervalAdapter,
   PersistRecentAdapter,
+  PersistStateAdapter,
 } from "backtest-kit";
 
 import { cli } from "../lib";
-
-const NOTIFICATION_CONFIG = {
-
-};
 
 export class SetupUtils {
 
@@ -61,6 +63,7 @@ export class SetupUtils {
       Markdown.enable();
       Report.enable();
       Dump.enable();
+      State.enable();
       Memory.enable();
     }
 
@@ -82,6 +85,21 @@ export class SetupUtils {
     {
       NotificationLive.usePersist();
       NotificationBacktest.useMemory();
+    }
+
+    {
+      RecentLive.usePersist();
+      RecentBacktest.useMemory();
+    }
+
+    {
+      MemoryLive.usePersist();
+      MemoryBacktest.useMemory();
+    }
+
+    {
+      StateLive.usePersist();
+      StateBacktest.useMemory();
     }
 
     {
@@ -134,6 +152,7 @@ export class SetupUtils {
       PersistIntervalAdapter.clear();
       PersistMemoryAdapter.clear();
       PersistRecentAdapter.clear();
+      PersistStateAdapter.clear();
     }
 
     {

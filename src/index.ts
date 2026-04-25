@@ -485,13 +485,21 @@ export {
   INotificationUtils,
   TNotificationUtilsCtor,
 } from "./classes/Notification";
-export { 
+export {
   Memory,
+  MemoryLive,
+  MemoryBacktest,
+  MemoryBacktestAdapter,
+  MemoryLiveAdapter,
   IMemoryInstance,
-  TMemoryInstanceCtor
+  TMemoryInstanceCtor,
 } from "./classes/Memory";
 export {
   State,
+  StateLive,
+  StateBacktest,
+  StateBacktestAdapter,
+  StateLiveAdapter,
   IStateInstance,
   TStateInstanceCtor,
 } from "./classes/State";

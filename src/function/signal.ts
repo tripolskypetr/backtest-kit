@@ -165,6 +165,7 @@ export async function getSignalState<Value extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       initialValue,
+      backtest: isBacktest,
     });
   }
   if (
@@ -179,6 +180,7 @@ export async function getSignalState<Value extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       initialValue,
+      backtest: isBacktest,
     });
   }
   throw new Error(`getSignalState requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);
@@ -254,6 +256,7 @@ export async function setSignalState<Value extends object = object>(
       signalId: signal.id,
       bucketName,
       initialValue,
+      backtest: isBacktest,
     });
   }
   if (
@@ -268,6 +271,7 @@ export async function setSignalState<Value extends object = object>(
       signalId: signal.id,
       bucketName,
       initialValue,
+      backtest: isBacktest,
     });
   }
   throw new Error(`setSignalState requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);

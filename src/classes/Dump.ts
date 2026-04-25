@@ -98,7 +98,7 @@ const RENDER_TABLE_FN = (rows: Record<string, unknown>[]): string => {
 
 /**
  * Context required to identify a dump entry.
- * Passed only through DumpAdapter - instances receive signalId and bucketName via constructor.
+ * Passed only through DumpAdapter - instances receive signalId, bucketName, and backtest via constructor.
  */
 export interface IDumpContext {
   /** Signal identifier - scopes the dump to a specific trade */
@@ -109,6 +109,8 @@ export interface IDumpContext {
   dumpId: string;
   /** Human-readable label describing the dump contents; included in the BM25 index for Memory search and rendered in Markdown output */
   description: string;
+  /** Flag indicating if the context is backtest or live; routed to Memory.writeMemory */
+  backtest: boolean;
 }
 
 /**
@@ -171,7 +173,7 @@ export interface IDumpInstance {
  * Constructor type for dump instance implementations.
  * Used for swapping backends via DumpAdapter.useDumpAdapter().
  */
-export type TDumpInstanceCtor = new (signalId: string, bucketName: string) => IDumpInstance;
+export type TDumpInstanceCtor = new (signalId: string, bucketName: string, backtest: boolean) => IDumpInstance;
 
 
 /**
@@ -188,9 +190,10 @@ export class DumpBothInstance implements IDumpInstance {
   constructor(
     readonly signalId: string,
     readonly bucketName: string,
+    readonly backtest: boolean,
   ) {
-    this._memory = new DumpMemoryInstance(signalId, bucketName);
-    this._markdown = new DumpMarkdownInstance(signalId, bucketName);
+    this._memory = new DumpMemoryInstance(signalId, bucketName, backtest);
+    this._markdown = new DumpMarkdownInstance(signalId, bucketName, backtest);
   }
 
   /** Releases resources held by both backends. */
@@ -333,6 +336,7 @@ export class DumpMemoryInstance implements IDumpInstance {
   constructor(
     readonly signalId: string,
     readonly bucketName: string,
+    readonly backtest: boolean,
   ) {}
 
   /**
@@ -359,6 +363,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       signalId: this.signalId,
       value: { messages },
       description,
+      backtest: this.backtest,
     });
   }
 
@@ -381,6 +386,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       signalId: this.signalId,
       value: record,
       description,
+      backtest: this.backtest,
     });
   }
 
@@ -404,6 +410,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       signalId: this.signalId,
       value: { rows },
       description,
+      backtest: this.backtest,
     });
   }
 
@@ -426,6 +433,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       signalId: this.signalId,
       value: { content },
       description,
+      backtest: this.backtest,
     });
   }
 
@@ -448,6 +456,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       signalId: this.signalId,
       value: { content },
       description,
+      backtest: this.backtest,
     });
   }
 
@@ -471,6 +480,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       signalId: this.signalId,
       value: json,
       description,
+      backtest: this.backtest,
     });
   }
 
@@ -497,6 +507,7 @@ export class DumpMarkdownInstance implements IDumpInstance {
   constructor(
     readonly signalId: string,
     readonly bucketName: string,
+    readonly backtest: boolean,
   ) {}
 
   private getFilePath(dumpId: string): string {
@@ -697,6 +708,7 @@ export class DumpDummyInstance implements IDumpInstance {
   constructor(
     readonly signalId: string,
     readonly bucketName: string,
+    readonly backtest: boolean,
   ) {}
 
   /** No-op. */
@@ -756,8 +768,8 @@ export class DumpAdapter {
 
   private getInstance = memoize(
     ([signalId, bucketName]) => CREATE_KEY_FN(signalId, bucketName),
-    (signalId: string, bucketName: string): IDumpInstance =>
-      Reflect.construct(this.DumpFactory, [signalId, bucketName]),
+    (signalId: string, bucketName: string, backtest: boolean): IDumpInstance =>
+      Reflect.construct(this.DumpFactory, [signalId, bucketName, backtest]),
   );
 
   /**
@@ -822,7 +834,7 @@ export class DumpAdapter {
       bucketName: context.bucketName,
       dumpId: context.dumpId,
     });
-    const instance = this.getInstance(context.signalId, context.bucketName);
+    const instance = this.getInstance(context.signalId, context.bucketName, context.backtest);
     return await instance.dumpAgentAnswer(messages, context.dumpId, context.description);
   };
 
@@ -841,7 +853,7 @@ export class DumpAdapter {
       bucketName: context.bucketName,
       dumpId: context.dumpId,
     });
-    const instance = this.getInstance(context.signalId, context.bucketName);
+    const instance = this.getInstance(context.signalId, context.bucketName, context.backtest);
     return await instance.dumpRecord(record, context.dumpId, context.description);
   };
 
@@ -860,7 +872,7 @@ export class DumpAdapter {
       bucketName: context.bucketName,
       dumpId: context.dumpId,
     });
-    const instance = this.getInstance(context.signalId, context.bucketName);
+    const instance = this.getInstance(context.signalId, context.bucketName, context.backtest);
     return await instance.dumpTable(rows, context.dumpId, context.description);
   };
 
@@ -879,7 +891,7 @@ export class DumpAdapter {
       bucketName: context.bucketName,
       dumpId: context.dumpId,
     });
-    const instance = this.getInstance(context.signalId, context.bucketName);
+    const instance = this.getInstance(context.signalId, context.bucketName, context.backtest);
     return await instance.dumpText(content, context.dumpId, context.description);
   };
 
@@ -898,7 +910,7 @@ export class DumpAdapter {
       bucketName: context.bucketName,
       dumpId: context.dumpId,
     });
-    const instance = this.getInstance(context.signalId, context.bucketName);
+    const instance = this.getInstance(context.signalId, context.bucketName, context.backtest);
     return await instance.dumpError(content, context.dumpId, context.description);
   };
 
@@ -918,7 +930,7 @@ export class DumpAdapter {
       bucketName: context.bucketName,
       dumpId: context.dumpId,
     });
-    const instance = this.getInstance(context.signalId, context.bucketName);
+    const instance = this.getInstance(context.signalId, context.bucketName, context.backtest);
     return await instance.dumpJson(json, context.dumpId, context.description);
   };
 
