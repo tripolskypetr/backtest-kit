@@ -69,6 +69,15 @@ useDummy: () => void
 Switches to a dummy persist adapter that discards all writes.
 All future persistence writes will be no-ops.
 
+### useJson
+
+```ts
+useJson: () => void
+```
+
+Switches to the default JSON persist adapter.
+All future persistence writes will use JSON storage.
+
 ### clear
 
 ```ts

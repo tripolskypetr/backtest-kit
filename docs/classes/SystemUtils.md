@@ -1,9 +1,9 @@
 ---
-title: docs/class/SessionUtils
+title: docs/class/SystemUtils
 group: docs
 ---
 
-# SessionUtils
+# SystemUtils
 
 Manages isolation of global event-bus state between backtest sessions.
 Allows temporarily detaching all subject subscriptions so that one session
