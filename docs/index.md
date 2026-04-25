@@ -314,6 +314,8 @@ group: docs
 - [getMinutesSinceLatestSignalCreated](functions/getMinutesSinceLatestSignalCreated.md)
 - [getSignalState](functions/getSignalState.md)
 - [setSignalState](functions/setSignalState.md)
+- [getSessionData](functions/getSessionData.md)
+- [setSessionData](functions/setSessionData.md)
 - [createSignalState](functions/createSignalState.md)
 - [writeMemory](functions/writeMemory.md)
 - [readMemory](functions/readMemory.md)
