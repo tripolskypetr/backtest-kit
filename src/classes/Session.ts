@@ -6,16 +6,17 @@ import { PersistSessionAdapter } from "./Persist";
 import swarm from "../lib";
 
 type Key =
-  | `${StrategyName}:${ExchangeName}:${FrameName}:${"backtest"}`
-  | `${StrategyName}:${ExchangeName}:${"live"}`;
+  | `${string}:${StrategyName}:${ExchangeName}:${FrameName}:${"backtest"}`
+  | `${string}:${StrategyName}:${ExchangeName}:${"live"}`;
 
 const CREATE_KEY_FN = (
+  symbol: string,
   strategyName: StrategyName,
   exchangeName: ExchangeName,
   frameName: FrameName,
   backtest: boolean
 ): Key => {
-  const parts = [strategyName, exchangeName];
+  const parts = [symbol, strategyName, exchangeName];
   if (frameName) parts.push(frameName);
   parts.push(backtest ? "backtest" : "live");
   return parts.join(":") as Key;
@@ -179,7 +180,7 @@ export class SessionPersistInstance implements ISessionInstance {
       frameName: this.frameName,
     });
     this._data = value;
-    const id = CREATE_KEY_FN(this.strategyName, this.exchangeName, this.frameName, this.backtest);
+    const id = CREATE_KEY_FN(this.symbol, this.strategyName, this.exchangeName, this.frameName, this.backtest);
     await PersistSessionAdapter.writeSessionData(
       { id, data: value as object | null },
       this.strategyName,
@@ -203,40 +204,33 @@ export class SessionBacktestAdapter implements TSessionAdapter {
 
   private getInstance = memoize(
     ([symbol, strategyName, exchangeName, frameName, backtest]) =>
-      CREATE_KEY_FN(strategyName, exchangeName, frameName, backtest),
+      CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
     (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): ISessionInstance =>
       Reflect.construct(this.SessionFactory, [symbol, strategyName, exchangeName, frameName, backtest]),
   );
 
-  public disposeSession = (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): void => {
-    const key = CREATE_KEY_FN(strategyName, exchangeName, frameName, backtest);
-    const instance = this.getInstance.get(key);
-    instance && instance.dispose();
-    this.getInstance.clear(key);
-  };
-
-  public getData = async <Value extends object = object>(context: { symbol: string; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<Value | null> => {
+  public getData = async <Value extends object = object>(symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_BACKTEST_ADAPTER_METHOD_NAME_GET, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: context.frameName,
     });
-    const key = CREATE_KEY_FN(context.strategyName, context.exchangeName, context.frameName, true);
+    const key = CREATE_KEY_FN(symbol, context.strategyName, context.exchangeName, context.frameName, true);
     const isInitial = !this.getInstance.has(key);
-    const instance = this.getInstance(context.symbol, context.strategyName, context.exchangeName, context.frameName, true);
+    const instance = this.getInstance(symbol, context.strategyName, context.exchangeName, context.frameName, true);
     await instance.waitForInit(isInitial);
     return await instance.getData<Value>();
   };
 
-  public setData = async <Value extends object = object>(value: Value | null, context: { symbol: string; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<void> => {
+  public setData = async <Value extends object = object>(symbol: string, value: Value | null, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<void> => {
     swarm.loggerService.debug(SESSION_BACKTEST_ADAPTER_METHOD_NAME_SET, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: context.frameName,
     });
-    const key = CREATE_KEY_FN(context.strategyName, context.exchangeName, context.frameName, true);
+    const key = CREATE_KEY_FN(symbol, context.strategyName, context.exchangeName, context.frameName, true);
     const isInitial = !this.getInstance.has(key);
-    const instance = this.getInstance(context.symbol, context.strategyName, context.exchangeName, context.frameName, true);
+    const instance = this.getInstance(symbol, context.strategyName, context.exchangeName, context.frameName, true);
     await instance.waitForInit(isInitial);
     return await instance.setData<Value>(value);
   };
@@ -272,40 +266,33 @@ export class SessionLiveAdapter implements TSessionAdapter {
 
   private getInstance = memoize(
     ([symbol, strategyName, exchangeName, frameName, backtest]) =>
-      CREATE_KEY_FN(strategyName, exchangeName, frameName, backtest),
+      CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
     (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): ISessionInstance =>
       Reflect.construct(this.SessionFactory, [symbol, strategyName, exchangeName, frameName, backtest]),
   );
 
-  public disposeSession = (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): void => {
-    const key = CREATE_KEY_FN(strategyName, exchangeName, frameName, backtest);
-    const instance = this.getInstance.get(key);
-    instance && instance.dispose();
-    this.getInstance.clear(key);
-  };
-
-  public getData = async <Value extends object = object>(context: { symbol: string; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<Value | null> => {
+  public getData = async <Value extends object = object>(symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_LIVE_ADAPTER_METHOD_NAME_GET, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: context.frameName,
     });
-    const key = CREATE_KEY_FN(context.strategyName, context.exchangeName, context.frameName, false);
+    const key = CREATE_KEY_FN(symbol, context.strategyName, context.exchangeName, context.frameName, false);
     const isInitial = !this.getInstance.has(key);
-    const instance = this.getInstance(context.symbol, context.strategyName, context.exchangeName, context.frameName, false);
+    const instance = this.getInstance(symbol, context.strategyName, context.exchangeName, context.frameName, false);
     await instance.waitForInit(isInitial);
     return await instance.getData<Value>();
   };
 
-  public setData = async <Value extends object = object>(value: Value | null, context: { symbol: string; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<void> => {
+  public setData = async <Value extends object = object>(symbol: string, value: Value | null, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }): Promise<void> => {
     swarm.loggerService.debug(SESSION_LIVE_ADAPTER_METHOD_NAME_SET, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: context.frameName,
     });
-    const key = CREATE_KEY_FN(context.strategyName, context.exchangeName, context.frameName, false);
+    const key = CREATE_KEY_FN(symbol, context.strategyName, context.exchangeName, context.frameName, false);
     const isInitial = !this.getInstance.has(key);
-    const instance = this.getInstance(context.symbol, context.strategyName, context.exchangeName, context.frameName, false);
+    const instance = this.getInstance(symbol, context.strategyName, context.exchangeName, context.frameName, false);
     await instance.waitForInit(isInitial);
     return await instance.setData<Value>(value);
   };
@@ -337,7 +324,7 @@ export class SessionLiveAdapter implements TSessionAdapter {
 }
 
 export class SessionAdapter {
-  public getData = async <Value extends object = object>(context: { symbol: string; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }, backtest: boolean): Promise<Value | null> => {
+  public getData = async <Value extends object = object>(symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }, backtest: boolean): Promise<Value | null> => {
     swarm.loggerService.debug(SESSION_ADAPTER_METHOD_NAME_GET, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -345,12 +332,12 @@ export class SessionAdapter {
       backtest,
     });
     if (backtest) {
-      return await SessionBacktest.getData<Value>(context);
+      return await SessionBacktest.getData<Value>(symbol, context);
     }
-    return await SessionLive.getData<Value>(context);
+    return await SessionLive.getData<Value>(symbol, context);
   };
 
-  public setData = async <Value extends object = object>(value: Value | null, context: { symbol: string; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }, backtest: boolean): Promise<void> => {
+  public setData = async <Value extends object = object>(symbol: string, value: Value | null, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; }, backtest: boolean): Promise<void> => {
     swarm.loggerService.debug(SESSION_ADAPTER_METHOD_NAME_SET, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -358,9 +345,9 @@ export class SessionAdapter {
       backtest,
     });
     if (backtest) {
-      return await SessionBacktest.setData<Value>(value, context);
+      return await SessionBacktest.setData<Value>(symbol, value, context);
     }
-    return await SessionLive.setData<Value>(value, context);
+    return await SessionLive.setData<Value>(symbol, value, context);
   };
 }
 

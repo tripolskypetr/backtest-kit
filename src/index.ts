@@ -454,6 +454,8 @@ export {
 
 export {
   Session,
+  SessionLive,
+  SessionBacktest,
   ISessionInstance,
   TSessionInstanceCtor,
 } from "./classes/Session";
