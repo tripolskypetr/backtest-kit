@@ -80,6 +80,14 @@ getAveragePrice: (symbol: string, when: Date, backtest: boolean) => Promise<numb
 
 Calculates VWAP with execution context.
 
+### getClosePrice
+
+```ts
+getClosePrice: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean) => Promise<number>
+```
+
+Returns the close price of the last completed candle for the given interval with execution context.
+
 ### formatPrice
 
 ```ts

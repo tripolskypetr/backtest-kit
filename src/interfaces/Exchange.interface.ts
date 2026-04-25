@@ -302,6 +302,15 @@ export interface IExchange {
   getAveragePrice: (symbol: string) => Promise<number>;
 
   /**
+   * Returns the close price of the last completed candle for the given interval.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle time interval (e.g., "1m", "1h")
+   * @returns Promise resolving to close price of the last candle
+   */
+  getClosePrice: (symbol: string, interval: CandleInterval) => Promise<number>;
+
+  /**
    * Fetch order book for a trading pair.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")

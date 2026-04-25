@@ -7,6 +7,7 @@ import { getContextTimestamp } from "../helpers/getContextTimestamp";
 
 const GET_CANDLES_METHOD_NAME = "exchange.getCandles";
 const GET_AVERAGE_PRICE_METHOD_NAME = "exchange.getAveragePrice";
+const GET_CLOSE_PRICE_METHOD_NAME = "exchange.getClosePrice";
 const FORMAT_PRICE_METHOD_NAME = "exchange.formatPrice";
 const FORMAT_QUANTITY_METHOD_NAME = "exchange.formatQuantity";
 const GET_DATE_METHOD_NAME = "exchange.getDate";
@@ -114,6 +115,33 @@ export async function getAveragePrice(symbol: string): Promise<number> {
     throw new Error("getAveragePrice requires a method context");
   }
   return await backtest.exchangeConnectionService.getAveragePrice(symbol);
+}
+
+/**
+ * Returns the close price of the last completed candle for the given interval.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param interval - Candle interval ("1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h")
+ * @returns Promise resolving to close price of the last candle
+ *
+ * @example
+ * ```typescript
+ * const close = await getClosePrice("BTCUSDT", "1h");
+ * console.log(close); // 50125.43
+ * ```
+ */
+export async function getClosePrice(symbol: string, interval: CandleInterval): Promise<number> {
+  backtest.loggerService.info(GET_CLOSE_PRICE_METHOD_NAME, {
+    symbol,
+    interval,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getClosePrice requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getClosePrice requires a method context");
+  }
+  return await backtest.exchangeConnectionService.getClosePrice(symbol, interval);
 }
 
 /**

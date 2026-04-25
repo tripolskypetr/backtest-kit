@@ -1,6 +1,6 @@
 {
   "name": "backtest-kit",
-  "version": "7.7.0",
+  "version": "7.8.0",
   "description": "A TypeScript library for trading system backtest",
   "author": {
     "name": "Petr Tripolsky",

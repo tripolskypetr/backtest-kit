@@ -46,6 +46,14 @@ getAveragePrice: (symbol: string, context: { exchangeName: string; }) => Promise
 
 Calculates VWAP (Volume Weighted Average Price) from last N 1m candles.
 
+### getClosePrice
+
+```ts
+getClosePrice: (symbol: string, interval: CandleInterval, context: { exchangeName: string; }) => Promise<number>
+```
+
+Returns the close price of the last completed candle for the given interval.
+
 ### formatQuantity
 
 ```ts

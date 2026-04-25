@@ -9,6 +9,7 @@ import { alignToInterval } from "../utils/alignToInterval";
 
 const EXCHANGE_METHOD_NAME_GET_CANDLES = "ExchangeUtils.getCandles";
 const EXCHANGE_METHOD_NAME_GET_AVERAGE_PRICE = "ExchangeUtils.getAveragePrice";
+const EXCHANGE_METHOD_NAME_GET_CLOSE_PRICE = "ExchangeUtils.getClosePrice";
 const EXCHANGE_METHOD_NAME_FORMAT_QUANTITY = "ExchangeUtils.formatQuantity";
 const EXCHANGE_METHOD_NAME_FORMAT_PRICE = "ExchangeUtils.formatPrice";
 const EXCHANGE_METHOD_NAME_GET_ORDER_BOOK = "ExchangeUtils.getOrderBook";
@@ -523,6 +524,41 @@ export class ExchangeInstance {
   };
 
   /**
+   * Returns the close price of the last completed candle for the given interval.
+   *
+   * Fetches a single candle for the requested interval and returns its close price.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle time interval (e.g., "1m", "1h")
+   * @returns Promise resolving to close price of the last candle
+   * @throws Error if no candles available
+   *
+   * @example
+   * ```typescript
+   * const instance = new ExchangeInstance("binance");
+   * const close = await instance.getClosePrice("BTCUSDT", "1h");
+   * console.log(close); // 50125.43
+   * ```
+   */
+  public getClosePrice = async (symbol: string, interval: CandleInterval): Promise<number> => {
+    backtest.loggerService.debug(`ExchangeInstance getClosePrice`, {
+      exchangeName: this.exchangeName,
+      symbol,
+      interval,
+    });
+
+    const candles = await this.getCandles(symbol, interval, 1);
+
+    if (candles.length === 0) {
+      throw new Error(
+        `ExchangeInstance getClosePrice: no candles data for symbol=${symbol}`
+      );
+    }
+
+    return candles[candles.length - 1].close;
+  };
+
+  /**
    * Format quantity according to exchange precision rules.
    *
    * @param symbol - Trading pair symbol
@@ -978,6 +1014,36 @@ export class ExchangeUtils {
 
     const instance = this._getInstance(context.exchangeName);
     return await instance.getAveragePrice(symbol);
+  };
+
+  /**
+   * Returns the close price of the last completed candle for the given interval.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle time interval (e.g., "1m", "1h")
+   * @param context - Execution context with exchange name
+   * @returns Promise resolving to close price of the last candle
+   * @throws Error if no candles available
+   *
+   * @example
+   * ```typescript
+   * const close = await Exchange.getClosePrice("BTCUSDT", "1h", {
+   *   exchangeName: "binance"
+   * });
+   * console.log(close); // 50125.43
+   * ```
+   */
+  public getClosePrice = async (
+    symbol: string,
+    interval: CandleInterval,
+    context: {
+      exchangeName: ExchangeName;
+    }
+  ): Promise<number> => {
+    backtest.exchangeValidationService.validate(context.exchangeName, EXCHANGE_METHOD_NAME_GET_CLOSE_PRICE);
+
+    const instance = this._getInstance(context.exchangeName);
+    return await instance.getClosePrice(symbol, interval);
   };
 
   /**

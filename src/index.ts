@@ -154,6 +154,7 @@ export {
   getRawCandles,
   getNextCandles,
   getAveragePrice,
+  getClosePrice,
   getAggregatedTrades,
   getOrderBook,
   getDate,

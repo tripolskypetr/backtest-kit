@@ -79,6 +79,16 @@ Formula:
 
 If volume is zero, returns simple average of close prices.
 
+### getClosePrice
+
+```ts
+getClosePrice(symbol: string, interval: CandleInterval): Promise<number>;
+```
+
+Returns the close price of the last completed candle for the given interval.
+
+Fetches a single candle for the requested interval and returns its close price.
+
 ### formatQuantity
 
 ```ts
