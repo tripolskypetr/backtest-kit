@@ -76,7 +76,7 @@ export class SetupUtils {
 
     {
       SessionLive.usePersist();
-      SessionBacktest.useMemory();
+      SessionBacktest.useLocal();
     }
 
     {
