@@ -90,7 +90,7 @@ If nothing is provided, clears all data.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to backtest signal emitter to receive tick events.

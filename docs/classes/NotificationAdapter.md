@@ -24,7 +24,7 @@ constructor();
 ### enable
 
 ```ts
-enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & ISingleshotClearable
+enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & ISingleshotClearable<({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, signal_sync, risk, common_error, cri...
 ```
 
 Enables notification storage by subscribing to signal emitters.

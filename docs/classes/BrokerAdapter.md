@@ -149,7 +149,7 @@ or an already-instantiated object implementing `Partial&lt;IBroker&gt;`.
 ### enable
 
 ```ts
-enable: (() => () => void) & ISingleshotClearable
+enable: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Activates the broker: subscribes to syncSubject for signal-open / signal-close routing.

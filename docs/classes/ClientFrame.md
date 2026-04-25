@@ -34,7 +34,7 @@ params: IFrameParams
 ### getTimeframe
 
 ```ts
-getTimeframe: ((symbol: string) => Promise<Date[]>) & ISingleshotClearable
+getTimeframe: ((symbol: string) => Promise<Date[]>) & ISingleshotClearable<(symbol: string) => Promise<Date[]>>
 ```
 
 Generates timeframe array for backtest period.

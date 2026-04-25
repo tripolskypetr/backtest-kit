@@ -9,14 +9,12 @@ group: docs
 declare function readMemory<T extends object = object>(dto: {
     bucketName: string;
     memoryId: string;
-}): Promise<T | null>;
+}): Promise<T>;
 ```
 
 Reads a value from memory scoped to the current signal.
 
-Reads symbol from execution context and signalId from the active pending signal.
-If no pending signal exists, logs a warning and returns null.
-
+Resolves the active pending or scheduled signal automatically from execution context.
 Automatically detects backtest/live mode from execution context.
 
 ## Parameters

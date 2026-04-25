@@ -34,7 +34,7 @@ getStorage: any
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to `maxDrawdownSubject` to start receiving `MaxDrawdownContract`

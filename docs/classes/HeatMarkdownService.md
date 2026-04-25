@@ -46,7 +46,7 @@ Each exchangeName + frameName + backtest mode combination gets its own isolated 
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to signal emitter to receive tick events.

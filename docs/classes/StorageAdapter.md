@@ -24,7 +24,7 @@ constructor();
 ### enable
 
 ```ts
-enable: (() => () => void) & ISingleshotClearable
+enable: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Enables signal storage by subscribing to signal emitters.

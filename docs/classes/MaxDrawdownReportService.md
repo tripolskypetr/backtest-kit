@@ -45,7 +45,7 @@ rather than the contract root.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to `maxDrawdownSubject` to start persisting drawdown records.

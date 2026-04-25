@@ -42,7 +42,7 @@ Each combination gets its own isolated storage instance.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to performance emitter to receive performance events.

@@ -10,4 +10,4 @@ type TMemoryInstanceCtor = new (signalId: string, bucketName: string) => IMemory
 ```
 
 Constructor type for memory instance implementations.
-Used for swapping backends via MemoryAdapter.
+Used for swapping backends via MemoryBacktestAdapter / MemoryLiveAdapter.

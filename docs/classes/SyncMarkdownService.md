@@ -37,7 +37,7 @@ getStorage: any
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to `syncSubject` to start receiving `SignalSyncContract` events.

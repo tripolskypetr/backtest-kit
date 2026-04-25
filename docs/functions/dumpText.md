@@ -16,8 +16,8 @@ declare function dumpText(dto: {
 
 Dumps raw text content scoped to the current signal.
 
-Reads signalId from the active pending signal via execution and method context.
-If no pending signal exists, logs a warning and returns without writing.
+Resolves the active pending or scheduled signal automatically from execution context.
+Automatically detects backtest/live mode from execution context.
 
 ## Parameters
 

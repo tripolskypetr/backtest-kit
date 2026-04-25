@@ -43,7 +43,7 @@ Processes performance tracking events and logs them to the database.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to performance emitter to receive timing events.

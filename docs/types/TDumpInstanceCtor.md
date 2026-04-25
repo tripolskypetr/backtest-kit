@@ -6,7 +6,7 @@ group: docs
 # TDumpInstanceCtor
 
 ```ts
-type TDumpInstanceCtor = new (signalId: string, bucketName: string) => IDumpInstance;
+type TDumpInstanceCtor = new (signalId: string, bucketName: string, backtest: boolean) => IDumpInstance;
 ```
 
 Constructor type for dump instance implementations.
