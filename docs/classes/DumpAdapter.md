@@ -40,7 +40,7 @@ getInstance: any
 ### enable
 
 ```ts
-enable: (() => (...args: any[]) => any) & ISingleshotClearable
+enable: (() => (...args: any[]) => any) & ISingleshotClearable<() => (...args: any[]) => any>
 ```
 
 Activates the adapter by subscribing to signal lifecycle events.

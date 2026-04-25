@@ -24,7 +24,7 @@ constructor();
 ### enable
 
 ```ts
-enable: (() => (...args: any[]) => any) & ISingleshotClearable
+enable: (() => (...args: any[]) => any) & ISingleshotClearable<() => (...args: any[]) => any>
 ```
 
 Enables recent signal storage by subscribing to activePingSubject.

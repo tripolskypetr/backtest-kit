@@ -175,7 +175,7 @@ Can clear either a specific symbol-strategy pair or all stored data.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Initializes the service for event collection.

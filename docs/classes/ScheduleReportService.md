@@ -45,7 +45,7 @@ Handles scheduled, opened (from scheduled), and cancelled event types.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to signal emitter to receive scheduled signal events.

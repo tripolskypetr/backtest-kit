@@ -2,6 +2,7 @@ import backtest, {
   ExecutionContextService,
   MethodContextService,
 } from "../lib";
+import { IPublicSignalRow, IScheduledSignalRow } from "../interfaces/Strategy.interface";
 import { Memory } from "../classes/Memory";
 
 const WRITE_MEMORY_METHOD_NAME = "memory.writeMemory";
@@ -13,23 +14,20 @@ const REMOVE_MEMORY_METHOD_NAME = "memory.removeMemory";
 /**
  * Writes a value to memory scoped to the current signal.
  *
- * Reads symbol from execution context and signalId from the active pending signal.
- * If no pending signal exists, logs a warning and returns without writing.
- *
+ * Resolves the active pending or scheduled signal automatically from execution context.
  * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Memory bucket name
  * @param dto.memoryId - Unique memory entry identifier
  * @param dto.value - Value to store
+ * @param dto.description - BM25 index string for contextual search
  * @returns Promise that resolves when write is complete
  *
- * @deprecated Better use Memory.writeMemory with manual signalId argument
- * 
  * @example
  * ```typescript
  * import { writeMemory } from "backtest-kit";
  *
- * await writeMemory({ bucketName: "my-strategy", memoryId: "context", value: { trend: "up", confidence: 0.9 } });
+ * await writeMemory({ bucketName: "my-strategy", memoryId: "context", value: { trend: "up", confidence: 0.9 }, description: "Signal context at entry" });
  * ```
  */
 export async function writeMemory<T extends object = object>(dto: {
@@ -54,40 +52,57 @@ export async function writeMemory<T extends object = object>(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit writeMemory no pending signal for symbol=${symbol} memoryId=${memoryId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Memory.writeMemory({
+      memoryId,
+      value,
+      signalId: signal.id,
+      bucketName,
+      description,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Memory.writeMemory({
-    memoryId,
-    value,
-    signalId: signal.id,
-    bucketName,
-    description,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Memory.writeMemory({
+      memoryId,
+      value,
+      signalId: signal.id,
+      bucketName,
+      description,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`writeMemory requires a pending or scheduled signal for symbol=${symbol} memoryId=${memoryId}`);
 }
 
 /**
  * Reads a value from memory scoped to the current signal.
  *
- * Reads symbol from execution context and signalId from the active pending signal.
- * If no pending signal exists, logs a warning and returns null.
- *
+ * Resolves the active pending or scheduled signal automatically from execution context.
  * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Memory bucket name
  * @param dto.memoryId - Unique memory entry identifier
- * @returns Promise resolving to stored value or null if no signal
- * @throws Error if entry not found within an active signal
+ * @returns Promise resolving to stored value
+ * @throws Error if no pending or scheduled signal exists, or if entry not found
  *
- * @deprecated Better use Memory.readMemory with manual signalId argument
- * 
  * @example
  * ```typescript
  * import { readMemory } from "backtest-kit";
@@ -98,7 +113,7 @@ export async function writeMemory<T extends object = object>(dto: {
 export async function readMemory<T extends object = object>(dto: {
   bucketName: string;
   memoryId: string;
-}): Promise<T | null> {
+}): Promise<T> {
   const { bucketName, memoryId } = dto;
   backtest.loggerService.info(READ_MEMORY_METHOD_NAME, {
     bucketName,
@@ -115,37 +130,51 @@ export async function readMemory<T extends object = object>(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit readMemory no pending signal for symbol=${symbol} memoryId=${memoryId}`);
-    return null;
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await Memory.readMemory<T>({
+      memoryId,
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
   }
-  return await Memory.readMemory<T>({
-    memoryId,
-    signalId: signal.id,
-    bucketName,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await Memory.readMemory<T>({
+      memoryId,
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
+  }
+  throw new Error(`readMemory requires a pending or scheduled signal for symbol=${symbol} memoryId=${memoryId}`);
 }
 
 /**
  * Searches memory entries for the current signal using BM25 full-text scoring.
  *
- * Reads symbol from execution context and signalId from the active pending signal.
- * If no pending signal exists, logs a warning and returns an empty array.
- *
+ * Resolves the active pending or scheduled signal automatically from execution context.
  * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Memory bucket name
  * @param dto.query - Search query string
- * @returns Promise resolving to matching entries sorted by relevance, or empty array if no signal
+ * @returns Promise resolving to matching entries sorted by relevance
+ * @throws Error if no pending or scheduled signal exists
  *
- * @deprecated Better use Memory.searchMemory with manual signalId argument
- * 
  * @example
  * ```typescript
  * import { searchMemory } from "backtest-kit";
@@ -173,36 +202,50 @@ export async function searchMemory<T extends object = object>(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit searchMemory no pending signal for symbol=${symbol} query=${query}`);
-    return [];
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await Memory.searchMemory<T>({
+      query,
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
   }
-  return await Memory.searchMemory<T>({
-    query,
-    signalId: signal.id,
-    bucketName,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await Memory.searchMemory<T>({
+      query,
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
+  }
+  throw new Error(`searchMemory requires a pending or scheduled signal for symbol=${symbol} query=${query}`);
 }
 
 /**
  * Lists all memory entries for the current signal.
  *
- * Reads symbol from execution context and signalId from the active pending signal.
- * If no pending signal exists, logs a warning and returns an empty array.
- *
+ * Resolves the active pending or scheduled signal automatically from execution context.
  * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Memory bucket name
- * @returns Promise resolving to all stored entries, or empty array if no signal
+ * @returns Promise resolving to all stored entries
+ * @throws Error if no pending or scheduled signal exists
  *
- * @deprecated Better use Memory.listMemory with manual signalId argument
- * 
  * @example
  * ```typescript
  * import { listMemory } from "backtest-kit";
@@ -228,36 +271,49 @@ export async function listMemory<T extends object = object>(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit listMemory no pending signal for symbol=${symbol}`);
-    return [];
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await Memory.listMemory<T>({
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
   }
-  return await Memory.listMemory<T>({
-    signalId: signal.id,
-    bucketName,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    return await Memory.listMemory<T>({
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
+  }
+  throw new Error(`listMemory requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);
 }
 
 /**
  * Removes a memory entry for the current signal.
  *
- * Reads symbol from execution context and signalId from the active pending signal.
- * If no pending signal exists, logs a warning and returns without removing.
- *
+ * Resolves the active pending or scheduled signal automatically from execution context.
  * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Memory bucket name
  * @param dto.memoryId - Unique memory entry identifier
  * @returns Promise that resolves when removal is complete
+ * @throws Error if no pending or scheduled signal exists
  *
- * @deprecated Better use Memory.removeMemory with manual signalId argument
- * 
  * @example
  * ```typescript
  * import { removeMemory } from "backtest-kit";
@@ -285,19 +341,38 @@ export async function removeMemory(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit removeMemory no pending signal for symbol=${symbol} memoryId=${memoryId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Memory.removeMemory({
+      memoryId,
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Memory.removeMemory({
-    memoryId,
-    signalId: signal.id,
-    bucketName,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Memory.removeMemory({
+      memoryId,
+      signalId: signal.id,
+      bucketName,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`removeMemory requires a pending or scheduled signal for symbol=${symbol} memoryId=${memoryId}`);
 }

@@ -18,9 +18,7 @@ declare function searchMemory<T extends object = object>(dto: {
 
 Searches memory entries for the current signal using BM25 full-text scoring.
 
-Reads symbol from execution context and signalId from the active pending signal.
-If no pending signal exists, logs a warning and returns an empty array.
-
+Resolves the active pending or scheduled signal automatically from execution context.
 Automatically detects backtest/live mode from execution context.
 
 ## Parameters

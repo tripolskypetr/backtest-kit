@@ -44,7 +44,7 @@ Only processes closed signals - other actions are ignored.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to signal emitter to receive closed signal events.

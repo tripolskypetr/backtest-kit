@@ -14,9 +14,7 @@ declare function removeMemory(dto: {
 
 Removes a memory entry for the current signal.
 
-Reads symbol from execution context and signalId from the active pending signal.
-If no pending signal exists, logs a warning and returns without removing.
-
+Resolves the active pending or scheduled signal automatically from execution context.
 Automatically detects backtest/live mode from execution context.
 
 ## Parameters

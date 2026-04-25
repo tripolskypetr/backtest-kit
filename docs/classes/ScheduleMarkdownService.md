@@ -42,7 +42,7 @@ Each combination gets its own isolated storage instance.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to signal emitter to receive scheduled signal events.

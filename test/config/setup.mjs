@@ -13,10 +13,13 @@ import {
   PersistIntervalAdapter,
   PersistMeasureAdapter,
   PersistRecentAdapter,
+  PersistStateAdapter,
+  PersistSessionAdapter,
   Report,
   Markdown,
   Dump,
   Memory,
+  State,
 } from "../../build/index.mjs";
 
 // setLogger(console)
@@ -28,13 +31,13 @@ import {
 
 {
   Dump.enable();
+  State.enable();
   Memory.enable();
 }
 
 {
   Dump.useDummy();
   Report.useDummy();
-  Memory.useDummy();
   Markdown.useDummy();
 }
 
@@ -50,6 +53,8 @@ import {
   PersistIntervalAdapter.useDummy();
   PersistMeasureAdapter.useDummy();
   PersistRecentAdapter.useDummy();
+  PersistStateAdapter.useDummy();
+  PersistSessionAdapter.useDummy();
 }
 
 setConfig(

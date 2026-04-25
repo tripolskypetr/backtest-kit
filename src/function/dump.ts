@@ -2,6 +2,7 @@ import backtest, {
   ExecutionContextService,
   MethodContextService,
 } from "../lib";
+import { IPublicSignalRow, IScheduledSignalRow } from "../interfaces/Strategy.interface";
 import { Dump } from "../classes/Dump";
 import MessageModel from "../model/Message.model";
 
@@ -15,16 +16,15 @@ const DUMP_JSON_METHOD_NAME = "dump.dumpJson";
 /**
  * Dumps the full agent message history scoped to the current signal.
  *
- * Reads signalId from the active pending signal via execution and method context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
  * @param dto.dumpId - Unique identifier for this agent invocation
  * @param dto.messages - Full chat history (system, user, assistant, tool)
  * @param dto.description - Human-readable label describing the agent invocation context; included in the BM25 index for Memory search
  * @returns Promise that resolves when the dump is complete
- *
- * @deprecated Better use Dump.dumpAgentAnswer with manual signalId argument
+ * @throws Error if no pending or scheduled signal exists
  *
  * @example
  * ```typescript
@@ -56,37 +56,56 @@ export async function dumpAgentAnswer(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit dumpAgentAnswer no pending signal for symbol=${symbol} dumpId=${dumpId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpAgentAnswer(messages, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Dump.dumpAgentAnswer(messages, {
-    dumpId,
-    bucketName,
-    signalId: signal.id,
-    description,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpAgentAnswer(messages, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`dumpAgentAnswer requires a pending or scheduled signal for symbol=${symbol} dumpId=${dumpId}`);
 }
 
 /**
  * Dumps a flat key-value record scoped to the current signal.
  *
- * Reads signalId from the active pending signal via execution and method context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
  * @param dto.dumpId - Unique identifier for this dump entry
  * @param dto.record - Arbitrary flat object to persist
  * @param dto.description - Human-readable label describing the record contents; included in the BM25 index for Memory search
  * @returns Promise that resolves when the dump is complete
- *
- * @deprecated Better use Dump.dumpRecord with manual signalId argument
+ * @throws Error if no pending or scheduled signal exists
  *
  * @example
  * ```typescript
@@ -117,29 +136,49 @@ export async function dumpRecord(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit dumpRecord no pending signal for symbol=${symbol} dumpId=${dumpId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpRecord(record, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Dump.dumpRecord(record, {
-    dumpId,
-    bucketName,
-    signalId: signal.id,
-    description,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpRecord(record, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`dumpRecord requires a pending or scheduled signal for symbol=${symbol} dumpId=${dumpId}`);
 }
 
 /**
  * Dumps an array of objects as a table scoped to the current signal.
  *
- * Reads signalId from the active pending signal via execution and method context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
  *
  * Column headers are derived from the union of all keys across all rows.
  *
@@ -148,8 +187,7 @@ export async function dumpRecord(dto: {
  * @param dto.rows - Array of arbitrary objects to render as a table
  * @param dto.description - Human-readable label describing the table contents; included in the BM25 index for Memory search
  * @returns Promise that resolves when the dump is complete
- *
- * @deprecated Better use Dump.dumpTable with manual signalId argument
+ * @throws Error if no pending or scheduled signal exists
  *
  * @example
  * ```typescript
@@ -181,37 +219,56 @@ export async function dumpTable(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit dumpTable no pending signal for symbol=${symbol} dumpId=${dumpId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpTable(rows, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Dump.dumpTable(rows, {
-    dumpId,
-    bucketName,
-    signalId: signal.id,
-    description,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpTable(rows, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`dumpTable requires a pending or scheduled signal for symbol=${symbol} dumpId=${dumpId}`);
 }
 
 /**
  * Dumps raw text content scoped to the current signal.
  *
- * Reads signalId from the active pending signal via execution and method context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
  * @param dto.dumpId - Unique identifier for this dump entry
  * @param dto.content - Arbitrary text content to persist
  * @param dto.description - Human-readable label describing the content; included in the BM25 index for Memory search
  * @returns Promise that resolves when the dump is complete
- *
- * @deprecated Better use Dump.dumpText with manual signalId argument
+ * @throws Error if no pending or scheduled signal exists
  *
  * @example
  * ```typescript
@@ -242,37 +299,56 @@ export async function dumpText(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit dumpText no pending signal for symbol=${symbol} dumpId=${dumpId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpText(content, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Dump.dumpText(content, {
-    dumpId,
-    bucketName,
-    signalId: signal.id,
-    description,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpText(content, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`dumpText requires a pending or scheduled signal for symbol=${symbol} dumpId=${dumpId}`);
 }
 
 /**
  * Dumps an error description scoped to the current signal.
  *
- * Reads signalId from the active pending signal via execution and method context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
  * @param dto.dumpId - Unique identifier for this dump entry
  * @param dto.content - Error message or description to persist
  * @param dto.description - Human-readable label describing the error context; included in the BM25 index for Memory search
  * @returns Promise that resolves when the dump is complete
- *
- * @deprecated Better use Dump.dumpError with manual signalId argument
+ * @throws Error if no pending or scheduled signal exists
  *
  * @example
  * ```typescript
@@ -303,35 +379,56 @@ export async function dumpError(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit dumpError no pending signal for symbol=${symbol} dumpId=${dumpId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpError(content, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Dump.dumpError(content, {
-    dumpId,
-    bucketName,
-    signalId: signal.id,
-    description,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpError(content, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`dumpError requires a pending or scheduled signal for symbol=${symbol} dumpId=${dumpId}`);
 }
 
 /**
  * Dumps an arbitrary nested object as a fenced JSON block scoped to the current signal.
  *
- * Reads signalId from the active pending signal via execution and method context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Automatically detects backtest/live mode from execution context.
  *
  * @param dto.bucketName - Bucket name grouping dumps by strategy or agent name
  * @param dto.dumpId - Unique identifier for this dump entry
  * @param dto.json - Arbitrary nested object to serialize with JSON.stringify
  * @param dto.description - Human-readable label describing the object contents; included in the BM25 index for Memory search
  * @returns Promise that resolves when the dump is complete
+ * @throws Error if no pending or scheduled signal exists
  *
  * @deprecated Prefer dumpRecord — flat key-value structure maps naturally to markdown tables and SQL storage
  *
@@ -364,20 +461,40 @@ export async function dumpJson(dto: {
     backtest.methodContextService.context;
   const currentPrice =
     await backtest.exchangeConnectionService.getAveragePrice(symbol);
-  const signal = await backtest.strategyCoreService.getPendingSignal(
-    isBacktest,
-    symbol,
-    currentPrice,
-    { exchangeName, frameName, strategyName },
-  );
-  if (!signal) {
-    console.warn(`backtest-kit dumpJson no pending signal for symbol=${symbol} dumpId=${dumpId}`);
+  let signal: IPublicSignalRow | IScheduledSignalRow;
+  if (
+    signal = await backtest.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpJson(json, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
     return;
   }
-  await Dump.dumpJson(json, {
-    dumpId,
-    bucketName,
-    signalId: signal.id,
-    description,
-  });
+  if (
+    signal = await backtest.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      currentPrice,
+      { exchangeName, frameName, strategyName },
+    )
+  ) {
+    await Dump.dumpJson(json, {
+      dumpId,
+      bucketName,
+      signalId: signal.id,
+      description,
+      backtest: isBacktest,
+    });
+    return;
+  }
+  throw new Error(`dumpJson requires a pending or scheduled signal for symbol=${symbol} dumpId=${dumpId}`);
 }

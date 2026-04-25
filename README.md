@@ -151,7 +151,7 @@ addFrameSchema({
 ### 💡 Example Strategy (with LLM)
 ```typescript
 import { v4 as uuid } from 'uuid';
-import { addStrategySchema, getCandles, Dump } from 'backtest-kit';
+import { addStrategySchema, getCandles, dumpAgentAnswer, dumpRecord } from 'backtest-kit';
 import { json } from './utils/json.mjs';  // LLM wrapper
 import { getMessages } from './utils/messages.mjs';  // Market data prep
 
@@ -176,18 +176,18 @@ addStrategySchema({
     const resultId = uuid();
     const signal = await json(messages);  // LLM generates signal
 
-    Dump.dumpAgentAnswer(messages, {
+    await dumpAgentAnswer({
       dumpId: "position-context",
       bucketName: "multi-timeframe-strategy",
-      signalId: resultId,
-      description: signal.description, // search keywords for BM25 index
+      messages: messages,  // pass saved messages here
+      description: "agent reasoning for this signal",
     });
 
-    Dump.dumpRecord(signal, {
+    await dumpRecord({
       dumpId: "position-entry",
       bucketName: "multi-timeframe-strategy",
-      signalId: resultId,
-      description: signal.description, // agent can review the history using RAG
+      record: signal,  // pass saved signal record here
+      description: "signal entry parameters",
     });
 
     return { ...signal, id: resultId };

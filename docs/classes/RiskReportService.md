@@ -43,7 +43,7 @@ Processes risk rejection events and logs them to the database.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to risk rejection emitter to receive rejection events.

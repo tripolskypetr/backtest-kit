@@ -5,15 +5,13 @@ group: docs
 
 # MemoryAdapter
 
-Implements `TMemoryInstance`
-
-Facade for memory instances scoped per (signalId, bucketName).
-Manages lazy initialization and instance lifecycle.
+Main memory adapter that manages both backtest and live memory storage.
 
 Features:
-- Memoized instances per (signalId, bucketName) pair
-- Swappable backend via useLocal(), usePersist(), useDummy()
-- Default backend: MemoryPersistInstance (in-memory BM25 + persist storage)
+- Subscribes to signal lifecycle events (cancelled/closed) to dispose stale instances
+- Routes all operations to MemoryBacktest or MemoryLive based on dto.backtest
+- Singleshot enable pattern prevents duplicate subscriptions
+- Cleanup function for proper unsubscription
 
 ## Constructor
 
@@ -23,29 +21,16 @@ constructor();
 
 ## Properties
 
-### MemoryFactory
-
-```ts
-MemoryFactory: any
-```
-
-### getInstance
-
-```ts
-getInstance: any
-```
-
 ### enable
 
 ```ts
-enable: (() => (...args: any[]) => any) & ISingleshotClearable
+enable: (() => (...args: any[]) => any) & ISingleshotClearable<() => (...args: any[]) => any>
 ```
 
-Activates the adapter by subscribing to signal lifecycle events.
-Clears memoized instances for a signalId when it is cancelled or closed,
-preventing stale instances from accumulating in memory.
-Idempotent — subsequent calls return the same subscription handle.
-Must be called before any memory method is used.
+Enables memory storage by subscribing to signal lifecycle events.
+Clears memoized instances in MemoryBacktest and MemoryLive when a signal
+is cancelled or closed, preventing stale instances from accumulating.
+Uses singleshot to ensure one-time subscription.
 
 ### disable
 
@@ -53,90 +38,50 @@ Must be called before any memory method is used.
 disable: () => void
 ```
 
-Deactivates the adapter by unsubscribing from signal lifecycle events.
-No-op if enable() was never called.
+Disables memory storage by unsubscribing from signal lifecycle events.
+Safe to call multiple times.
 
 ### writeMemory
 
 ```ts
-writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; description: string; }) => Promise<void>
+writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; description: string; backtest: boolean; }) => Promise<void>
 ```
 
 Write a value to memory.
+Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 
 ### searchMemory
 
 ```ts
-searchMemory: <T extends object = object>(dto: { query: string; signalId: string; bucketName: string; settings?: SearchSettings; }) => Promise<{ memoryId: string; score: number; content: T; }[]>
+searchMemory: <T extends object = object>(dto: { query: string; signalId: string; bucketName: string; settings?: SearchSettings; backtest: boolean; }) => Promise<{ memoryId: string; score: number; content: T; }[]>
 ```
 
 Search memory using BM25 full-text scoring.
+Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 
 ### listMemory
 
 ```ts
-listMemory: <T extends object = object>(dto: { signalId: string; bucketName: string; }) => Promise<{ memoryId: string; content: T; }[]>
+listMemory: <T extends object = object>(dto: { signalId: string; bucketName: string; backtest: boolean; }) => Promise<{ memoryId: string; content: T; }[]>
 ```
 
 List all entries in memory.
+Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 
 ### removeMemory
 
 ```ts
-removeMemory: (dto: { memoryId: string; signalId: string; bucketName: string; }) => Promise<void>
+removeMemory: (dto: { memoryId: string; signalId: string; bucketName: string; backtest: boolean; }) => Promise<void>
 ```
 
 Remove an entry from memory.
+Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 
 ### readMemory
 
 ```ts
-readMemory: <T extends object = object>(dto: { memoryId: string; signalId: string; bucketName: string; }) => Promise<T>
+readMemory: <T extends object = object>(dto: { memoryId: string; signalId: string; bucketName: string; backtest: boolean; }) => Promise<T>
 ```
 
 Read a single entry from memory.
-
-### useLocal
-
-```ts
-useLocal: () => void
-```
-
-Switches to in-memory BM25 adapter (default).
-All data lives in process memory only.
-
-### usePersist
-
-```ts
-usePersist: () => void
-```
-
-Switches to file-system backed adapter.
-Data is persisted to ./dump/memory/&lt;signalId&gt;/&lt;bucketName&gt;/.
-
-### useDummy
-
-```ts
-useDummy: () => void
-```
-
-Switches to dummy adapter that discards all writes.
-
-### clear
-
-```ts
-clear: () => void
-```
-
-Clears the memoized instance cache.
-Call this when process.cwd() changes between strategy iterations
-so new instances are created with the updated base path.
-
-### dispose
-
-```ts
-dispose: () => void
-```
-
-Releases resources held by this adapter.
-Delegates to disable() to unsubscribe from signal lifecycle events.
+Routes to MemoryBacktest or MemoryLive based on dto.backtest.

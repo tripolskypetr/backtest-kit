@@ -44,7 +44,7 @@ Processes walker optimization events and logs them to the database.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to walker emitter to receive optimization progress events.

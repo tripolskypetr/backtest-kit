@@ -41,7 +41,7 @@ Each walker gets its own isolated storage instance.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to walker emitter to receive walker progress events.

@@ -108,7 +108,7 @@ Logs an average-buy (DCA) event when a new averaging entry is added to an open p
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Initializes the service for event logging.

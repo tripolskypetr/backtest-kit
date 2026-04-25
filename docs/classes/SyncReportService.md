@@ -46,7 +46,7 @@ Handles both signal-open and signal-close action types.
 ### subscribe
 
 ```ts
-subscribe: (() => () => void) & ISingleshotClearable
+subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
 Subscribes to syncSubject to receive signal sync events.

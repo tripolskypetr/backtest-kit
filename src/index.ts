@@ -167,8 +167,17 @@ export {
 } from "./function/exchange";
 export {
   getLatestSignal,
+  getSignalState,
+  setSignalState,
   getMinutesSinceLatestSignalCreated,
 } from "./function/signal";
+export {
+  getSessionData,
+  setSessionData,
+} from "./function/session";
+export {
+  createSignalState,
+} from "./function/state";
 export {
   listMemory,
   readMemory,
@@ -405,6 +414,10 @@ export {
   PersistIntervalAdapter,
   RecentData,
   PersistRecentAdapter,
+  StateData,
+  PersistStateAdapter,
+  SessionData,
+  PersistSessionAdapter,
 } from "./classes/Persist";
 
 export {
@@ -442,7 +455,15 @@ export {
 } from "./classes/Log";
 
 export {
+  System,
+} from "./classes/System";
+
+export {
   Session,
+  SessionLive,
+  SessionBacktest,
+  ISessionInstance,
+  TSessionInstanceCtor,
 } from "./classes/Session";
 
 export { Backtest } from "./classes/Backtest";
@@ -481,11 +502,24 @@ export {
   INotificationUtils,
   TNotificationUtilsCtor,
 } from "./classes/Notification";
-export { 
+export {
   Memory,
+  MemoryLive,
+  MemoryBacktest,
+  MemoryBacktestAdapter,
+  MemoryLiveAdapter,
   IMemoryInstance,
-  TMemoryInstanceCtor
+  TMemoryInstanceCtor,
 } from "./classes/Memory";
+export {
+  State,
+  StateLive,
+  StateBacktest,
+  StateBacktestAdapter,
+  StateLiveAdapter,
+  IStateInstance,
+  TStateInstanceCtor,
+} from "./classes/State";
 export {
   Dump,
   IDumpInstance,

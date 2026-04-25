@@ -48,7 +48,7 @@ Starts as null, gets initialized on first use.
 ### waitForInit
 
 ```ts
-waitForInit: (() => Promise<void>) & ISingleshotClearable
+waitForInit: (() => Promise<void>) & ISingleshotClearable<() => Promise<void>>
 ```
 
 Initializes handler instance using singleshot pattern.
@@ -57,7 +57,7 @@ Ensures initialization happens exactly once.
 ### dispose
 
 ```ts
-dispose: (() => Promise<void>) & ISingleshotClearable
+dispose: (() => Promise<void>) & ISingleshotClearable<() => Promise<void>>
 ```
 
 Cleans up resources and subscriptions when action handler is no longer needed.
