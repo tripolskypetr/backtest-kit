@@ -69,7 +69,6 @@ export class SetupUtils {
 
     {
       Dump.useMarkdown();
-      Memory.usePersist();
     }
 
     {
@@ -94,12 +93,12 @@ export class SetupUtils {
 
     {
       MemoryLive.usePersist();
-      MemoryBacktest.useMemory();
+      MemoryBacktest.useLocal();
     }
 
     {
       StateLive.usePersist();
-      StateBacktest.useMemory();
+      StateBacktest.useLocal();
     }
 
     {
