@@ -3121,6 +3121,11 @@ export class PersistSessionUtils {
       ])
   );
 
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   */
   public usePersistSessionAdapter(
     Ctor: TPersistBaseCtor<string, SessionData>
   ): void {
@@ -3130,6 +3135,14 @@ export class PersistSessionUtils {
     this.PersistSessionFactory = Ctor;
   }
 
+  /**
+   * Initializes the storage for a given (strategyName, exchangeName, frameName) triple.
+   *
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param initial - Whether this is the first initialization
+   */
   public waitForInit = async (
     strategyName: string,
     exchangeName: string,
@@ -3148,6 +3161,14 @@ export class PersistSessionUtils {
     await sessionStorage.waitForInit(isInitial);
   };
 
+  /**
+   * Reads a session entry from persistence storage.
+   *
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @returns Promise resolving to entry data or null if not found
+   */
   public readSessionData = async (
     strategyName: string,
     exchangeName: string,
@@ -3168,6 +3189,14 @@ export class PersistSessionUtils {
     return null;
   };
 
+  /**
+   * Writes a session entry to disk with atomic file writes.
+   *
+   * @param data - Entry data to persist
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   */
   public writeSessionData = async (
     data: SessionData,
     strategyName: string,
@@ -3186,21 +3215,42 @@ export class PersistSessionUtils {
     await sessionStorage.writeValue(frameName, data);
   };
 
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
   public useDummy = () => {
     LOGGER_SERVICE.log(PERSIST_SESSION_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistSessionAdapter(PersistDummy);
   };
 
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
   public useJson = () => {
     LOGGER_SERVICE.log(PERSIST_SESSION_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistSessionAdapter(PersistBase);
   }
 
+  /**
+   * Clears the memoized storage cache.
+   * Call this when process.cwd() changes between strategy iterations
+   * so new storage instances are created with the updated base path.
+   */
   public clear = () => {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_CLEAR);
     this.getSessionStorage.clear();
   };
 
+  /**
+   * Disposes of the session adapter and releases any resources.
+   * Call this when a session is removed to clean up its associated storage.
+   *
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   */
   public dispose = (strategyName: string, exchangeName: string, frameName: string) => {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_DISPOSE);
     const key = `${strategyName}:${exchangeName}:${frameName}`;
