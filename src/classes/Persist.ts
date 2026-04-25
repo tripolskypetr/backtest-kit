@@ -216,6 +216,25 @@ const PERSIST_STATE_UTILS_METHOD_NAME_WAIT_FOR_INIT =
   "PersistStateUtils.waitForInit";
 const PERSIST_STATE_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistStateUtils.useDummy";
+const PERSIST_STATE_UTILS_METHOD_NAME_USE_JSON =
+  "PersistStateUtils.useJson";
+
+const PERSIST_SESSION_UTILS_METHOD_NAME_USE_PERSIST_SESSION_ADAPTER =
+  "PersistSessionUtils.usePersistSessionAdapter";
+const PERSIST_SESSION_UTILS_METHOD_NAME_READ_DATA =
+  "PersistSessionUtils.readSessionData";
+const PERSIST_SESSION_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistSessionUtils.writeSessionData";
+const PERSIST_SESSION_UTILS_METHOD_NAME_CLEAR =
+  "PersistSessionUtils.clear";
+const PERSIST_SESSION_UTILS_METHOD_NAME_DISPOSE =
+  "PersistSessionUtils.dispose";
+const PERSIST_SESSION_UTILS_METHOD_NAME_WAIT_FOR_INIT =
+  "PersistSessionUtils.waitForInit";
+const PERSIST_SESSION_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistSessionUtils.useDummy";
+const PERSIST_SESSION_UTILS_METHOD_NAME_USE_JSON =
+  "PersistSessionUtils.useJson";
 
 const PERSIST_RECENT_UTILS_METHOD_NAME_USE_PERSIST_RECENT_ADAPTER =
   "PersistRecentUtils.usePersistRecentAdapter";
@@ -3029,6 +3048,15 @@ export class PersistStateUtils {
   }
 
   /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson = () => {
+    LOGGER_SERVICE.log(PERSIST_STATE_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistStateAdapter(PersistBase);
+  }
+
+  /**
    * Clears the memoized storage cache.
    * Call this when process.cwd() changes between strategy iterations
    * so new storage instances are created with the updated base path.
@@ -3057,3 +3085,131 @@ export class PersistStateUtils {
  * Used by StatePersistInstance for crash-safe state persistence.
  */
 export const PersistStateAdapter = new PersistStateUtils();
+
+/**
+ * Session data structure for session persistence.
+ * Each session is identified by a unique id and contains an arbitrary JSON-serializable data object.
+ */
+export type SessionData = {
+  id: string;
+  data: object | null;
+};
+
+/**
+ * Utility class for managing session persistence.
+ *
+ * Features:
+ * - Memoized storage instances per (strategyName, exchangeName, frameName) key
+ * - Custom adapter support
+ * - Atomic read/write operations
+ *
+ * Storage layout: ./dump/session/<strategyName>/<exchangeName>/<frameName>.json
+ *
+ * Used by SessionPersistInstance for crash-safe session persistence.
+ */
+export class PersistSessionUtils {
+  private PersistSessionFactory: TPersistBaseCtor<string, SessionData> =
+    PersistBase;
+
+  private getSessionStorage = memoize(
+    ([strategyName, exchangeName, frameName]: [string, string, string]): string =>
+      `${strategyName}:${exchangeName}:${frameName}`,
+    (strategyName: string, exchangeName: string, frameName: string): IPersistBase<SessionData> =>
+      Reflect.construct(this.PersistSessionFactory, [
+        frameName,
+        `./dump/session/${strategyName}/${exchangeName}/`,
+      ])
+  );
+
+  public usePersistSessionAdapter(
+    Ctor: TPersistBaseCtor<string, SessionData>
+  ): void {
+    LOGGER_SERVICE.info(
+      PERSIST_SESSION_UTILS_METHOD_NAME_USE_PERSIST_SESSION_ADAPTER
+    );
+    this.PersistSessionFactory = Ctor;
+  }
+
+  public waitForInit = async (
+    strategyName: string,
+    exchangeName: string,
+    frameName: string,
+    initial: boolean
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WAIT_FOR_INIT, {
+      strategyName,
+      exchangeName,
+      frameName,
+      initial,
+    });
+    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    const isInitial = initial && !this.getSessionStorage.has(key);
+    const sessionStorage = this.getSessionStorage(strategyName, exchangeName, frameName);
+    await sessionStorage.waitForInit(isInitial);
+  };
+
+  public readSessionData = async (
+    strategyName: string,
+    exchangeName: string,
+    frameName: string
+  ): Promise<SessionData | null> => {
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_READ_DATA, {
+      strategyName,
+      exchangeName,
+      frameName,
+    });
+    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    const isInitial = !this.getSessionStorage.has(key);
+    const sessionStorage = this.getSessionStorage(strategyName, exchangeName, frameName);
+    await sessionStorage.waitForInit(isInitial);
+    if (await sessionStorage.hasValue(frameName)) {
+      return await sessionStorage.readValue(frameName);
+    }
+    return null;
+  };
+
+  public writeSessionData = async (
+    data: SessionData,
+    strategyName: string,
+    exchangeName: string,
+    frameName: string
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WRITE_DATA, {
+      strategyName,
+      exchangeName,
+      frameName,
+    });
+    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    const isInitial = !this.getSessionStorage.has(key);
+    const sessionStorage = this.getSessionStorage(strategyName, exchangeName, frameName);
+    await sessionStorage.waitForInit(isInitial);
+    await sessionStorage.writeValue(frameName, data);
+  };
+
+  public useDummy = () => {
+    LOGGER_SERVICE.log(PERSIST_SESSION_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistSessionAdapter(PersistDummy);
+  };
+
+  public useJson = () => {
+    LOGGER_SERVICE.log(PERSIST_SESSION_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistSessionAdapter(PersistBase);
+  }
+
+  public clear = () => {
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_CLEAR);
+    this.getSessionStorage.clear();
+  };
+
+  public dispose = (strategyName: string, exchangeName: string, frameName: string) => {
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_DISPOSE);
+    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    this.getSessionStorage.clear(key);
+  };
+}
+
+/**
+ * Global singleton instance of PersistSessionUtils.
+ * Used by SessionPersistInstance for crash-safe session persistence.
+ */
+export const PersistSessionAdapter = new PersistSessionUtils();
