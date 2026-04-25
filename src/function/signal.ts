@@ -120,7 +120,7 @@ export async function getMinutesSinceLatestSignalCreated(
  * @param dto.initialValue - Default value when no persisted state exists
  * @returns Promise resolving to current state value, or initialValue if no signal
  *
- * @deprecated Better use State.getState with manual signalId argument
+ * @deprecated Better use `createSignalState().getState` with codestyle native syntax
  *
  * @example
  * ```typescript
@@ -205,7 +205,7 @@ export async function getSignalState<Value extends object = object>(dto: {
  * @param dto.dispatch - New value or updater function receiving current value
  * @returns Promise resolving to updated state value, or initialValue if no signal
  *
- * @deprecated Better use State.setState with manual signalId argument
+ * @deprecated Better use `createSignalState().setState` with codestyle native syntax
  *
  * @example
  * ```typescript

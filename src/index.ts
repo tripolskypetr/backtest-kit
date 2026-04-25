@@ -172,6 +172,9 @@ export {
   getMinutesSinceLatestSignalCreated,
 } from "./function/signal";
 export {
+  createSignalState,
+} from "./function/state";
+export {
   listMemory,
   readMemory,
   removeMemory,

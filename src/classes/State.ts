@@ -7,10 +7,10 @@ const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
   `${signalId}_${bucketName}`;
 
 /** Updater function for setState — receives current value and returns the next value. */
-type Dispatch<Value extends object = object> = (value: Value) => Value | Promise<Value>;
+export type Dispatch<Value extends object = object> = (value: Value) => Value | Promise<Value>;
 
 /** Logical namespace for grouping state buckets within a signal, e.g. "trade" or "metrics". */
-type BucketName = string;
+export type BucketName = string;
 
 const STATE_LOCAL_INSTANCE_METHOD_NAME_GET = "StateLocalInstance.getState";
 const STATE_LOCAL_INSTANCE_METHOD_NAME_SET = "StateLocalInstance.setState";
@@ -19,7 +19,6 @@ const STATE_PERSIST_INSTANCE_METHOD_NAME_WAIT_FOR_INIT = "StatePersistInstance.w
 const STATE_PERSIST_INSTANCE_METHOD_NAME_GET = "StatePersistInstance.getState";
 const STATE_PERSIST_INSTANCE_METHOD_NAME_SET = "StatePersistInstance.setState";
 
-const STATE_BACKTEST_ADAPTER_METHOD_NAME_CREATE = "StateBacktestAdapter.create";
 const STATE_BACKTEST_ADAPTER_METHOD_NAME_DISPOSE = "StateBacktestAdapter.dispose";
 const STATE_BACKTEST_ADAPTER_METHOD_NAME_GET = "StateBacktestAdapter.getState";
 const STATE_BACKTEST_ADAPTER_METHOD_NAME_SET = "StateBacktestAdapter.setState";
@@ -29,7 +28,6 @@ const STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_DUMMY = "StateBacktestAdapter.useDu
 const STATE_BACKTEST_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER = "StateBacktestAdapter.useStateAdapter";
 const STATE_BACKTEST_ADAPTER_METHOD_NAME_CLEAR = "StateBacktestAdapter.clear";
 
-const STATE_LIVE_ADAPTER_METHOD_NAME_CREATE = "StateLiveAdapter.create";
 const STATE_LIVE_ADAPTER_METHOD_NAME_DISPOSE = "StateLiveAdapter.dispose";
 const STATE_LIVE_ADAPTER_METHOD_NAME_GET = "StateLiveAdapter.getState";
 const STATE_LIVE_ADAPTER_METHOD_NAME_SET = "StateLiveAdapter.setState";
@@ -39,7 +37,6 @@ const STATE_LIVE_ADAPTER_METHOD_NAME_USE_DUMMY = "StateLiveAdapter.useDummy";
 const STATE_LIVE_ADAPTER_METHOD_NAME_USE_STATE_ADAPTER = "StateLiveAdapter.useStateAdapter";
 const STATE_LIVE_ADAPTER_METHOD_NAME_CLEAR = "StateLiveAdapter.clear";
 
-const STATE_ADAPTER_METHOD_NAME_CREATE = "StateAdapter.create";
 const STATE_ADAPTER_METHOD_NAME_ENABLE = "StateAdapter.enable";
 const STATE_ADAPTER_METHOD_NAME_DISABLE = "StateAdapter.disable";
 const STATE_ADAPTER_METHOD_NAME_GET = "StateAdapter.getState";
@@ -86,36 +83,6 @@ export interface IStateInstance {
    * Releases any resources held by this instance.
    */
   dispose(): Promise<void>;
-}
-
-/**
- * Wrapper returned by StateBacktestAdapter.create() / StateLiveAdapter.create() that binds bucketName and initialValue.
- * Simplifies per-signal state access in strategy callbacks — no need to pass
- * bucketName/initialValue on every getState/setState call.
- *
- * Typical usage in a capitulation strategy:
- * ```ts
- * const tradeState = State.create({ bucketName: "trade", initialValue: { peakPercent: 0, minutesOpen: 0 }, backtest: true });
- * // in onActivePing:
- * await tradeState.setState(s => ({ ...s, peakPercent: Math.max(s.peakPercent, current) }), signalId);
- * const { peakPercent, minutesOpen } = await tradeState.getState(signalId);
- * if (minutesOpen >= N && peakPercent < 0.3) await commitMarketClose(symbol); // capitulate
- * ```
- */
-export interface IStateWrapper<Value extends object = object> {
-  /**
-   * Read the current state value for the given signal.
-   * @param signalId - Signal identifier
-   * @returns Current state value
-   */
-  getState(signalId: string): Promise<Value>;
-  /**
-   * Update the state value for the given signal.
-   * @param dispatch - New value or updater function receiving current value
-   * @param signalId - Signal identifier
-   * @returns Updated state value
-   */
-  setState(dispatch: Value | Dispatch<Value>, signalId: string): Promise<Value>;
 }
 
 /**
@@ -377,25 +344,6 @@ export class StateBacktestAdapter implements TStateAdapter {
   };
 
   /**
-   * Creates a bound IStateWrapper for a given bucket and initial value.
-   * @param dto.bucketName - Bucket name
-   * @param dto.initialValue - Default value when no persisted state exists
-   * @returns Wrapper with getState/setState bound to the bucket
-   */
-  public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value }): IStateWrapper<Value> => {
-    swarm.loggerService.info(STATE_BACKTEST_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName });
-    const self = this;
-    return {
-      async getState(signalId: string) {
-        return await self.getState<Value>({ signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
-      },
-      async setState(dispatch, signalId) {
-        return await self.setState<Value>(dispatch, { signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
-      }
-    }
-  }
-
-  /**
    * Read the current state value for a signal.
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
@@ -521,25 +469,6 @@ export class StateLiveAdapter implements TStateAdapter {
       }
     }
   };
-
-  /**
-   * Creates a bound IStateWrapper for a given bucket and initial value.
-   * @param dto.bucketName - Bucket name
-   * @param dto.initialValue - Default value when no persisted state exists
-   * @returns Wrapper with getState/setState bound to the bucket
-   */
-  public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value }): IStateWrapper<Value> => {
-    swarm.loggerService.info(STATE_LIVE_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName });
-    const self = this;
-    return {
-      async getState(signalId: string) {
-        return await self.getState<Value>({ signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
-      },
-      async setState(dispatch, signalId) {
-        return await self.setState<Value>(dispatch, { signalId, bucketName: dto.bucketName, initialValue: dto.initialValue });
-      }
-    }
-  }
 
   /**
    * Read the current state value for a signal.
@@ -678,22 +607,6 @@ export class StateAdapter {
       const lastSubscription = this.enable();
       lastSubscription();
     }
-  };
-
-  /**
-   * Creates a bound IStateWrapper for a given bucket, initial value, and execution context.
-   * Routes to StateBacktest or StateLive based on dto.backtest.
-   * @param dto.bucketName - Bucket name
-   * @param dto.initialValue - Default value when no persisted state exists
-   * @param dto.backtest - Flag indicating if the context is backtest or live
-   * @returns Wrapper with getState/setState bound to the bucket
-   */
-  public create = <Value extends object = object>(dto: { bucketName: BucketName, initialValue: Value, backtest: boolean }): IStateWrapper<Value> => {
-    swarm.loggerService.info(STATE_ADAPTER_METHOD_NAME_CREATE, { bucketName: dto.bucketName, backtest: dto.backtest });
-    if (dto.backtest) {
-      return StateBacktest.create({ bucketName: dto.bucketName, initialValue: dto.initialValue });
-    }
-    return StateLive.create({ bucketName: dto.bucketName, initialValue: dto.initialValue });
   };
 
   /**
