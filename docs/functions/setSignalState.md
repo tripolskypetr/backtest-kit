@@ -6,7 +6,7 @@ group: docs
 # setSignalState
 
 ```ts
-declare function setSignalState<Value extends object = object>(dispatch: Value | Dispatch$1<Value>, dto: {
+declare function setSignalState<Value extends object = object>(symbol: string, dispatch: Value | Dispatch$1<Value>, dto: {
     bucketName: string;
     initialValue: Value;
 }): Promise<Value>;
@@ -29,5 +29,6 @@ Rule: if minutesOpen &gt;= N and peakPercent &lt; threshold (e.g. 0.3%) — exit
 
 | Parameter | Description |
 |-----------|-------------|
+| `symbol` | Trading pair symbol |
 | `dispatch` | |
 | `dto` | |
