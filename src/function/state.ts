@@ -66,7 +66,7 @@ const CREATE_SET_STATE_FN =
         { exchangeName, frameName, strategyName },
       )
     ) {
-      return await State.setState(dispatch, {
+      return await State.setState<Value>(dispatch, {
         backtest: isBacktest,
         bucketName: params.bucketName,
         initialValue: params.initialValue,
@@ -81,7 +81,7 @@ const CREATE_SET_STATE_FN =
         { exchangeName, frameName, strategyName },
       )
     ) {
-      return await State.setState(dispatch, {
+      return await State.setState<Value>(dispatch, {
         backtest: isBacktest,
         bucketName: params.bucketName,
         initialValue: params.initialValue,
