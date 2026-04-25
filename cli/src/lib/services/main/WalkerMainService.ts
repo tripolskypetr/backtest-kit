@@ -12,7 +12,7 @@ import {
   alignToInterval,
   Log,
   Cache,
-  Session,
+  System,
   Interval,
 } from "backtest-kit";
 import { createAwaiter, singleshot } from "functools-kit";
@@ -123,7 +123,7 @@ export class WalkerMainService {
           strategyMap.set(strategyName, entryPoint)
         }
 
-        sessionMap.set(entryPoint, Session.createSnapshot());
+        sessionMap.set(entryPoint, System.createSnapshot());
 
         Cache.resetCounter();
         Interval.resetCounter();

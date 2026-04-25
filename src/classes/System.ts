@@ -27,7 +27,7 @@ import {
 } from "../config/emitters";
 import { backtest } from "../lib";
 
-const METHOD_NAME_CREATE_SNAPSHOT = "SessionUtils.createSnapshot";
+const METHOD_NAME_CREATE_SNAPSHOT = "SystemUtils.createSnapshot";
 
 /** List of all global subjects whose listeners should be snapshotted for session isolation */
 const SUBJECT_ISOLATION_LIST: Subject<unknown>[] = [
@@ -87,7 +87,7 @@ const CREATE_SUBJECT_SNAPSHOT_FN = (subject: Subject<unknown>) => {
  * Allows temporarily detaching all subject subscriptions so that one session
  * does not interfere with another, then restoring them afterwards.
  */
-export class SessionUtils {
+export class SystemUtils {
   /**
    * Snapshots the current listener state of every global subject by replacing
    * their internal `_events` map with an empty object.
@@ -100,4 +100,4 @@ export class SessionUtils {
   };
 }
 
-export const Session = new SessionUtils();
+export const System = new SystemUtils();

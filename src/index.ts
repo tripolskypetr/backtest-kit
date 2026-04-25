@@ -449,8 +449,8 @@ export {
 } from "./classes/Log";
 
 export {
-  Session,
-} from "./classes/Session";
+  System,
+} from "./classes/System";
 
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
