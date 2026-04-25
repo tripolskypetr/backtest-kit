@@ -299,6 +299,7 @@ group: docs
 - [hasTradeContext](functions/hasTradeContext.md)
 - [getCandles](functions/getCandles.md)
 - [getAveragePrice](functions/getAveragePrice.md)
+- [getClosePrice](functions/getClosePrice.md)
 - [formatPrice](functions/formatPrice.md)
 - [formatQuantity](functions/formatQuantity.md)
 - [getDate](functions/getDate.md)

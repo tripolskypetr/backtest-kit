@@ -53,6 +53,14 @@ Calculate VWAP from last 5 1-minute candles.
 Formula: VWAP = Σ(Typical Price × Volume) / Σ(Volume)
 where Typical Price = (High + Low + Close) / 3
 
+### getClosePrice
+
+```ts
+getClosePrice: (symbol: string, interval: CandleInterval) => Promise<number>
+```
+
+Returns the close price of the last completed candle for the given interval.
+
 ### getOrderBook
 
 ```ts

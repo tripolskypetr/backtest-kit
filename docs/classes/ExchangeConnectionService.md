@@ -94,6 +94,16 @@ Retrieves current average price for symbol.
 In live mode: fetches real-time average price from exchange API.
 In backtest mode: calculates VWAP from candles in current timeframe.
 
+### getClosePrice
+
+```ts
+getClosePrice: (symbol: string, interval: CandleInterval) => Promise<number>
+```
+
+Returns the close price of the last completed candle for the given interval.
+
+Routes to exchange determined by methodContextService.context.exchangeName.
+
 ### formatPrice
 
 ```ts
