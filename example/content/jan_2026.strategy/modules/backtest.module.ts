@@ -4,6 +4,7 @@ import ccxt from "ccxt";
 
 setConfig({
   CC_MAX_STOPLOSS_DISTANCE_PERCENT: 100,
+  CC_BREAKEVEN_THRESHOLD: 0,
 });
 
 const getExchange = singleshot(async () => {
