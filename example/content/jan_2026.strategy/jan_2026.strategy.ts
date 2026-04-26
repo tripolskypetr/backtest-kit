@@ -28,7 +28,7 @@ const TRAILING_TAKE_MIN = 0.75;
 // масштабирование: чем больше накоплено, тем шире даём качаться
 const TRAILING_TAKE_SCALE = 0.15;
 // статистически недостижимый стоп — страховка от чёрного лебедя
-const HARD_STOP = 3.0;
+const HARD_STOP = 1.0;
 
 const SIGNALS: SignalEntryModel[] = readFileSync(
   "./assets/entry.jsonl",
@@ -58,10 +58,6 @@ addStrategySchema({
 
     console.log(when)
 
-    if (when.toISOString() === "2026-01-06T10:16:00.000Z") {
-      debugger;
-    }
-
     const signal = getActiveSignal(symbol, when);
 
     if (!signal) {
@@ -69,13 +65,29 @@ addStrategySchema({
     }
     
     const close_1m = await getClosePrice(symbol, "1m");
+
+    if (close_1m < signal.entry.from || close_1m > signal.entry.to) {
+      return null;
+    }
+
     const [close_4h_prev, close_4h_cur] = await getCandles(symbol, "4h", 2);
 
     const rangeHigh = Math.max(close_4h_prev.high, close_4h_cur.high);
     const rangeLow  = Math.min(close_4h_prev.low,  close_4h_cur.low);
     const posInRange = (close_1m - rangeLow) / (rangeHigh - rangeLow);
 
-    const position = posInRange > 0.65 ? "long" : "short";
+    const position = posInRange > 0.65 ? "short" 
+               : posInRange < 0.50 ? "long" 
+               : null; 
+
+    if (when.toISOString() === "2026-01-06T10:16:00.000Z") {
+      debugger;
+    }
+
+    if (!position) {
+      debugger
+      return null;
+    }
 
     console.log(signal)
 
@@ -86,7 +98,7 @@ addStrategySchema({
         currentPrice,
         percentStopLoss: HARD_STOP,
       }),
-      minuteEstimatedTime: Infinity,
+      minuteEstimatedTime: 24 * 60,
       note: signal.note,
     };
   },

@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node ./node_modules/@backtest-kit/cli/build/index.mjs"
+    "start": "node ./node_modules/@backtest-kit/cli/build/index.mjs",
+    "start:debug": "node --inspect-brk ./node_modules/@backtest-kit/cli/build/index.mjs"
   },
   "keywords": [],
   "author": "",

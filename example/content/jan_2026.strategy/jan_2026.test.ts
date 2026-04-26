@@ -44,20 +44,20 @@ addStrategySchema({
 
     console.log(when)
 
+    if (when.toISOString() === "2026-01-06T10:16:00.000Z") {
+      debugger;
+    }
+
     const signal = getActiveSignal(symbol, when);
 
     if (!signal) {
       return null;
     }
 
-    /*
-     * // signal not in range of prediction
-     * // does not matter for dumb money - they will market buy anyway
-     * const closePrice = await getClosePrice(symbol, "1m");
-     * if (closePrice < signal.entry.from || closePrice > signal.entry.to) {
-     *   return null;
-     * }
-     */
+    const closePrice = await getClosePrice(symbol, "1m");
+    if (closePrice < signal.entry.from || closePrice > signal.entry.to) {
+      return null;
+    }
 
     const priceTakeProfit = signal.targets[signal.targets.length - 1];
     const priceStopLoss = signal.stoploss;
@@ -66,22 +66,16 @@ addStrategySchema({
 
     const id = randomString();
 
-    const [close_1m_last, close_1m_prev, close_1m_cur] = await getCandles(symbol, "1m", 3);
-    const [close_5m_last, close_5m_prev, close_5m_cur] = await getCandles(symbol, "5m", 3);
-    const [close_15m_last, close_15m_prev, close_15m_cur] = await getCandles(symbol, "15m", 3);
-    const [close_1h_last, close_1h_prev, close_1h_cur] = await getCandles(symbol, "1h", 3);
-    const [close_4h_last, close_4h_prev, close_4h_cur] = await getCandles(symbol, "4h", 3);
-    const [close_8h_last, close_8h_prev, close_8h_cur] = await getCandles(symbol, "8h", 3);
+    const [close_1m_prev, close_1m_cur] = await getCandles(symbol, "1m", 2);
+    const [close_5m_prev, close_5m_cur] = await getCandles(symbol, "5m", 2);
+    const [close_15m_prev, close_15m_cur] = await getCandles(symbol, "15m", 2);
+    const [close_1h_prev, close_1h_cur] = await getCandles(symbol, "1h", 2);
+    const [close_4h_prev, close_4h_cur] = await getCandles(symbol, "4h", 2);
+    const [close_8h_prev, close_8h_cur] = await getCandles(symbol, "8h", 2);
 
     Log.log("position open", {
       id,
       signal,
-      close_1m_last,
-      close_5m_last,
-      close_15m_last,
-      close_1h_last,
-      close_4h_last,
-      close_8h_last,
       close_1m_prev,
       close_5m_prev,
       close_15m_prev,
