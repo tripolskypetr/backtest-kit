@@ -76,18 +76,11 @@ addStrategySchema({
     const rangeLow  = Math.min(close_4h_prev.low,  close_4h_cur.low);
     const posInRange = (close_1m - rangeLow) / (rangeHigh - rangeLow);
 
-    const position = posInRange > 0.65 ? "short" 
+    const position = posInRange > 0.65 ? "long" 
                : posInRange < 0.50 ? "long" 
                : null; 
 
-    if (when.toISOString() === "2026-01-06T10:16:00.000Z") {
-      debugger;
-    }
-
-    if (!position) {
-      debugger
-      return null;
-    }
+    debugger
 
     console.log(signal)
 

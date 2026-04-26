@@ -1,0 +1,8 @@
+//@version=5
+indicator("Higher TF Closes", overlay=true)
+
+four_hour_high  = request.security("TRXUSDT", "240", high)
+four_hour_low  = request.security("TRXUSDT", "240", low)
+
+plot(four_hour_high, "High", color=color.red, linewidth=6)
+plot(four_hour_low, "Low", color=color.green, linewidth=6)
