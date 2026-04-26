@@ -72,17 +72,13 @@ addStrategySchema({
 
     const [close_4h_prev, close_4h_cur] = await getCandles(symbol, "4h", 2);
 
-    const rangeHigh = Math.max(close_4h_prev.high, close_4h_cur.high);
-    const rangeLow  = Math.min(close_4h_prev.low,  close_4h_cur.low);
-    const posInRange = (close_1m - rangeLow) / (rangeHigh - rangeLow);
+    const range_high = Math.max(close_4h_prev.high, close_4h_cur.high);
+    const range_low = Math.max(close_4h_prev.low, close_4h_cur.low);
+    const range_middle = range_high + range_low / 2;
 
-    const position = posInRange > 0.65 ? "long" 
-               : posInRange < 0.50 ? "long" 
-               : null; 
+    const position = close_1m > range_middle ? "short" : "long";
 
-    debugger
-
-    console.log(signal)
+    console.log({ position, signal })
 
     return {
       position,
