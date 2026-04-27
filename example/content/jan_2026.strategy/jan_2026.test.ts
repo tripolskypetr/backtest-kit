@@ -28,7 +28,7 @@ function getActiveSignal(symbol: string, when: Date): SignalEntryModel | null {
   const now = when.getTime();
   const match = SIGNALS.find(
     (s) => {
-      if (s.symbol === symbol) {
+      if (s.symbol !== symbol) {
         return false;
       }
       const publishedAt = alignToInterval(new Date(s.publishedAt), "1m");

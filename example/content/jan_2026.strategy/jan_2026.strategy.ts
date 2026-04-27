@@ -16,18 +16,15 @@ import {
   getPositionHighestPnlPercentage,
   getPositionPnlPercent,
   getCandles,
+  getPositionHighestProfitDistancePnlCost,
+  getPositionHighestMaxDrawdownPnlCost,
+  getPositionPnlCost,
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { readFileSync } from "fs";
 import { SignalEntryModel } from "./model/SignalEntry.model";
 
-// не активировать trailing take пока позиция не набрала достаточно прибыли
-const TRAILING_TAKE_ACTIVATION = 1.5;
-// минимальный trailing take — не выскакивать раньше чем на 0.75% от пика
-const TRAILING_TAKE_MIN = 0.75;
-// масштабирование: чем больше накоплено, тем шире даём качаться
-const TRAILING_TAKE_SCALE = 0.15;
-// статистически недостижимый стоп — страховка от чёрного лебедя
+const TRAILING_TAKE = 1.0;
 const HARD_STOP = 1.0;
 
 const SIGNALS: SignalEntryModel[] = readFileSync(
@@ -42,7 +39,7 @@ function getActiveSignal(symbol: string, when: Date): SignalEntryModel | null {
   const now = when.getTime();
   const match = SIGNALS.find(
     (s) => {
-      if (s.symbol === symbol) {
+      if (s.symbol !== symbol) {
         return false;
       }
       const publishedAt = alignToInterval(new Date(s.publishedAt), "1m");
@@ -93,35 +90,38 @@ addStrategySchema({
   },
 });
 
+/*
+listenActivePing(async ({ symbol, data, currentPrice }) => {
+  const peakProfitDistance = await getPositionHighestProfitDistancePnlCost(symbol);
+  const peakMaxDrawdown = await getPositionHighestMaxDrawdownPnlCost(symbol);
+  const currentPnl = await getPositionPnlCost(symbol);
+  Log.info("position active", {
+    symbol,
+    signalId: data.id,
+    priceOpen: data.priceOpen,
+    takeProfit: data.priceTakeProfit,
+    stopLoss: data.priceStopLoss,
+    currentPrice,
+    peakProfitDistance,
+    peakMaxDrawdown,
+    currentPnl,
+  });
+});
+*/
 
 listenActivePing(async ({ symbol, data }) => {
   const peakProfitDistance = await getPositionHighestProfitDistancePnlPercentage(symbol);
-  const peakProfit = await getPositionHighestPnlPercentage(symbol);
   const currentProfit = await getPositionPnlPercent(symbol);
-
-  // trailing take: выход из прибыльной позиции при откате от пика
   if (currentProfit < 0) {
     return;
   }
-
-  if ((peakProfit ?? 0) < TRAILING_TAKE_ACTIVATION) {
+  if (peakProfitDistance < TRAILING_TAKE) {
     return;
   }
-
-  // trailing растёт вместе с накопленной прибылью: на +16% peak даёт 2.4%, на +3% — 0.75%
-  const trailingThreshold = Math.max(TRAILING_TAKE_MIN, (peakProfit ?? 0) * TRAILING_TAKE_SCALE);
-
-  if (peakProfitDistance < trailingThreshold) {
-    return;
-  }
-
   Log.info("position closed due to the trailing take", {
     symbol,
     data,
-    peakProfit,
-    trailingThreshold,
   });
-
   await commitClosePending(symbol, {
     id: "unknown",
     note: str.newline(
