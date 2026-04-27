@@ -28,7 +28,7 @@
 
 1. Signals are loaded from `assets/entry.jsonl` — 11 real posts from the Crypto Yoda channel, exported verbatim.
 2. On each candle, `getSignal` checks if `publishedAt` matches the current minute and whether `closePrice` falls inside `entry.from..entry.to`.
-3. Instead of using the original direction, the strategy reads the last two 4h candles and computes the range midpoint:
+3. Counter trend entry with trailing take and no fixed TP. SL is set to -0.5%
 
 ---
 
