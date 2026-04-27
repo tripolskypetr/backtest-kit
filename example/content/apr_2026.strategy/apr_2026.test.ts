@@ -10,7 +10,8 @@ import { predict } from "garch";
 
 addStrategySchema({
   strategyName: "apr_2026_strategy",
-  getSignal: async () => {
+  getSignal: async (symbol, when) => {
+    console.log(when)
     return null;
   },
 });
