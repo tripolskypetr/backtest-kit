@@ -9,6 +9,8 @@ import { existsSync } from "fs";
 import { str } from "functools-kit";
 import { join } from "path";
 
+const USE_EXAMPLE_README = false;
+
 const OUTPUT_DIR = "./docs/packages";
 const CLI_OUTPUT_DIR = "./docs/cli";
 const BEGIN_OUTPUT_DIR = "./docs/begin";
@@ -87,7 +89,7 @@ await Promise.all(cliFiles.map(async (filePath) => {
 }));
 
 // begin/00-readme — example project README
-{
+if (USE_EXAMPLE_README) {
     const readmeContent = await readFile("./example/README.md", "utf-8");
     const hasFrontmatter = readmeContent.trimStart().startsWith("---");
     const newContent = hasFrontmatter
