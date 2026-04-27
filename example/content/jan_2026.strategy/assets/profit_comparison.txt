@@ -1,0 +1,48 @@
+=== PUBLISHED RESULT PROFIT COMPARISON ===
+
+Metric                       LONG      SHORT      Delta
+-------------------------------------------------------
+Count                         113         70
+Mean profit %               51.85      55.09      +3.24
+Median profit %             47.92      53.51      +5.59
+P25 profit %                33.75      37.43      +3.68
+P75 profit %                63.51      67.98      +4.47
+Avg TP hits                  2.93       3.17      +0.24
+All targets hit             20.4%      35.7%
+
+=== PER-TICKER: avg published profit ===
+Ticker     LONG n  LONG avg%  SHORT n  SHORT avg%    Delta
+----------------------------------------------------------
+ADA             3       45.1        8        57.3    +12.2
+BTC             9       43.4        1         7.6    -35.7
+DOGE            1      102.5        0           -      n/a
+ENA             0          -        1        83.7      n/a
+ETH             2       54.3        1       113.3    +59.0
+FARTCOIN        1       14.3        4       116.6   +102.3
+HYPE           16       51.7        9        58.3     +6.6
+IOTA            2       79.6        0           -      n/a
+LTC             1       64.7        0           -      n/a
+MKR             5       33.1        2        46.0    +12.9
+NEAR            4       39.9        2        29.9     -9.9
+PENGU           5       79.4        2        41.6    -37.8
+POL             5       59.4        7        36.7    -22.6
+PUMP            2       84.6        0           -      n/a
+RIVER           3      106.1        0           -      n/a
+SOL            15       45.8       18        55.5     +9.7
+SUI            15       45.4       12        51.6     +6.3
+TAO             2       76.1        0           -      n/a
+TRUMP           1       57.0        0           -      n/a
+TRX             8       32.2        2        26.9     -5.3
+XAUT            3       23.0        0           -      n/a
+XPL             1      101.9        0           -      n/a
+XRP             7       44.4        1        38.2     -6.2
+ZEC             2      117.3        0           -      n/a
+
+=== PROFIT DISTRIBUTION ===
+Range            LONG    SHORT
+0-20%               5        1
+20-40%             43       24
+40-60%             33       19
+60-80%             18       22
+80-100%             6        1
+100%+               8        3
