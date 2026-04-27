@@ -22,7 +22,7 @@
 
 ## 📈 TRXUSDT January 2026 — Liquidity Harvesting
 
-> **Hypothesis:** if a Telegram channel's SHORT signals are systematically placed at range lows with negative expected value, mechanically inverting them to LONG should be profitable.
+> **Hypothesis:** The channel publishes SHORT signals with average R:R of 0.375:1 and 106% deposit at risk at 25× leverage — mathematically guaranteed to lose. Fifteen minutes before each post a volume spike appears on the chart; the TP step multipliers and T5/SL ratio are identical across all signals, indicating an algorithm. If you reverse engineer the algorithm — liquidity is yours
 
 ### How it works
 
