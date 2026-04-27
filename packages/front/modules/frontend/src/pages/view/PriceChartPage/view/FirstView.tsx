@@ -196,7 +196,6 @@ const createFields = async (): Promise<TypedField[]> => {
             symbol,
             label: symbolData?.displayName || symbol,
             color: symbolData?.color || "#ccc",
-            to: `/coin/${symbol.toLowerCase()}`,
         });
     });
 

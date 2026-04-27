@@ -38,7 +38,7 @@ export const MainView = () => {
           onFromDateChange={setFromDate} onToDateChange={setToDate}
           onLimitChange={setLimit} onRun={handleRun}
         />
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flex: 1, overflow: 'clip' }}>
           <CodeEditor value={code} onChange={setCode} onRun={handleRun} />
           <div style={{ flex: 1 }}>
             <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }}>
