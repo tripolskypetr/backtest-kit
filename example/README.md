@@ -15,8 +15,8 @@
 
 | Strategy | Ticker | Period | Signal source | Net PNL | Sharpe | Details |
 |---|---|---|---|---|---|---|
-| [TRXUSDT Jan 2026 — Liquidity Harvesting](#-trxusdt-january-2026--signal-inversion) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** | [→ README](content/jan_2026.strategy/README.md) |
-| [BTCUSDT Feb 2026 — AI News Sentiment](#-btcusdt-february-2026--ai-news-sentiment) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** | [→ README](content/feb_2026.strategy/README.md) |
+| [TRXUSDT Jan 2026 — Liquidity Harvesting](#-trxusdt-january-2026--signal-inversion) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** | [README](content/jan_2026.strategy/README.md) |
+| [BTCUSDT Feb 2026 — AI News Sentiment](#-btcusdt-february-2026--ai-news-sentiment) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** | [README](content/feb_2026.strategy/README.md) |
 
 ---
 
