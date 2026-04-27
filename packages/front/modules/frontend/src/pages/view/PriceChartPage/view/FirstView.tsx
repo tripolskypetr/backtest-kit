@@ -79,7 +79,11 @@ const actions: IBreadcrumbs2Action[] = [
     },
 ];
 
-const createButton = (symbol: string, label: string, color: string): TypedField => ({
+const createButton = (
+    symbol: string,
+    label: string,
+    color: string,
+): TypedField => ({
     type: FieldType.Component,
     desktopColumns: "6",
     tabletColumns: "6",
@@ -107,7 +111,9 @@ const createButton = (symbol: string, label: string, color: string): TypedField 
                 },
                 "&:hover": {
                     background: () =>
-                        isLightColor(color) ? darken(color, 0.33) : lighten(color, 0.33),
+                        isLightColor(color)
+                            ? darken(color, 0.33)
+                            : lighten(color, 0.33),
                     [`& .${ICON_ROOT}`]: {
                         transition: "filter 500ms",
                         filter: isLightColor(color)
@@ -124,43 +130,48 @@ const createButton = (symbol: string, label: string, color: string): TypedField 
     ),
 });
 
-const createGroup = (routes: IRoute[]): TypedField => ({
-    type: FieldType.Group,
-    className: GROUP_ROOT,
-    sx: { p: 2 },
-    tabletColumns: "12",
-    desktopColumns: "3",
-    fields: [
-        {
-            type: FieldType.Component,
-            className: GROUP_HEADER,
-            style: { transition: "opacity 500ms", opacity: 0.5 },
-            element: () => (
-                <Stack direction="row">
-                    <Chip
-                        variant="outlined"
-                        size="small"
-                        color="info"
-                        label={`${typo.bullet} Symbols`}
-                        sx={{
-                            mb: 1,
-                            pr: 0.5,
-                            fontSize: "14px",
-                            background: "white",
-                            cursor: "not-allowed",
-                        }}
-                    />
-                    <Box flex={1} />
-                </Stack>
-            ),
-        },
-        {
-            type: FieldType.Group,
-            fields: routes.map(({ symbol, label, color }) =>
-                createButton(symbol, label, color),
-            ),
-        },
-    ],
+const createGroup = (label: string, routes: IRoute[]): TypedField => ({
+  type: FieldType.Group,
+  className: GROUP_ROOT,
+  sx: {
+    p: 2,
+  },
+  tabletColumns: "12",
+  desktopColumns: "3",
+  fields: [
+    {
+      type: FieldType.Component,
+      className: GROUP_HEADER,
+      style: {
+        transition: "opacity 500ms",
+        opacity: 0.5,
+      },
+      element: () => (
+        <Stack direction="row">
+          <Chip
+            variant="outlined"
+            size="small"
+            color="info"
+            label={`${typo.bullet} ${label}`}
+            sx={{
+              mb: 1,
+              pr: 0.5,
+              fontSize: "14px",
+              background: "white",
+              cursor: "not-allowed",
+            }}
+          />
+          <Box flex={1} />
+        </Stack>
+      ),
+    },
+    {
+      type: FieldType.Group,
+      fields: routes.map(({ symbol, label, color }) =>
+        createButton(symbol, label, color)
+      ),
+    },
+  ],
 });
 
 const createFields = async (): Promise<TypedField[]> => {
@@ -169,20 +180,83 @@ const createFields = async (): Promise<TypedField[]> => {
         ioc.symbolGlobalService.getSymbolMap(),
     ]);
 
-    const routes: IRoute[] = symbolList.map((symbol) => {
+    // Группируем символы по priority
+    const priorityGroups: Record<number, IRoute[]> = {};
+
+    symbolList.forEach((symbol, idx) => {
         const symbolData = symbolMap[symbol];
-        return {
+        const index = idx + 1;
+        const priority = symbolData?.priority || index;
+
+        if (!priorityGroups[priority]) {
+            priorityGroups[priority] = [];
+        }
+
+        priorityGroups[priority].push({
             symbol,
             label: symbolData?.displayName || symbol,
             color: symbolData?.color || "#ccc",
-        };
+        });
     });
 
-    if (!routes.length) {
+    const sortedPriorities = Object.entries(priorityGroups)
+        .map(([priority, routes]) => ({ priority: parseInt(priority), routes }))
+        .sort(
+            (
+                { priority: a_p, routes: { length: a_l } },
+                { priority: b_p, routes: { length: b_l } },
+            ) => b_l - a_l || b_p - a_p,
+        );
+
+    const tabletLeftColumn: TypedField[] = [];
+    const tabletRightColumn: TypedField[] = [];
+    const wideColumn: TypedField[] = [];
+
+    sortedPriorities.forEach(({ routes, priority }, idx) => {
+        const group = createGroup(`Priority ${priority}`, routes);
+
+        if (idx % 2 === 0) {
+            tabletLeftColumn.push(group);
+        }
+
+        if (idx % 2 === 1) {
+            tabletRightColumn.push(group);
+        }
+
+        wideColumn.push(group);
+    });
+
+    if (!wideColumn.length) {
         return [];
     }
 
-    return [createGroup(routes)];
+    const fields: TypedField[] = [
+        {
+            type: FieldType.Group,
+            columns: "6",
+            className: "tabletLeftColumn",
+            phoneHidden: true,
+            desktopHidden: true,
+            fields: tabletLeftColumn,
+        },
+        {
+            type: FieldType.Group,
+            columns: "6",
+            className: "tabletRightColumn",
+            phoneHidden: true,
+            desktopHidden: true,
+            fields: tabletRightColumn,
+        },
+        {
+            type: FieldType.Group,
+            columns: "12",
+            className: "wideColumn",
+            tabletHidden: true,
+            fields: wideColumn,
+        },
+    ];
+
+    return fields;
 };
 
 export const FirstView = () => {
