@@ -140,14 +140,3 @@ CC_TELEGRAM_CHANNEL=-100123456789
 CC_WWWROOT_HOST=0.0.0.0
 CC_WWWROOT_PORT=60050
 ```
-
-## 📂 Asset Files
-
-| File | Description |
-|---|---|
-| `assets/entry.jsonl` | 11 raw signals exported from the Telegram channel |
-| `assets/signals.jsonl` | Full signal dataset (April 2025 – April 2026, 416 entries) |
-| `assets/proof.jsonl` | 17 documented SHORT→LONG pairs |
-| `assets/REPORT_EN.md` | Full statistical analysis of the channel's manipulation scheme |
-| `assets/results_before.json` | Backtest results following the original signals |
-| `assets/results_after.json` | Backtest results with inverted direction |
