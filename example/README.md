@@ -22,7 +22,7 @@
 
 ## 📈 TRXUSDT January 2026 — Liquidity Harvesting
 
-> **Hypothesis:** The channel publishes SHORT signals with average R:R of 0.375:1 and 106% deposit at risk at 25× leverage — mathematically guaranteed to lose. Fifteen minutes before each post a volume spike appears on the chart; the TP step multipliers and T5/SL ratio are identical across all signals, indicating an algorithm. If you reverse engineer the algorithm — liquidity is yours
+> **Hypothesis:** The Telegram channel publishes SHORT signals with average R:R of 0.375:1 and 106% deposit at risk at 25× leverage — mathematically guaranteed to lose. Fifteen minutes before each post a volume spike appears on the chart; the TP step multipliers and T5/SL ratio are identical across all signals, indicating an algorithm. If you reverse engineer the algorithm — liquidity is yours
 
 ### How it works
 
