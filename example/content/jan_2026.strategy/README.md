@@ -2,7 +2,7 @@
 
 # 📊 TRXUSDT January 2026 — Liquidity Harvesting Backtest
 
-> Backtest that proves Crypto Yoda Channel signals work better in reverse: SHORT signals are opened as LONG, direction determined by 4h range midpoint. [Link to the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
+> Backtest that proves Crypto Yoda Channel signals work better in reverse: SHORT signals are opened as LONG, direction determined by 4h range midpoint.
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)

@@ -2,7 +2,7 @@
 
 # 📊 BTCUSDT February 2026 — AI News Sentiment Backtest
 
-> AI-driven trading strategy that reads live news via Tavily, generates bullish/bearish forecasts with Ollama, and executes positions on BTCUSDT. [Link to the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example)
+> AI-driven trading strategy that reads live news via Tavily, generates bullish/bearish forecasts with Ollama, and executes positions on BTCUSDT.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
