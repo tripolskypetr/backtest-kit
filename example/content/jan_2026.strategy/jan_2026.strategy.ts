@@ -19,10 +19,15 @@ import {
   getPositionHighestProfitDistancePnlCost,
   getPositionHighestMaxDrawdownPnlCost,
   getPositionPnlCost,
+  getPositionHighestPnlCost,
+  getPositionHighestProfitMinutes,
 } from "backtest-kit";
 import { errorData, getErrorMessage, randomString, str } from "functools-kit";
 import { readFileSync } from "fs";
 import { SignalEntryModel } from "./model/SignalEntry.model";
+
+const PEAK_STALENESS_SINCE_PROFIT = 1.0;
+const PEAK_STALENESS_SINCE_MINUTES = 240;
 
 const TRAILING_TAKE = 1.0;
 const HARD_STOP = 1.0;
@@ -126,6 +131,27 @@ listenActivePing(async ({ symbol, data }) => {
     id: "unknown",
     note: str.newline(
       "# Позиция закрыта по trailing take",
+    ),
+  });
+});
+
+listenActivePing(async ({ symbol, data }) => {
+  const peakProfitCost = await getPositionHighestPnlPercentage(symbol);
+  const peakProfitMinutes = await getPositionHighestProfitMinutes(symbol);
+  if (peakProfitCost < PEAK_STALENESS_SINCE_PROFIT) {
+    return;
+  }
+  if (peakProfitMinutes < PEAK_STALENESS_SINCE_MINUTES) {
+    return;
+  }
+  Log.info("position closed due to the peak staleness", {
+    symbol,
+    data,
+  });
+  await commitClosePending(symbol, {
+    id: "unknown",
+    note: str.newline(
+      "# Позиция закрыта по peak staleness",
     ),
   });
 });
