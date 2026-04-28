@@ -15,6 +15,7 @@
 
 | Strategy | Ticker | Period | Signal source | Net PNL | Sharpe |
 |---|---|---|---|---|---|
+| [BTCUSDT Dec 2025 — Pine Script Range Breakout](./content/dec_2025.strategy/README.md) | BTCUSDT | Dec 2025 | Pine Script BB + range detector + volume spike | **+2.40%** | **0.06** |
 | [TRXUSDT Jan 2026 — Liquidity Harvesting](./content//jan_2026.strategy/README.md) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
 | [BTCUSDT Feb 2026 — AI News Sentiment](./content/feb_2026.strategy/README.md) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** |
 | [BTCUSDT Mar 2026 — SHORT DCA Ladder](./content/mar_2026.strategy/README.md) | BTCUSDT | Mar 2026 | Fixed SHORT gravebag signal + DCA ladder up (up to 10 rungs) | **+37.83%** | **0.35** |
@@ -68,3 +69,15 @@
 1. `getSignal` opens a LONG on every new pending signal via `Position.moonbag` with a 25% hard stop and $100 cost.
 2. While active, `commitAverageBuy` fires on each ping if the current price falls outside a ±1–5% band around the last entry and fewer than 10 rungs have been added.
 3. The position closes as soon as blended portfolio PNL reaches +3% via `commitClosePending`.
+
+---
+
+## 🌲 BTCUSDT December 2025 — Pine Script Range Breakout
+
+> **Hypothesis:** Bollinger Band breakouts from a horizontal range, confirmed by a volume spike, and produce directional signals with positive expectancy on a choppy December.
+
+### How it works
+
+1. Every hour `Cache.fn` runs `btc_dec2025_range.pine` on 1h candles (RSI 14) and extracts: BB bands, range boundaries, `signal` (±1), `isRanging`, `volSpike`.
+2. `getSignal` opens a LONG on `signal === 1` or SHORT on `signal === -1`, but skips if price has already moved past the close at signal time, or if `isRanging === 1`.
+3. Each position uses a fixed ±2% bracket (TP and SL), no DCA, no trailing.
