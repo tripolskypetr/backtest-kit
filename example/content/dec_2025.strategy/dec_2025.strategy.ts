@@ -1,6 +1,6 @@
 import {
   addStrategySchema,
-  Interval,
+  Cache,
   listenError,
   Log,
   Position,
@@ -27,7 +27,7 @@ const PINE_INPUTS = {
   rsi_len: 14,
 };
 
-const getPlot = Interval.fn(
+const getPlot = Cache.fn(
   async (symbol: string) => {
     const plots = await run(PINE_FILE, { 
       symbol, 
@@ -54,6 +54,10 @@ addStrategySchema({
         return null;
       }
 
+      if (plot.isRanging) {
+        return null;
+      }
+
       return {
         ...Position.bracket({
           position: "long",
@@ -62,11 +66,16 @@ addStrategySchema({
           percentStopLoss: 2,
         }),
         minuteEstimatedTime: Infinity,
+        note: JSON.stringify(plot),
       }
     }
     if (plot?.signal === -1) {
 
       if (currentPrice < plot.close) {
+        return null;
+      }
+
+      if (plot.isRanging) {
         return null;
       }
 
@@ -78,6 +87,7 @@ addStrategySchema({
           percentStopLoss: 2,
         }),
         minuteEstimatedTime: Infinity,
+        note: JSON.stringify(plot),
       }
     }
   

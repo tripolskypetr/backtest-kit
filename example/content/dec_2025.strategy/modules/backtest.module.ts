@@ -93,5 +93,5 @@ addFrameSchema({
   frameName: "dec_2025_frame",
   interval: "1m",
   startDate: new Date("2025-12-01T00:00:00Z"),
-  endDate: new Date("2025-12-31T00:00:00Z"),
+  endDate: new Date("2025-12-15T12:00:00Z"),
 });
