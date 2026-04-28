@@ -46,6 +46,9 @@ addStrategySchema({
 
 listenIdlePing(async ({ symbol }) => {
   const dump = await getPlot(symbol);
+  if (!dump) {
+    return;
+  }
   Log.info("position dump", {
     symbol,
     dump,
