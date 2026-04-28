@@ -53,7 +53,8 @@ listenActivePing(async ({ symbol, currentPrice }) => {
 });
 
 
-listenActivePing(async ({ symbol, data }) => {
+listenActivePing(async ({ symbol, data, timestamp }) => {
+  console.log(new Date(timestamp));
   const currentProfit = await getPositionPnlPercent(symbol);
   if (currentProfit < TARGET_PROFIT) {
     return;
