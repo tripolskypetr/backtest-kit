@@ -1,0 +1,161 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// BTC/USDT — December 2025 Range Strategy
+// Логика: mean-reversion в диапазоне $85K–$90K + breakout-фильтр на гамма-флаш 26 дек
+// Рекомендуемый TF: 15m / 1h на Binance Futures
+
+//@version=5
+indicator("BTC Dec 2025 — Range + Gamma Flush", overlay=true)
+
+// ══════════════════════════════════════════
+// INPUTS
+// ══════════════════════════════════════════
+bb_len      = input.int(20,    "BB Length",        group="Bollinger Bands")
+bb_mult     = input.float(2.0, "BB Mult",          group="Bollinger Bands", step=0.1)
+
+rsi_len     = input.int(14,    "RSI Length",        group="RSI")
+rsi_ob      = input.int(68,    "RSI Overbought",    group="RSI")
+rsi_os      = input.int(32,    "RSI Oversold",      group="RSI")
+
+stoch_k     = input.int(3,     "Stoch K",           group="Stoch RSI")
+stoch_d     = input.int(3,     "Stoch D",           group="Stoch RSI")
+stoch_len   = input.int(14,    "Stoch Length",      group="Stoch RSI")
+stoch_ob    = input.int(80,    "Stoch Overbought",  group="Stoch RSI")
+stoch_os    = input.int(20,    "Stoch Oversold",    group="Stoch RSI")
+
+vol_ma_len  = input.int(20,    "Volume MA",         group="Volume")
+vol_spike   = input.float(2.0, "Volume Spike x",   group="Volume", step=0.1)
+
+atr_len     = input.int(14,    "ATR Length",        group="Risk")
+sl_mult     = input.float(1.5, "SL ATR Mult",      group="Risk", step=0.1)
+tp_mult     = input.float(1.8, "TP ATR Mult",      group="Risk", step=0.1)
+signal_bars = input.int(6,     "Signal valid bars", group="Risk")
+
+use_manual_range = input.bool(true, "Show manual range", group="Range")
+range_hi    = input.float(90000, "Range High $",   group="Range")
+range_lo    = input.float(85000, "Range Low $",    group="Range")
+
+// ══════════════════════════════════════════
+// ВЫЧИСЛЕНИЯ
+// ══════════════════════════════════════════
+bb_basis    = ta.sma(close, bb_len)
+bb_dev      = ta.stdev(close, bb_len)
+bb_upper    = bb_basis + bb_mult * bb_dev
+bb_lower    = bb_basis - bb_mult * bb_dev
+bb_width    = (bb_upper - bb_lower) / bb_basis
+
+rsi         = ta.rsi(close, rsi_len)
+
+rsi_stoch   = ta.stoch(rsi, rsi, rsi, stoch_len)
+k           = ta.sma(rsi_stoch, stoch_k)
+d           = ta.sma(k, stoch_d)
+
+atr         = ta.atr(atr_len)
+
+vol_ma      = ta.sma(volume, vol_ma_len)
+is_vol_spike = volume > vol_ma * vol_spike
+
+// ══════════════════════════════════════════
+// РЕЖИМ РЫНКА
+// ══════════════════════════════════════════
+is_ranging    = bb_width < 0.03
+breakout_up   = is_vol_spike and close > bb_upper
+breakout_down = is_vol_spike and close < bb_lower
+
+// ══════════════════════════════════════════
+// СИГНАЛЫ — MEAN REVERSION
+// ══════════════════════════════════════════
+long_bb     = close <= bb_lower * 1.002
+long_rsi    = rsi < rsi_os
+long_stoch  = k < stoch_os and k > d
+long_cond   = is_ranging and long_bb and long_rsi and long_stoch and not breakout_down
+
+short_bb    = close >= bb_upper * 0.998
+short_rsi   = rsi > rsi_ob
+short_stoch = k > stoch_ob and k < d
+short_cond  = is_ranging and short_bb and short_rsi and short_stoch and not breakout_up
+
+// ══════════════════════════════════════════
+// СИГНАЛЫ — BREAKOUT (гамма-флаш)
+// ══════════════════════════════════════════
+breakout_long  = breakout_up   and not is_ranging
+breakout_short = breakout_down and not is_ranging
+
+final_long  = long_cond  or breakout_long
+final_short = short_cond or breakout_short
+
+// ══════════════════════════════════════════
+// SIGNAL MANAGEMENT
+// ══════════════════════════════════════════
+var int   last_signal    = 0
+var int   bars_since_sig = 0
+var float entry_px       = na
+var float sig_atr        = na
+var bool  is_breakout_sig = false
+
+if final_long
+    last_signal     := 1
+    bars_since_sig  := 0
+    entry_px        := close
+    sig_atr         := atr
+    is_breakout_sig := breakout_long
+else if final_short
+    last_signal     := -1
+    bars_since_sig  := 0
+    entry_px        := close
+    sig_atr         := atr
+    is_breakout_sig := breakout_short
+else
+    bars_since_sig  += 1
+
+active_signal = bars_since_sig <= signal_bars ? last_signal : 0
+
+// ══════════════════════════════════════════
+// SL / TP
+// ══════════════════════════════════════════
+sl_mult_eff = is_breakout_sig ? sl_mult * 1.3 : sl_mult
+tp_mult_eff = is_breakout_sig ? tp_mult * 1.4 : tp_mult
+
+sl = last_signal == 1  ? entry_px - sig_atr * sl_mult_eff :
+     last_signal == -1 ? entry_px + sig_atr * sl_mult_eff : na
+
+tp = last_signal == 1  ? entry_px + sig_atr * tp_mult_eff :
+     last_signal == -1 ? entry_px - sig_atr * tp_mult_eff : na
+
+// ══════════════════════════════════════════
+// ВИЗУАЛИЗАЦИЯ
+// ══════════════════════════════════════════
+line_col = active_signal == 1  ? color.new(color.lime, 30) :
+           active_signal == -1 ? color.new(color.red, 30)  :
+           color.new(color.gray, 70)
+
+bb_upper_p = plot(bb_upper, "BB Upper", color=color.new(color.aqua, 60), linewidth=1)
+bb_lower_p = plot(bb_lower, "BB Lower", color=color.new(color.aqua, 60), linewidth=1)
+plot(bb_basis, "BB Basis", color=color.new(color.white, 70), linewidth=1)
+fill(bb_upper_p, bb_lower_p, color=color.new(color.aqua, 92))
+
+hline(use_manual_range ? range_hi : na, "Range High", color=color.orange, linestyle=hline.style_dashed, linewidth=2)
+hline(use_manual_range ? range_lo : na, "Range Low",  color=color.orange, linestyle=hline.style_dashed, linewidth=2)
+
+plot(close, "Signal Line", color=line_col, linewidth=5)
+
+plotshape(long_cond,       "MR Long",       shape.triangleup,   location.belowbar, color.lime,   size=size.small)
+plotshape(short_cond,      "MR Short",      shape.triangledown, location.abovebar, color.red,    size=size.small)
+plotshape(breakout_long,   "BRK Long",      shape.triangleup,   location.belowbar, color.yellow, size=size.normal)
+plotshape(breakout_short,  "BRK Short",     shape.triangledown, location.abovebar, color.yellow, size=size.normal)
+
+bgcolor(is_ranging     ? color.new(color.blue,  95) : na, title="Ranging")
+bgcolor(breakout_up    ? color.new(color.green, 90) : na, title="Breakout Up")
+bgcolor(breakout_down  ? color.new(color.red,   90) : na, title="Breakout Down")
+
+barcolor(is_vol_spike ? color.yellow : na, title="Vol Spike")
+
+// ══════════════════════════════════════════
+// DATA WINDOW OUTPUTS
+// ══════════════════════════════════════════
+plot(close,           "Close",     display=display.data_window)
+plot(active_signal,   "Signal",    display=display.data_window)
+plot(sl,              "StopLoss",  display=display.data_window)
+plot(tp,              "TakeProfit",display=display.data_window)
+plot(is_ranging ? 1 : 0,    "IsRanging", display=display.data_window)
+plot(is_vol_spike ? 1 : 0,  "VolSpike",  display=display.data_window)
+plot(60, "EstimatedTime", display=display.data_window)
