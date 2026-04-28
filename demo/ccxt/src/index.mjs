@@ -1,6 +1,11 @@
 import { addExchangeSchema, Exchange, roundTicks } from "backtest-kit";
 import { singleshot } from "functools-kit";
+import * as anomaly from "volume-anomaly";
 import ccxt from "ccxt";
+
+const ANOMALY_CONFIDENCE = 0.75; // volume-anomaly composite score
+const N_TRAIN = 1200; // baseline count
+const N_DETECT = 200; // detection window
 
 const getExchange = singleshot(async () => {
   const exchange = new ccxt.binance({
@@ -90,8 +95,25 @@ addExchangeSchema({
   },
 });
 
+const getExecutedTradesSkew = async (symbol) => {
+  const all = await Exchange.getAggregatedTrades(symbol, {
+    exchangeName: "ccxt-exchange",
+  }, N_TRAIN + N_DETECT);
+  return anomaly.predict(
+    all.slice(0, N_TRAIN),
+    all.slice(N_TRAIN),
+    ANOMALY_CONFIDENCE,
+  );
+};
+
+
 console.log(
   await Exchange.getCandles("BTCUSDT", "1m", 5, {
     exchangeName: "ccxt-exchange",
   }),
 );
+
+console.log(
+  await getExecutedTradesSkew("BTCUSDT")
+);
+
