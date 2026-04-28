@@ -1,60 +1,121 @@
 import {
   addStrategySchema,
   listenError,
+  listenActivePing,
+  commitTrailingTakeCost,
+  getDate,
+  getAveragePrice,
   Log,
-  getCandles,
   listenIdlePing,
+  alignToInterval,
+  getClosePrice,
+  listenSignal,
+  Position,
+  commitClosePending,
+  getPositionHighestProfitDistancePnlPercentage,
+  getPositionHighestPnlPercentage,
+  getPositionPnlPercent,
+  getCandles,
+  getPositionHighestProfitDistancePnlCost,
+  getPositionHighestMaxDrawdownPnlCost,
+  getPositionPnlCost,
+  getPositionHighestPnlCost,
+  getPositionHighestProfitMinutes,
+  getAggregatedTrades,
+  Cache,
 } from "backtest-kit";
-import { errorData, getErrorMessage } from "functools-kit";
-import { predict } from "garch";
+import { errorData, getErrorMessage, str } from "functools-kit";
+import * as anomaly from "volume-anomaly";
+
+const PEAK_STALENESS_SINCE_PROFIT = 1.0;
+const PEAK_STALENESS_SINCE_MINUTES = 240;
+
+const TRAILING_TAKE = 1.0;
+const HARD_STOP = 1.0;
+
+const ANOMALY_CONFIDENCE = 0.75; // volume-anomaly composite score
+const N_TRAIN = 1200; // baseline count
+const N_DETECT = 200; // detection window
+
+const getExecutedTradesSkew = Cache.fn(
+  async (symbol: string) => {
+    const all = await getAggregatedTrades(symbol, N_TRAIN + N_DETECT);
+    return anomaly.predict(
+      all.slice(0, N_TRAIN),
+      all.slice(N_TRAIN),
+      ANOMALY_CONFIDENCE,
+    );
+  },
+  { interval: "5m" }
+);
 
 addStrategySchema({
   strategyName: "apr_2026_strategy",
-  getSignal: async (symbol, when) => {
-    console.log(when)
-    return null;
+  getSignal: async (symbol, when, currentPrice) => {
+
+    console.log(when);
+
+    const skew = await getExecutedTradesSkew(symbol);
+
+    if (!skew.anomaly) {
+      return null;
+    }
+
+    if (skew.direction === "neutral") {
+      return null;
+    }
+
+    return {
+      position: skew.direction,
+      ...Position.moonbag({
+        position: skew.direction,
+        currentPrice,
+        percentStopLoss: HARD_STOP,
+      }),
+      minuteEstimatedTime: Infinity,
+    };
   },
 });
 
-listenIdlePing(async ({ symbol, currentPrice }) => {
-  const candles_1m = await getCandles(symbol, "1m", 1_500);
-  const candles_5m = await getCandles(symbol, "5m", 1_500);
-  const candles_15m = await getCandles(symbol, "15m", 1_000);
-  const candles_30m = await getCandles(symbol, "30m", 1_000);
-  const candles_1h = await getCandles(symbol, "1h", 500);
-  const candles_4h = await getCandles(symbol, "4h", 500);
-  const candles_6h = await getCandles(symbol, "6h", 300);
-  const candles_8h = await getCandles(symbol, "8h", 300);
-
-  const { sigma: sigma_1m, reliable: reliable_1m } = await predict(candles_1m, "1m");
-  const { sigma: sigma_5m, reliable: reliable_5m } = await predict(candles_5m, "5m");
-  const { sigma: sigma_15m, reliable: reliable_15m } = await predict(candles_15m, "15m");
-  const { sigma: sigma_30m, reliable: reliable_30m } = await predict(candles_30m, "30m");
-  const { sigma: sigma_1h, reliable: reliable_1h } = await predict(candles_1h, "1h");
-  const { sigma: sigma_4h, reliable: reliable_4h } = await predict(candles_4h, "4h");
-  const { sigma: sigma_6h, reliable: reliable_6h } = await predict(candles_6h, "6h");
-  const { sigma: sigma_8h, reliable: reliable_8h } = await predict(candles_8h, "8h");
-
-  const volatility_1m = { sigma_1m, reliable_1m };
-  const volatility_5m = { sigma_5m, reliable_5m };
-  const volatility_15m = { sigma_15m, reliable_15m };
-  const volatility_30m = { sigma_30m, reliable_30m };
-  const volatility_1h = { sigma_1h, reliable_1h };
-  const volatility_4h = { sigma_4h, reliable_4h };
-  const volatility_6h = { sigma_6h, reliable_6h };
-  const volatility_8h = { sigma_8h, reliable_8h };
-
-  Log.info("position ping", {
+listenActivePing(async ({ symbol, data }) => {
+  const peakProfitDistance = await getPositionHighestProfitDistancePnlPercentage(symbol);
+  const currentProfit = await getPositionPnlPercent(symbol);
+  if (currentProfit < 0) {
+    return;
+  }
+  if (peakProfitDistance < TRAILING_TAKE) {
+    return;
+  }
+  Log.info("position closed due to the trailing take", {
     symbol,
-    volatility_1m,
-    volatility_5m,
-    volatility_15m,
-    volatility_30m,
-    volatility_1h,
-    volatility_4h,
-    volatility_6h,
-    volatility_8h,
-    currentPrice,
+    data,
+  });
+  await commitClosePending(symbol, {
+    id: "unknown",
+    note: str.newline(
+      "# Позиция закрыта по trailing take",
+    ),
+  });
+});
+
+listenActivePing(async ({ symbol, data }) => {
+  const peakProfitCost = await getPositionHighestPnlPercentage(symbol);
+  const peakProfitMinutes = await getPositionHighestProfitMinutes(symbol);
+  if (peakProfitCost < PEAK_STALENESS_SINCE_PROFIT) {
+    return;
+  }
+  if (peakProfitMinutes < PEAK_STALENESS_SINCE_MINUTES) {
+    return;
+  }
+  Log.info("position closed due to the peak staleness", {
+    symbol,
+    data,
+  });
+  await commitClosePending(symbol, {
+    id: "unknown",
+    note: str.newline(
+      "# Позиция закрыта по peak staleness",
+    ),
   });
 });
 

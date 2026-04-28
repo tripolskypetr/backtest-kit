@@ -3,4 +3,3 @@ docs/articles/images/* filter=lfs diff=lfs merge=lfs -text
 *.test.mjs linguist-vendored
 assets/forecast_feb_2026.zip filter=lfs diff=lfs merge=lfs -text
 assets/volatility_feb_2026.zip filter=lfs diff=lfs merge=lfs -text
-example/content/apr_2026.strategy/assets/sigma_volatility.jsonl filter=lfs diff=lfs merge=lfs -text
