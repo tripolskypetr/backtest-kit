@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|
 | [TRXUSDT Jan 2026 — Liquidity Harvesting](./content//jan_2026.strategy/README.md) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
 | [BTCUSDT Feb 2026 — AI News Sentiment](./content/feb_2026.strategy/README.md) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** |
-| [BTCUSDT Mar 2026 — SHORT DCA Ladder](./content/mar_2026.strategy/README.md) | BTCUSDT | Mar 2026 | Fixed SHORT moonbag signal + DCA ladder up (up to 10 rungs) | **+37.83%** | **0.35** |
+| [BTCUSDT Mar 2026 — SHORT DCA Ladder](./content/mar_2026.strategy/README.md) | BTCUSDT | Mar 2026 | Fixed SHORT gravebag signal + DCA ladder up (up to 10 rungs) | **+37.83%** | **0.35** |
 | [BTCUSDT Apr 2026 — DCA Ladder](./content/apr_2026.strategy/README.md) | BTCUSDT | Apr 2026 | Fixed LONG moonbag signal + DCA ladder down (up to 10 rungs) | **+67.85%** | **0.12** |
 
 ---
