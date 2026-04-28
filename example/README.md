@@ -21,7 +21,7 @@
 
 ---
 
-## 📈 TRXUSDT January 2026 — Liquidity Harvesting
+## 🔪 TRXUSDT January 2026 — Liquidity Harvesting
 
 > **Hypothesis:** The Telegram channel publishes SHORT signals with average R:R of 0.375:1 and 106% deposit at risk at 25× leverage — mathematically guaranteed to lose. Fifteen minutes before each post a volume spike appears on the chart; the TP step multipliers and T5/SL ratio are identical across all signals, indicating an algorithm. If you reverse engineer the algorithm — liquidity is yours
 
@@ -33,7 +33,7 @@
 
 ---
 
-## 📈 BTCUSDT February 2026 — AI News Sentiment
+## 📰 BTCUSDT February 2026 — AI News Sentiment
 
 > **Hypothesis:** an LLM reading live crypto/macro news every few hours can produce a directional bias (bullish / bearish / wait) that outperforms random on a sustained trending month.
 
@@ -46,7 +46,7 @@
 
 ---
 
-## 📈 BTCUSDT April 2026 — LONG DCA Ladder
+## 🧗 BTCUSDT April 2026 — LONG DCA Ladder
 
 > **Hypothesis:** in a trending bull month, dollar-cost averaging into every dip lowers the blended cost basis enough to hit a 3% profit target faster and more often than a single-entry approach.
 
