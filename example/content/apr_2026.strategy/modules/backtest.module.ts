@@ -97,7 +97,6 @@ addExchangeSchema({
 addFrameSchema({
   frameName: "apr_2026_frame",
   interval: "1m",
-  startDate: new Date("2026-04-17T00:00:00Z"),
+  startDate: new Date("2026-04-01T00:00:00Z"),
   endDate: new Date("2026-04-27T00:00:00Z"),
-  note: "April 17-27 2026, Consolidation, range $77,000–$79,500",
 });
