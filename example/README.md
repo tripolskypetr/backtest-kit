@@ -17,6 +17,7 @@
 |---|---|---|---|---|---|
 | [TRXUSDT Jan 2026 — Liquidity Harvesting](./content//jan_2026.strategy/README.md) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
 | [BTCUSDT Feb 2026 — AI News Sentiment](./content/feb_2026.strategy/README.md) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** |
+| [BTCUSDT Apr 2026 — DCA Ladder](./content/apr_2026.strategy/README.md) | BTCUSDT | Apr 2026 | Fixed LONG moonbag signal + DCA ladder down (up to 10 rungs) | **+67.85%** | **0.12** |
 
 ---
 
@@ -42,3 +43,15 @@
 2. The raw news text is passed to a local Ollama model, which returns one of `bullish`, `bearish`, or `wait`.
 3. `getSignal` opens a LONG on `bullish`, SHORT on `bearish`, and skips on `wait`. A conflicting forecast while a position is open triggers `commitClosePending` (sentiment flip).
 4. Positions exit on trailing take-profit (1% drawdown from peak) or stop-loss (1% from entry). No fixed TP target.
+
+---
+
+## 📈 BTCUSDT April 2026 — LONG DCA Ladder
+
+> **Hypothesis:** in a trending bull month, dollar-cost averaging into every dip lowers the blended cost basis enough to hit a 3% profit target faster and more often than a single-entry approach.
+
+### How it works
+
+1. `getSignal` opens a LONG on every new pending signal via `Position.moonbag` with a 25% hard stop and $100 cost.
+2. While active, `commitAverageBuy` fires on each ping if the current price falls outside a ±1–5% band around the last entry and fewer than 10 rungs have been added.
+3. The position closes as soon as blended portfolio PNL reaches +3% via `commitClosePending`.
