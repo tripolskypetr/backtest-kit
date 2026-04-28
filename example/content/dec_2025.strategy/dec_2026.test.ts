@@ -19,16 +19,22 @@ const PINE_SCHEMA = {
   signalLine: "Signal Line",
   close: "Close",
   signal: "Signal",
-  stopLoss: "StopLoss",
-  takeProfit: "TakeProfit",
   isRanging: "IsRanging",
   volSpike: "VolSpike",
-  estimatedTime: "EstimatedTime",
+};
+
+const PINE_INPUTS = {
+  rsi_len: 14,
 };
 
 const getPlot = Interval.fn(
   async (symbol: string) => {
-    const plots = await run(PINE_FILE, { symbol, timeframe: "15m", limit: 100 });
+    const plots = await run(PINE_FILE, { 
+      symbol, 
+      inputs: PINE_INPUTS,
+      timeframe: "1h", 
+      limit: 100 
+    });
     return await extract(plots, PINE_SCHEMA) 
   }, 
   {

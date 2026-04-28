@@ -1,74 +1,88 @@
 import {
   addStrategySchema,
+  Interval,
   listenError,
-  listenActivePing,
   Log,
   Position,
-  commitClosePending,
-  getPositionPnlPercent,
-  getPositionEntryOverlap,
-  getPositionEntries,
-  commitAverageBuy,
 } from "backtest-kit";
+import { run, extract, File } from "@backtest-kit/pinets";
 import { errorData, getErrorMessage, str } from "functools-kit";
 
-const HARD_STOP = 25.0;
-const TARGET_PROFIT = 3;
+const PINE_FILE = File.fromPath("btc_dec2025_range.pine", "./math");
 
-const LADDER_STEP_COST = 100;
-const LADDER_UPPER_STEP = 5;
-const LADDER_LOWER_STEP = 1;
+const PINE_SCHEMA = {
+  bbUpper: "BB Upper",
+  bbLower: "BB Lower",
+  bbBasis: "BB Basis",
+  rangeHigh: "Range High",
+  rangeLow: "Range Low",
+  signalLine: "Signal Line",
+  close: "Close",
+  signal: "Signal",
+  isRanging: "IsRanging",
+  volSpike: "VolSpike",
+};
 
-const LADDER_MAX_STEPS = 10;
+const PINE_INPUTS = {
+  rsi_len: 14,
+};
+
+const getPlot = Interval.fn(
+  async (symbol: string) => {
+    const plots = await run(PINE_FILE, { 
+      symbol, 
+      inputs: PINE_INPUTS,
+      timeframe: "1h", 
+      limit: 100,
+    });
+    return await extract(plots, PINE_SCHEMA) 
+  }, 
+  {
+    interval: "1h",
+  }
+);
 
 addStrategySchema({
   strategyName: "dec_2025_strategy",
   getSignal: async (symbol, when, currentPrice) => {
-    return {
-      position: "long",
-      ...Position.moonbag({
-        position: "long",
-        currentPrice,
-        percentStopLoss: HARD_STOP,
-      }),
-      minuteEstimatedTime: Infinity,
-      cost: LADDER_STEP_COST,
-    };
+    console.log(when);
+    const plot = await getPlot(symbol);
+  
+    if (plot?.signal === 1) {
+
+      if (currentPrice > plot.close) {
+        return null;
+      }
+
+      return {
+        ...Position.bracket({
+          position: "long",
+          currentPrice,
+          percentTakeProfit: 2,
+          percentStopLoss: 2,
+        }),
+        minuteEstimatedTime: Infinity,
+      }
+    }
+    if (plot?.signal === -1) {
+
+      if (currentPrice < plot.close) {
+        return null;
+      }
+
+      return {
+        ...Position.bracket({
+          position: "short",
+          currentPrice,
+          percentTakeProfit: 2,
+          percentStopLoss: 2,
+        }),
+        minuteEstimatedTime: Infinity,
+      }
+    }
+  
+    return null;
   },
-});
-
-listenActivePing(async ({ symbol, currentPrice }) => {
-  const { length: steps } = await getPositionEntries(symbol);
-  if (steps >= LADDER_MAX_STEPS) {
-    return;
-  }
-  const hasOverlap = await getPositionEntryOverlap(symbol, currentPrice, {
-    upperPercent: LADDER_UPPER_STEP,
-    lowerPercent: LADDER_LOWER_STEP,
-  });
-  if (hasOverlap) {
-    return;
-  }
-  await commitAverageBuy(symbol, LADDER_STEP_COST);
-});
-
-
-listenActivePing(async ({ symbol, data, timestamp }) => {
-  console.log(new Date(timestamp));
-  const currentProfit = await getPositionPnlPercent(symbol);
-  if (currentProfit < TARGET_PROFIT) {
-    return;
-  }
-  Log.info("position closed due to the target pnl reached", {
-    symbol,
-    data,
-  });
-  await commitClosePending(symbol, {
-    id: "unknown",
-    note: str.newline(
-      "# Позиция закрыта по target pnl",
-    ),
-  });
 });
 
 listenError((error) => {
