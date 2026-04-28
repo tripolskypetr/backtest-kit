@@ -43,7 +43,7 @@ April 2026 was a recovery month for BTC after the Q1 tariff shock. Price ground 
 | Worst drawdown (%) | **−3.99%** (single entry) |
 | Worst drawdown ($) | **−$3.99** |
 
-### With DCA (ladder up to 10 entries, after.json)
+### With DCA (ladder up to 10 entries)
 
 | Metric | Value |
 |---|---|
@@ -73,7 +73,7 @@ April 2026 was a recovery month for BTC after the Q1 tariff shock. Price ground 
 
 DCA nearly triples gross dollar profit by deploying more capital into falling prices, while blended drawdown **percentage** actually improves (−2.59% vs −3.99%) because averaging down lowers the effective price. The trade-off is higher absolute fiat exposure: a worst-case drawdown of −$12.64 vs −$3.99.
 
-## 📋 Trade Log — Without DCA (before.json)
+## 📋 Trade Log — Without DCA
 
 | # | Open date | Entries | Open price | Close price | PNL% | PNL$ | Max drawdown% | Max drawdown$ |
 |---|---|---|---|---|---|---|---|---|
@@ -82,9 +82,9 @@ DCA nearly triples gross dollar profit by deploying more capital into falling pr
 | 3 | Apr 14 | 1 | $73,145 | $75,669 | +3.04% | +$3.04 | −3.87% | −$3.87 |
 | 4 | Apr 22 | 1 | $75,669 | $78,272 | +3.03% | +$3.03 | −3.23% | −$3.23 |
 | 5 | Apr 26 | 1 | $78,272 | $78,737 | +0.19% | +$0.19 | −1.90% | −$1.90 |
-| **Σ** | | **5** | | | | **+$12.45** | | **−$3.99** |
+| **Σ** | | **5** | | | | **+$12.45** | **−13.68%** | **−$13.68** |
 
-## 📋 Trade Log — With DCA (after.json)
+## 📋 Trade Log — With DCA
 
 | # | Open date | Entries | Blended open | Close price | PNL% (blended) | PNL$ | Max drawdown% | Max drawdown$ |
 |---|---|---|---|---|---|---|---|---|
@@ -95,7 +95,7 @@ DCA nearly triples gross dollar profit by deploying more capital into falling pr
 | 5 | Apr 20 | 5 | $75,401 | $78,203 | +3.31% | +$16.53 | −2.51% | −$12.57 |
 | 6 | Apr 23 | 2 | $74,286 | $76,860 | +3.05% | +$6.11 | −1.43% | −$2.85 |
 | 7 | Apr 26 | 2 | $77,815 | $78,737 | +0.78% | +$1.56 | −1.32% | −$2.64 |
-| **Σ** | | **23** | | | | **+$67.85** | | **−$12.64** |
+| **Σ** | | **23** | | | | **+$67.85** | **−13.92%** | **−$50.41** |
 
 ## ⚠️ Risk Analysis
 
