@@ -3,7 +3,7 @@ title: article/04_option_hedging
 group: article
 ---
 
-# Why the Price Drops in a Single Candle
+# 🩸 Why the Price Drops in a Single Candle
 
 ![Price drops](../../assets/images/candle.png)
 
