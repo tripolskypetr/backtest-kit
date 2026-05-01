@@ -613,6 +613,10 @@ const GET_SIGNAL_FN = trycatch(
           _peak: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
           _fall: { price: signal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
         };
+        {
+          const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(signalRow, signal.priceOpen);
+          signalRow._fall = { price: signal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries };
+        }
 
         // Валидируем сигнал перед возвратом
         validatePendingSignal(signalRow, currentPrice);
@@ -668,6 +672,10 @@ const GET_SIGNAL_FN = trycatch(
       _peak: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
       _fall: { price: currentPrice, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
     };
+    {
+      const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(signalRow, currentPrice);
+      signalRow._fall = { price: currentPrice, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries };
+    }
 
     // Валидируем сигнал перед возвратом
     validatePendingSignal(signalRow, currentPrice);
@@ -1593,6 +1601,10 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
     _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
   };
+  {
+    const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
+    activatedSignal._fall = { price: activatedSignal.priceOpen, timestamp: activationTime, pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen };
+  }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
   const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
@@ -3265,6 +3277,10 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     _peak: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
     _fall: { price: scheduled.priceOpen, timestamp: activationTime, pnlPercentage: 0, pnlCost: 0, pnlEntries: 0, priceClose: 0, priceOpen: 0 },
   };
+  {
+    const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(activatedSignal, activatedSignal.priceOpen);
+    activatedSignal._fall = { price: activatedSignal.priceOpen, timestamp: activationTime, pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen };
+  }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
   const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
@@ -3662,6 +3678,10 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
         _fall: { price: activatedSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage: 0, pnlCost: 0, priceClose: 0, priceOpen: 0, pnlEntries: 0 },
       };
+      {
+        const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
+        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: candle.timestamp, pnlPercentage, pnlCost, priceClose, priceOpen, pnlEntries };
+      }
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
       const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
@@ -5462,6 +5482,10 @@ export class ClientStrategy implements IStrategy {
         _peak: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
         _fall: { price: activatedSignal.priceOpen, timestamp: currentTime, pnlPercentage: 0, pnlCost: 0, priceClose: 0, pnlEntries: 0, priceOpen: 0 },
       };
+      {
+        const { pnlPercentage, pnlCost, pnlEntries, priceClose, priceOpen } = toProfitLossDto(pendingSignal, pendingSignal.priceOpen);
+        pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, pnlEntries, priceOpen };
+      }
 
       const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);
       if (!syncOpenAllowed) {
