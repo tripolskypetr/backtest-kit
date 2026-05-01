@@ -168,6 +168,9 @@ class ReportStorage {
         expectedYearlyReturns: null,
         avgPeakPnl: null,
         avgFallPnl: null,
+        sortinoRatio: null,
+        calmarRatio: null,
+        recoveryFactor: null,
       };
     }
 
@@ -211,6 +214,20 @@ class ReportStorage {
     const avgPeakPnl = this._signalList.reduce((sum, s) => sum + (s.signal.peakProfit?.pnlPercentage ?? 0), 0) / totalSignals;
     const avgFallPnl = this._signalList.reduce((sum, s) => sum + (s.signal.maxDrawdown?.pnlPercentage ?? 0), 0) / totalSignals;
 
+    // Downside per signal: maxDrawdown.pnlPercentage captures the worst intra-trade dip
+    const fallReturns = this._signalList.map((s) => s.signal.maxDrawdown?.pnlPercentage ?? 0);
+
+    // Calculate Sortino Ratio: avgPnl / stdDev(maxDrawdown per signal)
+    const fallVariance = fallReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / totalSignals;
+    const fallDeviation = Math.sqrt(fallVariance);
+    const sortinoRatio = fallDeviation > 0 ? avgPnl / fallDeviation : 0;
+
+    // Avg absolute peak drawdown per signal — used as denominator for Calmar and Recovery
+    const avgAbsFall = fallReturns.reduce((sum, r) => sum + Math.abs(r), 0) / totalSignals;
+
+    const calmarRatio = avgAbsFall > 0 ? expectedYearlyReturns / avgAbsFall : 0;
+    const recoveryFactor = avgAbsFall > 0 ? totalPnl / avgAbsFall : 0;
+
     return {
       signalList: this._signalList,
       totalSignals,
@@ -226,6 +243,9 @@ class ReportStorage {
       expectedYearlyReturns: isUnsafe(expectedYearlyReturns) ? null : expectedYearlyReturns,
       avgPeakPnl: isUnsafe(avgPeakPnl) ? null : avgPeakPnl,
       avgFallPnl: isUnsafe(avgFallPnl) ? null : avgFallPnl,
+      sortinoRatio: isUnsafe(sortinoRatio) ? null : sortinoRatio,
+      calmarRatio: isUnsafe(calmarRatio) ? null : calmarRatio,
+      recoveryFactor: isUnsafe(recoveryFactor) ? null : recoveryFactor,
     };
   }
 
@@ -284,6 +304,9 @@ class ReportStorage {
       `**Expected Yearly Returns:** ${stats.expectedYearlyReturns === null ? "N/A" : `${stats.expectedYearlyReturns > 0 ? "+" : ""}${stats.expectedYearlyReturns.toFixed(2)}% (higher is better)`}`,
       `**Avg Peak PNL:** ${stats.avgPeakPnl === null ? "N/A" : `${stats.avgPeakPnl > 0 ? "+" : ""}${stats.avgPeakPnl.toFixed(2)}% (higher is better)`}`,
       `**Avg Max Drawdown PNL:** ${stats.avgFallPnl === null ? "N/A" : `${stats.avgFallPnl.toFixed(2)}% (closer to 0 is better)`}`,
+      `**Sortino Ratio:** ${stats.sortinoRatio === null ? "N/A" : `${stats.sortinoRatio.toFixed(3)} (higher is better)`}`,
+      `**Calmar Ratio:** ${stats.calmarRatio === null ? "N/A" : `${stats.calmarRatio.toFixed(3)} (higher is better)`}`,
+      `**Recovery Factor:** ${stats.recoveryFactor === null ? "N/A" : `${stats.recoveryFactor.toFixed(3)} (higher is better)`}`,
     ].join("\n");
   }
 

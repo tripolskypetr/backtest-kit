@@ -86,6 +86,9 @@ export class WalkerReportService {
       annualizedSharpeRatio: data.stats.annualizedSharpeRatio,
       certaintyRatio: data.stats.certaintyRatio,
       expectedYearlyReturns: data.stats.expectedYearlyReturns,
+      sortinoRatio: data.stats.sortinoRatio,
+      calmarRatio: data.stats.calmarRatio,
+      recoveryFactor: data.stats.recoveryFactor,
       firstEventTime,
       lastEventTime,
     }, {

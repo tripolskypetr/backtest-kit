@@ -4466,6 +4466,12 @@ interface BacktestStatisticsModel {
     avgPeakPnl: number | null;
     /** Average fall PNL percentage across all signals (_fall.pnlPercentage), null if unsafe. Lower (more negative) means deeper drawdowns. */
     avgFallPnl: number | null;
+    /** Sortino Ratio (avgPnl / downside deviation — stdDev of losses only), null if unsafe. Higher is better. */
+    sortinoRatio: number | null;
+    /** Calmar Ratio (annualized expected return / max drawdown), null if unsafe. Higher is better. */
+    calmarRatio: number | null;
+    /** Recovery Factor (totalPnl / max drawdown), null if unsafe. Higher is better. */
+    recoveryFactor: number | null;
 }
 
 /**
@@ -10259,6 +10265,12 @@ interface IHeatmapRow {
     avgPeakPnl: number | null;
     /** Average fall PNL percentage across all trades (_fall.pnlPercentage). Closer to 0 is better. */
     avgFallPnl: number | null;
+    /** Sortino Ratio (avgPnl / downside deviation — stdDev of losses only). Higher is better. */
+    sortinoRatio: number | null;
+    /** Calmar Ratio (totalPnl / maxDrawdown). Higher is better. */
+    calmarRatio: number | null;
+    /** Recovery Factor (totalPnl / maxDrawdown). Higher is better. */
+    recoveryFactor: number | null;
 }
 
 /**
@@ -12131,6 +12143,12 @@ interface LiveStatisticsModel {
     avgPeakPnl: number | null;
     /** Average fall PNL percentage across all closed signals (_fall.pnlPercentage), null if unsafe. Closer to 0 is better. */
     avgFallPnl: number | null;
+    /** Sortino Ratio (avgPnl / downside deviation — stdDev of losses only), null if unsafe. Higher is better. */
+    sortinoRatio: number | null;
+    /** Calmar Ratio (annualized expected return / max drawdown), null if unsafe. Higher is better. */
+    calmarRatio: number | null;
+    /** Recovery Factor (totalPnl / max drawdown), null if unsafe. Higher is better. */
+    recoveryFactor: number | null;
 }
 
 /**

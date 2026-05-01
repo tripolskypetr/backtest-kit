@@ -112,6 +112,33 @@ export const walker_strategy_columns: ColumnModel<IStrategyResult>[] = [
     isVisible: () => true,
   },
   {
+    key: "sortinoRatio",
+    label: "Sortino",
+    format: (data) =>
+      data.stats.sortinoRatio !== null
+        ? `${data.stats.sortinoRatio.toFixed(3)}`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "calmarRatio",
+    label: "Calmar",
+    format: (data) =>
+      data.stats.calmarRatio !== null
+        ? `${data.stats.calmarRatio.toFixed(3)}`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "recoveryFactor",
+    label: "Recovery",
+    format: (data) =>
+      data.stats.recoveryFactor !== null
+        ? `${data.stats.recoveryFactor.toFixed(3)}`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "firstEventTime",
     label: "First Event",
     format: (data) =>

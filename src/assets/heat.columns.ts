@@ -132,4 +132,25 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
       data.avgFallPnl !== null ? str(data.avgFallPnl, "%") : "N/A",
     isVisible: () => true,
   },
+  {
+    key: "sortinoRatio",
+    label: "Sortino",
+    format: (data) =>
+      data.sortinoRatio !== null ? str(data.sortinoRatio) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "calmarRatio",
+    label: "Calmar",
+    format: (data) =>
+      data.calmarRatio !== null ? str(data.calmarRatio) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "recoveryFactor",
+    label: "Recovery",
+    format: (data) =>
+      data.recoveryFactor !== null ? str(data.recoveryFactor) : "N/A",
+    isVisible: () => true,
+  },
 ];

@@ -305,6 +305,31 @@ class HeatmapStorage {
       avgFallPnl = signals.reduce((acc, s) => acc + (s.signal.maxDrawdown?.pnlPercentage ?? 0), 0) / signals.length;
     }
 
+    // Downside per signal: maxDrawdown.pnlPercentage captures the worst intra-trade dip
+    const fallReturns = signals.map((s) => s.signal.maxDrawdown?.pnlPercentage ?? 0);
+
+    // Calculate Sortino Ratio: avgPnl / stdDev(maxDrawdown per signal)
+    let sortinoRatio: number | null = null;
+    if (signals.length > 0 && avgPnl !== null) {
+      const fallVariance = fallReturns.reduce((acc, r) => acc + Math.pow(r, 2), 0) / signals.length;
+      const fallDeviation = Math.sqrt(fallVariance);
+      if (fallDeviation > 0) {
+        sortinoRatio = avgPnl / fallDeviation;
+      }
+    }
+
+    // Avg absolute peak drawdown per signal — denominator for Calmar and Recovery
+    const avgAbsFall = signals.length > 0
+      ? fallReturns.reduce((acc, r) => acc + Math.abs(r), 0) / signals.length
+      : 0;
+
+    let calmarRatio: number | null = null;
+    let recoveryFactor: number | null = null;
+    if (avgAbsFall > 0 && totalPnl !== null) {
+      calmarRatio = totalPnl / avgAbsFall;
+      recoveryFactor = totalPnl / avgAbsFall;
+    }
+
     // Apply safe math checks
     if (isUnsafe(winRate)) winRate = null;
     if (isUnsafe(totalPnl)) totalPnl = null;
@@ -318,6 +343,9 @@ class HeatmapStorage {
     if (isUnsafe(expectancy)) expectancy = null;
     if (isUnsafe(avgPeakPnl)) avgPeakPnl = null;
     if (isUnsafe(avgFallPnl)) avgFallPnl = null;
+    if (isUnsafe(sortinoRatio)) sortinoRatio = null;
+    if (isUnsafe(calmarRatio)) calmarRatio = null;
+    if (isUnsafe(recoveryFactor)) recoveryFactor = null;
 
     return {
       symbol,
@@ -338,6 +366,9 @@ class HeatmapStorage {
       expectancy,
       avgPeakPnl,
       avgFallPnl,
+      sortinoRatio,
+      calmarRatio,
+      recoveryFactor,
     };
   }
 

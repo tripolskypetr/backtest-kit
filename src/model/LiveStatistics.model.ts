@@ -129,4 +129,13 @@ export interface LiveStatisticsModel {
 
   /** Average fall PNL percentage across all closed signals (_fall.pnlPercentage), null if unsafe. Closer to 0 is better. */
   avgFallPnl: number | null;
+
+  /** Sortino Ratio (avgPnl / downside deviation — stdDev of losses only), null if unsafe. Higher is better. */
+  sortinoRatio: number | null;
+
+  /** Calmar Ratio (annualized expected return / max drawdown), null if unsafe. Higher is better. */
+  calmarRatio: number | null;
+
+  /** Recovery Factor (totalPnl / max drawdown), null if unsafe. Higher is better. */
+  recoveryFactor: number | null;
 }
