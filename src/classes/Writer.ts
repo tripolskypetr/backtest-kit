@@ -2,6 +2,7 @@ import {
   getErrorMessage,
   makeExtendable,
   memoize,
+  queued,
   singleshot,
   timeout,
   TIMEOUT_SYMBOL,
@@ -624,13 +625,15 @@ class ReportBase implements TReportBase {
    * Waits for drain event if write buffer is full.
    * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
    */
-  [WRITE_SAFE_SYMBOL] = timeout(async (line: string) => {
-    if (!this._stream.write(line)) {
-      await new Promise<void>((resolve) => {
-        this._stream!.once("drain", resolve);
-      });
-    }
-  }, 15_000);
+  [WRITE_SAFE_SYMBOL] = queued(
+    timeout(async (line: string) => {
+      if (!this._stream.write(line)) {
+        await new Promise<void>((resolve) => {
+          this._stream!.once("drain", resolve);
+        });
+      }
+    }, 15_000)
+  );
 
   /**
    * Initializes the JSONL file and write stream.

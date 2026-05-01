@@ -14593,7 +14593,7 @@ declare class ReportBase implements TReportBase {
      * Waits for drain event if write buffer is full.
      * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
      */
-    [WRITE_SAFE_SYMBOL]: (line: string) => Promise<symbol | void>;
+    [WRITE_SAFE_SYMBOL]: functools_kit.IWrappedQueuedFn<symbol | void, [line: string]>;
     /**
      * Initializes the JSONL file and write stream.
      * Safe to call multiple times - singleshot ensures one-time execution.
