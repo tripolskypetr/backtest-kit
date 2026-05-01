@@ -15,7 +15,10 @@
       "profitFactor": 2.14,
       "maxDrawdown": -4.52,
       "expectancy": 0.61,
-      "totalTrades": 11
+      "totalTrades": 11,
+      "sortinoRatio": 1.42,
+      "calmarRatio": 1.82,
+      "recoveryFactor": 1.82
     },
     {
       "symbol": "ETHUSDT",
@@ -24,7 +27,10 @@
       "profitFactor": 1.47,
       "maxDrawdown": -6.31,
       "expectancy": 0.38,
-      "totalTrades": 7
+      "totalTrades": 7,
+      "sortinoRatio": 0.91,
+      "calmarRatio": 0.68,
+      "recoveryFactor": 0.68
     }
   ],
   "backtest": true

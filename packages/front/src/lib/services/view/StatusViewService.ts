@@ -156,7 +156,7 @@ export class StatusViewService {
           portfolioTotalPnl: currentHeat.portfolioTotalPnl,
           portfolioSharpeRatio: currentHeat.portfolioSharpeRatio,
           portfolioTotalTrades: currentHeat.portfolioTotalTrades,
-          symbols: currentHeat.symbols.map(({ symbol, totalPnl, winRate, profitFactor, maxDrawdown, expectancy, totalTrades }) => ({
+          symbols: currentHeat.symbols.map(({ symbol, totalPnl, winRate, profitFactor, maxDrawdown, expectancy, totalTrades, sortinoRatio, calmarRatio, recoveryFactor }) => ({
             symbol,
             totalPnl,
             winRate,
@@ -164,6 +164,9 @@ export class StatusViewService {
             maxDrawdown,
             expectancy,
             totalTrades,
+            sortinoRatio,
+            calmarRatio,
+            recoveryFactor,
           })),
           backtest: true,
         };
@@ -187,7 +190,7 @@ export class StatusViewService {
           portfolioTotalPnl: currentHeat.portfolioTotalPnl,
           portfolioSharpeRatio: currentHeat.portfolioSharpeRatio,
           portfolioTotalTrades: currentHeat.portfolioTotalTrades,
-          symbols: currentHeat.symbols.map(({ symbol, totalPnl, winRate, profitFactor, maxDrawdown, expectancy, totalTrades }) => ({
+          symbols: currentHeat.symbols.map(({ symbol, totalPnl, winRate, profitFactor, maxDrawdown, expectancy, totalTrades, sortinoRatio, calmarRatio, recoveryFactor }) => ({
             symbol,
             totalPnl,
             winRate,
@@ -195,6 +198,9 @@ export class StatusViewService {
             maxDrawdown,
             expectancy,
             totalTrades,
+            sortinoRatio,
+            calmarRatio,
+            recoveryFactor,
           })),
           backtest: false,
         };

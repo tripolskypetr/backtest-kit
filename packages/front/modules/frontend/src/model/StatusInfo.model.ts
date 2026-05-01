@@ -6,6 +6,9 @@ type StatusInfoSymbol = {
     maxDrawdown: number | null;
     expectancy: number | null;
     totalTrades: number;
+    sortinoRatio: number | null;
+    calmarRatio: number | null;
+    recoveryFactor: number | null;
 };
 
 export interface StatusInfoModel {

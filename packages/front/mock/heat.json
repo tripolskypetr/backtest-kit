@@ -16,7 +16,12 @@
       "avgLoss": -0.97,
       "maxWinStreak": 4,
       "maxLossStreak": 2,
-      "expectancy": 0.61
+      "expectancy": 0.61,
+      "avgPeakPnl": 2.41,
+      "avgFallPnl": -1.83,
+      "sortinoRatio": 1.42,
+      "calmarRatio": 1.82,
+      "recoveryFactor": 1.82
     },
     {
       "symbol": "ETHUSDT",
@@ -34,7 +39,12 @@
       "avgLoss": -1.21,
       "maxWinStreak": 3,
       "maxLossStreak": 2,
-      "expectancy": 0.38
+      "expectancy": 0.38,
+      "avgPeakPnl": 1.97,
+      "avgFallPnl": -2.14,
+      "sortinoRatio": 0.91,
+      "calmarRatio": 0.68,
+      "recoveryFactor": 0.68
     }
   ],
   "totalSymbols": 2,

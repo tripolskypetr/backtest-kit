@@ -63,6 +63,9 @@ const toMarkdown = (data: StatusInfoModel): string => {
             `**Profit Factor:** ${fmt(s.profitFactor, "")}  `,
             `**Max Drawdown:** ${fmt(s.maxDrawdown)}  `,
             `**Expectancy:** ${fmt(s.expectancy)}  `,
+            `**Sortino Ratio:** ${fmt(s.sortinoRatio, "")}  `,
+            `**Calmar Ratio:** ${fmt(s.calmarRatio, "")}  `,
+            `**Recovery Factor:** ${fmt(s.recoveryFactor, "")}  `,
             `**${t("Trades")}:** ${s.totalTrades}`,
             "",
         );

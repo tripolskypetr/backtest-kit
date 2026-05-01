@@ -105,10 +105,12 @@ const createFields = (rows: IHeatmapRow[]): TypedField[] => {
             type: FieldType.Center,
             sx: (theme) => ({
                 [theme.breakpoints.up("lg")]: {
-                    height: "calc(100dvh - 165px)",
-                    "& > *": {
-                        transform: "translateY(-56px)",
-                    }
+                    '@media (min-height: 900px)': {
+                        height: "calc(100dvh - 165px)",
+                        "& > *": {
+                            transform: "translateY(-56px)",
+                        }
+                    },
                 },
             }),
             fields,
