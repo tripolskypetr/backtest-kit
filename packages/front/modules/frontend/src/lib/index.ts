@@ -38,6 +38,8 @@ import SignalMockService from "./services/mock/SignalMockService";
 import HeatMockService from "./services/mock/HeatMockService";
 import PerformanceViewService from "./services/view/PerformanceViewService";
 import PerformanceMockService from "./services/mock/PerformanceMockService";
+import EnvironmentViewService from "./services/view/EnvironmentViewService";
+import EnvironmentMockService from "./services/mock/EnvironmentMockService";
 
 import TYPES from "./core/TYPES";
 
@@ -73,6 +75,7 @@ const mockServices = {
   signalMockService: inject<SignalMockService>(TYPES.signalMockService),
   heatMockService: inject<HeatMockService>(TYPES.heatMockService),
   performanceMockService: inject<PerformanceMockService>(TYPES.performanceMockService),
+  environmentMockService: inject<EnvironmentMockService>(TYPES.environmentMockService),
 };
 
 const viewServices = {
@@ -86,6 +89,7 @@ const viewServices = {
   signalViewService: inject<SignalViewService>(TYPES.signalViewService),
   heatViewService: inject<HeatViewService>(TYPES.heatViewService),
   performanceViewService: inject<PerformanceViewService>(TYPES.performanceViewService),
+  environmentViewService: inject<EnvironmentViewService>(TYPES.environmentViewService),
 };
 
 export const ioc = {

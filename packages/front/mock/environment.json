@@ -1,0 +1,7 @@
+{
+  "quickchart_host": "https://quickchart.io",
+  "telegram_channel": "@tradegpt_signals",
+  "wwwroot_host": "0.0.0.0",
+  "wwwroot_path": "./public",
+  "wwwroot_port": 60050
+}

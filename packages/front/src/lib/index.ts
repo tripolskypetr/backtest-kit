@@ -29,6 +29,8 @@ import LiveMetaService from "./services/meta/LiveMetaService";
 import BacktestMetaService from "./services/meta/BacktestMetaService";
 import PerformanceViewService from "./services/view/PerformanceViewService";
 import PerformanceMockService from "./services/mock/PerformanceMockService";
+import EnvironmentMockService from "./services/mock/EnvironmentMockService";
+import EnvironmentViewService from "./services/view/EnvironmentViewService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -57,6 +59,7 @@ const mockServices = {
   signalMockService: inject<SignalMockService>(TYPES.signalMockService),
   heatMockService: inject<HeatMockService>(TYPES.heatMockService),
   performanceMockService: inject<PerformanceMockService>(TYPES.performanceMockService),
+  environmentMockService: inject<EnvironmentMockService>(TYPES.environmentMockService),
 };
 
 const viewServices = {
@@ -70,6 +73,7 @@ const viewServices = {
   signalViewService: inject<SignalViewService>(TYPES.signalViewService),
   heatViewService: inject<HeatViewService>(TYPES.heatViewService),
   performanceViewService: inject<PerformanceViewService>(TYPES.performanceViewService),
+  environmentViewService: inject<EnvironmentViewService>(TYPES.environmentViewService),
 };
 
 const ioc = {

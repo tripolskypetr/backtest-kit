@@ -25,6 +25,7 @@ const mockServices = {
     signalMockService: Symbol("signalMockService"),
     heatMockService: Symbol("heatMockService"),
     performanceMockService: Symbol("performanceMockService"),
+    environmentMockService: Symbol("environmentMockService"),
 }
 
 const viewServices = {
@@ -38,6 +39,7 @@ const viewServices = {
     signalViewService: Symbol("signalViewService"),
     heatViewService: Symbol("heatViewService"),
     performanceViewService: Symbol("performanceViewService"),
+    environmentViewService: Symbol("environmentViewService"),
 }
 
 export const TYPES = {

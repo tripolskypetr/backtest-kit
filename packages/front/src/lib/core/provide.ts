@@ -26,6 +26,9 @@ import PriceConnectionService from "../services/connection/PriceConnectionServic
 import BacktestMetaService from "../services/meta/BacktestMetaService";
 import LiveMetaService from "../services/meta/LiveMetaService";
 import PerformanceMockService from "../services/mock/PerformanceMockService";
+import EnvironmentMockService from "../services/mock/EnvironmentMockService";
+import PerformanceViewService from "../services/view/PerformanceViewService";
+import EnvironmentViewService from "../services/view/EnvironmentViewService";
 
 {
   provide(TYPES.loggerService, () => new LoggerService());
@@ -54,6 +57,7 @@ import PerformanceMockService from "../services/mock/PerformanceMockService";
   provide(TYPES.signalMockService, () => new SignalMockService());
   provide(TYPES.heatMockService, () => new HeatMockService());
   provide(TYPES.performanceMockService, () => new PerformanceMockService());
+  provide(TYPES.environmentMockService, () => new EnvironmentMockService());
 }
 
 {
@@ -66,4 +70,6 @@ import PerformanceMockService from "../services/mock/PerformanceMockService";
  provide(TYPES.explorerViewService, () => new ExplorerViewService());
  provide(TYPES.signalViewService, () => new SignalViewService());
  provide(TYPES.heatViewService, () => new HeatViewService());
+ provide(TYPES.performanceViewService, () => new PerformanceViewService());
+ provide(TYPES.environmentViewService, () => new EnvironmentViewService());
 }

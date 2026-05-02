@@ -406,6 +406,30 @@ declare class BacktestMetaService {
     }[]>;
 }
 
+declare class PerformanceViewService {
+    private readonly loggerService;
+    private readonly performanceMockService;
+    getPerformanceData: () => Promise<any>;
+    getPerformanceReport: () => Promise<string>;
+}
+
+declare class PerformanceMockService {
+    private readonly loggerService;
+    getPerformanceData: () => Promise<any>;
+    getPerformanceReport: () => Promise<string>;
+}
+
+declare class EnvironmentMockService {
+    private readonly loggerService;
+    getEnvironmentData: () => Promise<any>;
+}
+
+declare class EnvironmentViewService {
+    private readonly loggerService;
+    private readonly enviromentMockService;
+    getEnvironmentData: () => Promise<any>;
+}
+
 declare const ioc: {
     notificationViewService: NotificationViewService;
     storageViewService: StorageViewService;
@@ -416,6 +440,8 @@ declare const ioc: {
     explorerViewService: ExplorerViewService;
     signalViewService: SignalViewService;
     heatViewService: HeatViewService;
+    performanceViewService: PerformanceViewService;
+    environmentViewService: EnvironmentViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
@@ -425,6 +451,8 @@ declare const ioc: {
     explorerMockService: ExplorerMockService;
     signalMockService: SignalMockService;
     heatMockService: HeatMockService;
+    performanceMockService: PerformanceMockService;
+    environmentMockService: EnvironmentMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
     backtestMetaService: BacktestMetaService;

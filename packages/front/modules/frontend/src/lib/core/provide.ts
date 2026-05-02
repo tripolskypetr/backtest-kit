@@ -18,6 +18,7 @@ import ExplorerMockService from "../services/mock/ExplorerMockService";
 import SignalMockService from "../services/mock/SignalMockService";
 import HeatMockService from "../services/mock/HeatMockService";
 import PerformanceMockService from "../services/mock/PerformanceMockService";
+import EnvironmentMockService from "../services/mock/EnvironmentMockService";
 
 import ExchangeViewService from "../services/view/ExchangeViewService";
 import NotificationViewService from "../services/view/NotificationViewService";
@@ -29,6 +30,7 @@ import ExplorerViewService from "../services/view/ExplorerViewService";
 import SignalViewService from "../services/view/SignalViewService";
 import HeatViewService from "../services/view/HeatViewService";
 import PerformanceViewService from "../services/view/PerformanceViewService";
+import EnvironmentViewService from "../services/view/EnvironmentViewService";
 import SymbolGlobalService from "../services/global/SymbolGlobalService";
 import PriceGlobalService from "../services/global/PriceGlobalService";
 import BacktestGlobalService from "../services/global/BacktestGlobalService";
@@ -68,6 +70,7 @@ import ExplorerHelperService from "../services/helpers/ExplorerHelperService";
     provide(TYPES.signalMockService, () => new SignalMockService());
     provide(TYPES.heatMockService, () => new HeatMockService());
     provide(TYPES.performanceMockService, () => new PerformanceMockService());
+    provide(TYPES.environmentMockService, () => new EnvironmentMockService());
 }
 
 {
@@ -81,4 +84,5 @@ import ExplorerHelperService from "../services/helpers/ExplorerHelperService";
     provide(TYPES.signalViewService, () => new SignalViewService());
     provide(TYPES.heatViewService, () => new HeatViewService());
     provide(TYPES.performanceViewService, () => new PerformanceViewService());
+    provide(TYPES.environmentViewService, () => new EnvironmentViewService());
 }
