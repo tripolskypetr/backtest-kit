@@ -6,7 +6,9 @@ import {
   Breadcrumbs2Type,
   IBreadcrumbs2Option,
   Breadcrumbs2,
-  formatAmount,
+  IBreadcrumbs2Action,
+  Subject,
+  useOnce,
 } from "react-declarative";
 
 import {
@@ -20,8 +22,10 @@ import {
 } from "@mui/material";
 import { One } from "react-declarative";
 import { useMemo } from "react";
-import { KeyboardArrowLeft, Telegram, GitHub } from "@mui/icons-material";
+import { KeyboardArrowLeft, Telegram, GitHub, PictureAsPdfOutlined, Refresh, PictureAsPdf, Description, DataObject } from "@mui/icons-material";
 import ioc from "../../../lib";
+import IconWrapper from "../../../components/common/IconWrapper";
+import downloadMarkdown from "../../../utils/downloadMarkdown";
 
 const AVATAR_SIDE = 144;
 const AVATAR_SRC = "/logo/icon512_maskable.png";
@@ -42,6 +46,38 @@ const options: IBreadcrumbs2Option[] = [
     action: "back-action",
     label: "Производительность",
   },
+  {
+      type: Breadcrumbs2Type.Button,
+      action: "download-pdf",
+      label: "Download PDF",
+      icon: PictureAsPdfOutlined,
+  },
+];
+
+const actions: IBreadcrumbs2Action[] = [
+    {
+        action: "download-json",
+        label: "Download JSON",
+        icon: () => <IconWrapper icon={DataObject} color="#4caf50" />,
+    },
+    {
+        action: "download-markdown",
+        label: "Download Markdown",
+        icon: () => <IconWrapper icon={Description} color="#4caf50" />,
+    },
+    {
+        action: "download-pdf",
+        label: "Download PDF",
+        icon: () => <IconWrapper icon={PictureAsPdf} color="#4caf50" />,
+    },
+    {
+        divider: true,
+    },
+    {
+        action: "update-now",
+        label: "Refresh",
+        icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
+    },
 ];
 
 const createRateRow = ({ name, title }): TypedField => ({
@@ -76,10 +112,10 @@ const createRateRow = ({ name, title }): TypedField => ({
           return "-";
         }
         if (name === "totalEvents") {
-          return formatAmount(value);
+          return Number(value).toFixed(2);
         }
         if (name === "totalDuration") {
-          return `${formatAmount(value)} мс`;
+          return `${Number(value).toFixed(2)} мс`;
         }
         if (name === "avgDuration") {
           return `${Number(value).toFixed(2)} мс`;
@@ -160,7 +196,7 @@ const createLinkRow = ({ name, title }): TypedField => ({
   ],
 });
 
-export const fields: TypedField[] = [
+const fields: TypedField[] = [
   {
     type: FieldType.Box,
     sx: {
@@ -243,15 +279,41 @@ export const fields: TypedField[] = [
   },
 ];
 
+const reloadSubject = new Subject<void>();
+
+
+const handleDownloadMarkdown = async () => {
+    const content = await ioc.performanceViewService.getPerformanceReport();
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    ioc.layoutService.downloadFile(url, `performance_${Date.now()}.md`);
+};
+
+const handleDownloadPdf = async () => {
+    const content = await ioc.performanceViewService.getPerformanceReport();
+    await downloadMarkdown(content);
+};
+
+const handleDownloadJson = async () => {
+    const data = await ioc.performanceViewService.getPerformanceData();
+    const content = JSON.stringify(data, null, 2);
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    ioc.layoutService.downloadFile(url, `performance_${Date.now()}.md`);
+}
+
+const handleReload = async () => {
+  {
+    ioc.performanceViewService.getPerformanceData.clear();
+    ioc.performanceViewService.getPerformanceReport.clear();
+    ioc.environmentViewService.getEnvironmentData.clear();
+  }
+  await reloadSubject.next();
+};
+
 export const DashboardView = () => {
 
-  const handleAction = async (action: string) => {
-    if (action === "back-action") {
-      ioc.routerService.push("/main")
-    }
-  };
-
-  const [data] = useAsyncValue(
+  const [data, { execute: executeData, loading: loadingData }] = useAsyncValue(
     async () => {
       const data = await ioc.performanceViewService.getPerformanceData();
       return data;
@@ -262,39 +324,60 @@ export const DashboardView = () => {
     }
   );
 
-  const [env] = useAsyncValue(async () => {
+  useOnce(() => reloadSubject.subscribe(executeData));
+
+  const handleAction = async (action: string) => {
+    if (action === "back-action") {
+      ioc.routerService.push("/main")
+    }
+    if (action === "update-now") {
+      await handleReload();
+    }
+    if (action === "download-markdown") {
+        await handleDownloadMarkdown();
+    }
+    if (action === "download-pdf") {
+        await handleDownloadPdf();
+    }
+    if (action === "download-json") {
+        await handleDownloadJson();
+    }
+  };
+
+  const [env, { execute: executeEnv, loading: loadingEnv }] = useAsyncValue(async () => {
     const data = await ioc.environmentViewService.getEnvironmentData();
     return data;
   });
 
-  const measures = useMemo(() => {
-    if (!data || !env) {
-      return null;
-    }
-
-    const avgDuration = data.totalEvents > 0
-      ? data.totalDuration / data.totalEvents
-      : 0;
-
-    return {
-      channel: env.telegram_channel,
-      github: "https://github.com/tripolskypetr/backtest-kit",
-      totalEvents: data.totalEvents,
-      totalDuration: data.totalDuration,
-      avgDuration: avgDuration,
-    };
-  }, [data, env]);
+  useOnce(() => reloadSubject.subscribe(executeEnv));
 
   if (!data || !env) {
     return null;
   }
 
-  console.log({ measures });
+  if (loadingData || loadingEnv) {
+    return null;
+  }
 
   return (
     <Container>
-      <Breadcrumbs2 items={options} onAction={handleAction} />
-      <One handler={() => measures} fields={fields} />
+      <Breadcrumbs2 items={options} actions={actions} onAction={handleAction} />
+      <One 
+        handler={() => {
+          const avgDuration = data.totalEvents > 0
+            ? data.totalDuration / data.totalEvents
+            : 0;
+
+          return {
+            channel: env.telegram_channel,
+            github: "https://github.com/tripolskypetr/backtest-kit",
+            totalEvents: data.totalEvents,
+            totalDuration: data.totalDuration,
+            avgDuration: avgDuration,
+          };
+        }} 
+        fields={fields}
+      />
     </Container>
   );
 };
