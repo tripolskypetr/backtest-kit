@@ -122,4 +122,13 @@ export const LOCALE: Record<string, string> = {
   "Disconnected from server": "Отключен от сервера",
   "Reload page": "Перезагрузить страницу",
   "Reconnect": "Переподключиться",
+  // AboutPage
+  "Performance": "Производительность",
+  "ms": "мс",
+  "Open": "Открыть",
+  "Not configured": "Не настроен",
+  "Total events": "Всего событий",
+  "Total time": "Общее время",
+  "Average time": "Среднее время",
+  "Channel": "Канал",
 };

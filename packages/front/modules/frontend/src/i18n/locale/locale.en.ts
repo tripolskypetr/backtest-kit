@@ -122,4 +122,13 @@ export const LOCALE: Record<string, string> = {
   "Disconnected from server": "Disconnected from server",
   "Reload page": "Reload page",
   "Reconnect": "Reconnect",
+  // AboutPage
+  "Performance": "Performance",
+  "ms": "ms",
+  "Open": "Open",
+  "Not configured": "Not configured",
+  "Total events": "Total events",
+  "Total time": "Total time",
+  "Average time": "Average time",
+  "Channel": "Channel",
 };

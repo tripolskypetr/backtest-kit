@@ -26,6 +26,7 @@ import { KeyboardArrowLeft, Telegram, GitHub, PictureAsPdfOutlined, Refresh, Pic
 import ioc from "../../../lib";
 import IconWrapper from "../../../components/common/IconWrapper";
 import downloadMarkdown from "../../../utils/downloadMarkdown";
+import { t } from "../../../i18n";
 
 const AVATAR_SIDE = 144;
 const AVATAR_SRC = "/logo/icon512_maskable.png";
@@ -39,12 +40,12 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Дэшборд",
+    label: "Dashboard",
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Производительность",
+    label: "Performance",
   },
   {
       type: Breadcrumbs2Type.Button,
@@ -115,10 +116,10 @@ const createRateRow = ({ name, title }): TypedField => ({
           return Number(value).toFixed(2);
         }
         if (name === "totalDuration") {
-          return `${Number(value).toFixed(2)} мс`;
+          return `${Number(value).toFixed(2)} ${t("ms")}`;
         }
         if (name === "avgDuration") {
-          return `${Number(value).toFixed(2)} мс`;
+          return `${Number(value).toFixed(2)} ${t("ms")}`;
         }
         return value;
       },
@@ -187,7 +188,7 @@ const createLinkRow = ({ name, title }): TypedField => ({
               }
             }}
           >
-            {value ? "Открыть" : "Не настроен"}
+            {value ? t("Open") : t("Not configured")}
           </Button>
         );
       },
@@ -254,19 +255,19 @@ const fields: TypedField[] = [
             },
             createRateRow({
               name: "totalEvents",
-              title: "Всего событий",
+              title: t("Total events"),
             }),
             createRateRow({
               name: "totalDuration",
-              title: "Общее время (мс)",
+              title: t("Total time"),
             }),
             createRateRow({
               name: "avgDuration",
-              title: "Среднее время (мс)",
+              title: t("Average time"),
             }),
             createLinkRow({
               name: "channel",
-              title: "Канал",
+              title: t("Channel"),
             }),
             createLinkRow({
               name: "github",
