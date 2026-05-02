@@ -15,6 +15,7 @@
 
 | Strategy | Ticker | Period | Signal source | Net PNL | Sharpe |
 |---|---|---|---|---|---|
+| [BTCUSDT Oct 2021 — TensorFlow Neural Network](./content/oct_2021.strategy/README.md) | BTCUSDT | Oct 2021 | TensorFlow NN predicting next candle close | **+18.26%** | **0.31** |
 | [BTCUSDT Dec 2025 — Pine Script Range Breakout](./content/dec_2025.strategy/README.md) | BTCUSDT | Dec 2025 | Pine Script BB + range detector + volume spike | **+2.40%** | **0.06** |
 | [TRXUSDT Jan 2026 — Liquidity Harvesting](./content//jan_2026.strategy/README.md) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
 | [BTCUSDT Feb 2026 — AI News Sentiment](./content/feb_2026.strategy/README.md) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** |
@@ -69,6 +70,19 @@
 1. `getSignal` opens a LONG on every new pending signal via `Position.moonbag` with a 25% hard stop and $100 cost.
 2. While active, `commitAverageBuy` fires on each ping if the current price falls outside a ±1–5% band around the last entry and fewer than 10 rungs have been added.
 3. The position closes as soon as blended portfolio PNL reaches +3% via `commitClosePending`.
+
+---
+
+## 🧠 BTCUSDT October 2021 — TensorFlow Neural Network
+
+> **Hypothesis:** a simple feed-forward neural network trained on normalized candle patterns every 8 hours can predict next candle close position within its high-low range, enabling profitable entries when current price is below predicted price.
+
+### How it works
+
+1. Every 8 hours, the strategy fetches 58 candles (50 for training + 8 for prediction), trains a neural network (8→6→4→1 architecture) on normalized data.
+2. Normalization maps each candle's close to [0,1] as `(close - low) / (high - low)`, representing where the close sits within the candle's range.
+3. `getSignal` checks every 15 minutes: if `currentPrice < predictedPrice`, it opens a LONG via `Position.moonbag` with $100 entry and 1% hard stop.
+4. Positions close via trailing take-profit: when profit retraces 1% from its peak (e.g., position hits +3%, closes at +2%).
 
 ---
 
