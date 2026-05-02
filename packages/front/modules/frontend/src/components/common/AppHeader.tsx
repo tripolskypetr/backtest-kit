@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { makeStyles } from "../../styles";
 import { ActionMenu, Center, IOption, openBlank } from "react-declarative";
-import { GitHub } from "@mui/icons-material";
+import { Fullscreen, FullscreenExit, GitHub } from "@mui/icons-material";
 import { ioc } from "../../lib";
 import IconWrapper from "./IconWrapper";
 import NotificationView from "./NotificationView";
@@ -28,6 +28,11 @@ const LOGO_SIDE = 32;
 
 const HEADER_HEIGHT = "80px";
 const MARGIN_BOTTOM = "10px";
+
+const toggleFullscreen = () => 
+    document.fullscreenElement ?
+        document.exitFullscreen() :
+        document.querySelector('body').requestFullscreen()
 
 const useStyles = makeStyles()((theme) => ({
     root: {
@@ -120,6 +125,21 @@ interface IAppHeaderProps {
 
 const default_actions: IOption[] = [
     {
+        action: "toggle-fullscreen",
+        isVisible: () => !document.fullscreenElement,
+        label: "Enter Fullscreen",
+        icon: () => <IconWrapper icon={Fullscreen} color="#4caf50" />,
+    },
+    {
+        action: "toggle-fullscreen",
+        isVisible: () => !!document.fullscreenElement,
+        label: "Exit Fullscreen",
+        icon: () => <IconWrapper icon={FullscreenExit} color="#4caf50" />,
+    },
+    {
+        divider: true,
+    },
+    {
         action: "github-action",
         icon: () => <IconWrapper icon={GitHub} color="#6A1B9A " />,
         label: "Open GitHub",
@@ -188,6 +208,9 @@ export const AppHeader = ({
     const handleAction = async (action: string) => {
         if (action === "github-action") {
             openBlank("https://github.com/tripolskypetr/backtest-kit");
+        }
+        if (action === "toggle-fullscreen") {
+            toggleFullscreen();
         }
         if (action.startsWith(TAB_ACTION_PREFIX)) {
             handleTabNavigate(action);
