@@ -27,6 +27,8 @@ import SymbolMetaService from "./services/meta/SymbolMetaService";
 import PriceConnectionService from "./services/connection/PriceConnectionService";
 import LiveMetaService from "./services/meta/LiveMetaService";
 import BacktestMetaService from "./services/meta/BacktestMetaService";
+import PerformanceViewService from "./services/view/PerformanceViewService";
+import PerformanceMockService from "./services/mock/PerformanceMockService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -54,6 +56,7 @@ const mockServices = {
   explorerMockService: inject<ExplorerMockService>(TYPES.explorerMockService),
   signalMockService: inject<SignalMockService>(TYPES.signalMockService),
   heatMockService: inject<HeatMockService>(TYPES.heatMockService),
+  performanceMockService: inject<PerformanceMockService>(TYPES.performanceMockService),
 };
 
 const viewServices = {
@@ -66,6 +69,7 @@ const viewServices = {
   explorerViewService: inject<ExplorerViewService>(TYPES.explorerViewService),
   signalViewService: inject<SignalViewService>(TYPES.signalViewService),
   heatViewService: inject<HeatViewService>(TYPES.heatViewService),
+  performanceViewService: inject<PerformanceViewService>(TYPES.performanceViewService),
 };
 
 const ioc = {

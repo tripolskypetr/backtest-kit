@@ -150,6 +150,13 @@ interface HeatRequest {
   requestId: string;
 }
 
+interface PerformanceRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+}
+
 // ExchangeMockService endpoints
 router.post("/api/v1/mock/candles_signal", async (req, res) => {
   try {
@@ -753,6 +760,63 @@ router.post("/api/v1/mock/status_info", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/mock/status_info error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+// PerformanceMockService endpoints
+router.post("/api/v1/mock/performance_data", async (req, res) => {
+  try {
+    const request = <PerformanceRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const data = await ioc.performanceMockService.getPerformanceData();
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/performance_data ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/performance_data error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/mock/performance_report", async (req, res) => {
+  try {
+    const request = <PerformanceRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const data = await ioc.performanceMockService.getPerformanceReport();
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/performance_report ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/performance_report error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

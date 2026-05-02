@@ -1,0 +1,68 @@
+{
+  "strategyName": "test-strategy",
+  "totalEvents": 2890,
+  "totalDuration": 5847.35,
+  "metricStats": {
+    "backtest_total": {
+      "metricType": "backtest_total",
+      "count": 1,
+      "totalDuration": 5847.35,
+      "avgDuration": 5847.35,
+      "minDuration": 5847.35,
+      "maxDuration": 5847.35,
+      "stdDev": 0.0,
+      "median": 5847.35,
+      "p95": 5847.35,
+      "p99": 5847.35,
+      "avgWaitTime": 0.0,
+      "minWaitTime": 0.0,
+      "maxWaitTime": 0.0
+    },
+    "backtest_timeframe": {
+      "metricType": "backtest_timeframe",
+      "count": 1440,
+      "totalDuration": 4320.15,
+      "avgDuration": 3.0,
+      "minDuration": 0.8,
+      "maxDuration": 52.3,
+      "stdDev": 4.2,
+      "median": 2.1,
+      "p95": 12.5,
+      "p99": 28.7,
+      "avgWaitTime": 0.15,
+      "minWaitTime": 0.0,
+      "maxWaitTime": 2.3
+    },
+    "backtest_signal": {
+      "metricType": "backtest_signal",
+      "count": 1440,
+      "totalDuration": 1440.0,
+      "avgDuration": 1.0,
+      "minDuration": 0.3,
+      "maxDuration": 15.8,
+      "stdDev": 1.8,
+      "median": 0.7,
+      "p95": 4.2,
+      "p99": 9.5,
+      "avgWaitTime": 0.08,
+      "minWaitTime": 0.0,
+      "maxWaitTime": 1.2
+    },
+    "live_tick": {
+      "metricType": "live_tick",
+      "count": 8,
+      "totalDuration": 87.05,
+      "avgDuration": 10.88,
+      "minDuration": 5.2,
+      "maxDuration": 28.4,
+      "stdDev": 7.3,
+      "median": 9.1,
+      "p95": 25.6,
+      "p99": 28.1,
+      "avgWaitTime": 0.5,
+      "minWaitTime": 0.1,
+      "maxWaitTime": 1.8
+    }
+  },
+  "events": []
+}

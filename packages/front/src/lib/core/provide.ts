@@ -25,6 +25,7 @@ import SymbolMetaService from "../services/meta/SymbolMetaService";
 import PriceConnectionService from "../services/connection/PriceConnectionService";
 import BacktestMetaService from "../services/meta/BacktestMetaService";
 import LiveMetaService from "../services/meta/LiveMetaService";
+import PerformanceMockService from "../services/mock/PerformanceMockService";
 
 {
   provide(TYPES.loggerService, () => new LoggerService());
@@ -52,6 +53,7 @@ import LiveMetaService from "../services/meta/LiveMetaService";
   provide(TYPES.explorerMockService, () => new ExplorerMockService());
   provide(TYPES.signalMockService, () => new SignalMockService());
   provide(TYPES.heatMockService, () => new HeatMockService());
+  provide(TYPES.performanceMockService, () => new PerformanceMockService());
 }
 
 {
