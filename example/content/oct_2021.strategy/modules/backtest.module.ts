@@ -6,6 +6,26 @@ import ccxt from "ccxt";
 
 setBackend("wasm");
 
+setConfig({
+  CC_BREAKEVEN_THRESHOLD: 0.0
+})
+
+const MS_PER_MINUTE = 60_000;
+
+const INTERVAL_MINUTES: Record<string, number> = {
+  "1m": 1,
+  "3m": 3,
+  "5m": 5,
+  "15m": 15,
+  "30m": 30,
+  "1h": 60,
+  "2h": 120,
+  "4h": 240,
+  "6h": 360,
+  "8h": 480,
+  "1d": 1440,
+};
+
 const getExchange = singleshot(async () => {
   const exchange = new ccxt.binance({
     options: {
@@ -29,14 +49,47 @@ addExchangeSchema({
       since.getTime(),
       limit,
     );
-    return candles.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp,
-      open,
-      high,
-      low,
-      close,
-      volume,
-    }));
+
+    const intervalMinutes = INTERVAL_MINUTES[interval];
+    if (!intervalMinutes) {
+      throw new Error(`Unknown interval: ${interval}`);
+    }
+
+    const intervalMs = intervalMinutes * MS_PER_MINUTE;
+    const candleMap = new Map(
+      candles.map(([timestamp, open, high, low, close, volume]) => [
+        timestamp,
+        { timestamp, open, high, low, close, volume }
+      ])
+    );
+
+    // Заполняем пропущенные свечи
+    const result = [];
+    let lastCandle = null;
+
+    for (let i = 0; i < limit; i++) {
+      const expectedTimestamp = since.getTime() + i * intervalMs;
+      let candle = candleMap.get(expectedTimestamp);
+
+      if (!candle && lastCandle) {
+        // Заполняем пропущенную свечу последней известной ценой с нулевым объемом
+        candle = {
+          timestamp: expectedTimestamp,
+          open: lastCandle.close,
+          high: lastCandle.close,
+          low: lastCandle.close,
+          close: lastCandle.close,
+          volume: 0,
+        };
+      }
+
+      if (candle) {
+        result.push(candle);
+        lastCandle = candle;
+      }
+    }
+
+    return result;
   },
   getOrderBook: async (symbol, depth, _from, _to, backtest) => {
     if (backtest) {
@@ -94,8 +147,8 @@ addExchangeSchema({
 });
 
 addFrameSchema({
-  frameName: "nov_2025_frame",
+  frameName: "oct_2021_frame",
   interval: "1m",
-  startDate: new Date("2025-11-01T00:00:00Z"),
-  endDate: new Date("2025-11-30T23:59:59Z"),
+  startDate: new Date("2021-10-01T00:00:00Z"),
+  endDate: new Date("2021-10-15T23:59:59Z"),
 });

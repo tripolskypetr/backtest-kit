@@ -65,7 +65,7 @@ const getSignal = Interval.fn(
 )
 
 addStrategySchema({
-  strategyName: "nov_2025_strategy",
+  strategyName: "oct_2021_strategy",
   getSignal: async (symbol, when, currentPrice) => {
     console.log(when);
     return await getSignal(symbol, currentPrice);
