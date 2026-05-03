@@ -801,9 +801,12 @@ export class DumpAdapter {
       .filter(({ action }) => action === "closed")
       .connect(({ signal }) => handleDispose(signal.id))
 
+    const unEnable = () => this.enable.clear();
+
     return compose(
       () => unCancel(),
       () => unClose(),
+      () => unEnable(),
     );
   });
 
