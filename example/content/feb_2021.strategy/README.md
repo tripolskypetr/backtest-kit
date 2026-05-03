@@ -2,7 +2,7 @@
 
 # 📊 DOTUSDT February 2021 — Python EMA Crossover Strategy
 
-> Python-based strategy that uses EMA(9) and EMA(21) crossover signals executed via WebAssembly. Trades trigger when fast EMA crosses slow EMA, confirmed by 4h range midpoint.
+> Python-based (WASI) strategy that uses EMA(9) and EMA(21) crossover signals executed via WebAssembly. Trades trigger when fast EMA crosses slow EMA, confirmed by 4h range midpoint.
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)

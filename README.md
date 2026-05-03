@@ -1784,7 +1784,7 @@ Same mechanics as SHORT version but LONG-biased with 3% profit target. Deployed 
 
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2021.strategy)
 
-Python-based strategy that uses EMA(9) and EMA(21) crossover signals executed via WebAssembly. Trades trigger when fast EMA crosses slow EMA, confirmed by 4h range midpoint.
+Python-based (WASI) strategy that uses EMA(9) and EMA(21) crossover signals executed via WebAssembly. Trades trigger when fast EMA crosses slow EMA, confirmed by 4h range midpoint.
 
 ## 🤖 Are you a robot?
 
