@@ -1,10 +1,6 @@
 import { addExchangeSchema, addFrameSchema, roundTicks, setConfig } from "backtest-kit";
 import { singleshot } from "functools-kit";
-import '@tensorflow/tfjs-backend-wasm';
-import { setBackend } from '@tensorflow/tfjs-core';
 import ccxt from "ccxt";
-
-setBackend("wasm");
 
 setConfig({
   CC_BREAKEVEN_THRESHOLD: 0.0
@@ -149,6 +145,6 @@ addExchangeSchema({
 addFrameSchema({
   frameName: "feb_2021_frame",
   interval: "1m",
-  startDate: new Date("2021-02-01T00:00:00Z"),
-  endDate: new Date("2021-02-28T23:59:59Z"),
+  startDate: new Date("2021-02-08T00:00:00Z"),
+  endDate: new Date("2021-02-18T23:59:59Z"),
 });
