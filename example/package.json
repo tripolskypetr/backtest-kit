@@ -11,6 +11,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "25.6.0"
+  },
   "dependencies": {
     "@backtest-kit/cli": "7.8.0",
     "@backtest-kit/graph": "7.8.0",
