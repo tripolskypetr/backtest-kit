@@ -15,6 +15,7 @@
 
 | Strategy | Ticker | Period | Signal source | Net PNL | Sharpe |
 |---|---|---|---|---|---|
+| [DOTUSDT Feb 2021 — Python EMA Crossover](./content/feb_2021.strategy/README.md) | DOTUSDT | Feb 2021 | Python EMA(9)/EMA(21) crossover via WebAssembly | **+5.52%** | **0.09** |
 | [BTCUSDT Oct 2021 — TensorFlow Neural Network](./content/oct_2021.strategy/README.md) | BTCUSDT | Oct 2021 | TensorFlow NN predicting next candle close | **+18.26%** | **0.31** |
 | [BTCUSDT Dec 2025 — Pine Script Range Breakout](./content/dec_2025.strategy/README.md) | BTCUSDT | Dec 2025 | Pine Script BB + range detector + volume spike | **+2.40%** | **0.06** |
 | [TRXUSDT Jan 2026 — Liquidity Harvesting](./content//jan_2026.strategy/README.md) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
@@ -95,3 +96,16 @@
 1. Every hour `Cache.fn` runs `btc_dec2025_range.pine` on 1h candles (RSI 14) and extracts: BB bands, range boundaries, `signal` (±1), `isRanging`, `volSpike`.
 2. `getSignal` opens a LONG on `signal === 1` or SHORT on `signal === -1`, but skips if price has already moved past the close at signal time, or if `isRanging === 1`.
 3. Each position uses a fixed ±2% bracket (TP and SL), no DCA, no trailing.
+
+---
+
+## 🐍 DOTUSDT February 2021 — Python EMA Crossover
+
+> **Hypothesis:** A classic EMA(9)/EMA(21) crossover strategy executed via Python WebAssembly can capture short-term momentum reversals on 8-hour candles with fixed bracket orders.
+
+### How it works
+
+1. Every 8 hours, `Cache.fn` runs the Python indicator (`strategy.py`) on 8h candles to calculate EMA(9) and EMA(21).
+2. A signal fires based on EMA crossover and 4h range midpoint confirmation: if EMA(9) > EMA(21), open LONG; otherwise SELL.
+3. Each signal opens a $100 bracket position via `Position.bracket` with ±2% take-profit and stop-loss.
+4. The strategy deployed $3,300 across 33 trades (all LONG), achieving +$5.52 (+0.17%) with a 63.6% win rate.
