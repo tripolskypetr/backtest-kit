@@ -1,5 +1,6 @@
 import {
   compose,
+  singleshot,
 } from "functools-kit";
 import LoggerService from "../lib/services/base/LoggerService";
 import { IMarkdownTarget, MarkdownWriter, TMarkdownBaseCtor } from "./Writer";
@@ -71,7 +72,7 @@ export class MarkdownUtils {
    *
    * @returns Cleanup function that unsubscribes from all enabled services
    */
-  public enable = ({
+  public enable = singleshot(({
     backtest: bt = false,
     breakeven = false,
     heat = false,
@@ -140,8 +141,11 @@ export class MarkdownUtils {
     if (max_drawdown) {
       unList.push(backtest.maxDrawdownMarkdownService.subscribe());
     }
+    {
+      unList.push(() => this.enable.clear());
+    }
     return compose(...unList.map((un) => () => void un()));
-  };
+  });
 
   /**
    * Disables markdown report services selectively.
@@ -209,6 +213,11 @@ export class MarkdownUtils {
       sync,
       highest_profit,
     });
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+      return;
+    }
     if (bt) {
       backtest.backtestMarkdownService.unsubscribe();
     }

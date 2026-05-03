@@ -1,5 +1,6 @@
 import {
   compose,
+  singleshot,
 } from "functools-kit";
 import LoggerService from "../lib/services/base/LoggerService";
 import { IReportTarget, ReportWriter, TReportBaseCtor } from "./Writer";
@@ -71,7 +72,7 @@ export class ReportUtils {
    *
    * @returns Cleanup function that unsubscribes from all enabled services
    */
-  public enable = ({
+  public enable = singleshot(({
     backtest: bt = false,
     breakeven = false,
     heat = false,
@@ -139,8 +140,11 @@ export class ReportUtils {
     if (max_drawdown) {
       unList.push(backtest.maxDrawdownReportService.subscribe());
     }
+    {
+      unList.push(() => this.enable.clear());
+    }
     return compose(...unList.map((un) => () => void un()));
-  };
+  });
 
   /**
    * Disables report services selectively.
@@ -206,6 +210,11 @@ export class ReportUtils {
       strategy,
       sync,
     });
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+      return;
+    }
     if (bt) {
       backtest.backtestReportService.unsubscribe();
     }
