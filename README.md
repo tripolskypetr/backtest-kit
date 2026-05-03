@@ -1742,6 +1742,43 @@ Install the skill once and get AI-assisted backtest-kit development inside Claud
 npx skills add https://github.com/backtest-kit/backtest-kit-skills
 ```
 
+## 🧩 Strategy Examples
+
+#### 🧠 Neural Network Strategy (Oct 2021)
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/oct_2021.strategy)
+
+Trains a feed-forward `TensorFlow` neural network (8→6→4→1 architecture) every 8 hours to predict where the next candle will close within its high-low range. When current price is below predicted price, opens a LONG with 1% trailing take-profit.
+
+#### 🌲 Pine Script Range Breakout (Dec 2025)
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/dec_2025.strategy)
+
+Runs `btc_dec2025_range.pine` on 1h candles via `@backtest-kit/pinets`, extracting Bollinger Bands, range boundaries, and volume spikes. Signals fire only on confirmed breakouts when price hasn't already moved past the signal close.
+
+### 🔪 Signal Inversion Strategy (Jan 2026)
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/jan_2026.strategy)
+
+The strategy takes published signals from a real Telegram crypto channel (Crypto Yoda), enters at the same price zone and timestamp, but **inverts the direction** and uses the liquidity of the crowd that blindly follows the recommendation regardless of the contents of the order book.
+
+### 📰 AI News Sentiment (Feb 2026)
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2026.strategy)
+
+Every 4-8 hours, fetches live crypto/macro news via Tavily, passes headlines to Ollama (local LLM), and opens positions based on `bullish`/`bearish`/`wait` forecasts. Conflicting signals flip positions mid-trade. Achieved +16.99% during a -16.4% month.
+
+### 🪂 SHORT DCA Ladder (Mar 2026)
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/mar_2026.strategy)
+
+Opens a SHORT on every pending signal, then adds rungs (up to 10) whenever price spikes upward outside a ±1-5% band around last entry. Closes at 0.5% blended profit. 
+
+### 🧗 LONG DCA Ladder (Apr 2026)
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/apr_2026.strategy)
+
+Same mechanics as SHORT version but LONG-biased with 3% profit target. Deployed 2.4 entries per trade on average, achieved +67.85% PNL on deployed capital with improved percentage drawdown (-2.59% vs -3.99% without DCA).
 
 ## 🤖 Are you a robot?
 
