@@ -75,7 +75,7 @@ export const SetupView = () => {
 
   const [data, { execute: executeData, loading: loadingData }] = useAsyncValue(
     async () => {
-      const data = await ioc.performanceViewService.getPerformanceData();
+      const data = await ioc.setupViewService.getSetupData();
       return data;
     },
     {
