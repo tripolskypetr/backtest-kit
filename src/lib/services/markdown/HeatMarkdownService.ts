@@ -523,7 +523,16 @@ class HeatmapStorage {
       "",
       `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"} | **Portfolio Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio) : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades} | **Avg Peak PNL:** ${data.portfolioAvgPeakPnl !== null ? str(data.portfolioAvgPeakPnl, "%") : "N/A"} | **Avg Max Drawdown PNL:** ${data.portfolioAvgFallPnl !== null ? str(data.portfolioAvgFallPnl, "%") : "N/A"}`,
       "",
-      table
+      table,
+      "",
+      `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
+      `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals per symbol.*`,
+      `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
+      `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
+      `*Profit Factor: below 1.0 means strategy is losing overall. Above 1.5 is considered good.*`,
+      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Based on theoretical yearly returns.*`,
+      `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good.*`,
+      `*All metrics require 100+ signals per symbol to be statistically reliable. Time period matters only for Calmar Ratio — it assumes current market conditions hold year-round, which may not reflect reality.*`,
     ].join("\n");
   }
 
