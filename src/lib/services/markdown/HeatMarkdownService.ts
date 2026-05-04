@@ -318,16 +318,14 @@ class HeatmapStorage {
       }
     }
 
-    // Avg absolute peak drawdown per signal — denominator for Calmar and Recovery
-    const avgAbsFall = signals.length > 0
-      ? fallReturns.reduce((acc, r) => acc + Math.abs(r), 0) / signals.length
-      : 0;
+    // Max absolute drawdown across all signals — denominator for Calmar and Recovery
+    const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
 
     let calmarRatio: number | null = null;
     let recoveryFactor: number | null = null;
-    if (avgAbsFall > 0 && totalPnl !== null) {
-      calmarRatio = totalPnl / avgAbsFall;
-      recoveryFactor = totalPnl / avgAbsFall;
+    if (maxAbsFall > 0 && totalPnl !== null) {
+      calmarRatio = totalPnl / maxAbsFall;
+      recoveryFactor = totalPnl / maxAbsFall;
     }
 
     // Apply safe math checks

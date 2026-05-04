@@ -504,13 +504,11 @@ class ReportStorage {
       sortinoRatio = fallDeviation > 0 ? avgPnl / fallDeviation : 0;
     }
 
-    // Avg absolute peak drawdown per signal — denominator for Calmar and Recovery
-    const avgAbsFall = totalClosed > 0
-      ? fallReturns.reduce((sum, r) => sum + Math.abs(r), 0) / totalClosed
-      : 0;
+    // Max absolute drawdown across all signals — denominator for Calmar and Recovery
+    const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
 
-    const calmarRatio = avgAbsFall > 0 ? expectedYearlyReturns / avgAbsFall : 0;
-    const recoveryFactor = avgAbsFall > 0 ? totalPnl / avgAbsFall : 0;
+    const calmarRatio = maxAbsFall > 0 ? expectedYearlyReturns / maxAbsFall : 0;
+    const recoveryFactor = maxAbsFall > 0 ? totalPnl / maxAbsFall : 0;
 
     return {
       eventList: this._eventList,
