@@ -31,6 +31,12 @@ export const validateCommonSignal = (signal: ISignalDto) => {
     if (signal.position !== "long" && signal.position !== "short") {
       errors.push(`position must be "long" or "short", got "${signal.position}"`);
     }
+    if (signal.position === "long" && !GLOBAL_CONFIG.CC_ENABLE_LONG_SIGNAL) {
+      errors.push(`Long signals are disabled (CC_ENABLE_LONG_SIGNAL=false)`);
+    }
+    if (signal.position === "short" && !GLOBAL_CONFIG.CC_ENABLE_SHORT_SIGNAL) {
+      errors.push(`Short signals are disabled (CC_ENABLE_SHORT_SIGNAL=false)`);
+    }
   }
 
   // ЗАЩИТА ОТ NaN/Infinity: все цены должны быть конечными числами

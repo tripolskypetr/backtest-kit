@@ -299,6 +299,22 @@ export const GLOBAL_CONFIG = {
   CC_ENABLE_PPPL_EVERYWHERE: false,
 
   /**
+   * Enables long signals in strategies that are primarily designed for short signals.
+   * This allows the strategy to generate and manage long signals in addition to short signals, even if the original design was focused on short trading.
+   * This can help expand the strategy's applicability and take advantage of bullish market conditions, but may require additional logic to manage long signal behavior effectively.
+   *
+   * Default: false (long signals are only enabled in strategies that are designed for them, ensuring strategy logic is aligned with signal types)
+   */
+  CC_ENABLE_LONG_SIGNAL: true,
+
+  /**
+   * Enables short signals in strategies that are primarily designed for long signals.
+   * This allows the strategy to generate and manage short signals in addition to long signals, even if the original design was focused on long trading.
+   * This can help expand the strategy's applicability and take advantage of bearish market conditions, but may require additional logic to manage short signal behavior effectively.
+   */
+  CC_ENABLE_SHORT_SIGNAL: true,
+
+  /**
    * Enables trailing logic (Trailing Take / Trailing Stop) without requiring absorption conditions.
    * Allows trailing mechanisms to be activated regardless of whether absorption has been detected.
    *
