@@ -14735,7 +14735,7 @@ declare class ReportUtils {
      *
      * @returns Cleanup function that unsubscribes from all enabled services
      */
-    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any;
+    enable: (({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any) & functools_kit.ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, sync, highest_profit, max_drawdown, }?: Partial<IReportTarget>) => (...args: any[]) => any>;
     /**
      * Disables report services selectively.
      *
@@ -14852,7 +14852,7 @@ declare class MarkdownUtils {
      *
      * @returns Cleanup function that unsubscribes from all enabled services
      */
-    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any;
+    enable: (({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any) & functools_kit.ISingleshotClearable<({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, sync, highest_profit, max_drawdown, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any>;
     /**
      * Disables markdown report services selectively.
      *
