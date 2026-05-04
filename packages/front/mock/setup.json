@@ -8,5 +8,7 @@
   "report_enabled": true,
   "state_enabled": true,
   "storage_enabled": true,
-  "running_mode": "backtest"
+  "running_mode": "backtest",
+  "enable_long": true,
+  "enable_short": true
 }

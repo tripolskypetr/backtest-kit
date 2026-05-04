@@ -14,6 +14,8 @@ export interface SetupData {
   state_enabled: boolean;
   storage_enabled: boolean;
   running_mode: "backtest" | "live" | "none";
+  enable_long: boolean;
+  enable_short: boolean;
 }
 
 export class SetupMockService {

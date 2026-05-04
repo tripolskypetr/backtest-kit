@@ -179,13 +179,13 @@ export const setup_fields: TypedField[] = [
         fields: [
           {
             type: FieldType.Typography,
-            fieldBottomMargin: "2",
+            fieldBottomMargin: "1",
             typoVariant: "h6",
             placeholder: "Режим работы",
           },
           {
             type: FieldType.Typography,
-            fieldBottomMargin: "3",
+            fieldBottomMargin: "1",
             isVisible: ({ running_mode }) =>
               running_mode === "backtest",
             style: {
@@ -197,7 +197,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Typography,
-            fieldBottomMargin: "3",
+            fieldBottomMargin: "1",
             isVisible: ({ running_mode }) =>
               running_mode === "live",
             style: {
@@ -209,7 +209,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Typography,
-            fieldBottomMargin: "3",
+            fieldBottomMargin: "1",
             isVisible: ({ running_mode }) =>
               running_mode === "none",
             style: {
@@ -234,7 +234,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Radio,
-            fieldBottomMargin: "1",
+            fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "none",
             title: "Только фронтенд",
@@ -287,8 +287,7 @@ export const setup_fields: TypedField[] = [
         fields: [
           {
             type: FieldType.Typography,
-            fieldBottomMargin: "2",
-            sx: { mt: 1 },
+            fieldBottomMargin: "1",
             typoVariant: "h6",
             placeholder: "Пользовательский интерфейс",
           },
@@ -300,7 +299,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Typography,
-            fieldBottomMargin: "2",
+            fieldBottomMargin: "1",
             style: {
               opacity: 0.5,
             },
@@ -315,7 +314,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Typography,
-            fieldBottomMargin: "2",
+            fieldBottomMargin: "0",
             style: {
               opacity: 0.5,
             },
@@ -367,7 +366,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Outline,
-            fieldBottomMargin: "3",
+            fieldBottomMargin: "4",
             fields: [
               {
                 type: FieldType.Checkbox,
@@ -384,10 +383,44 @@ export const setup_fields: TypedField[] = [
               {
                 type: FieldType.Checkbox,
                 fieldBottomMargin: "0",
-                title: "Сохранять последний сигнал",
+                title: "Сохранять предидущий сигнал",
                 name: "recent_enabled",
               },
             ],
+          },
+        ],
+      },
+      {
+        type: FieldType.Paper,
+        fieldBottomMargin: "1",
+        fields: [
+          {
+            type: FieldType.Typography,
+            fieldBottomMargin: "2",
+            typoVariant: "h6",
+            placeholder: "Управление рисками",
+          },
+          {
+            type: FieldType.Typography,
+            fieldBottomMargin: "3",
+            style: {
+              opacity: 0.5,
+            },
+            typoVariant: "body1",
+            placeholder:
+              "Использовать LONG или SHORT позиции зависимо от режима рынка",
+          },
+          {
+            type: FieldType.Checkbox,
+            fieldBottomMargin: "0",
+            title: "Включить LONG",
+            name: "enable_long",
+          },
+          {
+            type: FieldType.Checkbox,
+            fieldBottomMargin: "1",
+            title: "Включить SHORT",
+            name: "enable_short",
           },
         ],
       },

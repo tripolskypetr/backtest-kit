@@ -14,6 +14,7 @@ import {
     Storage,
     Backtest,
     Live,
+    getConfig,
 } from "backtest-kit";
 import { CC_ENABLE_MOCK } from "src/config/params";
 import SetupMockService from "../mock/SetupMockService";
@@ -52,6 +53,11 @@ export class SetupViewService {
         const storage_enabled = Storage.enable.hasValue();
         const running_mode = await GET_MODE_FN();
 
+        const config = await getConfig();
+
+        const enable_long = config.CC_ENABLE_LONG_SIGNAL;
+        const enable_short = config.CC_ENABLE_SHORT_SIGNAL;
+
         return {
             broker_enabled,
             dump_enabled,
@@ -62,7 +68,9 @@ export class SetupViewService {
             report_enabled,
             state_enabled,
             storage_enabled,
-            running_mode ,
+            running_mode,
+            enable_long,
+            enable_short,
         };
     }
 
