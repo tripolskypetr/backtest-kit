@@ -150,21 +150,21 @@ const renderPicker = ({
 
 const feature_list = [
   {
-    title: "JSONL Файлы",
+    title: "JSONL files",
     description:
-      "Файлы, обрабатываемые Claude Code, HuggingFace, Parquet",
+      "Files processed by Claude Code, HuggingFace, Parquet",
     name: "recent_enabled",
   },
   {
-    title: "Markdown Файлы",
+    title: "Markdown files",
     description:
-      "Человекочитаемые файлы. Удобно, если планируется запуск без GUI",
+      "Human-readable files. Useful when running without a GUI",
     name: "markdown_enabled",
   },
   {
-    title: "Дамп Файлы",
+    title: "Dump files",
     description:
-      "Дамп переписки с ИИ агентом, используемым для торговых сигналов",
+      "Conversation dump with the AI agent used for trading signals",
     name: "dump_enabled",
   },
 ];
@@ -186,7 +186,7 @@ export const setup_fields: TypedField[] = [
             type: FieldType.Typography,
             fieldBottomMargin: "1",
             typoVariant: "h6",
-            placeholder: "Режим работы",
+            placeholder: "Running mode",
           },
           {
             type: FieldType.Typography,
@@ -198,7 +198,7 @@ export const setup_fields: TypedField[] = [
             },
             typoVariant: "body1",
             placeholder:
-              "Обработка исторических данных",
+              "Historical data processing",
           },
           {
             type: FieldType.Typography,
@@ -210,7 +210,7 @@ export const setup_fields: TypedField[] = [
             },
             typoVariant: "body1",
             placeholder:
-              "Интеграция с биржей в реальном времени",
+              "Real-time exchange integration",
           },
           {
             type: FieldType.Typography,
@@ -221,7 +221,7 @@ export const setup_fields: TypedField[] = [
               color: "red",
             },
             typoVariant: "body1",
-            placeholder: "Только пользовательский интерфейс",
+            placeholder: "UI only",
           },
           {
             type: FieldType.Radio,
@@ -229,7 +229,7 @@ export const setup_fields: TypedField[] = [
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "backtest",
-            title: "Исторические данные",
+            title: "Historical data",
           },
           {
             type: FieldType.Radio,
@@ -237,7 +237,7 @@ export const setup_fields: TypedField[] = [
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "live",
-            title: "В реальном времени",
+            title: "Real-time",
           },
           {
             type: FieldType.Radio,
@@ -245,7 +245,7 @@ export const setup_fields: TypedField[] = [
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "none",
-            title: "Только фронтенд",
+            title: "Frontend only",
           },
         ],
       },
@@ -266,7 +266,7 @@ export const setup_fields: TypedField[] = [
                 type: FieldType.Typography,
                 fieldBottomMargin: "1",
                 typoVariant: "h6",
-                placeholder: "Режим логов",
+                placeholder: "Log mode",
               },
               {
                 type: FieldType.Typography,
@@ -275,7 +275,7 @@ export const setup_fields: TypedField[] = [
                   opacity: 0.5,
                 },
                 typoVariant: "caption",
-                placeholder: "Логи занимают место на жестком диске, но нужны для отладки",
+                placeholder: "Logs take up disk space but are needed for debugging",
               },
             ],
           },
@@ -297,13 +297,13 @@ export const setup_fields: TypedField[] = [
             type: FieldType.Typography,
             fieldBottomMargin: "1",
             typoVariant: "h6",
-            placeholder: "Пользовательский интерфейс",
+            placeholder: "User interface",
           },
           {
             type: FieldType.Switch,
             readonly: true,
             fieldBottomMargin: "0",
-            title: "Сохранять уведомления",
+            title: "Save notifications",
             name: "notification_enabled",
           },
           {
@@ -313,13 +313,13 @@ export const setup_fields: TypedField[] = [
               opacity: 0.5,
             },
             typoVariant: "caption",
-            placeholder: "История событий записывается на жесткий диск",
+            placeholder: "Event history is saved to disk",
           },
           {
             type: FieldType.Switch,
             readonly: true,
             fieldBottomMargin: "0",
-            title: "Сохранять сигналы",
+            title: "Save signals",
             name: "storage_enabled",
           },
           {
@@ -329,7 +329,7 @@ export const setup_fields: TypedField[] = [
               opacity: 0.5,
             },
             typoVariant: "caption",
-            placeholder: "Последнее состояние сигнала записывается на жесткий диск",
+            placeholder: "Latest signal state is saved to disk",
           },
         ],
       },
@@ -351,12 +351,12 @@ export const setup_fields: TypedField[] = [
             type: FieldType.Typography,
             fieldBottomMargin: "3",
             typoVariant: "h6",
-            placeholder: "Стратегия",
+            placeholder: "Strategy",
           },
 
           {
             type: FieldType.Typography,
-            placeholder: "Брокер",
+            placeholder: "Broker",
           },
           {
             type: FieldType.Outline,
@@ -366,14 +366,14 @@ export const setup_fields: TypedField[] = [
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Подключен в mainnet (production)",
+                title: "Connected to mainnet (production)",
                 name: "broker_enabled",
               },
             ],
           },
           {
             type: FieldType.Typography,
-            placeholder: "Сигналы рынка",
+            placeholder: "Market signals",
           },
           {
             type: FieldType.Outline,
@@ -383,21 +383,21 @@ export const setup_fields: TypedField[] = [
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Использовать BM25 для RAG",
+                title: "Use BM25 for RAG",
                 name: "memory_enabled",
               },
               {
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Использовать Statefull стратегии",
+                title: "Use stateful strategies",
                 name: "state_enabled",
               },
               {
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Сохранять предидущий сигнал",
+                title: "Save previous signal",
                 name: "recent_enabled",
               },
             ],
@@ -412,7 +412,7 @@ export const setup_fields: TypedField[] = [
             type: FieldType.Typography,
             fieldBottomMargin: "2",
             typoVariant: "h6",
-            placeholder: "Управление рисками",
+            placeholder: "Risk management",
           },
           {
             type: FieldType.Typography,
@@ -422,20 +422,20 @@ export const setup_fields: TypedField[] = [
             },
             typoVariant: "body1",
             placeholder:
-              "Использовать LONG или SHORT позиции зависимо от режима рынка",
+              "Use LONG or SHORT positions depending on market conditions",
           },
           {
             type: FieldType.Checkbox,
             readonly: true,
             fieldBottomMargin: "0",
-            title: "Включить LONG",
+            title: "Enable LONG",
             name: "enable_long",
           },
           {
             type: FieldType.Checkbox,
             readonly: true,
             fieldBottomMargin: "1",
-            title: "Включить SHORT",
+            title: "Enable SHORT",
             name: "enable_short",
           },
         ],
