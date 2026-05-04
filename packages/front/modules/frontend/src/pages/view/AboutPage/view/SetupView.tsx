@@ -17,6 +17,20 @@ import { One } from "react-declarative";
 import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import ioc from "../../../../lib";
 import IconWrapper from "../../../../components/common/IconWrapper";
+import { setup_fields } from "../../../../assets/setup_fields";
+
+interface IBackendData {
+    broker_enabled: boolean;
+    dump_enabled: boolean;
+    markdown_enabled: boolean;
+    memory_enabled: boolean;
+    notification_enabled: boolean;
+    recent_enabled: boolean;
+    report_enabled: boolean;
+    running_mode: "backtest" | "live" | "none"
+    state_enabled: boolean;
+    storage_enabled: boolean;
+}
 
 const options: IBreadcrumbs2Option[] = [
   {
@@ -53,13 +67,6 @@ const actions: IBreadcrumbs2Action[] = [
         label: "Refresh",
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
-];
-
-const fields: TypedField[] = [
-  {
-    type: FieldType.Typography,
-    placeholder: "123",
-  }
 ];
 
 const reloadSubject = new Subject<void>();
@@ -103,9 +110,10 @@ export const SetupView = () => {
       return null;
     }
     return (
-      <One 
+      <One<IBackendData>
+        readonly
         handler={data}
-        fields={fields}
+        fields={setup_fields}
       />
     )
   }
