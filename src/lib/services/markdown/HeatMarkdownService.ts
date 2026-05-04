@@ -321,10 +321,19 @@ class HeatmapStorage {
     // Max absolute drawdown across all signals — denominator for Calmar and Recovery
     const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
 
+    // Expected yearly returns — needed for Calmar
+    let expectedYearlyReturns = 0;
+    if (signals.length > 0 && avgPnl !== null) {
+      const avgDurationMs = signals.reduce((sum, s) => sum + (s.closeTimestamp - s.signal.pendingAt), 0) / signals.length;
+      const avgDurationDays = avgDurationMs / (1000 * 60 * 60 * 24);
+      const tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
+      expectedYearlyReturns = avgPnl * tradesPerYear;
+    }
+
     let calmarRatio: number | null = null;
     let recoveryFactor: number | null = null;
     if (maxAbsFall > 0 && totalPnl !== null) {
-      calmarRatio = totalPnl / maxAbsFall;
+      calmarRatio = expectedYearlyReturns / maxAbsFall;
       recoveryFactor = totalPnl / maxAbsFall;
     }
 
