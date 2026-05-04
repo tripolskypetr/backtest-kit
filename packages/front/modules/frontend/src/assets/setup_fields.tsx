@@ -1,7 +1,10 @@
+import { Refresh } from "@mui/icons-material";
 import { alpha } from "@mui/material";
 import {
   TypedField,
   FieldType,
+  useForceUpdate,
+  ActionButton,
 } from "react-declarative";
 
 interface IFeatureParams {
@@ -72,6 +75,7 @@ const renderFeature = ({
     },
     {
       type: FieldType.Checkbox,
+      readonly: true,
       fieldBottomMargin: "0",
       fieldRightMargin: "0",
       title: "",
@@ -114,6 +118,7 @@ const renderPicker = ({
     },
     {
       type: FieldType.Combo,
+      readonly: true,
       noDeselect: true,
       outlined: idx % 2 === 0,
       name,
@@ -220,6 +225,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Radio,
+            readonly: true,
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "backtest",
@@ -227,6 +233,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Radio,
+            readonly: true,
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "live",
@@ -234,6 +241,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Radio,
+            readonly: true,
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "none",
@@ -293,6 +301,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Switch,
+            readonly: true,
             fieldBottomMargin: "0",
             title: "Сохранять уведомления",
             name: "notification_enabled",
@@ -308,6 +317,7 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Switch,
+            readonly: true,
             fieldBottomMargin: "0",
             title: "Сохранять сигналы",
             name: "storage_enabled",
@@ -354,6 +364,7 @@ export const setup_fields: TypedField[] = [
             fields: [
               {
                 type: FieldType.Checkbox,
+                readonly: true,
                 fieldBottomMargin: "0",
                 title: "Подключен в mainnet (production)",
                 name: "broker_enabled",
@@ -370,18 +381,21 @@ export const setup_fields: TypedField[] = [
             fields: [
               {
                 type: FieldType.Checkbox,
+                readonly: true,
                 fieldBottomMargin: "0",
                 title: "Использовать BM25 для RAG",
                 name: "memory_enabled",
               },
               {
                 type: FieldType.Checkbox,
+                readonly: true,
                 fieldBottomMargin: "0",
                 title: "Использовать Statefull стратегии",
                 name: "state_enabled",
               },
               {
                 type: FieldType.Checkbox,
+                readonly: true,
                 fieldBottomMargin: "0",
                 title: "Сохранять предидущий сигнал",
                 name: "recent_enabled",
@@ -412,12 +426,14 @@ export const setup_fields: TypedField[] = [
           },
           {
             type: FieldType.Checkbox,
+            readonly: true,
             fieldBottomMargin: "0",
             title: "Включить LONG",
             name: "enable_long",
           },
           {
             type: FieldType.Checkbox,
+            readonly: true,
             fieldBottomMargin: "1",
             title: "Включить SHORT",
             name: "enable_short",
@@ -425,5 +441,27 @@ export const setup_fields: TypedField[] = [
         ],
       },
     ],
+  },
+  {
+    type: FieldType.Component,
+    desktopHidden: true,
+    fieldBottomMargin: "5",
+    fieldRightMargin: "1",
+    element: ({ payload }) => {
+      const update = useForceUpdate();
+      return (
+        <ActionButton
+          variant="contained"
+          size="large"
+          startIcon={<Refresh />}
+          onClick={async () => {
+            await payload.handleReload();
+            update();
+          }}
+        >
+          Refresh
+        </ActionButton>
+      );
+    },
   },
 ];

@@ -111,8 +111,8 @@ export const SetupView = () => {
     }
     return (
       <One<IBackendData>
-        readonly
         handler={data}
+        payload={() => ({ handleReload })}
         fields={setup_fields}
       />
     )
