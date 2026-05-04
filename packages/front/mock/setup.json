@@ -1,0 +1,12 @@
+{
+  "broker_enabled": false,
+  "dump_enabled": true,
+  "markdown_enabled": true,
+  "memory_enabled": false,
+  "notification_enabled": false,
+  "recent_enabled": true,
+  "report_enabled": true,
+  "state_enabled": true,
+  "storage_enabled": true,
+  "running_mode": "backtest"
+}

@@ -55,6 +55,10 @@ const dashboardRoutes: IRouteItem[] = [
         element: heavy(() => import("../pages/view/AboutPage")),
     },
     {
+        path: "/about/setup",
+        element: heavy(() => import("../pages/view/AboutPage")),
+    },
+    {
         path: "/overview",
         element: heavy(() => import("../pages/view/OverviewPage")),
     },

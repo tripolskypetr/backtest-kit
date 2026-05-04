@@ -164,6 +164,42 @@ interface EnvironmentRequest {
   requestId: string;
 }
 
+interface SetupRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+}
+
+// SetupMockService endpoints
+router.post("/api/v1/mock/setup_data", async (req, res) => {
+  try {
+    const request = <SetupRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const data = await ioc.setupMockService.getSetupData();
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/setup_data ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/setup_data error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
 // ExchangeMockService endpoints
 router.post("/api/v1/mock/candles_signal", async (req, res) => {
   try {

@@ -40,6 +40,8 @@ import PerformanceViewService from "./services/view/PerformanceViewService";
 import PerformanceMockService from "./services/mock/PerformanceMockService";
 import EnvironmentViewService from "./services/view/EnvironmentViewService";
 import EnvironmentMockService from "./services/mock/EnvironmentMockService";
+import SetupViewService from "./services/view/SetupViewService";
+import SetupMockService from "./services/mock/SetupMockService";
 
 import TYPES from "./core/TYPES";
 
@@ -76,6 +78,7 @@ const mockServices = {
   heatMockService: inject<HeatMockService>(TYPES.heatMockService),
   performanceMockService: inject<PerformanceMockService>(TYPES.performanceMockService),
   environmentMockService: inject<EnvironmentMockService>(TYPES.environmentMockService),
+  setupMockService: inject<SetupMockService>(TYPES.setupMockService),
 };
 
 const viewServices = {
@@ -90,6 +93,7 @@ const viewServices = {
   heatViewService: inject<HeatViewService>(TYPES.heatViewService),
   performanceViewService: inject<PerformanceViewService>(TYPES.performanceViewService),
   environmentViewService: inject<EnvironmentViewService>(TYPES.environmentViewService),
+  setupViewService: inject<SetupViewService>(TYPES.setupViewService),
 };
 
 export const ioc = {

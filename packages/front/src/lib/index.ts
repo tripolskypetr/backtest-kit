@@ -30,7 +30,9 @@ import BacktestMetaService from "./services/meta/BacktestMetaService";
 import PerformanceViewService from "./services/view/PerformanceViewService";
 import PerformanceMockService from "./services/mock/PerformanceMockService";
 import EnvironmentMockService from "./services/mock/EnvironmentMockService";
+import SetupMockService from "./services/mock/SetupMockService";
 import EnvironmentViewService from "./services/view/EnvironmentViewService";
+import SetupViewService from "./services/view/SetupViewService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -60,6 +62,7 @@ const mockServices = {
   heatMockService: inject<HeatMockService>(TYPES.heatMockService),
   performanceMockService: inject<PerformanceMockService>(TYPES.performanceMockService),
   environmentMockService: inject<EnvironmentMockService>(TYPES.environmentMockService),
+  setupMockService: inject<SetupMockService>(TYPES.setupMockService),
 };
 
 const viewServices = {
@@ -74,6 +77,7 @@ const viewServices = {
   heatViewService: inject<HeatViewService>(TYPES.heatViewService),
   performanceViewService: inject<PerformanceViewService>(TYPES.performanceViewService),
   environmentViewService: inject<EnvironmentViewService>(TYPES.environmentViewService),
+  setupViewService: inject<SetupViewService>(TYPES.setupViewService),
 };
 
 const ioc = {

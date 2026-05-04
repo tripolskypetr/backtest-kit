@@ -424,10 +424,21 @@ declare class EnvironmentMockService {
     getEnvironmentData: () => Promise<any>;
 }
 
+declare class SetupMockService {
+    private readonly loggerService;
+    getSetupData: () => Promise<any>;
+}
+
 declare class EnvironmentViewService {
     private readonly loggerService;
     private readonly enviromentMockService;
     getEnvironmentData: () => Promise<any>;
+}
+
+declare class SetupViewService {
+    private readonly loggerService;
+    private readonly setupMockService;
+    getSetupData: () => Promise<any>;
 }
 
 declare const ioc: {
@@ -442,6 +453,7 @@ declare const ioc: {
     heatViewService: HeatViewService;
     performanceViewService: PerformanceViewService;
     environmentViewService: EnvironmentViewService;
+    setupViewService: SetupViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
@@ -453,6 +465,7 @@ declare const ioc: {
     heatMockService: HeatMockService;
     performanceMockService: PerformanceMockService;
     environmentMockService: EnvironmentMockService;
+    setupMockService: SetupMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
     backtestMetaService: BacktestMetaService;
