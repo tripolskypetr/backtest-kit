@@ -145,6 +145,14 @@ export const getArgs = singleshot(() => {
         type: "string",
         default: "",
       },
+      brokerdebug: {
+        type: "boolean",
+        default: false,
+      },
+      commit: {
+        type: "string",
+        default: "",
+      },
       init: {
         type: "boolean",
         default: false,

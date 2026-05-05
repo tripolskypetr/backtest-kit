@@ -19,6 +19,7 @@ Modes:
   --editor              Open the Pine Script visual editor in the browser
   --dump                Fetch and save raw OHLCV candles
   --pnldebug            Simulate PnL per minute for a given entry price and direction
+  --brokerdebug         Fire a single broker commit against the live broker adapter
   --flush  <entry...>   Delete report/log/markdown/agent folders from strategy dump dir
   --init                Scaffold a new project in the current directory
   --help                Print this help message
@@ -106,6 +107,17 @@ PnL debug flags (--pnldebug):
 
   Module file ./modules/pnldebug.module is loaded automatically if it exists.
 
+Broker debug flags (--brokerdebug):
+
+  --symbol      <string>   Trading pair (default: BTCUSDT)
+  --exchange    <string>   Exchange name (default: first registered)
+  --commit      <string>   Commit type to fire: signal-open, signal-close, partial-profit,
+                           partial-loss, average-buy, trailing-stop, trailing-take, breakeven
+                           (default: signal-open)
+
+  Loads ./live.module, fetches the last candle for --symbol/--timeframe, and calls
+  the selected broker commit with synthetic payload values derived from current price.
+
 Flush flags (--flush):
 
   One or more positional entry points. For each entry point the following
@@ -128,7 +140,8 @@ Module hooks (loaded automatically by each mode):
   modules/pine.module       --pine       Exchange schema for PineScript runs
   modules/editor.module     --editor     Exchange schema for the visual Pine editor
   modules/dump.module       --dump       Exchange schema for candle dumps
-  modules/pnldebug.module   --pnldebug   Exchange schema for PnL debug runs
+  modules/pnldebug.module   --pnldebug      Exchange schema for PnL debug runs
+  modules/brokerdebug.module  --brokerdebug   Broker adapter used for broker commit testing
 
   --flush has no associated module. It only removes dump subdirectories.
 
@@ -154,6 +167,8 @@ Examples:
   node ${ENTRY_PATH} --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
   node ${ENTRY_PATH} --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120
   node ${ENTRY_PATH} --pnldebug --priceopen 67956.73 --direction long --when 1772064000000 --minutes 60 --markdown
+  node ${ENTRY_PATH} --brokerdebug --commit signal-open --symbol BTCUSDT
+  node ${ENTRY_PATH} --brokerdebug --commit partial-profit --symbol ETHUSDT
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts ./content/feb_2026.strategy/feb_2026.test.ts
   node ${ENTRY_PATH} --init --output my-trading-bot

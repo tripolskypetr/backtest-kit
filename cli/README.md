@@ -45,6 +45,7 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 | **Pine Editor**  | `--editor`                 | Open the visual Pine Script editor in the browser   |
 | **Candle Dump**  | `--dump`                   | Fetch and save raw OHLCV candles to a file   |
 | **PnL Debug**    | `--pnldebug`               | Simulate per-minute PnL for a given entry price and direction |
+| **Broker Debug** | `--brokerdebug`            | Fire a single broker commit against the live broker adapter   |
 | **Flush**        | `--flush`                  | Delete report/log/markdown/agent folders from strategy dump dir |
 | **Init Project** | `--init`                   | Scaffold a new backtest-kit project          |
 
@@ -155,6 +156,8 @@ npm start -- --symbol BTCUSDT --ui
 | `--exchange`              | string  | Exchange name (default: first registered)                          |
 | `--frame`                 | string  | Backtest frame name (default: first registered)                    |
 | `--cacheInterval`         | string  | Intervals to pre-cache before backtest (default: `"1m, 15m, 30m, 4h"`) |
+| `--brokerdebug`           | boolean | Fire a single broker commit against the live broker adapter (default: `false`) |
+| `--commit`                | string  | Commit type for `--brokerdebug` (default: `"signal-open"`) |
 
 **Positional argument (required):** path to your strategy entry point file (set once in `package.json` scripts).
 
@@ -567,7 +570,8 @@ The CLI supports **mode-specific module files** that are loaded as side-effect i
 | `--live`          | `./modules/live.module.mjs`     | `Live.background()`         |
 | `--paper`         | `./modules/paper.module.mjs`    | `Live.background()` (paper) |
 | `--backtest`      | `./modules/backtest.module.mjs` | `Backtest.background()`     |
-| `--walker`        | `./modules/walker.module.mjs`   | `Walker.background()`       |
+| `--walker`        | `./modules/walker.module.mjs`     | `Walker.background()`          |
+| `--brokerdebug`   | `./modules/brokerdebug.module.mjs` | broker commit test            |
 
 > File is resolved relative to `cwd` (the strategy directory). All of `.mjs`, `.cjs`, `.ts` extensions are tried automatically. Missing module is a soft warning — not an error.
 
@@ -1168,6 +1172,63 @@ Symbol: BTCUSDT | Direction: short | PriceOpen: 64069.50 | From: 2025-02-25T00:0
     2 | 2025-02-25T00:02:00.000Z  |      64105.30 |   -0.06% |   +0.08% |    -0.06%
   ...
   120 | 2025-02-25T02:00:00.000Z  |      63200.00 |   +1.36% |   +1.36% |    -0.06%
+```
+
+## 🐛 Broker Debug (`--brokerdebug`)
+
+`@backtest-kit/cli` can fire a single broker commit against your live broker adapter without running a full strategy — useful for verifying that your `brokerdebug.module` correctly wires up exchange calls.
+
+### CLI Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--brokerdebug` | boolean | Enable broker debug mode |
+| `--commit` | string | Commit type to fire (default: `"signal-open"`) |
+| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
+| `--exchange` | string | Exchange name (default: first registered) |
+
+**Available `--commit` values:**
+
+| Value | Broker hook |
+|-------|-------------|
+| `signal-open` | `onSignalOpenCommit` |
+| `signal-close` | `onSignalCloseCommit` |
+| `partial-profit` | `onPartialProfitCommit` |
+| `partial-loss` | `onPartialLossCommit` |
+| `average-buy` | `onAverageBuyCommit` |
+| `trailing-stop` | `onTrailingStopCommit` |
+| `trailing-take` | `onTrailingTakeCommit` |
+| `breakeven` | `onBreakevenCommit` |
+
+### How It Works
+
+The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--symbol` / `--timeframe`, derives synthetic payload values from `currentPrice` (TP = +2%, SL = -2%), and calls the selected broker hook once. Exits with code `0` on success.
+
+### Broker via `brokerdebug.module`
+
+Create a `modules/brokerdebug.module.ts` file and register your broker adapter:
+
+```typescript
+// modules/brokerdebug.module.ts
+import { Broker } from 'backtest-kit';
+import { myExchange } from './exchange.mjs';
+
+class MyBroker {
+  async onSignalOpenCommit({ symbol, priceOpen, position }) {
+    await myExchange.openPosition(symbol, position, priceOpen);
+  }
+  // ... other hooks
+}
+
+Broker.useBrokerAdapter(MyBroker);
+Broker.enable();
+```
+
+### Usage
+
+```bash
+npx @backtest-kit/cli --brokerdebug --commit signal-open --symbol BTCUSDT
+npx @backtest-kit/cli --brokerdebug --commit partial-profit --symbol ETHUSDT --timeframe 1h
 ```
 
 ## 🗑️ Flushing Strategy Output (`--flush`)
