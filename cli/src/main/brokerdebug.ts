@@ -202,7 +202,10 @@ export const main = async () => {
     exchangeName: exchangeName as any,
   };
 
-  console.log(`symbol=${symbol} price=${currentPrice} commit=${commit}`);
+  {
+    console.log(`symbol=${symbol} price=${currentPrice} commit=${commit}`);
+    console.time(commit);
+  }
 
   if (commit === "signal-open") {
     await commitSignalOpen({
@@ -319,7 +322,11 @@ export const main = async () => {
     });
   }
 
-  console.log(`${commit} OK`);
+  {
+    console.log(`${commit} OK`);
+    console.timeEnd(commit);
+  }
+
   process.exit(0);
 };
 
