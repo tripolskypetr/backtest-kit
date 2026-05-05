@@ -499,6 +499,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerSignalOpenPayload,
   ): Promise<void> {
     if (this._instance.onSignalOpenCommit) {
+      await this.waitForInit();
       await this._instance.onSignalOpenCommit(payload);
       return;
     }
@@ -516,6 +517,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerSignalClosePayload,
   ): Promise<void> {
     if (this._instance.onSignalCloseCommit) {
+      await this.waitForInit();
       await this._instance.onSignalCloseCommit(payload);
       return;
     }
@@ -533,6 +535,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerPartialProfitPayload,
   ): Promise<void> {
     if (this._instance.onPartialProfitCommit) {
+      await this.waitForInit();
       await this._instance.onPartialProfitCommit(payload);
       return;
     }
@@ -550,6 +553,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerPartialLossPayload,
   ): Promise<void> {
     if (this._instance.onPartialLossCommit) {
+      await this.waitForInit();
       await this._instance.onPartialLossCommit(payload);
       return;
     }
@@ -567,6 +571,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerTrailingStopPayload,
   ): Promise<void> {
     if (this._instance.onTrailingStopCommit) {
+      await this.waitForInit();
       await this._instance.onTrailingStopCommit(payload);
       return;
     }
@@ -584,6 +589,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerTrailingTakePayload,
   ): Promise<void> {
     if (this._instance.onTrailingTakeCommit) {
+      await this.waitForInit();
       await this._instance.onTrailingTakeCommit(payload);
       return;
     }
@@ -601,6 +607,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerBreakevenPayload,
   ): Promise<void> {
     if (this._instance.onBreakevenCommit) {
+      await this.waitForInit();
       await this._instance.onBreakevenCommit(payload);
       return;
     }
@@ -618,6 +625,7 @@ export class BrokerProxy implements IBroker {
     payload: BrokerAverageBuyPayload,
   ): Promise<void> {
     if (this._instance.onAverageBuyCommit) {
+      await this.waitForInit();
       await this._instance.onAverageBuyCommit(payload);
       return;
     }
