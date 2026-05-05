@@ -187,11 +187,11 @@ export const main = async () => {
     process.exit(1);
   }
 
-  const candles = await Exchange.getRawCandles(
+  const candles = await Exchange.getCandles(
     symbol,
     "1m",
-    { exchangeName },
     5,
+    { exchangeName },
   );
 
   const lastCandle = candles[candles.length - 1];
