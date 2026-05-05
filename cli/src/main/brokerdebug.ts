@@ -12,6 +12,8 @@ import {
   IBroker,
   IStrategyPnL,
   listExchangeSchema,
+  runInMockContext,
+  alignToInterval,
 } from "backtest-kit";
 import { singleshot, trycatch } from "functools-kit";
 import { getArgs } from "../helpers/getArgs";
@@ -207,120 +209,131 @@ export const main = async () => {
     console.time(commit);
   }
 
-  if (commit === "signal-open") {
-    await commitSignalOpen({
-      symbol,
-      cost: 100,
-      position: "long",
-      priceOpen: currentPrice,
-      priceTakeProfit,
-      priceStopLoss,
-      pnl: ZERO_PNL,
-      peakProfit: ZERO_PNL,
-      maxDrawdown: ZERO_PNL,
-      context,
-      backtest: true,
-    });
+  const run = async () => {
+    if (commit === "signal-open") {
+      await commitSignalOpen({
+        symbol,
+        cost: 100,
+        position: "long",
+        priceOpen: currentPrice,
+        priceTakeProfit,
+        priceStopLoss,
+        pnl: ZERO_PNL,
+        peakProfit: ZERO_PNL,
+        maxDrawdown: ZERO_PNL,
+        context,
+        backtest: true,
+      });
+    }
+
+    if (commit === "signal-close") {
+      await commitSignalClose({
+        symbol,
+        cost: 100,
+        position: "long",
+        currentPrice,
+        priceOpen: currentPrice,
+        priceTakeProfit,
+        priceStopLoss,
+        totalEntries: 1,
+        totalPartials: 0,
+        pnl: ZERO_PNL,
+        peakProfit: ZERO_PNL,
+        maxDrawdown: ZERO_PNL,
+        context,
+        backtest: true,
+      });
+    }
+
+    if (commit === "partial-profit") {
+      await commitPartialProfit({
+        symbol,
+        percentToClose: 50,
+        cost: 50,
+        currentPrice,
+        position: "long",
+        priceTakeProfit,
+        priceStopLoss,
+        context,
+        backtest: true,
+      });
+    }
+
+    if (commit === "partial-loss") {
+      await commitPartialLoss({
+        symbol,
+        percentToClose: 50,
+        cost: 50,
+        currentPrice,
+        position: "long",
+        priceTakeProfit,
+        priceStopLoss,
+        context,
+        backtest: true,
+      });
+    }
+
+    if (commit === "average-buy") {
+      await commitAverageBuy({
+        symbol,
+        currentPrice,
+        cost: 100,
+        position: "long",
+        priceTakeProfit,
+        priceStopLoss,
+        context,
+        backtest: true,
+      });
+    }
+
+    if (commit === "trailing-stop") {
+      await commitTrailingStop({
+        symbol,
+        percentShift: -50,
+        currentPrice,
+        newStopLossPrice: priceStopLoss + (currentPrice - priceStopLoss) * 0.5,
+        takeProfitPrice: priceTakeProfit,
+        position: "long",
+        context,
+        backtest: true,
+      });
+    }
+
+    if (commit === "trailing-take") {
+      await commitTrailingTake({
+        symbol,
+        percentShift: 50,
+        currentPrice,
+        newTakeProfitPrice:
+          priceTakeProfit + (priceTakeProfit - currentPrice) * 0.5,
+        takeProfitPrice: priceTakeProfit,
+        position: "long",
+        context,
+        backtest: true,
+      });
+    }
+
+    if (commit === "breakeven") {
+      await commitBreakeven({
+        symbol,
+        currentPrice,
+        newStopLossPrice: currentPrice,
+        newTakeProfitPrice: priceTakeProfit,
+        position: "long",
+        context,
+        backtest: true,
+      });
+    }
   }
 
-  if (commit === "signal-close") {
-    await commitSignalClose({
-      symbol,
-      cost: 100,
-      position: "long",
-      currentPrice,
-      priceOpen: currentPrice,
-      priceTakeProfit,
-      priceStopLoss,
-      totalEntries: 1,
-      totalPartials: 0,
-      pnl: ZERO_PNL,
-      peakProfit: ZERO_PNL,
-      maxDrawdown: ZERO_PNL,
-      context,
-      backtest: true,
-    });
-  }
-
-  if (commit === "partial-profit") {
-    await commitPartialProfit({
-      symbol,
-      percentToClose: 50,
-      cost: 50,
-      currentPrice,
-      position: "long",
-      priceTakeProfit,
-      priceStopLoss,
-      context,
-      backtest: true,
-    });
-  }
-
-  if (commit === "partial-loss") {
-    await commitPartialLoss({
-      symbol,
-      percentToClose: 50,
-      cost: 50,
-      currentPrice,
-      position: "long",
-      priceTakeProfit,
-      priceStopLoss,
-      context,
-      backtest: true,
-    });
-  }
-
-  if (commit === "average-buy") {
-    await commitAverageBuy({
-      symbol,
-      currentPrice,
-      cost: 100,
-      position: "long",
-      priceTakeProfit,
-      priceStopLoss,
-      context,
-      backtest: true,
-    });
-  }
-
-  if (commit === "trailing-stop") {
-    await commitTrailingStop({
-      symbol,
-      percentShift: -50,
-      currentPrice,
-      newStopLossPrice: priceStopLoss + (currentPrice - priceStopLoss) * 0.5,
-      takeProfitPrice: priceTakeProfit,
-      position: "long",
-      context,
-      backtest: true,
-    });
-  }
-
-  if (commit === "trailing-take") {
-    await commitTrailingTake({
-      symbol,
-      percentShift: 50,
-      currentPrice,
-      newTakeProfitPrice:
-        priceTakeProfit + (priceTakeProfit - currentPrice) * 0.5,
-      takeProfitPrice: priceTakeProfit,
-      position: "long",
-      context,
-      backtest: true,
-    });
-  }
-
-  if (commit === "breakeven") {
-    await commitBreakeven({
-      symbol,
-      currentPrice,
-      newStopLossPrice: currentPrice,
-      newTakeProfitPrice: priceTakeProfit,
-      position: "long",
-      context,
-      backtest: true,
-    });
-  }
+  await runInMockContext(run, {
+    when: alignToInterval(new Date(), "1m"),
+    strategyName: context.strategyName,
+    exchangeName: context.exchangeName,
+    frameName: "",
+    symbol,
+    backtest: true,
+  });
 
   {
     console.log(`${commit} OK`);
