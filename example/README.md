@@ -23,11 +23,11 @@
 | [BTCUSDT Mar 2026 — SHORT DCA Ladder](./content/mar_2026.strategy/README.md) | BTCUSDT | Mar 2026 | Fixed SHORT gravebag signal + DCA ladder up (up to 10 rungs) | **+37.83%** | **0.35** |
 | [BTCUSDT Apr 2026 — DCA Ladder](./content/apr_2026.strategy/README.md) | BTCUSDT | Apr 2026 | Fixed LONG moonbag signal + DCA ladder down (up to 10 rungs) | **+67.85%** | **0.12** |
 
----
-
 ## 🎲 Briefing
 
 ### 🔪 TRXUSDT January 2026 — Liquidity Harvesting
+
+---
 
 > **Hypothesis:** The Telegram channel publishes SHORT signals with average R:R of 0.375:1 and 106% deposit at risk at 25× leverage — mathematically guaranteed to lose. Fifteen minutes before each post a volume spike appears on the chart; the TP step multipliers and T5/SL ratio are identical across all signals, indicating an algorithm. If you reverse engineer the algorithm — liquidity is yours
 
