@@ -1371,7 +1371,7 @@ npm run sync:lib
 
 ## 🐳 Running in Docker (`--docker`)
 
-`@backtest-kit/cli` can scaffold a ready-to-use Docker workspace — a self-contained directory with `docker-compose.yaml` and a sample strategy. 
+CLI can scaffold a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a strategy entry point. 
 
 ### CLI Flags
 
