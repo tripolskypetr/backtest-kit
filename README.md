@@ -46,7 +46,7 @@ Sidekick generates a project where the exchange adapter, frame definitions, risk
 
 ### 🐳 Running in Docker
 
-`@backtest-kit/cli` can scaffold a ready-to-use Docker workspace — a self-contained directory with `docker-compose.yaml` and a sample strategy. 
+CLI can scaffold a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a sample strategy. 
 
 ```bash
 npx @backtest-kit/cli --docker
