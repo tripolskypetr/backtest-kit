@@ -17,6 +17,16 @@ case "${MODE}" in
     ;;
 esac
 
+if [ "$MODE" = "backtest" ]; then
+  echo "Mode: backtest | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
+elif [ "$MODE" = "live" ]; then
+  echo "Mode: live | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
+elif [ "$MODE" = "paper" ]; then
+  echo "Mode: paper | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
+elif [ "$MODE" = "walker" ]; then
+  echo "Mode: walker | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
+fi
+
 ARGS="--${MODE} --symbol ${SYMBOL:-BTCUSDT}"
 
 [ -n "$STRATEGY" ]  && ARGS="$ARGS --strategy $STRATEGY"
