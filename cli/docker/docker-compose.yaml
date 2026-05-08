@@ -27,3 +27,4 @@ services:
       - --exchange
       - ccxt-exchange
       - ./content/feb_2026/feb_2026.strategy.ts
+      - --ui
