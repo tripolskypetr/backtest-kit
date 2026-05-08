@@ -1,13 +1,16 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/square_compasses.svg" height="45px" align="right">
 
-# 📊 backtest-kit — Strategy Examples
+# 🧿 Backtest Kit Docker
 
-> A collection of production-quality backtests built with [backtest-kit](https://github.com/tripolskypetr/backtest-kit). Each example demonstrates a distinct signal source, entry logic, and position management approach.
+> A TypeScript framework for backtesting and live trading strategies on multi-asset, crypto, forex or [DEX (peer-to-peer marketplace)](https://en.wikipedia.org/wiki/Decentralized_finance#Decentralized_exchanges), spot, futures with crash-safe persistence, signal validation, and AI optimization.
+
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
-[![Build](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml/badge.svg)](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml)
+
+A self-contained Docker workspace for running [backtest-kit](https://github.com/tripolskypetr/backtest-kit) strategies with automatic restarts and zero-downtime trading.
 
 ---
 
@@ -25,91 +28,95 @@
 
 ---
 
-## 🎲 Briefing
+## 🚀 Quick Start
+
+```bash
+MODE=backtest STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts docker-compose up -d
+docker-compose logs -f
+```
 
 ---
 
-### 🔪 TRXUSDT January 2026 — Liquidity Harvesting
+## 🏃 Running Modes
 
-> **Hypothesis:** The Telegram channel publishes SHORT signals with average R:R of 0.375:1 and 106% deposit at risk at 25× leverage — mathematically guaranteed to lose. Fifteen minutes before each post a volume spike appears on the chart; the TP step multipliers and T5/SL ratio are identical across all signals, indicating an algorithm. If you reverse engineer the algorithm — liquidity is yours
+The container entrypoint reads `MODE` and `STRATEGY_FILE` from environment variables. Pass them inline — no file edits needed.
 
-### How it works
+### 🧪 Backtest
 
-1. Signals are loaded from `assets/entry.jsonl` — 11 real posts from the Crypto Yoda channel, exported verbatim.
-2. On each candle, `getSignal` checks if `publishedAt` matches the current minute and whether `closePrice` falls inside `entry.from..entry.to`.
-3. Counter trend entry with trailing take and no fixed TP. SL is set to -0.5%
+```bash
+MODE=backtest \
+STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts \
+SYMBOL=BTCUSDT \
+STRATEGY=feb_2026_strategy \
+EXCHANGE=ccxt-exchange \
+UI=1 \
+docker-compose up -d
+```
 
----
+### 📄 Paper Trading
 
-### 📰 BTCUSDT February 2026 — AI News Sentiment
+```bash
+MODE=paper \
+STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts \
+SYMBOL=BTCUSDT \
+docker-compose up -d
+```
 
-> **Hypothesis:** an LLM reading live crypto/macro news every few hours can produce a directional bias (bullish / bearish / wait) that outperforms random on a sustained trending month.
+### 📈 Live Trading
 
-#### How it works
+```bash
+MODE=live \
+STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts \
+SYMBOL=BTCUSDT \
+UI=1 \
+docker-compose up -d
+```
 
-1. Every 4–8 hours, a Tavily search fetches the latest Bitcoin and macro headlines.
-2. The raw news text is passed to a local Ollama model, which returns one of `bullish`, `bearish`, or `wait`.
-3. `getSignal` opens a LONG on `bullish`, SHORT on `bearish`, and skips on `wait`. A conflicting forecast while a position is open triggers `commitClosePending` (sentiment flip).
-4. Positions exit on trailing take-profit (1% drawdown from peak) or stop-loss (1% from entry). No fixed TP target.
+### ⚖️ Walker — A/B Comparison
 
----
-
-### 🪂 BTCUSDT March 2026 — SHORT DCA Ladder
-
-> **Hypothesis:** in a high-volatility, mean-reverting month, dollar-cost averaging into every spike upward raises the blended cost basis enough to hit a 0.5% profit target on each reversal.
-
-#### How it works
-
-1. `getSignal` opens a SHORT on every new pending signal via `Position.moonbag` with a 25% hard stop and $100 cost.
-2. While active, `commitAverageBuy` fires on each ping if the current price moves outside a ±1–5% band around the last entry and fewer than 10 rungs have been added.
-3. The position closes as soon as blended portfolio PNL reaches +0.5% via `commitClosePending`.
-
----
-
-### 🧗 BTCUSDT April 2026 — LONG DCA Ladder
-
-> **Hypothesis:** in a trending bull month, dollar-cost averaging into every dip lowers the blended cost basis enough to hit a 3% profit target faster and more often than a single-entry approach.
-
-#### How it works
-
-1. `getSignal` opens a LONG on every new pending signal via `Position.moonbag` with a 25% hard stop and $100 cost.
-2. While active, `commitAverageBuy` fires on each ping if the current price falls outside a ±1–5% band around the last entry and fewer than 10 rungs have been added.
-3. The position closes as soon as blended portfolio PNL reaches +3% via `commitClosePending`.
-
----
-
-### 🧠 BTCUSDT October 2021 — TensorFlow Neural Network
-
-> **Hypothesis:** a simple feed-forward neural network trained on normalized candle patterns every 8 hours can predict next candle close position within its high-low range, enabling profitable entries when current price is below predicted price.
-
-#### How it works
-
-1. Every 8 hours, the strategy fetches 58 candles (50 for training + 8 for prediction), trains a neural network (8→6→4→1 architecture) on normalized data.
-2. Normalization maps each candle's close to [0,1] as `(close - low) / (high - low)`, representing where the close sits within the candle's range.
-3. `getSignal` checks every 15 minutes: if `currentPrice < predictedPrice`, it opens a LONG via `Position.moonbag` with $100 entry and 1% hard stop.
-4. Positions close via trailing take-profit: when profit retraces 1% from its peak (e.g., position hits +3%, closes at +2%).
+```yaml
+command:
+  - --walker
+  - --symbol
+  - BTCUSDT
+  - --noCache
+  - ./content/feb_2026_v1.strategy.ts
+  - ./content/feb_2026_v2.strategy.ts
+```
 
 ---
 
-### 🌲 BTCUSDT December 2025 — Pine Script Range Breakout
+## 🌍 Environment Variables
 
-> **Hypothesis:** Bollinger Band breakouts from a horizontal range, confirmed by a volume spike, and produce directional signals with positive expectancy on a choppy December.
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MODE` | yes | — | `backtest` \| `live` \| `paper` \| `walker` |
+| `STRATEGY_FILE` | yes | — | Path to strategy entry point (relative to `working_dir`) |
+| `SYMBOL` | no | `BTCUSDT` | Trading pair |
+| `STRATEGY` | no | first registered | Strategy name from `addStrategySchema` |
+| `EXCHANGE` | no | first registered | Exchange name from `addExchangeSchema` |
+| `FRAME` | no | first registered | Frame name from `addFrameSchema` (backtest only) |
+| `UI` | no | — | Any non-empty value enables `--ui` dashboard at `http://localhost:60050` |
+| `TELEGRAM` | no | — | Any non-empty value enables `--telegram` notifications |
+| `VERBOSE` | no | — | Any non-empty value enables `--verbose` candle logging |
+| `NO_CACHE` | no | — | Any non-empty value enables `--noCache` (skip cache warming) |
+| `NO_FLUSH` | no | — | Any non-empty value enables `--noFlush` (keep report folders) |
 
-#### How it works
-
-1. Every hour `Cache.fn` runs `btc_dec2025_range.pine` on 1h candles (RSI 14) and extracts: BB bands, range boundaries, `signal` (±1), `isRanging`, `volSpike`.
-2. `getSignal` opens a LONG on `signal === 1` or SHORT on `signal === -1`, but skips if price has already moved past the close at signal time, or if `isRanging === 1`.
-3. Each position uses a fixed ±2% bracket (TP and SL), no DCA, no trailing.
+Connection strings, API keys, and other secrets go in `.env` — it is loaded automatically by `docker-compose.yaml`.
 
 ---
 
-### 🐍 DOTUSDT February 2021 — Python EMA Crossover
+## 🗂️ Project Structure
 
-> **Hypothesis:** A classic EMA(9)/EMA(21) crossover strategy executed via Python WebAssembly can capture short-term momentum reversals on 8-hour candles with fixed bracket orders.
-
-#### How it works
-
-1. Every 8 hours, `Cache.fn` runs the Python indicator (`strategy.py`) on 8h candles to calculate EMA(9) and EMA(21).
-2. A signal fires based on EMA crossover and 4h range midpoint confirmation: if EMA(9) > EMA(21), open LONG; otherwise SELL.
-3. Each signal opens a $100 bracket position via `Position.bracket` with ±2% take-profit and stop-loss.
-4. The strategy deployed $3,300 across 33 trades (all LONG), achieving +$5.52 (+0.17%) with a 63.6% win rate.
+```
+├── docker-compose.yaml               # service definition — edit to pin command: or add resources
+├── .env                              # secrets: DB connection strings, API keys, Telegram token
+├── .env.example                      # reference copy of .env
+├── package.json                      # dependencies for editing strategies locally
+├── tsconfig.json                     # TypeScript config for content/
+└── content/
+    └── feb_2026/
+        ├── feb_2026.strategy.ts      # strategy entry point
+        └── modules/
+            └── backtest.module.ts    # CCXT Binance exchange + frame schema
+```
