@@ -46,7 +46,7 @@ Sidekick generates a project where the exchange adapter, frame definitions, risk
 
 ### 🐳 Running in Docker
 
-> **Automatic restarts — Zero-downtime trading.**
+> **Automatic restarts — Zero-downtime trading:**
 
 CLI can create a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a strategy entry point. 
 
