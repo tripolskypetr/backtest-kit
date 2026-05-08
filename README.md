@@ -55,6 +55,8 @@ MODE=live SYMBOL=TRXUSDT UI=1 docker-compose up -d
 docker-compose logs -f
 ```
 
+CLI can create a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a strategy entry point. 
+
 ### 📦 Manual Installation
 
 > **Want to see the code?** 👉 [Demo app](https://github.com/tripolskypetr/backtest-kit/tree/master/example) 👈
