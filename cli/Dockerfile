@@ -9,4 +9,7 @@ COPY package.json .
 
 RUN node ./install.mjs
 
-ENTRYPOINT ["node", "/usr/local/lib/node_modules/@backtest-kit/cli/build/index.mjs"]
+COPY scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

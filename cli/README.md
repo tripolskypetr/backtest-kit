@@ -1396,20 +1396,48 @@ npx @backtest-kit/cli --docker --output my-docker-workspace
 
 The target directory must not exist or must be empty — the command aborts if it contains any files.
 
-### Generated Workspace Structure
+### Two Launch Modes
 
+The Docker image entrypoint supports two ways to run a strategy:
+
+#### 1. `command:` in `docker-compose.yaml`
+
+Pin mode and flags directly in the compose file. The entrypoint forwards all arguments to the CLI unchanged:
+
+```yaml
+command:
+  - --live
+  - --symbol
+  - TRXUSDT
+  - --strategy
+  - feb_2026_strategy
+  - --exchange
+  - ccxt-exchange
+  - ./content/feb_2026/feb_2026.strategy.ts
+  - --ui
 ```
-backtest-kit-docker/
-├── docker-compose.yaml           # ready-to-run service definition
-├── .env.example                  # environment variable reference
-├── package.json                  # dependencies for editing strategies locally
-├── tsconfig.json                 # TypeScript config for content/
-└── content/
-    └── feb_2026/
-        ├── feb_2026.strategy.ts  # example strategy entry point
-        └── modules/
-            └── backtest.module.ts  # CCXT Binance exchange + frame schema
+
+#### 2. Inline environment variables
+
+Pass `MODE` and `STRATEGY_FILE` on the command line — no file edits needed:
+
+```bash
+MODE=live SYMBOL=TRXUSDT UI=1 docker-compose up -d
 ```
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MODE` | yes | — | `backtest` \| `live` \| `paper` \| `walker` |
+| `STRATEGY_FILE` | yes | — | Path to strategy entry point (relative to `working_dir`) |
+| `SYMBOL` | no | `BTCUSDT` | Trading pair |
+| `STRATEGY` | no | first registered | Strategy name |
+| `EXCHANGE` | no | first registered | Exchange name |
+| `FRAME` | no | first registered | Frame name (backtest only) |
+| `UI` | no | — | Any non-empty value enables `--ui` |
+| `TELEGRAM` | no | — | Any non-empty value enables `--telegram` |
+| `VERBOSE` | no | — | Any non-empty value enables `--verbose` |
+| `NO_CACHE` | no | — | Any non-empty value enables `--noCache` |
+| `NO_FLUSH` | no | — | Any non-empty value enables `--noFlush` |
 
 ## 🌍 Environment Variables
 

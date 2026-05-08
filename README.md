@@ -51,11 +51,9 @@ Sidekick generates a project where the exchange adapter, frame definitions, risk
 ```bash
 npx @backtest-kit/cli --docker
 cd backtest-kit-docker
-docker-compose up -d
+MODE=live SYMBOL=TRXUSDT UI=1 docker-compose up -d
 docker-compose logs -f
 ```
-
-CLI can create a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a strategy entry point. 
 
 ### 📦 Manual Installation
 

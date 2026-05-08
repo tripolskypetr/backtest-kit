@@ -13,18 +13,20 @@ services:
     volumes:
       - ./:/workspace
     working_dir: /workspace
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:60050/api/v1/health/health_check"]
       interval: 30s
       timeout: 10s
       retries: 3
-    command:
-      - --backtest
-      - --symbol
-      - BTCUSDT
-      - --strategy
-      - feb_2026_strategy
-      - --exchange
-      - ccxt-exchange
-      - ./content/feb_2026/feb_2026.strategy.ts
-      - --ui
+    # command:
+    #   - --backtest
+    #   - --symbol
+    #   - BTCUSDT
+    #   - --strategy
+    #   - feb_2026_strategy
+    #   - --exchange
+    #   - ccxt-exchange
+    #   - ./content/feb_2026/feb_2026.strategy.ts
+    #   - --ui
