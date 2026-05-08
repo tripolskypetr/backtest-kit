@@ -77,6 +77,10 @@ export const main = async () => {
   console.log(`Creating Docker workspace in ${projectPath}`);
   await copyDir(templatePath, projectPath);
 
+  console.log(`Installing env...`);
+  await copyFile(join(projectPath, ".env.example"), join(projectPath, ".env"));
+  console.log(`  -> ${join(projectPath, ".env")}`);
+
   console.log(`Installing dependencies...`);
   await runNpmInstall(projectPath);
 
