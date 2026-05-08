@@ -11,6 +11,20 @@
 
 A minimal project scaffold for [backtest-kit](https://github.com/tripolskypetr/backtest-kit). All infrastructure (exchange registration, candle caching, runner, UI, Telegram) is handled by `@backtest-kit/cli` — this project contains only your strategy files.
 
+
+## 📂 Strategy Index
+
+| Strategy | Ticker | Period | Signal source | Net PNL | Sharpe |
+|---|---|---|---|---|---|
+| [DOTUSDT Feb 2021 — Python EMA Crossover](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2021.strategy) | DOTUSDT | Feb 2021 | Python EMA(9)/EMA(21) crossover via WebAssembly | **+5.52%** | **0.09** |
+| [BTCUSDT Oct 2021 — TensorFlow Neural Network](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/oct_2021.strategy) | BTCUSDT | Oct 2021 | TensorFlow NN predicting next candle close | **+18.26%** | **0.31** |
+| [BTCUSDT Dec 2025 — Pine Script Range Breakout](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/dec_2025.strategy) | BTCUSDT | Dec 2025 | Pine Script BB + range detector + volume spike | **+2.40%** | **0.06** |
+| [TRXUSDT Jan 2026 — Liquidity Harvesting](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content//jan_2026.strategy) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
+| [BTCUSDT Feb 2026 — AI News Sentiment](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2026.strategy) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** |
+| [BTCUSDT Mar 2026 — SHORT DCA Ladder](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/mar_2026.strategy) | BTCUSDT | Mar 2026 | Fixed SHORT gravebag signal + DCA ladder up (up to 10 rungs) | **+37.83%** | **0.35** |
+| [BTCUSDT Apr 2026 — DCA Ladder](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/apr_2026.strategy) | BTCUSDT | Apr 2026 | Fixed LONG moonbag signal + DCA ladder down (up to 10 rungs) | **+67.85%** | **0.12** |
+
+
 ## 📋 Quick Start
 
 ```bash
