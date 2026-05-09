@@ -13,4 +13,8 @@ COPY scripts/entrypoint.sh /entrypoint.sh
 RUN dos2unix /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+ENV MODE=backtest
+
+EXPOSE 60050
+
 ENTRYPOINT ["/entrypoint.sh"]
