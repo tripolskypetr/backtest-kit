@@ -1406,8 +1406,6 @@ Aggregated trades fetching uses the same look-ahead bias protection as candles -
     The Math
   </summary>
 
-#### Aggregated Trades Timestamp Convention:
-
   **Time range calculation:**
   - `when` = current execution context time (from AsyncLocalStorage)
   - `alignedTo` = `Math.floor(when / 60000) * 60000` (aligned down to 1-minute boundary)
@@ -1441,6 +1439,8 @@ Aggregated trades fetching uses the same look-ahead bias protection as candles -
   - Schema implementation may use the time range (backtest) or ignore it (live trading)
 
 </details>
+
+#### Aggregated Trades Timestamp Convention:
 
 **Compatible with:** [garch](https://www.npmjs.com/package/garch) for volatility modelling and [volume-anomaly](https://www.npmjs.com/package/volume-anomaly) for detecting abnormal trade volume — both accept the same `from`/`to` time range format that `getAggregatedTrades` produces.
 
