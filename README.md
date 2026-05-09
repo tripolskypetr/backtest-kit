@@ -361,6 +361,8 @@ These three functions work together to dynamically manage the position. To reduc
   ```
 </details>
 
+#### Internals
+
 **`priceOpen`** is the harmonic mean of all accepted DCA entries. After each partial close (`commitPartialProfit` or `commitPartialLoss`), the remaining cost basis is carried forward into the harmonic mean calculation for subsequent entries — so `priceOpen` shifts after every partial, which in turn changes whether the next `commitAverageBuy` call will be accepted.
 
 ### 🔍 How Broker Transactional Integrity Works
@@ -1261,6 +1263,8 @@ Broker.enable();
 
 </details>
 
+#### Internals
+
 Signal open/close events are routed automatically via an internal event bus once `Broker.enable()` is called. **No manual wiring needed.** All other operations (`partialProfit`, `trailingStop`, `breakeven`, `averageBuy`) are intercepted explicitly before the corresponding state mutation.
 
 ### 🔍 How getCandles Works
@@ -1401,6 +1405,8 @@ Aggregated trades fetching uses the same look-ahead bias protection as candles -
   <summary>
     The Math
   </summary>
+
+#### Aggregated Trades Timestamp Convention:
 
   **Time range calculation:**
   - `when` = current execution context time (from AsyncLocalStorage)
