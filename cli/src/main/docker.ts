@@ -87,7 +87,7 @@ export const main = async () => {
   console.log(`Done! Docker workspace created at ${projectPath}`);
   console.log(`Next steps:`);
   console.log(`  cd ${projectName}`);
-  console.log(`  docker compose up -d`);
+  console.log(`  MODE=live SYMBOL=TRXUSDT UI=1 docker compose up -d`);
   console.log(`  docker compose logs -f`);
   process.exit(0);
 };
