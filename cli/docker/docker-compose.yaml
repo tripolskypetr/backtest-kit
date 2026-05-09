@@ -15,6 +15,18 @@ services:
     working_dir: /workspace
     env_file:
       - .env
+    environment:
+      - MODE
+      - STRATEGY_FILE
+      - SYMBOL
+      - STRATEGY
+      - EXCHANGE
+      - FRAME
+      - UI
+      - TELEGRAM
+      - VERBOSE
+      - NO_CACHE
+      - NO_FLUSH
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:60050/api/v1/health/health_check"]
       interval: 30s
