@@ -24,7 +24,7 @@ Build reliable trading systems: backtest on historical data, deploy live bots wi
 > **Minimal scaffold — all boilerplate stays inside `@backtest-kit/cli`:**
 
 ```bash
-npx -y @backtest-kit/cli@latest --init --output backtest-kit-project
+npx @backtest-kit/cli --init --output backtest-kit-project
 cd backtest-kit-project
 npm install
 npm start
@@ -49,7 +49,7 @@ Sidekick generates a project where the exchange adapter, frame definitions, risk
 > **Automatic restarts — Zero-downtime trading:**
 
 ```bash
-npx -y @backtest-kit/cli@latest --docker
+npx @backtest-kit/cli --docker
 cd backtest-kit-docker
 MODE=live SYMBOL=TRXUSDT UI=1 docker-compose up -d
 docker-compose logs -f
@@ -1577,7 +1577,7 @@ The fastest way to run any backtest-kit strategy from the command line. Instead 
 
 #### Get Started
 ```bash
-npx -y @backtest-kit/cli@latest --init
+npx -y @backtest-kit/cli --init
 ```
 
 
