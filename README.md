@@ -55,7 +55,7 @@ MODE=live SYMBOL=TRXUSDT STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts d
 docker-compose logs -f
 ```
 
-CLI can create a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a strategy entry point. 
+CLI can create a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a strategy entry point. CLI supports [Multiple Symbol in Parallel](./cli/README.md#-multiple-symbol-parallel) for powerusers.
 
 ### 📦 Manual Installation
 
