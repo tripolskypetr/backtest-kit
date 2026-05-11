@@ -1503,6 +1503,7 @@ MODE=live SYMBOL=TRXUSDT STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts d
 | `VERBOSE` | no | — | Any non-empty value enables `--verbose` |
 | `NO_CACHE` | no | — | Any non-empty value enables `--noCache` |
 | `NO_FLUSH` | no | — | Any non-empty value enables `--noFlush` |
+| `ENTRY` | no | — | Any non-empty value enables multiple symbols from userspace |
 
 ## 🌍 Environment Variables
 

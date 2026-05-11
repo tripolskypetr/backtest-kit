@@ -17,25 +17,18 @@ case "${MODE}" in
     ;;
 esac
 
-if [ "$MODE" = "backtest" ]; then
-  echo "Mode: backtest | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
-elif [ "$MODE" = "live" ]; then
-  echo "Mode: live | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
-elif [ "$MODE" = "paper" ]; then
-  echo "Mode: paper | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
-elif [ "$MODE" = "walker" ]; then
-  echo "Mode: walker | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
-fi
+echo "Mode: ${MODE} | Symbol: ${SYMBOL:-BTCUSDT} | File: $STRATEGY_FILE"
 
 ARGS="--${MODE} --symbol ${SYMBOL:-BTCUSDT}"
 
-[ -n "$STRATEGY" ]  && ARGS="$ARGS --strategy $STRATEGY"
-[ -n "$EXCHANGE" ]  && ARGS="$ARGS --exchange $EXCHANGE"
-[ -n "$FRAME" ]     && ARGS="$ARGS --frame $FRAME"
-[ -n "$UI" ]        && ARGS="$ARGS --ui"
-[ -n "$TELEGRAM" ]  && ARGS="$ARGS --telegram"
-[ -n "$VERBOSE" ]   && ARGS="$ARGS --verbose"
-[ -n "$NO_CACHE" ]  && ARGS="$ARGS --noCache"
-[ -n "$NO_FLUSH" ]  && ARGS="$ARGS --noFlush"
+[ -n "$STRATEGY" ] && ARGS="$ARGS --strategy $STRATEGY"
+[ -n "$EXCHANGE" ] && ARGS="$ARGS --exchange $EXCHANGE"
+[ -n "$FRAME" ]    && ARGS="$ARGS --frame $FRAME"
+[ -n "$UI" ]       && ARGS="$ARGS --ui"
+[ -n "$TELEGRAM" ] && ARGS="$ARGS --telegram"
+[ -n "$VERBOSE" ]  && ARGS="$ARGS --verbose"
+[ -n "$NO_CACHE" ] && ARGS="$ARGS --noCache"
+[ -n "$NO_FLUSH" ] && ARGS="$ARGS --noFlush"
+[ -n "$ENTRY" ]    && ARGS="$ARGS --entry"
 
 exec node /usr/local/lib/node_modules/@backtest-kit/cli/build/index.mjs $ARGS "$STRATEGY_FILE"
