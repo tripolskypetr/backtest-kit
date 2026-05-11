@@ -279,7 +279,7 @@ npx @backtest-kit/cli --walker \
 
 ## 🐙 Multiple Symbol Strategy
 
-> **Advanced — skip unless needed.** The standard flow runs one symbol from `--symbol`. Use `--entry` only to fan out one strategy across many symbols at once, or to drive `*.background()` from a UI / DB / API.
+> **For Poweruser — skip unless needed.** The standard flow runs one symbol from `--symbol`. Use `--entry` only to fan out one strategy across many symbols at once, or to drive `*.background()` from a UI / DB / API.
 
 With `--entry`, the CLI does only the boilerplate — `Setup`, providers (`--ui` / `--telegram`), the matching `./modules/<mode>.module`, SIGINT that stops every active run via `*.list()`, and `shutdown()` once `listenDone*` reports all your runs complete. Picking the symbol set, warming cache, and calling `*.background()` is on you.
 
@@ -332,6 +332,17 @@ addStrategySchema({
 const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
 
 for (const symbol of symbols) {
+
+  // 
+  // Optional
+  // 
+  // await Cache.warmup(["1m", "15m", "1h"], {
+  //   exchangeName: "binance",
+  //   frameName: "feb-2026",
+  //   symbol,
+  // });
+  //
+
   Backtest.background(symbol, {
     strategyName: "my-strategy",
     exchangeName: "binance",
