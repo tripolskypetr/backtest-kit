@@ -8,41 +8,34 @@ const alignTimestamp = (timestampMs, intervalMinutes) => {
   return Math.floor(timestampMs / intervalMs) * intervalMs;
 };
 
+const INTERVAL_MINUTES = { "1m": 1, "3m": 3, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "2h": 120, "4h": 240, "6h": 360, "8h": 480, "1d": 1440 };
+
 /**
- * In-memory adapter for testing PersistCandleAdapter.
- * Replaces file-based PersistBase with a simple Map.
+ * In-memory IPersistCandleInstance for testing PersistCandleAdapter.
  */
 class PersistMemory {
   _store = new Map();
 
-  constructor(_entityName, _baseDir) {}
-
-  async waitForInit(_initial) {
-    void 0;
+  constructor(_symbol, _interval, _exchangeName) {
+    this._interval = _interval;
   }
 
-  async readValue(entityId) {
-    const value = this._store.get(String(entityId));
-    if (value === undefined) {
-      throw new Error(`Entity ${entityId} not found`);
+  async waitForInit(_initial) { void 0; }
+
+  async readCandlesData(limit, sinceTimestamp, _untilTimestamp) {
+    const stepMs = INTERVAL_MINUTES[this._interval] * MS_PER_MINUTE;
+    const result = [];
+    for (let i = 0; i < limit; i++) {
+      const key = String(sinceTimestamp + i * stepMs);
+      if (!this._store.has(key)) return null;
+      result.push(this._store.get(key));
     }
-    return value;
+    return result;
   }
 
-  async hasValue(entityId) {
-    return this._store.has(String(entityId));
-  }
-
-  async writeValue(entityId, entity) {
-    this._store.set(String(entityId), entity);
-  }
-
-  async *keys() {
-    const ids = [...this._store.keys()].sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
-    );
-    for (const id of ids) {
-      yield id;
+  async writeCandlesData(candles) {
+    for (const candle of candles) {
+      this._store.set(String(candle.timestamp), candle);
     }
   }
 }

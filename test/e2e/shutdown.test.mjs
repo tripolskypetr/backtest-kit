@@ -333,7 +333,7 @@ test("SHUTDOWN: Live.stop() after signal closes - no new signals", async ({ pass
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return {
         id: "shutdown-live-test",
         position: "long",
@@ -349,12 +349,7 @@ test("SHUTDOWN: Live.stop() after signal closes - no new signals", async ({ pass
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({

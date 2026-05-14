@@ -81,8 +81,8 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
   class BtcPersistAdapter {
     async waitForInit() {}
 
-    async readValue(symbol) {
-      if (symbol === "BTCUSDT" && !btcPersistCalled.read) {
+    async readSignalData() {
+      if (!btcPersistCalled.read) {
         btcPersistCalled.read = true;
         return {
           id: "persist-btc-live-markdown",
@@ -100,12 +100,7 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
       return null;
     }
 
-    async hasValue(symbol) {
-      return symbol === "BTCUSDT" && !btcPersistCalled.read;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   }
 
   // PersistSignalAdapter для ETHUSDT (SHORT)
@@ -113,8 +108,8 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
   class EthPersistAdapter {
     async waitForInit() {}
 
-    async readValue(symbol) {
-      if (symbol === "ETHUSDT" && !ethPersistCalled.read) {
+    async readSignalData() {
+      if (!ethPersistCalled.read) {
         ethPersistCalled.read = true;
         return {
           id: "persist-eth-live-markdown",
@@ -132,46 +127,24 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
       return null;
     }
 
-    async hasValue(symbol) {
-      return symbol === "ETHUSDT" && !ethPersistCalled.read;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   }
 
-  // Используем мультиплексор для обоих адаптеров
+  // Мультиплексор: symbol передаётся в конструктор, Instance привязана к конкретному symbol
   PersistSignalAdapter.usePersistSignalAdapter(class {
-    btcAdapter = new BtcPersistAdapter();
-    ethAdapter = new EthPersistAdapter();
+    constructor(symbol) {
+      this._delegate = symbol === "BTCUSDT" ? new BtcPersistAdapter() : new EthPersistAdapter();
+    }
 
     async waitForInit() {
-      await this.btcAdapter.waitForInit();
-      await this.ethAdapter.waitForInit();
+      await this._delegate.waitForInit();
     }
 
-    async readValue(symbol) {
-      if (symbol === "BTCUSDT") {
-        return await this.btcAdapter.readValue(symbol);
-      }
-      if (symbol === "ETHUSDT") {
-        return await this.ethAdapter.readValue(symbol);
-      }
-      return null;
+    async readSignalData() {
+      return this._delegate.readSignalData();
     }
 
-    async hasValue(symbol) {
-      if (symbol === "BTCUSDT") {
-        return await this.btcAdapter.hasValue(symbol);
-      }
-      if (symbol === "ETHUSDT") {
-        return await this.ethAdapter.hasValue(symbol);
-      }
-      return false;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({

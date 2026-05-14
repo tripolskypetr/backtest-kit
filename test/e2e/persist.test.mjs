@@ -38,7 +38,7 @@ test("PERSIST: LONG signal closes by TP after restart", async ({ pass, fail }) =
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return {
         id: "persist-long-tp",
         position: "long",
@@ -53,12 +53,7 @@ test("PERSIST: LONG signal closes by TP after restart", async ({ pass, fail }) =
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -131,7 +126,7 @@ test("PERSIST: SHORT signal closes by SL after restart", async ({ pass, fail }) 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return {
         id: "persist-short-sl",
         position: "short",
@@ -146,12 +141,7 @@ test("PERSIST: SHORT signal closes by SL after restart", async ({ pass, fail }) 
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -224,20 +214,14 @@ test("PERSIST: Scheduled signal is NOT written to storage", async ({ pass, fail 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return null;
     }
 
-    async hasValue() {
-      return false;
-    }
-
-    async writeValue(signal) {
+    async writeSignalData(signal) {
       writeValueCalled = true;
-      fail(`CRITICAL BUG: writeValue() called for scheduled signal! Signal: ${JSON.stringify(signal)}`);
+      fail(`CRITICAL BUG: writeSignalData() called for scheduled signal! Signal: ${JSON.stringify(signal)}`);
     }
-
-    async deleteValue() {}
   });
 
   addExchangeSchema({
@@ -331,7 +315,7 @@ test("PERSIST: LONG signal expires by time after restart", async ({ pass, fail }
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       const now = Date.now();
       return {
         id: "persist-time-exp",
@@ -349,12 +333,7 @@ test("PERSIST: LONG signal expires by time after restart", async ({ pass, fail }
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -427,7 +406,7 @@ test("PERSIST: SHORT signal closes by TP after long downtime", async ({ pass, fa
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return {
         id: "persist-short-tp-downtime",
         position: "short",
@@ -442,12 +421,7 @@ test("PERSIST: SHORT signal closes by TP after long downtime", async ({ pass, fa
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -520,7 +494,7 @@ test("PERSIST: Signal restored successfully", async ({ pass, fail }) => {
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       readValueCalled = true;
       return {
         id: "persist-restored",
@@ -536,12 +510,7 @@ test("PERSIST: Signal restored successfully", async ({ pass, fail }) => {
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({

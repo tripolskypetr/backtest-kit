@@ -1286,8 +1286,7 @@ test("PERSIST: LONG signal closes by TP after system restart - onClose called", 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
-      // Возвращаем уже открытый сигнал (как будто система перезапустилась)
+    async readSignalData() {
       return {
         id: "persist-long-tp-test",
         position: "long",
@@ -1303,12 +1302,7 @@ test("PERSIST: LONG signal closes by TP after system restart - onClose called", 
       };
     }
 
-    async hasValue() {
-      return true; // Сигнал существует в хранилище
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -1390,8 +1384,7 @@ test("PERSIST: SHORT signal closes by SL after system restart - onClose called",
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
-      // Возвращаем уже открытый SHORT сигнал
+    async readSignalData() {
       return {
         id: "persist-short-sl-test",
         position: "short",
@@ -1407,12 +1400,7 @@ test("PERSIST: SHORT signal closes by SL after system restart - onClose called",
       };
     }
 
-    async hasValue() {
-      return true; // Сигнал существует в хранилище
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -1494,22 +1482,14 @@ test("PERSIST: Scheduled signal is NOT written to persist storage", async ({ pas
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
-      // Нет сохраненных сигналов
+    async readSignalData() {
       return null;
     }
 
-    async hasValue() {
-      return false;
-    }
-
-    async writeValue(signal) {
-      // КРИТИЧЕСКАЯ ПРОВЕРКА: writeValue НЕ должен вызываться для scheduled сигналов
+    async writeSignalData(signal) {
       writeValueCalled = true;
-      fail(`CRITICAL BUG: writeValue() called for scheduled signal! Signal: ${JSON.stringify(signal)}`);
+      fail(`CRITICAL BUG: writeSignalData() called for scheduled signal! Signal: ${JSON.stringify(signal)}`);
     }
-
-    async deleteValue() {}
   });
 
   addExchangeSchema({
@@ -1621,22 +1601,15 @@ test("PERSIST: Only active signals persist, scheduled signals do not", async ({ 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return null;
     }
 
-    async hasValue() {
-      return false;
-    }
-
-    async writeValue(signal) {
-      // Если вызывается для scheduled сигнала - это баг
+    async writeSignalData(signal) {
       if (signal && signal.note && signal.note.includes("Scheduled")) {
         writeValueForScheduled = true;
       }
     }
-
-    async deleteValue() {}
   });
 
   addExchangeSchema({

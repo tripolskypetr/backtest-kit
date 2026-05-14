@@ -651,9 +651,8 @@ test("onActive callback is called in live mode when signal is active", async ({ 
   }
 
   PersistSignalAdapter.usePersistSignalAdapter(class {
-    async waitForInit() {
-    }
-    async readValue() {
+    async waitForInit() {}
+    async readSignalData() {
       return {
         id: "mock-active-signal-id",
         position: "long",
@@ -668,11 +667,7 @@ test("onActive callback is called in live mode when signal is active", async ({ 
         symbol: "BTCUSDT",
       };
     }
-    async hasValue() {
-      return true;
-    }
-    async writeValue() {
-    }
+    async writeSignalData() {}
   });
 
   addExchangeSchema({

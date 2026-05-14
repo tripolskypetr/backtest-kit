@@ -35,7 +35,7 @@ test("RESTORE: Pending signal is restored after crash", async ({ pass, fail }) =
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return {
         id: "restore-pending-signal",
         position: "long",
@@ -53,12 +53,7 @@ test("RESTORE: Pending signal is restored after crash", async ({ pass, fail }) =
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -140,20 +135,14 @@ test("RESTORE: Scheduled signal is restored after crash", async ({ pass, fail })
 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
-    async readValue() {
-      return null;
-    }
-    async hasValue() {
-      return false;
-    }
-    async writeValue() {}
-    async deleteValue() {}
+    async readSignalData() { return null; }
+    async writeSignalData() {}
   });
 
   PersistScheduleAdapter.usePersistScheduleAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readScheduleData() {
       return {
         id: "restore-scheduled-signal",
         position: "short",
@@ -172,12 +161,7 @@ test("RESTORE: Scheduled signal is restored after crash", async ({ pass, fail })
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeScheduleData() {}
   });
 
   addExchangeSchema({
@@ -263,7 +247,7 @@ test("RESTORE: Ignore signal if exchange name mismatches", async ({ pass, fail }
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return {
         id: "signal-wrong-exchange",
         position: "long",
@@ -281,12 +265,7 @@ test("RESTORE: Ignore signal if exchange name mismatches", async ({ pass, fail }
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -356,7 +335,7 @@ test("RESTORE: Ignore signal if strategy name mismatches", async ({ pass, fail }
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
 
-    async readValue() {
+    async readSignalData() {
       return {
         id: "signal-wrong-strategy",
         position: "short",
@@ -374,12 +353,7 @@ test("RESTORE: Ignore signal if strategy name mismatches", async ({ pass, fail }
       };
     }
 
-    async hasValue() {
-      return true;
-    }
-
-    async writeValue() {}
-    async deleteValue() {}
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -450,26 +424,14 @@ test("RESTORE: Handle empty storage gracefully on restart", async ({ pass, fail 
 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
-    async readValue() {
-      return null;
-    }
-    async hasValue() {
-      return false;
-    }
-    async writeValue() {}
-    async deleteValue() {}
+    async readSignalData() { return null; }
+    async writeSignalData() {}
   });
 
   PersistScheduleAdapter.usePersistScheduleAdapter(class {
     async waitForInit() {}
-    async readValue() {
-      return null;
-    }
-    async hasValue() {
-      return false;
-    }
-    async writeValue() {}
-    async deleteValue() {}
+    async readScheduleData() { return null; }
+    async writeScheduleData() {}
   });
 
   addExchangeSchema({

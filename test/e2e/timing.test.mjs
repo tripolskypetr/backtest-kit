@@ -498,31 +498,26 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
   const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
 
   PersistSignalAdapter.usePersistSignalAdapter(class {
-    async waitForInit() {
-    }
-    async readValue() {
+    async waitForInit() {}
+    async readSignalData() {
       const price = await getAveragePrice("BTCUSDT");
       return {
         id: "restored-pending-signal-id",
         position: "long",
         note: "restored pending signal - 24h timing test",
         priceOpen: price,
-        priceTakeProfit: price * 1000, // Никогда не достигнется
-        priceStopLoss: price / 1000, // Никогда не достигнется
-        minuteEstimatedTime: 1440, // 24 часа
+        priceTakeProfit: price * 1000,
+        priceStopLoss: price / 1000,
+        minuteEstimatedTime: 1440,
         exchangeName: "binance-restore-pending",
         strategyName: "test-strategy-restore-pending",
-        scheduledAt: twentyFourHoursAgo, // Был создан 24 часа назад
-        pendingAt: twelveHoursAgo, // Активирован 12 часов назад
+        scheduledAt: twentyFourHoursAgo,
+        pendingAt: twelveHoursAgo,
         symbol: "BTCUSDT",
         _isScheduled: false,
       };
     }
-    async hasValue() {
-      return true;
-    }
-    async writeValue() {
-    }
+    async writeSignalData() {}
   });
 
   const intervalMs = 60 * 1000;

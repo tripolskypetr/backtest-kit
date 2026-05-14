@@ -873,13 +873,8 @@ test("PersistRiskAdapter.readPositionData returns empty array when no data exist
   PersistRiskAdapter.usePersistRiskAdapter(
     class {
       async waitForInit() {}
-      async readValue() {
-        throw new Error("Not found");
-      }
-      async hasValue() {
-        return false;
-      }
-      async writeValue() {}
+      async readPositionData() { return []; }
+      async writePositionData() {}
     }
   );
 
@@ -904,15 +899,8 @@ test("PersistRiskAdapter.writePositionData and readPositionData persist data cor
   PersistRiskAdapter.usePersistRiskAdapter(
     class {
       async waitForInit() {}
-      async readValue() {
-        return storedData;
-      }
-      async hasValue() {
-        return storedData !== null;
-      }
-      async writeValue(_key, value) {
-        storedData = value;
-      }
+      async readPositionData() { return storedData ?? []; }
+      async writePositionData(value) { storedData = value; }
     }
   );
 
@@ -979,22 +967,14 @@ test("PersistRiskAdapter supports custom adapter", async ({ pass, fail }) => {
 
   PersistRiskAdapter.usePersistRiskAdapter(
     class {
-      async waitForInit() {
-        // Mock initialization
-      }
-      async readValue() {
+      async waitForInit() {}
+      async readPositionData() {
         readCalled = true;
         return mockPositions;
       }
-      async hasValue() {
-        return true;
-      }
-      async writeValue(key, value) {
+      async writePositionData(value) {
         writeCalled = true;
-        if (key === "positions" && Array.isArray(value)) {
-          return;
-        }
-        throw new Error("Invalid write");
+        if (!Array.isArray(value)) throw new Error("Invalid write");
       }
     }
   );
@@ -1034,15 +1014,8 @@ test("PersistRiskAdapter handles Map to Array conversion", async ({
   PersistRiskAdapter.usePersistRiskAdapter(
     class {
       async waitForInit() {}
-      async readValue() {
-        return storedData;
-      }
-      async hasValue() {
-        return storedData !== null;
-      }
-      async writeValue(_key, value) {
-        storedData = value;
-      }
+      async readPositionData() { return storedData ?? []; }
+      async writePositionData(value) { storedData = value; }
     }
   );
 
@@ -1100,15 +1073,8 @@ test("PersistRiskAdapter overwrites existing data", async ({ pass, fail }) => {
   PersistRiskAdapter.usePersistRiskAdapter(
     class {
       async waitForInit() {}
-      async readValue() {
-        return storedData;
-      }
-      async hasValue() {
-        return storedData !== null;
-      }
-      async writeValue(_key, value) {
-        storedData = value;
-      }
+      async readPositionData() { return storedData ?? []; }
+      async writePositionData(value) { storedData = value; }
     }
   );
 
@@ -1179,39 +1145,17 @@ test("PersistRiskAdapter isolates data by riskName", async ({ pass, fail }) => {
       }
 
       async waitForInit() {
-        // Initialize storage for this riskName if needed
         if (!storageByRisk.has(this.riskName)) {
-          storageByRisk.set(this.riskName, new Map());
+          storageByRisk.set(this.riskName, null);
         }
       }
 
-      async readValue(key) {
-        const riskStorage = storageByRisk.get(this.riskName);
-        if (!riskStorage) {
-          throw new Error("Storage not initialized");
-        }
-        const data = riskStorage.get(key);
-        if (!data) {
-          throw new Error("Not found");
-        }
-        return data;
+      async readPositionData() {
+        return storageByRisk.get(this.riskName) ?? [];
       }
 
-      async hasValue(key) {
-        const riskStorage = storageByRisk.get(this.riskName);
-        if (!riskStorage) {
-          return false;
-        }
-        return riskStorage.has(key);
-      }
-
-      async writeValue(key, value) {
-        let riskStorage = storageByRisk.get(this.riskName);
-        if (!riskStorage) {
-          riskStorage = new Map();
-          storageByRisk.set(this.riskName, riskStorage);
-        }
-        riskStorage.set(key, value);
+      async writePositionData(value) {
+        storageByRisk.set(this.riskName, value);
       }
     }
   );

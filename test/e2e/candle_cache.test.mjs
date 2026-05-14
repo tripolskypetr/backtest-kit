@@ -25,13 +25,33 @@ import { Subject } from "functools-kit";
 
 const MS_PER_MINUTE = 60_000;
 
+const INTERVAL_MINUTES = { "1m": 1, "3m": 3, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "2h": 120, "4h": 240, "6h": 360, "8h": 480, "1d": 1440 };
+
 class PersistMemory {
   _store = new Map();
+
+  constructor(_symbol, interval, _exchangeName) {
+    this._interval = interval;
+  }
+
   async waitForInit() {}
-  async readValue(key) { return this._store.get(key) ?? null; }
-  async hasValue(key) { return this._store.has(key); }
-  async writeValue(key, value) { this._store.set(key, value); }
-  async keys() { return [...this._store.keys()]; }
+
+  async readCandlesData(limit, sinceTimestamp, _untilTimestamp) {
+    const stepMs = INTERVAL_MINUTES[this._interval] * MS_PER_MINUTE;
+    const result = [];
+    for (let i = 0; i < limit; i++) {
+      const key = String(sinceTimestamp + i * stepMs);
+      if (!this._store.has(key)) return null;
+      result.push(this._store.get(key));
+    }
+    return result;
+  }
+
+  async writeCandlesData(candles) {
+    for (const candle of candles) {
+      this._store.set(String(candle.timestamp), candle);
+    }
+  }
 }
 
 const alignTimestamp = (timestampMs, intervalMinutes) => {

@@ -54,13 +54,8 @@ test("Live.getData returns LiveStatistics structure", async ({ pass, fail }) => 
 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
-    async readValue() {
-      return mockSignal;
-    }
-    async hasValue() {
-      return true;
-    }
-    async writeValue() {}
+    async readSignalData() { return mockSignal; }
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
@@ -173,13 +168,8 @@ test("Live.getData calculates all statistical metrics", async ({ pass, fail }) =
 
   PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
-    async readValue() {
-      return mockSignal;
-    }
-    async hasValue() {
-      return true;
-    }
-    async writeValue() {}
+    async readSignalData() { return mockSignal; }
+    async writeSignalData() {}
   });
 
   addExchangeSchema({
