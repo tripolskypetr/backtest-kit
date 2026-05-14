@@ -26,6 +26,10 @@ import { GLOBAL_CONFIG } from "../config/params";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import alignToInterval from "../utils/alignToInterval";
 import ExecutionContextService from "../lib/services/context/ExecutionContextService";
+import { Lock } from "../classes/Lock";
+
+/** Used to prevent race confition between concurent strategies */
+const RISK_LOCK = new Lock();
 
 /** Type for active position map */
 type RiskMap = Map<string, IRiskActivePosition>;
@@ -279,26 +283,31 @@ export class ClientRisk implements IRisk {
       backtest: this.params.backtest,
     });
 
-    if (this._activePositions === POSITION_NEED_FETCH) {
-      await this.waitForInit();
+    await RISK_LOCK.acquireLock();
+    try {
+      if (this._activePositions === POSITION_NEED_FETCH) {
+        await this.waitForInit();
+      }
+
+      const key = CREATE_NAME_FN(context.strategyName, context.exchangeName, symbol);
+      const riskMap = <RiskMap>this._activePositions;
+      riskMap.set(key, {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        symbol,
+        position: positionData.position,
+        priceOpen: positionData.priceOpen,
+        priceStopLoss: positionData.priceStopLoss,
+        priceTakeProfit: positionData.priceTakeProfit,
+        minuteEstimatedTime: positionData.minuteEstimatedTime,
+        openTimestamp: positionData.openTimestamp,
+      });
+
+      await this._updatePositions();
+    } finally {
+      await RISK_LOCK.releaseLock();
     }
-
-    const key = CREATE_NAME_FN(context.strategyName, context.exchangeName, symbol);
-    const riskMap = <RiskMap>this._activePositions;
-    riskMap.set(key, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: context.frameName,
-      symbol,
-      position: positionData.position,
-      priceOpen: positionData.priceOpen,
-      priceStopLoss: positionData.priceStopLoss,
-      priceTakeProfit: positionData.priceTakeProfit,
-      minuteEstimatedTime: positionData.minuteEstimatedTime,
-      openTimestamp: positionData.openTimestamp,
-    });
-
-    await this._updatePositions();
   }
 
   /**
@@ -315,15 +324,20 @@ export class ClientRisk implements IRisk {
       backtest: this.params.backtest,
     });
 
-    if (this._activePositions === POSITION_NEED_FETCH) {
-      await this.waitForInit();
+    await RISK_LOCK.acquireLock();
+    try {
+      if (this._activePositions === POSITION_NEED_FETCH) {
+        await this.waitForInit();
+      }
+
+      const key = CREATE_NAME_FN(context.strategyName, context.exchangeName, symbol);
+      const riskMap = <RiskMap>this._activePositions;
+      riskMap.delete(key);
+
+      await this._updatePositions();
+    } finally {
+      await RISK_LOCK.releaseLock();
     }
-
-    const key = CREATE_NAME_FN(context.strategyName, context.exchangeName, symbol);
-    const riskMap = <RiskMap>this._activePositions;
-    riskMap.delete(key);
-
-    await this._updatePositions();
   }
 
   /**
@@ -346,82 +360,109 @@ export class ClientRisk implements IRisk {
       backtest: this.params.backtest,
     });
 
-    if (this._activePositions === POSITION_NEED_FETCH) {
-      await this.waitForInit();
-    }
+    await RISK_LOCK.acquireLock();
+    try {
+      if (this._activePositions === POSITION_NEED_FETCH) {
+        await this.waitForInit();
+      }
 
-    const riskMap = <RiskMap>this._activePositions;
+      const riskMap = <RiskMap>this._activePositions;
 
-    const timestamp = GET_CONTEXT_TIMESTAMP_FN(this);
+      const timestamp = GET_CONTEXT_TIMESTAMP_FN(this);
 
-    const payload: IRiskValidationPayload = {
-      ...params,
-      currentSignal: TO_RISK_SIGNAL(
-        params.currentSignal,
-        params.currentPrice,
-        timestamp,
-      ),
-      activePositionCount: riskMap.size,
-      activePositions: Array.from(riskMap.values()),
-    };
+      const payload: IRiskValidationPayload = {
+        ...params,
+        currentSignal: TO_RISK_SIGNAL(
+          params.currentSignal,
+          params.currentPrice,
+          timestamp,
+        ),
+        activePositionCount: riskMap.size,
+        activePositions: Array.from(riskMap.values()),
+      };
 
-    let rejectionResult: IRiskRejectionResult | null = null;
+      let rejectionResult: IRiskRejectionResult | null = null;
 
-    if (this.params.validations) {
-      for (const validation of this.params.validations) {
-        const rejection = await DO_VALIDATION_FN(
-          this,
-          typeof validation === "function" ? validation : validation.validate,
-          payload
-        );
+      if (this.params.validations) {
+        for (const validation of this.params.validations) {
+          const rejection = await DO_VALIDATION_FN(
+            this,
+            typeof validation === "function" ? validation : validation.validate,
+            payload
+          );
 
-        if (!rejection) {
-          continue;
-        }
+          if (!rejection) {
+            continue;
+          }
 
-        if (typeof rejection === "string") {
-          rejectionResult = {
-            id: null,
-            note: rejection
-              ? rejection
-              : "note" in validation
-              ? validation.note
-              : "Validation failed",
-          };
-          break;
-        }
+          if (typeof rejection === "string") {
+            rejectionResult = {
+              id: null,
+              note: rejection
+                ? rejection
+                : "note" in validation
+                ? validation.note
+                : "Validation failed",
+            };
+            break;
+          }
 
-        if (isObject(rejection)) {
-          rejectionResult = {
-            id: get(rejection, "id") || null,
-            note: get(rejection, "note") || "Validation rejected the signal",
-          };
-          break;
+          if (isObject(rejection)) {
+            rejectionResult = {
+              id: get(rejection, "id") || null,
+              note: get(rejection, "note") || "Validation rejected the signal",
+            };
+            break;
+          }
         }
       }
-    }
 
-    if (rejectionResult) {
-      // Call params.onRejected for riskSubject emission
-      await this.params.onRejected(
+      if (rejectionResult) {
+        // Call params.onRejected for riskSubject emission
+        await this.params.onRejected(
+          params.symbol,
+          params,
+          riskMap.size,
+          rejectionResult,
+          params.timestamp,
+          this.params.backtest
+        );
+
+        // Call schema callbacks.onRejected if defined
+        await CALL_REJECTED_CALLBACKS_FN(this, params.symbol, params);
+
+        return false;
+      }
+
+      // Reserve slot in riskMap so concurrent checkSignal calls observe
+      // the incremented size before the deferred addSignal call lands.
+      // addSignal will overwrite this placeholder with real position data.
+      const reserveKey = CREATE_NAME_FN(
+        params.strategyName,
+        params.exchangeName,
         params.symbol,
-        params,
-        riskMap.size,
-        rejectionResult,
-        params.timestamp,
-        this.params.backtest
       );
+      const signal = params.currentSignal;
+      riskMap.set(reserveKey, {
+        strategyName: params.strategyName,
+        exchangeName: params.exchangeName,
+        frameName: params.frameName,
+        symbol: params.symbol,
+        position: signal.position,
+        priceOpen: signal.priceOpen ?? params.currentPrice,
+        priceStopLoss: signal.priceStopLoss,
+        priceTakeProfit: signal.priceTakeProfit,
+        minuteEstimatedTime: signal.minuteEstimatedTime,
+        openTimestamp: timestamp,
+      });
 
-      // Call schema callbacks.onRejected if defined
-      await CALL_REJECTED_CALLBACKS_FN(this, params.symbol, params);
+      // All checks passed
+      await CALL_ALLOWED_CALLBACKS_FN(this, params.symbol, params);
 
-      return false;
+      return true;
+    } finally {
+      await RISK_LOCK.releaseLock();
     }
-
-    // All checks passed
-    await CALL_ALLOWED_CALLBACKS_FN(this, params.symbol, params);
-
-    return true;
   };
 }
 
