@@ -316,6 +316,33 @@ interface IRisk {
      */
     checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
     /**
+     * Concurrency-safe variant of {@link checkSignal}: atomically validates the
+     * signal AND, on success, writes a placeholder for the future position into
+     * the active position map within the same critical section.
+     *
+     * **Why this exists.** `checkSignal` followed later by `addSignal` is not
+     * atomic — between the two calls the caller does signal setup work that
+     * yields to the event loop (sync-open callback, persist writes, etc.). When
+     * several strategies sharing the same risk profile run in parallel, all of
+     * them can pass `checkSignal` while the active position map is still empty,
+     * then each call `addSignal` and blow past the limit. Reserving inside the
+     * lock guarantees the next concurrent caller observes the incremented size
+     * before its own validation runs.
+     *
+     * The reservation uses the same map key as the eventual `addSignal` call
+     * (`strategyName + exchangeName + symbol`), so `addSignal` overwrites the
+     * placeholder rather than appending a duplicate.
+     *
+     * Callers MUST ensure that every successful return is followed by either
+     * `addSignal` (overwrites the placeholder with real data) or `removeSignal`
+     * (clears the placeholder if opening is aborted). Otherwise the riskMap
+     * accumulates stale reservations.
+     *
+     * @param params - Risk check arguments (position size, portfolio state, etc.)
+     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     */
+    checkSignalAndReserve: (params: IRiskCheckArgs) => Promise<boolean>;
+    /**
      * Register a new opened signal/position.
      *
      * @param symbol - Trading pair symbol
@@ -26831,6 +26858,32 @@ declare class ClientRisk implements IRisk {
      * @returns Promise resolving to true if allowed, false if rejected
      */
     checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
+    /**
+     * Concurrency-safe variant of {@link checkSignal}: validates the signal AND
+     * reserves a placeholder slot in the active position map atomically.
+     *
+     * **Why this exists.** `checkSignal` followed later by `addSignal` is not
+     * atomic — between the two calls the caller does signal setup work that
+     * yields to the event loop (sync-open callback, persist writes, etc.). When
+     * several strategies sharing the same risk profile run in parallel, all of
+     * them can pass `checkSignal` while the active position map is still empty,
+     * then each call `addSignal` and blow past the limit. Reserving inside the
+     * lock guarantees the next concurrent caller observes the incremented size
+     * before its own validation runs.
+     *
+     * The reservation uses the same map key as the eventual `addSignal` call
+     * (`strategyName + exchangeName + symbol`), so `addSignal` overwrites the
+     * placeholder rather than appending a duplicate.
+     *
+     * Callers MUST ensure that every successful return is followed by either
+     * `addSignal` (overwrites the placeholder with real data) or `removeSignal`
+     * (clears the placeholder if opening is aborted). Otherwise the riskMap
+     * accumulates stale reservations.
+     *
+     * @param params - Risk check arguments (passthrough from ClientStrategy)
+     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     */
+    checkSignalAndReserve: (params: IRiskCheckArgs) => Promise<boolean>;
 }
 
 /**
@@ -27250,6 +27303,26 @@ declare class RiskConnectionService implements TRisk$1 {
         frameName: FrameName;
         backtest: boolean;
     }, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
+    /**
+     * Concurrency-safe variant of {@link checkSignal} — validates the signal AND
+     * reserves a placeholder in the active position map atomically.
+     *
+     * Routes to the same ClientRisk instance as {@link checkSignal} but delegates
+     * to its `checkSignalAndReserve` method. Use from execution paths where the
+     * caller will follow up with `addSignal` on success — guarantees concurrent
+     * callers cannot all pass validation against a stale empty map. See
+     * {@link IRisk.checkSignalAndReserve} for the full rationale.
+     *
+     * @param params - Risk check arguments (portfolio state, position details)
+     * @param payload - Execution payload with risk name, exchangeName, frameName and backtest mode
+     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     */
+    checkSignalAndReserve: (params: IRiskCheckArgs, payload: {
+        riskName: RiskName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        backtest: boolean;
+    }) => Promise<boolean>;
     /**
      * Registers an opened signal with the risk management system.
      * Routes to appropriate ClientRisk instance.
@@ -30926,6 +30999,25 @@ declare class RiskGlobalService implements TRisk {
         frameName: FrameName;
         backtest: boolean;
     }, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
+    /**
+     * Concurrency-safe variant of {@link checkSignal} — validates the signal AND
+     * reserves a placeholder in the active position map atomically.
+     *
+     * Use from strategy execution paths where the caller will follow up with
+     * `addSignal` on success — guarantees concurrent callers cannot all pass
+     * validation against a stale empty map. See {@link IRisk.checkSignalAndReserve}
+     * for the full rationale.
+     *
+     * @param params - Risk check arguments (portfolio state, position details)
+     * @param payload - Execution payload with risk name, exchangeName, frameName and backtest mode
+     * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+     */
+    checkSignalAndReserve: (params: IRiskCheckArgs, payload: {
+        riskName: RiskName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        backtest: boolean;
+    }) => Promise<boolean>;
     /**
      * Registers an opened signal with the risk management system.
      *

@@ -2222,7 +2222,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
     backtest: boolean
   ): Promise<boolean> => {
     return await ExecutionContextService.runInContext(async () => {
-      return await self.params.risk.checkSignal({
+      return await self.params.risk.checkSignalAndReserve({
         currentSignal: TO_PUBLIC_SIGNAL("scheduled", pendingSignal, currentPrice),
         symbol: symbol,
         strategyName: self.params.method.context.strategyName,
@@ -2231,7 +2231,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
         riskName: self.params.riskName,
         currentPrice,
         timestamp,
-      }, { reserve: true });
+      });
     }, {
       when: new Date(timestamp),
       symbol: symbol,

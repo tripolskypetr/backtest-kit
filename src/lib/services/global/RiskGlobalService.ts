@@ -99,6 +99,31 @@ export class RiskGlobalService implements TRisk {
   };
 
   /**
+   * Concurrency-safe variant of {@link checkSignal} — validates the signal AND
+   * reserves a placeholder in the active position map atomically.
+   *
+   * Use from strategy execution paths where the caller will follow up with
+   * `addSignal` on success — guarantees concurrent callers cannot all pass
+   * validation against a stale empty map. See {@link IRisk.checkSignalAndReserve}
+   * for the full rationale.
+   *
+   * @param params - Risk check arguments (portfolio state, position details)
+   * @param payload - Execution payload with risk name, exchangeName, frameName and backtest mode
+   * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+   */
+  public checkSignalAndReserve = async (
+    params: IRiskCheckArgs,
+    payload: { riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+  ) => {
+    this.loggerService.log("riskGlobalService checkSignalAndReserve", {
+      symbol: params.symbol,
+      payload,
+    });
+    await this.validate(payload);
+    return await this.riskConnectionService.checkSignalAndReserve(params, payload);
+  };
+
+  /**
    * Registers an opened signal with the risk management system.
    *
    * @param symbol - Trading pair symbol

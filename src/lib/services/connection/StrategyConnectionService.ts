@@ -140,6 +140,7 @@ type RiskMap = Record<RiskName, IRisk>;
  */
 const NOOP_RISK: IRisk = {
   checkSignal: () => Promise.resolve(true),
+  checkSignalAndReserve: () => Promise.resolve(true),
   addSignal: () => Promise.resolve(),
   removeSignal: () => Promise.resolve(),
 };

@@ -194,6 +194,31 @@ export class RiskConnectionService implements TRisk {
   };
 
   /**
+   * Concurrency-safe variant of {@link checkSignal} — validates the signal AND
+   * reserves a placeholder in the active position map atomically.
+   *
+   * Routes to the same ClientRisk instance as {@link checkSignal} but delegates
+   * to its `checkSignalAndReserve` method. Use from execution paths where the
+   * caller will follow up with `addSignal` on success — guarantees concurrent
+   * callers cannot all pass validation against a stale empty map. See
+   * {@link IRisk.checkSignalAndReserve} for the full rationale.
+   *
+   * @param params - Risk check arguments (portfolio state, position details)
+   * @param payload - Execution payload with risk name, exchangeName, frameName and backtest mode
+   * @returns Promise resolving to true if allowed (and reserved), false if rejected (no reservation)
+   */
+  public checkSignalAndReserve = async (
+    params: IRiskCheckArgs,
+    payload: { riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+  ) => {
+    this.loggerService.log("riskConnectionService checkSignalAndReserve", {
+      symbol: params.symbol,
+      payload,
+    });
+    return await this.getRisk(payload.riskName, payload.exchangeName, payload.frameName, payload.backtest).checkSignalAndReserve(params);
+  };
+
+  /**
    * Registers an opened signal with the risk management system.
    * Routes to appropriate ClientRisk instance.
    *

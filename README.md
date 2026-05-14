@@ -78,7 +78,7 @@ Install the core library and peer dependencies manually. Use this approach when 
 - 🛡️ **Risk Management**: Custom rules for position limits, time windows, and multi-strategy coordination.
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
 - 🗃️ **Transactional Live Orders**: Broker adapter intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
-- 🧪 **Tested**: 515+ unit/integration tests for validation, recovery, and events.
+- 🧪 **Tested**: 520+ unit/integration tests for validation, recovery, and events.
 - 🔓 **Self hosted**: Zero dependency on third-party node_modules or platforms; run entirely in your own environment.
 
 ## 📋 Supported Order Types
@@ -1813,7 +1813,7 @@ Python-based (WASI) strategy that uses EMA(9) and EMA(21) crossover signals exec
 
 ## ✅ Tested & Reliable
 
-515+ tests cover validation, recovery, reports, and events.
+520+ tests cover validation, recovery, reports, and events.
 
 ## 🤝 Contribute
 

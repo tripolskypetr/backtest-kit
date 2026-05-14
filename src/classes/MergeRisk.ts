@@ -6,6 +6,7 @@ import { FrameName } from "../interfaces/Frame.interface";
 import LoggerService from "../lib/services/base/LoggerService";
 
 const RISK_METHOD_NAME_CHECK_SIGNAL = "MergeRisk.checkSignal";
+const RISK_METHOD_NAME_CHECK_SIGNAL_AND_RESERVE = "MergeRisk.checkSignalAndReserve";
 const RISK_METHOD_NAME_ADD_SIGNAL = "MergeRisk.addSignal";
 const RISK_METHOD_NAME_REMOVE_SIGNAL = "MergeRisk.removeSignal";
 
@@ -76,6 +77,41 @@ export class MergeRisk implements IRisk {
             ...params,
             riskName,
           }, options)
+        )
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Concurrency-safe variant of {@link checkSignal} — validates the signal AND
+   * reserves a placeholder in every child risk's active position map atomically.
+   *
+   * Iterates child risks sequentially. On the first rejection it returns false
+   * immediately; child risks checked earlier in the loop are left with their
+   * reservations in place — `removeSignal` on the parent will roll them back
+   * (it propagates to all children unconditionally).
+   *
+   * Use from strategy execution paths where the caller will follow up with
+   * `addSignal` on success. See {@link IRisk.checkSignalAndReserve} for the
+   * full rationale on why reserving inside the lock is necessary.
+   *
+   * @param params - Risk check parameters (symbol, strategy, position, exchange)
+   * @returns Promise resolving to true if all risks approve (and reserved), false if any risk rejects
+   */
+  public async checkSignalAndReserve(params: IRiskCheckArgs): Promise<boolean> {
+    LOGGER_SERVICE.info(RISK_METHOD_NAME_CHECK_SIGNAL_AND_RESERVE, {
+      params,
+    });
+    for (const [riskName, risk] of Object.entries(this._riskMap)) {
+      if (
+        await not(
+          risk.checkSignalAndReserve({
+            ...params,
+            riskName,
+          })
         )
       ) {
         return false;
