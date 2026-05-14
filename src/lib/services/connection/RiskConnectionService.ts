@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { RiskName, IRiskCheckArgs, IRiskRejectionResult, IRisk } from "../../../interfaces/Risk.interface";
+import { RiskName, IRiskCheckArgs, IRiskCheckOptions, IRiskRejectionResult, IRisk } from "../../../interfaces/Risk.interface";
 import { memoize, trycatch, errorData, getErrorMessage } from "functools-kit";
 import ClientRisk from "../../../client/ClientRisk";
 import RiskSchemaService from "../schema/RiskSchemaService";
@@ -183,13 +183,14 @@ export class RiskConnectionService implements TRisk {
    */
   public checkSignal = async (
     params: IRiskCheckArgs,
-    payload: { riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    payload: { riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean },
+    options: Partial<IRiskCheckOptions> = {}
   ) => {
     this.loggerService.log("riskConnectionService checkSignal", {
       symbol: params.symbol,
       payload,
     });
-    return await this.getRisk(payload.riskName, payload.exchangeName, payload.frameName, payload.backtest).checkSignal(params);
+    return await this.getRisk(payload.riskName, payload.exchangeName, payload.frameName, payload.backtest).checkSignal(params, options);
   };
 
   /**

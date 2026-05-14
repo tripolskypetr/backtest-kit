@@ -148,6 +148,15 @@ type FrameName = string;
  */
 type RiskRejection = void | IRiskRejectionResult | string | null;
 /**
+ * Risk check options for concurrent calls.
+ * `reserve: true` writes a placeholder into the active position map atomically with the check,
+ * so concurrent checkSignal calls observe the incremented size before the deferred addSignal call lands.
+ */
+interface IRiskCheckOptions {
+    /** concurrent checkSignal calls observe the incremented size before the deferred addSignal call lands. */
+    reserve: boolean;
+}
+/**
  * Risk check arguments for evaluating whether to allow opening a new position.
  * Called BEFORE signal creation to validate if conditions allow new signals.
  * Contains only passthrough arguments from ClientStrategy context.
@@ -299,9 +308,13 @@ interface IRisk {
      * Check if a signal should be allowed based on risk limits.
      *
      * @param params - Risk check arguments (position size, portfolio state, etc.)
+     * @param options - Optional flags. `reserve: true` writes a placeholder
+     *                  into the active position map atomically with the check,
+     *                  so concurrent checkSignal calls observe the incremented
+     *                  size before the deferred addSignal call lands.
      * @returns Promise resolving to risk check result
      */
-    checkSignal: (params: IRiskCheckArgs) => Promise<boolean>;
+    checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
     /**
      * Register a new opened signal/position.
      *
@@ -26817,7 +26830,7 @@ declare class ClientRisk implements IRisk {
      * @param params - Risk check arguments (passthrough from ClientStrategy)
      * @returns Promise resolving to true if allowed, false if rejected
      */
-    checkSignal: (params: IRiskCheckArgs) => Promise<boolean>;
+    checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
 }
 
 /**
@@ -27236,7 +27249,7 @@ declare class RiskConnectionService implements TRisk$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
         backtest: boolean;
-    }) => Promise<boolean>;
+    }, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
     /**
      * Registers an opened signal with the risk management system.
      * Routes to appropriate ClientRisk instance.
@@ -30912,7 +30925,7 @@ declare class RiskGlobalService implements TRisk {
         exchangeName: ExchangeName;
         frameName: FrameName;
         backtest: boolean;
-    }) => Promise<boolean>;
+    }, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
     /**
      * Registers an opened signal with the risk management system.
      *

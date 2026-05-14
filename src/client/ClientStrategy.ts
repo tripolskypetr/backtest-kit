@@ -2231,7 +2231,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
         riskName: self.params.riskName,
         currentPrice,
         timestamp,
-      });
+      }, { reserve: true });
     }, {
       when: new Date(timestamp),
       symbol: symbol,

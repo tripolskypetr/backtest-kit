@@ -11,6 +11,16 @@ import { TExecutionContextService } from "../lib/services/context/ExecutionConte
 export type RiskRejection = void | IRiskRejectionResult | string | null;
 
 /**
+ * Risk check options for concurrent calls.
+ * `reserve: true` writes a placeholder into the active position map atomically with the check,
+ * so concurrent checkSignal calls observe the incremented size before the deferred addSignal call lands.
+ */
+export interface IRiskCheckOptions {
+  /** concurrent checkSignal calls observe the incremented size before the deferred addSignal call lands. */
+  reserve: boolean;
+}
+
+/**
  * Risk check arguments for evaluating whether to allow opening a new position.
  * Called BEFORE signal creation to validate if conditions allow new signals.
  * Contains only passthrough arguments from ClientStrategy context.
@@ -187,9 +197,13 @@ export interface IRisk {
    * Check if a signal should be allowed based on risk limits.
    *
    * @param params - Risk check arguments (position size, portfolio state, etc.)
+   * @param options - Optional flags. `reserve: true` writes a placeholder
+   *                  into the active position map atomically with the check,
+   *                  so concurrent checkSignal calls observe the incremented
+   *                  size before the deferred addSignal call lands.
    * @returns Promise resolving to risk check result
    */
-  checkSignal: (params: IRiskCheckArgs) => Promise<boolean>;
+  checkSignal: (params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>) => Promise<boolean>;
 
   /**
    * Register a new opened signal/position.

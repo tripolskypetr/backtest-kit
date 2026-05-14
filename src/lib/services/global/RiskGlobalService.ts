@@ -2,7 +2,7 @@ import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import RiskConnectionService from "../connection/RiskConnectionService";
-import { IRisk, IRiskCheckArgs, RiskName } from "../../../interfaces/Risk.interface";
+import { IRisk, IRiskCheckArgs, IRiskCheckOptions, RiskName } from "../../../interfaces/Risk.interface";
 import { memoize } from "functools-kit";
 import RiskValidationService from "../validation/RiskValidationService";
 import ExchangeValidationService from "../validation/ExchangeValidationService";
@@ -87,14 +87,15 @@ export class RiskGlobalService implements TRisk {
    */
   public checkSignal = async (
     params: IRiskCheckArgs,
-    payload: { riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    payload: { riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean },
+    options: Partial<IRiskCheckOptions> = {}
   ) => {
     this.loggerService.log("riskGlobalService checkSignal", {
       symbol: params.symbol,
       payload,
     });
     await this.validate(payload);
-    return await this.riskConnectionService.checkSignal(params, payload);
+    return await this.riskConnectionService.checkSignal(params, payload, options);
   };
 
   /**

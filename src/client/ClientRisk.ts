@@ -9,6 +9,7 @@ import {
   IRisk,
   IRiskParams,
   IRiskCheckArgs,
+  IRiskCheckOptions,
   IRiskValidationPayload,
   IRiskActivePosition,
   IRiskRejectionResult,
@@ -353,7 +354,7 @@ export class ClientRisk implements IRisk {
    * @param params - Risk check arguments (passthrough from ClientStrategy)
    * @returns Promise resolving to true if allowed, false if rejected
    */
-  public checkSignal = async (params: IRiskCheckArgs): Promise<boolean> => {
+  public checkSignal = async (params: IRiskCheckArgs, options: Partial<IRiskCheckOptions> = {}): Promise<boolean> => {
     this.params.logger.debug("ClientRisk checkSignal", {
       symbol: params.symbol,
       strategyName: params.strategyName,
@@ -432,6 +433,32 @@ export class ClientRisk implements IRisk {
         await CALL_REJECTED_CALLBACKS_FN(this, params.symbol, params);
 
         return false;
+      }
+
+      // Optional placeholder reservation: when caller plans to addSignal next,
+      // pre-write into riskMap inside the same critical section so concurrent
+      // checkSignal calls observe the incremented size before addSignal lands.
+      // The placeholder shares the same key as the future addSignal — it will
+      // be overwritten with real position data, not duplicated.
+      if (options?.reserve) {
+        const reserveKey = CREATE_NAME_FN(
+          params.strategyName,
+          params.exchangeName,
+          params.symbol,
+        );
+        const signal = params.currentSignal;
+        riskMap.set(reserveKey, {
+          strategyName: params.strategyName,
+          exchangeName: params.exchangeName,
+          frameName: params.frameName,
+          symbol: params.symbol,
+          position: signal.position,
+          priceOpen: signal.priceOpen ?? params.currentPrice,
+          priceStopLoss: signal.priceStopLoss,
+          priceTakeProfit: signal.priceTakeProfit,
+          minuteEstimatedTime: signal.minuteEstimatedTime,
+          openTimestamp: timestamp,
+        });
       }
 
       // All checks passed

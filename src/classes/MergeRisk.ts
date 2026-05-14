@@ -1,5 +1,5 @@
 import { not } from "functools-kit";
-import { IRisk, IRiskCheckArgs, RiskName } from "../interfaces/Risk.interface";
+import { IRisk, IRiskCheckArgs, IRiskCheckOptions, RiskName } from "../interfaces/Risk.interface";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
@@ -65,7 +65,7 @@ export class MergeRisk implements IRisk {
    * @param params - Risk check parameters (symbol, strategy, position, exchange)
    * @returns Promise resolving to true if all risks approve, false if any risk rejects
    */
-  public async checkSignal(params: IRiskCheckArgs): Promise<boolean> {
+  public async checkSignal(params: IRiskCheckArgs, options: Partial<IRiskCheckOptions> = {}): Promise<boolean> {
     LOGGER_SERVICE.info(RISK_METHOD_NAME_CHECK_SIGNAL, {
       params,
     });
@@ -75,7 +75,7 @@ export class MergeRisk implements IRisk {
           risk.checkSignal({
             ...params,
             riskName,
-          })
+          }, options)
         )
       ) {
         return false;
