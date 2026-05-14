@@ -761,8 +761,15 @@ export type TPersistSignalInstanceCtor = new (
  * Used by ClientStrategy for live mode persistence.
  */
 export class PersistSignalUtils {
+  /**
+   * Constructor used to create per-context signal instances.
+   * Replaceable via usePersistSignalAdapter() / useJson() / useDummy().
+   */
   private PersistSignalInstanceCtor: TPersistSignalInstanceCtor = PersistSignalInstance;
 
+  /**
+   * Memoized factory creating one IPersistSignalInstance per (symbol, strategy, exchange) triple.
+   */
   private getStorage = memoize(
     ([symbol, strategyName, exchangeName]: [
       string,
@@ -777,12 +784,27 @@ export class PersistSignalUtils {
       Reflect.construct(this.PersistSignalInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
+  /**
+   * Registers a custom IPersistSignalInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistSignalInstance constructor
+   */
   public usePersistSignalAdapter(Ctor: TPersistSignalInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_PERSIST_SIGNAL_ADAPTER);
     this.PersistSignalInstanceCtor = Ctor;
     this.getStorage.clear();
   }
 
+  /**
+   * Reads persisted signal for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise resolving to signal or null if none persisted
+   */
   public readSignalData = async (
     symbol: string,
     strategyName: StrategyName,
@@ -796,6 +818,16 @@ export class PersistSignalUtils {
     return instance.readSignalData();
   };
 
+  /**
+   * Writes signal data (or null to clear) for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalRow - Signal data to persist, or null to clear
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise that resolves when write is complete
+   */
   public writeSignalData = async (
     signalRow: ISignalRow | null,
     symbol: string,
@@ -810,16 +842,26 @@ export class PersistSignalUtils {
     return instance.writeSignalData(signalRow);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_CLEAR);
     this.getStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistSignalInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistSignalAdapter(PersistSignalInstance);
   }
 
+  /**
+   * Switches to PersistSignalDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistSignalAdapter(PersistSignalDummyInstance);
@@ -1001,8 +1043,15 @@ export type TPersistRiskInstanceCtor = new (
  * Used by ClientRisk for live mode persistence of active positions.
  */
 export class PersistRiskUtils {
+  /**
+   * Constructor used to create per-context risk instances.
+   * Replaceable via usePersistRiskAdapter() / useJson() / useDummy().
+   */
   private PersistRiskInstanceCtor: TPersistRiskInstanceCtor = PersistRiskInstance;
 
+  /**
+   * Memoized factory creating one IPersistRiskInstance per (riskName, exchange) pair.
+   */
   private getRiskStorage = memoize(
     ([riskName, exchangeName]: [RiskName, ExchangeName]): string =>
       `${riskName}:${exchangeName}`,
@@ -1010,12 +1059,26 @@ export class PersistRiskUtils {
       Reflect.construct(this.PersistRiskInstanceCtor, [riskName, exchangeName])
   );
 
+  /**
+   * Registers a custom IPersistRiskInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistRiskInstance constructor
+   */
   public usePersistRiskAdapter(Ctor: TPersistRiskInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_RISK_UTILS_METHOD_NAME_USE_PERSIST_RISK_ADAPTER);
     this.PersistRiskInstanceCtor = Ctor;
     this.getRiskStorage.clear();
   }
 
+  /**
+   * Reads persisted active positions for the given risk context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param riskName - Risk profile identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise resolving to position entries (empty array if none)
+   */
   public readPositionData = async (
     riskName: RiskName,
     exchangeName: ExchangeName
@@ -1028,6 +1091,15 @@ export class PersistRiskUtils {
     return instance.readPositionData();
   };
 
+  /**
+   * Writes active positions for the given risk context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param riskRow - Position entries to persist
+   * @param riskName - Risk profile identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise that resolves when write is complete
+   */
   public writePositionData = async (
     riskRow: RiskData,
     riskName: RiskName,
@@ -1041,16 +1113,26 @@ export class PersistRiskUtils {
     return instance.writePositionData(riskRow);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_RISK_UTILS_METHOD_NAME_CLEAR);
     this.getRiskStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistRiskInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistRiskAdapter(PersistRiskInstance);
   }
 
+  /**
+   * Switches to PersistRiskDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistRiskAdapter(PersistRiskDummyInstance);
@@ -1233,8 +1315,15 @@ export type TPersistScheduleInstanceCtor = new (
  * Used by ClientStrategy for live mode persistence of scheduled signals (_scheduledSignal).
  */
 export class PersistScheduleUtils {
+  /**
+   * Constructor used to create per-context scheduled signal instances.
+   * Replaceable via usePersistScheduleAdapter() / useJson() / useDummy().
+   */
   private PersistScheduleInstanceCtor: TPersistScheduleInstanceCtor = PersistScheduleInstance;
 
+  /**
+   * Memoized factory creating one IPersistScheduleInstance per (symbol, strategy, exchange) triple.
+   */
   private getScheduleStorage = memoize(
     ([symbol, strategyName, exchangeName]: [
       string,
@@ -1249,12 +1338,27 @@ export class PersistScheduleUtils {
       Reflect.construct(this.PersistScheduleInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
+  /**
+   * Registers a custom IPersistScheduleInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistScheduleInstance constructor
+   */
   public usePersistScheduleAdapter(Ctor: TPersistScheduleInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_PERSIST_SCHEDULE_ADAPTER);
     this.PersistScheduleInstanceCtor = Ctor;
     this.getScheduleStorage.clear();
   }
 
+  /**
+   * Reads persisted scheduled signal for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise resolving to scheduled signal or null if none persisted
+   */
   public readScheduleData = async (
     symbol: string,
     strategyName: StrategyName,
@@ -1268,6 +1372,16 @@ export class PersistScheduleUtils {
     return instance.readScheduleData();
   };
 
+  /**
+   * Writes scheduled signal (or null to clear) for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param scheduledSignalRow - Scheduled signal data to persist, or null to clear
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise that resolves when write is complete
+   */
   public writeScheduleData = async (
     scheduledSignalRow: IScheduledSignalRow | null,
     symbol: string,
@@ -1282,16 +1396,26 @@ export class PersistScheduleUtils {
     return instance.writeScheduleData(scheduledSignalRow);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_CLEAR);
     this.getScheduleStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistScheduleInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistScheduleAdapter(PersistScheduleInstance);
   }
 
+  /**
+   * Switches to PersistScheduleDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistScheduleAdapter(PersistScheduleDummyInstance);
@@ -1481,8 +1605,16 @@ export type TPersistPartialInstanceCtor = new (
  * Used by ClientPartial for live mode persistence of profit/loss levels.
  */
 export class PersistPartialUtils {
+  /**
+   * Constructor used to create per-context partial data instances.
+   * Replaceable via usePersistPartialAdapter() / useJson() / useDummy().
+   */
   private PersistPartialInstanceCtor: TPersistPartialInstanceCtor = PersistPartialInstance;
 
+  /**
+   * Memoized factory creating one IPersistPartialInstance per (symbol, strategy, exchange) triple.
+   * Each signal's partial data is stored under its own signalId within the instance.
+   */
   private getPartialStorage = memoize(
     ([symbol, strategyName, exchangeName]: [
       string,
@@ -1497,12 +1629,28 @@ export class PersistPartialUtils {
       Reflect.construct(this.PersistPartialInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
+  /**
+   * Registers a custom IPersistPartialInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistPartialInstance constructor
+   */
   public usePersistPartialAdapter(Ctor: TPersistPartialInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_PERSIST_PARTIAL_ADAPTER);
     this.PersistPartialInstanceCtor = Ctor;
     this.getPartialStorage.clear();
   }
 
+  /**
+   * Reads partial data for the given context and signalId.
+   * Lazily initializes the instance on first access.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param signalId - Signal identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise resolving to partial data record (empty object if none)
+   */
   public readPartialData = async (
     symbol: string,
     strategyName: StrategyName,
@@ -1517,6 +1665,17 @@ export class PersistPartialUtils {
     return instance.readPartialData(signalId);
   };
 
+  /**
+   * Writes partial data for the given context and signalId.
+   * Lazily initializes the instance on first access.
+   *
+   * @param partialData - Partial data record to persist
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param signalId - Signal identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise that resolves when write is complete
+   */
   public writePartialData = async (
     partialData: PartialData,
     symbol: string,
@@ -1532,16 +1691,26 @@ export class PersistPartialUtils {
     return instance.writePartialData(partialData, signalId);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_CLEAR);
     this.getPartialStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistPartialInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistPartialAdapter(PersistPartialInstance);
   }
 
+  /**
+   * Switches to PersistPartialDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistPartialAdapter(PersistPartialDummyInstance);
@@ -1751,8 +1920,16 @@ export type TPersistBreakevenInstanceCtor = new (
  * ```
  */
 class PersistBreakevenUtils {
+  /**
+   * Constructor used to create per-context breakeven instances.
+   * Replaceable via usePersistBreakevenAdapter() / useJson() / useDummy().
+   */
   private PersistBreakevenInstanceCtor: TPersistBreakevenInstanceCtor = PersistBreakevenInstance;
 
+  /**
+   * Memoized factory creating one IPersistBreakevenInstance per (symbol, strategy, exchange) triple.
+   * Each signal's breakeven data is stored under its own signalId within the instance.
+   */
   private getBreakevenStorage = memoize(
     ([symbol, strategyName, exchangeName]: [
       string,
@@ -1767,12 +1944,28 @@ class PersistBreakevenUtils {
       Reflect.construct(this.PersistBreakevenInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
+  /**
+   * Registers a custom IPersistBreakevenInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistBreakevenInstance constructor
+   */
   public usePersistBreakevenAdapter(Ctor: TPersistBreakevenInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_PERSIST_BREAKEVEN_ADAPTER);
     this.PersistBreakevenInstanceCtor = Ctor;
     this.getBreakevenStorage.clear();
   }
 
+  /**
+   * Reads breakeven data for the given context and signalId.
+   * Lazily initializes the instance on first access.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param signalId - Signal identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise resolving to breakeven data record (empty object if none)
+   */
   public readBreakevenData = async (
     symbol: string,
     strategyName: StrategyName,
@@ -1787,6 +1980,17 @@ class PersistBreakevenUtils {
     return instance.readBreakevenData(signalId);
   };
 
+  /**
+   * Writes breakeven data for the given context and signalId.
+   * Lazily initializes the instance on first access.
+   *
+   * @param breakevenData - Breakeven data record to persist
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param signalId - Signal identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise that resolves when write is complete
+   */
   public writeBreakevenData = async (
     breakevenData: BreakevenData,
     symbol: string,
@@ -1802,16 +2006,26 @@ class PersistBreakevenUtils {
     return instance.writeBreakevenData(breakevenData, signalId);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_CLEAR);
     this.getBreakevenStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistBreakevenInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistBreakevenAdapter(PersistBreakevenInstance);
   }
 
+  /**
+   * Switches to PersistBreakevenDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistBreakevenAdapter(PersistBreakevenDummyInstance);
@@ -2060,8 +2274,15 @@ export type TPersistCandleInstanceCtor = new (
  * Used by ClientExchange for candle data caching.
  */
 export class PersistCandleUtils {
+  /**
+   * Constructor used to create per-context candle cache instances.
+   * Replaceable via usePersistCandleAdapter() / useJson() / useDummy().
+   */
   private PersistCandleInstanceCtor: TPersistCandleInstanceCtor = PersistCandleInstance;
 
+  /**
+   * Memoized factory creating one IPersistCandleInstance per (symbol, interval, exchange) triple.
+   */
   private getCandlesStorage = memoize(
     ([symbol, interval, exchangeName]: [string, CandleInterval, ExchangeName]): string =>
       `${symbol}:${interval}:${exchangeName}`,
@@ -2073,12 +2294,30 @@ export class PersistCandleUtils {
       Reflect.construct(this.PersistCandleInstanceCtor, [symbol, interval, exchangeName])
   );
 
+  /**
+   * Registers a custom IPersistCandleInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistCandleInstance constructor
+   */
   public usePersistCandleAdapter(Ctor: TPersistCandleInstanceCtor): void {
     LOGGER_SERVICE.info("PersistCandleUtils.usePersistCandleAdapter");
     this.PersistCandleInstanceCtor = Ctor;
     this.getCandlesStorage.clear();
   }
 
+  /**
+   * Reads cached candles for the given context and time window.
+   * Lazily initializes the instance on first access.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle interval
+   * @param exchangeName - Exchange identifier
+   * @param limit - Number of candles requested
+   * @param sinceTimestamp - Aligned start timestamp (openTime of first candle)
+   * @param untilTimestamp - Reserved for API compatibility
+   * @returns Promise resolving to candles in order, or null on cache miss
+   */
   public readCandlesData = async (
     symbol: string,
     interval: CandleInterval,
@@ -2101,6 +2340,16 @@ export class PersistCandleUtils {
     return instance.readCandlesData(limit, sinceTimestamp, untilTimestamp);
   };
 
+  /**
+   * Writes candles to cache for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param candles - Array of candle data to cache
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle interval
+   * @param exchangeName - Exchange identifier
+   * @returns Promise that resolves when all writes are complete
+   */
   public writeCandlesData = async (
     candles: CandleData[],
     symbol: string,
@@ -2120,16 +2369,26 @@ export class PersistCandleUtils {
     return instance.writeCandlesData(candles);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_CANDLE_UTILS_METHOD_NAME_CLEAR);
     this.getCandlesStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistCandleInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log("PersistCandleUtils.useJson");
     this.usePersistCandleAdapter(PersistCandleInstance);
   }
 
+  /**
+   * Switches to PersistCandleDummyInstance (always returns null on read, discards writes).
+   */
   public useDummy() {
     LOGGER_SERVICE.log("PersistCandleUtils.useDummy");
     this.usePersistCandleAdapter(PersistCandleDummyInstance);
@@ -2312,20 +2571,41 @@ export type TPersistStorageInstanceCtor = new (
  * Used by SignalLiveUtils for live mode persistence of signals.
  */
 export class PersistStorageUtils {
+  /**
+   * Constructor used to create per-mode signal storage instances.
+   * Replaceable via usePersistStorageAdapter() / useJson() / useDummy().
+   */
   private PersistStorageInstanceCtor: TPersistStorageInstanceCtor = PersistStorageInstance;
 
+  /**
+   * Memoized factory creating one IPersistStorageInstance per mode (backtest/live).
+   * Key: "backtest" or "live".
+   */
   private getStorage = memoize(
     ([backtest]: [boolean]): string => backtest ? `backtest` : `live`,
     (backtest: boolean): IPersistStorageInstance =>
       Reflect.construct(this.PersistStorageInstanceCtor, [backtest])
   );
 
+  /**
+   * Registers a custom IPersistStorageInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistStorageInstance constructor
+   */
   public usePersistStorageAdapter(Ctor: TPersistStorageInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_STORAGE_UTILS_METHOD_NAME_USE_PERSIST_STORAGE_ADAPTER);
     this.PersistStorageInstanceCtor = Ctor;
     this.getStorage.clear();
   }
 
+  /**
+   * Reads all persisted signals for the given mode.
+   * Lazily initializes the instance on first access.
+   *
+   * @param backtest - True for backtest mode storage, false for live mode
+   * @returns Promise resolving to array of signal entries
+   */
   public readStorageData = async (backtest: boolean): Promise<StorageData> => {
     LOGGER_SERVICE.info(PERSIST_STORAGE_UTILS_METHOD_NAME_READ_DATA);
     const key = backtest ? `backtest` : `live`;
@@ -2335,6 +2615,14 @@ export class PersistStorageUtils {
     return instance.readStorageData();
   };
 
+  /**
+   * Writes signals for the given mode.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalData - Signal entries to persist
+   * @param backtest - True for backtest mode storage, false for live mode
+   * @returns Promise that resolves when write is complete
+   */
   public writeStorageData = async (
     signalData: StorageData,
     backtest: boolean
@@ -2347,16 +2635,26 @@ export class PersistStorageUtils {
     return instance.writeStorageData(signalData);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_STORAGE_UTILS_METHOD_NAME_CLEAR);
     this.getStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistStorageInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_STORAGE_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistStorageAdapter(PersistStorageInstance);
   }
 
+  /**
+   * Switches to PersistStorageDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_STORAGE_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistStorageAdapter(PersistStorageDummyInstance);
@@ -2527,20 +2825,41 @@ export type TPersistNotificationInstanceCtor = new (
  * Used by NotificationPersistLiveUtils/NotificationPersistBacktestUtils for persistence.
  */
 export class PersistNotificationUtils {
+  /**
+   * Constructor used to create per-mode notification instances.
+   * Replaceable via usePersistNotificationAdapter() / useJson() / useDummy().
+   */
   private PersistNotificationInstanceCtor: TPersistNotificationInstanceCtor = PersistNotificationInstance;
 
+  /**
+   * Memoized factory creating one IPersistNotificationInstance per mode (backtest/live).
+   * Key: "backtest" or "live".
+   */
   private getNotificationStorage = memoize(
     ([backtest]: [boolean]): string => backtest ? `backtest` : `live`,
     (backtest: boolean): IPersistNotificationInstance =>
       Reflect.construct(this.PersistNotificationInstanceCtor, [backtest])
   );
 
+  /**
+   * Registers a custom IPersistNotificationInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistNotificationInstance constructor
+   */
   public usePersistNotificationAdapter(Ctor: TPersistNotificationInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_PERSIST_NOTIFICATION_ADAPTER);
     this.PersistNotificationInstanceCtor = Ctor;
     this.getNotificationStorage.clear();
   }
 
+  /**
+   * Reads persisted notifications for the given mode.
+   * Lazily initializes the instance on first access.
+   *
+   * @param backtest - True for backtest mode storage, false for live mode
+   * @returns Promise resolving to array of notification entries
+   */
   public readNotificationData = async (backtest: boolean): Promise<NotificationData> => {
     LOGGER_SERVICE.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_READ_DATA);
     const key = backtest ? `backtest` : `live`;
@@ -2550,6 +2869,14 @@ export class PersistNotificationUtils {
     return instance.readNotificationData();
   };
 
+  /**
+   * Writes notifications for the given mode.
+   * Lazily initializes the instance on first access.
+   *
+   * @param notificationData - Notification entries to persist
+   * @param backtest - True for backtest mode storage, false for live mode
+   * @returns Promise that resolves when write is complete
+   */
   public writeNotificationData = async (
     notificationData: NotificationData,
     backtest: boolean
@@ -2562,16 +2889,27 @@ export class PersistNotificationUtils {
     return instance.writeNotificationData(notificationData);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations so new
+   * instances are created with the updated base path.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_CLEAR);
     this.getNotificationStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistNotificationInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistNotificationAdapter(PersistNotificationInstance);
   }
 
+  /**
+   * Switches to PersistNotificationDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistNotificationAdapter(PersistNotificationDummyInstance);
@@ -2741,10 +3079,23 @@ export type TPersistLogInstanceCtor = new () => IPersistLogInstance;
  * Used by LogPersistUtils for log entry persistence.
  */
 export class PersistLogUtils {
+  /**
+   * Constructor used to create the global log instance.
+   * Replaceable via usePersistLogAdapter() / useJson() / useDummy().
+   */
   private PersistLogInstanceCtor: TPersistLogInstanceCtor = PersistLogInstance;
 
+  /**
+   * Cached singleton log instance. Lazily created on first access.
+   * Reset to null by clear() and usePersistLogAdapter().
+   */
   private _logInstance: IPersistLogInstance | null = null;
 
+  /**
+   * Returns the cached log instance, creating it on first access.
+   *
+   * @returns The IPersistLogInstance singleton
+   */
   private getLogInstance(): IPersistLogInstance {
     if (!this._logInstance) {
       this._logInstance = Reflect.construct(this.PersistLogInstanceCtor, []);
@@ -2752,12 +3103,24 @@ export class PersistLogUtils {
     return this._logInstance!;
   }
 
+  /**
+   * Registers a custom IPersistLogInstance constructor.
+   * Drops the cached instance so the next access uses the new adapter.
+   *
+   * @param Ctor - Custom IPersistLogInstance constructor
+   */
   public usePersistLogAdapter(Ctor: TPersistLogInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_LOG_UTILS_METHOD_NAME_USE_PERSIST_LOG_ADAPTER);
     this.PersistLogInstanceCtor = Ctor;
     this._logInstance = null;
   }
 
+  /**
+   * Reads all persisted log entries.
+   * Lazily initializes the instance on first access.
+   *
+   * @returns Promise resolving to array of log entries
+   */
   public readLogData = async (): Promise<LogData> => {
     LOGGER_SERVICE.info(PERSIST_LOG_UTILS_METHOD_NAME_READ_DATA);
     const isInitial = !this._logInstance;
@@ -2766,6 +3129,13 @@ export class PersistLogUtils {
     return instance.readLogData();
   };
 
+  /**
+   * Writes log entries (append-only — duplicates by id are skipped).
+   * Lazily initializes the instance on first access.
+   *
+   * @param logData - Log entries to persist
+   * @returns Promise that resolves when write is complete
+   */
   public writeLogData = async (logData: LogData): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_LOG_UTILS_METHOD_NAME_WRITE_DATA);
     const isInitial = !this._logInstance;
@@ -2774,16 +3144,26 @@ export class PersistLogUtils {
     return instance.writeLogData(logData);
   };
 
+  /**
+   * Drops the cached log instance.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_LOG_UTILS_METHOD_NAME_CLEAR);
     this._logInstance = null;
   }
 
+  /**
+   * Switches to the default file-based PersistLogInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistLogAdapter(PersistLogInstance);
   }
 
+  /**
+   * Switches to PersistLogDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistLogAdapter(PersistLogDummyInstance);
@@ -3000,20 +3380,41 @@ export type TPersistMeasureInstanceCtor = new (
  * Used by Cache.file for persistent caching of external API responses.
  */
 export class PersistMeasureUtils {
+  /**
+   * Constructor used to create per-bucket measure cache instances.
+   * Replaceable via usePersistMeasureAdapter() / useJson() / useDummy().
+   */
   private PersistMeasureInstanceCtor: TPersistMeasureInstanceCtor = PersistMeasureInstance;
 
+  /**
+   * Memoized factory creating one IPersistMeasureInstance per bucket.
+   */
   private getMeasureStorage = memoize(
     ([bucket]: [string]): string => bucket,
     (bucket: string): IPersistMeasureInstance =>
       Reflect.construct(this.PersistMeasureInstanceCtor, [bucket])
   );
 
+  /**
+   * Registers a custom IPersistMeasureInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistMeasureInstance constructor
+   */
   public usePersistMeasureAdapter(Ctor: TPersistMeasureInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER);
     this.PersistMeasureInstanceCtor = Ctor;
     this.getMeasureStorage.clear();
   }
 
+  /**
+   * Reads a measure entry from the given bucket by key.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param bucket - Storage bucket identifier
+   * @param key - Cache key within the bucket
+   * @returns Promise resolving to cached value, or null if not found / soft-deleted
+   */
   public readMeasureData = async (
     bucket: string,
     key: string
@@ -3025,6 +3426,15 @@ export class PersistMeasureUtils {
     return instance.readMeasureData(key);
   };
 
+  /**
+   * Writes a measure entry to the given bucket under the given key.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param data - Data to cache
+   * @param bucket - Storage bucket identifier
+   * @param key - Cache key within the bucket
+   * @returns Promise that resolves when write is complete
+   */
   public writeMeasureData = async (
     data: MeasureData,
     bucket: string,
@@ -3037,6 +3447,14 @@ export class PersistMeasureUtils {
     return instance.writeMeasureData(data, key);
   };
 
+  /**
+   * Soft-deletes a measure entry in the given bucket by setting `removed: true`.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param bucket - Storage bucket identifier
+   * @param key - Cache key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
   public removeMeasureData = async (
     bucket: string,
     key: string
@@ -3048,6 +3466,13 @@ export class PersistMeasureUtils {
     return instance.removeMeasureData(key);
   };
 
+  /**
+   * Iterates all non-removed measure entries for the given bucket.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param bucket - Storage bucket identifier
+   * @returns AsyncGenerator yielding entry keys
+   */
   public async *listMeasureData(bucket: string): AsyncGenerator<string> {
     LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_LIST_DATA, { bucket });
     const isInitial = !this.getMeasureStorage.has(bucket);
@@ -3056,16 +3481,26 @@ export class PersistMeasureUtils {
     yield* instance.listMeasureData();
   }
 
+  /**
+   * Clears the memoized bucket instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_MEASURE_UTILS_METHOD_NAME_CLEAR);
     this.getMeasureStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistMeasureInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistMeasureAdapter(PersistMeasureInstance);
   }
 
+  /**
+   * Switches to PersistMeasureDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistMeasureAdapter(PersistMeasureDummyInstance);
@@ -3280,20 +3715,41 @@ export type TPersistIntervalInstanceCtor = new (
  * absence means the function has not yet fired (or returned null last time).
  */
 export class PersistIntervalUtils {
+  /**
+   * Constructor used to create per-bucket interval marker instances.
+   * Replaceable via usePersistIntervalAdapter() / useJson() / useDummy().
+   */
   private PersistIntervalInstanceCtor: TPersistIntervalInstanceCtor = PersistIntervalInstance;
 
+  /**
+   * Memoized factory creating one IPersistIntervalInstance per bucket.
+   */
   private getIntervalStorage = memoize(
     ([bucket]: [string]): string => bucket,
     (bucket: string): IPersistIntervalInstance =>
       Reflect.construct(this.PersistIntervalInstanceCtor, [bucket])
   );
 
+  /**
+   * Registers a custom IPersistIntervalInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistIntervalInstance constructor
+   */
   public usePersistIntervalAdapter(Ctor: TPersistIntervalInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_PERSIST_INTERVAL_ADAPTER);
     this.PersistIntervalInstanceCtor = Ctor;
     this.getIntervalStorage.clear();
   }
 
+  /**
+   * Reads an interval marker from the given bucket by key.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param bucket - Storage bucket identifier
+   * @param key - Marker key within the bucket
+   * @returns Promise resolving to marker data, or null if not found / soft-deleted
+   */
   public readIntervalData = async (
     bucket: string,
     key: string
@@ -3305,6 +3761,15 @@ export class PersistIntervalUtils {
     return instance.readIntervalData(key);
   };
 
+  /**
+   * Writes an interval marker to the given bucket under the given key.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param data - Data to store
+   * @param bucket - Storage bucket identifier
+   * @param key - Marker key within the bucket
+   * @returns Promise that resolves when write is complete
+   */
   public writeIntervalData = async (
     data: IntervalData,
     bucket: string,
@@ -3317,6 +3782,14 @@ export class PersistIntervalUtils {
     return instance.writeIntervalData(data, key);
   };
 
+  /**
+   * Soft-deletes a marker in the given bucket by setting `removed: true`.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param bucket - Storage bucket identifier
+   * @param key - Marker key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
   public removeIntervalData = async (
     bucket: string,
     key: string
@@ -3328,6 +3801,13 @@ export class PersistIntervalUtils {
     return instance.removeIntervalData(key);
   };
 
+  /**
+   * Iterates all non-removed markers for the given bucket.
+   * Lazily initializes the bucket instance on first access.
+   *
+   * @param bucket - Storage bucket identifier
+   * @returns AsyncGenerator yielding marker keys
+   */
   public async *listIntervalData(bucket: string): AsyncGenerator<string> {
     LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_LIST_DATA, { bucket });
     const isInitial = !this.getIntervalStorage.has(bucket);
@@ -3336,16 +3816,26 @@ export class PersistIntervalUtils {
     yield* instance.listIntervalData();
   }
 
+  /**
+   * Clears the memoized bucket instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_INTERVAL_UTILS_METHOD_NAME_CLEAR);
     this.getIntervalStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistIntervalInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistIntervalAdapter(PersistIntervalInstance);
   }
 
+  /**
+   * Switches to PersistIntervalDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_INTERVAL_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistIntervalAdapter(PersistIntervalDummyInstance);
@@ -3621,8 +4111,15 @@ export type TPersistMemoryInstanceCtor = new (
  * Used by MemoryPersistInstance for crash-safe memory persistence.
  */
 export class PersistMemoryUtils {
+  /**
+   * Constructor used to create per-context memory instances.
+   * Replaceable via usePersistMemoryAdapter() / useJson() / useDummy().
+   */
   private PersistMemoryInstanceCtor: TPersistMemoryInstanceCtor = PersistMemoryInstance;
 
+  /**
+   * Memoized factory creating one IPersistMemoryInstance per (signalId, bucketName) pair.
+   */
   private getMemoryStorage = memoize(
     ([signalId, bucketName]: [string, string]): string =>
       `${signalId}:${bucketName}`,
@@ -3630,12 +4127,27 @@ export class PersistMemoryUtils {
       Reflect.construct(this.PersistMemoryInstanceCtor, [signalId, bucketName])
   );
 
+  /**
+   * Registers a custom IPersistMemoryInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistMemoryInstance constructor
+   */
   public usePersistMemoryAdapter(Ctor: TPersistMemoryInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_USE_PERSIST_MEMORY_ADAPTER);
     this.PersistMemoryInstanceCtor = Ctor;
     this.getMemoryStorage.clear();
   }
 
+  /**
+   * Initializes the memory storage for the given context.
+   * Skips initialization when `initial` is false (used to gate first-time setup).
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   public waitForInit = async (
     signalId: string,
     bucketName: string,
@@ -3647,6 +4159,15 @@ export class PersistMemoryUtils {
     await instance.waitForInit(isInitial);
   };
 
+  /**
+   * Reads a memory entry for the given context and id.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise resolving to entry data, or null if not found / soft-deleted
+   */
   public readMemoryData = async (
     signalId: string,
     bucketName: string,
@@ -3660,6 +4181,15 @@ export class PersistMemoryUtils {
     return instance.readMemoryData(memoryId);
   };
 
+  /**
+   * Checks whether a memory entry exists on disk for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise resolving to true if entry exists
+   */
   public hasMemoryData = async (
     signalId: string,
     bucketName: string,
@@ -3673,6 +4203,16 @@ export class PersistMemoryUtils {
     return instance.hasMemoryData(memoryId);
   };
 
+  /**
+   * Writes a memory entry for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param data - Entry data to persist
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise that resolves when write is complete
+   */
   public writeMemoryData = async (
     data: MemoryData,
     signalId: string,
@@ -3687,6 +4227,15 @@ export class PersistMemoryUtils {
     return instance.writeMemoryData(data, memoryId);
   };
 
+  /**
+   * Soft-deletes a memory entry for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param memoryId - Memory entry identifier
+   * @returns Promise that resolves when removal is complete
+   */
   public removeMemoryData = async (
     signalId: string,
     bucketName: string,
@@ -3700,6 +4249,15 @@ export class PersistMemoryUtils {
     return instance.removeMemoryData(memoryId);
   };
 
+  /**
+   * Iterates all non-removed memory entries for the given context.
+   * Used by MemoryPersistInstance to rebuild the BM25 index on init.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @returns AsyncGenerator yielding `{ memoryId, data }` tuples
+   */
   public async *listMemoryData(
     signalId: string,
     bucketName: string
@@ -3712,22 +4270,39 @@ export class PersistMemoryUtils {
     yield* instance.listMemoryData();
   }
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear = () => {
     LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_CLEAR);
     this.getMemoryStorage.clear();
   }
 
+  /**
+   * Drops the memoized instance for the given context.
+   * Call when a signal is removed to clean up its associated storage entry.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   */
   public dispose = (signalId: string, bucketName: string) => {
     LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_DISPOSE);
     const key = `${signalId}:${bucketName}`;
     this.getMemoryStorage.clear(key);
   }
 
+  /**
+   * Switches to the default file-based PersistMemoryInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistMemoryAdapter(PersistMemoryInstance);
   }
 
+  /**
+   * Switches to PersistMemoryDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistMemoryAdapter(PersistMemoryDummyInstance);
@@ -3920,8 +4495,23 @@ export type TPersistRecentInstanceCtor = new (
  * Used by RecentPersistBacktestUtils/RecentPersistLiveUtils for recent signal persistence.
  */
 export class PersistRecentUtils {
+  /**
+   * Constructor used to create per-context recent signal instances.
+   * Replaceable via usePersistRecentAdapter() / useJson() / useDummy().
+   */
   private PersistRecentInstanceCtor: TPersistRecentInstanceCtor = PersistRecentInstance;
 
+  /**
+   * Builds the composite memoization key for a recent signal context.
+   * Includes optional frameName and the backtest/live mode flag.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier (omitted from key if empty)
+   * @param backtest - True for backtest mode, false for live mode
+   * @returns Composite key string
+   */
   private createKey(
     symbol: string,
     strategyName: StrategyName,
@@ -3935,6 +4525,9 @@ export class PersistRecentUtils {
     return parts.join(":");
   }
 
+  /**
+   * Memoized factory creating one IPersistRecentInstance per context tuple.
+   */
   private getStorage = memoize(
     ([symbol, strategyName, exchangeName, frameName, backtest]: [string, StrategyName, ExchangeName, FrameName, boolean]) =>
       this.createKey(symbol, strategyName, exchangeName, frameName, backtest),
@@ -3948,12 +4541,29 @@ export class PersistRecentUtils {
       Reflect.construct(this.PersistRecentInstanceCtor, [symbol, strategyName, exchangeName, frameName, backtest])
   );
 
+  /**
+   * Registers a custom IPersistRecentInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistRecentInstance constructor
+   */
   public usePersistRecentAdapter(Ctor: TPersistRecentInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_RECENT_UTILS_METHOD_NAME_USE_PERSIST_RECENT_ADAPTER);
     this.PersistRecentInstanceCtor = Ctor;
     this.getStorage.clear();
   }
 
+  /**
+   * Reads the latest recent signal for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier (may be empty)
+   * @param backtest - True for backtest mode, false for live mode
+   * @returns Promise resolving to recent signal or null if none persisted
+   */
   public readRecentData = async (
     symbol: string,
     strategyName: StrategyName,
@@ -3969,6 +4579,18 @@ export class PersistRecentUtils {
     return instance.readRecentData();
   };
 
+  /**
+   * Writes the latest recent signal for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalRow - Recent signal data to persist
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier (may be empty)
+   * @param backtest - True for backtest mode, false for live mode
+   * @returns Promise that resolves when write is complete
+   */
   public writeRecentData = async (
     signalRow: IPublicSignalRow,
     symbol: string,
@@ -3985,16 +4607,26 @@ export class PersistRecentUtils {
     return instance.writeRecentData(signalRow);
   };
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear(): void {
     LOGGER_SERVICE.log(PERSIST_RECENT_UTILS_METHOD_NAME_CLEAR);
     this.getStorage.clear();
   }
 
+  /**
+   * Switches to the default file-based PersistRecentInstance.
+   */
   public useJson() {
     LOGGER_SERVICE.log(PERSIST_RECENT_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistRecentAdapter(PersistRecentInstance);
   }
 
+  /**
+   * Switches to PersistRecentDummyInstance (all operations are no-ops).
+   */
   public useDummy() {
     LOGGER_SERVICE.log(PERSIST_RECENT_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistRecentAdapter(PersistRecentDummyInstance);
@@ -4180,8 +4812,15 @@ export type TPersistStateInstanceCtor = new (
  * Used by StatePersistInstance for crash-safe state persistence.
  */
 export class PersistStateUtils {
+  /**
+   * Constructor used to create per-context state instances.
+   * Replaceable via usePersistStateAdapter() / useJson() / useDummy().
+   */
   private PersistStateInstanceCtor: TPersistStateInstanceCtor = PersistStateInstance;
 
+  /**
+   * Memoized factory creating one IPersistStateInstance per (signalId, bucketName) pair.
+   */
   private getStateStorage = memoize(
     ([signalId, bucketName]: [string, string]): string =>
       `${signalId}:${bucketName}`,
@@ -4189,12 +4828,27 @@ export class PersistStateUtils {
       Reflect.construct(this.PersistStateInstanceCtor, [signalId, bucketName])
   );
 
+  /**
+   * Registers a custom IPersistStateInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistStateInstance constructor
+   */
   public usePersistStateAdapter(Ctor: TPersistStateInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_STATE_UTILS_METHOD_NAME_USE_PERSIST_STATE_ADAPTER);
     this.PersistStateInstanceCtor = Ctor;
     this.getStateStorage.clear();
   }
 
+  /**
+   * Initializes the state storage for the given context.
+   * Skips initialization when `initial` is false (used to gate first-time setup).
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   public waitForInit = async (
     signalId: string,
     bucketName: string,
@@ -4207,6 +4861,14 @@ export class PersistStateUtils {
     await instance.waitForInit(isInitial);
   };
 
+  /**
+   * Reads persisted state for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @returns Promise resolving to state data or null if none persisted
+   */
   public readStateData = async (
     signalId: string,
     bucketName: string
@@ -4219,6 +4881,15 @@ export class PersistStateUtils {
     return instance.readStateData();
   };
 
+  /**
+   * Writes state for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param data - State data to persist
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   * @returns Promise that resolves when write is complete
+   */
   public writeStateData = async (
     data: StateData,
     signalId: string,
@@ -4232,21 +4903,38 @@ export class PersistStateUtils {
     return instance.writeStateData(data);
   };
 
+  /**
+   * Switches to PersistStateDummyInstance (all operations are no-ops).
+   */
   public useDummy = () => {
     LOGGER_SERVICE.log(PERSIST_STATE_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistStateAdapter(PersistStateDummyInstance);
   }
 
+  /**
+   * Switches to the default file-based PersistStateInstance.
+   */
   public useJson = () => {
     LOGGER_SERVICE.log(PERSIST_STATE_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistStateAdapter(PersistStateInstance);
   }
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear = () => {
     LOGGER_SERVICE.info(PERSIST_STATE_UTILS_METHOD_NAME_CLEAR);
     this.getStateStorage.clear();
   };
 
+  /**
+   * Drops the memoized instance for the given context.
+   * Call when a signal is removed to clean up its associated storage entry.
+   *
+   * @param signalId - Signal identifier
+   * @param bucketName - Bucket name
+   */
   public dispose = (signalId: string, bucketName: string) => {
     LOGGER_SERVICE.info(PERSIST_STATE_UTILS_METHOD_NAME_DISPOSE);
     const key = `${signalId}:${bucketName}`;
@@ -4439,8 +5127,16 @@ export type TPersistSessionInstanceCtor = new (
  * Used by SessionPersistInstance for crash-safe session persistence.
  */
 export class PersistSessionUtils {
+  /**
+   * Constructor used to create per-context session instances.
+   * Replaceable via usePersistSessionAdapter() / useJson() / useDummy().
+   */
   private PersistSessionInstanceCtor: TPersistSessionInstanceCtor = PersistSessionInstance;
 
+  /**
+   * Memoized factory creating one IPersistSessionInstance per
+   * (strategyName, exchangeName, frameName) triple.
+   */
   private getSessionStorage = memoize(
     ([strategyName, exchangeName, frameName]: [string, string, string]): string =>
       `${strategyName}:${exchangeName}:${frameName}`,
@@ -4448,12 +5144,28 @@ export class PersistSessionUtils {
       Reflect.construct(this.PersistSessionInstanceCtor, [strategyName, exchangeName, frameName])
   );
 
+  /**
+   * Registers a custom IPersistSessionInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistSessionInstance constructor
+   */
   public usePersistSessionAdapter(Ctor: TPersistSessionInstanceCtor): void {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_USE_PERSIST_SESSION_ADAPTER);
     this.PersistSessionInstanceCtor = Ctor;
     this.getSessionStorage.clear();
   }
 
+  /**
+   * Initializes the session storage for the given context.
+   * Skips initialization when `initial` is false (used to gate first-time setup).
+   *
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   public waitForInit = async (
     strategyName: string,
     exchangeName: string,
@@ -4467,6 +5179,15 @@ export class PersistSessionUtils {
     await instance.waitForInit(isInitial);
   };
 
+  /**
+   * Reads persisted session data for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @returns Promise resolving to session data or null if none persisted
+   */
   public readSessionData = async (
     strategyName: string,
     exchangeName: string,
@@ -4480,6 +5201,16 @@ export class PersistSessionUtils {
     return instance.readSessionData();
   };
 
+  /**
+   * Writes session data for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param data - Session data to persist
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   * @returns Promise that resolves when write is complete
+   */
   public writeSessionData = async (
     data: SessionData,
     strategyName: string,
@@ -4494,21 +5225,39 @@ export class PersistSessionUtils {
     return instance.writeSessionData(data);
   };
 
+  /**
+   * Switches to PersistSessionDummyInstance (all operations are no-ops).
+   */
   public useDummy = () => {
     LOGGER_SERVICE.log(PERSIST_SESSION_UTILS_METHOD_NAME_USE_DUMMY);
     this.usePersistSessionAdapter(PersistSessionDummyInstance);
   };
 
+  /**
+   * Switches to the default file-based PersistSessionInstance.
+   */
   public useJson = () => {
     LOGGER_SERVICE.log(PERSIST_SESSION_UTILS_METHOD_NAME_USE_JSON);
     this.usePersistSessionAdapter(PersistSessionInstance);
   }
 
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
   public clear = () => {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_CLEAR);
     this.getSessionStorage.clear();
   };
 
+  /**
+   * Drops the memoized instance for the given context.
+   * Call when a session is removed to clean up its associated storage entry.
+   *
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @param frameName - Frame identifier
+   */
   public dispose = (strategyName: string, exchangeName: string, frameName: string) => {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_DISPOSE);
     const key = `${strategyName}:${exchangeName}:${frameName}`;

@@ -13010,8 +13010,26 @@ declare class PersistSignalInstance implements IPersistSignalInstance {
      * @param exchangeName - Exchange identifier
      */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
+    /**
+     * Initializes the underlying PersistBase storage.
+     * Delegates to PersistBase.waitForInit which uses singleshot.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted signal using `symbol` as the entity key.
+     *
+     * @returns Promise resolving to the signal or null if not found
+     */
     readSignalData(): Promise<ISignalRow | null>;
+    /**
+     * Writes the signal (or null to clear) using `symbol` as the entity key.
+     *
+     * @param signalRow - Signal data to persist, or null to clear
+     * @returns Promise that resolves when write is complete
+     */
     writeSignalData(signalRow: ISignalRow | null): Promise<void>;
 }
 /**
@@ -13031,13 +13049,55 @@ type TPersistSignalInstanceCtor = new (symbol: string, strategyName: StrategyNam
  * Used by ClientStrategy for live mode persistence.
  */
 declare class PersistSignalUtils {
+    /**
+     * Constructor used to create per-context signal instances.
+     * Replaceable via usePersistSignalAdapter() / useJson() / useDummy().
+     */
     private PersistSignalInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistSignalInstance per (symbol, strategy, exchange) triple.
+     */
     private getStorage;
+    /**
+     * Registers a custom IPersistSignalInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistSignalInstance constructor
+     */
     usePersistSignalAdapter(Ctor: TPersistSignalInstanceCtor): void;
+    /**
+     * Reads persisted signal for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise resolving to signal or null if none persisted
+     */
     readSignalData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => Promise<ISignalRow | null>;
+    /**
+     * Writes signal data (or null to clear) for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalRow - Signal data to persist, or null to clear
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeSignalData: (signalRow: ISignalRow | null, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistSignalInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistSignalDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -13121,8 +13181,25 @@ declare class PersistRiskInstance implements IPersistRiskInstance {
      * @param exchangeName - Exchange identifier
      */
     constructor(riskName: RiskName, exchangeName: ExchangeName);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted positions array using the fixed STORAGE_KEY.
+     *
+     * @returns Promise resolving to positions (empty array if none persisted)
+     */
     readPositionData(): Promise<RiskData>;
+    /**
+     * Writes the positions array using the fixed STORAGE_KEY.
+     *
+     * @param riskRow - Position entries to persist
+     * @returns Promise that resolves when write is complete
+     */
     writePositionData(riskRow: RiskData): Promise<void>;
 }
 /**
@@ -13142,13 +13219,53 @@ type TPersistRiskInstanceCtor = new (riskName: RiskName, exchangeName: ExchangeN
  * Used by ClientRisk for live mode persistence of active positions.
  */
 declare class PersistRiskUtils {
+    /**
+     * Constructor used to create per-context risk instances.
+     * Replaceable via usePersistRiskAdapter() / useJson() / useDummy().
+     */
     private PersistRiskInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistRiskInstance per (riskName, exchange) pair.
+     */
     private getRiskStorage;
+    /**
+     * Registers a custom IPersistRiskInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistRiskInstance constructor
+     */
     usePersistRiskAdapter(Ctor: TPersistRiskInstanceCtor): void;
+    /**
+     * Reads persisted active positions for the given risk context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param riskName - Risk profile identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise resolving to position entries (empty array if none)
+     */
     readPositionData: (riskName: RiskName, exchangeName: ExchangeName) => Promise<RiskData>;
+    /**
+     * Writes active positions for the given risk context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param riskRow - Position entries to persist
+     * @param riskName - Risk profile identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise that resolves when write is complete
+     */
     writePositionData: (riskRow: RiskData, riskName: RiskName, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistRiskInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistRiskDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -13232,8 +13349,25 @@ declare class PersistScheduleInstance implements IPersistScheduleInstance {
      * @param exchangeName - Exchange identifier
      */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted scheduled signal using `symbol` as the entity key.
+     *
+     * @returns Promise resolving to scheduled signal or null if not found
+     */
     readScheduleData(): Promise<IScheduledSignalRow | null>;
+    /**
+     * Writes the scheduled signal (or null to clear) using `symbol` as the entity key.
+     *
+     * @param row - Scheduled signal data to persist, or null to clear
+     * @returns Promise that resolves when write is complete
+     */
     writeScheduleData(row: IScheduledSignalRow | null): Promise<void>;
 }
 /**
@@ -13253,13 +13387,55 @@ type TPersistScheduleInstanceCtor = new (symbol: string, strategyName: StrategyN
  * Used by ClientStrategy for live mode persistence of scheduled signals (_scheduledSignal).
  */
 declare class PersistScheduleUtils {
+    /**
+     * Constructor used to create per-context scheduled signal instances.
+     * Replaceable via usePersistScheduleAdapter() / useJson() / useDummy().
+     */
     private PersistScheduleInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistScheduleInstance per (symbol, strategy, exchange) triple.
+     */
     private getScheduleStorage;
+    /**
+     * Registers a custom IPersistScheduleInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistScheduleInstance constructor
+     */
     usePersistScheduleAdapter(Ctor: TPersistScheduleInstanceCtor): void;
+    /**
+     * Reads persisted scheduled signal for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise resolving to scheduled signal or null if none persisted
+     */
     readScheduleData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => Promise<IScheduledSignalRow | null>;
+    /**
+     * Writes scheduled signal (or null to clear) for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param scheduledSignalRow - Scheduled signal data to persist, or null to clear
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeScheduleData: (scheduledSignalRow: IScheduledSignalRow | null, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistScheduleInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistScheduleDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -13348,8 +13524,27 @@ declare class PersistPartialInstance implements IPersistPartialInstance {
      * @param exchangeName - Exchange identifier
      */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the partial data for the given signal using `signalId` as the entity key.
+     *
+     * @param signalId - Signal identifier
+     * @returns Promise resolving to partial data record (empty object if not found)
+     */
     readPartialData(signalId: string): Promise<PartialData>;
+    /**
+     * Writes the partial data for the given signal using `signalId` as the entity key.
+     *
+     * @param data - Partial data record to persist
+     * @param signalId - Signal identifier
+     * @returns Promise that resolves when write is complete
+     */
     writePartialData(data: PartialData, signalId: string): Promise<void>;
 }
 /**
@@ -13369,13 +13564,58 @@ type TPersistPartialInstanceCtor = new (symbol: string, strategyName: StrategyNa
  * Used by ClientPartial for live mode persistence of profit/loss levels.
  */
 declare class PersistPartialUtils {
+    /**
+     * Constructor used to create per-context partial data instances.
+     * Replaceable via usePersistPartialAdapter() / useJson() / useDummy().
+     */
     private PersistPartialInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistPartialInstance per (symbol, strategy, exchange) triple.
+     * Each signal's partial data is stored under its own signalId within the instance.
+     */
     private getPartialStorage;
+    /**
+     * Registers a custom IPersistPartialInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistPartialInstance constructor
+     */
     usePersistPartialAdapter(Ctor: TPersistPartialInstanceCtor): void;
+    /**
+     * Reads partial data for the given context and signalId.
+     * Lazily initializes the instance on first access.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param signalId - Signal identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise resolving to partial data record (empty object if none)
+     */
     readPartialData: (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<PartialData>;
+    /**
+     * Writes partial data for the given context and signalId.
+     * Lazily initializes the instance on first access.
+     *
+     * @param partialData - Partial data record to persist
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param signalId - Signal identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise that resolves when write is complete
+     */
     writePartialData: (partialData: PartialData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistPartialInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistPartialDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -13464,8 +13704,27 @@ declare class PersistBreakevenInstance implements IPersistBreakevenInstance {
      * @param exchangeName - Exchange identifier
      */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the breakeven data for the given signal using `signalId` as the entity key.
+     *
+     * @param signalId - Signal identifier
+     * @returns Promise resolving to breakeven data record (empty object if not found)
+     */
     readBreakevenData(signalId: string): Promise<BreakevenData>;
+    /**
+     * Writes the breakeven data for the given signal using `signalId` as the entity key.
+     *
+     * @param data - Breakeven data record to persist
+     * @param signalId - Signal identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeBreakevenData(data: BreakevenData, signalId: string): Promise<void>;
 }
 /**
@@ -13505,13 +13764,58 @@ type TPersistBreakevenInstanceCtor = new (symbol: string, strategyName: Strategy
  * ```
  */
 declare class PersistBreakevenUtils {
+    /**
+     * Constructor used to create per-context breakeven instances.
+     * Replaceable via usePersistBreakevenAdapter() / useJson() / useDummy().
+     */
     private PersistBreakevenInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistBreakevenInstance per (symbol, strategy, exchange) triple.
+     * Each signal's breakeven data is stored under its own signalId within the instance.
+     */
     private getBreakevenStorage;
+    /**
+     * Registers a custom IPersistBreakevenInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistBreakevenInstance constructor
+     */
     usePersistBreakevenAdapter(Ctor: TPersistBreakevenInstanceCtor): void;
+    /**
+     * Reads breakeven data for the given context and signalId.
+     * Lazily initializes the instance on first access.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param signalId - Signal identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise resolving to breakeven data record (empty object if none)
+     */
     readBreakevenData: (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<BreakevenData>;
+    /**
+     * Writes breakeven data for the given context and signalId.
+     * Lazily initializes the instance on first access.
+     *
+     * @param breakevenData - Breakeven data record to persist
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param signalId - Signal identifier
+     * @param exchangeName - Exchange identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeBreakevenData: (breakevenData: BreakevenData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistBreakevenInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistBreakevenDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -13606,8 +13910,33 @@ declare class PersistCandleInstance implements IPersistCandleInstance {
      * @param exchangeName - Exchange identifier
      */
     constructor(symbol: string, interval: CandleInterval, exchangeName: ExchangeName);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads cached candles for the requested window.
+     * Computes expected timestamps (sinceTimestamp + i * stepMs) and reads each
+     * by timestamp key. Returns null on ANY missing timestamp (cache miss).
+     * Invalid cached candles emit a warning via errorEmitter and are treated as miss.
+     *
+     * @param limit - Number of candles requested
+     * @param sinceTimestamp - Aligned start timestamp (openTime of first candle)
+     * @param _untilTimestamp - Reserved for API compatibility, unused
+     * @returns Promise resolving to candles in order, or null on cache miss
+     */
     readCandlesData(limit: number, sinceTimestamp: number, _untilTimestamp: number): Promise<CandleData[] | null>;
+    /**
+     * Writes candles to cache.
+     * Skips incomplete candles (closeTime > now) and existing keys to keep
+     * the cache append-only for fully closed candles.
+     *
+     * @param candles - Array of candle data to cache
+     * @returns Promise that resolves when all writes are complete
+     */
     writeCandlesData(candles: CandleData[]): Promise<void>;
 }
 /**
@@ -13627,13 +13956,58 @@ type TPersistCandleInstanceCtor = new (symbol: string, interval: CandleInterval,
  * Used by ClientExchange for candle data caching.
  */
 declare class PersistCandleUtils {
+    /**
+     * Constructor used to create per-context candle cache instances.
+     * Replaceable via usePersistCandleAdapter() / useJson() / useDummy().
+     */
     private PersistCandleInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistCandleInstance per (symbol, interval, exchange) triple.
+     */
     private getCandlesStorage;
+    /**
+     * Registers a custom IPersistCandleInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistCandleInstance constructor
+     */
     usePersistCandleAdapter(Ctor: TPersistCandleInstanceCtor): void;
+    /**
+     * Reads cached candles for the given context and time window.
+     * Lazily initializes the instance on first access.
+     *
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval
+     * @param exchangeName - Exchange identifier
+     * @param limit - Number of candles requested
+     * @param sinceTimestamp - Aligned start timestamp (openTime of first candle)
+     * @param untilTimestamp - Reserved for API compatibility
+     * @returns Promise resolving to candles in order, or null on cache miss
+     */
     readCandlesData: (symbol: string, interval: CandleInterval, exchangeName: ExchangeName, limit: number, sinceTimestamp: number, untilTimestamp: number) => Promise<CandleData[] | null>;
+    /**
+     * Writes candles to cache for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param candles - Array of candle data to cache
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval
+     * @param exchangeName - Exchange identifier
+     * @returns Promise that resolves when all writes are complete
+     */
     writeCandlesData: (candles: CandleData[], symbol: string, interval: CandleInterval, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistCandleInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistCandleDummyInstance (always returns null on read, discards writes).
+     */
     useDummy(): void;
 }
 /**
@@ -13715,8 +14089,25 @@ declare class PersistStorageInstance implements IPersistStorageInstance {
      * @param backtest - True for backtest mode storage, false for live mode
      */
     constructor(backtest: boolean);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads all persisted signals by iterating storage keys.
+     *
+     * @returns Promise resolving to array of signal entries
+     */
     readStorageData(): Promise<StorageData>;
+    /**
+     * Writes each signal as a separate entity keyed by `signal.id`.
+     *
+     * @param signals - Signal entries to persist
+     * @returns Promise that resolves when all writes are complete
+     */
     writeStorageData(signals: StorageData): Promise<void>;
 }
 /**
@@ -13737,13 +14128,52 @@ type TPersistStorageInstanceCtor = new (backtest: boolean) => IPersistStorageIns
  * Used by SignalLiveUtils for live mode persistence of signals.
  */
 declare class PersistStorageUtils {
+    /**
+     * Constructor used to create per-mode signal storage instances.
+     * Replaceable via usePersistStorageAdapter() / useJson() / useDummy().
+     */
     private PersistStorageInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistStorageInstance per mode (backtest/live).
+     * Key: "backtest" or "live".
+     */
     private getStorage;
+    /**
+     * Registers a custom IPersistStorageInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistStorageInstance constructor
+     */
     usePersistStorageAdapter(Ctor: TPersistStorageInstanceCtor): void;
+    /**
+     * Reads all persisted signals for the given mode.
+     * Lazily initializes the instance on first access.
+     *
+     * @param backtest - True for backtest mode storage, false for live mode
+     * @returns Promise resolving to array of signal entries
+     */
     readStorageData: (backtest: boolean) => Promise<StorageData>;
+    /**
+     * Writes signals for the given mode.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalData - Signal entries to persist
+     * @param backtest - True for backtest mode storage, false for live mode
+     * @returns Promise that resolves when write is complete
+     */
     writeStorageData: (signalData: StorageData, backtest: boolean) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistStorageInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistStorageDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -13814,8 +14244,25 @@ declare class PersistNotificationInstance implements IPersistNotificationInstanc
      * @param backtest - True for backtest mode storage, false for live mode
      */
     constructor(backtest: boolean);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads all persisted notifications by iterating storage keys.
+     *
+     * @returns Promise resolving to array of notification entries
+     */
     readNotificationData(): Promise<NotificationData>;
+    /**
+     * Writes each notification as a separate entity keyed by `notification.id`.
+     *
+     * @param notifications - Notification entries to persist
+     * @returns Promise that resolves when all writes are complete
+     */
     writeNotificationData(notifications: NotificationData): Promise<void>;
 }
 /**
@@ -13836,13 +14283,53 @@ type TPersistNotificationInstanceCtor = new (backtest: boolean) => IPersistNotif
  * Used by NotificationPersistLiveUtils/NotificationPersistBacktestUtils for persistence.
  */
 declare class PersistNotificationUtils {
+    /**
+     * Constructor used to create per-mode notification instances.
+     * Replaceable via usePersistNotificationAdapter() / useJson() / useDummy().
+     */
     private PersistNotificationInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistNotificationInstance per mode (backtest/live).
+     * Key: "backtest" or "live".
+     */
     private getNotificationStorage;
+    /**
+     * Registers a custom IPersistNotificationInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistNotificationInstance constructor
+     */
     usePersistNotificationAdapter(Ctor: TPersistNotificationInstanceCtor): void;
+    /**
+     * Reads persisted notifications for the given mode.
+     * Lazily initializes the instance on first access.
+     *
+     * @param backtest - True for backtest mode storage, false for live mode
+     * @returns Promise resolving to array of notification entries
+     */
     readNotificationData: (backtest: boolean) => Promise<NotificationData>;
+    /**
+     * Writes notifications for the given mode.
+     * Lazily initializes the instance on first access.
+     *
+     * @param notificationData - Notification entries to persist
+     * @param backtest - True for backtest mode storage, false for live mode
+     * @returns Promise that resolves when write is complete
+     */
     writeNotificationData: (notificationData: NotificationData, backtest: boolean) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations so new
+     * instances are created with the updated base path.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistNotificationInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistNotificationDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -13916,8 +14403,26 @@ declare class PersistLogInstance implements IPersistLogInstance {
      * No context parameters — there is a single global log storage.
      */
     constructor();
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads all persisted log entries by iterating storage keys.
+     *
+     * @returns Promise resolving to array of log entries
+     */
     readLogData(): Promise<LogData>;
+    /**
+     * Writes log entries append-only — skips entries whose id already exists
+     * so the log file is never overwritten.
+     *
+     * @param logData - Log entries to persist
+     * @returns Promise that resolves when all writes are complete
+     */
     writeLogData(logData: LogData): Promise<void>;
 }
 /**
@@ -13938,14 +14443,56 @@ type TPersistLogInstanceCtor = new () => IPersistLogInstance;
  * Used by LogPersistUtils for log entry persistence.
  */
 declare class PersistLogUtils {
+    /**
+     * Constructor used to create the global log instance.
+     * Replaceable via usePersistLogAdapter() / useJson() / useDummy().
+     */
     private PersistLogInstanceCtor;
+    /**
+     * Cached singleton log instance. Lazily created on first access.
+     * Reset to null by clear() and usePersistLogAdapter().
+     */
     private _logInstance;
+    /**
+     * Returns the cached log instance, creating it on first access.
+     *
+     * @returns The IPersistLogInstance singleton
+     */
     private getLogInstance;
+    /**
+     * Registers a custom IPersistLogInstance constructor.
+     * Drops the cached instance so the next access uses the new adapter.
+     *
+     * @param Ctor - Custom IPersistLogInstance constructor
+     */
     usePersistLogAdapter(Ctor: TPersistLogInstanceCtor): void;
+    /**
+     * Reads all persisted log entries.
+     * Lazily initializes the instance on first access.
+     *
+     * @returns Promise resolving to array of log entries
+     */
     readLogData: () => Promise<LogData>;
+    /**
+     * Writes log entries (append-only — duplicates by id are skipped).
+     * Lazily initializes the instance on first access.
+     *
+     * @param logData - Log entries to persist
+     * @returns Promise that resolves when write is complete
+     */
     writeLogData: (logData: LogData) => Promise<void>;
+    /**
+     * Drops the cached log instance.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistLogInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistLogDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -14028,10 +14575,40 @@ declare class PersistMeasureInstance implements IPersistMeasureInstance {
      * @param bucket - Cache bucket identifier
      */
     constructor(bucket: string);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads a measure entry by key. Returns null if entry is missing or soft-deleted.
+     *
+     * @param key - Cache key within the bucket
+     * @returns Promise resolving to entry data, or null
+     */
     readMeasureData(key: string): Promise<MeasureData | null>;
+    /**
+     * Writes a measure entry under the given key.
+     *
+     * @param data - Data to cache
+     * @param key - Cache key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
     writeMeasureData(data: MeasureData, key: string): Promise<void>;
+    /**
+     * Soft-deletes an entry by writing `removed: true` flag while preserving the file.
+     *
+     * @param key - Cache key within the bucket
+     * @returns Promise that resolves when removal is complete
+     */
     removeMeasureData(key: string): Promise<void>;
+    /**
+     * Iterates all entries in the bucket, yielding keys of non-removed entries only.
+     *
+     * @returns AsyncGenerator yielding entry keys
+     */
     listMeasureData(): AsyncGenerator<string>;
 }
 /**
@@ -14051,15 +14628,70 @@ type TPersistMeasureInstanceCtor = new (bucket: string) => IPersistMeasureInstan
  * Used by Cache.file for persistent caching of external API responses.
  */
 declare class PersistMeasureUtils {
+    /**
+     * Constructor used to create per-bucket measure cache instances.
+     * Replaceable via usePersistMeasureAdapter() / useJson() / useDummy().
+     */
     private PersistMeasureInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistMeasureInstance per bucket.
+     */
     private getMeasureStorage;
+    /**
+     * Registers a custom IPersistMeasureInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistMeasureInstance constructor
+     */
     usePersistMeasureAdapter(Ctor: TPersistMeasureInstanceCtor): void;
+    /**
+     * Reads a measure entry from the given bucket by key.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param bucket - Storage bucket identifier
+     * @param key - Cache key within the bucket
+     * @returns Promise resolving to cached value, or null if not found / soft-deleted
+     */
     readMeasureData: (bucket: string, key: string) => Promise<MeasureData | null>;
+    /**
+     * Writes a measure entry to the given bucket under the given key.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param data - Data to cache
+     * @param bucket - Storage bucket identifier
+     * @param key - Cache key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
     writeMeasureData: (data: MeasureData, bucket: string, key: string) => Promise<void>;
+    /**
+     * Soft-deletes a measure entry in the given bucket by setting `removed: true`.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param bucket - Storage bucket identifier
+     * @param key - Cache key within the bucket
+     * @returns Promise that resolves when removal is complete
+     */
     removeMeasureData: (bucket: string, key: string) => Promise<void>;
+    /**
+     * Iterates all non-removed measure entries for the given bucket.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param bucket - Storage bucket identifier
+     * @returns AsyncGenerator yielding entry keys
+     */
     listMeasureData(bucket: string): AsyncGenerator<string>;
+    /**
+     * Clears the memoized bucket instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistMeasureInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistMeasureDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -14143,10 +14775,41 @@ declare class PersistIntervalInstance implements IPersistIntervalInstance {
      * @param bucket - Marker bucket identifier
      */
     constructor(bucket: string);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads an interval marker by key. Returns null if marker is missing or soft-deleted.
+     *
+     * @param key - Marker key within the bucket
+     * @returns Promise resolving to stored data, or null
+     */
     readIntervalData(key: string): Promise<IntervalData | null>;
+    /**
+     * Writes an interval marker under the given key.
+     *
+     * @param data - Data to store
+     * @param key - Marker key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
     writeIntervalData(data: IntervalData, key: string): Promise<void>;
+    /**
+     * Soft-deletes a marker by writing `removed: true` flag while preserving the file.
+     * Subsequent reads will return null, allowing the interval to fire again.
+     *
+     * @param key - Marker key within the bucket
+     * @returns Promise that resolves when removal is complete
+     */
     removeIntervalData(key: string): Promise<void>;
+    /**
+     * Iterates all markers in the bucket, yielding keys of non-removed markers only.
+     *
+     * @returns AsyncGenerator yielding marker keys
+     */
     listIntervalData(): AsyncGenerator<string>;
 }
 /**
@@ -14162,15 +14825,70 @@ type TPersistIntervalInstanceCtor = new (bucket: string) => IPersistIntervalInst
  * absence means the function has not yet fired (or returned null last time).
  */
 declare class PersistIntervalUtils {
+    /**
+     * Constructor used to create per-bucket interval marker instances.
+     * Replaceable via usePersistIntervalAdapter() / useJson() / useDummy().
+     */
     private PersistIntervalInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistIntervalInstance per bucket.
+     */
     private getIntervalStorage;
+    /**
+     * Registers a custom IPersistIntervalInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistIntervalInstance constructor
+     */
     usePersistIntervalAdapter(Ctor: TPersistIntervalInstanceCtor): void;
+    /**
+     * Reads an interval marker from the given bucket by key.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param bucket - Storage bucket identifier
+     * @param key - Marker key within the bucket
+     * @returns Promise resolving to marker data, or null if not found / soft-deleted
+     */
     readIntervalData: (bucket: string, key: string) => Promise<IntervalData | null>;
+    /**
+     * Writes an interval marker to the given bucket under the given key.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param data - Data to store
+     * @param bucket - Storage bucket identifier
+     * @param key - Marker key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
     writeIntervalData: (data: IntervalData, bucket: string, key: string) => Promise<void>;
+    /**
+     * Soft-deletes a marker in the given bucket by setting `removed: true`.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param bucket - Storage bucket identifier
+     * @param key - Marker key within the bucket
+     * @returns Promise that resolves when removal is complete
+     */
     removeIntervalData: (bucket: string, key: string) => Promise<void>;
+    /**
+     * Iterates all non-removed markers for the given bucket.
+     * Lazily initializes the bucket instance on first access.
+     *
+     * @param bucket - Storage bucket identifier
+     * @returns AsyncGenerator yielding marker keys
+     */
     listIntervalData(bucket: string): AsyncGenerator<string>;
+    /**
+     * Clears the memoized bucket instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistIntervalInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistIntervalDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -14281,15 +14999,56 @@ declare class PersistMemoryInstance implements IPersistMemoryInstance {
      * @param bucketName - Bucket name (subfolder under memory/)
      */
     constructor(signalId: string, bucketName: string);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads a memory entry by id. Returns null if entry is missing or soft-deleted.
+     *
+     * @param memoryId - Memory entry identifier
+     * @returns Promise resolving to entry data, or null
+     */
     readMemoryData(memoryId: string): Promise<MemoryData | null>;
+    /**
+     * Checks whether a memory entry exists on disk (regardless of removed flag).
+     *
+     * @param memoryId - Memory entry identifier
+     * @returns Promise resolving to true if entry file exists
+     */
     hasMemoryData(memoryId: string): Promise<boolean>;
+    /**
+     * Writes a memory entry under the given id.
+     *
+     * @param data - Entry data to persist
+     * @param memoryId - Memory entry identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeMemoryData(data: MemoryData, memoryId: string): Promise<void>;
+    /**
+     * Soft-deletes a memory entry by writing `removed: true` flag.
+     *
+     * @param memoryId - Memory entry identifier
+     * @returns Promise that resolves when removal is complete
+     */
     removeMemoryData(memoryId: string): Promise<void>;
+    /**
+     * Iterates all memory entries in the bucket, yielding id + data tuples
+     * for non-removed entries only.
+     *
+     * @returns AsyncGenerator yielding `{ memoryId, data }` tuples
+     */
     listMemoryData(): AsyncGenerator<{
         memoryId: string;
         data: MemoryData;
     }>;
+    /**
+     * No-op for the default file-based implementation.
+     * Resource cleanup (memo cache invalidation) is handled by PersistMemoryUtils.dispose().
+     */
     dispose(): void;
 }
 /**
@@ -14311,21 +15070,106 @@ type TPersistMemoryInstanceCtor = new (signalId: string, bucketName: string) => 
  * Used by MemoryPersistInstance for crash-safe memory persistence.
  */
 declare class PersistMemoryUtils {
+    /**
+     * Constructor used to create per-context memory instances.
+     * Replaceable via usePersistMemoryAdapter() / useJson() / useDummy().
+     */
     private PersistMemoryInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistMemoryInstance per (signalId, bucketName) pair.
+     */
     private getMemoryStorage;
+    /**
+     * Registers a custom IPersistMemoryInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistMemoryInstance constructor
+     */
     usePersistMemoryAdapter(Ctor: TPersistMemoryInstanceCtor): void;
+    /**
+     * Initializes the memory storage for the given context.
+     * Skips initialization when `initial` is false (used to gate first-time setup).
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit: (signalId: string, bucketName: string, initial: boolean) => Promise<void>;
+    /**
+     * Reads a memory entry for the given context and id.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @param memoryId - Memory entry identifier
+     * @returns Promise resolving to entry data, or null if not found / soft-deleted
+     */
     readMemoryData: (signalId: string, bucketName: string, memoryId: string) => Promise<MemoryData | null>;
+    /**
+     * Checks whether a memory entry exists on disk for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @param memoryId - Memory entry identifier
+     * @returns Promise resolving to true if entry exists
+     */
     hasMemoryData: (signalId: string, bucketName: string, memoryId: string) => Promise<boolean>;
+    /**
+     * Writes a memory entry for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param data - Entry data to persist
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @param memoryId - Memory entry identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeMemoryData: (data: MemoryData, signalId: string, bucketName: string, memoryId: string) => Promise<void>;
+    /**
+     * Soft-deletes a memory entry for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @param memoryId - Memory entry identifier
+     * @returns Promise that resolves when removal is complete
+     */
     removeMemoryData: (signalId: string, bucketName: string, memoryId: string) => Promise<void>;
+    /**
+     * Iterates all non-removed memory entries for the given context.
+     * Used by MemoryPersistInstance to rebuild the BM25 index on init.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @returns AsyncGenerator yielding `{ memoryId, data }` tuples
+     */
     listMemoryData(signalId: string, bucketName: string): AsyncGenerator<{
         memoryId: string;
         data: MemoryData;
     }>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear: () => void;
+    /**
+     * Drops the memoized instance for the given context.
+     * Call when a signal is removed to clean up its associated storage entry.
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     */
     dispose: (signalId: string, bucketName: string) => void;
+    /**
+     * Switches to the default file-based PersistMemoryInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistMemoryDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -14414,8 +15258,25 @@ declare class PersistRecentInstance implements IPersistRecentInstance {
      * @param backtest - True for backtest mode, false for live mode
      */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted recent signal using `symbol` as the entity key.
+     *
+     * @returns Promise resolving to recent signal or null if not found
+     */
     readRecentData(): Promise<IPublicSignalRow | null>;
+    /**
+     * Writes the recent signal using `symbol` as the entity key.
+     *
+     * @param signalRow - Recent signal data to persist
+     * @returns Promise that resolves when write is complete
+     */
     writeRecentData(signalRow: IPublicSignalRow): Promise<void>;
 }
 /**
@@ -14435,14 +15296,71 @@ type TPersistRecentInstanceCtor = new (symbol: string, strategyName: StrategyNam
  * Used by RecentPersistBacktestUtils/RecentPersistLiveUtils for recent signal persistence.
  */
 declare class PersistRecentUtils {
+    /**
+     * Constructor used to create per-context recent signal instances.
+     * Replaceable via usePersistRecentAdapter() / useJson() / useDummy().
+     */
     private PersistRecentInstanceCtor;
+    /**
+     * Builds the composite memoization key for a recent signal context.
+     * Includes optional frameName and the backtest/live mode flag.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier (omitted from key if empty)
+     * @param backtest - True for backtest mode, false for live mode
+     * @returns Composite key string
+     */
     private createKey;
+    /**
+     * Memoized factory creating one IPersistRecentInstance per context tuple.
+     */
     private getStorage;
+    /**
+     * Registers a custom IPersistRecentInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistRecentInstance constructor
+     */
     usePersistRecentAdapter(Ctor: TPersistRecentInstanceCtor): void;
+    /**
+     * Reads the latest recent signal for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier (may be empty)
+     * @param backtest - True for backtest mode, false for live mode
+     * @returns Promise resolving to recent signal or null if none persisted
+     */
     readRecentData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<IPublicSignalRow | null>;
+    /**
+     * Writes the latest recent signal for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalRow - Recent signal data to persist
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier (may be empty)
+     * @param backtest - True for backtest mode, false for live mode
+     * @returns Promise that resolves when write is complete
+     */
     writeRecentData: (signalRow: IPublicSignalRow, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear(): void;
+    /**
+     * Switches to the default file-based PersistRecentInstance.
+     */
     useJson(): void;
+    /**
+     * Switches to PersistRecentDummyInstance (all operations are no-ops).
+     */
     useDummy(): void;
 }
 /**
@@ -14521,9 +15439,30 @@ declare class PersistStateInstance implements IPersistStateInstance {
      * @param bucketName - Bucket name (file name)
      */
     constructor(signalId: string, bucketName: string);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted state using `bucketName` as the entity key.
+     *
+     * @returns Promise resolving to state data or null if not found
+     */
     readStateData(): Promise<StateData | null>;
+    /**
+     * Writes the state using `bucketName` as the entity key.
+     *
+     * @param data - State data to persist
+     * @returns Promise that resolves when write is complete
+     */
     writeStateData(data: StateData): Promise<void>;
+    /**
+     * No-op for the default file-based implementation.
+     * Resource cleanup (memo cache invalidation) is handled by PersistStateUtils.dispose().
+     */
     dispose(): void;
 }
 /**
@@ -14544,15 +15483,71 @@ type TPersistStateInstanceCtor = new (signalId: string, bucketName: string) => I
  * Used by StatePersistInstance for crash-safe state persistence.
  */
 declare class PersistStateUtils {
+    /**
+     * Constructor used to create per-context state instances.
+     * Replaceable via usePersistStateAdapter() / useJson() / useDummy().
+     */
     private PersistStateInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistStateInstance per (signalId, bucketName) pair.
+     */
     private getStateStorage;
+    /**
+     * Registers a custom IPersistStateInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistStateInstance constructor
+     */
     usePersistStateAdapter(Ctor: TPersistStateInstanceCtor): void;
+    /**
+     * Initializes the state storage for the given context.
+     * Skips initialization when `initial` is false (used to gate first-time setup).
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit: (signalId: string, bucketName: string, initial: boolean) => Promise<void>;
+    /**
+     * Reads persisted state for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @returns Promise resolving to state data or null if none persisted
+     */
     readStateData: (signalId: string, bucketName: string) => Promise<StateData | null>;
+    /**
+     * Writes state for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param data - State data to persist
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     * @returns Promise that resolves when write is complete
+     */
     writeStateData: (data: StateData, signalId: string, bucketName: string) => Promise<void>;
+    /**
+     * Switches to PersistStateDummyInstance (all operations are no-ops).
+     */
     useDummy: () => void;
+    /**
+     * Switches to the default file-based PersistStateInstance.
+     */
     useJson: () => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear: () => void;
+    /**
+     * Drops the memoized instance for the given context.
+     * Call when a signal is removed to clean up its associated storage entry.
+     *
+     * @param signalId - Signal identifier
+     * @param bucketName - Bucket name
+     */
     dispose: (signalId: string, bucketName: string) => void;
 }
 /**
@@ -14633,9 +15628,30 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
      * @param frameName - Frame identifier (also used as entity ID)
      */
     constructor(strategyName: string, exchangeName: string, frameName: string);
+    /**
+     * Initializes the underlying PersistBase storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Reads the persisted session data using `frameName` as the entity key.
+     *
+     * @returns Promise resolving to session data or null if not found
+     */
     readSessionData(): Promise<SessionData | null>;
+    /**
+     * Writes the session data using `frameName` as the entity key.
+     *
+     * @param data - Session data to persist
+     * @returns Promise that resolves when write is complete
+     */
     writeSessionData(data: SessionData): Promise<void>;
+    /**
+     * No-op for the default file-based implementation.
+     * Resource cleanup (memo cache invalidation) is handled by PersistSessionUtils.dispose().
+     */
     dispose(): void;
 }
 /**
@@ -14656,15 +15672,76 @@ type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: stri
  * Used by SessionPersistInstance for crash-safe session persistence.
  */
 declare class PersistSessionUtils {
+    /**
+     * Constructor used to create per-context session instances.
+     * Replaceable via usePersistSessionAdapter() / useJson() / useDummy().
+     */
     private PersistSessionInstanceCtor;
+    /**
+     * Memoized factory creating one IPersistSessionInstance per
+     * (strategyName, exchangeName, frameName) triple.
+     */
     private getSessionStorage;
+    /**
+     * Registers a custom IPersistSessionInstance constructor.
+     * Clears the memoization cache so subsequent calls use the new adapter.
+     *
+     * @param Ctor - Custom IPersistSessionInstance constructor
+     */
     usePersistSessionAdapter(Ctor: TPersistSessionInstanceCtor): void;
+    /**
+     * Initializes the session storage for the given context.
+     * Skips initialization when `initial` is false (used to gate first-time setup).
+     *
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit: (strategyName: string, exchangeName: string, frameName: string, initial: boolean) => Promise<void>;
+    /**
+     * Reads persisted session data for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @returns Promise resolving to session data or null if none persisted
+     */
     readSessionData: (strategyName: string, exchangeName: string, frameName: string) => Promise<SessionData | null>;
+    /**
+     * Writes session data for the given context.
+     * Lazily initializes the instance on first access.
+     *
+     * @param data - Session data to persist
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string) => Promise<void>;
+    /**
+     * Switches to PersistSessionDummyInstance (all operations are no-ops).
+     */
     useDummy: () => void;
+    /**
+     * Switches to the default file-based PersistSessionInstance.
+     */
     useJson: () => void;
+    /**
+     * Clears the memoized instance cache.
+     * Call when process.cwd() changes between strategy iterations.
+     */
     clear: () => void;
+    /**
+     * Drops the memoized instance for the given context.
+     * Call when a session is removed to clean up its associated storage entry.
+     *
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier
+     */
     dispose: (strategyName: string, exchangeName: string, frameName: string) => void;
 }
 /**
