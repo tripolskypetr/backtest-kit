@@ -678,10 +678,22 @@ export class PersistSignalInstance implements IPersistSignalInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   * Delegates to PersistBase.waitForInit which uses singleshot.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the persisted signal using `symbol` as the entity key.
+   *
+   * @returns Promise resolving to the signal or null if not found
+   */
   async readSignalData(): Promise<ISignalRow | null> {
     if (await this._storage.hasValue(this.symbol)) {
       return await this._storage.readValue(this.symbol);
@@ -689,6 +701,12 @@ export class PersistSignalInstance implements IPersistSignalInstance {
     return null;
   }
 
+  /**
+   * Writes the signal (or null to clear) using `symbol` as the entity key.
+   *
+   * @param signalRow - Signal data to persist, or null to clear
+   * @returns Promise that resolves when write is complete
+   */
   async writeSignalData(signalRow: ISignalRow | null): Promise<void> {
     await this._storage.writeValue(this.symbol, signalRow);
   }
@@ -699,9 +717,25 @@ export class PersistSignalInstance implements IPersistSignalInstance {
  * All reads return null, all writes are discarded.
  */
 class PersistSignalDummyInstance implements IPersistSignalInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistSignalInstanceCtor.
+   */
   constructor(_symbol: string, _strategyName: StrategyName, _exchangeName: ExchangeName) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no persisted signal).
+   * @returns Promise resolving to null
+   */
   async readSignalData(): Promise<ISignalRow | null> { return null; }
+  /**
+   * No-op write (discards data).
+   * @returns Promise that resolves immediately
+   */
   async writeSignalData(_signalRow: ISignalRow | null): Promise<void> { void 0; }
 }
 
@@ -886,10 +920,21 @@ export class PersistRiskInstance implements IPersistRiskInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the persisted positions array using the fixed STORAGE_KEY.
+   *
+   * @returns Promise resolving to positions (empty array if none persisted)
+   */
   async readPositionData(): Promise<RiskData> {
     if (await this._storage.hasValue(PersistRiskInstance.STORAGE_KEY)) {
       return await this._storage.readValue(PersistRiskInstance.STORAGE_KEY);
@@ -897,6 +942,12 @@ export class PersistRiskInstance implements IPersistRiskInstance {
     return [];
   }
 
+  /**
+   * Writes the positions array using the fixed STORAGE_KEY.
+   *
+   * @param riskRow - Position entries to persist
+   * @returns Promise that resolves when write is complete
+   */
   async writePositionData(riskRow: RiskData): Promise<void> {
     await this._storage.writeValue(PersistRiskInstance.STORAGE_KEY, riskRow);
   }
@@ -907,9 +958,25 @@ export class PersistRiskInstance implements IPersistRiskInstance {
  * All reads return empty array, all writes are discarded.
  */
 class PersistRiskDummyInstance implements IPersistRiskInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistRiskInstanceCtor.
+   */
   constructor(_riskName: RiskName, _exchangeName: ExchangeName) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns empty positions array.
+   * @returns Promise resolving to []
+   */
   async readPositionData(): Promise<RiskData> { return []; }
+  /**
+   * No-op write (discards positions).
+   * @returns Promise that resolves immediately
+   */
   async writePositionData(_riskRow: RiskData): Promise<void> { void 0; }
 }
 
@@ -1084,10 +1151,21 @@ export class PersistScheduleInstance implements IPersistScheduleInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the persisted scheduled signal using `symbol` as the entity key.
+   *
+   * @returns Promise resolving to scheduled signal or null if not found
+   */
   async readScheduleData(): Promise<IScheduledSignalRow | null> {
     if (await this._storage.hasValue(this.symbol)) {
       return await this._storage.readValue(this.symbol);
@@ -1095,6 +1173,12 @@ export class PersistScheduleInstance implements IPersistScheduleInstance {
     return null;
   }
 
+  /**
+   * Writes the scheduled signal (or null to clear) using `symbol` as the entity key.
+   *
+   * @param row - Scheduled signal data to persist, or null to clear
+   * @returns Promise that resolves when write is complete
+   */
   async writeScheduleData(row: IScheduledSignalRow | null): Promise<void> {
     await this._storage.writeValue(this.symbol, row);
   }
@@ -1105,9 +1189,25 @@ export class PersistScheduleInstance implements IPersistScheduleInstance {
  * All reads return null, all writes are discarded.
  */
 class PersistScheduleDummyInstance implements IPersistScheduleInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistScheduleInstanceCtor.
+   */
   constructor(_symbol: string, _strategyName: StrategyName, _exchangeName: ExchangeName) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no persisted scheduled signal).
+   * @returns Promise resolving to null
+   */
   async readScheduleData(): Promise<IScheduledSignalRow | null> { return null; }
+  /**
+   * No-op write (discards scheduled signal).
+   * @returns Promise that resolves immediately
+   */
   async writeScheduleData(_row: IScheduledSignalRow | null): Promise<void> { void 0; }
 }
 
@@ -1297,10 +1397,22 @@ export class PersistPartialInstance implements IPersistPartialInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the partial data for the given signal using `signalId` as the entity key.
+   *
+   * @param signalId - Signal identifier
+   * @returns Promise resolving to partial data record (empty object if not found)
+   */
   async readPartialData(signalId: string): Promise<PartialData> {
     if (await this._storage.hasValue(signalId)) {
       return await this._storage.readValue(signalId);
@@ -1308,6 +1420,13 @@ export class PersistPartialInstance implements IPersistPartialInstance {
     return {};
   }
 
+  /**
+   * Writes the partial data for the given signal using `signalId` as the entity key.
+   *
+   * @param data - Partial data record to persist
+   * @param signalId - Signal identifier
+   * @returns Promise that resolves when write is complete
+   */
   async writePartialData(data: PartialData, signalId: string): Promise<void> {
     await this._storage.writeValue(signalId, data);
   }
@@ -1318,9 +1437,25 @@ export class PersistPartialInstance implements IPersistPartialInstance {
  * All reads return empty object, all writes are discarded.
  */
 class PersistPartialDummyInstance implements IPersistPartialInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistPartialInstanceCtor.
+   */
   constructor(_symbol: string, _strategyName: StrategyName, _exchangeName: ExchangeName) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns empty partial data record.
+   * @returns Promise resolving to {}
+   */
   async readPartialData(_signalId: string): Promise<PartialData> { return {}; }
+  /**
+   * No-op write (discards partial data).
+   * @returns Promise that resolves immediately
+   */
   async writePartialData(_data: PartialData, _signalId: string): Promise<void> { void 0; }
 }
 
@@ -1512,10 +1647,22 @@ export class PersistBreakevenInstance implements IPersistBreakevenInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the breakeven data for the given signal using `signalId` as the entity key.
+   *
+   * @param signalId - Signal identifier
+   * @returns Promise resolving to breakeven data record (empty object if not found)
+   */
   async readBreakevenData(signalId: string): Promise<BreakevenData> {
     if (await this._storage.hasValue(signalId)) {
       return await this._storage.readValue(signalId);
@@ -1523,6 +1670,13 @@ export class PersistBreakevenInstance implements IPersistBreakevenInstance {
     return {};
   }
 
+  /**
+   * Writes the breakeven data for the given signal using `signalId` as the entity key.
+   *
+   * @param data - Breakeven data record to persist
+   * @param signalId - Signal identifier
+   * @returns Promise that resolves when write is complete
+   */
   async writeBreakevenData(data: BreakevenData, signalId: string): Promise<void> {
     await this._storage.writeValue(signalId, data);
   }
@@ -1533,9 +1687,25 @@ export class PersistBreakevenInstance implements IPersistBreakevenInstance {
  * All reads return empty object, all writes are discarded.
  */
 class PersistBreakevenDummyInstance implements IPersistBreakevenInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistBreakevenInstanceCtor.
+   */
   constructor(_symbol: string, _strategyName: StrategyName, _exchangeName: ExchangeName) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns empty breakeven data record.
+   * @returns Promise resolving to {}
+   */
   async readBreakevenData(_signalId: string): Promise<BreakevenData> { return {}; }
+  /**
+   * No-op write (discards breakeven data).
+   * @returns Promise that resolves immediately
+   */
   async writeBreakevenData(_data: BreakevenData, _signalId: string): Promise<void> { void 0; }
 }
 
@@ -1753,10 +1923,27 @@ export class PersistCandleInstance implements IPersistCandleInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads cached candles for the requested window.
+   * Computes expected timestamps (sinceTimestamp + i * stepMs) and reads each
+   * by timestamp key. Returns null on ANY missing timestamp (cache miss).
+   * Invalid cached candles emit a warning via errorEmitter and are treated as miss.
+   *
+   * @param limit - Number of candles requested
+   * @param sinceTimestamp - Aligned start timestamp (openTime of first candle)
+   * @param _untilTimestamp - Reserved for API compatibility, unused
+   * @returns Promise resolving to candles in order, or null on cache miss
+   */
   async readCandlesData(limit: number, sinceTimestamp: number, _untilTimestamp: number): Promise<CandleData[] | null> {
     const stepMs = INTERVAL_MINUTES[this.interval] * MS_PER_MINUTE;
     const cachedCandles: CandleData[] = [];
@@ -1788,6 +1975,14 @@ export class PersistCandleInstance implements IPersistCandleInstance {
     return cachedCandles;
   }
 
+  /**
+   * Writes candles to cache.
+   * Skips incomplete candles (closeTime > now) and existing keys to keep
+   * the cache append-only for fully closed candles.
+   *
+   * @param candles - Array of candle data to cache
+   * @returns Promise that resolves when all writes are complete
+   */
   async writeCandlesData(candles: CandleData[]): Promise<void> {
     const stepMs = INTERVAL_MINUTES[this.interval] * MS_PER_MINUTE;
     const now = Date.now();
@@ -1821,9 +2016,25 @@ export class PersistCandleInstance implements IPersistCandleInstance {
  * Always returns null on read (forces refetch), discards writes.
  */
 class PersistCandleDummyInstance implements IPersistCandleInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistCandleInstanceCtor.
+   */
   constructor(_symbol: string, _interval: CandleInterval, _exchangeName: ExchangeName) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (forces refetch via cache miss).
+   * @returns Promise resolving to null
+   */
   async readCandlesData(_limit: number, _since: number, _until: number): Promise<CandleData[] | null> { return null; }
+  /**
+   * No-op write (discards candles).
+   * @returns Promise that resolves immediately
+   */
   async writeCandlesData(_candles: CandleData[]): Promise<void> { void 0; }
 }
 
@@ -2016,10 +2227,21 @@ export class PersistStorageInstance implements IPersistStorageInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads all persisted signals by iterating storage keys.
+   *
+   * @returns Promise resolving to array of signal entries
+   */
   async readStorageData(): Promise<StorageData> {
     const signals: IStorageSignalRow[] = [];
     for await (const signalId of this._storage.keys()) {
@@ -2029,6 +2251,12 @@ export class PersistStorageInstance implements IPersistStorageInstance {
     return signals;
   }
 
+  /**
+   * Writes each signal as a separate entity keyed by `signal.id`.
+   *
+   * @param signals - Signal entries to persist
+   * @returns Promise that resolves when all writes are complete
+   */
   async writeStorageData(signals: StorageData): Promise<void> {
     for (const signal of signals) {
       await this._storage.writeValue(signal.id, signal);
@@ -2041,9 +2269,25 @@ export class PersistStorageInstance implements IPersistStorageInstance {
  * All reads return empty array, all writes are discarded.
  */
 class PersistStorageDummyInstance implements IPersistStorageInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistStorageInstanceCtor.
+   */
   constructor(_backtest: boolean) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns empty signals array.
+   * @returns Promise resolving to []
+   */
   async readStorageData(): Promise<StorageData> { return []; }
+  /**
+   * No-op write (discards signals).
+   * @returns Promise that resolves immediately
+   */
   async writeStorageData(_signals: StorageData): Promise<void> { void 0; }
 }
 
@@ -2198,10 +2442,21 @@ export class PersistNotificationInstance implements IPersistNotificationInstance
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads all persisted notifications by iterating storage keys.
+   *
+   * @returns Promise resolving to array of notification entries
+   */
   async readNotificationData(): Promise<NotificationData> {
     const notifications: NotificationModel[] = [];
     for await (const notificationId of this._storage.keys()) {
@@ -2211,6 +2466,12 @@ export class PersistNotificationInstance implements IPersistNotificationInstance
     return notifications;
   }
 
+  /**
+   * Writes each notification as a separate entity keyed by `notification.id`.
+   *
+   * @param notifications - Notification entries to persist
+   * @returns Promise that resolves when all writes are complete
+   */
   async writeNotificationData(notifications: NotificationData): Promise<void> {
     for (const notification of notifications) {
       await this._storage.writeValue(notification.id, notification);
@@ -2223,9 +2484,25 @@ export class PersistNotificationInstance implements IPersistNotificationInstance
  * All reads return empty array, all writes are discarded.
  */
 class PersistNotificationDummyInstance implements IPersistNotificationInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistNotificationInstanceCtor.
+   */
   constructor(_backtest: boolean) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns empty notifications array.
+   * @returns Promise resolving to []
+   */
   async readNotificationData(): Promise<NotificationData> { return []; }
+  /**
+   * No-op write (discards notifications).
+   * @returns Promise that resolves immediately
+   */
   async writeNotificationData(_notifications: NotificationData): Promise<void> { void 0; }
 }
 
@@ -2382,10 +2659,21 @@ export class PersistLogInstance implements IPersistLogInstance {
     this._storage = new PersistBase(`log`, `./dump/data/log/`);
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads all persisted log entries by iterating storage keys.
+   *
+   * @returns Promise resolving to array of log entries
+   */
   async readLogData(): Promise<LogData> {
     const entries: ILogEntry[] = [];
     for await (const entryId of this._storage.keys()) {
@@ -2395,6 +2683,13 @@ export class PersistLogInstance implements IPersistLogInstance {
     return entries;
   }
 
+  /**
+   * Writes log entries append-only — skips entries whose id already exists
+   * so the log file is never overwritten.
+   *
+   * @param logData - Log entries to persist
+   * @returns Promise that resolves when all writes are complete
+   */
   async writeLogData(logData: LogData): Promise<void> {
     for (const entry of logData) {
       if (await this._storage.hasValue(entry.id)) {
@@ -2410,8 +2705,20 @@ export class PersistLogInstance implements IPersistLogInstance {
  * All reads return empty array, all writes are discarded.
  */
 class PersistLogDummyInstance implements IPersistLogInstance {
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns empty log entries array.
+   * @returns Promise resolving to []
+   */
   async readLogData(): Promise<LogData> { return []; }
+  /**
+   * No-op write (discards log entries).
+   * @returns Promise that resolves immediately
+   */
   async writeLogData(_entries: LogData): Promise<void> { void 0; }
 }
 
@@ -2572,10 +2879,22 @@ export class PersistMeasureInstance implements IPersistMeasureInstance {
     this._storage = new PersistBase(bucket, `./dump/data/measure/`);
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads a measure entry by key. Returns null if entry is missing or soft-deleted.
+   *
+   * @param key - Cache key within the bucket
+   * @returns Promise resolving to entry data, or null
+   */
   async readMeasureData(key: string): Promise<MeasureData | null> {
     if (await this._storage.hasValue(key)) {
       const data = await this._storage.readValue(key);
@@ -2584,10 +2903,23 @@ export class PersistMeasureInstance implements IPersistMeasureInstance {
     return null;
   }
 
+  /**
+   * Writes a measure entry under the given key.
+   *
+   * @param data - Data to cache
+   * @param key - Cache key within the bucket
+   * @returns Promise that resolves when write is complete
+   */
   async writeMeasureData(data: MeasureData, key: string): Promise<void> {
     await this._storage.writeValue(key, data);
   }
 
+  /**
+   * Soft-deletes an entry by writing `removed: true` flag while preserving the file.
+   *
+   * @param key - Cache key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
   async removeMeasureData(key: string): Promise<void> {
     const data = await this._storage.readValue(key);
     if (data) {
@@ -2595,6 +2927,11 @@ export class PersistMeasureInstance implements IPersistMeasureInstance {
     }
   }
 
+  /**
+   * Iterates all entries in the bucket, yielding keys of non-removed entries only.
+   *
+   * @returns AsyncGenerator yielding entry keys
+   */
   async *listMeasureData(): AsyncGenerator<string> {
     for await (const key of this._storage.keys()) {
       const data = await this._storage.readValue(String(key));
@@ -2611,11 +2948,35 @@ export class PersistMeasureInstance implements IPersistMeasureInstance {
  * All reads return null, all writes/removes are discarded, list yields nothing.
  */
 class PersistMeasureDummyInstance implements IPersistMeasureInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistMeasureInstanceCtor.
+   */
   constructor(_bucket: string) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no cached entries).
+   * @returns Promise resolving to null
+   */
   async readMeasureData(_key: string): Promise<MeasureData | null> { return null; }
+  /**
+   * No-op write (discards entry).
+   * @returns Promise that resolves immediately
+   */
   async writeMeasureData(_data: MeasureData, _key: string): Promise<void> { void 0; }
+  /**
+   * No-op remove.
+   * @returns Promise that resolves immediately
+   */
   async removeMeasureData(_key: string): Promise<void> { void 0; }
+  /**
+   * Empty generator — yields no entries.
+   * @returns AsyncGenerator that immediately completes
+   */
   async *listMeasureData(): AsyncGenerator<string> { /* empty */ }
 }
 
@@ -2801,10 +3162,22 @@ export class PersistIntervalInstance implements IPersistIntervalInstance {
     this._storage = new PersistBase(bucket, `./dump/data/interval/`);
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads an interval marker by key. Returns null if marker is missing or soft-deleted.
+   *
+   * @param key - Marker key within the bucket
+   * @returns Promise resolving to stored data, or null
+   */
   async readIntervalData(key: string): Promise<IntervalData | null> {
     if (await this._storage.hasValue(key)) {
       const data = await this._storage.readValue(key);
@@ -2813,10 +3186,24 @@ export class PersistIntervalInstance implements IPersistIntervalInstance {
     return null;
   }
 
+  /**
+   * Writes an interval marker under the given key.
+   *
+   * @param data - Data to store
+   * @param key - Marker key within the bucket
+   * @returns Promise that resolves when write is complete
+   */
   async writeIntervalData(data: IntervalData, key: string): Promise<void> {
     await this._storage.writeValue(key, data);
   }
 
+  /**
+   * Soft-deletes a marker by writing `removed: true` flag while preserving the file.
+   * Subsequent reads will return null, allowing the interval to fire again.
+   *
+   * @param key - Marker key within the bucket
+   * @returns Promise that resolves when removal is complete
+   */
   async removeIntervalData(key: string): Promise<void> {
     const data = await this._storage.readValue(key);
     if (data) {
@@ -2824,6 +3211,11 @@ export class PersistIntervalInstance implements IPersistIntervalInstance {
     }
   }
 
+  /**
+   * Iterates all markers in the bucket, yielding keys of non-removed markers only.
+   *
+   * @returns AsyncGenerator yielding marker keys
+   */
   async *listIntervalData(): AsyncGenerator<string> {
     for await (const key of this._storage.keys()) {
       const data = await this._storage.readValue(String(key));
@@ -2840,11 +3232,35 @@ export class PersistIntervalInstance implements IPersistIntervalInstance {
  * All reads return null, all writes/removes are discarded, list yields nothing.
  */
 class PersistIntervalDummyInstance implements IPersistIntervalInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistIntervalInstanceCtor.
+   */
   constructor(_bucket: string) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no interval markers).
+   * @returns Promise resolving to null
+   */
   async readIntervalData(_key: string): Promise<IntervalData | null> { return null; }
+  /**
+   * No-op write (discards marker).
+   * @returns Promise that resolves immediately
+   */
   async writeIntervalData(_data: IntervalData, _key: string): Promise<void> { void 0; }
+  /**
+   * No-op remove.
+   * @returns Promise that resolves immediately
+   */
   async removeIntervalData(_key: string): Promise<void> { void 0; }
+  /**
+   * Empty generator — yields no markers.
+   * @returns AsyncGenerator that immediately completes
+   */
   async *listIntervalData(): AsyncGenerator<string> { /* empty */ }
 }
 
@@ -3055,10 +3471,22 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
     this._storage = new PersistBase(bucketName, `./dump/memory/${signalId}/`);
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads a memory entry by id. Returns null if entry is missing or soft-deleted.
+   *
+   * @param memoryId - Memory entry identifier
+   * @returns Promise resolving to entry data, or null
+   */
   async readMemoryData(memoryId: string): Promise<MemoryData | null> {
     if (await this._storage.hasValue(memoryId)) {
       const data = await this._storage.readValue(memoryId);
@@ -3067,14 +3495,33 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
     return null;
   }
 
+  /**
+   * Checks whether a memory entry exists on disk (regardless of removed flag).
+   *
+   * @param memoryId - Memory entry identifier
+   * @returns Promise resolving to true if entry file exists
+   */
   async hasMemoryData(memoryId: string): Promise<boolean> {
     return await this._storage.hasValue(memoryId);
   }
 
+  /**
+   * Writes a memory entry under the given id.
+   *
+   * @param data - Entry data to persist
+   * @param memoryId - Memory entry identifier
+   * @returns Promise that resolves when write is complete
+   */
   async writeMemoryData(data: MemoryData, memoryId: string): Promise<void> {
     await this._storage.writeValue(memoryId, data);
   }
 
+  /**
+   * Soft-deletes a memory entry by writing `removed: true` flag.
+   *
+   * @param memoryId - Memory entry identifier
+   * @returns Promise that resolves when removal is complete
+   */
   async removeMemoryData(memoryId: string): Promise<void> {
     const data = await this._storage.readValue(memoryId);
     if (data) {
@@ -3082,6 +3529,12 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
     }
   }
 
+  /**
+   * Iterates all memory entries in the bucket, yielding id + data tuples
+   * for non-removed entries only.
+   *
+   * @returns AsyncGenerator yielding `{ memoryId, data }` tuples
+   */
   async *listMemoryData(): AsyncGenerator<{ memoryId: string; data: MemoryData }> {
     for await (const memoryId of this._storage.keys()) {
       const data = await this._storage.readValue(String(memoryId));
@@ -3092,6 +3545,10 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
     }
   }
 
+  /**
+   * No-op for the default file-based implementation.
+   * Resource cleanup (memo cache invalidation) is handled by PersistMemoryUtils.dispose().
+   */
   dispose(): void { void 0; }
 }
 
@@ -3100,13 +3557,44 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
  * All reads return null/false, all writes/removes are discarded, list yields nothing.
  */
 class PersistMemoryDummyInstance implements IPersistMemoryInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistMemoryInstanceCtor.
+   */
   constructor(_signalId: string, _bucketName: string) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no memory entries).
+   * @returns Promise resolving to null
+   */
   async readMemoryData(_memoryId: string): Promise<MemoryData | null> { return null; }
+  /**
+   * Always returns false (no memory entries exist).
+   * @returns Promise resolving to false
+   */
   async hasMemoryData(_memoryId: string): Promise<boolean> { return false; }
+  /**
+   * No-op write (discards entry).
+   * @returns Promise that resolves immediately
+   */
   async writeMemoryData(_data: MemoryData, _memoryId: string): Promise<void> { void 0; }
+  /**
+   * No-op remove.
+   * @returns Promise that resolves immediately
+   */
   async removeMemoryData(_memoryId: string): Promise<void> { void 0; }
+  /**
+   * Empty generator — yields no entries.
+   * @returns AsyncGenerator that immediately completes
+   */
   async *listMemoryData(): AsyncGenerator<{ memoryId: string; data: MemoryData }> { /* empty */ }
+  /**
+   * No-op dispose.
+   */
   dispose(): void { void 0; }
 }
 
@@ -3345,10 +3833,21 @@ export class PersistRecentInstance implements IPersistRecentInstance {
     this._storage = new PersistBase(parts.join("_"), `./dump/data/recent/`);
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the persisted recent signal using `symbol` as the entity key.
+   *
+   * @returns Promise resolving to recent signal or null if not found
+   */
   async readRecentData(): Promise<IPublicSignalRow | null> {
     if (await this._storage.hasValue(this.symbol)) {
       return await this._storage.readValue(this.symbol);
@@ -3356,6 +3855,12 @@ export class PersistRecentInstance implements IPersistRecentInstance {
     return null;
   }
 
+  /**
+   * Writes the recent signal using `symbol` as the entity key.
+   *
+   * @param signalRow - Recent signal data to persist
+   * @returns Promise that resolves when write is complete
+   */
   async writeRecentData(signalRow: IPublicSignalRow): Promise<void> {
     await this._storage.writeValue(this.symbol, signalRow);
   }
@@ -3366,12 +3871,28 @@ export class PersistRecentInstance implements IPersistRecentInstance {
  * All reads return null, all writes are discarded.
  */
 class PersistRecentDummyInstance implements IPersistRecentInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistRecentInstanceCtor.
+   */
   constructor(
     _symbol: string, _strategyName: StrategyName, _exchangeName: ExchangeName,
     _frameName: FrameName, _backtest: boolean,
   ) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no recent signal).
+   * @returns Promise resolving to null
+   */
   async readRecentData(): Promise<IPublicSignalRow | null> { return null; }
+  /**
+   * No-op write (discards recent signal).
+   * @returns Promise that resolves immediately
+   */
   async writeRecentData(_signalRow: IPublicSignalRow): Promise<void> { void 0; }
 }
 
@@ -3567,10 +4088,21 @@ export class PersistStateInstance implements IPersistStateInstance {
     this._storage = new PersistBase(bucketName, `./dump/state/${signalId}/`);
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the persisted state using `bucketName` as the entity key.
+   *
+   * @returns Promise resolving to state data or null if not found
+   */
   async readStateData(): Promise<StateData | null> {
     if (await this._storage.hasValue(this.bucketName)) {
       return await this._storage.readValue(this.bucketName);
@@ -3578,10 +4110,20 @@ export class PersistStateInstance implements IPersistStateInstance {
     return null;
   }
 
+  /**
+   * Writes the state using `bucketName` as the entity key.
+   *
+   * @param data - State data to persist
+   * @returns Promise that resolves when write is complete
+   */
   async writeStateData(data: StateData): Promise<void> {
     await this._storage.writeValue(this.bucketName, data);
   }
 
+  /**
+   * No-op for the default file-based implementation.
+   * Resource cleanup (memo cache invalidation) is handled by PersistStateUtils.dispose().
+   */
   dispose(): void { void 0; }
 }
 
@@ -3590,10 +4132,29 @@ export class PersistStateInstance implements IPersistStateInstance {
  * All reads return null, all writes are discarded.
  */
 class PersistStateDummyInstance implements IPersistStateInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistStateInstanceCtor.
+   */
   constructor(_signalId: string, _bucketName: string) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no persisted state).
+   * @returns Promise resolving to null
+   */
   async readStateData(): Promise<StateData | null> { return null; }
+  /**
+   * No-op write (discards state).
+   * @returns Promise that resolves immediately
+   */
   async writeStateData(_data: StateData): Promise<void> { void 0; }
+  /**
+   * No-op dispose.
+   */
   dispose(): void { void 0; }
 }
 
@@ -3785,10 +4346,21 @@ export class PersistSessionInstance implements IPersistSessionInstance {
     );
   }
 
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
   async waitForInit(initial: boolean): Promise<void> {
     await this._storage.waitForInit(initial);
   }
 
+  /**
+   * Reads the persisted session data using `frameName` as the entity key.
+   *
+   * @returns Promise resolving to session data or null if not found
+   */
   async readSessionData(): Promise<SessionData | null> {
     if (await this._storage.hasValue(this.frameName)) {
       return await this._storage.readValue(this.frameName);
@@ -3796,10 +4368,20 @@ export class PersistSessionInstance implements IPersistSessionInstance {
     return null;
   }
 
+  /**
+   * Writes the session data using `frameName` as the entity key.
+   *
+   * @param data - Session data to persist
+   * @returns Promise that resolves when write is complete
+   */
   async writeSessionData(data: SessionData): Promise<void> {
     await this._storage.writeValue(this.frameName, data);
   }
 
+  /**
+   * No-op for the default file-based implementation.
+   * Resource cleanup (memo cache invalidation) is handled by PersistSessionUtils.dispose().
+   */
   dispose(): void { void 0; }
 }
 
@@ -3808,10 +4390,29 @@ export class PersistSessionInstance implements IPersistSessionInstance {
  * All reads return null, all writes are discarded.
  */
 class PersistSessionDummyInstance implements IPersistSessionInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistSessionInstanceCtor.
+   */
   constructor(_strategyName: string, _exchangeName: string, _frameName: string) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
   async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no persisted session).
+   * @returns Promise resolving to null
+   */
   async readSessionData(): Promise<SessionData | null> { return null; }
+  /**
+   * No-op write (discards session data).
+   * @returns Promise that resolves immediately
+   */
   async writeSessionData(_data: SessionData): Promise<void> { void 0; }
+  /**
+   * No-op dispose.
+   */
   dispose(): void { void 0; }
 }
 
