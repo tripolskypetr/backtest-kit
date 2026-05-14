@@ -20,6 +20,7 @@ import {
   listenError,
   setConfig,
   Risk,
+  lib,
 } from "../../build/index.mjs";
 
 import { sleep, Subject } from "functools-kit";
@@ -61,7 +62,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     exchangeName: "binance-integration-listen-risk",
     getCandles: async (_symbol, _interval, since, limit) => {
       const alignedSince = alignTimestamp(since.getTime(), 1);
-      console.log(`[CANDLES] interval=${_interval} since=${new Date(since).toISOString()} alignedSince=${new Date(alignedSince).toISOString()} limit=${limit}`);
+      // console.log(`[CANDLES] interval=${_interval} since=${new Date(since).toISOString()} alignedSince=${new Date(alignedSince).toISOString()} limit=${limit}`);
       const result = [];
       for (let i = 0; i < limit; i++) {
         const timestamp = alignedSince + i * intervalMs;
@@ -101,7 +102,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
 
   // Listen to all risk rejection events
   listenRisk((event) => {
-    console.log(`[RISK] rejection strategy=${event.strategyName} note=${event.rejectionNote} activeCount=${event.activePositionCount}`);
+    // console.log(`[RISK] rejection strategy=${event.strategyName} note=${event.rejectionNote} activeCount=${event.activePositionCount}`);
     rejectionEvents.push(event);
   });
 
@@ -120,11 +121,11 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     });*/
     if (result.action === "opened") {
       openedCount++;
-      console.log(`[SIGNAL] opened strategy=${result.strategyName} total=${openedCount}`);
+      // console.log(`[SIGNAL] opened strategy=${result.strategyName} total=${openedCount}`);
     }
     if (result.action === "closed") {
       closedCount++;
-      console.log(`[SIGNAL] closed closeReason=${result.closeReason} total=${closedCount}`);
+      // console.log(`[SIGNAL] closed closeReason=${result.closeReason} total=${closedCount}`);
     }
   });
 
@@ -135,7 +136,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     riskName: "max-2-positions",
     getSignal: async () => {
       const price = await getAveragePrice();
-      console.log(`[SIGNAL-1] price=${price}`);
+      // console.log(`[SIGNAL-1] price=${price}`);
       return {
         position: "long",
         priceOpen: price,
@@ -153,7 +154,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     riskName: "max-2-positions",
     getSignal: async () => {
       const price = await getAveragePrice();
-      console.log(`[SIGNAL-2] price=${price}`);
+      // console.log(`[SIGNAL-2] price=${price}`);
       return {
         position: "short",
         priceOpen: price,
@@ -171,7 +172,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     riskName: "max-2-positions",
     getSignal: async () => {
       const price = await getAveragePrice();
-      console.log(`[SIGNAL-3] price=${price}`);
+      // console.log(`[SIGNAL-3] price=${price}`);
       return {
         position: "long",
         priceOpen: price,
@@ -190,38 +191,43 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
   });
 
   listenError((err) => {
-    console.log(`[ERROR] ${err?.message ?? err}`);
+    // console.log(`[ERROR] ${err?.message ?? err}`);
   });
 
   const awaitSubject = new Subject();
   let backtestsDone = 0;
-  listenDoneBacktest(() => {
+
+  const runInBackground = async (context) => {
+    for await (const _ of lib.backtestCommandService.run("BTCUSDT", context)) {
+      // drain
+    }
     backtestsDone++;
-    console.log(`[DONE] backtest done total=${backtestsDone}`);
+    // console.log(`[DONE] backtest done total=${backtestsDone}`);
     if (backtestsDone === 3) {
       awaitSubject.next();
     }
-  });
+  };
 
-  Backtest.background("BTCUSDT", {
+  runInBackground({
     strategyName: "test-strategy-listen-risk-1",
     exchangeName: "binance-integration-listen-risk",
     frameName: "3d-listen-risk",
   });
 
-  Backtest.background("BTCUSDT", {
+  runInBackground({
     strategyName: "test-strategy-listen-risk-2",
     exchangeName: "binance-integration-listen-risk",
     frameName: "3d-listen-risk",
   });
 
-  Backtest.background("BTCUSDT", {
+  runInBackground({
     strategyName: "test-strategy-listen-risk-3",
     exchangeName: "binance-integration-listen-risk",
     frameName: "3d-listen-risk",
   });
 
   await awaitSubject.toPromise();
+  // await sleep(1_000);
 
   // console.log("[TEST] After await, before sleep");
   // console.log("[TEST] Total rejection events:", rejectionEvents.length);
