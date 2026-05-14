@@ -12951,21 +12951,73 @@ declare class PersistBase<EntityName extends string = string> implements IPersis
      */
     keys(): AsyncGenerator<EntityId>;
 }
+/**
+ * Per-context signal persistence instance interface.
+ * Scoped to a specific (symbol, strategyName, exchangeName) triple.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based signal persistence behavior.
+ */
 interface IPersistSignalInstance {
+    /**
+     * Initialize storage for this signal context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read persisted signal data for this context.
+     *
+     * @returns Promise resolving to signal or null if none persisted
+     */
     readSignalData(): Promise<ISignalRow | null>;
+    /**
+     * Write signal data for this context (null to clear).
+     *
+     * @param signalRow - Signal data to persist, or null to clear
+     * @returns Promise that resolves when write is complete
+     */
     writeSignalData(signalRow: ISignalRow | null): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistSignalInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses symbol as entity ID within a per-context PersistBase
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistSignalInstance("BTCUSDT", "my-strategy", "binance");
+ * await instance.waitForInit(true);
+ * await instance.writeSignalData(signalRow);
+ * const restored = await instance.readSignalData();
+ * ```
+ */
 declare class PersistSignalInstance implements IPersistSignalInstance {
     readonly symbol: string;
     readonly strategyName: StrategyName;
     readonly exchangeName: ExchangeName;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new signal persistence instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
     waitForInit(initial: boolean): Promise<void>;
     readSignalData(): Promise<ISignalRow | null>;
     writeSignalData(signalRow: ISignalRow | null): Promise<void>;
 }
+/**
+ * Constructor type for IPersistSignalInstance.
+ * Used by PersistSignalUtils.usePersistSignalAdapter() to register custom adapters.
+ */
 type TPersistSignalInstanceCtor = new (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => IPersistSignalInstance;
 /**
  * Utility class for managing signal persistence.
@@ -13010,21 +13062,73 @@ declare const PersistSignalAdapter: PersistSignalUtils;
  * Stores Map entries as array of [key, value] tuples for JSON serialization.
  */
 type RiskData = Array<[string, IRiskActivePosition]>;
+/**
+ * Per-context risk positions persistence instance interface.
+ * Scoped to a specific (riskName, exchangeName) pair.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based active positions persistence behavior.
+ */
 interface IPersistRiskInstance {
+    /**
+     * Initialize storage for this risk context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read persisted active positions for this context.
+     *
+     * @returns Promise resolving to position entries (empty array if none persisted)
+     */
     readPositionData(): Promise<RiskData>;
+    /**
+     * Write active positions for this context.
+     *
+     * @param riskRow - Position entries to persist
+     * @returns Promise that resolves when write is complete
+     */
     writePositionData(riskRow: RiskData): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistRiskInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses fixed entity ID "positions" within a per-context PersistBase
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistRiskInstance("my-risk", "binance");
+ * await instance.waitForInit(true);
+ * await instance.writePositionData([["strategy:BTCUSDT", positionData]]);
+ * const positions = await instance.readPositionData();
+ * ```
+ */
 declare class PersistRiskInstance implements IPersistRiskInstance {
     readonly riskName: RiskName;
     readonly exchangeName: ExchangeName;
+    /** Fixed entity key for storing the positions array */
     private static readonly STORAGE_KEY;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new risk positions persistence instance.
+     *
+     * @param riskName - Risk profile identifier
+     * @param exchangeName - Exchange identifier
+     */
     constructor(riskName: RiskName, exchangeName: ExchangeName);
     waitForInit(initial: boolean): Promise<void>;
     readPositionData(): Promise<RiskData>;
     writePositionData(riskRow: RiskData): Promise<void>;
 }
+/**
+ * Constructor type for IPersistRiskInstance.
+ * Used by PersistRiskUtils.usePersistRiskAdapter() to register custom adapters.
+ */
 type TPersistRiskInstanceCtor = new (riskName: RiskName, exchangeName: ExchangeName) => IPersistRiskInstance;
 /**
  * Utility class for managing risk active positions persistence.
@@ -13069,21 +13173,73 @@ declare const PersistRiskAdapter: PersistRiskUtils;
  * Contains nullable scheduled signal for atomic updates.
  */
 type ScheduleData = IScheduledSignalRow | null;
+/**
+ * Per-context scheduled signal persistence instance interface.
+ * Scoped to a specific (symbol, strategyName, exchangeName) triple.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based scheduled signal persistence behavior.
+ */
 interface IPersistScheduleInstance {
+    /**
+     * Initialize storage for this scheduled signal context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read persisted scheduled signal for this context.
+     *
+     * @returns Promise resolving to scheduled signal or null if none persisted
+     */
     readScheduleData(): Promise<IScheduledSignalRow | null>;
+    /**
+     * Write scheduled signal for this context (null to clear).
+     *
+     * @param row - Scheduled signal data to persist, or null to clear
+     * @returns Promise that resolves when write is complete
+     */
     writeScheduleData(row: IScheduledSignalRow | null): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistScheduleInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses symbol as entity ID within a per-context PersistBase
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistScheduleInstance("BTCUSDT", "my-strategy", "binance");
+ * await instance.waitForInit(true);
+ * await instance.writeScheduleData(scheduledRow);
+ * const restored = await instance.readScheduleData();
+ * ```
+ */
 declare class PersistScheduleInstance implements IPersistScheduleInstance {
     readonly symbol: string;
     readonly strategyName: StrategyName;
     readonly exchangeName: ExchangeName;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new scheduled signal persistence instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
     waitForInit(initial: boolean): Promise<void>;
     readScheduleData(): Promise<IScheduledSignalRow | null>;
     writeScheduleData(row: IScheduledSignalRow | null): Promise<void>;
 }
+/**
+ * Constructor type for IPersistScheduleInstance.
+ * Used by PersistScheduleUtils.usePersistScheduleAdapter() to register custom adapters.
+ */
 type TPersistScheduleInstanceCtor = new (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => IPersistScheduleInstance;
 /**
  * Utility class for managing scheduled signal persistence.
@@ -13128,21 +13284,78 @@ declare const PersistScheduleAdapter: PersistScheduleUtils;
  * Stores profit and loss levels as arrays for JSON serialization.
  */
 type PartialData = Record<string, IPartialData>;
+/**
+ * Per-context partial profit/loss levels persistence instance interface.
+ * Scoped to a specific (symbol, strategyName, exchangeName) triple.
+ *
+ * Each signal's partial data is stored under its own signalId key within
+ * the context-scoped storage.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based partial data persistence behavior.
+ */
 interface IPersistPartialInstance {
+    /**
+     * Initialize storage for this partial context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read persisted partial data for a specific signal.
+     *
+     * @param signalId - Signal identifier
+     * @returns Promise resolving to partial data record (empty object if none persisted)
+     */
     readPartialData(signalId: string): Promise<PartialData>;
+    /**
+     * Write partial data for a specific signal.
+     *
+     * @param data - Partial data record to persist
+     * @param signalId - Signal identifier
+     * @returns Promise that resolves when write is complete
+     */
     writePartialData(data: PartialData, signalId: string): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistPartialInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses signalId as entity ID within a per-context PersistBase
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistPartialInstance("BTCUSDT", "my-strategy", "binance");
+ * await instance.waitForInit(true);
+ * await instance.writePartialData(partialData, "signal-id-1");
+ * const restored = await instance.readPartialData("signal-id-1");
+ * ```
+ */
 declare class PersistPartialInstance implements IPersistPartialInstance {
     readonly symbol: string;
     readonly strategyName: StrategyName;
     readonly exchangeName: ExchangeName;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new partial data persistence instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
     waitForInit(initial: boolean): Promise<void>;
     readPartialData(signalId: string): Promise<PartialData>;
     writePartialData(data: PartialData, signalId: string): Promise<void>;
 }
+/**
+ * Constructor type for IPersistPartialInstance.
+ * Used by PersistPartialUtils.usePersistPartialAdapter() to register custom adapters.
+ */
 type TPersistPartialInstanceCtor = new (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => IPersistPartialInstance;
 /**
  * Utility class for managing partial profit/loss levels persistence.
@@ -13187,21 +13400,78 @@ declare const PersistPartialAdapter: PersistPartialUtils;
  * Stores breakeven state (reached flag) for each signal ID.
  */
 type BreakevenData = Record<string, IBreakevenData>;
+/**
+ * Per-context breakeven state persistence instance interface.
+ * Scoped to a specific (symbol, strategyName, exchangeName) triple.
+ *
+ * Each signal's breakeven data is stored under its own signalId key within
+ * the context-scoped storage.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based breakeven persistence behavior.
+ */
 interface IPersistBreakevenInstance {
+    /**
+     * Initialize storage for this breakeven context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read persisted breakeven data for a specific signal.
+     *
+     * @param signalId - Signal identifier
+     * @returns Promise resolving to breakeven data record (empty object if none persisted)
+     */
     readBreakevenData(signalId: string): Promise<BreakevenData>;
+    /**
+     * Write breakeven data for a specific signal.
+     *
+     * @param data - Breakeven data record to persist
+     * @param signalId - Signal identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeBreakevenData(data: BreakevenData, signalId: string): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistBreakevenInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses signalId as entity ID within a per-context PersistBase
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistBreakevenInstance("BTCUSDT", "my-strategy", "binance");
+ * await instance.waitForInit(true);
+ * await instance.writeBreakevenData(breakevenData, "signal-id-1");
+ * const restored = await instance.readBreakevenData("signal-id-1");
+ * ```
+ */
 declare class PersistBreakevenInstance implements IPersistBreakevenInstance {
     readonly symbol: string;
     readonly strategyName: StrategyName;
     readonly exchangeName: ExchangeName;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new breakeven persistence instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName);
     waitForInit(initial: boolean): Promise<void>;
     readBreakevenData(signalId: string): Promise<BreakevenData>;
     writeBreakevenData(data: BreakevenData, signalId: string): Promise<void>;
 }
+/**
+ * Constructor type for IPersistBreakevenInstance.
+ * Used by PersistBreakevenUtils.usePersistBreakevenAdapter() to register custom adapters.
+ */
 type TPersistBreakevenInstanceCtor = new (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => IPersistBreakevenInstance;
 /**
  * Persistence utility class for breakeven state management.
@@ -13266,21 +13536,84 @@ declare const PersistBreakevenAdapter: PersistBreakevenUtils;
  * Each candle is stored as a separate JSON file.
  */
 type CandleData = ICandleData;
+/**
+ * Per-context candle cache persistence instance interface.
+ * Scoped to a specific (symbol, interval, exchangeName) triple.
+ *
+ * Each candle is keyed by its timestamp inside the context-scoped storage.
+ * `readCandlesData` returns `null` when ANY of the expected timestamps is
+ * missing (cache miss), so the caller can refetch from the exchange.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based candle cache behavior.
+ */
 interface IPersistCandleInstance {
+    /**
+     * Initialize storage for this candle context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read cached candles for the requested time window.
+     * Returns null if any candle in the window is missing (cache miss).
+     *
+     * @param limit - Number of candles requested
+     * @param sinceTimestamp - Aligned start timestamp (openTime of first candle)
+     * @param untilTimestamp - Reserved for API compatibility, not used by default
+     * @returns Promise resolving to candles in order, or null on cache miss
+     */
     readCandlesData(limit: number, sinceTimestamp: number, untilTimestamp: number): Promise<CandleData[] | null>;
+    /**
+     * Write candles to cache.
+     * Implementations may skip incomplete candles (closeTime > now) and
+     * existing keys to avoid overwriting fully closed candles.
+     *
+     * @param candles - Array of candle data to cache
+     * @returns Promise that resolves when all writes are complete
+     */
     writeCandlesData(candles: CandleData[]): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistCandleInstance.
+ *
+ * Features:
+ * - Each candle stored as a separate JSON file keyed by its timestamp
+ * - Read returns null on any missing timestamp (cache miss → refetch)
+ * - Write skips incomplete candles (closeTime > now) and existing keys
+ * - Invalid cached candles emit warnings via errorEmitter and treated as miss
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistCandleInstance("BTCUSDT", "1m", "binance");
+ * await instance.waitForInit(true);
+ * await instance.writeCandlesData(candles);
+ * const cached = await instance.readCandlesData(100, since, until);
+ * ```
+ */
 declare class PersistCandleInstance implements IPersistCandleInstance {
     readonly symbol: string;
     readonly interval: CandleInterval;
     readonly exchangeName: ExchangeName;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new candle cache persistence instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval (1m, 5m, 1h, etc.)
+     * @param exchangeName - Exchange identifier
+     */
     constructor(symbol: string, interval: CandleInterval, exchangeName: ExchangeName);
     waitForInit(initial: boolean): Promise<void>;
     readCandlesData(limit: number, sinceTimestamp: number, _untilTimestamp: number): Promise<CandleData[] | null>;
     writeCandlesData(candles: CandleData[]): Promise<void>;
 }
+/**
+ * Constructor type for IPersistCandleInstance.
+ * Used by PersistCandleUtils.usePersistCandleAdapter() to register custom adapters.
+ */
 type TPersistCandleInstanceCtor = new (symbol: string, interval: CandleInterval, exchangeName: ExchangeName) => IPersistCandleInstance;
 /**
  * Utility class for managing candles cache persistence.
@@ -13324,19 +13657,72 @@ declare const PersistCandleAdapter: PersistCandleUtils;
  * Each signal is stored as a separate file keyed by its id.
  */
 type StorageData = IStorageSignalRow[];
+/**
+ * Per-context signal storage persistence instance interface.
+ * Scoped to either backtest or live mode (one instance per mode).
+ *
+ * Each stored signal is keyed by its `signal.id` and the read operation
+ * iterates over all stored entries to return them as an array.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based signal storage behavior.
+ */
 interface IPersistStorageInstance {
+    /**
+     * Initialize storage for this mode.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read all persisted signals by iterating storage keys.
+     *
+     * @returns Promise resolving to array of signal entries
+     */
     readStorageData(): Promise<StorageData>;
+    /**
+     * Write signals to storage. Each signal is keyed by its `signal.id`.
+     *
+     * @param signals - Signal entries to persist
+     * @returns Promise that resolves when all writes are complete
+     */
     writeStorageData(signals: StorageData): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistStorageInstance.
+ *
+ * Features:
+ * - Each signal stored as separate JSON file keyed by signal.id
+ * - Read iterates all keys via PersistBase.keys()
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistStorageInstance(false);
+ * await instance.waitForInit(true);
+ * await instance.writeStorageData(signals);
+ * const all = await instance.readStorageData();
+ * ```
+ */
 declare class PersistStorageInstance implements IPersistStorageInstance {
     readonly backtest: boolean;
+    /** Underlying file-based storage for this mode */
     private readonly _storage;
+    /**
+     * Creates new signal storage persistence instance.
+     *
+     * @param backtest - True for backtest mode storage, false for live mode
+     */
     constructor(backtest: boolean);
     waitForInit(initial: boolean): Promise<void>;
     readStorageData(): Promise<StorageData>;
     writeStorageData(signals: StorageData): Promise<void>;
 }
+/**
+ * Constructor type for IPersistStorageInstance.
+ * Used by PersistStorageUtils.usePersistStorageAdapter() to register custom adapters.
+ */
 type TPersistStorageInstanceCtor = new (backtest: boolean) => IPersistStorageInstance;
 /**
  * Utility class for managing signal storage persistence.
@@ -13370,19 +13756,72 @@ declare const PersistStorageAdapter: PersistStorageUtils;
  * Each notification is stored as a separate file keyed by its id.
  */
 type NotificationData = NotificationModel[];
+/**
+ * Per-context notification persistence instance interface.
+ * Scoped to either backtest or live mode (one instance per mode).
+ *
+ * Each notification is keyed by its id and the read operation iterates over
+ * all stored notifications.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based notification storage behavior.
+ */
 interface IPersistNotificationInstance {
+    /**
+     * Initialize storage for this mode.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read all persisted notifications by iterating storage keys.
+     *
+     * @returns Promise resolving to array of notification entries
+     */
     readNotificationData(): Promise<NotificationData>;
+    /**
+     * Write notifications to storage. Each notification is keyed by its id.
+     *
+     * @param notifications - Notification entries to persist
+     * @returns Promise that resolves when all writes are complete
+     */
     writeNotificationData(notifications: NotificationData): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistNotificationInstance.
+ *
+ * Features:
+ * - Each notification stored as separate JSON file keyed by id
+ * - Read iterates all keys via PersistBase.keys()
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistNotificationInstance(false);
+ * await instance.waitForInit(true);
+ * await instance.writeNotificationData(notifications);
+ * const all = await instance.readNotificationData();
+ * ```
+ */
 declare class PersistNotificationInstance implements IPersistNotificationInstance {
     readonly backtest: boolean;
+    /** Underlying file-based storage for this mode */
     private readonly _storage;
+    /**
+     * Creates new notification persistence instance.
+     *
+     * @param backtest - True for backtest mode storage, false for live mode
+     */
     constructor(backtest: boolean);
     waitForInit(initial: boolean): Promise<void>;
     readNotificationData(): Promise<NotificationData>;
     writeNotificationData(notifications: NotificationData): Promise<void>;
 }
+/**
+ * Constructor type for IPersistNotificationInstance.
+ * Used by PersistNotificationUtils.usePersistNotificationAdapter() to register custom adapters.
+ */
 type TPersistNotificationInstanceCtor = new (backtest: boolean) => IPersistNotificationInstance;
 /**
  * Utility class for managing notification persistence.
@@ -13417,18 +13856,74 @@ declare const PersistNotificationAdapter: PersistNotificationUtils;
  * Each log entry is stored as a separate file keyed by its id.
  */
 type LogData = ILogEntry[];
+/**
+ * Global log entry persistence instance interface.
+ * Unlike other Persist instances, log storage has no context — there is
+ * a single global instance per process.
+ *
+ * Each log entry is keyed by its id and the read operation iterates over
+ * all stored entries.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based log storage behavior.
+ */
 interface IPersistLogInstance {
+    /**
+     * Initialize the global log storage.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read all persisted log entries by iterating storage keys.
+     *
+     * @returns Promise resolving to array of log entries
+     */
     readLogData(): Promise<LogData>;
+    /**
+     * Write log entries to storage. Each entry is keyed by its id.
+     * Implementations should skip entries whose id already exists to keep
+     * the log append-only.
+     *
+     * @param entries - Log entries to persist
+     * @returns Promise that resolves when all writes are complete
+     */
     writeLogData(entries: LogData): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistLogInstance.
+ *
+ * Features:
+ * - Each log entry stored as separate JSON file keyed by entry.id
+ * - Read iterates all keys via PersistBase.keys()
+ * - Append-only: existing keys are skipped on write
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistLogInstance();
+ * await instance.waitForInit(true);
+ * await instance.writeLogData(entries);
+ * const all = await instance.readLogData();
+ * ```
+ */
 declare class PersistLogInstance implements IPersistLogInstance {
+    /** Underlying file-based storage for log entries */
     private readonly _storage;
+    /**
+     * Creates new log persistence instance.
+     * No context parameters — there is a single global log storage.
+     */
     constructor();
     waitForInit(initial: boolean): Promise<void>;
     readLogData(): Promise<LogData>;
     writeLogData(logData: LogData): Promise<void>;
 }
+/**
+ * Constructor type for IPersistLogInstance.
+ * Used by PersistLogUtils.usePersistLogAdapter() to register custom adapters.
+ */
 type TPersistLogInstanceCtor = new () => IPersistLogInstance;
 /**
  * Utility class for managing log entry persistence.
@@ -13458,16 +13953,80 @@ declare class PersistLogUtils {
  * Used by LogPersistUtils for log entry persistence.
  */
 declare const PersistLogAdapter: PersistLogUtils;
+/**
+ * Per-bucket measure cache persistence instance interface.
+ * Used by Cache.file for caching external API responses.
+ *
+ * Supports soft delete: removed entries stay on disk with `removed: true`
+ * flag and are filtered out by read/list operations.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based measure cache behavior.
+ */
 interface IPersistMeasureInstance {
+    /**
+     * Initialize storage for this bucket.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read cached entry by key.
+     *
+     * @param key - Cache key within the bucket
+     * @returns Promise resolving to cached value, or null if not found or soft-deleted
+     */
     readMeasureData(key: string): Promise<MeasureData | null>;
+    /**
+     * Write entry to cache.
+     *
+     * @param data - Data to cache
+     * @param key - Cache key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
     writeMeasureData(data: MeasureData, key: string): Promise<void>;
+    /**
+     * Soft-delete an entry by setting its `removed` flag.
+     * File stays on disk, but subsequent reads return null.
+     *
+     * @param key - Cache key within the bucket
+     * @returns Promise that resolves when removal is complete
+     */
     removeMeasureData(key: string): Promise<void>;
+    /**
+     * Iterate all non-removed entry keys for this bucket.
+     *
+     * @returns AsyncGenerator yielding entry keys
+     */
     listMeasureData(): AsyncGenerator<string>;
 }
+/**
+ * Default file-based implementation of IPersistMeasureInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Soft delete via `removed: true` flag
+ * - listMeasureData filters out removed entries
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistMeasureInstance("my-bucket");
+ * await instance.waitForInit(true);
+ * await instance.writeMeasureData({ id: "x", data: {}, removed: false }, "key1");
+ * const data = await instance.readMeasureData("key1");
+ * await instance.removeMeasureData("key1");
+ * ```
+ */
 declare class PersistMeasureInstance implements IPersistMeasureInstance {
     readonly bucket: string;
+    /** Underlying file-based storage for this bucket */
     private readonly _storage;
+    /**
+     * Creates new measure cache persistence instance.
+     *
+     * @param bucket - Cache bucket identifier
+     */
     constructor(bucket: string);
     waitForInit(initial: boolean): Promise<void>;
     readMeasureData(key: string): Promise<MeasureData | null>;
@@ -13475,6 +14034,10 @@ declare class PersistMeasureInstance implements IPersistMeasureInstance {
     removeMeasureData(key: string): Promise<void>;
     listMeasureData(): AsyncGenerator<string>;
 }
+/**
+ * Constructor type for IPersistMeasureInstance.
+ * Used by PersistMeasureUtils.usePersistMeasureAdapter() to register custom adapters.
+ */
 type TPersistMeasureInstanceCtor = new (bucket: string) => IPersistMeasureInstance;
 /**
  * Utility class for managing external API response cache persistence.
@@ -13504,16 +14067,81 @@ declare class PersistMeasureUtils {
  * Used by Cache.file for persistent caching of external API responses.
  */
 declare const PersistMeasureAdapter: PersistMeasureUtils;
+/**
+ * Per-bucket interval marker persistence instance interface.
+ * Used by Interval.file for once-per-interval signal firing.
+ *
+ * A record's presence means the interval has already fired for that
+ * bucket+key. Soft-deleted records (removed=true) act as if absent,
+ * allowing the function to fire again.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based interval marker behavior.
+ */
 interface IPersistIntervalInstance {
+    /**
+     * Initialize storage for this bucket.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read interval marker by key.
+     *
+     * @param key - Marker key within the bucket
+     * @returns Promise resolving to stored value, or null if not found or soft-deleted
+     */
     readIntervalData(key: string): Promise<IntervalData | null>;
+    /**
+     * Write interval marker.
+     *
+     * @param data - Data to store
+     * @param key - Marker key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
     writeIntervalData(data: IntervalData, key: string): Promise<void>;
+    /**
+     * Soft-delete a marker. After this call the function will fire again
+     * on the next IntervalFileInstance.run call for the same key.
+     *
+     * @param key - Marker key within the bucket
+     * @returns Promise that resolves when removal is complete
+     */
     removeIntervalData(key: string): Promise<void>;
+    /**
+     * Iterate all non-removed marker keys for this bucket.
+     *
+     * @returns AsyncGenerator yielding marker keys
+     */
     listIntervalData(): AsyncGenerator<string>;
 }
+/**
+ * Default file-based implementation of IPersistIntervalInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Soft delete via `removed: true` flag
+ * - listIntervalData filters out removed markers
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistIntervalInstance("my-interval-bucket");
+ * await instance.waitForInit(true);
+ * await instance.writeIntervalData({ id: "x", data: {}, removed: false }, "key1");
+ * const marker = await instance.readIntervalData("key1");
+ * await instance.removeIntervalData("key1");
+ * ```
+ */
 declare class PersistIntervalInstance implements IPersistIntervalInstance {
     readonly bucket: string;
+    /** Underlying file-based storage for this bucket */
     private readonly _storage;
+    /**
+     * Creates new interval marker persistence instance.
+     *
+     * @param bucket - Marker bucket identifier
+     */
     constructor(bucket: string);
     waitForInit(initial: boolean): Promise<void>;
     readIntervalData(key: string): Promise<IntervalData | null>;
@@ -13521,6 +14149,10 @@ declare class PersistIntervalInstance implements IPersistIntervalInstance {
     removeIntervalData(key: string): Promise<void>;
     listIntervalData(): AsyncGenerator<string>;
 }
+/**
+ * Constructor type for IPersistIntervalInstance.
+ * Used by PersistIntervalUtils.usePersistIntervalAdapter() to register custom adapters.
+ */
 type TPersistIntervalInstanceCtor = new (bucket: string) => IPersistIntervalInstance;
 /**
  * Persistence layer for Interval.file once-per-interval signal firing.
@@ -13556,22 +14188,98 @@ type MemoryData = {
     removed: boolean;
     index: string;
 };
+/**
+ * Per-context memory entry persistence instance interface.
+ * Scoped to a specific (signalId, bucketName) pair.
+ *
+ * Used by MemoryPersistInstance for LLM memory storage. Supports soft delete
+ * via `removed: true` flag — soft-deleted entries stay on disk but are
+ * filtered out by read/list operations.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based memory entry behavior.
+ */
 interface IPersistMemoryInstance {
+    /**
+     * Initialize storage for this memory context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read a memory entry by id.
+     *
+     * @param memoryId - Memory entry identifier
+     * @returns Promise resolving to entry data, or null if not found or soft-deleted
+     */
     readMemoryData(memoryId: string): Promise<MemoryData | null>;
+    /**
+     * Check whether a memory entry exists (regardless of removed flag).
+     *
+     * @param memoryId - Memory entry identifier
+     * @returns Promise resolving to true if entry exists on disk
+     */
     hasMemoryData(memoryId: string): Promise<boolean>;
+    /**
+     * Write a memory entry.
+     *
+     * @param data - Entry data to persist
+     * @param memoryId - Memory entry identifier
+     * @returns Promise that resolves when write is complete
+     */
     writeMemoryData(data: MemoryData, memoryId: string): Promise<void>;
+    /**
+     * Soft-delete a memory entry. File stays on disk; subsequent reads return null.
+     *
+     * @param memoryId - Memory entry identifier
+     * @returns Promise that resolves when removal is complete
+     */
     removeMemoryData(memoryId: string): Promise<void>;
+    /**
+     * Iterate all non-removed memory entries for this context.
+     * Used by MemoryPersistInstance to rebuild the BM25 index on init.
+     *
+     * @returns AsyncGenerator yielding entry id + data tuples
+     */
     listMemoryData(): AsyncGenerator<{
         memoryId: string;
         data: MemoryData;
     }>;
+    /**
+     * Release any resources held by this instance.
+     * Default implementations may treat this as a no-op.
+     */
     dispose(): void;
 }
+/**
+ * Default file-based implementation of IPersistMemoryInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Soft delete via `removed: true` flag
+ * - listMemoryData filters out removed entries
+ * - dispose is a no-op (memo cache is managed by PersistMemoryUtils)
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistMemoryInstance("signal-1", "context-bucket");
+ * await instance.waitForInit(true);
+ * await instance.writeMemoryData(entryData, "memory-id-1");
+ * const data = await instance.readMemoryData("memory-id-1");
+ * ```
+ */
 declare class PersistMemoryInstance implements IPersistMemoryInstance {
     readonly signalId: string;
     readonly bucketName: string;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new memory persistence instance.
+     *
+     * @param signalId - Signal identifier (entity folder name)
+     * @param bucketName - Bucket name (subfolder under memory/)
+     */
     constructor(signalId: string, bucketName: string);
     waitForInit(initial: boolean): Promise<void>;
     readMemoryData(memoryId: string): Promise<MemoryData | null>;
@@ -13584,6 +14292,10 @@ declare class PersistMemoryInstance implements IPersistMemoryInstance {
     }>;
     dispose(): void;
 }
+/**
+ * Constructor type for IPersistMemoryInstance.
+ * Used by PersistMemoryUtils.usePersistMemoryAdapter() to register custom adapters.
+ */
 type TPersistMemoryInstanceCtor = new (signalId: string, bucketName: string) => IPersistMemoryInstance;
 /**
  * Utility class for managing memory entry persistence.
@@ -13638,23 +14350,78 @@ declare const PersistMemoryAdapter: PersistMemoryUtils;
  * Stores the latest active signal per context key.
  */
 type RecentData = IPublicSignalRow | null;
+/**
+ * Per-context recent signal persistence instance interface.
+ * Scoped to a specific (symbol, strategyName, exchangeName, frameName, backtest) tuple.
+ *
+ * Stores the latest active signal for the given context, allowing live/backtest
+ * separation. Custom adapters should implement this interface to override the
+ * default file-based recent signal behavior.
+ */
 interface IPersistRecentInstance {
+    /**
+     * Initialize storage for this recent signal context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read the latest persisted recent signal for this context.
+     *
+     * @returns Promise resolving to recent signal or null if none persisted
+     */
     readRecentData(): Promise<IPublicSignalRow | null>;
+    /**
+     * Write the latest recent signal for this context.
+     *
+     * @param signalRow - Recent signal data to persist
+     * @returns Promise that resolves when write is complete
+     */
     writeRecentData(signalRow: IPublicSignalRow): Promise<void>;
 }
+/**
+ * Default file-based implementation of IPersistRecentInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses symbol as entity ID within a per-context PersistBase
+ * - Context key includes backtest/live mode and optional frameName
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistRecentInstance("BTCUSDT", "my-strategy", "binance", "frame-1", false);
+ * await instance.waitForInit(true);
+ * await instance.writeRecentData(publicSignalRow);
+ * const recent = await instance.readRecentData();
+ * ```
+ */
 declare class PersistRecentInstance implements IPersistRecentInstance {
     readonly symbol: string;
     readonly strategyName: StrategyName;
     readonly exchangeName: ExchangeName;
     readonly frameName: FrameName;
     readonly backtest: boolean;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new recent signal persistence instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier (may be empty for live mode)
+     * @param backtest - True for backtest mode, false for live mode
+     */
     constructor(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean);
     waitForInit(initial: boolean): Promise<void>;
     readRecentData(): Promise<IPublicSignalRow | null>;
     writeRecentData(signalRow: IPublicSignalRow): Promise<void>;
 }
+/**
+ * Constructor type for IPersistRecentInstance.
+ * Used by PersistRecentUtils.usePersistRecentAdapter() to register custom adapters.
+ */
 type TPersistRecentInstanceCtor = new (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => IPersistRecentInstance;
 /**
  * Utility class for managing recent signal persistence.
@@ -13691,22 +14458,78 @@ type StateData = {
     id: string;
     data: object;
 };
+/**
+ * Per-context state persistence instance interface.
+ * Scoped to a specific (signalId, bucketName) pair.
+ *
+ * Used by StatePersistInstance for crash-safe strategy state storage.
+ * Custom adapters should implement this interface to override the default
+ * file-based state behavior.
+ */
 interface IPersistStateInstance {
+    /**
+     * Initialize storage for this state context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read persisted state for this context.
+     *
+     * @returns Promise resolving to state data or null if none persisted
+     */
     readStateData(): Promise<StateData | null>;
+    /**
+     * Write state for this context.
+     *
+     * @param data - State data to persist
+     * @returns Promise that resolves when write is complete
+     */
     writeStateData(data: StateData): Promise<void>;
+    /**
+     * Release any resources held by this instance.
+     * Default implementations may treat this as a no-op.
+     */
     dispose(): void;
 }
+/**
+ * Default file-based implementation of IPersistStateInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses bucketName as entity ID within a per-signal PersistBase
+ * - dispose is a no-op (memo cache is managed by PersistStateUtils)
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistStateInstance("signal-1", "counter");
+ * await instance.waitForInit(true);
+ * await instance.writeStateData({ id: "counter", data: { count: 1 } });
+ * const state = await instance.readStateData();
+ * ```
+ */
 declare class PersistStateInstance implements IPersistStateInstance {
     readonly signalId: string;
     readonly bucketName: string;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new state persistence instance.
+     *
+     * @param signalId - Signal identifier (folder name under state/)
+     * @param bucketName - Bucket name (file name)
+     */
     constructor(signalId: string, bucketName: string);
     waitForInit(initial: boolean): Promise<void>;
     readStateData(): Promise<StateData | null>;
     writeStateData(data: StateData): Promise<void>;
     dispose(): void;
 }
+/**
+ * Constructor type for IPersistStateInstance.
+ * Used by PersistStateUtils.usePersistStateAdapter() to register custom adapters.
+ */
 type TPersistStateInstanceCtor = new (signalId: string, bucketName: string) => IPersistStateInstance;
 /**
  * Utility class for managing state persistence.
@@ -13745,23 +14568,80 @@ type SessionData = {
     id: string;
     data: object | null;
 };
+/**
+ * Per-context session persistence instance interface.
+ * Scoped to a specific (strategyName, exchangeName, frameName) triple.
+ *
+ * Used by SessionPersistInstance for crash-safe session storage.
+ * Custom adapters should implement this interface to override the default
+ * file-based session behavior.
+ */
 interface IPersistSessionInstance {
+    /**
+     * Initialize storage for this session context.
+     *
+     * @param initial - Whether this is the first initialization
+     * @returns Promise that resolves when initialization is complete
+     */
     waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Read persisted session data for this context.
+     *
+     * @returns Promise resolving to session data or null if none persisted
+     */
     readSessionData(): Promise<SessionData | null>;
+    /**
+     * Write session data for this context.
+     *
+     * @param data - Session data to persist
+     * @returns Promise that resolves when write is complete
+     */
     writeSessionData(data: SessionData): Promise<void>;
+    /**
+     * Release any resources held by this instance.
+     * Default implementations may treat this as a no-op.
+     */
     dispose(): void;
 }
+/**
+ * Default file-based implementation of IPersistSessionInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses frameName as entity ID within a per-strategy/exchange PersistBase
+ * - dispose is a no-op (memo cache is managed by PersistSessionUtils)
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistSessionInstance("my-strategy", "binance", "frame-1");
+ * await instance.waitForInit(true);
+ * await instance.writeSessionData({ id: "frame-1", data: { session: "state" } });
+ * const session = await instance.readSessionData();
+ * ```
+ */
 declare class PersistSessionInstance implements IPersistSessionInstance {
     readonly strategyName: string;
     readonly exchangeName: string;
     readonly frameName: string;
+    /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Creates new session persistence instance.
+     *
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Frame identifier (also used as entity ID)
+     */
     constructor(strategyName: string, exchangeName: string, frameName: string);
     waitForInit(initial: boolean): Promise<void>;
     readSessionData(): Promise<SessionData | null>;
     writeSessionData(data: SessionData): Promise<void>;
     dispose(): void;
 }
+/**
+ * Constructor type for IPersistSessionInstance.
+ * Used by PersistSessionUtils.usePersistSessionAdapter() to register custom adapters.
+ */
 type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: string, frameName: string) => IPersistSessionInstance;
 /**
  * Utility class for managing session persistence.
