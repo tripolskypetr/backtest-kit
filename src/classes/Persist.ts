@@ -682,7 +682,7 @@ export class PersistSignalUtils {
       strategyName: StrategyName,
       exchangeName: ExchangeName
     ): IPersistSignalInstance =>
-      new this.PersistSignalInstanceCtor(symbol, strategyName, exchangeName)
+      Reflect.construct(this.PersistSignalInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
   public usePersistSignalAdapter(Ctor: TPersistSignalInstanceCtor): void {
@@ -824,7 +824,7 @@ export class PersistRiskUtils {
     ([riskName, exchangeName]: [RiskName, ExchangeName]): string =>
       `${riskName}:${exchangeName}`,
     (riskName: RiskName, exchangeName: ExchangeName): IPersistRiskInstance =>
-      new this.PersistRiskInstanceCtor(riskName, exchangeName)
+      Reflect.construct(this.PersistRiskInstanceCtor, [riskName, exchangeName])
   );
 
   public usePersistRiskAdapter(Ctor: TPersistRiskInstanceCtor): void {
@@ -972,7 +972,7 @@ export class PersistScheduleUtils {
       strategyName: StrategyName,
       exchangeName: ExchangeName
     ): IPersistScheduleInstance =>
-      new this.PersistScheduleInstanceCtor(symbol, strategyName, exchangeName)
+      Reflect.construct(this.PersistScheduleInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
   public usePersistScheduleAdapter(Ctor: TPersistScheduleInstanceCtor): void {
@@ -1122,7 +1122,7 @@ export class PersistPartialUtils {
       strategyName: StrategyName,
       exchangeName: ExchangeName
     ): IPersistPartialInstance =>
-      new this.PersistPartialInstanceCtor(symbol, strategyName, exchangeName)
+      Reflect.construct(this.PersistPartialInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
   public usePersistPartialAdapter(Ctor: TPersistPartialInstanceCtor): void {
@@ -1294,7 +1294,7 @@ class PersistBreakevenUtils {
       strategyName: StrategyName,
       exchangeName: ExchangeName
     ): IPersistBreakevenInstance =>
-      new this.PersistBreakevenInstanceCtor(symbol, strategyName, exchangeName)
+      Reflect.construct(this.PersistBreakevenInstanceCtor, [symbol, strategyName, exchangeName])
   );
 
   public usePersistBreakevenAdapter(Ctor: TPersistBreakevenInstanceCtor): void {
@@ -1490,7 +1490,7 @@ export class PersistCandleUtils {
       interval: CandleInterval,
       exchangeName: ExchangeName
     ): IPersistCandleInstance =>
-      new this.PersistCandleInstanceCtor(symbol, interval, exchangeName)
+      Reflect.construct(this.PersistCandleInstanceCtor, [symbol, interval, exchangeName])
   );
 
   public usePersistCandleAdapter(Ctor: TPersistCandleInstanceCtor): void {
@@ -1645,7 +1645,7 @@ export class PersistStorageUtils {
   private getStorage = memoize(
     ([backtest]: [boolean]): string => backtest ? `backtest` : `live`,
     (backtest: boolean): IPersistStorageInstance =>
-      new this.PersistStorageInstanceCtor(backtest)
+      Reflect.construct(this.PersistStorageInstanceCtor, [backtest])
   );
 
   public usePersistStorageAdapter(Ctor: TPersistStorageInstanceCtor): void {
@@ -1768,7 +1768,7 @@ export class PersistNotificationUtils {
   private getNotificationStorage = memoize(
     ([backtest]: [boolean]): string => backtest ? `backtest` : `live`,
     (backtest: boolean): IPersistNotificationInstance =>
-      new this.PersistNotificationInstanceCtor(backtest)
+      Reflect.construct(this.PersistNotificationInstanceCtor, [backtest])
   );
 
   public usePersistNotificationAdapter(Ctor: TPersistNotificationInstanceCtor): void {
@@ -1891,9 +1891,9 @@ export class PersistLogUtils {
 
   private getLogInstance(): IPersistLogInstance {
     if (!this._logInstance) {
-      this._logInstance = new this.PersistLogInstanceCtor();
+      this._logInstance = Reflect.construct(this.PersistLogInstanceCtor, []);
     }
-    return this._logInstance;
+    return this._logInstance!;
   }
 
   public usePersistLogAdapter(Ctor: TPersistLogInstanceCtor): void {
@@ -2019,7 +2019,7 @@ export class PersistMeasureUtils {
   private getMeasureStorage = memoize(
     ([bucket]: [string]): string => bucket,
     (bucket: string): IPersistMeasureInstance =>
-      new this.PersistMeasureInstanceCtor(bucket)
+      Reflect.construct(this.PersistMeasureInstanceCtor, [bucket])
   );
 
   public usePersistMeasureAdapter(Ctor: TPersistMeasureInstanceCtor): void {
@@ -2167,7 +2167,7 @@ export class PersistIntervalUtils {
   private getIntervalStorage = memoize(
     ([bucket]: [string]): string => bucket,
     (bucket: string): IPersistIntervalInstance =>
-      new this.PersistIntervalInstanceCtor(bucket)
+      Reflect.construct(this.PersistIntervalInstanceCtor, [bucket])
   );
 
   public usePersistIntervalAdapter(Ctor: TPersistIntervalInstanceCtor): void {
@@ -2347,7 +2347,7 @@ export class PersistMemoryUtils {
     ([signalId, bucketName]: [string, string]): string =>
       `${signalId}:${bucketName}`,
     (signalId: string, bucketName: string): IPersistMemoryInstance =>
-      new this.PersistMemoryInstanceCtor(signalId, bucketName)
+      Reflect.construct(this.PersistMemoryInstanceCtor, [signalId, bucketName])
   );
 
   public usePersistMemoryAdapter(Ctor: TPersistMemoryInstanceCtor): void {
@@ -2571,7 +2571,7 @@ export class PersistRecentUtils {
       frameName: FrameName,
       backtest: boolean,
     ): IPersistRecentInstance =>
-      new this.PersistRecentInstanceCtor(symbol, strategyName, exchangeName, frameName, backtest)
+      Reflect.construct(this.PersistRecentInstanceCtor, [symbol, strategyName, exchangeName, frameName, backtest])
   );
 
   public usePersistRecentAdapter(Ctor: TPersistRecentInstanceCtor): void {
@@ -2709,7 +2709,7 @@ export class PersistStateUtils {
     ([signalId, bucketName]: [string, string]): string =>
       `${signalId}:${bucketName}`,
     (signalId: string, bucketName: string): IPersistStateInstance =>
-      new this.PersistStateInstanceCtor(signalId, bucketName)
+      Reflect.construct(this.PersistStateInstanceCtor, [signalId, bucketName])
   );
 
   public usePersistStateAdapter(Ctor: TPersistStateInstanceCtor): void {
@@ -2864,7 +2864,7 @@ export class PersistSessionUtils {
     ([strategyName, exchangeName, frameName]: [string, string, string]): string =>
       `${strategyName}:${exchangeName}:${frameName}`,
     (strategyName: string, exchangeName: string, frameName: string): IPersistSessionInstance =>
-      new this.PersistSessionInstanceCtor(strategyName, exchangeName, frameName)
+      Reflect.construct(this.PersistSessionInstanceCtor, [strategyName, exchangeName, frameName])
   );
 
   public usePersistSessionAdapter(Ctor: TPersistSessionInstanceCtor): void {
