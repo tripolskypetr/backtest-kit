@@ -88,6 +88,4 @@ export const ioc = {
 
 init();
 
-Object.assign(globalThis, { ioc });
-
 export default ioc;

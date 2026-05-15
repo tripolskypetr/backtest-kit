@@ -1,4 +1,4 @@
-import { Config, DEFAULT_CONFIG, GLOBAL_CONFIG } from "../config/params";
+import { Config, DEFAULT_CONFIG, setConfig } from "../config/params";
 
 import {
   PersistCandleAdapter,
@@ -67,8 +67,8 @@ import ioc from "../lib";
  *   CC_REDIS_PASSWORD: "secret",
  * });
  */
-export function setup(config: Partial<Config> = DEFAULT_CONFIG) {
-    Object.assign(GLOBAL_CONFIG, config);
+export function setup(config?: Partial<Config>) {
+    config && setConfig(config);
     install();
 }
 
@@ -140,23 +140,4 @@ export function install() {
  */
 export function setLogger(logger: ILogger) {
     ioc.loggerService.setLogger(logger);
-}
-
-/**
- * Updates the global connection configuration without registering adapters.
- *
- * Useful when only the connection parameters need to change (e.g. in tests)
- * without re-registering adapters. Changes take effect on the next connection attempt
- * to MongoDB or Redis (lazy initialization via `waitForInfra`).
- *
- * @param config - New connection parameters. Merged into the current {@link GLOBAL_CONFIG}
- *   via `Object.assign`, so only the fields that need to change can be passed.
- *   If omitted, resets the configuration to values from environment variables ({@link DEFAULT_CONFIG}).
- *
- * @example
- * // Switch MongoDB to a test database
- * setConfig({ CC_MONGO_CONNECTION_STRING: "mongodb://localhost:27017/test" });
- */
-export function setConfig(config: Partial<Config> = DEFAULT_CONFIG) {
-    Object.assign(GLOBAL_CONFIG, config);
 }

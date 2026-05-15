@@ -1,8 +1,11 @@
 import { errorData, singleshot } from "functools-kit";
 import mongoose, { connect } from "mongoose";
-import { GLOBAL_CONFIG } from "./params";
+import { getConfig } from "./params";
 
 export const getMongo = singleshot(async () => {
+
+  const GLOBAL_CONFIG = getConfig();
+
   const mongo = mongoose.connection.readyState === 0
     ? await connect(GLOBAL_CONFIG.CC_MONGO_CONNECTION_STRING)
     : mongoose;

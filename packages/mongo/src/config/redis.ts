@@ -1,10 +1,11 @@
 import { singleshot } from "functools-kit";
 import { Redis } from "ioredis";
-import {
-  GLOBAL_CONFIG
-} from "./params";
+import { getConfig } from "./params";
 
 export const getRedis = singleshot(() => {
+
+  const GLOBAL_CONFIG = getConfig();
+
   const redis = new Redis({
     host: GLOBAL_CONFIG.CC_REDIS_HOST,
     port: GLOBAL_CONFIG.CC_REDIS_PORT,
