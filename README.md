@@ -1720,25 +1720,25 @@ npm start
 
 ## 👪 Community
 
-### uzse-backtest-app
+### backtest-kit-redis-mongo-docker
 
-> **[Explore on GitHub](https://github.com/backtest-kit/uzse-backtest-app)** 📈
+> **[Explore on GitHub](https://github.com/backtest-kit/backtest-kit-redis-mongo-docker)** 🐳
 
-The **uzse-backtest-app** repository is a reference implementation for running Pine Script strategies on regional stock exchanges not available on TradingView (UZSE, MSE, DSE, and others). It downloads raw trade history, builds Japanese candlesticks, and feeds them into backtest-kit via a custom MongoDB exchange adapter.
+The **backtest-kit-redis-mongo-docker** repository is a production-grade integration that replaces the default file-based `./dump/` persistence with **MongoDB** as the source of truth and **Redis** as an O(1) lookup cache, packaged with `docker-compose` for one-command deploys.
 
 #### Key Features
-- 🌍 **Off-TradingView Markets**: Works with any exchange that exposes trade history — no TradingView dependency
-- 🕯️ **Candle Builder**: Aggregates raw trades into 1m candles, fills intraday and non-trading day gaps, builds higher timeframes up to `1d`
-- 🗄️ **MongoDB Backend**: Idempotent import with unique index — re-runs never create duplicates
-- 🔌 **Custom Exchange Adapter**: Connects MongoDB candles to backtest-kit via `addExchangeSchema`
-- 📜 **Pine Script Support**: Full `@backtest-kit/pinets` integration — run any Pine Script v5/v6 indicator on local market data
+- 🗂️ **15 Persist Adapters**: Full implementation of every `IPersist*Instance` contract (Candle, Signal, Schedule, Risk, Partial, Breakeven, Storage, Notification, Log, Measure, Interval, Memory, Recent, State, Session) on top of MongoDB + Redis
+- ⚛️ **Atomic Read-After-Write**: Single-round-trip `findOneAndUpdate` with unique compound indexes — no E11000 leaks under concurrent writes
+- ⚡ **Redis O(1) Cache**: Per-domain `*CacheService` over `ioredis` for context-key → id lookups; cache miss falls back to Mongo and backfills automatically
+- 🛡️ **Look-Ahead Bias Protection**: Indexed `when: Number` column on every signal-affecting schema, fed by backtest-kit 9.0+'s `when: Date` adapter argument
+- 🐳 **Docker Compose Stack**: Separate compose files for Mongo and Redis plus a main container with `network_mode: host`; configurable via `CC_MONGO_CONNECTION_STRING` / `CC_REDIS_*` env vars
 
 #### Use Case
-Perfect for traders working with emerging or regional markets absent from TradingView. Download trade history, build candles once, then use the full backtest-kit + Pine Script toolchain for backtesting and live signal generation — with no dependency on any third-party charting platform.
+Drop-in persistence upgrade for any backtest-kit project that outgrows the default file-based `./dump/` layout — strategy code, runners, and the CLI entry point stay unchanged. Use it when you need durable storage, concurrent-safe writes, fast restart recovery, or a containerized deployment for live and paper trading.
 
 #### Get Started
 ```bash
-git clone https://github.com/backtest-kit/uzse-backtest-app.git
+git clone https://github.com/backtest-kit/backtest-kit-redis-mongo-docker.git
 ```
 
 
@@ -1762,6 +1762,29 @@ Install the skill once and get AI-assisted backtest-kit development inside Claud
 ```bash
 npx skills add https://github.com/backtest-kit/backtest-kit-skills
 ```
+
+
+### uzse-backtest-app
+
+> **[Explore on GitHub](https://github.com/backtest-kit/uzse-backtest-app)** 📈
+
+The **uzse-backtest-app** repository is a reference implementation for running Pine Script strategies on regional stock exchanges not available on TradingView (UZSE, MSE, DSE, and others). It downloads raw trade history, builds Japanese candlesticks, and feeds them into backtest-kit via a custom MongoDB exchange adapter.
+
+#### Key Features
+- 🌍 **Off-TradingView Markets**: Works with any exchange that exposes trade history — no TradingView dependency
+- 🕯️ **Candle Builder**: Aggregates raw trades into 1m candles, fills intraday and non-trading day gaps, builds higher timeframes up to `1d`
+- 🗄️ **MongoDB Backend**: Idempotent import with unique index — re-runs never create duplicates
+- 🔌 **Custom Exchange Adapter**: Connects MongoDB candles to backtest-kit via `addExchangeSchema`
+- 📜 **Pine Script Support**: Full `@backtest-kit/pinets` integration — run any Pine Script v5/v6 indicator on local market data
+
+#### Use Case
+Perfect for traders working with emerging or regional markets absent from TradingView. Download trade history, build candles once, then use the full backtest-kit + Pine Script toolchain for backtesting and live signal generation — with no dependency on any third-party charting platform.
+
+#### Get Started
+```bash
+git clone https://github.com/backtest-kit/uzse-backtest-app.git
+```
+
 
 ## 🧩 Strategy Examples
 
