@@ -14964,11 +14964,12 @@ interface IPersistMemoryInstance {
     /**
      * Write a memory entry.
      *
-     * @param data - Entry data to persist
+     * @param data - Entry data to persist (already carries `data.when`)
      * @param memoryId - Memory entry identifier
+     * @param when - Logical timestamp this entry belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeMemoryData(data: MemoryData, memoryId: string): Promise<void>;
+    writeMemoryData(data: MemoryData, memoryId: string, when: Date): Promise<void>;
     /**
      * Soft-delete a memory entry. File stays on disk; subsequent reads return null.
      *
@@ -15049,7 +15050,7 @@ declare class PersistMemoryInstance implements IPersistMemoryInstance {
      * @param memoryId - Memory entry identifier
      * @returns Promise that resolves when write is complete
      */
-    writeMemoryData(data: MemoryData, memoryId: string): Promise<void>;
+    writeMemoryData(data: MemoryData, memoryId: string, _when: Date): Promise<void>;
     /**
      * Soft-deletes a memory entry by writing `removed: true` flag.
      *
@@ -15142,13 +15143,14 @@ declare class PersistMemoryUtils {
      * Writes a memory entry for the given context.
      * Lazily initializes the instance on first access.
      *
-     * @param data - Entry data to persist
+     * @param data - Entry data to persist (already carries `data.when`)
      * @param signalId - Signal identifier
      * @param bucketName - Bucket name
      * @param memoryId - Memory entry identifier
+     * @param when - Logical timestamp this entry belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeMemoryData: (data: MemoryData, signalId: string, bucketName: string, memoryId: string) => Promise<void>;
+    writeMemoryData: (data: MemoryData, signalId: string, bucketName: string, memoryId: string, when: Date) => Promise<void>;
     /**
      * Soft-deletes a memory entry for the given context.
      * Lazily initializes the instance on first access.
@@ -15241,10 +15243,11 @@ interface IPersistRecentInstance {
     /**
      * Write the latest recent signal for this context.
      *
-     * @param signalRow - Recent signal data to persist
+     * @param signalRow - Recent signal data to persist (already carries `signalRow.timestamp`)
+     * @param when - Logical timestamp this signal belongs to (duplicates `signalRow.timestamp` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeRecentData(signalRow: IPublicSignalRow): Promise<void>;
+    writeRecentData(signalRow: IPublicSignalRow, when: Date): Promise<void>;
 }
 /**
  * Default file-based implementation of IPersistRecentInstance.
@@ -15299,7 +15302,7 @@ declare class PersistRecentInstance implements IPersistRecentInstance {
      * @param signalRow - Recent signal data to persist
      * @returns Promise that resolves when write is complete
      */
-    writeRecentData(signalRow: IPublicSignalRow): Promise<void>;
+    writeRecentData(signalRow: IPublicSignalRow, _when: Date): Promise<void>;
 }
 /**
  * Constructor type for IPersistRecentInstance.
@@ -15362,15 +15365,16 @@ declare class PersistRecentUtils {
      * Writes the latest recent signal for the given context.
      * Lazily initializes the instance on first access.
      *
-     * @param signalRow - Recent signal data to persist
+     * @param signalRow - Recent signal data to persist (already carries `signalRow.timestamp`)
      * @param symbol - Trading pair symbol
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier (may be empty)
      * @param backtest - True for backtest mode, false for live mode
+     * @param when - Logical timestamp this signal belongs to (duplicates `signalRow.timestamp` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeRecentData: (signalRow: IPublicSignalRow, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
+    writeRecentData: (signalRow: IPublicSignalRow, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, when: Date) => Promise<void>;
     /**
      * Clears the memoized instance cache.
      * Call when process.cwd() changes between strategy iterations.
@@ -15424,10 +15428,11 @@ interface IPersistStateInstance {
     /**
      * Write state for this context.
      *
-     * @param data - State data to persist
+     * @param data - State data to persist (already carries `data.when`)
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeStateData(data: StateData): Promise<void>;
+    writeStateData(data: StateData, when: Date): Promise<void>;
     /**
      * Release any resources held by this instance.
      * Default implementations may treat this as a no-op.
@@ -15481,7 +15486,7 @@ declare class PersistStateInstance implements IPersistStateInstance {
      * @param data - State data to persist
      * @returns Promise that resolves when write is complete
      */
-    writeStateData(data: StateData): Promise<void>;
+    writeStateData(data: StateData, _when: Date): Promise<void>;
     /**
      * No-op for the default file-based implementation.
      * Resource cleanup (memo cache invalidation) is handled by PersistStateUtils.dispose().
@@ -15545,12 +15550,13 @@ declare class PersistStateUtils {
      * Writes state for the given context.
      * Lazily initializes the instance on first access.
      *
-     * @param data - State data to persist
+     * @param data - State data to persist (already carries `data.when`)
      * @param signalId - Signal identifier
      * @param bucketName - Bucket name
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeStateData: (data: StateData, signalId: string, bucketName: string) => Promise<void>;
+    writeStateData: (data: StateData, signalId: string, bucketName: string, when: Date) => Promise<void>;
     /**
      * Switches to PersistStateDummyInstance (all operations are no-ops).
      */
@@ -15612,10 +15618,11 @@ interface IPersistSessionInstance {
     /**
      * Write session data for this context.
      *
-     * @param data - Session data to persist
+     * @param data - Session data to persist (already carries `data.when`)
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeSessionData(data: SessionData): Promise<void>;
+    writeSessionData(data: SessionData, when: Date): Promise<void>;
     /**
      * Release any resources held by this instance.
      * Default implementations may treat this as a no-op.
@@ -15671,7 +15678,7 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
      * @param data - Session data to persist
      * @returns Promise that resolves when write is complete
      */
-    writeSessionData(data: SessionData): Promise<void>;
+    writeSessionData(data: SessionData, _when: Date): Promise<void>;
     /**
      * No-op for the default file-based implementation.
      * Resource cleanup (memo cache invalidation) is handled by PersistSessionUtils.dispose().
@@ -15738,13 +15745,14 @@ declare class PersistSessionUtils {
      * Writes session data for the given context.
      * Lazily initializes the instance on first access.
      *
-     * @param data - Session data to persist
+     * @param data - Session data to persist (already carries `data.when`)
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
+     * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string) => Promise<void>;
+    writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date) => Promise<void>;
     /**
      * Switches to PersistSessionDummyInstance (all operations are no-ops).
      */

@@ -372,6 +372,7 @@ export class MemoryPersistInstance implements IMemoryInstance {
       this.signalId,
       this.bucketName,
       memoryId,
+      when,
     );
     this._index.upsert({
       id: memoryId,

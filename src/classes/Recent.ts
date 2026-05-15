@@ -146,6 +146,7 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
       event.exchangeName,
       event.data.frameName,
       event.backtest,
+      new Date(event.data.timestamp),
     );
   };
 
@@ -339,6 +340,7 @@ export class RecentPersistLiveUtils implements IRecentUtils {
       event.exchangeName,
       event.data.frameName,
       event.backtest,
+      new Date(event.data.timestamp),
     );
   };
 

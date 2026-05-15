@@ -329,6 +329,7 @@ export class StatePersistInstance implements IStateInstance {
       { id, data: this._value, when: this._when },
       this.signalId,
       this.bucketName,
+      when,
     );
     return <Value>this._value;
   })

@@ -3902,11 +3902,12 @@ export interface IPersistMemoryInstance {
   /**
    * Write a memory entry.
    *
-   * @param data - Entry data to persist
+   * @param data - Entry data to persist (already carries `data.when`)
    * @param memoryId - Memory entry identifier
+   * @param when - Logical timestamp this entry belongs to (duplicates `data.when` for API consistency)
    * @returns Promise that resolves when write is complete
    */
-  writeMemoryData(data: MemoryData, memoryId: string): Promise<void>;
+  writeMemoryData(data: MemoryData, memoryId: string, when: Date): Promise<void>;
 
   /**
    * Soft-delete a memory entry. File stays on disk; subsequent reads return null.
@@ -4006,7 +4007,7 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
    * @param memoryId - Memory entry identifier
    * @returns Promise that resolves when write is complete
    */
-  async writeMemoryData(data: MemoryData, memoryId: string): Promise<void> {
+  async writeMemoryData(data: MemoryData, memoryId: string, _when: Date): Promise<void> {
     await this._storage.writeValue(memoryId, data);
   }
 
@@ -4075,7 +4076,7 @@ class PersistMemoryDummyInstance implements IPersistMemoryInstance {
    * No-op write (discards entry).
    * @returns Promise that resolves immediately
    */
-  async writeMemoryData(_data: MemoryData, _memoryId: string): Promise<void> { void 0; }
+  async writeMemoryData(_data: MemoryData, _memoryId: string, _when: Date): Promise<void> { void 0; }
   /**
    * No-op remove.
    * @returns Promise that resolves immediately
@@ -4211,24 +4212,26 @@ export class PersistMemoryUtils {
    * Writes a memory entry for the given context.
    * Lazily initializes the instance on first access.
    *
-   * @param data - Entry data to persist
+   * @param data - Entry data to persist (already carries `data.when`)
    * @param signalId - Signal identifier
    * @param bucketName - Bucket name
    * @param memoryId - Memory entry identifier
+   * @param when - Logical timestamp this entry belongs to (duplicates `data.when` for API consistency)
    * @returns Promise that resolves when write is complete
    */
   public writeMemoryData = async (
     data: MemoryData,
     signalId: string,
     bucketName: string,
-    memoryId: string
+    memoryId: string,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_MEMORY_UTILS_METHOD_NAME_WRITE_DATA, { signalId, bucketName, memoryId });
     const key = `${signalId}:${bucketName}`;
     const isInitial = !this.getMemoryStorage.has(key);
     const instance = this.getMemoryStorage(signalId, bucketName);
     await instance.waitForInit(isInitial);
-    return instance.writeMemoryData(data, memoryId);
+    return instance.writeMemoryData(data, memoryId, when);
   };
 
   /**
@@ -4364,10 +4367,11 @@ export interface IPersistRecentInstance {
   /**
    * Write the latest recent signal for this context.
    *
-   * @param signalRow - Recent signal data to persist
+   * @param signalRow - Recent signal data to persist (already carries `signalRow.timestamp`)
+   * @param when - Logical timestamp this signal belongs to (duplicates `signalRow.timestamp` for API consistency)
    * @returns Promise that resolves when write is complete
    */
-  writeRecentData(signalRow: IPublicSignalRow): Promise<void>;
+  writeRecentData(signalRow: IPublicSignalRow, when: Date): Promise<void>;
 }
 
 /**
@@ -4440,7 +4444,7 @@ export class PersistRecentInstance implements IPersistRecentInstance {
    * @param signalRow - Recent signal data to persist
    * @returns Promise that resolves when write is complete
    */
-  async writeRecentData(signalRow: IPublicSignalRow): Promise<void> {
+  async writeRecentData(signalRow: IPublicSignalRow, _when: Date): Promise<void> {
     await this._storage.writeValue(this.symbol, signalRow);
   }
 }
@@ -4472,7 +4476,7 @@ class PersistRecentDummyInstance implements IPersistRecentInstance {
    * No-op write (discards recent signal).
    * @returns Promise that resolves immediately
    */
-  async writeRecentData(_signalRow: IPublicSignalRow): Promise<void> { void 0; }
+  async writeRecentData(_signalRow: IPublicSignalRow, _when: Date): Promise<void> { void 0; }
 }
 
 /**
@@ -4587,12 +4591,13 @@ export class PersistRecentUtils {
    * Writes the latest recent signal for the given context.
    * Lazily initializes the instance on first access.
    *
-   * @param signalRow - Recent signal data to persist
+   * @param signalRow - Recent signal data to persist (already carries `signalRow.timestamp`)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier (may be empty)
    * @param backtest - True for backtest mode, false for live mode
+   * @param when - Logical timestamp this signal belongs to (duplicates `signalRow.timestamp` for API consistency)
    * @returns Promise that resolves when write is complete
    */
   public writeRecentData = async (
@@ -4602,13 +4607,14 @@ export class PersistRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_RECENT_UTILS_METHOD_NAME_WRITE_DATA);
     const key = this.createKey(symbol, strategyName, exchangeName, frameName, backtest);
     const isInitial = !this.getStorage.has(key);
     const instance = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     await instance.waitForInit(isInitial);
-    return instance.writeRecentData(signalRow);
+    return instance.writeRecentData(signalRow, when);
   };
 
   /**
@@ -4680,10 +4686,11 @@ export interface IPersistStateInstance {
   /**
    * Write state for this context.
    *
-   * @param data - State data to persist
+   * @param data - State data to persist (already carries `data.when`)
+   * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
    * @returns Promise that resolves when write is complete
    */
-  writeStateData(data: StateData): Promise<void>;
+  writeStateData(data: StateData, when: Date): Promise<void>;
 
   /**
    * Release any resources held by this instance.
@@ -4753,7 +4760,7 @@ export class PersistStateInstance implements IPersistStateInstance {
    * @param data - State data to persist
    * @returns Promise that resolves when write is complete
    */
-  async writeStateData(data: StateData): Promise<void> {
+  async writeStateData(data: StateData, _when: Date): Promise<void> {
     await this._storage.writeValue(this.bucketName, data);
   }
 
@@ -4788,7 +4795,7 @@ class PersistStateDummyInstance implements IPersistStateInstance {
    * No-op write (discards state).
    * @returns Promise that resolves immediately
    */
-  async writeStateData(_data: StateData): Promise<void> { void 0; }
+  async writeStateData(_data: StateData, _when: Date): Promise<void> { void 0; }
   /**
    * No-op dispose.
    */
@@ -4890,22 +4897,24 @@ export class PersistStateUtils {
    * Writes state for the given context.
    * Lazily initializes the instance on first access.
    *
-   * @param data - State data to persist
+   * @param data - State data to persist (already carries `data.when`)
    * @param signalId - Signal identifier
    * @param bucketName - Bucket name
+   * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
    * @returns Promise that resolves when write is complete
    */
   public writeStateData = async (
     data: StateData,
     signalId: string,
-    bucketName: string
+    bucketName: string,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_STATE_UTILS_METHOD_NAME_WRITE_DATA, { signalId, bucketName });
     const key = `${signalId}:${bucketName}`;
     const isInitial = !this.getStateStorage.has(key);
     const instance = this.getStateStorage(signalId, bucketName);
     await instance.waitForInit(isInitial);
-    return instance.writeStateData(data);
+    return instance.writeStateData(data, when);
   };
 
   /**
@@ -4990,10 +4999,11 @@ export interface IPersistSessionInstance {
   /**
    * Write session data for this context.
    *
-   * @param data - Session data to persist
+   * @param data - Session data to persist (already carries `data.when`)
+   * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
    * @returns Promise that resolves when write is complete
    */
-  writeSessionData(data: SessionData): Promise<void>;
+  writeSessionData(data: SessionData, when: Date): Promise<void>;
 
   /**
    * Release any resources held by this instance.
@@ -5068,7 +5078,7 @@ export class PersistSessionInstance implements IPersistSessionInstance {
    * @param data - Session data to persist
    * @returns Promise that resolves when write is complete
    */
-  async writeSessionData(data: SessionData): Promise<void> {
+  async writeSessionData(data: SessionData, _when: Date): Promise<void> {
     await this._storage.writeValue(this.frameName, data);
   }
 
@@ -5103,7 +5113,7 @@ class PersistSessionDummyInstance implements IPersistSessionInstance {
    * No-op write (discards session data).
    * @returns Promise that resolves immediately
    */
-  async writeSessionData(_data: SessionData): Promise<void> { void 0; }
+  async writeSessionData(_data: SessionData, _when: Date): Promise<void> { void 0; }
   /**
    * No-op dispose.
    */
@@ -5211,24 +5221,26 @@ export class PersistSessionUtils {
    * Writes session data for the given context.
    * Lazily initializes the instance on first access.
    *
-   * @param data - Session data to persist
+   * @param data - Session data to persist (already carries `data.when`)
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
+   * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
    * @returns Promise that resolves when write is complete
    */
   public writeSessionData = async (
     data: SessionData,
     strategyName: string,
     exchangeName: string,
-    frameName: string
+    frameName: string,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WRITE_DATA, { strategyName, exchangeName, frameName });
     const key = `${strategyName}:${exchangeName}:${frameName}`;
     const isInitial = !this.getSessionStorage.has(key);
     const instance = this.getSessionStorage(strategyName, exchangeName, frameName);
     await instance.waitForInit(isInitial);
-    return instance.writeSessionData(data);
+    return instance.writeSessionData(data, when);
   };
 
   /**

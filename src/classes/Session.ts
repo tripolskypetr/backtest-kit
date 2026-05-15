@@ -320,6 +320,7 @@ export class SessionPersistInstance implements ISessionInstance {
       this.strategyName,
       this.exchangeName,
       this.frameName,
+      when,
     );
   };
 
