@@ -1,5 +1,5 @@
 import * as functools_kit from 'functools-kit';
-import mongoose from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { Redis } from 'ioredis';
 
 declare const GLOBAL_CONFIG: {
@@ -111,4 +111,83 @@ declare const getMongo: (() => Promise<typeof mongoose>) & functools_kit.ISingle
 
 declare const getRedis: (() => Redis) & functools_kit.ISingleshotClearable<() => Redis>;
 
-export { getConfig, getMongo, getRedis, install, setConfig, setLogger, setup };
+declare class LoggerService implements ILogger {
+    private _commonLogger;
+    log: (topic: string, ...args: any[]) => Promise<void>;
+    debug: (topic: string, ...args: any[]) => Promise<void>;
+    info: (topic: string, ...args: any[]) => Promise<void>;
+    warn: (topic: string, ...args: any[]) => Promise<void>;
+    setLogger: (logger: ILogger) => void;
+}
+
+declare const BaseCRUD: (TargetModel: Model<any, {}, {}, {}, any, any>) => (new () => {
+    readonly loggerService: LoggerService;
+    readonly TargetModel: Model<any>;
+    create(dto: object): Promise<any>;
+    update(id: string, dto: object): Promise<any>;
+    findById(id: string): Promise<any>;
+    findByFilter(filterData: object, sort?: object): Promise<any>;
+    findAll(filterData?: object, limit?: number): Promise<any[]>;
+    iterate(filterData?: object, sort?: object): AsyncGenerator<any, void, unknown>;
+    paginate(filterData: object, pagination: {
+        limit: number;
+        offset: number;
+    }, sort?: object): Promise<{
+        rows: any[];
+        total: number;
+    }>;
+}) & Omit<{
+    new (TargetModel: Model<any>): {
+        readonly loggerService: LoggerService;
+        readonly TargetModel: Model<any>;
+        create(dto: object): Promise<any>;
+        update(id: string, dto: object): Promise<any>;
+        findById(id: string): Promise<any>;
+        findByFilter(filterData: object, sort?: object): Promise<any>;
+        findAll(filterData?: object, limit?: number): Promise<any[]>;
+        iterate(filterData?: object, sort?: object): AsyncGenerator<any, void, unknown>;
+        paginate(filterData: object, pagination: {
+            limit: number;
+            offset: number;
+        }, sort?: object): Promise<{
+            rows: any[];
+            total: number;
+        }>;
+    };
+}, "prototype">;
+
+declare const BaseMap: (connectionKey: string, ttlExpireSeconds?: number) => (new () => {
+    readonly loggerService: LoggerService;
+    readonly connectionKey: string;
+    readonly ttlExpireSeconds: number;
+    _getItemKey(key: string): string;
+    set(key: string, value: unknown): Promise<void>;
+    get(key: string | null): Promise<unknown | null>;
+    delete(key: string): Promise<void>;
+    has(key: string): Promise<boolean>;
+    clear(): Promise<void>;
+    toArray(): Promise<[string, unknown][]>;
+    iterate(): AsyncIterableIterator<readonly [string, unknown]>;
+    keys(): AsyncIterableIterator<string>;
+    values(): AsyncIterableIterator<unknown>;
+    size(): Promise<number>;
+}) & Omit<{
+    new (connectionKey: string, ttlExpireSeconds?: number): {
+        readonly loggerService: LoggerService;
+        readonly connectionKey: string;
+        readonly ttlExpireSeconds: number;
+        _getItemKey(key: string): string;
+        set(key: string, value: unknown): Promise<void>;
+        get(key: string | null): Promise<unknown | null>;
+        delete(key: string): Promise<void>;
+        has(key: string): Promise<boolean>;
+        clear(): Promise<void>;
+        toArray(): Promise<[string, unknown][]>;
+        iterate(): AsyncIterableIterator<readonly [string, unknown]>;
+        keys(): AsyncIterableIterator<string>;
+        values(): AsyncIterableIterator<unknown>;
+        size(): Promise<number>;
+    };
+}, "prototype">;
+
+export { BaseCRUD, BaseMap, getConfig, getMongo, getRedis, install, setConfig, setLogger, setup };

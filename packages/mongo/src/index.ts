@@ -16,3 +16,11 @@ export {
     setConfig,
     getConfig,
 } from "./config/params";
+
+export {
+    BaseCRUD,
+} from "./lib/common/BaseCRUD";
+
+export {
+    BaseMap,
+} from "./lib/common/BaseMap";
