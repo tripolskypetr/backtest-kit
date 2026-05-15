@@ -3860,6 +3860,7 @@ export type MemoryData = {
   data: object;
   removed: boolean;
   index: string;
+  when: number;
 };
 
 /**

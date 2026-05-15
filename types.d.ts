@@ -14906,6 +14906,7 @@ type MemoryData = {
     data: object;
     removed: boolean;
     index: string;
+    when: number;
 };
 /**
  * Per-context memory entry persistence instance interface.
@@ -24414,38 +24415,46 @@ interface IMemoryInstance {
      * @param memoryId - Unique entry identifier
      * @param value - Value to store
      * @param description - Optional BM25 index string; defaults to JSON.stringify(value)
+     * @param when - Logical timestamp this entry belongs to (look-ahead guard)
      */
-    writeMemory<T extends object = object>(memoryId: string, value: T, description: string): Promise<void>;
+    writeMemory<T extends object = object>(memoryId: string, value: T, description: string, when: Date): Promise<void>;
     /**
      * Search memory using BM25 full-text scoring.
+     * Filters out entries whose `when` is greater than the requested `when`.
      * @param query - Search query string
+     * @param when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Array of matching entries with scores
      */
-    searchMemory<T extends object = object>(query: string, settings?: SearchSettings): Promise<Array<{
+    searchMemory<T extends object = object>(query: string, when: Date, settings?: SearchSettings): Promise<Array<{
         memoryId: string;
         score: number;
         content: T;
     }>>;
     /**
      * List all entries in memory.
+     * Filters out entries whose `when` is greater than the requested `when`.
+     * @param when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Array of all stored entries
      */
-    listMemory<T extends object = object>(): Promise<Array<{
+    listMemory<T extends object = object>(when: Date): Promise<Array<{
         memoryId: string;
         content: T;
     }>>;
     /**
      * Remove an entry from memory.
      * @param memoryId - Unique entry identifier
+     * @param when - Logical timestamp (kept for API consistency; removal is by UUID)
      */
-    removeMemory(memoryId: string): Promise<void>;
+    removeMemory(memoryId: string, when: Date): Promise<void>;
     /**
      * Read a single entry from memory.
+     * Behaves as not-found if the stored `when` is greater than the requested `when`.
      * @param memoryId - Unique entry identifier
+     * @param when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Entry value
-     * @throws Error if entry not found
+     * @throws Error if entry not found (or shadowed by look-ahead)
      */
-    readMemory<T extends object = object>(memoryId: string): Promise<T>;
+    readMemory<T extends object = object>(memoryId: string, when: Date): Promise<T>;
     /**
      * Releases any resources held by this instance.
      */
@@ -24494,6 +24503,7 @@ declare class MemoryBacktestAdapter implements TMemoryInstance {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.description - BM25 index string; defaults to JSON.stringify(value)
+     * @param dto.when - Logical timestamp this entry belongs to (look-ahead guard)
      */
     writeMemory: <T extends object = object>(dto: {
         memoryId: string;
@@ -24501,18 +24511,21 @@ declare class MemoryBacktestAdapter implements TMemoryInstance {
         signalId: string;
         bucketName: string;
         description: string;
+        when: Date;
     }) => Promise<void>;
     /**
      * Search memory using BM25 full-text scoring.
      * @param dto.query - Search query string
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp at which the search is happening (look-ahead guard)
      * @returns Matching entries sorted by relevance score
      */
     searchMemory: <T extends object = object>(dto: {
         query: string;
         signalId: string;
         bucketName: string;
+        when: Date;
         settings?: SearchSettings;
     }) => Promise<{
         memoryId: string;
@@ -24523,11 +24536,13 @@ declare class MemoryBacktestAdapter implements TMemoryInstance {
      * List all entries in memory.
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp at which the list is happening (look-ahead guard)
      * @returns Array of all stored entries
      */
     listMemory: <T extends object = object>(dto: {
         signalId: string;
         bucketName: string;
+        when: Date;
     }) => Promise<{
         memoryId: string;
         content: T;
@@ -24537,17 +24552,20 @@ declare class MemoryBacktestAdapter implements TMemoryInstance {
      * @param dto.memoryId - Unique entry identifier
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp (kept for API consistency; removal is by UUID)
      */
     removeMemory: (dto: {
         memoryId: string;
         signalId: string;
         bucketName: string;
+        when: Date;
     }) => Promise<void>;
     /**
      * Read a single entry from memory.
      * @param dto.memoryId - Unique entry identifier
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Entry value
      * @throws Error if entry not found
      */
@@ -24555,6 +24573,7 @@ declare class MemoryBacktestAdapter implements TMemoryInstance {
         memoryId: string;
         signalId: string;
         bucketName: string;
+        when: Date;
     }) => Promise<T>;
     /**
      * Switches to in-memory BM25 adapter (default).
@@ -24610,6 +24629,7 @@ declare class MemoryLiveAdapter implements TMemoryInstance {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.description - BM25 index string; defaults to JSON.stringify(value)
+     * @param dto.when - Logical timestamp this entry belongs to (look-ahead guard)
      */
     writeMemory: <T extends object = object>(dto: {
         memoryId: string;
@@ -24617,18 +24637,21 @@ declare class MemoryLiveAdapter implements TMemoryInstance {
         signalId: string;
         bucketName: string;
         description: string;
+        when: Date;
     }) => Promise<void>;
     /**
      * Search memory using BM25 full-text scoring.
      * @param dto.query - Search query string
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp at which the search is happening (look-ahead guard)
      * @returns Matching entries sorted by relevance score
      */
     searchMemory: <T extends object = object>(dto: {
         query: string;
         signalId: string;
         bucketName: string;
+        when: Date;
         settings?: SearchSettings;
     }) => Promise<{
         memoryId: string;
@@ -24639,11 +24662,13 @@ declare class MemoryLiveAdapter implements TMemoryInstance {
      * List all entries in memory.
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp at which the list is happening (look-ahead guard)
      * @returns Array of all stored entries
      */
     listMemory: <T extends object = object>(dto: {
         signalId: string;
         bucketName: string;
+        when: Date;
     }) => Promise<{
         memoryId: string;
         content: T;
@@ -24653,17 +24678,20 @@ declare class MemoryLiveAdapter implements TMemoryInstance {
      * @param dto.memoryId - Unique entry identifier
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp (kept for API consistency; removal is by UUID)
      */
     removeMemory: (dto: {
         memoryId: string;
         signalId: string;
         bucketName: string;
+        when: Date;
     }) => Promise<void>;
     /**
      * Read a single entry from memory.
      * @param dto.memoryId - Unique entry identifier
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
+     * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Entry value
      * @throws Error if entry not found
      */
@@ -24671,6 +24699,7 @@ declare class MemoryLiveAdapter implements TMemoryInstance {
         memoryId: string;
         signalId: string;
         bucketName: string;
+        when: Date;
     }) => Promise<T>;
     /**
      * Switches to in-memory BM25 adapter.
@@ -24731,6 +24760,7 @@ declare class MemoryAdapter {
      * @param dto.bucketName - Bucket name
      * @param dto.description - BM25 index string; defaults to JSON.stringify(value)
      * @param dto.backtest - Flag indicating if the context is backtest or live
+     * @param dto.when - Logical timestamp this entry belongs to (look-ahead guard)
      */
     writeMemory: <T extends object = object>(dto: {
         memoryId: string;
@@ -24739,6 +24769,7 @@ declare class MemoryAdapter {
         bucketName: string;
         description: string;
         backtest: boolean;
+        when: Date;
     }) => Promise<void>;
     /**
      * Search memory using BM25 full-text scoring.
@@ -24747,6 +24778,7 @@ declare class MemoryAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.backtest - Flag indicating if the context is backtest or live
+     * @param dto.when - Logical timestamp at which the search is happening (look-ahead guard)
      * @returns Matching entries sorted by relevance score
      */
     searchMemory: <T extends object = object>(dto: {
@@ -24755,6 +24787,7 @@ declare class MemoryAdapter {
         bucketName: string;
         settings?: SearchSettings;
         backtest: boolean;
+        when: Date;
     }) => Promise<{
         memoryId: string;
         score: number;
@@ -24766,12 +24799,14 @@ declare class MemoryAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.backtest - Flag indicating if the context is backtest or live
+     * @param dto.when - Logical timestamp at which the list is happening (look-ahead guard)
      * @returns Array of all stored entries
      */
     listMemory: <T extends object = object>(dto: {
         signalId: string;
         bucketName: string;
         backtest: boolean;
+        when: Date;
     }) => Promise<{
         memoryId: string;
         content: T;
@@ -24783,12 +24818,14 @@ declare class MemoryAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.backtest - Flag indicating if the context is backtest or live
+     * @param dto.when - Logical timestamp (kept for API consistency; removal is by UUID)
      */
     removeMemory: (dto: {
         memoryId: string;
         signalId: string;
         bucketName: string;
         backtest: boolean;
+        when: Date;
     }) => Promise<void>;
     /**
      * Read a single entry from memory.
@@ -24797,6 +24834,7 @@ declare class MemoryAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.backtest - Flag indicating if the context is backtest or live
+     * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Entry value
      * @throws Error if entry not found
      */
@@ -24805,6 +24843,7 @@ declare class MemoryAdapter {
         signalId: string;
         bucketName: string;
         backtest: boolean;
+        when: Date;
     }) => Promise<T>;
 }
 /**

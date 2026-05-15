@@ -364,6 +364,9 @@ export class DumpMemoryInstance implements IDumpInstance {
       value: { messages },
       description,
       backtest: this.backtest,
+      // when=0: dumps are UI artifacts (agent transcripts, markdown reports);
+      // they must stay visible regardless of the reader's logical time.
+      when: new Date(0)
     });
   }
 
@@ -387,6 +390,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       value: record,
       description,
       backtest: this.backtest,
+      when: new Date(0)
     });
   }
 
@@ -411,6 +415,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       value: { rows },
       description,
       backtest: this.backtest,
+      when: new Date(0)
     });
   }
 
@@ -434,6 +439,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       value: { content },
       description,
       backtest: this.backtest,
+      when: new Date(0)
     });
   }
 
@@ -457,6 +463,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       value: { content },
       description,
       backtest: this.backtest,
+      when: new Date(0)
     });
   }
 
@@ -481,6 +488,7 @@ export class DumpMemoryInstance implements IDumpInstance {
       value: json,
       description,
       backtest: this.backtest,
+      when: new Date(0)
     });
   }
 

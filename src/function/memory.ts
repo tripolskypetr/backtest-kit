@@ -47,7 +47,7 @@ export async function writeMemory<T extends object = object>(dto: {
   if (!MethodContextService.hasContext()) {
     throw new Error("writeMemory requires a method context");
   }
-  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { backtest: isBacktest, symbol, when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -68,6 +68,7 @@ export async function writeMemory<T extends object = object>(dto: {
       bucketName,
       description,
       backtest: isBacktest,
+      when,
     });
     return;
   }
@@ -86,6 +87,7 @@ export async function writeMemory<T extends object = object>(dto: {
       bucketName,
       description,
       backtest: isBacktest,
+      when,
     });
     return;
   }
@@ -125,7 +127,7 @@ export async function readMemory<T extends object = object>(dto: {
   if (!MethodContextService.hasContext()) {
     throw new Error("readMemory requires a method context");
   }
-  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { backtest: isBacktest, symbol, when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -144,6 +146,7 @@ export async function readMemory<T extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
   }
   if (
@@ -159,6 +162,7 @@ export async function readMemory<T extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
   }
   throw new Error(`readMemory requires a pending or scheduled signal for symbol=${symbol} memoryId=${memoryId}`);
@@ -197,7 +201,7 @@ export async function searchMemory<T extends object = object>(dto: {
   if (!MethodContextService.hasContext()) {
     throw new Error("searchMemory requires a method context");
   }
-  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { backtest: isBacktest, symbol, when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -216,6 +220,7 @@ export async function searchMemory<T extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
   }
   if (
@@ -231,6 +236,7 @@ export async function searchMemory<T extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
   }
   throw new Error(`searchMemory requires a pending or scheduled signal for symbol=${symbol} query=${query}`);
@@ -266,7 +272,7 @@ export async function listMemory<T extends object = object>(dto: {
   if (!MethodContextService.hasContext()) {
     throw new Error("listMemory requires a method context");
   }
-  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { backtest: isBacktest, symbol, when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -284,6 +290,7 @@ export async function listMemory<T extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
   }
   if (
@@ -298,6 +305,7 @@ export async function listMemory<T extends object = object>(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
   }
   throw new Error(`listMemory requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);
@@ -336,7 +344,7 @@ export async function removeMemory(dto: {
   if (!MethodContextService.hasContext()) {
     throw new Error("removeMemory requires a method context");
   }
-  const { backtest: isBacktest, symbol } = backtest.executionContextService.context;
+  const { backtest: isBacktest, symbol, when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -355,6 +363,7 @@ export async function removeMemory(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
     return;
   }
@@ -371,6 +380,7 @@ export async function removeMemory(dto: {
       signalId: signal.id,
       bucketName,
       backtest: isBacktest,
+      when,
     });
     return;
   }

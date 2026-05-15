@@ -83,20 +83,25 @@ export interface IMemoryInstance {
    * @param memoryId - Unique entry identifier
    * @param value - Value to store
    * @param description - Optional BM25 index string; defaults to JSON.stringify(value)
+   * @param when - Logical timestamp this entry belongs to (look-ahead guard)
    */
   writeMemory<T extends object = object>(
     memoryId: string,
     value: T,
     description: string,
+    when: Date,
   ): Promise<void>;
 
   /**
    * Search memory using BM25 full-text scoring.
+   * Filters out entries whose `when` is greater than the requested `when`.
    * @param query - Search query string
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Array of matching entries with scores
    */
   searchMemory<T extends object = object>(
     query: string,
+    when: Date,
     settings?: SearchSettings,
   ): Promise<
     Array<{
@@ -108,9 +113,11 @@ export interface IMemoryInstance {
 
   /**
    * List all entries in memory.
+   * Filters out entries whose `when` is greater than the requested `when`.
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Array of all stored entries
    */
-  listMemory<T extends object = object>(): Promise<
+  listMemory<T extends object = object>(when: Date): Promise<
     Array<{
       memoryId: string;
       content: T;
@@ -120,16 +127,19 @@ export interface IMemoryInstance {
   /**
    * Remove an entry from memory.
    * @param memoryId - Unique entry identifier
+   * @param when - Logical timestamp (kept for API consistency; removal is by UUID)
    */
-  removeMemory(memoryId: string): Promise<void>;
+  removeMemory(memoryId: string, when: Date): Promise<void>;
 
   /**
    * Read a single entry from memory.
+   * Behaves as not-found if the stored `when` is greater than the requested `when`.
    * @param memoryId - Unique entry identifier
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Entry value
-   * @throws Error if entry not found
+   * @throws Error if entry not found (or shadowed by look-ahead)
    */
-  readMemory<T extends object = object>(memoryId: string): Promise<T>;
+  readMemory<T extends object = object>(memoryId: string, when: Date): Promise<T>;
   /**
    * Releases any resources held by this instance.
    */
@@ -188,11 +198,13 @@ export class MemoryLocalInstance implements IMemoryInstance {
    * @param memoryId - Unique entry identifier
    * @param value - Value to store and index
    * @param description - BM25 index string
+   * @param when - Logical timestamp this entry belongs to (look-ahead guard)
    */
   public async writeMemory<T extends object = object>(
     memoryId: string,
     value: T,
     description: string,
+    when: Date,
   ) {
     swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_WRITE, {
       signalId: this.signalId,
@@ -204,24 +216,28 @@ export class MemoryLocalInstance implements IMemoryInstance {
       content: value,
       index: description,
       priority: Date.now(),
+      when: when.getTime(),
     });
   }
 
   /**
    * Read a single entry from the in-memory index.
+   * Behaves as not-found if the stored `when` is greater than the requested `when`.
    * @param memoryId - Unique entry identifier
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Parsed entry value
-   * @throws Error if entry not found
+   * @throws Error if entry not found (or shadowed by look-ahead)
    */
   public async readMemory<T extends object = object>(
     memoryId: string,
+    when: Date,
   ): Promise<T> {
     swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_READ, {
       signalId: this.signalId,
       bucketName: this.bucketName,
       memoryId,
     });
-    const value = this._index.read(memoryId);
+    const value = this._index.read(memoryId, when.getTime());
     if (!value) {
       throw new Error(`MemoryLocalInstance value not found memoryId=${memoryId}`);
     }
@@ -230,16 +246,18 @@ export class MemoryLocalInstance implements IMemoryInstance {
 
   /**
    * Search entries using BM25 full-text scoring.
+   * Filters out entries whose `when` is greater than the requested `when`.
    * @param query - Search query string
+   * @param when - Logical timestamp at which the search is happening (look-ahead guard)
    * @returns Matching entries sorted by relevance score
    */
-  public async searchMemory<T extends object = object>(query: string, settings?: SearchSettings) {
+  public async searchMemory<T extends object = object>(query: string, when: Date, settings?: SearchSettings) {
     swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_SEARCH, {
       signalId: this.signalId,
       bucketName: this.bucketName,
       query,
     });
-    return this._index.search(query, settings).map<{
+    return this._index.search(query, when.getTime(), settings).map<{
       memoryId: string;
       score: number;
       content: T;
@@ -248,14 +266,16 @@ export class MemoryLocalInstance implements IMemoryInstance {
 
   /**
    * List all entries stored in the in-memory index.
+   * Filters out entries whose `when` is greater than the requested `when`.
+   * @param when - Logical timestamp at which the list is happening (look-ahead guard)
    * @returns Array of all stored entries
    */
-  public async listMemory<T extends object = object>() {
+  public async listMemory<T extends object = object>(when: Date) {
     swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_LIST, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
-    return this._index.list().map<{
+    return this._index.list(when.getTime()).map<{
       memoryId: string;
       content: T;
     }>(LIST_MEMORY_FN);
@@ -264,8 +284,9 @@ export class MemoryLocalInstance implements IMemoryInstance {
   /**
    * Remove an entry from the in-memory index.
    * @param memoryId - Unique entry identifier
+   * @param when - Logical timestamp (kept for API consistency; removal is by UUID)
    */
-  public async removeMemory(memoryId: string) {
+  public async removeMemory(memoryId: string, _when: Date) {
     swarm.loggerService.debug(MEMORY_LOCAL_INSTANCE_METHOD_NAME_REMOVE, {
       signalId: this.signalId,
       bucketName: this.bucketName,
@@ -315,12 +336,13 @@ export class MemoryPersistInstance implements IMemoryInstance {
       initial,
     });
     await PersistMemoryAdapter.waitForInit(this.signalId, this.bucketName, initial);
-    for await (const { memoryId, data: { data, index, priority } } of PersistMemoryAdapter.listMemoryData(this.signalId, this.bucketName)) {
+    for await (const { memoryId, data: { data, index, priority, when } } of PersistMemoryAdapter.listMemoryData(this.signalId, this.bucketName)) {
       this._index.upsert({
         id: memoryId,
         content: data,
         index,
         priority,
+        when,
       });
     }
   }
@@ -330,11 +352,13 @@ export class MemoryPersistInstance implements IMemoryInstance {
    * @param memoryId - Unique entry identifier
    * @param value - Value to persist and index
    * @param index - BM25 index string; defaults to JSON.stringify(value)
+   * @param when - Logical timestamp this entry belongs to (look-ahead guard)
    */
   public async writeMemory<T extends object = object>(
     memoryId: string,
     value: T,
-    index = JSON.stringify(value),
+    index: string,
+    when: Date,
   ): Promise<void> {
     swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_WRITE, {
       signalId: this.signalId,
@@ -342,8 +366,9 @@ export class MemoryPersistInstance implements IMemoryInstance {
       memoryId,
     });
     const priority = Date.now();
+    const whenMs = when.getTime();
     await PersistMemoryAdapter.writeMemoryData(
-      { data: value, priority, removed: false, index },
+      { data: value, priority, removed: false, index, when: whenMs },
       this.signalId,
       this.bucketName,
       memoryId,
@@ -353,17 +378,21 @@ export class MemoryPersistInstance implements IMemoryInstance {
       content: value,
       index,
       priority,
+      when: whenMs,
     });
   }
 
   /**
    * Read a single entry from disk.
+   * Behaves as not-found if the stored `when` is greater than the requested `when`.
    * @param memoryId - Unique entry identifier
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Entry value
-   * @throws Error if entry not found
+   * @throws Error if entry not found (or shadowed by look-ahead)
    */
   public async readMemory<T extends object = object>(
     memoryId: string,
+    when: Date,
   ): Promise<T> {
     swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_READ, {
       signalId: this.signalId,
@@ -371,7 +400,7 @@ export class MemoryPersistInstance implements IMemoryInstance {
       memoryId,
     });
     const data = await PersistMemoryAdapter.readMemoryData(this.signalId, this.bucketName, memoryId);
-    if (!data) {
+    if (!data || data.when > when.getTime()) {
       throw new Error(`MemoryPersistInstance value not found memoryId=${memoryId}`);
     }
     return <T>data.data;
@@ -379,16 +408,18 @@ export class MemoryPersistInstance implements IMemoryInstance {
 
   /**
    * Search entries using BM25 index rebuilt from disk on init.
+   * Filters out entries whose `when` is greater than the requested `when`.
    * @param query - Search query string
+   * @param when - Logical timestamp at which the search is happening (look-ahead guard)
    * @returns Matching entries sorted by relevance score
    */
-  public async searchMemory<T extends object = object>(query: string, settings?: SearchSettings) {
+  public async searchMemory<T extends object = object>(query: string, when: Date, settings?: SearchSettings) {
     swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_SEARCH, {
       signalId: this.signalId,
       bucketName: this.bucketName,
       query,
     });
-    return this._index.search(query, settings).map<{
+    return this._index.search(query, when.getTime(), settings).map<{
       memoryId: string;
       score: number;
       content: T;
@@ -397,14 +428,16 @@ export class MemoryPersistInstance implements IMemoryInstance {
 
   /**
    * List all entries from the in-memory index (populated from disk on init).
+   * Filters out entries whose `when` is greater than the requested `when`.
+   * @param when - Logical timestamp at which the list is happening (look-ahead guard)
    * @returns Array of all stored entries
    */
-  public async listMemory<T extends object = object>() {
+  public async listMemory<T extends object = object>(when: Date) {
     swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_LIST, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
-    return this._index.list().map<{
+    return this._index.list(when.getTime()).map<{
       memoryId: string;
       content: T;
     }>(LIST_MEMORY_FN);
@@ -413,8 +446,9 @@ export class MemoryPersistInstance implements IMemoryInstance {
   /**
    * Remove an entry from disk and from the BM25 index.
    * @param memoryId - Unique entry identifier
+   * @param when - Logical timestamp (kept for API consistency; removal is by UUID)
    */
-  public async removeMemory(memoryId: string): Promise<void> {
+  public async removeMemory(memoryId: string, _when: Date): Promise<void> {
     swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_REMOVE, {
       signalId: this.signalId,
       bucketName: this.bucketName,
@@ -459,7 +493,12 @@ export class MemoryDummyInstance implements IMemoryInstance {
    * No-op write - discards the value.
    * @returns Promise that resolves immediately
    */
-  public async writeMemory(): Promise<void> {
+  public async writeMemory<T extends object = object>(
+    _memoryId: string,
+    _value: T,
+    _description: string,
+    _when: Date,
+  ): Promise<void> {
     void 0;
   }
 
@@ -467,7 +506,7 @@ export class MemoryDummyInstance implements IMemoryInstance {
    * No-op read - always throws.
    * @throws Error always
    */
-  public async readMemory<T extends object = object>(_memoryId: string): Promise<T> {
+  public async readMemory<T extends object = object>(_memoryId: string, _when: Date): Promise<T> {
     throw new Error("MemoryDummyInstance: readMemory not supported");
   }
 
@@ -475,7 +514,11 @@ export class MemoryDummyInstance implements IMemoryInstance {
    * No-op search - returns empty array.
    * @returns Empty array
    */
-  public async searchMemory<T extends object = object>(): Promise<Array<{ memoryId: string; score: number; content: T }>> {
+  public async searchMemory<T extends object = object>(
+    _query: string,
+    _when: Date,
+    _settings?: SearchSettings,
+  ): Promise<Array<{ memoryId: string; score: number; content: T }>> {
     return [];
   }
 
@@ -483,7 +526,7 @@ export class MemoryDummyInstance implements IMemoryInstance {
    * No-op list - returns empty array.
    * @returns Empty array
    */
-  public async listMemory<T extends object = object>(): Promise<Array<{ memoryId: string; content: T }>> {
+  public async listMemory<T extends object = object>(_when: Date): Promise<Array<{ memoryId: string; content: T }>> {
     return [];
   }
 
@@ -491,7 +534,7 @@ export class MemoryDummyInstance implements IMemoryInstance {
    * No-op remove.
    * @returns Promise that resolves immediately
    */
-  public async removeMemory(): Promise<void> {
+  public async removeMemory(_memoryId: string, _when: Date): Promise<void> {
     void 0;
   }
 
@@ -545,6 +588,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.description - BM25 index string; defaults to JSON.stringify(value)
+   * @param dto.when - Logical timestamp this entry belongs to (look-ahead guard)
    */
   public writeMemory = async <T extends object = object>(dto: {
     memoryId: string;
@@ -552,6 +596,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
     signalId: string;
     bucketName: string;
     description: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_BACKTEST_ADAPTER_METHOD_NAME_WRITE, {
       signalId: dto.signalId,
@@ -562,7 +607,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.writeMemory<T>(dto.memoryId, dto.value, dto.description);
+    return await instance.writeMemory<T>(dto.memoryId, dto.value, dto.description, dto.when);
   };
 
   /**
@@ -570,12 +615,14 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
    * @param dto.query - Search query string
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp at which the search is happening (look-ahead guard)
    * @returns Matching entries sorted by relevance score
    */
   public searchMemory = async <T extends object = object>(dto: {
     query: string;
     signalId: string;
     bucketName: string;
+    when: Date;
     settings?: SearchSettings;
   }) => {
     swarm.loggerService.debug(MEMORY_BACKTEST_ADAPTER_METHOD_NAME_SEARCH, {
@@ -587,18 +634,20 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.searchMemory<T>(dto.query, dto.settings);
+    return await instance.searchMemory<T>(dto.query, dto.when, dto.settings);
   };
 
   /**
    * List all entries in memory.
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp at which the list is happening (look-ahead guard)
    * @returns Array of all stored entries
    */
   public listMemory = async <T extends object = object>(dto: {
     signalId: string;
     bucketName: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_BACKTEST_ADAPTER_METHOD_NAME_LIST, {
       signalId: dto.signalId,
@@ -608,7 +657,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.listMemory<T>();
+    return await instance.listMemory<T>(dto.when);
   };
 
   /**
@@ -616,11 +665,13 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
    * @param dto.memoryId - Unique entry identifier
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp (kept for API consistency; removal is by UUID)
    */
   public removeMemory = async (dto: {
     memoryId: string;
     signalId: string;
     bucketName: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_BACKTEST_ADAPTER_METHOD_NAME_REMOVE, {
       signalId: dto.signalId,
@@ -631,7 +682,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.removeMemory(dto.memoryId);
+    return await instance.removeMemory(dto.memoryId, dto.when);
   };
 
   /**
@@ -639,6 +690,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
    * @param dto.memoryId - Unique entry identifier
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Entry value
    * @throws Error if entry not found
    */
@@ -646,6 +698,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
     memoryId: string;
     signalId: string;
     bucketName: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_BACKTEST_ADAPTER_METHOD_NAME_READ, {
       signalId: dto.signalId,
@@ -656,7 +709,7 @@ export class MemoryBacktestAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.readMemory<T>(dto.memoryId);
+    return await instance.readMemory<T>(dto.memoryId, dto.when);
   };
 
   /**
@@ -749,6 +802,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.description - BM25 index string; defaults to JSON.stringify(value)
+   * @param dto.when - Logical timestamp this entry belongs to (look-ahead guard)
    */
   public writeMemory = async <T extends object = object>(dto: {
     memoryId: string;
@@ -756,6 +810,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
     signalId: string;
     bucketName: string;
     description: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_LIVE_ADAPTER_METHOD_NAME_WRITE, {
       signalId: dto.signalId,
@@ -766,7 +821,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.writeMemory<T>(dto.memoryId, dto.value, dto.description);
+    return await instance.writeMemory<T>(dto.memoryId, dto.value, dto.description, dto.when);
   };
 
   /**
@@ -774,12 +829,14 @@ export class MemoryLiveAdapter implements TMemoryInstance {
    * @param dto.query - Search query string
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp at which the search is happening (look-ahead guard)
    * @returns Matching entries sorted by relevance score
    */
   public searchMemory = async <T extends object = object>(dto: {
     query: string;
     signalId: string;
     bucketName: string;
+    when: Date;
     settings?: SearchSettings;
   }) => {
     swarm.loggerService.debug(MEMORY_LIVE_ADAPTER_METHOD_NAME_SEARCH, {
@@ -791,18 +848,20 @@ export class MemoryLiveAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.searchMemory<T>(dto.query, dto.settings);
+    return await instance.searchMemory<T>(dto.query, dto.when, dto.settings);
   };
 
   /**
    * List all entries in memory.
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp at which the list is happening (look-ahead guard)
    * @returns Array of all stored entries
    */
   public listMemory = async <T extends object = object>(dto: {
     signalId: string;
     bucketName: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_LIVE_ADAPTER_METHOD_NAME_LIST, {
       signalId: dto.signalId,
@@ -812,7 +871,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.listMemory<T>();
+    return await instance.listMemory<T>(dto.when);
   };
 
   /**
@@ -820,11 +879,13 @@ export class MemoryLiveAdapter implements TMemoryInstance {
    * @param dto.memoryId - Unique entry identifier
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp (kept for API consistency; removal is by UUID)
    */
   public removeMemory = async (dto: {
     memoryId: string;
     signalId: string;
     bucketName: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_LIVE_ADAPTER_METHOD_NAME_REMOVE, {
       signalId: dto.signalId,
@@ -835,7 +896,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.removeMemory(dto.memoryId);
+    return await instance.removeMemory(dto.memoryId, dto.when);
   };
 
   /**
@@ -843,6 +904,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
    * @param dto.memoryId - Unique entry identifier
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
+   * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Entry value
    * @throws Error if entry not found
    */
@@ -850,6 +912,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
     memoryId: string;
     signalId: string;
     bucketName: string;
+    when: Date;
   }) => {
     swarm.loggerService.debug(MEMORY_LIVE_ADAPTER_METHOD_NAME_READ, {
       signalId: dto.signalId,
@@ -860,7 +923,7 @@ export class MemoryLiveAdapter implements TMemoryInstance {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName);
     await instance.waitForInit(isInitial);
-    return await instance.readMemory<T>(dto.memoryId);
+    return await instance.readMemory<T>(dto.memoryId, dto.when);
   };
 
   /**
@@ -972,6 +1035,7 @@ export class MemoryAdapter {
    * @param dto.bucketName - Bucket name
    * @param dto.description - BM25 index string; defaults to JSON.stringify(value)
    * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @param dto.when - Logical timestamp this entry belongs to (look-ahead guard)
    */
   public writeMemory = async <T extends object = object>(dto: {
     memoryId: string;
@@ -980,6 +1044,7 @@ export class MemoryAdapter {
     bucketName: string;
     description: string;
     backtest: boolean;
+    when: Date;
   }) => {
     if (!this.enable.hasValue()) {
       throw new Error("MemoryAdapter is not enabled. Call enable() first.");
@@ -1003,6 +1068,7 @@ export class MemoryAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @param dto.when - Logical timestamp at which the search is happening (look-ahead guard)
    * @returns Matching entries sorted by relevance score
    */
   public searchMemory = async <T extends object = object>(dto: {
@@ -1011,6 +1077,7 @@ export class MemoryAdapter {
     bucketName: string;
     settings?: SearchSettings;
     backtest: boolean;
+    when: Date;
   }) => {
     if (!this.enable.hasValue()) {
       throw new Error("MemoryAdapter is not enabled. Call enable() first.");
@@ -1033,12 +1100,14 @@ export class MemoryAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @param dto.when - Logical timestamp at which the list is happening (look-ahead guard)
    * @returns Array of all stored entries
    */
   public listMemory = async <T extends object = object>(dto: {
     signalId: string;
     bucketName: string;
     backtest: boolean;
+    when: Date;
   }) => {
     if (!this.enable.hasValue()) {
       throw new Error("MemoryAdapter is not enabled. Call enable() first.");
@@ -1061,12 +1130,14 @@ export class MemoryAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @param dto.when - Logical timestamp (kept for API consistency; removal is by UUID)
    */
   public removeMemory = async (dto: {
     memoryId: string;
     signalId: string;
     bucketName: string;
     backtest: boolean;
+    when: Date;
   }) => {
     if (!this.enable.hasValue()) {
       throw new Error("MemoryAdapter is not enabled. Call enable() first.");
@@ -1090,6 +1161,7 @@ export class MemoryAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Entry value
    * @throws Error if entry not found
    */
@@ -1098,6 +1170,7 @@ export class MemoryAdapter {
     signalId: string;
     bucketName: string;
     backtest: boolean;
+    when: Date;
   }) => {
     if (!this.enable.hasValue()) {
       throw new Error("MemoryAdapter is not enabled. Call enable() first.");
