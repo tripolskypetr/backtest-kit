@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/mongo",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "MongoDB + Redis persistence adapter for backtest-kit. Replaces the default file-based storage with a production-grade backend — O(1) reads via Redis, atomic writes via Mongoose.",
   "author": {
     "name": "Petr Tripolsky",
