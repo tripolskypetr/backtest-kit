@@ -1650,7 +1650,7 @@ npm install @backtest-kit/ui backtest-kit ccxt
 
 ### @backtest-kit/mongo
 
-> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/mongo)** 🧿
+> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/mongo)** 💾
 
 The **@backtest-kit/mongo** package replaces the default file-based `./dump/` storage with MongoDB as the source of truth and Redis as an O(1) lookup cache. All 15 `IPersist*Instance` contracts from backtest-kit are implemented — strategy code stays unchanged.
 

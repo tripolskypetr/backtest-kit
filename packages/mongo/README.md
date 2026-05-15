@@ -1,6 +1,6 @@
 <img src="https://github.com/tripolskypetr/backtest-kit/raw/refs/heads/master/assets/consciousness.svg" height="45px" align="right">
 
-# 🧿 @backtest-kit/mongo
+# 💾 @backtest-kit/mongo
 
 > MongoDB + Redis persistence adapter for backtest-kit. Swaps the default file-based storage for a production-grade backend — one `setup()` call, no changes to strategy code.
 
