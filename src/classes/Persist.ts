@@ -3210,7 +3210,7 @@ export interface IPersistMeasureInstance {
    * @param key - Cache key within the bucket
    * @returns Promise that resolves when write is complete
    */
-  writeMeasureData(data: MeasureData, key: string): Promise<void>;
+  writeMeasureData(data: MeasureData, key: string, when: Date): Promise<void>;
 
   /**
    * Soft-delete an entry by setting its `removed` flag.
@@ -3438,13 +3438,14 @@ export class PersistMeasureUtils {
   public writeMeasureData = async (
     data: MeasureData,
     bucket: string,
-    key: string
+    key: string,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_MEASURE_UTILS_METHOD_NAME_WRITE_DATA, { bucket, key });
     const isInitial = !this.getMeasureStorage.has(bucket);
     const instance = this.getMeasureStorage(bucket);
     await instance.waitForInit(isInitial);
-    return instance.writeMeasureData(data, key);
+    return instance.writeMeasureData(data, key, when);
   };
 
   /**
@@ -3548,7 +3549,7 @@ export interface IPersistIntervalInstance {
    * @param key - Marker key within the bucket
    * @returns Promise that resolves when write is complete
    */
-  writeIntervalData(data: IntervalData, key: string): Promise<void>;
+  writeIntervalData(data: IntervalData, key: string, when: Date): Promise<void>;
 
   /**
    * Soft-delete a marker. After this call the function will fire again
@@ -3773,13 +3774,14 @@ export class PersistIntervalUtils {
   public writeIntervalData = async (
     data: IntervalData,
     bucket: string,
-    key: string
+    key: string,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_INTERVAL_UTILS_METHOD_NAME_WRITE_DATA, { bucket, key });
     const isInitial = !this.getIntervalStorage.has(bucket);
     const instance = this.getIntervalStorage(bucket);
     await instance.waitForInit(isInitial);
-    return instance.writeIntervalData(data, key);
+    return instance.writeIntervalData(data, key, when);
   };
 
   /**

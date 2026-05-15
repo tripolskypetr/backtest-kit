@@ -424,7 +424,7 @@ export class IntervalFileInstance<F extends IntervalFileFunction = IntervalFileF
 
     const result = await this.fn.call(null, ...args);
     if (result !== null) {
-      await PersistIntervalAdapter.writeIntervalData({ id: entityKey, data: result, removed: false }, bucket, entityKey);
+      await PersistIntervalAdapter.writeIntervalData({ id: entityKey, data: result, removed: false }, bucket, entityKey, when);
     }
     return result;
   };
