@@ -1,3 +1,427 @@
+# 🐳 Multi Asset Portfolio in Docker Runtime (v9.0.0, 15/05/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/9.0.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+v9.0.0 makes it possible to build production-grade multi-asset portfolio systems that run entirely inside Docker — without any external orchestration layer. The new `--entry` CLI flag is a modifier for `--backtest` / `--live` / `--paper` / `--walker` that hands symbol selection and launch logic to your own code: the CLI handles Setup, UI/Telegram providers, the mode module, SIGINT teardown via `*.list()`, and `shutdown()` once all runs complete — your entry file calls `Backtest.background()` / `Live.background()` for whatever count of symbols and configurations it chooses. Combined with `--docker` workspace scaffolding, a single `docker-compose up` can bring up an arbitrary number of isolated strategy processes — each managing its own symbol set, risk profile, and lifecycle — forming a complete Multi Asset Portfolio system curated entirely from code.
+
+**Entry point**
+
+```javascript
+import {
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
+  Backtest,
+  Cache,
+} from "backtest-kit";
+import ccxt from "ccxt";
+
+addExchangeSchema({
+  exchangeName: "binance",
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.binance();
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
+      timestamp, open, high, low, close, volume,
+    }));
+  },
+  formatPrice: (symbol, price) => price.toFixed(2),
+  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+});
+
+addFrameSchema({
+  frameName: "feb-2026",
+  interval: "1m",
+  startDate: new Date("2026-02-01"),
+  endDate: new Date("2026-02-28"),
+});
+
+addStrategySchema({
+  strategyName: "my-strategy",
+  interval: "15m",
+  getSignal: async (symbol) => null,
+});
+
+// Decide the symbol set yourself — from a UI, database, API, or just a list.
+const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
+
+for (const symbol of symbols) {
+
+  // 
+  // Optional
+  // 
+  // await Cache.warmup(["1m", "15m", "1h"], {
+  //   exchangeName: "binance",
+  //   frameName: "feb-2026",
+  //   symbol,
+  // });
+  //
+
+  Backtest.background(symbol, {
+    strategyName: "my-strategy",
+    exchangeName: "binance",
+    frameName: "feb-2026",
+  });
+}
+```
+
+**Running**
+
+```bash
+MODE=live ENTRY=1 STRATEGY_FILE=./src/multi-symbol.mjs docker-compose up -d
+```
+
+## Breaking Changes
+
+### Custom Persistence Adapters — Domain-Specific Instance API
+
+All 15 persistence subsystems (`Signal`, `Risk`, `Schedule`, `Partial`, `Breakeven`, `Candle`, `Storage`, `Notification`, `Log`, `Measure`, `Memory`, `Interval`, `Recent`, `State`, `Session`) no longer accept a raw `PersistBase<K,V>` subclass.
+
+**Before (8.0.0):** `usePersistXxxAdapter` accepted a constructor extending `PersistBase` with generic `readValue` / `hasValue` / `writeValue` / `keys` methods.
+
+**After (8.5.0):** Each subsystem has its own named interface with semantically typed methods:
+
+| Subsystem | Read method | Write method |
+|---|---|---|
+| Signal | `readSignalData(id)` | `writeSignalData(id, data)` |
+| Risk | `readPositionData(symbol)` | `writePositionData(symbol, data)` |
+| Candle | `readCandlesData(limit, since, until)` | `writeCandlesData(candles)` |
+| Schedule | `readScheduleData(id)` | `writeScheduleData(id, data)` |
+| *(all others follow the same pattern)* | | |
+
+Each subsystem now exports:
+- `IPersistXxxInstance` — the interface to implement
+- `PersistXxxInstance` — the default file-based implementation
+- `TPersistXxxInstanceCtor` — the constructor type accepted by `usePersistXxxAdapter`
+
+The adapter registry cache is cleared whenever a new adapter is registered, so subsequent calls immediately use the new implementation.
+
+**Migration:** Replace any `readValue` / `hasValue` / `writeValue` implementation with the domain-specific methods from the corresponding `IPersistXxxInstance` interface.
+
+### `IRisk.checkSignal` Signature Extended
+
+```ts
+// Before
+checkSignal(params: IRiskCheckArgs): Promise<boolean>
+
+// After
+checkSignal(params: IRiskCheckArgs, options?: Partial<IRiskCheckOptions>): Promise<boolean>
+checkSignalAndReserve(params: IRiskCheckArgs): Promise<boolean>  // new required method
+```
+
+Custom `IRisk` implementations must now also implement `checkSignalAndReserve`.
+
+### Calmar Ratio and Recovery Factor — Denominator Changed
+
+Both ratios now use **maximum** absolute drawdown across all signals (industry-standard definition) instead of **average** absolute drawdown. Numbers from previous reports will not match.
+
+## Risk Concurrency Safety (`ClientRisk`, `MergeRisk`)
+
+**Problem:** When multiple strategies sharing a risk profile ran in parallel, all of them could pass `checkSignal` while the active-position map was still empty (before any `addSignal` landed), allowing each to open a position and exceed the configured limit.
+
+**Solution:** A module-level `Lock` instance serializes `checkSignal`, `addSignal`, and `removeSignal`. The new `checkSignalAndReserve` method writes a placeholder entry into the active-position map *inside* the same lock acquisition, so the next concurrent caller sees the incremented count before `addSignal` completes.
+
+All internal strategy open paths now call `risk.checkSignalAndReserve(...)` instead of `risk.checkSignal(...)`.
+
+Affected files: `src/client/ClientRisk.ts`, `src/classes/MergeRisk.ts`, `src/interfaces/Risk.interface.ts`, `src/lib/services/connection/RiskConnectionService.ts`, `src/lib/services/global/RiskGlobalService.ts`, `src/lib/services/connection/StrategyConnectionService.ts`.
+
+## `BrokerProxy` — Wait-for-Init Sequencing
+
+All eight `BrokerProxy` commit methods (`onSignalOpenCommit`, `onSignalCloseCommit`, `onPartialProfitCommit`, `onPartialLossCommit`, `onTrailingStopCommit`, `onTrailingTakeCommit`, `onBreakevenCommit`, `onAverageBuyCommit`) now call `await this.waitForInit()` before invoking the user-supplied hook. This prevents hooks from firing before the broker adapter has finished its initialization sequence.
+
+## Idempotent `Report`, `Markdown`, `Dump` Lifecycle
+
+`Report.enable`, `Markdown.enable`, and `Dump.enable` are now wrapped with `functools-kit`'s `singleshot`, making them idempotent:
+
+- A second `enable(...)` call returns the cached subscription from the first call without re-subscribing.
+- The cleanup function returned by `enable` now also clears the `singleshot` cache, allowing `enable` to be called again after a clean `disable`.
+- `disable(...)` checks `if (this.enable.hasValue())` first — if `enable` was called, it invokes the cached cleanup and returns; otherwise it is a no-op. This prevents double-unsubscribe errors.
+
+## New Config Flags: `CC_ENABLE_LONG_SIGNAL` / `CC_ENABLE_SHORT_SIGNAL`
+
+Two boolean flags added to `GLOBAL_CONFIG` (both default `true`):
+
+| Flag | Effect when `false` |
+|---|---|
+| `CC_ENABLE_LONG_SIGNAL` | Any signal with `position: "long"` fails validation |
+| `CC_ENABLE_SHORT_SIGNAL` | Any signal with `position: "short"` fails validation |
+
+Both flags are enforced in `src/validation/validateCommonSignal.ts`, exposed via `getConfig()` / `getDefaultConfig()`, and declared in `types.d.ts`.
+
+## CLI — New Modes
+
+### `--docker` — Docker Workspace Scaffolding
+
+Scaffolds a self-contained Docker workspace into `./backtest-kit-docker/` (override with `--output`):
+
+```
+backtest-kit-docker/
+├── docker-compose.yaml       # ready-to-run service definition with healthcheck
+├── .env.example              # CC_REDIS_HOST, CC_MONGO_CONNECTION_STRING
+├── package.json
+├── tsconfig.json
+└── content/
+    └── feb_2026/
+        ├── feb_2026.strategy.ts
+        └── modules/backtest.module.ts
+```
+
+The bundled `docker-compose.yaml` includes a healthcheck stanza against `http://localhost:60050/api/v1/health/health_check`. A `Dockerfile` and `.dockerignore` were added for building the CLI itself as a Docker image.
+
+### `--brokerdebug` — Single Broker Commit Testing
+
+Fires one broker commit hook against the live adapter without running a full strategy — useful for verifying that a `brokerdebug.module` wires exchange calls correctly.
+
+```
+backtest-kit --brokerdebug --commit signal-open
+```
+
+Supported `--commit` values: `signal-open`, `signal-close`, `partial-profit`, `partial-loss`, `average-buy`, `trailing-stop`, `trailing-take`, `breakeven`.
+
+All commit logic runs inside `runInMockContext` to ensure the execution context is correctly set. Timing instrumentation (`console.time` / `console.timeEnd`) is printed around the commit call.
+
+### `--entry` — Self-Contained Strategy Entry Point
+
+When combined with exactly one of `--backtest`, `--live`, `--paper`, or `--walker`, the strategy file acts as its own entry point — loading its mode module, connecting the frontend and Telegram providers, and registering graceful shutdown — without a separate CLI invocation.
+
+### `getEntry.ts` — Symlink Resolution Fix
+
+`getEntry(metaUrl)` now resolves `realpathSync(process.argv[1])` before comparing paths, so the entry-point check works correctly when the CLI is invoked via an npm symlink. A guard for `process.argv[1] === undefined` was added.
+
+## Analytics Corrections
+
+### Calmar Ratio and Recovery Factor
+
+Applied to `BacktestMarkdownService`, `HeatMarkdownService`, and `LiveMarkdownService`:
+
+```ts
+// Before — used average absolute drawdown
+const avgAbsFall = fallReturns.reduce((sum, r) => sum + Math.abs(r), 0) / totalSignals;
+const calmarRatio = avgAbsFall > 0 ? expectedYearlyReturns / avgAbsFall : 0;
+
+// After — uses maximum absolute drawdown (industry standard)
+const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
+const calmarRatio = maxAbsFall > 0 ? expectedYearlyReturns / maxAbsFall : 0;
+```
+
+`HeatMarkdownService` also gained a proper `expectedYearlyReturns` annualization (previously used raw `totalPnl` as the Calmar numerator).
+
+### Metric Report Legend
+
+All three markdown report renderers now append a legend block below the metrics table explaining each ratio and the minimum signal count at which it becomes statistically reliable. Labels for `Annualized Sharpe Ratio`, `Expected Yearly Returns`, and `Calmar Ratio` are marked `(theoretical)` to clarify they assume continuous deployment.
+
+## `@backtest-kit/front` — Setup View
+
+Two new services expose runtime configuration to the frontend:
+
+- **`SetupViewService.getSetupData()`** — returns which adapters are active (`Broker.enable.hasValue()`, `Dump.enable.hasValue()`, etc.), the current running mode (`"backtest"` / `"live"` / `"none"`), and the `CC_ENABLE_LONG_SIGNAL` / `CC_ENABLE_SHORT_SIGNAL` flags.
+- **`SetupMockService.getSetupData()`** — reads `./mock/setup.json` (singleshot-memoized) for development/mock mode.
+
+New HTTP routes:
+- `POST /api/v1/view/setup_data`
+- `POST /api/v1/mock/setup_data`
+
+The frontend module gained `setup_fields.tsx` (react-declarative field schema), a `SetupView.tsx` page component, and i18n updates for English and Russian locales.
+
+## Developer Infrastructure — Docker Compose Files
+
+Three standalone Docker Compose definitions added under `docker/` for local dependency setup:
+
+| File | Service | Port |
+|---|---|---|
+| `docker/mongo/docker-compose.yaml` | MongoDB 8.0.4 | 27017 |
+| `docker/redis/docker-compose.yaml` | Redis 7.4.1 (with password) | 6379 |
+| `docker/quickchart/docker-compose.yaml` | QuickChart (`ianw/quickchart`) | 8080 |
+
+## Tests
+
+- **`test/migration/migrate9.test.mjs`** — new negative-case regression test showing that `Backtest.background()` does not preserve risk state across concurrent backtests (each run clears the memoized `ClientRisk` instance). Documents the distinction from `migrate6.test.mjs` which uses `lib.backtestCommandService.run()` directly.
+- **All persist-adapter tests** updated to the new domain-specific API (`readSignalData`, `writeSignalData`, `readCandlesData`, `writeCandlesData`, `readPositionData`, `writePositionData`, `readScheduleData`, `writeScheduleData`): `persist.test.mjs`, `restore.test.mjs`, `shutdown.test.mjs`, `timing.test.mjs`, `sequence.test.mjs`, `candle_cache.test.mjs` (e2e + spec), `risk.test.mjs`, `callbacks.test.mjs`, `live.test.mjs`.
+- `test/index.mjs` now imports `./migration/migrate9.test.mjs`.
+
+
+
+
+# Strategy Examples (v8.0.0, 04/05/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/8.0.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+Monorepo now includes detailed examples of 7 different trading strategies with links to source code:
+
+- **Neural Network Strategy** (Oct 2021) - TensorFlow feed-forward network predicting candle close positions
+- **Pine Script Range Breakout** (Dec 2025) - Bollinger Bands and volume spike detection via Pine Script
+- **Signal Inversion Strategy** (Jan 2026) - Inverting Telegram channel signals for liquidity harvesting
+- **AI News Sentiment** (Feb 2026) - LLM-powered sentiment analysis of crypto/macro news
+- **SHORT DCA Ladder** (Mar 2026) - Dynamic position sizing with up to 10 rungs
+- **LONG DCA Ladder** (Apr 2026) - LONG-biased DCA with 3% profit target
+- **Python EMA Crossover** (Feb 2021) - WebAssembly Python strategy with EMA crossovers
+
+Each example includes performance metrics, implementation details, and direct links to the strategy source code.
+
+
+
+# Signal State API, PnL Debug CLI (v7.5.0, 25/04/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/7.5.0)
+
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+v7.5.0 ships a new per-signal mutable state system (`State` / `createSignalState`), splits the memory and state adapters into separate backtest and live variants, extends `dump` and `memory` functions to resolve scheduled signals, and adds a `--pnldebug` CLI command for analysing candle-by-candle PnL from an entry price.
+
+## Signal State API — `createSignalState` / `getSignalState` / `setSignalState`
+
+New `src/classes/State.ts` introduces a per-signal mutable state store, designed for LLM-driven strategies that track trade confirmation metrics (e.g. `peakPercent`, `minutesOpen`) across `onActivePing` ticks.
+
+**Primary use-case — capitulation rule:**
+Profitable trades endure −0.5–2.5% drawdown yet still reach a peak of 2–3%+.
+SL trades either never go positive (Feb25) or show `peakPercent < 0.15%` (Feb08, Feb13).
+Rule: if `minutesOpen >= N` and `peakPercent < threshold` — exit immediately; the LLM thesis was not confirmed by price action.
+
+### `createSignalState` (preferred API)
+
+Returns a `[getState, setState]` tuple bound to a named bucket, resolving the active signal from execution context automatically:
+
+```typescript
+import { createSignalState } from "backtest-kit";
+
+const [getTradeState, setTradeState] = createSignalState({
+  bucketName: "trade",
+  initialValue: { peakPercent: 0, minutesOpen: 0 },
+});
+
+// inside onActivePing:
+const state = await getTradeState();
+await setTradeState((s) => ({
+  peakPercent: Math.max(s.peakPercent, currentUnrealisedPercent),
+  minutesOpen: s.minutesOpen + 1,
+}));
+if (state.minutesOpen >= 15 && state.peakPercent < 0.3) {
+  await commitMarketClose(symbol); // capitulate
+}
+```
+
+Both functions throw if called outside an execution context or when no pending/scheduled signal exists.
+
+### `getSignalState` / `setSignalState` (low-level helpers)
+
+Standalone async functions for reading and writing signal state without the tuple pattern. Marked `@deprecated` in favour of `createSignalState` but fully functional:
+
+```typescript
+import { getSignalState, setSignalState } from "backtest-kit";
+
+const { peakPercent } = await getSignalState({
+  bucketName: "trade",
+  initialValue: { peakPercent: 0, minutesOpen: 0 },
+});
+
+await setSignalState(
+  (s) => ({ ...s, minutesOpen: s.minutesOpen + 1 }),
+  { bucketName: "trade", initialValue: { peakPercent: 0, minutesOpen: 0 } },
+);
+```
+
+### State backends
+
+Three pluggable backends are available, matching the Memory backend pattern:
+
+| Class | Storage | Recommended for |
+|---|---|---|
+| `StateLocalInstance` | In-memory only | Backtesting, unit tests |
+| `StatePersistInstance` | File (`./dump/state/<signalId>/<bucketName>.json`) | Live trading, crash recovery |
+| `StateDummyInstance` | No-op | Dry runs, disabled state |
+
+`setState` uses a `queued` wrapper to serialise concurrent updates — no lost writes under parallel `onActivePing` ticks.
+
+### `Dispatch<Value>` type
+
+Updater function type for functional state updates:
+
+```typescript
+type Dispatch<Value extends object> = (value: Value) => Value | Promise<Value>;
+```
+
+### `PersistStateAdapter` / `StateData`
+
+`src/classes/Persist.ts` gained `PersistStateUtils` and `PersistStateAdapter` for crash-safe state storage. Layout: `./dump/state/<signalId>/<bucketName>.json`. Exported as `PersistStateAdapter` and `StateData` from the public API.
+
+## Memory/State Adapter Split — `MemoryBacktestAdapter` / `MemoryLiveAdapter` / `StateBacktestAdapter` / `StateLiveAdapter`
+
+The single `MemoryAdapter` class has been replaced by two purpose-specific variants, and the same pattern is applied to the new State system:
+
+| Old | New — Backtest | New — Live |
+|---|---|---|
+| `MemoryAdapter` | `MemoryBacktestAdapter` | `MemoryLiveAdapter` |
+| _(new)_ | `StateBacktestAdapter` | `StateLiveAdapter` |
+
+**Default backends changed:**
+
+- `MemoryBacktestAdapter` defaults to `MemoryLocalInstance` (in-memory, no disk I/O — faster backtests).
+- `MemoryLiveAdapter` defaults to `MemoryPersistInstance` (disk-backed — survives restarts).
+- `StateBacktestAdapter` defaults to `StateLocalInstance`.
+- `StateLiveAdapter` defaults to `StatePersistInstance`.
+
+Both adapter types expose `disposeSignal(signalId)` called by the parent `MemoryAdapter` / `StateAdapter` when a signal is cancelled or closed, replacing the former `enable()` / `disable()` lifecycle.
+
+All four adapters export pluggable backend methods: `useLocal()`, `usePersist()`, `useDummy()`, `useMemoryAdapter()` / `useStateAdapter()`, and `clear()`.
+
+**Breaking:** `MemoryAdapter` is now a thin coordinator; direct instantiation of the old `MemoryAdapter` is replaced by `MemoryBacktestAdapter` / `MemoryLiveAdapter`. Internal storage key separator changed from `-` to `_` to avoid collisions with signal IDs that contain hyphens.
+
+The convenience singletons `Memory`, `MemoryBacktest`, `MemoryLive`, `State`, `StateBacktest`, `StateLive` are exported from the public API.
+
+## `dump` and `memory` functions — scheduled signal support
+
+`src/function/dump.ts` and `src/function/memory.ts` now resolve both **pending** and **scheduled** signals from execution context. Previously only pending signals were checked; a missing pending signal would throw immediately. Now the functions fall through to `getScheduledSignal` before throwing, making `dumpAgentAnswer`, `dumpRecord`, `writeMemory`, `readMemory`, `searchMemory`, `listMemory`, and `removeMemory` usable inside `onActivePing` callbacks for scheduled signals.
+
+The `description` parameter for `writeMemory` is now required (previously defaulted to `JSON.stringify(value)`) — callers must pass a meaningful BM25 index string.
+
+## `--pnldebug` CLI command
+
+New `cli/src/main/pnldebug.ts` command for candle-by-candle PnL analysis from a known entry price. Useful for calibrating the capitulation rule thresholds (peakPercent, minutesOpen) against real historical data before writing a strategy.
+
+```bash
+npx backtest-kit --pnldebug --symbol BTCUSDT --direction long --priceopen 84200 --minutes 60
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--pnldebug` | — | Activates the command |
+| `--symbol` | `BTCUSDT` | Trading pair |
+| `--direction` | `long` | `long` or `short` |
+| `--priceopen` | _(required)_ | Entry price |
+| `--minutes` | `60` | Number of 1-minute candles to fetch |
+| `--when` | now | Start timestamp (ISO string or ms) |
+| `--exchange` | first registered | Exchange name |
+| `--output` | auto-generated | Output file name (no extension) |
+| `--json` | — | Write result as JSON to `./dump/` |
+| `--jsonl` | — | Write result as JSONL to `./dump/` |
+| `--markdown` | — | Write result as Markdown table to `./dump/` |
+
+Without `--json` / `--jsonl` / `--markdown` the table is printed to stdout. Each row contains: `min`, `timestamp`, `close`, `pnl%`, running `peak%`, and running `drawdown%`.
+
+Requires a `pnldebug.module` entry point at the project root to register exchange schemas.
+
+## New public exports
+
+```typescript
+// State system
+export { State, StateLive, StateBacktest, StateBacktestAdapter, StateLiveAdapter, IStateInstance, TStateInstanceCtor } from "backtest-kit";
+export { StateData, PersistStateAdapter } from "backtest-kit";
+export { createSignalState, getSignalState, setSignalState } from "backtest-kit";
+
+// Memory adapter split
+export { MemoryBacktest, MemoryLive, MemoryBacktestAdapter, MemoryLiveAdapter } from "backtest-kit";
+```
+
+
+
+
+
+
 # CLI Import Aliases, CLI Symbol/Notification Config, Notification Model Expansion (v7.2.0, 22/04/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/7.2.0)
