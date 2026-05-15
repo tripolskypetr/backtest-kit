@@ -298,7 +298,7 @@ import {
   addFrameSchema,
   addStrategySchema,
   Backtest,
-  Cache,
+  warmCandles,
 } from "backtest-kit";
 import ccxt from "ccxt";
 
@@ -336,12 +336,14 @@ for (const symbol of symbols) {
   // 
   // Optional
   // 
-  // await Cache.warmup(["1m", "15m", "1h"], {
-  //   exchangeName: "binance",
-  //   frameName: "feb-2026",
+  // await warmCandles({
+  //   exchangeName: "binance,
+  //   from: new Date("2026-01-01T00:00:00Z"),
+  //   to: new Date("2026-01-31T23:59:59Z"),
+  //   interval: "1m",
   //   symbol,
-  // });
-  //
+  // })
+
 
   Backtest.background(symbol, {
     strategyName: "my-strategy",
