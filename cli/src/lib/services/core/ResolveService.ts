@@ -90,6 +90,24 @@ export class ResolveService implements IResolve{
         _is_launched = true;
     }
 
+    public attachEntry = async (jsPath: string) => {
+        this.loggerService.log("resolveService attachEntry", {
+            jsPath
+        });
+        if (_is_launched) {
+            throw new Error("Entry point is already attached. Multiple entry points are not allowed.");
+        }
+        const absolutePath = path.resolve(jsPath);
+        const cwd = process.cwd();
+        await access(absolutePath, constants.F_OK | constants.R_OK);
+        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+        {
+            this.loaderService.import(absolutePath);
+            await entrySubject.next(absolutePath);
+        }
+        _is_launched = true;
+    }
+
 }
 
 export default ResolveService;

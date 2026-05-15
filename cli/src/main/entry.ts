@@ -151,7 +151,7 @@ export const main = async () => {
   listenFinish();
   createGracefulShutdown(mode)();
 
-  await cli.resolveService.attachJavascript(entryPoint);
+  await cli.resolveService.attachEntry(entryPoint);
 };
 
 main();
