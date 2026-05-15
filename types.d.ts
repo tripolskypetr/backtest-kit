@@ -23743,23 +23743,28 @@ interface IRecentUtils {
     handleActivePing(event: ActivePingContract): Promise<void>;
     /**
      * Retrieves the latest active signal for the given context.
+     * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+     * (look-ahead bias protection).
      * @param symbol - Trading pair symbol
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      * @param backtest - Flag indicating if the context is backtest or live
-     * @returns The latest signal or null if not found
+     * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+     * @returns The latest signal or null if not found / shadowed by look-ahead
      */
-    getLatestSignal(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): Promise<IPublicSignalRow | null>;
+    getLatestSignal(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, when: Date): Promise<IPublicSignalRow | null>;
     /**
      * Returns the number of minutes elapsed since the latest signal's timestamp.
+     * `timestamp` doubles as the look-ahead cutoff — a signal whose `timestamp`
+     * exceeds the requested one is treated as not yet visible.
+     * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
      * @param symbol - Trading pair symbol
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      * @param backtest - Flag indicating if the context is backtest or live
-     * @param currentTimestamp - Current timestamp in milliseconds
-     * @returns Minutes since the latest signal, or null if no signal found
+     * @returns Minutes since the latest signal, or null if no signal found / shadowed by look-ahead
      */
     getMinutesSinceLatestSignalCreated(timestamp: number, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean): Promise<number | null>;
 }
@@ -23793,19 +23798,22 @@ declare class RecentBacktestAdapter implements IRecentUtils {
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      * @param backtest - Flag indicating if the context is backtest or live
-     * @returns The latest signal or null if not found
+     * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+     * @returns The latest signal or null if not found / shadowed by look-ahead
      */
-    getLatestSignal: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<IPublicSignalRow | null>;
+    getLatestSignal: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, when: Date) => Promise<IPublicSignalRow | null>;
     /**
      * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-     * Proxies call to the underlying storage adapter.
-     * @param timestamp - Current timestamp in milliseconds
+     * Proxies call to the underlying storage adapter. `timestamp` doubles as the
+     * look-ahead cutoff — a signal whose `timestamp` exceeds the requested one is
+     * treated as not yet visible.
+     * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
      * @param symbol - Trading pair symbol
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      * @param backtest - Flag indicating if the context is backtest or live
-     * @returns Whole minutes since the latest signal was created, or null if no signal found
+     * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
      */
     getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<number | null>;
     /**
@@ -23855,19 +23863,22 @@ declare class RecentLiveAdapter implements IRecentUtils {
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      * @param backtest - Flag indicating if the context is backtest or live
-     * @returns The latest signal or null if not found
+     * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+     * @returns The latest signal or null if not found / shadowed by look-ahead
      */
-    getLatestSignal: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<IPublicSignalRow | null>;
+    getLatestSignal: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, when: Date) => Promise<IPublicSignalRow | null>;
     /**
      * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-     * Proxies call to the underlying storage adapter.
-     * @param timestamp - Current timestamp in milliseconds
+     * Proxies call to the underlying storage adapter. `timestamp` doubles as the
+     * look-ahead cutoff — a signal whose `timestamp` exceeds the requested one is
+     * treated as not yet visible.
+     * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
      * @param symbol - Trading pair symbol
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      * @param backtest - Flag indicating if the context is backtest or live
-     * @returns Whole minutes since the latest signal was created, or null if no signal found
+     * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
      */
     getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<number | null>;
     /**
@@ -23916,32 +23927,37 @@ declare class RecentAdapter {
     /**
      * Retrieves the latest active signal for the given symbol and context.
      * Searches backtest storage first, then live storage.
+     * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+     * (look-ahead bias protection).
      *
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName, exchangeName, and frameName
-     * @param backtest - Flag indicating if the context is backtest or live
-     * @returns The latest signal or null if not found
+     * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+     * @returns The latest signal or null if not found / shadowed by look-ahead
      * @throws Error if RecentAdapter is not enabled
      */
     getLatestSignal: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<IPublicSignalRow | null>;
+    }, when: Date) => Promise<IPublicSignalRow | null>;
     /**
      * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
      * Searches backtest storage first, then live storage.
-     * @param timestamp - Current timestamp in milliseconds
+     * `when` doubles as the look-ahead cutoff — a signal whose `timestamp` exceeds
+     * `when.getTime()` is treated as not yet visible — and as the "now" against
+     * which elapsed minutes are computed.
      * @param symbol - Trading pair symbol
      * @param context - Execution context with strategyName, exchangeName, and frameName
-     * @returns Whole minutes since the latest signal was created, or null if no signal found
+     * @param when - Logical timestamp at which the read is happening (look-ahead cutoff + "now")
+     * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
      * @throws Error if RecentAdapter is not enabled
      */
     getMinutesSinceLatestSignalCreated: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<number | null>;
+    }, when: Date) => Promise<number | null>;
 }
 /**
  * Global singleton instance of RecentAdapter.

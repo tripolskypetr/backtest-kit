@@ -50,11 +50,13 @@ export async function getLatestSignal(
   if (!MethodContextService.hasContext()) {
     throw new Error("getLatestSignal requires a method context");
   }
+  const { when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   return await Recent.getLatestSignal(
     symbol,
     { exchangeName, frameName, strategyName },
+    when,
   );
 }
 
@@ -93,11 +95,13 @@ export async function getMinutesSinceLatestSignalCreated(
   if (!MethodContextService.hasContext()) {
     throw new Error("getMinutesSinceLatestSignalCreated requires a method context");
   }
+  const { when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   return await Recent.getMinutesSinceLatestSignalCreated(
     symbol,
     { exchangeName, frameName, strategyName },
+    when,
   );
 }
 

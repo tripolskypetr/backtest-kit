@@ -75,12 +75,15 @@ export interface IRecentUtils {
   handleActivePing(event: ActivePingContract): Promise<void>;
   /**
    * Retrieves the latest active signal for the given context.
+   * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+   * (look-ahead bias protection).
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    */
   getLatestSignal(
     symbol: string,
@@ -88,16 +91,19 @@ export interface IRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<IPublicSignalRow | null>;
   /**
    * Returns the number of minutes elapsed since the latest signal's timestamp.
+   * `timestamp` doubles as the look-ahead cutoff — a signal whose `timestamp`
+   * exceeds the requested one is treated as not yet visible.
+   * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @param currentTimestamp - Current timestamp in milliseconds
-   * @returns Minutes since the latest signal, or null if no signal found
+   * @returns Minutes since the latest signal, or null if no signal found / shadowed by look-ahead
    */
   getMinutesSinceLatestSignalCreated(
     timestamp: number,
@@ -145,12 +151,15 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
 
   /**
    * Retrieves the latest persisted signal for the given context.
+   * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+   * (look-ahead bias protection).
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    */
   public getLatestSignal = async (
     symbol: string,
@@ -158,6 +167,7 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<IPublicSignalRow | null> => {
     lib.loggerService.info(RECENT_PERSIST_BACKTEST_METHOD_NAME_GET_LATEST_SIGNAL, {
       symbol,
@@ -166,24 +176,30 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
       frameName,
       backtest,
     });
-    return await PersistRecentAdapter.readRecentData(
+    const signal = await PersistRecentAdapter.readRecentData(
       symbol,
       strategyName,
       exchangeName,
       frameName,
       backtest,
     );
+    if (!signal || signal.timestamp > when.getTime()) {
+      return null;
+    }
+    return signal;
   };
 
   /**
    * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-   * @param timestamp - Current timestamp in milliseconds
+   * `timestamp` doubles as the look-ahead cutoff — a signal whose `timestamp` exceeds
+   * the requested one is treated as not yet visible.
+   * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
    */
   public getMinutesSinceLatestSignalCreated = async (
     timestamp: number,
@@ -193,7 +209,7 @@ export class RecentPersistBacktestUtils implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<number | null> => {
-    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest, new Date(timestamp));
     if (!signal) {
       return null;
     }
@@ -236,12 +252,15 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
 
   /**
    * Retrieves the latest in-memory signal for the given context.
+   * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+   * (look-ahead bias protection).
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    */
   public getLatestSignal = async (
     symbol: string,
@@ -249,6 +268,7 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<IPublicSignalRow | null> => {
     const key = CREATE_KEY_FN(
       symbol,
@@ -258,18 +278,24 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
       backtest,
     );
     lib.loggerService.info(RECENT_MEMORY_BACKTEST_METHOD_NAME_GET_LATEST_SIGNAL, { key });
-    return this._signals.get(key) ?? null;
+    const signal = this._signals.get(key) ?? null;
+    if (!signal || signal.timestamp > when.getTime()) {
+      return null;
+    }
+    return signal;
   };
 
   /**
    * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-   * @param timestamp - Current timestamp in milliseconds
+   * `timestamp` doubles as the look-ahead cutoff — a signal whose `timestamp` exceeds
+   * the requested one is treated as not yet visible.
+   * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
    */
   public getMinutesSinceLatestSignalCreated = async (
     timestamp: number,
@@ -279,7 +305,7 @@ export class RecentMemoryBacktestUtils implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<number | null> => {
-    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest, new Date(timestamp));
     if (!signal) {
       return null;
     }
@@ -318,12 +344,15 @@ export class RecentPersistLiveUtils implements IRecentUtils {
 
   /**
    * Retrieves the latest persisted signal for the given context.
+   * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+   * (look-ahead bias protection).
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    */
   public getLatestSignal = async (
     symbol: string,
@@ -331,6 +360,7 @@ export class RecentPersistLiveUtils implements IRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<IPublicSignalRow | null> => {
     lib.loggerService.info(RECENT_PERSIST_LIVE_METHOD_NAME_GET_LATEST_SIGNAL, {
       symbol,
@@ -339,24 +369,30 @@ export class RecentPersistLiveUtils implements IRecentUtils {
       frameName,
       backtest,
     });
-    return await PersistRecentAdapter.readRecentData(
+    const signal = await PersistRecentAdapter.readRecentData(
       symbol,
       strategyName,
       exchangeName,
       frameName,
       backtest,
     );
+    if (!signal || signal.timestamp > when.getTime()) {
+      return null;
+    }
+    return signal;
   };
 
   /**
    * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-   * @param timestamp - Current timestamp in milliseconds
+   * `timestamp` doubles as the look-ahead cutoff — a signal whose `timestamp` exceeds
+   * the requested one is treated as not yet visible.
+   * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
    */
   public getMinutesSinceLatestSignalCreated = async (
     timestamp: number,
@@ -366,7 +402,7 @@ export class RecentPersistLiveUtils implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<number | null> => {
-    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest, new Date(timestamp));
     if (!signal) {
       return null;
     }
@@ -410,12 +446,15 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
 
   /**
    * Retrieves the latest in-memory signal for the given context.
+   * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+   * (look-ahead bias protection).
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    */
   public getLatestSignal = async (
     symbol: string,
@@ -423,21 +462,28 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<IPublicSignalRow | null> => {
     const key = CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest);
     lib.loggerService.info(RECENT_MEMORY_LIVE_METHOD_NAME_GET_LATEST_SIGNAL, { key });
-    return this._signals.get(key) ?? null;
+    const signal = this._signals.get(key) ?? null;
+    if (!signal || signal.timestamp > when.getTime()) {
+      return null;
+    }
+    return signal;
   };
 
   /**
    * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-   * @param timestamp - Current timestamp in milliseconds
+   * `timestamp` doubles as the look-ahead cutoff — a signal whose `timestamp` exceeds
+   * the requested one is treated as not yet visible.
+   * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
    */
   public getMinutesSinceLatestSignalCreated = async (
     timestamp: number,
@@ -447,7 +493,7 @@ export class RecentMemoryLiveUtils implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<number | null> => {
-    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    const signal = await this.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest, new Date(timestamp));
     if (!signal) {
       return null;
     }
@@ -488,7 +534,8 @@ export class RecentBacktestAdapter implements IRecentUtils {
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    */
   public getLatestSignal = async (
     symbol: string,
@@ -496,6 +543,7 @@ export class RecentBacktestAdapter implements IRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<IPublicSignalRow | null> => {
     lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
       symbol,
@@ -510,19 +558,22 @@ export class RecentBacktestAdapter implements IRecentUtils {
       exchangeName,
       frameName,
       backtest,
+      when,
     );
   };
 
   /**
    * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-   * Proxies call to the underlying storage adapter.
-   * @param timestamp - Current timestamp in milliseconds
+   * Proxies call to the underlying storage adapter. `timestamp` doubles as the
+   * look-ahead cutoff — a signal whose `timestamp` exceeds the requested one is
+   * treated as not yet visible.
+   * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
    */
   public getMinutesSinceLatestSignalCreated = async (
     timestamp: number,
@@ -540,7 +591,7 @@ export class RecentBacktestAdapter implements IRecentUtils {
       backtest,
       timestamp,
     });
-    const signal = await this._recentBacktestUtils.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    const signal = await this._recentBacktestUtils.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest, new Date(timestamp));
     if (!signal) {
       return null;
     }
@@ -617,7 +668,8 @@ export class RecentLiveAdapter implements IRecentUtils {
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    */
   public getLatestSignal = async (
     symbol: string,
@@ -625,6 +677,7 @@ export class RecentLiveAdapter implements IRecentUtils {
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
+    when: Date,
   ): Promise<IPublicSignalRow | null> => {
     lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
       symbol,
@@ -639,19 +692,22 @@ export class RecentLiveAdapter implements IRecentUtils {
       exchangeName,
       frameName,
       backtest,
+      when,
     );
   };
 
   /**
    * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-   * Proxies call to the underlying storage adapter.
-   * @param timestamp - Current timestamp in milliseconds
+   * Proxies call to the underlying storage adapter. `timestamp` doubles as the
+   * look-ahead cutoff — a signal whose `timestamp` exceeds the requested one is
+   * treated as not yet visible.
+   * @param timestamp - Current timestamp in milliseconds (also serves as look-ahead cutoff)
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    * @param backtest - Flag indicating if the context is backtest or live
-   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
    */
   public getMinutesSinceLatestSignalCreated = async (
     timestamp: number,
@@ -669,7 +725,7 @@ export class RecentLiveAdapter implements IRecentUtils {
       backtest,
       timestamp,
     });
-    const signal = await this._recentLiveUtils.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest);
+    const signal = await this._recentLiveUtils.getLatestSignal(symbol, strategyName, exchangeName, frameName, backtest, new Date(timestamp));
     if (!signal) {
       return null;
     }
@@ -778,11 +834,13 @@ export class RecentAdapter {
   /**
    * Retrieves the latest active signal for the given symbol and context.
    * Searches backtest storage first, then live storage.
+   * Returns null if the stored signal's `timestamp` is greater than the requested `when`
+   * (look-ahead bias protection).
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @param backtest - Flag indicating if the context is backtest or live
-   * @returns The latest signal or null if not found
+   * @param when - Logical timestamp at which the read is happening (look-ahead guard)
+   * @returns The latest signal or null if not found / shadowed by look-ahead
    * @throws Error if RecentAdapter is not enabled
    */
   public getLatestSignal = async (
@@ -792,6 +850,7 @@ export class RecentAdapter {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    when: Date,
   ): Promise<IPublicSignalRow | null> => {
     lib.loggerService.info(RECENT_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
       symbol,
@@ -808,6 +867,7 @@ export class RecentAdapter {
         context.exchangeName,
         context.frameName,
         true,
+        when,
       )
     ) {
       return result;
@@ -819,6 +879,7 @@ export class RecentAdapter {
         context.exchangeName,
         context.frameName,
         false,
+        when,
       )
     ) {
       return result;
@@ -829,10 +890,13 @@ export class RecentAdapter {
   /**
    * Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
    * Searches backtest storage first, then live storage.
-   * @param timestamp - Current timestamp in milliseconds
+   * `when` doubles as the look-ahead cutoff — a signal whose `timestamp` exceeds
+   * `when.getTime()` is treated as not yet visible — and as the "now" against
+   * which elapsed minutes are computed.
    * @param symbol - Trading pair symbol
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @returns Whole minutes since the latest signal was created, or null if no signal found
+   * @param when - Logical timestamp at which the read is happening (look-ahead cutoff + "now")
+   * @returns Whole minutes since the latest signal was created, or null if no signal found / shadowed by look-ahead
    * @throws Error if RecentAdapter is not enabled
    */
   public getMinutesSinceLatestSignalCreated = async (
@@ -842,6 +906,7 @@ export class RecentAdapter {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    when: Date,
   ): Promise<number | null> => {
     lib.loggerService.info(RECENT_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL, {
       symbol,
@@ -858,10 +923,10 @@ export class RecentAdapter {
         context.exchangeName,
         context.frameName,
         true,
+        when,
       )
     ) {
-      const timestamp = await lib.timeMetaService.getTimestamp(symbol, context, true)
-      return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
+      return Math.floor((when.getTime() - signal.timestamp) / (1000 * 60));
     }
     if (
       signal = await RecentLive.getLatestSignal(
@@ -870,10 +935,10 @@ export class RecentAdapter {
         context.exchangeName,
         context.frameName,
         false,
+        when,
       )
     ) {
-      const timestamp = await lib.timeMetaService.getTimestamp(symbol, context, false)
-      return Math.floor((timestamp - signal.timestamp) / (1000 * 60));
+      return Math.floor((when.getTime() - signal.timestamp) / (1000 * 60));
     }
     return null;
   };
