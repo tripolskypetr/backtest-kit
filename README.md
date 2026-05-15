@@ -1731,7 +1731,7 @@ The **backtest-kit-redis-mongo-docker** repository is a production-grade integra
 - ⚛️ **Atomic Read-After-Write**: Single-round-trip `findOneAndUpdate` with unique compound indexes — no E11000 leaks under concurrent writes
 - ⚡ **Redis O(1) Cache**: Per-domain `*CacheService` over `ioredis` for context-key → id lookups; cache miss falls back to Mongo and backfills automatically
 - 🛡️ **Look-Ahead Bias Protection**: Indexed `when: Number` column on every signal-affecting schema, fed by backtest-kit 9.0+'s `when: Date` adapter argument
-- 🐳 **Docker Compose Stack**: Separate compose files for Mongo and Redis plus a main container with `network_mode: host`; configurable via `CC_MONGO_CONNECTION_STRING` / `CC_REDIS_*` env vars
+- 🐳 **Docker Compose Stack**: Separate compose files for Mongo and Redis plus a main container with networks; configurable via `CC_MONGO_CONNECTION_STRING` / `CC_REDIS_*` env vars
 
 #### Use Case
 Drop-in persistence upgrade for any backtest-kit project that outgrows the default file-based `./dump/` layout — strategy code, runners, and the CLI entry point stay unchanged. Use it when you need durable storage, concurrent-safe writes, fast restart recovery, or a containerized deployment for live and paper trading.
