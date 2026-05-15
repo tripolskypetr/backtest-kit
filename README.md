@@ -1648,6 +1648,29 @@ npm install @backtest-kit/ui backtest-kit ccxt
 ```
 
 
+### @backtest-kit/mongo
+
+> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/mongo)** 🧿
+
+The **@backtest-kit/mongo** package replaces the default file-based `./dump/` storage with MongoDB as the source of truth and Redis as an O(1) lookup cache. All 15 `IPersist*Instance` contracts from backtest-kit are implemented — strategy code stays unchanged.
+
+#### Key Features
+- 🗄️ **MongoDB Backend**: All 15 persistence adapters implemented with Mongoose and unique compound indexes
+- ⚡ **O(1) Reads via Redis**: Every context-key lookup goes through ioredis — one `GET` + one `findById`, no B-tree scans
+- 🔒 **Atomic Writes**: `findOneAndUpdate` with `upsert: true` guarantees read-after-write correctness with no race conditions
+- 🛡️ **Look-Ahead Bias Protection**: Adapters that affect signal logic store the simulation timestamp so backtest-kit can enforce temporal correctness
+- 🪦 **Soft Delete**: Measure, Interval, and Memory records carry a `removed` flag instead of being physically deleted
+- 🔌 **Zero Strategy Changes**: Drop `setup()` into your entry point, everything else stays the same
+
+#### Use Case
+Perfect for production deployments where the default file-based storage is a bottleneck or a reliability concern. During backtests, backtest-kit performs thousands of context-keyed reads per second — Redis eliminates the per-request B-tree traversal and makes repeated reads effectively free. MongoDB provides durability, atomic upserts, and a queryable signal history that survives process restarts.
+
+#### Get Started
+```bash
+npm install @backtest-kit/mongo backtest-kit mongoose ioredis
+```
+
+
 ### @backtest-kit/ollama
 
 > **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/ollama)** 🤖
