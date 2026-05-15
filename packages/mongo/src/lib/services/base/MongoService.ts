@@ -1,16 +1,13 @@
 import { connect, ConnectionStates } from "mongoose";
 
-import { CC_MONGO_CONNECTION_STRING } from "../../../config/params";
 import { errorData, singleshot, sleep } from "functools-kit";
 import { inject } from "../../core/di";
 import LoggerService from "./LoggerService";
 import TYPES from "../../core/types";
 
-const getMongoose = singleshot(
-  async () => await connect(CC_MONGO_CONNECTION_STRING)
-);
+import { getMongo } from "../../../config/mongo";
 
-type Mongoose = Awaited<ReturnType<typeof getMongoose>>;
+type Mongoose = Awaited<ReturnType<typeof getMongo>>;
 
 const CONNECTED_STATE: ConnectionStates = 1;
 
@@ -31,7 +28,7 @@ export class MongooseService {
 
   public waitForInit = singleshot(async () => {
     this.loggerService.log("mongooseService waitForInit");
-    const mongoose = await getMongoose();
+    const mongoose = await getMongo();
     if (mongoose.connection.readyState === CONNECTED_STATE) {
       return mongoose;
     }

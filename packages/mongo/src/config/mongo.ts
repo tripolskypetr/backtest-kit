@@ -1,9 +1,9 @@
 import { errorData, singleshot } from "functools-kit";
 import { connect } from "mongoose";
-import { CC_MONGO_CONNECTION_STRING } from "./params";
+import { GLOBAL_CONFIG } from "./params";
 
 export const getMongo = singleshot(async () => {
-  const mongo = await connect(CC_MONGO_CONNECTION_STRING);
+  const mongo = await connect(GLOBAL_CONFIG.CC_MONGO_CONNECTION_STRING);
 
   mongo.connection.on("error", (err) => {
     throw errorData(err);
