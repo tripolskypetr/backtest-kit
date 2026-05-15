@@ -151,7 +151,7 @@ export async function getSignalState<Value extends object = object>(
   if (!MethodContextService.hasContext()) {
     throw new Error("getSignalState requires a method context");
   }
-  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { backtest: isBacktest, when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -170,6 +170,7 @@ export async function getSignalState<Value extends object = object>(
       bucketName,
       initialValue,
       backtest: isBacktest,
+      when,
     });
   }
   if (
@@ -185,6 +186,7 @@ export async function getSignalState<Value extends object = object>(
       bucketName,
       initialValue,
       backtest: isBacktest,
+      when,
     });
   }
   throw new Error(`getSignalState requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);
@@ -244,7 +246,7 @@ export async function setSignalState<Value extends object = object>(
   if (!MethodContextService.hasContext()) {
     throw new Error("setSignalState requires a method context");
   }
-  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { backtest: isBacktest, when } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   const currentPrice =
@@ -263,6 +265,7 @@ export async function setSignalState<Value extends object = object>(
       bucketName,
       initialValue,
       backtest: isBacktest,
+      when,
     });
   }
   if (
@@ -278,6 +281,7 @@ export async function setSignalState<Value extends object = object>(
       bucketName,
       initialValue,
       backtest: isBacktest,
+      when,
     });
   }
   throw new Error(`setSignalState requires a pending or scheduled signal for symbol=${symbol} bucketName=${bucketName}`);

@@ -74,16 +74,24 @@ export interface IStateInstance {
 
   /**
    * Read the current state value.
+   * Returns `initialValue` when the stored `when` is greater than the requested `when`
+   * (look-ahead bias protection).
+   * @param when - Logical timestamp at which the read is happening
    * @returns Current state value
    */
-  getState<Value extends object = object>(): Promise<Value>;
+  getState<Value extends object = object>(when: Date): Promise<Value>;
 
   /**
    * Update the state value.
+   * A write with a smaller `when` overwrites an existing record —
+   * that lets a restarted backtest reset live-written state without breaking live.
+   * The dispatch updater receives the look-ahead-guarded current value
+   * (or `initialValue` when the stored `when` is in the future).
    * @param dispatch - New value or updater function receiving current value
+   * @param when - Logical timestamp this value belongs to
    * @returns Updated state value
    */
-  setState<Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value>;
+  setState<Value extends object = object>(dispatch: Value | Dispatch<Value>, when: Date): Promise<Value>;
 
   /**
    * Releases any resources held by this instance.
@@ -120,6 +128,7 @@ type TStateAdapter = {
 export class StateLocalInstance implements IStateInstance {
 
   _value: object;
+  _when: number = 0;
 
   constructor(
     readonly initialValue: object,
@@ -133,35 +142,47 @@ export class StateLocalInstance implements IStateInstance {
    */
   public waitForInit = singleshot(async (_initial: boolean) => {
     this._value = this.initialValue;
+    this._when = 0;
   });
 
   /**
    * Read the current in-memory state value.
+   * Returns `initialValue` when the stored `when` is greater than the requested `when`
+   * (look-ahead bias protection).
+   * @param when - Logical timestamp at which the read is happening
    * @returns Current state value
    */
-  public async getState<Value extends object = object>(): Promise<Value> {
+  public async getState<Value extends object = object>(when: Date): Promise<Value> {
     swarm.loggerService.debug(STATE_LOCAL_INSTANCE_METHOD_NAME_GET, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
+    if (this._when > when.getTime()) {
+      return <Value>this.initialValue;
+    }
     return <Value>this._value;
   }
 
   /**
    * Update the in-memory state value.
+   * Records `when` so future reads with a smaller `when` see `initialValue`.
+   * The dispatch updater receives the look-ahead-guarded current value.
    * @param dispatch - New value or updater function receiving current value
+   * @param when - Logical timestamp this value belongs to
    * @returns Updated state value
    */
-  public setState = queued(async <Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value> => {
+  public setState = queued(async <Value extends object = object>(dispatch: Value | Dispatch<Value>, when: Date): Promise<Value> => {
     swarm.loggerService.debug(STATE_LOCAL_INSTANCE_METHOD_NAME_SET, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
     if (typeof dispatch === "function") {
-      this._value = await dispatch(<Value>this._value);
+      const prev = this._when > when.getTime() ? <Value>this.initialValue : <Value>this._value;
+      this._value = await dispatch(prev);
     } else {
       this._value = dispatch;
     }
+    this._when = when.getTime();
     return <Value>this._value;
   });
 
@@ -200,7 +221,7 @@ export class StateDummyInstance implements IStateInstance {
    * No-op read - always returns initialValue.
    * @returns initialValue
    */
-  public async getState<Value extends object = object>(): Promise<Value> {
+  public async getState<Value extends object = object>(_when: Date): Promise<Value> {
     return <Value>this.initialValue;
   }
 
@@ -208,7 +229,7 @@ export class StateDummyInstance implements IStateInstance {
    * No-op write - discards the value and returns initialValue.
    * @returns initialValue
    */
-  public async setState<Value extends object = object>(_dispatch: Value | Dispatch<Value>): Promise<Value> {
+  public async setState<Value extends object = object>(_dispatch: Value | Dispatch<Value>, _when: Date): Promise<Value> {
     return <Value>this.initialValue;
   }
 
@@ -235,6 +256,7 @@ export class StateDummyInstance implements IStateInstance {
 export class StatePersistInstance implements IStateInstance {
 
   _value: object;
+  _when: number = 0;
 
   constructor(
     readonly initialValue: object,
@@ -256,41 +278,55 @@ export class StatePersistInstance implements IStateInstance {
     const data = await PersistStateAdapter.readStateData(this.signalId, this.bucketName);
     if (data) {
       this._value = data.data;
+      this._when = data.when;
       return;
     }
     this._value = this.initialValue;
+    this._when = 0;
   });
 
   /**
    * Read the current persisted state value.
+   * Returns `initialValue` when the stored `when` is greater than the requested `when`
+   * (look-ahead bias protection).
+   * @param when - Logical timestamp at which the read is happening
    * @returns Current state value
    */
-  public async getState<Value extends object = object>(): Promise<Value> {
+  public async getState<Value extends object = object>(when: Date): Promise<Value> {
     swarm.loggerService.debug(STATE_PERSIST_INSTANCE_METHOD_NAME_GET, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
+    if (this._when > when.getTime()) {
+      return <Value>this.initialValue;
+    }
     return <Value>this._value;
   }
 
   /**
    * Update state and persist to disk atomically.
+   * A write with a smaller `when` overwrites an existing record — that lets a
+   * restarted backtest reset live-written state without breaking live.
+   * The dispatch updater receives the look-ahead-guarded current value.
    * @param dispatch - New value or updater function receiving current value
+   * @param when - Logical timestamp this value belongs to
    * @returns Updated state value
    */
-  public setState = queued(async <Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value> => {
+  public setState = queued(async <Value extends object = object>(dispatch: Value | Dispatch<Value>, when: Date): Promise<Value> => {
     swarm.loggerService.debug(STATE_PERSIST_INSTANCE_METHOD_NAME_SET, {
       signalId: this.signalId,
       bucketName: this.bucketName,
     });
     if (typeof dispatch === "function") {
-      this._value = await dispatch(<Value>this._value);
+      const prev = this._when > when.getTime() ? <Value>this.initialValue : <Value>this._value;
+      this._value = await dispatch(prev);
     } else {
       this._value = dispatch;
     }
+    this._when = when.getTime();
     const id = CREATE_KEY_FN(this.signalId, this.bucketName);
     await PersistStateAdapter.writeStateData(
-      { id, data: this._value },
+      { id, data: this._value, when: this._when },
       this.signalId,
       this.bucketName,
     );
@@ -354,9 +390,10 @@ export class StateBacktestAdapter implements TStateAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
+   * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Current state value
    */
-  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
+  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object, when: Date }): Promise<Value> => {
     swarm.loggerService.debug(STATE_BACKTEST_ADAPTER_METHOD_NAME_GET, {
       signalId: dto.signalId,
       bucketName: dto.bucketName,
@@ -365,7 +402,7 @@ export class StateBacktestAdapter implements TStateAdapter {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
     await instance.waitForInit(isInitial);
-    return await instance.getState();
+    return await instance.getState(dto.when);
   };
 
   /**
@@ -374,9 +411,10 @@ export class StateBacktestAdapter implements TStateAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
+   * @param dto.when - Logical timestamp this value belongs to
    * @returns Updated state value
    */
-  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
+  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object, when: Date }): Promise<Value> => {
     swarm.loggerService.debug(STATE_BACKTEST_ADAPTER_METHOD_NAME_SET, {
       signalId: dto.signalId,
       bucketName: dto.bucketName,
@@ -385,7 +423,7 @@ export class StateBacktestAdapter implements TStateAdapter {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
     await instance.waitForInit(isInitial);
-    return await instance.setState(dispatch);
+    return await instance.setState(dispatch, dto.when);
   };
 
   /**
@@ -481,9 +519,10 @@ export class StateLiveAdapter implements TStateAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
+   * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Current state value
    */
-  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
+  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object, when: Date }): Promise<Value> => {
     swarm.loggerService.debug(STATE_LIVE_ADAPTER_METHOD_NAME_GET, {
       signalId: dto.signalId,
       bucketName: dto.bucketName,
@@ -492,7 +531,7 @@ export class StateLiveAdapter implements TStateAdapter {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
     await instance.waitForInit(isInitial);
-    return await instance.getState();
+    return await instance.getState(dto.when);
   };
 
   /**
@@ -501,9 +540,10 @@ export class StateLiveAdapter implements TStateAdapter {
    * @param dto.signalId - Signal identifier
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
+   * @param dto.when - Logical timestamp this value belongs to
    * @returns Updated state value
    */
-  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object }): Promise<Value> => {
+  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object, when: Date }): Promise<Value> => {
     swarm.loggerService.debug(STATE_LIVE_ADAPTER_METHOD_NAME_SET, {
       signalId: dto.signalId,
       bucketName: dto.bucketName,
@@ -512,7 +552,7 @@ export class StateLiveAdapter implements TStateAdapter {
     const isInitial = !this.getInstance.has(key);
     const instance = this.getInstance(dto.signalId, dto.bucketName, dto.initialValue);
     await instance.waitForInit(isInitial);
-    return await instance.setState(dispatch);
+    return await instance.setState(dispatch, dto.when);
   };
 
   /**
@@ -622,10 +662,11 @@ export class StateAdapter {
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
    * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
    * @returns Current state value
    * @throws Error if adapter is not enabled
    */
-  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object, backtest: boolean }): Promise<Value> => {
+  public getState = async <Value extends object = object>(dto: { signalId: string, bucketName: BucketName, initialValue: object, backtest: boolean, when: Date }): Promise<Value> => {
     if (!this.enable.hasValue()) {
       throw new Error("StateAdapter is not enabled. Call enable() first.");
     }
@@ -648,10 +689,11 @@ export class StateAdapter {
    * @param dto.bucketName - Bucket name
    * @param dto.initialValue - Default value when no persisted state exists
    * @param dto.backtest - Flag indicating if the context is backtest or live
+   * @param dto.when - Logical timestamp this value belongs to
    * @returns Updated state value
    * @throws Error if adapter is not enabled
    */
-  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object, backtest: boolean }): Promise<Value> => {
+  public setState = async <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string, bucketName: BucketName, initialValue: object, backtest: boolean, when: Date }): Promise<Value> => {
     if (!this.enable.hasValue()) {
       throw new Error("StateAdapter is not enabled. Call enable() first.");
     }

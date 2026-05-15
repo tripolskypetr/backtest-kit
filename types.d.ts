@@ -9593,15 +9593,23 @@ interface IStateInstance {
     waitForInit(initial: boolean): Promise<void>;
     /**
      * Read the current state value.
+     * Returns `initialValue` when the stored `when` is greater than the requested `when`
+     * (look-ahead bias protection).
+     * @param when - Logical timestamp at which the read is happening
      * @returns Current state value
      */
-    getState<Value extends object = object>(): Promise<Value>;
+    getState<Value extends object = object>(when: Date): Promise<Value>;
     /**
      * Update the state value.
+     * A write with a smaller `when` overwrites an existing record —
+     * that lets a restarted backtest reset live-written state without breaking live.
+     * The dispatch updater receives the look-ahead-guarded current value
+     * (or `initialValue` when the stored `when` is in the future).
      * @param dispatch - New value or updater function receiving current value
+     * @param when - Logical timestamp this value belongs to
      * @returns Updated state value
      */
-    setState<Value extends object = object>(dispatch: Value | Dispatch<Value>): Promise<Value>;
+    setState<Value extends object = object>(dispatch: Value | Dispatch<Value>, when: Date): Promise<Value>;
     /**
      * Releases any resources held by this instance.
      */
@@ -9650,12 +9658,14 @@ declare class StateBacktestAdapter implements TStateAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.initialValue - Default value when no persisted state exists
+     * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Current state value
      */
     getState: <Value extends object = object>(dto: {
         signalId: string;
         bucketName: BucketName;
         initialValue: object;
+        when: Date;
     }) => Promise<Value>;
     /**
      * Update the state value for a signal.
@@ -9663,12 +9673,14 @@ declare class StateBacktestAdapter implements TStateAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.initialValue - Default value when no persisted state exists
+     * @param dto.when - Logical timestamp this value belongs to
      * @returns Updated state value
      */
     setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: {
         signalId: string;
         bucketName: BucketName;
         initialValue: object;
+        when: Date;
     }) => Promise<Value>;
     /**
      * Switches to in-memory adapter (default).
@@ -9727,12 +9739,14 @@ declare class StateLiveAdapter implements TStateAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.initialValue - Default value when no persisted state exists
+     * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Current state value
      */
     getState: <Value extends object = object>(dto: {
         signalId: string;
         bucketName: BucketName;
         initialValue: object;
+        when: Date;
     }) => Promise<Value>;
     /**
      * Update the state value for a signal.
@@ -9740,12 +9754,14 @@ declare class StateLiveAdapter implements TStateAdapter {
      * @param dto.signalId - Signal identifier
      * @param dto.bucketName - Bucket name
      * @param dto.initialValue - Default value when no persisted state exists
+     * @param dto.when - Logical timestamp this value belongs to
      * @returns Updated state value
      */
     setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: {
         signalId: string;
         bucketName: BucketName;
         initialValue: object;
+        when: Date;
     }) => Promise<Value>;
     /**
      * Switches to in-memory adapter.
@@ -9804,6 +9820,7 @@ declare class StateAdapter {
      * @param dto.bucketName - Bucket name
      * @param dto.initialValue - Default value when no persisted state exists
      * @param dto.backtest - Flag indicating if the context is backtest or live
+     * @param dto.when - Logical timestamp at which the read is happening (look-ahead guard)
      * @returns Current state value
      * @throws Error if adapter is not enabled
      */
@@ -9812,6 +9829,7 @@ declare class StateAdapter {
         bucketName: BucketName;
         initialValue: object;
         backtest: boolean;
+        when: Date;
     }) => Promise<Value>;
     /**
      * Update the state value for a signal.
@@ -9821,6 +9839,7 @@ declare class StateAdapter {
      * @param dto.bucketName - Bucket name
      * @param dto.initialValue - Default value when no persisted state exists
      * @param dto.backtest - Flag indicating if the context is backtest or live
+     * @param dto.when - Logical timestamp this value belongs to
      * @returns Updated state value
      * @throws Error if adapter is not enabled
      */
@@ -9829,6 +9848,7 @@ declare class StateAdapter {
         bucketName: BucketName;
         initialValue: object;
         backtest: boolean;
+        when: Date;
     }) => Promise<Value>;
 }
 /**
@@ -15377,6 +15397,7 @@ declare const PersistRecentAdapter: PersistRecentUtils;
 type StateData = {
     id: string;
     data: object;
+    when: number;
 };
 /**
  * Per-context state persistence instance interface.

@@ -54,7 +54,7 @@ const CREATE_SET_STATE_FN =
     if (!MethodContextService.hasContext()) {
       throw new Error("createSignalState requires a method context");
     }
-    const { backtest: isBacktest } =
+    const { backtest: isBacktest, when } =
       lib.executionContextService.context;
     const { exchangeName, frameName, strategyName } =
       lib.methodContextService.context;
@@ -74,6 +74,7 @@ const CREATE_SET_STATE_FN =
         bucketName: params.bucketName,
         initialValue: params.initialValue,
         signalId: signal.id,
+        when,
       });
     }
     if (
@@ -89,6 +90,7 @@ const CREATE_SET_STATE_FN =
         bucketName: params.bucketName,
         initialValue: params.initialValue,
         signalId: signal.id,
+        when,
       });
     }
     throw new Error(
@@ -105,7 +107,7 @@ const CREATE_GET_STATE_FN =
     if (!MethodContextService.hasContext()) {
       throw new Error("createSignalState requires a method context");
     }
-    const { backtest: isBacktest } =
+    const { backtest: isBacktest, when } =
       lib.executionContextService.context;
     const { exchangeName, frameName, strategyName } =
       lib.methodContextService.context;
@@ -125,6 +127,7 @@ const CREATE_GET_STATE_FN =
         bucketName: params.bucketName,
         initialValue: params.initialValue,
         signalId: signal.id,
+        when,
       });
     }
     if (
@@ -140,6 +143,7 @@ const CREATE_GET_STATE_FN =
         bucketName: params.bucketName,
         initialValue: params.initialValue,
         signalId: signal.id,
+        when,
       });
     }
     throw new Error(

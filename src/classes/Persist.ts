@@ -4650,6 +4650,7 @@ export const PersistRecentAdapter = new PersistRecentUtils();
 export type StateData = {
   id: string;
   data: object;
+  when: number;
 };
 
 /**
