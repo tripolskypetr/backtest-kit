@@ -102,7 +102,7 @@ const HANDLE_PROFIT_FN = async (
   }
 
   if (shouldPersist) {
-    await self._persistState(symbol, data.strategyName, data.exchangeName, self.params.signalId);
+    await self._persistState(symbol, data.strategyName, data.exchangeName, data.frameName, self.params.signalId);
   }
 };
 
@@ -182,7 +182,7 @@ const HANDLE_LOSS_FN = async (
   }
 
   if (shouldPersist) {
-    await self._persistState(symbol, data.strategyName, data.exchangeName, self.params.signalId);
+    await self._persistState(symbol, data.strategyName, data.exchangeName, data.frameName, self.params.signalId);
   }
 };
 
@@ -200,7 +200,7 @@ const HANDLE_LOSS_FN = async (
  * @param backtest - True if backtest mode, false if live mode
  * @param self - ClientPartial instance reference
  */
-const WAIT_FOR_INIT_FN = async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, backtest: boolean, self: ClientPartial) => {
+const WAIT_FOR_INIT_FN = async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: string, backtest: boolean, self: ClientPartial) => {
   self.params.logger.debug("ClientPartial waitForInit", {
     symbol,
     backtest,
@@ -222,7 +222,23 @@ const WAIT_FOR_INIT_FN = async (symbol: string, strategyName: StrategyName, exch
     return;
   }
 
-  const partialData = await PersistPartialAdapter.readPartialData(symbol, strategyName, self.params.signalId, exchangeName);
+  const timestamp = await self.params.time.getTimestamp(
+    symbol,
+    {
+      strategyName,
+      exchangeName,
+      frameName,
+    },
+    self.params.backtest,
+  )
+
+  const partialData = await PersistPartialAdapter.readPartialData(
+    symbol,
+    strategyName, 
+    self.params.signalId, 
+    exchangeName,
+    new Date(timestamp)
+  );
 
   for (const [signalId, data] of Object.entries(partialData)) {
     const state: IPartialState = {
@@ -335,7 +351,7 @@ export class ClientPartial implements IPartial {
    * ```
    */
   public waitForInit = singleshot(
-    async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, backtest: boolean) => await WAIT_FOR_INIT_FN(symbol, strategyName, exchangeName, backtest, this)
+    async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: string, backtest: boolean) => await WAIT_FOR_INIT_FN(symbol, strategyName, exchangeName, frameName, backtest, this)
   );
 
   /**
@@ -354,7 +370,7 @@ export class ClientPartial implements IPartial {
    * @param signalId - Signal identifier
    * @returns Promise that resolves when persistence is complete
    */
-  public async _persistState(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, signalId: string): Promise<void> {
+  public async _persistState(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: string, signalId: string): Promise<void> {
     if (this.params.backtest) {
       return;
     }
@@ -371,7 +387,23 @@ export class ClientPartial implements IPartial {
         lossLevels: Array.from(state.lossLevels),
       };
     }
-    await PersistPartialAdapter.writePartialData(partialData, symbol, strategyName, signalId, exchangeName);
+    const timestamp = await this.params.time.getTimestamp(
+      symbol,
+      {
+        strategyName,
+        exchangeName,
+        frameName,
+      },
+      this.params.backtest,
+    )
+    await PersistPartialAdapter.writePartialData(
+      partialData, 
+      symbol, 
+      strategyName, 
+      signalId, 
+      exchangeName,
+      new Date(timestamp),
+    );
   }
 
   /**
@@ -538,7 +570,7 @@ export class ClientPartial implements IPartial {
       );
     }
     this._states.delete(data.id);
-    await this._persistState(symbol, data.strategyName, data.exchangeName, this.params.signalId);
+    await this._persistState(symbol, data.strategyName, data.exchangeName, data.frameName, this.params.signalId);
   }
 }
 

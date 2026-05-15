@@ -1,3 +1,4 @@
+import TimeMetaService from "../lib/services/meta/TimeMetaService";
 import { ExchangeName } from "./Exchange.interface";
 import { FrameName } from "./Frame.interface";
 import { ILogger } from "./Logger.interface";
@@ -47,6 +48,9 @@ export interface IBreakevenParams {
    * Logger instance for debug and info messages.
    */
   logger: ILogger;
+
+  /** Time context service (when date in backtest/live to prevent look ahead bias) */
+  time: TimeMetaService;
 
   /**
    * True if backtest mode, false if live mode.

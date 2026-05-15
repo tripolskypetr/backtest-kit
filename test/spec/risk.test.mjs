@@ -6,6 +6,7 @@ import {
   lib,
   PersistRiskAdapter,
   addStrategySchema,
+  runInMockContext
 } from "../../build/index.mjs";
 import internal from "stream";
 
@@ -41,6 +42,7 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   let rejectedSymbol = null;
   let rejectedReason = null;
 
@@ -158,12 +160,14 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
       rejectedReason
     )}`
   );
+  }, {});
 });
 
 test("Risk validation allows signal when within limits", async ({
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   let allowedSymbol = null;
 
   addRiskSchema({
@@ -251,12 +255,14 @@ test("Risk validation allows signal when within limits", async ({
   fail(
     `Expected approval but got result: ${result}, allowedSymbol: ${allowedSymbol}`
   );
+  }, {});
 });
 
 test("Risk addSignal and removeSignal update activePositionCount", async ({
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   let finalCount = -1;
 
   addRiskSchema({
@@ -381,12 +387,14 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({
   }
 
   fail(`Expected count 2 after removing 1 signal, got ${finalCount}`);
+  }, {});
 });
 
 test("Risk validation with function (not object) works", async ({
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   let validationCalled = false;
 
   addRiskSchema({
@@ -449,12 +457,14 @@ test("Risk validation with function (not object) works", async ({
   }
 
   fail(`Validation called: ${validationCalled}, result: ${result}`);
+  }, {});
 });
 
 test("Risk validation receives all IRiskCheckArgs fields", async ({
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   let receivedPayload = null;
 
   addRiskSchema({
@@ -508,9 +518,11 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({
   }
 
   fail(`Invalid payload received: ${JSON.stringify(receivedPayload)}`);
+  }, {});
 });
 
 test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
+  await runInMockContext(async () => {
   let rejectedSymbol = null;
 
   addRiskSchema({
@@ -595,12 +607,14 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
   fail(
     `BTC result: ${btcResult}, DOGE result: ${dogeResult}, rejected: ${rejectedSymbol}`
   );
+  }, {});
 });
 
 test("Risk with no validations always allows signals", async ({
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   addRiskSchema({
     riskName: "test-no-validations",
   });
@@ -638,12 +652,14 @@ test("Risk with no validations always allows signals", async ({
   }
 
   fail("Risk with no validations should allow signals");
+  }, {});
 });
 
 test("Risk activePositionCount is isolated per riskName", async ({
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   let risk1Count = -1;
   let risk2Count = -1;
 
@@ -765,12 +781,14 @@ test("Risk activePositionCount is isolated per riskName", async ({
   fail(
     `Expected risk1: 2, risk2: 1, got risk1: ${risk1Count}, risk2: ${risk2Count}`
   );
+  }, {});
 });
 
 test("Risk removeSignal with same strategyName:symbol key", async ({
   pass,
   fail,
 }) => {
+  await runInMockContext(async () => {
   let finalCount = -1;
 
   addRiskSchema({
@@ -864,6 +882,7 @@ test("Risk removeSignal with same strategyName:symbol key", async ({
   }
 
   fail(`Expected count 0 after removing signal, got ${finalCount}`);
+  }, {});
 });
 
 test("PersistRiskAdapter.readPositionData returns empty array when no data exists", async ({

@@ -143,6 +143,95 @@ interface IFrame {
 type FrameName = string;
 
 /**
+ * Service for tracking the latest candle timestamp per symbol-strategy-exchange-frame combination.
+ *
+ * Maintains a memoized BehaviorSubject per unique key that is updated on every strategy tick
+ * by StrategyConnectionService. Consumers can synchronously read the last known timestamp or
+ * await the first value if none has arrived yet.
+ *
+ * Primary use case: providing the current candle time outside of a tick execution context,
+ * e.g., when a command is triggered between ticks.
+ *
+ * Features:
+ * - One BehaviorSubject per (symbol, strategyName, exchangeName, frameName, backtest) key
+ * - Falls back to ExecutionContextService.context.when when called inside an execution context
+ * - Waits up to LISTEN_TIMEOUT ms for the first timestamp if none is cached yet
+ * - clear() disposes the BehaviorSubject for a single key or all keys
+ *
+ * Architecture:
+ * - Registered as singleton in DI container
+ * - Updated by StrategyConnectionService after each tick
+ * - Cleared by Backtest/Live/Walker at strategy start to prevent stale data
+ *
+ * @example
+ * ```typescript
+ * const ts = await backtest.timeMetaService.getTimestamp("BTCUSDT", context, false);
+ * ```
+ */
+declare class TimeMetaService {
+    private readonly loggerService;
+    private readonly executionContextService;
+    /**
+     * Memoized factory for BehaviorSubject streams keyed by (symbol, strategyName, exchangeName, frameName, backtest).
+     *
+     * Each subject holds the latest createdAt timestamp emitted by the strategy iterator for that key.
+     * Instances are cached until clear() is called.
+     */
+    private getSource;
+    /**
+     * Returns the current candle timestamp (in milliseconds) for the given symbol and context.
+     *
+     * When called inside an execution context (i.e., during a signal handler or action),
+     * reads the timestamp directly from ExecutionContextService.context.when.
+     * Otherwise, reads the last value from the cached BehaviorSubject. If no value has
+     * been emitted yet, waits up to LISTEN_TIMEOUT ms for the first tick before throwing.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns Unix timestamp in milliseconds of the latest processed candle
+     * @throws When no timestamp arrives within LISTEN_TIMEOUT ms
+     */
+    getTimestamp: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => Promise<number>;
+    /**
+     * Pushes a new timestamp value into the BehaviorSubject for the given key.
+     *
+     * Called by StrategyConnectionService after each strategy tick to keep
+     * the cached timestamp up to date.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param timestamp - The createdAt timestamp from the tick (milliseconds)
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     */
+    next: (symbol: string, timestamp: number, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => Promise<void>;
+    /**
+     * Disposes cached BehaviorSubject(s) to free memory and prevent stale data.
+     *
+     * When called without arguments, clears all memoized timestamp streams.
+     * When called with a payload, clears only the stream for the specified key.
+     * Should be called at strategy start (Backtest/Live/Walker) to reset state.
+     *
+     * @param payload - Optional key to clear a single stream; omit to clear all
+     */
+    clear: (payload?: {
+        symbol: string;
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+        backtest: boolean;
+    }) => void;
+}
+
+/**
  * Risk rejection result type.
  * Can be void, null, or an IRiskRejectionResult object.
  */
@@ -281,8 +370,8 @@ interface IRiskParams extends IRiskSchema {
     exchangeName: ExchangeName;
     /** Logger service for debug output */
     logger: ILogger;
-    /** Execution context service (symbol, when, backtest flag) */
-    execution: TExecutionContextService;
+    /** Time context service (when date in backtest/live to prevent look ahead bias) */
+    time: TimeMetaService;
     /** True if backtest mode, false if live mode */
     backtest: boolean;
     /**
@@ -13161,16 +13250,18 @@ interface IPersistRiskInstance {
     /**
      * Read persisted active positions for this context.
      *
+     * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
      * @returns Promise resolving to position entries (empty array if none persisted)
      */
-    readPositionData(): Promise<RiskData>;
+    readPositionData(when: Date): Promise<RiskData>;
     /**
      * Write active positions for this context.
      *
      * @param riskRow - Position entries to persist
+     * @param when - Logical timestamp this write belongs to (reserved for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writePositionData(riskRow: RiskData): Promise<void>;
+    writePositionData(riskRow: RiskData, when: Date): Promise<void>;
 }
 /**
  * Default file-based implementation of IPersistRiskInstance.
@@ -13214,14 +13305,15 @@ declare class PersistRiskInstance implements IPersistRiskInstance {
      *
      * @returns Promise resolving to positions (empty array if none persisted)
      */
-    readPositionData(): Promise<RiskData>;
+    readPositionData(_when: Date): Promise<RiskData>;
     /**
      * Writes the positions array using the fixed STORAGE_KEY.
      *
      * @param riskRow - Position entries to persist
+     * @param when - Logical timestamp (reserved for API consistency; not used)
      * @returns Promise that resolves when write is complete
      */
-    writePositionData(riskRow: RiskData): Promise<void>;
+    writePositionData(riskRow: RiskData, _when: Date): Promise<void>;
 }
 /**
  * Constructor type for IPersistRiskInstance.
@@ -13262,9 +13354,10 @@ declare class PersistRiskUtils {
      *
      * @param riskName - Risk profile identifier
      * @param exchangeName - Exchange identifier
+     * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
      * @returns Promise resolving to position entries (empty array if none)
      */
-    readPositionData: (riskName: RiskName, exchangeName: ExchangeName) => Promise<RiskData>;
+    readPositionData: (riskName: RiskName, exchangeName: ExchangeName, when: Date) => Promise<RiskData>;
     /**
      * Writes active positions for the given risk context.
      * Lazily initializes the instance on first access.
@@ -13272,9 +13365,10 @@ declare class PersistRiskUtils {
      * @param riskRow - Position entries to persist
      * @param riskName - Risk profile identifier
      * @param exchangeName - Exchange identifier
+     * @param when - Logical timestamp this write belongs to (reserved for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writePositionData: (riskRow: RiskData, riskName: RiskName, exchangeName: ExchangeName) => Promise<void>;
+    writePositionData: (riskRow: RiskData, riskName: RiskName, exchangeName: ExchangeName, when: Date) => Promise<void>;
     /**
      * Clears the memoized instance cache.
      * Call when process.cwd() changes between strategy iterations.
@@ -13503,17 +13597,19 @@ interface IPersistPartialInstance {
      * Read persisted partial data for a specific signal.
      *
      * @param signalId - Signal identifier
+     * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
      * @returns Promise resolving to partial data record (empty object if none persisted)
      */
-    readPartialData(signalId: string): Promise<PartialData>;
+    readPartialData(signalId: string, when: Date): Promise<PartialData>;
     /**
      * Write partial data for a specific signal.
      *
      * @param data - Partial data record to persist
      * @param signalId - Signal identifier
+     * @param when - Logical timestamp this write belongs to (reserved for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writePartialData(data: PartialData, signalId: string): Promise<void>;
+    writePartialData(data: PartialData, signalId: string, when: Date): Promise<void>;
 }
 /**
  * Default file-based implementation of IPersistPartialInstance.
@@ -13558,15 +13654,16 @@ declare class PersistPartialInstance implements IPersistPartialInstance {
      * @param signalId - Signal identifier
      * @returns Promise resolving to partial data record (empty object if not found)
      */
-    readPartialData(signalId: string): Promise<PartialData>;
+    readPartialData(signalId: string, _when: Date): Promise<PartialData>;
     /**
      * Writes the partial data for the given signal using `signalId` as the entity key.
      *
      * @param data - Partial data record to persist
      * @param signalId - Signal identifier
+     * @param when - Logical timestamp (reserved for API consistency; not used)
      * @returns Promise that resolves when write is complete
      */
-    writePartialData(data: PartialData, signalId: string): Promise<void>;
+    writePartialData(data: PartialData, signalId: string, _when: Date): Promise<void>;
 }
 /**
  * Constructor type for IPersistPartialInstance.
@@ -13610,9 +13707,10 @@ declare class PersistPartialUtils {
      * @param strategyName - Strategy identifier
      * @param signalId - Signal identifier
      * @param exchangeName - Exchange identifier
+     * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
      * @returns Promise resolving to partial data record (empty object if none)
      */
-    readPartialData: (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<PartialData>;
+    readPartialData: (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName, when: Date) => Promise<PartialData>;
     /**
      * Writes partial data for the given context and signalId.
      * Lazily initializes the instance on first access.
@@ -13622,9 +13720,10 @@ declare class PersistPartialUtils {
      * @param strategyName - Strategy identifier
      * @param signalId - Signal identifier
      * @param exchangeName - Exchange identifier
+     * @param when - Logical timestamp this write belongs to (reserved for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writePartialData: (partialData: PartialData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<void>;
+    writePartialData: (partialData: PartialData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName, when: Date) => Promise<void>;
     /**
      * Clears the memoized instance cache.
      * Call when process.cwd() changes between strategy iterations.
@@ -13683,17 +13782,19 @@ interface IPersistBreakevenInstance {
      * Read persisted breakeven data for a specific signal.
      *
      * @param signalId - Signal identifier
+     * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
      * @returns Promise resolving to breakeven data record (empty object if none persisted)
      */
-    readBreakevenData(signalId: string): Promise<BreakevenData>;
+    readBreakevenData(signalId: string, when: Date): Promise<BreakevenData>;
     /**
      * Write breakeven data for a specific signal.
      *
      * @param data - Breakeven data record to persist
      * @param signalId - Signal identifier
+     * @param when - Logical timestamp this write belongs to (reserved for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeBreakevenData(data: BreakevenData, signalId: string): Promise<void>;
+    writeBreakevenData(data: BreakevenData, signalId: string, when: Date): Promise<void>;
 }
 /**
  * Default file-based implementation of IPersistBreakevenInstance.
@@ -13738,15 +13839,16 @@ declare class PersistBreakevenInstance implements IPersistBreakevenInstance {
      * @param signalId - Signal identifier
      * @returns Promise resolving to breakeven data record (empty object if not found)
      */
-    readBreakevenData(signalId: string): Promise<BreakevenData>;
+    readBreakevenData(signalId: string, _when: Date): Promise<BreakevenData>;
     /**
      * Writes the breakeven data for the given signal using `signalId` as the entity key.
      *
      * @param data - Breakeven data record to persist
      * @param signalId - Signal identifier
+     * @param when - Logical timestamp (reserved for API consistency; not used)
      * @returns Promise that resolves when write is complete
      */
-    writeBreakevenData(data: BreakevenData, signalId: string): Promise<void>;
+    writeBreakevenData(data: BreakevenData, signalId: string, _when: Date): Promise<void>;
 }
 /**
  * Constructor type for IPersistBreakevenInstance.
@@ -13810,9 +13912,10 @@ declare class PersistBreakevenUtils {
      * @param strategyName - Strategy identifier
      * @param signalId - Signal identifier
      * @param exchangeName - Exchange identifier
+     * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
      * @returns Promise resolving to breakeven data record (empty object if none)
      */
-    readBreakevenData: (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<BreakevenData>;
+    readBreakevenData: (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName, when: Date) => Promise<BreakevenData>;
     /**
      * Writes breakeven data for the given context and signalId.
      * Lazily initializes the instance on first access.
@@ -13822,9 +13925,10 @@ declare class PersistBreakevenUtils {
      * @param strategyName - Strategy identifier
      * @param signalId - Signal identifier
      * @param exchangeName - Exchange identifier
+     * @param when - Logical timestamp this write belongs to (reserved for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeBreakevenData: (breakevenData: BreakevenData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<void>;
+    writeBreakevenData: (breakevenData: BreakevenData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName, when: Date) => Promise<void>;
     /**
      * Clears the memoized instance cache.
      * Call when process.cwd() changes between strategy iterations.
@@ -28907,6 +29011,7 @@ declare class ClientRisk implements IRisk {
         strategyName: StrategyName;
         riskName: RiskName;
         exchangeName: ExchangeName;
+        frameName: string;
     }): Promise<void>;
     /**
      * Checks if a signal should be allowed based on risk limits.
@@ -29330,9 +29435,7 @@ declare class RiskConnectionService implements TRisk$1 {
         setLogger: (logger: ILogger) => void;
     };
     readonly riskSchemaService: RiskSchemaService;
-    readonly executionContextService: {
-        readonly context: IExecutionContext;
-    };
+    readonly timeMetaService: TimeMetaService;
     /**
      * Action core service injected from DI container.
      */
@@ -29492,6 +29595,7 @@ declare class PartialConnectionService implements IPartial {
      * Action core service injected from DI container.
      */
     readonly actionCoreService: ActionCoreService;
+    readonly timeMetaService: TimeMetaService;
     /**
      * Memoized factory function for ClientPartial instances.
      *
@@ -29608,6 +29712,7 @@ declare class BreakevenConnectionService implements IBreakeven {
      * Action core service injected from DI container.
      */
     readonly actionCoreService: ActionCoreService;
+    readonly timeMetaService: TimeMetaService;
     /**
      * Memoized factory function for ClientBreakeven instances.
      *
@@ -29651,95 +29756,6 @@ declare class BreakevenConnectionService implements IBreakeven {
      * @returns Promise that resolves when clear is complete
      */
     clear: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => Promise<void>;
-}
-
-/**
- * Service for tracking the latest candle timestamp per symbol-strategy-exchange-frame combination.
- *
- * Maintains a memoized BehaviorSubject per unique key that is updated on every strategy tick
- * by StrategyConnectionService. Consumers can synchronously read the last known timestamp or
- * await the first value if none has arrived yet.
- *
- * Primary use case: providing the current candle time outside of a tick execution context,
- * e.g., when a command is triggered between ticks.
- *
- * Features:
- * - One BehaviorSubject per (symbol, strategyName, exchangeName, frameName, backtest) key
- * - Falls back to ExecutionContextService.context.when when called inside an execution context
- * - Waits up to LISTEN_TIMEOUT ms for the first timestamp if none is cached yet
- * - clear() disposes the BehaviorSubject for a single key or all keys
- *
- * Architecture:
- * - Registered as singleton in DI container
- * - Updated by StrategyConnectionService after each tick
- * - Cleared by Backtest/Live/Walker at strategy start to prevent stale data
- *
- * @example
- * ```typescript
- * const ts = await backtest.timeMetaService.getTimestamp("BTCUSDT", context, false);
- * ```
- */
-declare class TimeMetaService {
-    private readonly loggerService;
-    private readonly executionContextService;
-    /**
-     * Memoized factory for BehaviorSubject streams keyed by (symbol, strategyName, exchangeName, frameName, backtest).
-     *
-     * Each subject holds the latest createdAt timestamp emitted by the strategy iterator for that key.
-     * Instances are cached until clear() is called.
-     */
-    private getSource;
-    /**
-     * Returns the current candle timestamp (in milliseconds) for the given symbol and context.
-     *
-     * When called inside an execution context (i.e., during a signal handler or action),
-     * reads the timestamp directly from ExecutionContextService.context.when.
-     * Otherwise, reads the last value from the cached BehaviorSubject. If no value has
-     * been emitted yet, waits up to LISTEN_TIMEOUT ms for the first tick before throwing.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     * @returns Unix timestamp in milliseconds of the latest processed candle
-     * @throws When no timestamp arrives within LISTEN_TIMEOUT ms
-     */
-    getTimestamp: (symbol: string, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => Promise<number>;
-    /**
-     * Pushes a new timestamp value into the BehaviorSubject for the given key.
-     *
-     * Called by StrategyConnectionService after each strategy tick to keep
-     * the cached timestamp up to date.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param timestamp - The createdAt timestamp from the tick (milliseconds)
-     * @param context - Strategy, exchange, and frame identifiers
-     * @param backtest - True if backtest mode, false if live mode
-     */
-    next: (symbol: string, timestamp: number, context: {
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-    }, backtest: boolean) => Promise<void>;
-    /**
-     * Disposes cached BehaviorSubject(s) to free memory and prevent stale data.
-     *
-     * When called without arguments, clears all memoized timestamp streams.
-     * When called with a payload, clears only the stream for the specified key.
-     * Should be called at strategy start (Backtest/Live/Walker) to reset state.
-     *
-     * @param payload - Optional key to clear a single stream; omit to clear all
-     */
-    clear: (payload?: {
-        symbol: string;
-        strategyName: string;
-        exchangeName: string;
-        frameName: string;
-        backtest: boolean;
-    }) => void;
 }
 
 /**

@@ -912,17 +912,19 @@ export interface IPersistRiskInstance {
   /**
    * Read persisted active positions for this context.
    *
+   * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
    * @returns Promise resolving to position entries (empty array if none persisted)
    */
-  readPositionData(): Promise<RiskData>;
+  readPositionData(when: Date): Promise<RiskData>;
 
   /**
    * Write active positions for this context.
    *
    * @param riskRow - Position entries to persist
+   * @param when - Logical timestamp this write belongs to (reserved for API consistency)
    * @returns Promise that resolves when write is complete
    */
-  writePositionData(riskRow: RiskData): Promise<void>;
+  writePositionData(riskRow: RiskData, when: Date): Promise<void>;
 }
 
 /**
@@ -978,7 +980,7 @@ export class PersistRiskInstance implements IPersistRiskInstance {
    *
    * @returns Promise resolving to positions (empty array if none persisted)
    */
-  async readPositionData(): Promise<RiskData> {
+  async readPositionData(_when: Date): Promise<RiskData> {
     if (await this._storage.hasValue(PersistRiskInstance.STORAGE_KEY)) {
       return await this._storage.readValue(PersistRiskInstance.STORAGE_KEY);
     }
@@ -989,9 +991,10 @@ export class PersistRiskInstance implements IPersistRiskInstance {
    * Writes the positions array using the fixed STORAGE_KEY.
    *
    * @param riskRow - Position entries to persist
+   * @param when - Logical timestamp (reserved for API consistency; not used)
    * @returns Promise that resolves when write is complete
    */
-  async writePositionData(riskRow: RiskData): Promise<void> {
+  async writePositionData(riskRow: RiskData, _when: Date): Promise<void> {
     await this._storage.writeValue(PersistRiskInstance.STORAGE_KEY, riskRow);
   }
 }
@@ -1015,12 +1018,12 @@ class PersistRiskDummyInstance implements IPersistRiskInstance {
    * Always returns empty positions array.
    * @returns Promise resolving to []
    */
-  async readPositionData(): Promise<RiskData> { return []; }
+  async readPositionData(_when: Date): Promise<RiskData> { return []; }
   /**
    * No-op write (discards positions).
    * @returns Promise that resolves immediately
    */
-  async writePositionData(_riskRow: RiskData): Promise<void> { void 0; }
+  async writePositionData(_riskRow: RiskData, _when: Date): Promise<void> { void 0; }
 }
 
 /**
@@ -1078,18 +1081,20 @@ export class PersistRiskUtils {
    *
    * @param riskName - Risk profile identifier
    * @param exchangeName - Exchange identifier
+   * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
    * @returns Promise resolving to position entries (empty array if none)
    */
   public readPositionData = async (
     riskName: RiskName,
-    exchangeName: ExchangeName
+    exchangeName: ExchangeName,
+    when: Date,
   ): Promise<RiskData> => {
     LOGGER_SERVICE.info(PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA);
     const key = `${riskName}:${exchangeName}`;
     const isInitial = !this.getRiskStorage.has(key);
     const instance = this.getRiskStorage(riskName, exchangeName);
     await instance.waitForInit(isInitial);
-    return instance.readPositionData();
+    return instance.readPositionData(when);
   };
 
   /**
@@ -1099,19 +1104,21 @@ export class PersistRiskUtils {
    * @param riskRow - Position entries to persist
    * @param riskName - Risk profile identifier
    * @param exchangeName - Exchange identifier
+   * @param when - Logical timestamp this write belongs to (reserved for API consistency)
    * @returns Promise that resolves when write is complete
    */
   public writePositionData = async (
     riskRow: RiskData,
     riskName: RiskName,
-    exchangeName: ExchangeName
+    exchangeName: ExchangeName,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA);
     const key = `${riskName}:${exchangeName}`;
     const isInitial = !this.getRiskStorage.has(key);
     const instance = this.getRiskStorage(riskName, exchangeName);
     await instance.waitForInit(isInitial);
-    return instance.writePositionData(riskRow);
+    return instance.writePositionData(riskRow, when);
   };
 
   /**
@@ -1470,18 +1477,20 @@ export interface IPersistPartialInstance {
    * Read persisted partial data for a specific signal.
    *
    * @param signalId - Signal identifier
+   * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
    * @returns Promise resolving to partial data record (empty object if none persisted)
    */
-  readPartialData(signalId: string): Promise<PartialData>;
+  readPartialData(signalId: string, when: Date): Promise<PartialData>;
 
   /**
    * Write partial data for a specific signal.
    *
    * @param data - Partial data record to persist
    * @param signalId - Signal identifier
+   * @param when - Logical timestamp this write belongs to (reserved for API consistency)
    * @returns Promise that resolves when write is complete
    */
-  writePartialData(data: PartialData, signalId: string): Promise<void>;
+  writePartialData(data: PartialData, signalId: string, when: Date): Promise<void>;
 }
 
 /**
@@ -1538,7 +1547,7 @@ export class PersistPartialInstance implements IPersistPartialInstance {
    * @param signalId - Signal identifier
    * @returns Promise resolving to partial data record (empty object if not found)
    */
-  async readPartialData(signalId: string): Promise<PartialData> {
+  async readPartialData(signalId: string, _when: Date): Promise<PartialData> {
     if (await this._storage.hasValue(signalId)) {
       return await this._storage.readValue(signalId);
     }
@@ -1550,9 +1559,10 @@ export class PersistPartialInstance implements IPersistPartialInstance {
    *
    * @param data - Partial data record to persist
    * @param signalId - Signal identifier
+   * @param when - Logical timestamp (reserved for API consistency; not used)
    * @returns Promise that resolves when write is complete
    */
-  async writePartialData(data: PartialData, signalId: string): Promise<void> {
+  async writePartialData(data: PartialData, signalId: string, _when: Date): Promise<void> {
     await this._storage.writeValue(signalId, data);
   }
 }
@@ -1576,12 +1586,12 @@ class PersistPartialDummyInstance implements IPersistPartialInstance {
    * Always returns empty partial data record.
    * @returns Promise resolving to {}
    */
-  async readPartialData(_signalId: string): Promise<PartialData> { return {}; }
+  async readPartialData(_signalId: string, _when: Date): Promise<PartialData> { return {}; }
   /**
    * No-op write (discards partial data).
    * @returns Promise that resolves immediately
    */
-  async writePartialData(_data: PartialData, _signalId: string): Promise<void> { void 0; }
+  async writePartialData(_data: PartialData, _signalId: string, _when: Date): Promise<void> { void 0; }
 }
 
 /**
@@ -1650,20 +1660,22 @@ export class PersistPartialUtils {
    * @param strategyName - Strategy identifier
    * @param signalId - Signal identifier
    * @param exchangeName - Exchange identifier
+   * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
    * @returns Promise resolving to partial data record (empty object if none)
    */
   public readPartialData = async (
     symbol: string,
     strategyName: StrategyName,
     signalId: string,
-    exchangeName: ExchangeName
+    exchangeName: ExchangeName,
+    when: Date,
   ): Promise<PartialData> => {
     LOGGER_SERVICE.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_READ_DATA);
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getPartialStorage.has(key);
     const instance = this.getPartialStorage(symbol, strategyName, exchangeName);
     await instance.waitForInit(isInitial);
-    return instance.readPartialData(signalId);
+    return instance.readPartialData(signalId, when);
   };
 
   /**
@@ -1675,6 +1687,7 @@ export class PersistPartialUtils {
    * @param strategyName - Strategy identifier
    * @param signalId - Signal identifier
    * @param exchangeName - Exchange identifier
+   * @param when - Logical timestamp this write belongs to (reserved for API consistency)
    * @returns Promise that resolves when write is complete
    */
   public writePartialData = async (
@@ -1682,14 +1695,15 @@ export class PersistPartialUtils {
     symbol: string,
     strategyName: StrategyName,
     signalId: string,
-    exchangeName: ExchangeName
+    exchangeName: ExchangeName,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_WRITE_DATA);
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getPartialStorage.has(key);
     const instance = this.getPartialStorage(symbol, strategyName, exchangeName);
     await instance.waitForInit(isInitial);
-    return instance.writePartialData(partialData, signalId);
+    return instance.writePartialData(partialData, signalId, when);
   };
 
   /**
@@ -1765,18 +1779,20 @@ export interface IPersistBreakevenInstance {
    * Read persisted breakeven data for a specific signal.
    *
    * @param signalId - Signal identifier
+   * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
    * @returns Promise resolving to breakeven data record (empty object if none persisted)
    */
-  readBreakevenData(signalId: string): Promise<BreakevenData>;
+  readBreakevenData(signalId: string, when: Date): Promise<BreakevenData>;
 
   /**
    * Write breakeven data for a specific signal.
    *
    * @param data - Breakeven data record to persist
    * @param signalId - Signal identifier
+   * @param when - Logical timestamp this write belongs to (reserved for API consistency)
    * @returns Promise that resolves when write is complete
    */
-  writeBreakevenData(data: BreakevenData, signalId: string): Promise<void>;
+  writeBreakevenData(data: BreakevenData, signalId: string, when: Date): Promise<void>;
 }
 
 /**
@@ -1833,7 +1849,7 @@ export class PersistBreakevenInstance implements IPersistBreakevenInstance {
    * @param signalId - Signal identifier
    * @returns Promise resolving to breakeven data record (empty object if not found)
    */
-  async readBreakevenData(signalId: string): Promise<BreakevenData> {
+  async readBreakevenData(signalId: string, _when: Date): Promise<BreakevenData> {
     if (await this._storage.hasValue(signalId)) {
       return await this._storage.readValue(signalId);
     }
@@ -1845,9 +1861,10 @@ export class PersistBreakevenInstance implements IPersistBreakevenInstance {
    *
    * @param data - Breakeven data record to persist
    * @param signalId - Signal identifier
+   * @param when - Logical timestamp (reserved for API consistency; not used)
    * @returns Promise that resolves when write is complete
    */
-  async writeBreakevenData(data: BreakevenData, signalId: string): Promise<void> {
+  async writeBreakevenData(data: BreakevenData, signalId: string, _when: Date): Promise<void> {
     await this._storage.writeValue(signalId, data);
   }
 }
@@ -1871,12 +1888,12 @@ class PersistBreakevenDummyInstance implements IPersistBreakevenInstance {
    * Always returns empty breakeven data record.
    * @returns Promise resolving to {}
    */
-  async readBreakevenData(_signalId: string): Promise<BreakevenData> { return {}; }
+  async readBreakevenData(_signalId: string, _when: Date): Promise<BreakevenData> { return {}; }
   /**
    * No-op write (discards breakeven data).
    * @returns Promise that resolves immediately
    */
-  async writeBreakevenData(_data: BreakevenData, _signalId: string): Promise<void> { void 0; }
+  async writeBreakevenData(_data: BreakevenData, _signalId: string, _when: Date): Promise<void> { void 0; }
 }
 
 /**
@@ -1965,20 +1982,22 @@ class PersistBreakevenUtils {
    * @param strategyName - Strategy identifier
    * @param signalId - Signal identifier
    * @param exchangeName - Exchange identifier
+   * @param when - Logical timestamp at which the read is happening (reserved for API consistency)
    * @returns Promise resolving to breakeven data record (empty object if none)
    */
   public readBreakevenData = async (
     symbol: string,
     strategyName: StrategyName,
     signalId: string,
-    exchangeName: ExchangeName
+    exchangeName: ExchangeName,
+    when: Date,
   ): Promise<BreakevenData> => {
     LOGGER_SERVICE.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_READ_DATA);
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getBreakevenStorage.has(key);
     const instance = this.getBreakevenStorage(symbol, strategyName, exchangeName);
     await instance.waitForInit(isInitial);
-    return instance.readBreakevenData(signalId);
+    return instance.readBreakevenData(signalId, when);
   };
 
   /**
@@ -1990,6 +2009,7 @@ class PersistBreakevenUtils {
    * @param strategyName - Strategy identifier
    * @param signalId - Signal identifier
    * @param exchangeName - Exchange identifier
+   * @param when - Logical timestamp this write belongs to (reserved for API consistency)
    * @returns Promise that resolves when write is complete
    */
   public writeBreakevenData = async (
@@ -1997,14 +2017,15 @@ class PersistBreakevenUtils {
     symbol: string,
     strategyName: StrategyName,
     signalId: string,
-    exchangeName: ExchangeName
+    exchangeName: ExchangeName,
+    when: Date,
   ): Promise<void> => {
     LOGGER_SERVICE.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_WRITE_DATA);
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getBreakevenStorage.has(key);
     const instance = this.getBreakevenStorage(symbol, strategyName, exchangeName);
     await instance.waitForInit(isInitial);
-    return instance.writeBreakevenData(breakevenData, signalId);
+    return instance.writeBreakevenData(breakevenData, signalId, when);
   };
 
   /**

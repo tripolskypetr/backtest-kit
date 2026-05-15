@@ -13,6 +13,7 @@ import {
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
+import TimeMetaService from "../meta/TimeMetaService";
 
 /**
  * Creates a unique key for memoizing ClientPartial instances.
@@ -166,6 +167,8 @@ export class PartialConnectionService implements IPartial {
    */
   readonly actionCoreService = inject<ActionCoreService>(TYPES.actionCoreService);
 
+  readonly timeMetaService = inject<TimeMetaService>(TYPES.timeMetaService);
+
   /**
    * Memoized factory function for ClientPartial instances.
    *
@@ -181,6 +184,7 @@ export class PartialConnectionService implements IPartial {
       return new ClientPartial({
         signalId,
         logger: this.loggerService,
+        time: this.timeMetaService,
         backtest,
         onProfit: CREATE_COMMIT_PROFIT_FN(this),
         onLoss: CREATE_COMMIT_LOSS_FN(this),
@@ -219,7 +223,7 @@ export class PartialConnectionService implements IPartial {
       when,
     });
     const partial = this.getPartial(data.id, backtest);
-    await partial.waitForInit(symbol, data.strategyName, data.exchangeName, backtest);
+    await partial.waitForInit(symbol, data.strategyName, data.exchangeName, data.frameName, backtest);
     return await partial.profit(
       symbol,
       data,
@@ -261,7 +265,7 @@ export class PartialConnectionService implements IPartial {
       when,
     });
     const partial = this.getPartial(data.id, backtest);
-    await partial.waitForInit(symbol, data.strategyName, data.exchangeName, backtest);
+    await partial.waitForInit(symbol, data.strategyName, data.exchangeName, data.frameName, backtest);
     return await partial.loss(
       symbol,
       data,
@@ -302,7 +306,7 @@ export class PartialConnectionService implements IPartial {
       backtest,
     });
     const partial = this.getPartial(data.id, backtest);
-    await partial.waitForInit(symbol, data.strategyName, data.exchangeName, backtest);
+    await partial.waitForInit(symbol, data.strategyName, data.exchangeName, data.frameName, backtest);
     await partial.clear(symbol, data, priceClose, backtest);
     const key = CREATE_KEY_FN(data.id, backtest);
     this.getPartial.clear(key);

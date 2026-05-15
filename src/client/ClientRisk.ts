@@ -38,14 +38,6 @@ type RiskMap = Map<string, IRiskActivePosition>;
 /** Symbol indicating that positions need to be fetched from persistence */
 const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
 
-/** Get timestamp from execution context or fallback to aligned current time */
-const GET_CONTEXT_TIMESTAMP_FN = (self: ClientRisk) => {
-  if (ExecutionContextService.hasContext()) {
-      return self.params.execution.context.when.getTime();
-  }
-  return alignToInterval(new Date(), "1m").getTime();
-}
-
 /** Zero PNL constant for scheduled signals (which don't have priceOpen or PNL yet) */
 const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, pnlCost: 0, pnlEntries: 0 };
 
@@ -195,7 +187,7 @@ const CALL_ALLOWED_CALLBACKS_FN = trycatch(
  *
  * In backtest mode, initializes with empty Map. In live mode, reads from persist storage.
  */
-export const WAIT_FOR_INIT_FN = async (self: ClientRisk): Promise<void> => {
+export const WAIT_FOR_INIT_FN = async (when: Date, self: ClientRisk): Promise<void> => {
   self.params.logger.debug("ClientRisk waitForInit", {
     backtest: self.params.backtest,
   });
@@ -208,6 +200,7 @@ export const WAIT_FOR_INIT_FN = async (self: ClientRisk): Promise<void> => {
   const persistedPositions = await PersistRiskAdapter.readPositionData(
     self.params.riskName,
     self.params.exchangeName,
+    when,
   );
   self._activePositions = new Map(persistedPositions);
 };
@@ -239,25 +232,26 @@ export class ClientRisk implements IRisk {
    * Uses singleshot pattern to ensure initialization happens exactly once.
    * Skips persistence in backtest mode.
    */
-  private waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
+  private waitForInit = singleshot(async (when: Date) => await WAIT_FOR_INIT_FN(when, this));
 
   /**
    * Persists current active positions to disk.
    * Skips in backtest mode.
    */
-  private async _updatePositions(): Promise<void> {
+  private async _updatePositions(when: Date): Promise<void> {
     if (this.params.backtest) {
       return;
     }
 
     if (this._activePositions === POSITION_NEED_FETCH) {
-      await this.waitForInit();
+      await this.waitForInit(when);
     }
 
     await PersistRiskAdapter.writePositionData(
       Array.from(<RiskMap>this._activePositions),
       this.params.riskName,
       this.params.exchangeName,
+      when,
     );
   }
 
@@ -286,8 +280,14 @@ export class ClientRisk implements IRisk {
 
     await RISK_LOCK.acquireLock();
     try {
+      const timestamp = await this.params.time.getTimestamp(
+        symbol,
+        context,
+        this.params.backtest,
+      );
+
       if (this._activePositions === POSITION_NEED_FETCH) {
-        await this.waitForInit();
+        await this.waitForInit(new Date(timestamp));
       }
 
       const key = CREATE_NAME_FN(context.strategyName, context.exchangeName, symbol);
@@ -305,7 +305,7 @@ export class ClientRisk implements IRisk {
         openTimestamp: positionData.openTimestamp,
       });
 
-      await this._updatePositions();
+      await this._updatePositions(new Date(timestamp));
     } finally {
       await RISK_LOCK.releaseLock();
     }
@@ -317,7 +317,7 @@ export class ClientRisk implements IRisk {
    */
   public async removeSignal(
     symbol: string,
-    context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; }
+    context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: string }
   ) {
     this.params.logger.debug("ClientRisk removeSignal", {
       symbol,
@@ -327,15 +327,22 @@ export class ClientRisk implements IRisk {
 
     await RISK_LOCK.acquireLock();
     try {
+
+      const timestamp = await this.params.time.getTimestamp(
+        symbol,
+        context,
+        this.params.backtest,
+      );
+
       if (this._activePositions === POSITION_NEED_FETCH) {
-        await this.waitForInit();
+        await this.waitForInit(new Date(timestamp));
       }
 
       const key = CREATE_NAME_FN(context.strategyName, context.exchangeName, symbol);
       const riskMap = <RiskMap>this._activePositions;
       riskMap.delete(key);
 
-      await this._updatePositions();
+      await this._updatePositions(new Date(timestamp));
     } finally {
       await RISK_LOCK.releaseLock();
     }
@@ -363,13 +370,22 @@ export class ClientRisk implements IRisk {
 
     await RISK_LOCK.acquireLock();
     try {
+      const timestamp = await this.params.time.getTimestamp(
+        params.symbol,
+        {
+          strategyName: params.strategyName,
+          exchangeName: params.exchangeName,
+          frameName: params.frameName,
+        },
+        this.params.backtest
+      );
+
+
       if (this._activePositions === POSITION_NEED_FETCH) {
-        await this.waitForInit();
+        await this.waitForInit(new Date(timestamp));
       }
 
       const riskMap = <RiskMap>this._activePositions;
-
-      const timestamp = GET_CONTEXT_TIMESTAMP_FN(this);
 
       const payload: IRiskValidationPayload = {
         ...params,

@@ -10,6 +10,7 @@ import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import backtest from "../../../lib";
+import TimeMetaService from "../meta/TimeMetaService";
 
 /**
  * Creates a unique key for memoizing ClientBreakeven instances.
@@ -112,6 +113,8 @@ export class BreakevenConnectionService implements IBreakeven {
    */
   readonly actionCoreService = inject<ActionCoreService>(TYPES.actionCoreService);
 
+  readonly timeMetaService = inject<TimeMetaService>(TYPES.timeMetaService);
+
   /**
    * Memoized factory function for ClientBreakeven instances.
    *
@@ -127,6 +130,7 @@ export class BreakevenConnectionService implements IBreakeven {
       return new ClientBreakeven({
         signalId,
         logger: this.loggerService,
+        time: this.timeMetaService,
         backtest,
         onBreakeven: CREATE_COMMIT_BREAKEVEN_FN(this),
       });
@@ -161,7 +165,7 @@ export class BreakevenConnectionService implements IBreakeven {
       when,
     });
     const breakeven = this.getBreakeven(data.id, backtest);
-    await breakeven.waitForInit(symbol, data.strategyName, data.exchangeName, backtest);
+    await breakeven.waitForInit(symbol, data.strategyName, data.exchangeName, data.frameName, backtest);
     return await breakeven.check(
       symbol,
       data,
@@ -202,7 +206,7 @@ export class BreakevenConnectionService implements IBreakeven {
       backtest,
     });
     const breakeven = this.getBreakeven(data.id, backtest);
-    await breakeven.waitForInit(symbol, data.strategyName, data.exchangeName, backtest);
+    await breakeven.waitForInit(symbol, data.strategyName, data.exchangeName, data.frameName, backtest);
     await breakeven.clear(symbol, data, priceClose, backtest);
     const key = CREATE_KEY_FN(data.id, backtest);
     this.getBreakeven.clear(key);
