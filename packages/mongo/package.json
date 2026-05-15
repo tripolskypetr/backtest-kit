@@ -1,7 +1,7 @@
 {
   "name": "@backtest-kit/mongo",
   "version": "0.0.1",
-  "description": "",
+  "description": "MongoDB + Redis persistence adapter for backtest-kit. Replaces the default file-based storage with a production-grade backend — O(1) reads via Redis, atomic writes via Mongoose.",
   "author": {
     "name": "Petr Tripolsky",
     "email": "tripolskypetr@gmail.com",
@@ -14,6 +14,19 @@
   "license": "MIT",
   "homepage": "https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html",
   "keywords": [
+    "backtest",
+    "backtesting",
+    "trading",
+    "crypto",
+    "cryptocurrency",
+    "algorithmic-trading",
+    "trading-bot",
+    "mongodb",
+    "mongoose",
+    "redis",
+    "ioredis",
+    "persistence",
+    "storage"
   ],
   "files": [
     "build",
