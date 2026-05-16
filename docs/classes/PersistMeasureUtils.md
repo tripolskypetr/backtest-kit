@@ -52,7 +52,7 @@ Lazily initializes the bucket instance on first access.
 ### writeMeasureData
 
 ```ts
-writeMeasureData: (data: MeasureData, bucket: string, key: string) => Promise<void>
+writeMeasureData: (data: MeasureData, bucket: string, key: string, when: Date) => Promise<void>
 ```
 
 Writes a measure entry to the given bucket under the given key.

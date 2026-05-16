@@ -33,7 +33,7 @@ Read persisted session data for this context.
 ### writeSessionData
 
 ```ts
-writeSessionData: (data: SessionData) => Promise<void>
+writeSessionData: (data: SessionData, when: Date) => Promise<void>
 ```
 
 Write session data for this context.

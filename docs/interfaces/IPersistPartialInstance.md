@@ -27,7 +27,7 @@ Initialize storage for this partial context.
 ### readPartialData
 
 ```ts
-readPartialData: (signalId: string) => Promise<PartialData>
+readPartialData: (signalId: string, when: Date) => Promise<PartialData>
 ```
 
 Read persisted partial data for a specific signal.
@@ -35,7 +35,7 @@ Read persisted partial data for a specific signal.
 ### writePartialData
 
 ```ts
-writePartialData: (data: PartialData, signalId: string) => Promise<void>
+writePartialData: (data: PartialData, signalId: string, when: Date) => Promise<void>
 ```
 
 Write partial data for a specific signal.

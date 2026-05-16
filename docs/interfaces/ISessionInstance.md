@@ -30,7 +30,7 @@ Initialize the session instance.
 ### setData
 
 ```ts
-setData: <Value extends object = object>(value: Value) => Promise<void>
+setData: <Value extends object = object>(value: Value, when: Date) => Promise<void>
 ```
 
 Write a new session value.
@@ -38,10 +38,12 @@ Write a new session value.
 ### getData
 
 ```ts
-getData: <Value extends object = object>() => Promise<Value>
+getData: <Value extends object = object>(when: Date) => Promise<Value>
 ```
 
 Read the current session value.
+Returns null when the stored `when` is greater than the requested `when`
+(look-ahead bias protection).
 
 ### dispose
 

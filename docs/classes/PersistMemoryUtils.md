@@ -72,7 +72,7 @@ Lazily initializes the instance on first access.
 ### writeMemoryData
 
 ```ts
-writeMemoryData: (data: MemoryData, signalId: string, bucketName: string, memoryId: string) => Promise<void>
+writeMemoryData: (data: MemoryData, signalId: string, bucketName: string, memoryId: string, when: Date) => Promise<void>
 ```
 
 Writes a memory entry for the given context.

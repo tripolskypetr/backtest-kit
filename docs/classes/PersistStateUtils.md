@@ -62,7 +62,7 @@ Lazily initializes the instance on first access.
 ### writeStateData
 
 ```ts
-writeStateData: (data: StateData, signalId: string, bucketName: string) => Promise<void>
+writeStateData: (data: StateData, signalId: string, bucketName: string, when: Date) => Promise<void>
 ```
 
 Writes state for the given context.

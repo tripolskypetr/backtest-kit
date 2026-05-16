@@ -61,7 +61,7 @@ Lazily initializes the instance on first access.
 ### writeRecentData
 
 ```ts
-writeRecentData: (signalRow: IPublicSignalRow, symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean) => Promise<void>
+writeRecentData: (signalRow: IPublicSignalRow, symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Writes the latest recent signal for the given context.

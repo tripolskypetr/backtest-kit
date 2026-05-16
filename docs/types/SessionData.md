@@ -9,6 +9,7 @@ group: docs
 type SessionData = {
     id: string;
     data: object | null;
+    when: number;
 };
 ```
 

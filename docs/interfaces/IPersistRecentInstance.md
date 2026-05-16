@@ -33,7 +33,7 @@ Read the latest persisted recent signal for this context.
 ### writeRecentData
 
 ```ts
-writeRecentData: (signalRow: IPublicSignalRow) => Promise<void>
+writeRecentData: (signalRow: IPublicSignalRow, when: Date) => Promise<void>
 ```
 
 Write the latest recent signal for this context.

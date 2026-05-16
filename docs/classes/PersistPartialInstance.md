@@ -61,7 +61,7 @@ Initializes the underlying PersistBase storage.
 ### readPartialData
 
 ```ts
-readPartialData(signalId: string): Promise<PartialData>;
+readPartialData(signalId: string, _when: Date): Promise<PartialData>;
 ```
 
 Reads the partial data for the given signal using `signalId` as the entity key.
@@ -69,7 +69,7 @@ Reads the partial data for the given signal using `signalId` as the entity key.
 ### writePartialData
 
 ```ts
-writePartialData(data: PartialData, signalId: string): Promise<void>;
+writePartialData(data: PartialData, signalId: string, _when: Date): Promise<void>;
 ```
 
 Writes the partial data for the given signal using `signalId` as the entity key.

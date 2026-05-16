@@ -21,7 +21,7 @@ Initialize the memory instance.
 ### writeMemory
 
 ```ts
-writeMemory: <T extends object = object>(memoryId: string, value: T, description: string) => Promise<void>
+writeMemory: <T extends object = object>(memoryId: string, value: T, description: string, when: Date) => Promise<void>
 ```
 
 Write a value to memory.
@@ -29,23 +29,25 @@ Write a value to memory.
 ### searchMemory
 
 ```ts
-searchMemory: <T extends object = object>(query: string, settings?: SearchSettings) => Promise<{ memoryId: string; score: number; content: T; }[]>
+searchMemory: <T extends object = object>(query: string, when: Date, settings?: SearchSettings) => Promise<{ memoryId: string; score: number; content: T; }[]>
 ```
 
 Search memory using BM25 full-text scoring.
+Filters out entries whose `when` is greater than the requested `when`.
 
 ### listMemory
 
 ```ts
-listMemory: <T extends object = object>() => Promise<{ memoryId: string; content: T; }[]>
+listMemory: <T extends object = object>(when: Date) => Promise<{ memoryId: string; content: T; }[]>
 ```
 
 List all entries in memory.
+Filters out entries whose `when` is greater than the requested `when`.
 
 ### removeMemory
 
 ```ts
-removeMemory: (memoryId: string) => Promise<void>
+removeMemory: (memoryId: string, when: Date) => Promise<void>
 ```
 
 Remove an entry from memory.
@@ -53,10 +55,11 @@ Remove an entry from memory.
 ### readMemory
 
 ```ts
-readMemory: <T extends object = object>(memoryId: string) => Promise<T>
+readMemory: <T extends object = object>(memoryId: string, when: Date) => Promise<T>
 ```
 
 Read a single entry from memory.
+Behaves as not-found if the stored `when` is greater than the requested `when`.
 
 ### dispose
 

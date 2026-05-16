@@ -50,7 +50,7 @@ Called by MemoryAdapter when a signal is cancelled or closed.
 ### writeMemory
 
 ```ts
-writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; description: string; }) => Promise<void>
+writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; description: string; when: Date; }) => Promise<void>
 ```
 
 Write a value to memory.
@@ -58,7 +58,7 @@ Write a value to memory.
 ### searchMemory
 
 ```ts
-searchMemory: <T extends object = object>(dto: { query: string; signalId: string; bucketName: string; settings?: SearchSettings; }) => Promise<{ memoryId: string; score: number; content: T; }[]>
+searchMemory: <T extends object = object>(dto: { query: string; signalId: string; bucketName: string; when: Date; settings?: SearchSettings; }) => Promise<{ memoryId: string; score: number; content: T; }[]>
 ```
 
 Search memory using BM25 full-text scoring.
@@ -66,7 +66,7 @@ Search memory using BM25 full-text scoring.
 ### listMemory
 
 ```ts
-listMemory: <T extends object = object>(dto: { signalId: string; bucketName: string; }) => Promise<{ memoryId: string; content: T; }[]>
+listMemory: <T extends object = object>(dto: { signalId: string; bucketName: string; when: Date; }) => Promise<{ memoryId: string; content: T; }[]>
 ```
 
 List all entries in memory.
@@ -74,7 +74,7 @@ List all entries in memory.
 ### removeMemory
 
 ```ts
-removeMemory: (dto: { memoryId: string; signalId: string; bucketName: string; }) => Promise<void>
+removeMemory: (dto: { memoryId: string; signalId: string; bucketName: string; when: Date; }) => Promise<void>
 ```
 
 Remove an entry from memory.
@@ -82,7 +82,7 @@ Remove an entry from memory.
 ### readMemory
 
 ```ts
-readMemory: <T extends object = object>(dto: { memoryId: string; signalId: string; bucketName: string; }) => Promise<T>
+readMemory: <T extends object = object>(dto: { memoryId: string; signalId: string; bucketName: string; when: Date; }) => Promise<T>
 ```
 
 Read a single entry from memory.

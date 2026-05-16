@@ -47,6 +47,12 @@ actionCoreService: ActionCoreService
 
 Action core service injected from DI container.
 
+### timeMetaService
+
+```ts
+timeMetaService: TimeMetaService
+```
+
 ### getBreakeven
 
 ```ts

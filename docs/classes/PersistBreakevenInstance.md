@@ -61,7 +61,7 @@ Initializes the underlying PersistBase storage.
 ### readBreakevenData
 
 ```ts
-readBreakevenData(signalId: string): Promise<BreakevenData>;
+readBreakevenData(signalId: string, _when: Date): Promise<BreakevenData>;
 ```
 
 Reads the breakeven data for the given signal using `signalId` as the entity key.
@@ -69,7 +69,7 @@ Reads the breakeven data for the given signal using `signalId` as the entity key
 ### writeBreakevenData
 
 ```ts
-writeBreakevenData(data: BreakevenData, signalId: string): Promise<void>;
+writeBreakevenData(data: BreakevenData, signalId: string, _when: Date): Promise<void>;
 ```
 
 Writes the breakeven data for the given signal using `signalId` as the entity key.

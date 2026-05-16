@@ -55,7 +55,7 @@ Called by StateAdapter when a signal is cancelled or closed.
 ### getState
 
 ```ts
-getState: <Value extends object = object>(dto: { signalId: string; bucketName: string; initialValue: object; }) => Promise<Value>
+getState: <Value extends object = object>(dto: { signalId: string; bucketName: string; initialValue: object; when: Date; }) => Promise<Value>
 ```
 
 Read the current state value for a signal.
@@ -63,7 +63,7 @@ Read the current state value for a signal.
 ### setState
 
 ```ts
-setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string; bucketName: string; initialValue: object; }) => Promise<Value>
+setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string; bucketName: string; initialValue: object; when: Date; }) => Promise<Value>
 ```
 
 Update the state value for a signal.

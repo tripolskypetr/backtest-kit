@@ -34,18 +34,24 @@ Initialize the state instance.
 ### getState
 
 ```ts
-getState: <Value extends object = object>() => Promise<Value>
+getState: <Value extends object = object>(when: Date) => Promise<Value>
 ```
 
 Read the current state value.
+Returns `initialValue` when the stored `when` is greater than the requested `when`
+(look-ahead bias protection).
 
 ### setState
 
 ```ts
-setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>) => Promise<Value>
+setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>, when: Date) => Promise<Value>
 ```
 
 Update the state value.
+A write with a smaller `when` overwrites an existing record —
+that lets a restarted backtest reset live-written state without breaking live.
+The dispatch updater receives the look-ahead-guarded current value
+(or `initialValue` when the stored `when` is in the future).
 
 ### dispose
 

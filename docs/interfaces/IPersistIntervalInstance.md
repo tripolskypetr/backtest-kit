@@ -36,7 +36,7 @@ Read interval marker by key.
 ### writeIntervalData
 
 ```ts
-writeIntervalData: (data: IntervalData, key: string) => Promise<void>
+writeIntervalData: (data: IntervalData, key: string, when: Date) => Promise<void>
 ```
 
 Write interval marker.

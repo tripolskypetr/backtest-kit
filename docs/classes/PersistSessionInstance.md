@@ -69,7 +69,7 @@ Reads the persisted session data using `frameName` as the entity key.
 ### writeSessionData
 
 ```ts
-writeSessionData(data: SessionData): Promise<void>;
+writeSessionData(data: SessionData, _when: Date): Promise<void>;
 ```
 
 Writes the session data using `frameName` as the entity key.

@@ -9,6 +9,7 @@ group: docs
 type StateData = {
     id: string;
     data: object;
+    when: number;
 };
 ```
 

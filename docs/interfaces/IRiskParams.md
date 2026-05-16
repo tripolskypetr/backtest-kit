@@ -26,13 +26,13 @@ logger: ILogger
 
 Logger service for debug output
 
-### execution
+### time
 
 ```ts
-execution: { readonly context: IExecutionContext; }
+time: TimeMetaService
 ```
 
-Execution context service (symbol, when, backtest flag)
+Time context service (when date in backtest/live to prevent look ahead bias)
 
 ### backtest
 

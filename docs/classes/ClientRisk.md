@@ -133,6 +133,7 @@ removeSignal(symbol: string, context: {
     strategyName: StrategyName;
     riskName: RiskName;
     exchangeName: ExchangeName;
+    frameName: string;
 }): Promise<void>;
 ```
 

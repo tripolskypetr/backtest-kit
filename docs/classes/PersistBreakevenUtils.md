@@ -54,7 +54,7 @@ Each signal's breakeven data is stored under its own signalId within the instanc
 ### readBreakevenData
 
 ```ts
-readBreakevenData: (symbol: string, strategyName: string, signalId: string, exchangeName: string) => Promise<BreakevenData>
+readBreakevenData: (symbol: string, strategyName: string, signalId: string, exchangeName: string, when: Date) => Promise<BreakevenData>
 ```
 
 Reads breakeven data for the given context and signalId.
@@ -63,7 +63,7 @@ Lazily initializes the instance on first access.
 ### writeBreakevenData
 
 ```ts
-writeBreakevenData: (breakevenData: BreakevenData, symbol: string, strategyName: string, signalId: string, exchangeName: string) => Promise<void>
+writeBreakevenData: (breakevenData: BreakevenData, symbol: string, strategyName: string, signalId: string, exchangeName: string, when: Date) => Promise<void>
 ```
 
 Writes breakeven data for the given context and signalId.

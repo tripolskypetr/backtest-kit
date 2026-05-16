@@ -81,7 +81,7 @@ Reads the persisted recent signal using `symbol` as the entity key.
 ### writeRecentData
 
 ```ts
-writeRecentData(signalRow: IPublicSignalRow): Promise<void>;
+writeRecentData(signalRow: IPublicSignalRow, _when: Date): Promise<void>;
 ```
 
 Writes the recent signal using `symbol` as the entity key.

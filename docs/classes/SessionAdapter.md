@@ -21,7 +21,7 @@ constructor();
 ### getData
 
 ```ts
-getData: <Value extends object = object>(symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest: boolean) => Promise<Value>
+getData: <Value extends object = object>(symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest: boolean, when: Date) => Promise<Value>
 ```
 
 Read the current session value for a signal.
@@ -30,7 +30,7 @@ Routes to SessionBacktest or SessionLive based on backtest.
 ### setData
 
 ```ts
-setData: <Value extends object = object>(symbol: string, value: Value, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest: boolean) => Promise<void>
+setData: <Value extends object = object>(symbol: string, value: Value, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Update the session value for a signal.

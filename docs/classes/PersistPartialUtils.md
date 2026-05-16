@@ -44,7 +44,7 @@ Each signal's partial data is stored under its own signalId within the instance.
 ### readPartialData
 
 ```ts
-readPartialData: (symbol: string, strategyName: string, signalId: string, exchangeName: string) => Promise<PartialData>
+readPartialData: (symbol: string, strategyName: string, signalId: string, exchangeName: string, when: Date) => Promise<PartialData>
 ```
 
 Reads partial data for the given context and signalId.
@@ -53,7 +53,7 @@ Lazily initializes the instance on first access.
 ### writePartialData
 
 ```ts
-writePartialData: (partialData: PartialData, symbol: string, strategyName: string, signalId: string, exchangeName: string) => Promise<void>
+writePartialData: (partialData: PartialData, symbol: string, strategyName: string, signalId: string, exchangeName: string, when: Date) => Promise<void>
 ```
 
 Writes partial data for the given context and signalId.

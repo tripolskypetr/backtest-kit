@@ -44,7 +44,7 @@ Safe to call multiple times.
 ### getState
 
 ```ts
-getState: <Value extends object = object>(dto: { signalId: string; bucketName: string; initialValue: object; backtest: boolean; }) => Promise<Value>
+getState: <Value extends object = object>(dto: { signalId: string; bucketName: string; initialValue: object; backtest: boolean; when: Date; }) => Promise<Value>
 ```
 
 Read the current state value for a signal.
@@ -53,7 +53,7 @@ Routes to StateBacktest or StateLive based on dto.backtest.
 ### setState
 
 ```ts
-setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string; bucketName: string; initialValue: object; backtest: boolean; }) => Promise<Value>
+setState: <Value extends object = object>(dispatch: Value | Dispatch<Value>, dto: { signalId: string; bucketName: string; initialValue: object; backtest: boolean; when: Date; }) => Promise<...>
 ```
 
 Update the state value for a signal.

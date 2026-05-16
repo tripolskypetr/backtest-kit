@@ -24,7 +24,7 @@ Initialize storage for this risk context.
 ### readPositionData
 
 ```ts
-readPositionData: () => Promise<RiskData>
+readPositionData: (when: Date) => Promise<RiskData>
 ```
 
 Read persisted active positions for this context.
@@ -32,7 +32,7 @@ Read persisted active positions for this context.
 ### writePositionData
 
 ```ts
-writePositionData: (riskRow: RiskData) => Promise<void>
+writePositionData: (riskRow: RiskData, when: Date) => Promise<void>
 ```
 
 Write active positions for this context.

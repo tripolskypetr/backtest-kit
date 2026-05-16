@@ -63,7 +63,7 @@ Initializes the underlying PersistBase storage.
 ### readPositionData
 
 ```ts
-readPositionData(): Promise<RiskData>;
+readPositionData(_when: Date): Promise<RiskData>;
 ```
 
 Reads the persisted positions array using the fixed STORAGE_KEY.
@@ -71,7 +71,7 @@ Reads the persisted positions array using the fixed STORAGE_KEY.
 ### writePositionData
 
 ```ts
-writePositionData(riskRow: RiskData): Promise<void>;
+writePositionData(riskRow: RiskData, _when: Date): Promise<void>;
 ```
 
 Writes the positions array using the fixed STORAGE_KEY.

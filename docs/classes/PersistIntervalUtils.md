@@ -48,7 +48,7 @@ Lazily initializes the bucket instance on first access.
 ### writeIntervalData
 
 ```ts
-writeIntervalData: (data: IntervalData, bucket: string, key: string) => Promise<void>
+writeIntervalData: (data: IntervalData, bucket: string, key: string, when: Date) => Promise<void>
 ```
 
 Writes an interval marker to the given bucket under the given key.

@@ -44,7 +44,7 @@ Safe to call multiple times.
 ### writeMemory
 
 ```ts
-writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; description: string; backtest: boolean; }) => Promise<void>
+writeMemory: <T extends object = object>(dto: { memoryId: string; value: T; signalId: string; bucketName: string; description: string; backtest: boolean; when: Date; }) => Promise<void>
 ```
 
 Write a value to memory.
@@ -53,7 +53,7 @@ Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 ### searchMemory
 
 ```ts
-searchMemory: <T extends object = object>(dto: { query: string; signalId: string; bucketName: string; settings?: SearchSettings; backtest: boolean; }) => Promise<{ memoryId: string; score: number; content: T; }[]>
+searchMemory: <T extends object = object>(dto: { query: string; signalId: string; bucketName: string; settings?: SearchSettings; backtest: boolean; when: Date; }) => Promise<{ memoryId: string; score: number; content: T; }[]>
 ```
 
 Search memory using BM25 full-text scoring.
@@ -62,7 +62,7 @@ Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 ### listMemory
 
 ```ts
-listMemory: <T extends object = object>(dto: { signalId: string; bucketName: string; backtest: boolean; }) => Promise<{ memoryId: string; content: T; }[]>
+listMemory: <T extends object = object>(dto: { signalId: string; bucketName: string; backtest: boolean; when: Date; }) => Promise<{ memoryId: string; content: T; }[]>
 ```
 
 List all entries in memory.
@@ -71,7 +71,7 @@ Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 ### removeMemory
 
 ```ts
-removeMemory: (dto: { memoryId: string; signalId: string; bucketName: string; backtest: boolean; }) => Promise<void>
+removeMemory: (dto: { memoryId: string; signalId: string; bucketName: string; backtest: boolean; when: Date; }) => Promise<void>
 ```
 
 Remove an entry from memory.
@@ -80,7 +80,7 @@ Routes to MemoryBacktest or MemoryLive based on dto.backtest.
 ### readMemory
 
 ```ts
-readMemory: <T extends object = object>(dto: { memoryId: string; signalId: string; bucketName: string; backtest: boolean; }) => Promise<T>
+readMemory: <T extends object = object>(dto: { memoryId: string; signalId: string; bucketName: string; backtest: boolean; when: Date; }) => Promise<T>
 ```
 
 Read a single entry from memory.

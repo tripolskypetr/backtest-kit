@@ -39,7 +39,7 @@ getInstance: any
 ### getData
 
 ```ts
-getData: <Value extends object = object>(symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<Value>
+getData: <Value extends object = object>(symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, when: Date) => Promise<Value>
 ```
 
 Read the current session value for a backtest run.
@@ -47,7 +47,7 @@ Read the current session value for a backtest run.
 ### setData
 
 ```ts
-setData: <Value extends object = object>(symbol: string, value: Value, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+setData: <Value extends object = object>(symbol: string, value: Value, context: { strategyName: string; exchangeName: string; frameName: string; }, when: Date) => Promise<void>
 ```
 
 Update the session value for a backtest run.

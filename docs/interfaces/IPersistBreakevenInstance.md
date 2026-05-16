@@ -27,7 +27,7 @@ Initialize storage for this breakeven context.
 ### readBreakevenData
 
 ```ts
-readBreakevenData: (signalId: string) => Promise<BreakevenData>
+readBreakevenData: (signalId: string, when: Date) => Promise<BreakevenData>
 ```
 
 Read persisted breakeven data for a specific signal.
@@ -35,7 +35,7 @@ Read persisted breakeven data for a specific signal.
 ### writeBreakevenData
 
 ```ts
-writeBreakevenData: (data: BreakevenData, signalId: string) => Promise<void>
+writeBreakevenData: (data: BreakevenData, signalId: string, when: Date) => Promise<void>
 ```
 
 Write breakeven data for a specific signal.

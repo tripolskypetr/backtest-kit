@@ -43,7 +43,7 @@ Memoized factory creating one IPersistRiskInstance per (riskName, exchange) pair
 ### readPositionData
 
 ```ts
-readPositionData: (riskName: string, exchangeName: string) => Promise<RiskData>
+readPositionData: (riskName: string, exchangeName: string, when: Date) => Promise<RiskData>
 ```
 
 Reads persisted active positions for the given risk context.
@@ -52,7 +52,7 @@ Lazily initializes the instance on first access.
 ### writePositionData
 
 ```ts
-writePositionData: (riskRow: RiskData, riskName: string, exchangeName: string) => Promise<void>
+writePositionData: (riskRow: RiskData, riskName: string, exchangeName: string, when: Date) => Promise<void>
 ```
 
 Writes active positions for the given risk context.

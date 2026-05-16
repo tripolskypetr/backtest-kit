@@ -35,7 +35,7 @@ Read cached entry by key.
 ### writeMeasureData
 
 ```ts
-writeMeasureData: (data: MeasureData, key: string) => Promise<void>
+writeMeasureData: (data: MeasureData, key: string, when: Date) => Promise<void>
 ```
 
 Write entry to cache.

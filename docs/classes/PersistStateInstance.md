@@ -63,7 +63,7 @@ Reads the persisted state using `bucketName` as the entity key.
 ### writeStateData
 
 ```ts
-writeStateData(data: StateData): Promise<void>;
+writeStateData(data: StateData, _when: Date): Promise<void>;
 ```
 
 Writes the state using `bucketName` as the entity key.

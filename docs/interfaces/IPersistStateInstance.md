@@ -33,7 +33,7 @@ Read persisted state for this context.
 ### writeStateData
 
 ```ts
-writeStateData: (data: StateData) => Promise<void>
+writeStateData: (data: StateData, when: Date) => Promise<void>
 ```
 
 Write state for this context.

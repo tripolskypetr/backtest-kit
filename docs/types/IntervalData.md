@@ -9,6 +9,7 @@ group: docs
 type IntervalData = {
     id: string;
     data: unknown;
+    when: Date;
     removed: boolean;
 };
 ```

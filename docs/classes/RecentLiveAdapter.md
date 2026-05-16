@@ -43,7 +43,7 @@ Proxies call to the underlying storage adapter.
 ### getLatestSignal
 
 ```ts
-getLatestSignal: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean) => Promise<IPublicSignalRow>
+getLatestSignal: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean, when: Date) => Promise<IPublicSignalRow>
 ```
 
 Retrieves the latest signal for the given context.
@@ -56,7 +56,9 @@ getMinutesSinceLatestSignalCreated: (timestamp: number, symbol: string, strategy
 ```
 
 Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
-Proxies call to the underlying storage adapter.
+Proxies call to the underlying storage adapter. `timestamp` doubles as the
+look-ahead cutoff — a signal whose `timestamp` exceeds the requested one is
+treated as not yet visible.
 
 ### useRecentAdapter
 

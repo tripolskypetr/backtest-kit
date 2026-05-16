@@ -7,6 +7,7 @@ group: docs
 
 ## Classes
 
+- [TimeMetaService](classes/TimeMetaService.md)
 - [NotificationHelperService](classes/NotificationHelperService.md)
 - [StateBacktestAdapter](classes/StateBacktestAdapter.md)
 - [StateLiveAdapter](classes/StateLiveAdapter.md)
@@ -114,7 +115,6 @@ group: docs
 - [RiskConnectionService](classes/RiskConnectionService.md)
 - [PartialConnectionService](classes/PartialConnectionService.md)
 - [BreakevenConnectionService](classes/BreakevenConnectionService.md)
-- [TimeMetaService](classes/TimeMetaService.md)
 - [PriceMetaService](classes/PriceMetaService.md)
 - [StrategyConnectionService](classes/StrategyConnectionService.md)
 - [ClientFrame](classes/ClientFrame.md)
@@ -184,6 +184,7 @@ group: docs
 - [getSizingSchema](functions/getSizingSchema.md)
 - [getRiskSchema](functions/getRiskSchema.md)
 - [getActionSchema](functions/getActionSchema.md)
+- [waitForReady](functions/waitForReady.md)
 - [commitCancelScheduled](functions/commitCancelScheduled.md)
 - [commitClosePending](functions/commitClosePending.md)
 - [commitPartialProfit](functions/commitPartialProfit.md)

@@ -63,7 +63,7 @@ Lazily initializes the instance on first access.
 ### writeSessionData
 
 ```ts
-writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string) => Promise<void>
+writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date) => Promise<void>
 ```
 
 Writes session data for the given context.

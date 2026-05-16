@@ -72,7 +72,7 @@ Checks whether a memory entry exists on disk (regardless of removed flag).
 ### writeMemoryData
 
 ```ts
-writeMemoryData(data: MemoryData, memoryId: string): Promise<void>;
+writeMemoryData(data: MemoryData, memoryId: string, _when: Date): Promise<void>;
 ```
 
 Writes a memory entry under the given id.

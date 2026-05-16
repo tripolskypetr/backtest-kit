@@ -42,17 +42,22 @@ Safe to call multiple times.
 ### getLatestSignal
 
 ```ts
-getLatestSignal: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<IPublicSignalRow>
+getLatestSignal: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, when: Date) => Promise<IPublicSignalRow>
 ```
 
 Retrieves the latest active signal for the given symbol and context.
 Searches backtest storage first, then live storage.
+Returns null if the stored signal's `timestamp` is greater than the requested `when`
+(look-ahead bias protection).
 
 ### getMinutesSinceLatestSignalCreated
 
 ```ts
-getMinutesSinceLatestSignalCreated: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<number>
+getMinutesSinceLatestSignalCreated: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, when: Date) => Promise<number>
 ```
 
 Returns the number of whole minutes elapsed since the latest signal's creation timestamp.
 Searches backtest storage first, then live storage.
+`when` doubles as the look-ahead cutoff — a signal whose `timestamp` exceeds
+`when.getTime()` is treated as not yet visible — and as the "now" against
+which elapsed minutes are computed.

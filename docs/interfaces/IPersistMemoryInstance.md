@@ -44,7 +44,7 @@ Check whether a memory entry exists (regardless of removed flag).
 ### writeMemoryData
 
 ```ts
-writeMemoryData: (data: MemoryData, memoryId: string) => Promise<void>
+writeMemoryData: (data: MemoryData, memoryId: string, when: Date) => Promise<void>
 ```
 
 Write a memory entry.
