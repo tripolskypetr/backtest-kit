@@ -113,7 +113,7 @@ export class WalkerMainService {
         }
 
         { 
-          cwd !== moduleRoot && Log.useJsonl();
+          cwd !== moduleRoot && Setup.update();
           dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
           dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
         }
@@ -215,7 +215,7 @@ export class WalkerMainService {
           restoreSnapshot();
 
           {
-            cwd !== moduleRoot && Log.useJsonl();
+            cwd !== moduleRoot && Setup.update();
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
             dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
           }

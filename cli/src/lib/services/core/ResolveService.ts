@@ -10,6 +10,7 @@ import { entrySubject } from '../../../config/emitters';
 import LoaderService from './LoaderService';
 import { fileURLToPath } from "url";
 import { IResolve } from "../../../interfaces/Resolve.interface";
+import { Setup } from "../../../classes/Setup";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,7 +82,7 @@ export class ResolveService implements IResolve{
         {
             const cwd = process.cwd();
             process.chdir(moduleRoot);
-            cwd !== moduleRoot && Log.useJsonl();
+            cwd !== moduleRoot && Setup.update();
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
             dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
             this.loaderService.import(absolutePath);

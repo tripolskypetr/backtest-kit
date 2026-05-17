@@ -46,6 +46,53 @@ import {
 
 import { cli } from "../lib";
 
+const SETUP_ADAPTER_FN = () => {
+
+  {
+    Dump.useMarkdown();
+  }
+
+  {
+    SessionLive.usePersist();
+    SessionBacktest.useLocal();
+  }
+
+  {
+    StorageLive.usePersist();
+    StorageBacktest.useMemory();
+  }
+
+  {
+    RecentLive.usePersist();
+    RecentBacktest.useMemory();
+  }
+
+  {
+    NotificationLive.usePersist();
+    NotificationBacktest.useMemory();
+  }
+
+  {
+    RecentLive.usePersist();
+    RecentBacktest.useMemory();
+  }
+
+  {
+    MemoryLive.usePersist();
+    MemoryBacktest.useLocal();
+  }
+
+  {
+    StateLive.usePersist();
+    StateBacktest.useLocal();
+  }
+
+  {
+    Markdown.useDummy();
+    Log.useJsonl();
+  }
+}
+
 export class SetupUtils {
 
   public enable = singleshot(() => {
@@ -69,49 +116,9 @@ export class SetupUtils {
       State.enable();
       Memory.enable();
     }
-
-    {
-      Dump.useMarkdown();
-    }
-
-    {
-      SessionLive.usePersist();
-      SessionBacktest.useLocal();
-    }
-
-    {
-      StorageLive.usePersist();
-      StorageBacktest.useMemory();
-    }
-
-    {
-      RecentLive.usePersist();
-      RecentBacktest.useMemory();
-    }
-
-    {
-      NotificationLive.usePersist();
-      NotificationBacktest.useMemory();
-    }
-
-    {
-      RecentLive.usePersist();
-      RecentBacktest.useMemory();
-    }
-
-    {
-      MemoryLive.usePersist();
-      MemoryBacktest.useLocal();
-    }
-
-    {
-      StateLive.usePersist();
-      StateBacktest.useLocal();
-    }
-
-    {
-      Markdown.useDummy();
-      Log.useJsonl();
+    
+    if (!cli.configConnectionService.hasConfig("setup.config")) {
+      SETUP_ADAPTER_FN();
     }
   });
 
@@ -184,6 +191,14 @@ export class SetupUtils {
       RecentBacktest.clear();
     }
   };
+
+  public update = () => {
+    cli.loggerService.debug("SetupUtils update");
+    if (cli.configConnectionService.hasConfig("setup.config")) {
+      return;
+    }
+    Log.useJsonl();
+  } 
 }
 
 export const Setup = new SetupUtils();

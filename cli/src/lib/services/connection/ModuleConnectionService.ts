@@ -4,6 +4,7 @@ import TYPES from "../../../lib/core/types";
 import ResolveService from "../core/ResolveService";
 import path from "path";
 import LoaderService from "../core/LoaderService";
+import { memoize } from "functools-kit";
 
 const GET_MODULE_VARIANTS_FN = (
   fileName: string,
@@ -52,12 +53,26 @@ export class ModuleConnectionService {
   readonly resolveService = inject<ResolveService>(TYPES.resolveService);
   readonly loaderService = inject<LoaderService>(TYPES.loaderService);
 
-  public loadModule = async (fileName: string) => {
-    this.loggerService.log("moduleConnectionService loadModule", {
+  public hasModule = (fileName: string) => {
+    this.loggerService.log("moduleConnectionService hasModule", {
       fileName,
     });
-    return await LOAD_MODULE_MODULE_FN(fileName, this);
-  };
+    return this.loadModule.has(fileName);
+  }
+
+  public loadModule = memoize(
+    ([fileName]) => `${fileName}`,
+    async (fileName: string) => {
+      this.loggerService.log("moduleConnectionService loadModule", {
+        fileName,
+      });
+      const module = await LOAD_MODULE_MODULE_FN(fileName, this);
+      if (!module) {
+        this.loadModule.clear(fileName);
+      }
+      return module;
+    }
+  );
 }
 
 export default ModuleConnectionService;

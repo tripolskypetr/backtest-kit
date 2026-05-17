@@ -732,6 +732,8 @@ Broker.enable();
 
 `@backtest-kit/cli` loads a `{projectRoot}/config/setup.config` file once before any module hooks or strategy code run. Use it to perform one-time initialization that must happen before the first persistence call — registering a custom storage backend, configuring a logger, seeding global state, or anything else the process needs before `backtest-kit` starts.
 
+**Important:** When `setup.config` is present, the CLI skips its own default adapter registration — it does **not** call `usePersist()` / `useLocal()` / `useMemory()` for any of the persistence slots. This means your config takes full ownership of the persistence layer: whatever adapters you register in `{projectRoot}/config/setup.config` are the ones `backtest-kit` uses, with no interference from the CLI defaults.
+
 ### Example: MongoDB + Redis persistence via `@backtest-kit/mongo`
 
 The most common use-case is swapping the default file-based persistence for a production-grade backend. Install `@backtest-kit/mongo` and call `setup()` — it registers all 15 persistence adapters in one call and reads connection parameters from environment variables:

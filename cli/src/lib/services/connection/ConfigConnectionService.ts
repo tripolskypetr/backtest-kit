@@ -5,6 +5,7 @@ import ResolveService from "../core/ResolveService";
 import LoaderService from "../core/LoaderService";
 import path from "path";
 import { ModuleExports } from "../../../model/Module.model";
+import { memoize } from "functools-kit";
 
 const GET_CONFIG_VARIANTS_FN = (
   fileName: string,
@@ -48,16 +49,30 @@ const LOAD_CONFIG_CONFIG_FN = async (
 };
 
 export class ConfigConnectionService {
-    readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-    readonly resolveService = inject<ResolveService>(TYPES.resolveService);
-    readonly loaderService = inject<LoaderService>(TYPES.loaderService);
+  readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  readonly resolveService = inject<ResolveService>(TYPES.resolveService);
+  readonly loaderService = inject<LoaderService>(TYPES.loaderService);
 
-    public loadConfig = (fileName: string) => {
-        this.loggerService.log("configConnectionService loadConfig", {
-            fileName,
-        });
-        return LOAD_CONFIG_CONFIG_FN(fileName, this);
+  public hasConfig = (fileName: string) => {
+    this.loggerService.log("configConnectionService hasConfig", {
+      fileName,
+    });
+    return this.loadConfig.has(fileName);
+  }
+
+  public loadConfig = memoize(
+    ([fileName]) => `${fileName}`,
+    async (fileName: string) => {
+      this.loggerService.log("configConnectionService loadConfig", {
+        fileName,
+      });
+      const config = await LOAD_CONFIG_CONFIG_FN(fileName, this);
+      if (!config) {
+        this.loadConfig.clear(fileName);
+      }
+      return config;
     }
+  );
 }
 
 export default ConfigConnectionService;

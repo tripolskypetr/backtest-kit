@@ -249,7 +249,8 @@ declare class ConfigConnectionService {
     readonly loggerService: LoggerService;
     readonly resolveService: ResolveService;
     readonly loaderService: LoaderService;
-    loadConfig: (fileName: string) => Promise<ModuleExports>;
+    hasConfig: (fileName: string) => boolean;
+    loadConfig: ((fileName: string) => Promise<ModuleExports>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<ModuleExports>>;
 }
 
 declare class FrontendProviderService {
@@ -381,7 +382,8 @@ declare class ModuleConnectionService {
     readonly loggerService: LoggerService;
     readonly resolveService: ResolveService;
     readonly loaderService: LoaderService;
-    loadModule: (fileName: string) => Promise<boolean>;
+    hasModule: (fileName: string) => boolean;
+    loadModule: ((fileName: string) => Promise<boolean>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<boolean>>;
 }
 
 declare class ConfigService {
@@ -420,6 +422,7 @@ declare const cli: {
 declare class SetupUtils {
     enable: (() => void) & functools_kit.ISingleshotClearable<() => void>;
     clear: () => void;
+    update: () => void;
 }
 declare const Setup: SetupUtils;
 
