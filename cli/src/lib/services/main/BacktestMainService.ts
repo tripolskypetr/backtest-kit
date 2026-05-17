@@ -24,6 +24,8 @@ import notifyVerbose from "../../../utils/notifyVerbose";
 import ModuleConnectionService from "../connection/ModuleConnectionService";
 import ConfigService from "../core/ConfigService";
 import { Setup } from "../../../classes/Setup";
+import path from "path";
+import dotenv from "dotenv";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -90,6 +92,11 @@ export class BacktestMainService {
       {
         this.frontendProviderService.connect();
         this.telegramProviderService.connect();
+      }
+
+      {
+        const cwd = process.cwd();
+        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
       }
 
       {

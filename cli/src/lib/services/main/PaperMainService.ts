@@ -20,6 +20,8 @@ import notifyVerbose from "../../../utils/notifyVerbose";
 import ModuleConnectionService from "../connection/ModuleConnectionService";
 import ConfigService from "../core/ConfigService";
 import { Setup } from "../../../classes/Setup";
+import path from "path";
+import dotenv from "dotenv";
 
 export class PaperMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -62,6 +64,11 @@ export class PaperMainService {
       {
         this.frontendProviderService.connect();
         this.telegramProviderService.connect();
+      }
+
+      {
+        const cwd = process.cwd();
+        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
       }
 
       {

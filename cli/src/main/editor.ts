@@ -5,6 +5,8 @@ import { getEnv } from "../helpers/getEnv";
 import cli from "../lib";
 import getEntry from "../helpers/getEntry";
 import { Setup } from "../classes/Setup";
+import path from "path";
+import dotenv from "dotenv";
 
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
@@ -25,6 +27,11 @@ export const main = async () => {
   {
     await cli.configService.waitForInit();
     Setup.enable();
+  }
+
+  {
+    const cwd = process.cwd();
+    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
   await cli.moduleConnectionService.loadModule("./editor.module");

@@ -14,6 +14,8 @@ import notifyShutdown from "../utils/notifyShutdown";
 import cli from "../lib";
 import { Setup } from "../classes/Setup";
 import { flush } from "./flush";
+import path from "path";
+import dotenv from "dotenv";
 
 type Mode = "backtest" | "live" | "paper" | "walker";
 
@@ -145,6 +147,11 @@ export const main = async () => {
 
   cli.frontendProviderService.connect();
   cli.telegramProviderService.connect();
+
+  {
+    const cwd = process.cwd();
+    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+  }
 
   await cli.moduleConnectionService.loadModule(MODE_MODULE[mode]);
 

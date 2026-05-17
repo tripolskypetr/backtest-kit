@@ -5,6 +5,8 @@ import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
 import { CandleInterval, listExchangeSchema } from "backtest-kit";
+import path from "path";
+import dotenv from "dotenv";
 
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
@@ -15,6 +17,11 @@ export const main = async () => {
 
   if (!values.pnldebug) {
     return;
+  }
+
+  {
+    const cwd = process.cwd();
+    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
   await cli.moduleConnectionService.loadModule("./pnldebug.module");

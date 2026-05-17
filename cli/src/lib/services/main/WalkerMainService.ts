@@ -129,6 +129,11 @@ export class WalkerMainService {
         Interval.resetCounter();
       }
 
+      {
+        const cwd = process.cwd();
+        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+      }
+
       await this.moduleConnectionService.loadModule("./walker.module");
 
       {

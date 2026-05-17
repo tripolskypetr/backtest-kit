@@ -19,6 +19,8 @@ import { singleshot, trycatch } from "functools-kit";
 import { getArgs } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
+import path from "path";
+import dotenv from "dotenv";
 
 const getBroker = singleshot(() => {
   const broker: IBroker = Broker["_brokerInstance"];
@@ -170,6 +172,11 @@ export const main = async () => {
 
   if (!values.brokerdebug) {
     return;
+  }
+
+  {
+    const cwd = process.cwd();
+    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
   await cli.moduleConnectionService.loadModule("./brokerdebug.module");

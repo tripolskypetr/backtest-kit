@@ -5,6 +5,8 @@ import { getArgs, getPositionals } from "../helpers/getArgs";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
 import { CandleInterval, listExchangeSchema } from "backtest-kit";
+import path from "path";
+import dotenv from "dotenv";
 
 const EXTRACT_ROWS_FN = (plots: Record<string, { data: { value: unknown; time: number }[] }>, schema: Record<string, string>) => {
   const keys = Object.keys(schema);
@@ -50,6 +52,11 @@ export const main = async () => {
   }
 
   const source = await cli.resolveService.attachPine(entryPoint);
+
+  {
+    const cwd = process.cwd();
+    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+  }
 
   await cli.moduleConnectionService.loadModule("./pine.module");
 
