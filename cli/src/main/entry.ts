@@ -132,13 +132,16 @@ export const main = async () => {
     return;
   }
 
-  const [entryPoint = null] = getPositionals();
+  const entryPoints = getPositionals();
 
-  if (!entryPoint) {
-    throw new Error("Entry point is required");
+  if (!entryPoints.length) {
+    throw new Error("At least one entry point is required");
   }
 
-  if (!values.noFlush) {
+  for (const entryPoint of entryPoints) {
+    if (values.noFlush) {
+      continue;
+    }
     await flush(entryPoint);
   }
 
@@ -162,7 +165,9 @@ export const main = async () => {
   listenFinish();
   createGracefulShutdown(mode)();
 
-  await cli.resolveService.attachEntry(entryPoint);
+  for (const entryPoint of entryPoints) {
+    await cli.resolveService.attachEntry(entryPoint);
+  }
 };
 
 main();
