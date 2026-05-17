@@ -18,6 +18,7 @@ const INTERVAL_ENUM = [
 interface ICandleDto {
   symbol: string;
   interval: CandleInterval;
+  exchangeName: string;
   timestamp: number;
   open: number;
   high: number;
@@ -26,13 +27,10 @@ interface ICandleDto {
   volume: number;
 }
 
-interface CandleDocument extends ICandleDto, Document {
-  exchangeName: string;
-}
+interface CandleDocument extends ICandleDto, Document {}
 
 interface ICandleRow extends ICandleDto {
   id: string;
-  exchangeName: string;
   createDate: Date;
   updatedDate: Date;
 }
@@ -52,7 +50,7 @@ const CandleSchema: Schema<CandleDocument> = new Schema(
   { timestamps: { createdAt: "createDate", updatedAt: "updatedDate" } }
 );
 
-CandleSchema.index({ symbol: 1, interval: 1, timestamp: 1 }, { unique: true });
+CandleSchema.index({ exchangeName: 1, symbol: 1, interval: 1, timestamp: 1 }, { unique: true });
 
 const CandleModel = mongoose.model<CandleDocument>("candle-items", CandleSchema);
 

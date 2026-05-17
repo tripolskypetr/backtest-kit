@@ -7,8 +7,6 @@ import { LoggerService } from "../base/LoggerService";
 import CandleCacheService from "../cache/CandleCacheService";
 import { CandleInterval } from "backtest-kit";
 
-const EXCHANGE_NAME = "ccxt_binance";
-
 export class CandleDbService extends BaseCRUD(CandleModel) {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   readonly candleCacheService = inject<CandleCacheService>(TYPES.candleCacheService);
@@ -16,12 +14,12 @@ export class CandleDbService extends BaseCRUD(CandleModel) {
   public create = async (dto: ICandleDto): Promise<ICandleRow> => {
     this.loggerService.log("candleDbService create", { dto });
     const filter = {
+      exchangeName: dto.exchangeName,
       symbol: dto.symbol,
       interval: dto.interval,
       timestamp: dto.timestamp,
     };
     const insertOnly = {
-      exchangeName: EXCHANGE_NAME,
       open: dto.open,
       high: dto.high,
       low: dto.low,
@@ -38,40 +36,43 @@ export class CandleDbService extends BaseCRUD(CandleModel) {
     return result;
   };
 
-  public hasCandle = async (symbol: string, interval: CandleInterval, timestamp: number): Promise<boolean> => {
-    this.loggerService.log("candleDbService hasCandle", { 
+  public hasCandle = async (symbol: string, interval: CandleInterval, exchangeName: string, timestamp: number): Promise<boolean> => {
+    this.loggerService.log("candleDbService hasCandle", {
       symbol,
       interval,
+      exchangeName,
       timestamp,
     });
     const hasInCache = await this.candleCacheService.hasCandleId(
       symbol,
       interval,
-      EXCHANGE_NAME,
+      exchangeName,
       timestamp,
     );
     if (hasInCache) {
       return true;
     }
-    const hasInMongo = await this.findBySymbolIntervalTimestamp(symbol, interval, timestamp);
+    const hasInMongo = await this.findBySymbolIntervalTimestamp(symbol, interval, exchangeName, timestamp);
     if (hasInMongo) {
       return true;
     }
     return false;
   };
 
-  public findBySymbolIntervalTimestamp = async (symbol: string, interval: CandleInterval, timestamp: number): Promise<ICandleRow | null> => {
-    this.loggerService.log("candleDbService findBySymbolIntervalTimestamp", { symbol, interval, timestamp });
-    try {
-      const cachedId = await this.candleCacheService.getCandleId(symbol, interval, EXCHANGE_NAME, timestamp);
-      return await super.findById(cachedId) as ICandleRow | null;
-    } catch {
-      const result = await super.findByFilter({ symbol, interval, exchangeName: EXCHANGE_NAME, timestamp });
-      if (result) {
-        await this.candleCacheService.setCandleId(result);
+  public findBySymbolIntervalTimestamp = async (symbol: string, interval: CandleInterval, exchangeName: string, timestamp: number): Promise<ICandleRow | null> => {
+    this.loggerService.log("candleDbService findBySymbolIntervalTimestamp", { symbol, interval, exchangeName, timestamp });
+    const cachedId = await this.candleCacheService.getCandleId(symbol, interval, exchangeName, timestamp);
+    if (cachedId) {
+      const cached = await super.findById(cachedId) as ICandleRow | null;
+      if (cached) {
+        return cached;
       }
-      return result;
     }
+    const result = await super.findByFilter({ symbol, interval, exchangeName, timestamp });
+    if (result) {
+      await this.candleCacheService.setCandleId(result);
+    }
+    return result;
   };
 
 }
