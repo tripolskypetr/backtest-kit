@@ -22,6 +22,7 @@ import ConfigService from "../core/ConfigService";
 import { Setup } from "../../../classes/Setup";
 import path from "path";
 import dotenv from "dotenv";
+import ConfigConnectionService from "../connection/ConfigConnectionService";
 
 export class LiveMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -43,6 +44,9 @@ export class LiveMainService {
   );
   private moduleConnectionService = inject<ModuleConnectionService>(
     TYPES.moduleConnectionService,
+  );
+  private configConnectionService = inject<ConfigConnectionService>(
+    TYPES.configConnectionService,
   );
 
   public run = singleshot(async (payload: {
@@ -70,6 +74,8 @@ export class LiveMainService {
       const cwd = process.cwd();
       dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
     }
+
+    await this.configConnectionService.loadConfig("setup.config");
 
     {
       await this.resolveService.attachJavascript(payload.entryPoint);

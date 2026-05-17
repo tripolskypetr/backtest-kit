@@ -24,6 +24,7 @@ export const main = async () => {
     dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
+  await cli.configConnectionService.loadConfig("setup.config");
   await cli.moduleConnectionService.loadModule("./pnldebug.module");
 
   {

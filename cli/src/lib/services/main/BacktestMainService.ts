@@ -26,6 +26,7 @@ import ConfigService from "../core/ConfigService";
 import { Setup } from "../../../classes/Setup";
 import path from "path";
 import dotenv from "dotenv";
+import ConfigConnectionService from "../connection/ConfigConnectionService";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -69,6 +70,10 @@ export class BacktestMainService {
     TYPES.moduleConnectionService,
   );
 
+  private configConnectionService = inject<ConfigConnectionService>(
+    TYPES.configConnectionService,
+  );
+
   public run = singleshot(
     async (payload: {
       entryPoint: string;
@@ -98,6 +103,8 @@ export class BacktestMainService {
         const cwd = process.cwd();
         dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
       }
+
+      await this.configConnectionService.loadConfig("setup.config");
 
       {
         await this.resolveService.attachJavascript(payload.entryPoint);

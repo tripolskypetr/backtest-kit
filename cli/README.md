@@ -728,6 +728,48 @@ Broker.useBrokerAdapter(MyBroker);
 Broker.enable();
 ```
 
+## ⚙️ Setup Hook (`config/setup.config`)
+
+`@backtest-kit/cli` loads a `{projectRoot}/config/setup.config` file once before any module hooks or strategy code run. Use it to perform one-time initialization that must happen before the first persistence call — registering a custom storage backend, configuring a logger, seeding global state, or anything else the process needs before `backtest-kit` starts.
+
+### Example: MongoDB + Redis persistence via `@backtest-kit/mongo`
+
+The most common use-case is swapping the default file-based persistence for a production-grade backend. Install `@backtest-kit/mongo` and call `setup()` — it registers all 15 persistence adapters in one call and reads connection parameters from environment variables:
+
+```bash
+npm install @backtest-kit/mongo
+```
+
+```ts
+// config/setup.config.ts
+import { setup } from '@backtest-kit/mongo';
+
+setup();
+```
+
+```env
+# .env
+CC_MONGO_CONNECTION_STRING=mongodb://localhost:27017/backtest-kit
+CC_REDIS_HOST=127.0.0.1
+CC_REDIS_PORT=6379
+```
+
+Or pass connection parameters explicitly:
+
+```ts
+// config/setup.config.ts
+import { setup } from '@backtest-kit/mongo';
+
+setup({
+  CC_MONGO_CONNECTION_STRING: 'mongodb://mongo:27017/mydb',
+  CC_REDIS_HOST: 'redis',
+  CC_REDIS_PORT: 6379,
+  CC_REDIS_PASSWORD: 'secret',
+});
+```
+
+No changes to strategy code are needed — `setup()` wires up the adapters transparently before `backtest-kit` makes its first persistence call.
+
 ## 🔀 Import Aliases (`config/alias.config`)
 
 `@backtest-kit/cli` lets you override any nodejs module import — without touching the strategy code. Drop a `config/alias.config` file in your project root and export a mapping from module name to replacement module.

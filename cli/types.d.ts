@@ -33,6 +33,7 @@ declare class PaperMainService {
     private frontendProviderService;
     private telegramProviderService;
     private moduleConnectionService;
+    private configConnectionService;
     run: ((payload: {
         entryPoint: string;
         symbol: string;
@@ -58,6 +59,7 @@ declare class LiveMainService {
     private frontendProviderService;
     private telegramProviderService;
     private moduleConnectionService;
+    private configConnectionService;
     run: ((payload: {
         entryPoint: string;
         symbol: string;
@@ -85,6 +87,7 @@ declare class BacktestMainService {
     private frontendProviderService;
     private telegramProviderService;
     private moduleConnectionService;
+    private configConnectionService;
     run: ((payload: {
         entryPoint: string;
         symbol: string;
@@ -115,6 +118,7 @@ declare class WalkerMainService {
     private symbolSchemaService;
     private cacheLogicService;
     private moduleConnectionService;
+    private configConnectionService;
     run: ((payload: {
         entryPoints: string[];
         symbol: string;

@@ -35,6 +35,7 @@ import FrameName from "../../../enum/FrameName";
 import WalkerName from "../../../enum/WalkerName";
 import { Setup } from "../../../classes/Setup";
 import ConfigService from "../core/ConfigService";
+import ConfigConnectionService from "../connection/ConfigConnectionService";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -68,6 +69,9 @@ export class WalkerMainService {
   );
   private moduleConnectionService = inject<ModuleConnectionService>(
     TYPES.moduleConnectionService,
+  );
+  private configConnectionService = inject<ConfigConnectionService>(
+    TYPES.configConnectionService,
   );
 
   public run = singleshot(
@@ -134,6 +138,7 @@ export class WalkerMainService {
         dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
       }
 
+      await this.configConnectionService.loadConfig("setup.config");
       await this.moduleConnectionService.loadModule("./walker.module");
 
       {
