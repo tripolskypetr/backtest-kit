@@ -728,11 +728,11 @@ Broker.useBrokerAdapter(MyBroker);
 Broker.enable();
 ```
 
-## 🔀 Import Aliases (`alias.module`)
+## 🔀 Import Aliases (`config/alias`)
 
-`@backtest-kit/cli` lets you override any nodejs module import — without touching the strategy code. Drop a `config/alias.module` file in your project root and export a mapping from module name to replacement module.
+`@backtest-kit/cli` lets you override any nodejs module import — without touching the strategy code. Drop a `config/alias` file in your project root and export a mapping from module name to replacement module.
 
-The alias table is loaded once (on the first `import` call) from `{projectRoot}/config/alias.module` and applied globally to every subsequent module load via `require`/ `import`.
+The alias table is loaded once (on the first `import` call) from `{projectRoot}/config/alias` and applied globally to every subsequent module load via `require`/ `import`.
 
 **Use cases:**
 
@@ -740,19 +740,19 @@ The alias table is loaded once (on the first `import` call) from `{projectRoot}/
 - Swap any external api for a mock during CI runs
 
 ```ts
-// config/alias.module.ts — named export
+// config/alias.ts — named export
 export const ccxt = require("./stubs/ccxt.stub.cjs");
 ```
 
 ```js
-// config/alias.module.cjs — default export
+// config/alias.cjs — default export
 module.exports = {
   ccxt: require("./stubs/ccxt.stub.cjs"),
 };
 ```
 
 ```js
-// config/alias.module.mjs — default export
+// config/alias.mjs — default export
 import ccxtStub from "./stubs/ccxt.stub.mjs";
 
 export default {

@@ -9,10 +9,10 @@ import { IMPORT_ALIAS } from "../../../config/alias";
 
 const GET_ALIAS_EXPORTS_FN = (self: LoaderService) => {
   const instance = self.getInstance(self.resolveService.OVERRIDE_CONFIG_DIR);
-  if (!instance.check("alias.module")) {
+  if (!instance.check("alias")) {
     return null;
   }
-  const exports = instance.import("alias.module");
+  const exports = instance.import("alias");
   return "default" in exports
     ? exports.default
     : exports;
