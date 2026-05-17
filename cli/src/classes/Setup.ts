@@ -198,6 +198,7 @@ export class SetupUtils {
       return;
     }
     Log.useJsonl();
+    Dump.useMarkdown();
   } 
 }
 
