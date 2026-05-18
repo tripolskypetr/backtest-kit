@@ -16,6 +16,17 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 
 > **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
 
+## 🏎️ CLI Init
+
+Minimal scaffold — all boilerplate stays inside @backtest-kit/cli:
+
+```bash 
+npx @backtest-kit/cli --init --output backtest-kit-project
+cd backtest-kit-project
+npm install
+npm start -- --help
+```
+
 ## 🤔 Philosophy
 
 `@backtest-kit/cli` is designed to do **two things well** — and the same tool covers both.
