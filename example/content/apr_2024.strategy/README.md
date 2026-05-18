@@ -37,7 +37,7 @@ April 2024 captured BTC's local top near $71,600 (Apr 8) followed by a sharp cor
 
 ## ✨ Performance Summary
 
-### Backtest result (signals_backtest_1779112763002.json)
+### Backtest result
 
 | Metric | Value |
 |---|---|
