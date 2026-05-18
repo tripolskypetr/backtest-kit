@@ -98,5 +98,5 @@ addFrameSchema({
   frameName: "apr_2024_frame",
   interval: "1m",
   startDate: new Date("2024-04-01T00:00:00Z"),
-  endDate: new Date("2024-05-02T00:00:00Z"),
+  endDate: new Date("2024-04-28T00:00:00Z"),
 });

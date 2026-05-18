@@ -16,6 +16,7 @@
 | Strategy | Ticker | Period | Signal source | Net PNL | Sharpe |
 |---|---|---|---|---|---|
 | [DOTUSDT Feb 2021 — Python EMA Crossover](./content/feb_2021.strategy/README.md) | DOTUSDT | Feb 2021 | Python EMA(9)/EMA(21) crossover via WebAssembly | **+5.52%** | **0.09** |
+| [BTCUSDT Apr 2024 — Polymarket Δprob](./content/apr_2024.strategy/README.md) | BTCUSDT | Apr 2024 | Polymarket "yes" probability shifts on crypto-prices markets | **+0.63%** | **0.055** |
 | [BTCUSDT Oct 2021 — TensorFlow Neural Network](./content/oct_2021.strategy/README.md) | BTCUSDT | Oct 2021 | TensorFlow NN predicting next candle close | **+18.26%** | **0.31** |
 | [BTCUSDT Dec 2025 — Pine Script Range Breakout](./content/dec_2025.strategy/README.md) | BTCUSDT | Dec 2025 | Pine Script BB + range detector + volume spike | **+2.40%** | **0.06** |
 | [TRXUSDT Jan 2026 — Liquidity Harvesting](./content//jan_2026.strategy/README.md) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
@@ -100,6 +101,19 @@
 1. Every hour `Cache.fn` runs `btc_dec2025_range.pine` on 1h candles (RSI 14) and extracts: BB bands, range boundaries, `signal` (±1), `isRanging`, `volSpike`.
 2. `getSignal` opens a LONG on `signal === 1` or SHORT on `signal === -1`, but skips if price has already moved past the close at signal time, or if `isRanging === 1`.
 3. Each position uses a fixed ±2% bracket (TP and SL), no DCA, no trailing.
+
+---
+
+### 🎯 BTCUSDT April 2024 — Polymarket Δprob
+
+> **Hypothesis:** sharp daily shifts in Polymarket "yes" probability for BTC-related prediction markets reflect retail sentiment flow that precedes BTC spot movement by hours, with no look-ahead — only the timestamp and Δprob are used to choose direction.
+
+#### How it works
+
+1. `loadPolySignals` reads `assets/polymarket-backtest-result.json` once via `singleshot`, aggregates to one signal per day (max `|dprob|` across all crypto-prices markets), and strips `entryPrice`/`exitPrice` (future-data fields).
+2. `getSignal` picks the most recent signal with `timestamp ≤ when` and rejects it if older than 1h or `|dprob| < 0.10`. Positive Δprob → LONG, negative → SHORT.
+3. Entry via `Position.moonbag` at market with a 1% hard stop and no fixed TP; `listenActivePing` closes on 1% trailing drawdown from peak profit, or on the 24h timeout.
+4. Result: 10 trades, 70% WR, Sharpe **+0.065** — three SL hits (one per LONG on the April top) nearly cancel seven trailing-take SHORT wins on the recovery slope.
 
 ---
 

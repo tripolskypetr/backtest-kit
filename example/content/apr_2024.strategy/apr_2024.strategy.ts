@@ -1,5 +1,9 @@
 import {
   addStrategySchema,
+  commitClosePending,
+  getPositionHighestProfitDistancePnlPercentage,
+  getPositionPnlPercent,
+  listenActivePing,
   listenError,
   Log,
   Position,
@@ -8,10 +12,12 @@ import { errorData, getErrorMessage, singleshot, str } from "functools-kit";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
-const HOLD_MINUTES = 24 * 60;
-const HARD_STOP_PERCENT = 50;
+const TRAILING_TAKE = 1.0;
+const HARD_STOP = 1.0;
 
-const MIN_ABS_DPROB = 0.05;
+const HOLD_MINUTES = 24 * 60;
+
+const MIN_ABS_DPROB = 0.1;
 const MAX_SIGNAL_AGE_MS = 60 * 60 * 1000;
 
 const POLY_RESULT_PATH = join(
@@ -93,22 +99,40 @@ addStrategySchema({
       return null;
     }
 
-    console.log(sig);
-
     return {
-      position: sig.direction,
+      minuteEstimatedTime: HOLD_MINUTES,
       ...Position.moonbag({
         currentPrice,
         position: sig.direction,
-        percentStopLoss: HARD_STOP_PERCENT,
+        percentStopLoss: HARD_STOP,
       }),
-      minuteEstimatedTime: HOLD_MINUTES,
       note: str.newline(
         `# Polymarket Δprob сигнал ${sig.direction}`,
         `dprob=${sig.dprob.toFixed(3)} signalAt=${sig.dateISO}`,
       ),
     };
   },
+});
+
+listenActivePing(async ({ symbol, data }) => {
+  const peakProfitDistance = await getPositionHighestProfitDistancePnlPercentage(symbol);
+  const currentProfit = await getPositionPnlPercent(symbol);
+  if (currentProfit < 0) {
+    return;
+  }
+  if (peakProfitDistance < TRAILING_TAKE) {
+    return;
+  }
+  Log.info("position closed due to the trailing take", {
+    symbol,
+    data,
+  });
+  await commitClosePending(symbol, {
+    id: "unknown",
+    note: str.newline(
+      "# Позиция закрыта по trailing take",
+    ),
+  });
 });
 
 listenError((error) => {
