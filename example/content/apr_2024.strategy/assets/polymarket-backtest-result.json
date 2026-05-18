@@ -1,0 +1,2486 @@
+{
+  "meta": {
+    "keyword": "bitcoin",
+    "btcTf": "1d",
+    "maxLagH": 14,
+    "threshold": 0.03,
+    "polyInterval": "max",
+    "polyFidelity": 720,
+    "generatedAt": "2026-05-18T12:32:30.445Z"
+  },
+  "marketsFound": 40,
+  "marketsProcessed": 17,
+  "aggregatedOptimalLag": {
+    "lag": -1,
+    "lagH": -24,
+    "rho": 0.6029
+  },
+  "aggregatedCorrData": [
+    {
+      "lag": -1,
+      "lagH": -24,
+      "rho": 0.6029
+    },
+    {
+      "lag": 0,
+      "lagH": 0,
+      "rho": 0.0158
+    },
+    {
+      "lag": 1,
+      "lagH": 24,
+      "rho": -0.0805
+    }
+  ],
+  "results": [
+    {
+      "question": "Bitcoin all time high in August?",
+      "endDate": "2024-08-31T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 397542.28,
+      "dataPoints": 32,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.7126206891770616
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7126206891770616
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.18392025460944467
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.10132407614293507
+        }
+      ],
+      "stats": {
+        "n": 8,
+        "winRate": 0.625,
+        "cumPnl": 4.3324,
+        "avgWin": 2.0844,
+        "avgLoss": -2.0299,
+        "profitFactor": 1.7114,
+        "sharpe": 0.2258
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7126206891770616
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.10132407614293507
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.18392025460944467
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-08-02T00:00:01.000Z",
+          "t": 1722556801000,
+          "dprob": 0.06,
+          "direction": "long",
+          "entryPrice": 61498.33,
+          "exitPrice": 60697.99,
+          "returnPct": -1.3014,
+          "win": false
+        },
+        {
+          "dateISO": "2024-08-03T00:00:02.000Z",
+          "t": 1722643202000,
+          "dprob": -0.10500000000000001,
+          "direction": "short",
+          "entryPrice": 60697.99,
+          "exitPrice": 58161,
+          "returnPct": 4.1797,
+          "win": true
+        },
+        {
+          "dateISO": "2024-08-05T00:00:01.000Z",
+          "t": 1722816001000,
+          "dprob": -0.06499999999999999,
+          "direction": "short",
+          "entryPrice": 54018.81,
+          "exitPrice": 56022.01,
+          "returnPct": -3.7083,
+          "win": false
+        },
+        {
+          "dateISO": "2024-08-06T00:00:01.000Z",
+          "t": 1722902401000,
+          "dprob": -0.035,
+          "direction": "short",
+          "entryPrice": 56022.01,
+          "exitPrice": 55134.16,
+          "returnPct": 1.5848,
+          "win": true
+        },
+        {
+          "dateISO": "2024-08-08T00:00:01.000Z",
+          "t": 1723075201000,
+          "dprob": -0.03,
+          "direction": "short",
+          "entryPrice": 61685.99,
+          "exitPrice": 60837.99,
+          "returnPct": 1.3747,
+          "win": true
+        },
+        {
+          "dateISO": "2024-08-09T00:00:02.000Z",
+          "t": 1723161602000,
+          "dprob": 0.06000000000000001,
+          "direction": "long",
+          "entryPrice": 60837.99,
+          "exitPrice": 60923.51,
+          "returnPct": 0.1406,
+          "win": true
+        },
+        {
+          "dateISO": "2024-08-11T00:00:01.000Z",
+          "t": 1723334401000,
+          "dprob": -0.030000000000000013,
+          "direction": "short",
+          "entryPrice": 58712.59,
+          "exitPrice": 59346.64,
+          "returnPct": -1.0799,
+          "win": false
+        },
+        {
+          "dateISO": "2024-08-13T00:00:02.000Z",
+          "t": 1723507202000,
+          "dprob": -0.035,
+          "direction": "short",
+          "entryPrice": 60587.15,
+          "exitPrice": 58683.39,
+          "returnPct": 3.1422,
+          "win": true
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $65,000 on August 9?",
+      "endDate": "2024-08-09T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 385992.53,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.9104733505316792
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9104733505316792
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.060812932547413594
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.02610248130095422
+        }
+      ],
+      "stats": {
+        "n": 3,
+        "winRate": 0.6667,
+        "cumPnl": -0.7488,
+        "avgWin": 1.4798,
+        "avgLoss": -3.7083,
+        "profitFactor": 0.7981,
+        "sharpe": -0.102
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9104733505316792
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.02610248130095422
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.060812932547413594
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-08-05T00:00:01.000Z",
+          "t": 1722816001000,
+          "dprob": -0.09,
+          "direction": "short",
+          "entryPrice": 54018.81,
+          "exitPrice": 56022.01,
+          "returnPct": -3.7083,
+          "win": false
+        },
+        {
+          "dateISO": "2024-08-06T00:00:01.000Z",
+          "t": 1722902401000,
+          "dprob": -0.043500000000000004,
+          "direction": "short",
+          "entryPrice": 56022.01,
+          "exitPrice": 55134.16,
+          "returnPct": 1.5848,
+          "win": true
+        },
+        {
+          "dateISO": "2024-08-08T00:00:01.000Z",
+          "t": 1723075201000,
+          "dprob": -0.0355,
+          "direction": "short",
+          "entryPrice": 61685.99,
+          "exitPrice": 60837.99,
+          "returnPct": 1.3747,
+          "win": true
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $68,000 on August 2?",
+      "endDate": "2024-08-02T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 299479.27,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.6150922634529373
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.6150922634529373
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.5465162316383646
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.07005630450014262
+        }
+      ],
+      "stats": {
+        "n": 5,
+        "winRate": 0.6,
+        "cumPnl": 5.8799,
+        "avgWin": 3.05,
+        "avgLoss": -1.6351,
+        "profitFactor": 2.798,
+        "sharpe": 0.4152
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.6150922634529373
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.07005630450014262
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.5465162316383646
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-07-28T00:00:02.000Z",
+          "t": 1722124802000,
+          "dprob": 0.08499999999999996,
+          "direction": "long",
+          "entryPrice": 68249.88,
+          "exitPrice": 66784.69,
+          "returnPct": -2.1468,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-29T00:00:02.000Z",
+          "t": 1722211202000,
+          "dprob": -0.05999999999999994,
+          "direction": "short",
+          "entryPrice": 66784.69,
+          "exitPrice": 66188,
+          "returnPct": 0.8935,
+          "win": true
+        },
+        {
+          "dateISO": "2024-07-30T00:00:01.000Z",
+          "t": 1722297601000,
+          "dprob": -0.08500000000000002,
+          "direction": "short",
+          "entryPrice": 66188,
+          "exitPrice": 64628,
+          "returnPct": 2.3569,
+          "win": true
+        },
+        {
+          "dateISO": "2024-07-31T00:00:02.000Z",
+          "t": 1722384002000,
+          "dprob": -0.07,
+          "direction": "short",
+          "entryPrice": 64628,
+          "exitPrice": 65354.02,
+          "returnPct": -1.1234,
+          "win": false
+        },
+        {
+          "dateISO": "2024-08-01T00:00:02.000Z",
+          "t": 1722470402000,
+          "dprob": -0.23500000000000001,
+          "direction": "short",
+          "entryPrice": 65354.02,
+          "exitPrice": 61498.33,
+          "returnPct": 5.8997,
+          "win": true
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $65,000 on July 26?",
+      "endDate": "2024-07-26T12:00:00Z",
+      "yesPrice": 1,
+      "volumeUsd": 173594.46,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.7870103975320726
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7870103975320726
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.7111495470087769
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.4605444580088156
+        }
+      ],
+      "stats": {
+        "n": 5,
+        "winRate": 0,
+        "cumPnl": -7.9939,
+        "avgWin": 0,
+        "avgLoss": -1.5988,
+        "profitFactor": 0,
+        "sharpe": -1.5872
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7870103975320726
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.4605444580088156
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.7111495470087769
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-07-21T00:00:01.000Z",
+          "t": 1721520001000,
+          "dprob": 0.05999999999999994,
+          "direction": "long",
+          "entryPrice": 68165.34,
+          "exitPrice": 67532.01,
+          "returnPct": -0.9291,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-22T00:00:01.000Z",
+          "t": 1721606401000,
+          "dprob": 0.05500000000000005,
+          "direction": "long",
+          "entryPrice": 67532.01,
+          "exitPrice": 65936.01,
+          "returnPct": -2.3633,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-23T00:00:01.000Z",
+          "t": 1721692801000,
+          "dprob": 0.04499999999999993,
+          "direction": "long",
+          "entryPrice": 65936.01,
+          "exitPrice": 65376,
+          "returnPct": -0.8493,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-24T00:00:01.000Z",
+          "t": 1721779201000,
+          "dprob": -0.15499999999999992,
+          "direction": "short",
+          "entryPrice": 65376,
+          "exitPrice": 65799.95,
+          "returnPct": -0.6485,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-25T00:00:01.000Z",
+          "t": 1721865601000,
+          "dprob": -0.08000000000000007,
+          "direction": "short",
+          "entryPrice": 65799.95,
+          "exitPrice": 67907.99,
+          "returnPct": -3.2037,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Will Bitcoin reach $75,000 in April?",
+      "endDate": "2024-04-30T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 168686.38,
+      "dataPoints": 29,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.5908125853775209
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5908125853775209
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.18670744814593415
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.09375613194788814
+        }
+      ],
+      "stats": {
+        "n": 17,
+        "winRate": 0.5882,
+        "cumPnl": 9.4231,
+        "avgWin": 2.4907,
+        "avgLoss": -2.2119,
+        "profitFactor": 1.6086,
+        "sharpe": 0.2044
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5908125853775209
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.18670744814593415
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.09375613194788814
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-04-05T00:00:03.000Z",
+          "t": 1712275203000,
+          "dprob": 0.12999999999999995,
+          "direction": "long",
+          "entryPrice": 67820.62,
+          "exitPrice": 68896,
+          "returnPct": 1.5856,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-06T00:00:03.000Z",
+          "t": 1712361603000,
+          "dprob": -0.18,
+          "direction": "short",
+          "entryPrice": 68896,
+          "exitPrice": 69360.39,
+          "returnPct": -0.674,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-07T00:00:02.000Z",
+          "t": 1712448002000,
+          "dprob": 0.065,
+          "direction": "long",
+          "entryPrice": 69360.39,
+          "exitPrice": 71620,
+          "returnPct": 3.2578,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-08T00:00:03.000Z",
+          "t": 1712534403000,
+          "dprob": 0.05500000000000005,
+          "direction": "long",
+          "entryPrice": 71620,
+          "exitPrice": 69146,
+          "returnPct": -3.4543,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-09T00:00:03.000Z",
+          "t": 1712620803000,
+          "dprob": 0.14,
+          "direction": "long",
+          "entryPrice": 69146,
+          "exitPrice": 70631.08,
+          "returnPct": 2.1477,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-10T00:00:03.000Z",
+          "t": 1712707203000,
+          "dprob": -0.09000000000000008,
+          "direction": "short",
+          "entryPrice": 70631.08,
+          "exitPrice": 70006.23,
+          "returnPct": 0.8847,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-11T00:00:03.000Z",
+          "t": 1712793603000,
+          "dprob": 0.07500000000000007,
+          "direction": "long",
+          "entryPrice": 70006.23,
+          "exitPrice": 67116.52,
+          "returnPct": -4.1278,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-12T00:00:03.000Z",
+          "t": 1712880003000,
+          "dprob": -0.04500000000000004,
+          "direction": "short",
+          "entryPrice": 67116.52,
+          "exitPrice": 63924.51,
+          "returnPct": 4.7559,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-13T00:00:02.000Z",
+          "t": 1712966402000,
+          "dprob": -0.345,
+          "direction": "short",
+          "entryPrice": 63924.51,
+          "exitPrice": 65661.84,
+          "returnPct": -2.7178,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-14T00:00:03.000Z",
+          "t": 1713052803000,
+          "dprob": -0.060000000000000026,
+          "direction": "short",
+          "entryPrice": 65661.84,
+          "exitPrice": 63419.99,
+          "returnPct": 3.4142,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-15T00:00:03.000Z",
+          "t": 1713139203000,
+          "dprob": 0.07999999999999999,
+          "direction": "long",
+          "entryPrice": 63419.99,
+          "exitPrice": 63793.39,
+          "returnPct": 0.5888,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-16T00:00:03.000Z",
+          "t": 1713225603000,
+          "dprob": -0.06999999999999998,
+          "direction": "short",
+          "entryPrice": 63793.39,
+          "exitPrice": 61277.37,
+          "returnPct": 3.944,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-17T00:00:03.000Z",
+          "t": 1713312003000,
+          "dprob": -0.14,
+          "direction": "short",
+          "entryPrice": 61277.37,
+          "exitPrice": 63470.08,
+          "returnPct": -3.5783,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-22T00:00:03.000Z",
+          "t": 1713744003000,
+          "dprob": 0.07500000000000001,
+          "direction": "long",
+          "entryPrice": 66819.32,
+          "exitPrice": 66414,
+          "returnPct": -0.6066,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-23T00:00:02.000Z",
+          "t": 1713830402000,
+          "dprob": -0.04000000000000001,
+          "direction": "short",
+          "entryPrice": 66414,
+          "exitPrice": 64289.59,
+          "returnPct": 3.1987,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-24T00:00:03.000Z",
+          "t": 1713916803000,
+          "dprob": -0.05499999999999999,
+          "direction": "short",
+          "entryPrice": 64289.59,
+          "exitPrice": 64498.34,
+          "returnPct": -0.3247,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-25T00:00:03.000Z",
+          "t": 1714003203000,
+          "dprob": -0.05550000000000001,
+          "direction": "short",
+          "entryPrice": 64498.34,
+          "exitPrice": 63770.01,
+          "returnPct": 1.1292,
+          "win": true
+        }
+      ]
+    },
+    {
+      "question": "Will Bitcoin reach $80,000 in April?",
+      "endDate": "2024-04-30T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 144119.74,
+      "dataPoints": 29,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.5890108924691628
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5890108924691628
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.15469413620929343
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.0026689201135533403
+        }
+      ],
+      "stats": {
+        "n": 9,
+        "winRate": 0.4444,
+        "cumPnl": -0.1937,
+        "avgWin": 2.8012,
+        "avgLoss": -2.2797,
+        "profitFactor": 0.983,
+        "sharpe": -0.0076
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5890108924691628
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.15469413620929343
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.0026689201135533403
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-04-04T00:00:03.000Z",
+          "t": 1712188803000,
+          "dprob": 0.040000000000000036,
+          "direction": "long",
+          "entryPrice": 68487.79,
+          "exitPrice": 67820.62,
+          "returnPct": -0.9741,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-06T00:00:03.000Z",
+          "t": 1712361603000,
+          "dprob": -0.044999999999999984,
+          "direction": "short",
+          "entryPrice": 68896,
+          "exitPrice": 69360.39,
+          "returnPct": -0.674,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-07T00:00:02.000Z",
+          "t": 1712448002000,
+          "dprob": 0.03999999999999998,
+          "direction": "long",
+          "entryPrice": 69360.39,
+          "exitPrice": 71620,
+          "returnPct": 3.2578,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-08T00:00:03.000Z",
+          "t": 1712534403000,
+          "dprob": 0.040000000000000036,
+          "direction": "long",
+          "entryPrice": 71620,
+          "exitPrice": 69146,
+          "returnPct": -3.4543,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-13T00:00:02.000Z",
+          "t": 1712966402000,
+          "dprob": -0.15,
+          "direction": "short",
+          "entryPrice": 63924.51,
+          "exitPrice": 65661.84,
+          "returnPct": -2.7178,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-14T00:00:03.000Z",
+          "t": 1713052803000,
+          "dprob": -0.09,
+          "direction": "short",
+          "entryPrice": 65661.84,
+          "exitPrice": 63419.99,
+          "returnPct": 3.4142,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-15T00:00:03.000Z",
+          "t": 1713139203000,
+          "dprob": 0.095,
+          "direction": "long",
+          "entryPrice": 63419.99,
+          "exitPrice": 63793.39,
+          "returnPct": 0.5888,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-16T00:00:03.000Z",
+          "t": 1713225603000,
+          "dprob": -0.05499999999999999,
+          "direction": "short",
+          "entryPrice": 63793.39,
+          "exitPrice": 61277.37,
+          "returnPct": 3.944,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-17T00:00:03.000Z",
+          "t": 1713312003000,
+          "dprob": -0.045,
+          "direction": "short",
+          "entryPrice": 61277.37,
+          "exitPrice": 63470.08,
+          "returnPct": -3.5783,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Will Bitcoin reach $75,000 in May?",
+      "endDate": "2024-05-31T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 139630.83,
+      "dataPoints": 32,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.7466591610637976
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7466591610637976
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.13996880773293616
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.033342677913614074
+        }
+      ],
+      "stats": {
+        "n": 16,
+        "winRate": 0.4375,
+        "cumPnl": -5.9415,
+        "avgWin": 1.625,
+        "avgLoss": -1.9241,
+        "profitFactor": 0.6569,
+        "sharpe": -0.1601
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7466591610637976
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.13996880773293616
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.033342677913614074
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-05-02T00:00:03.000Z",
+          "t": 1714608003000,
+          "dprob": -0.03499999999999999,
+          "direction": "short",
+          "entryPrice": 59060.61,
+          "exitPrice": 62882.01,
+          "returnPct": -6.4703,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-04T00:00:03.000Z",
+          "t": 1714780803000,
+          "dprob": 0.08000000000000002,
+          "direction": "long",
+          "entryPrice": 63892.04,
+          "exitPrice": 64012,
+          "returnPct": 0.1878,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-08T00:00:03.000Z",
+          "t": 1715126403000,
+          "dprob": -0.04000000000000001,
+          "direction": "short",
+          "entryPrice": 61193.03,
+          "exitPrice": 63074.01,
+          "returnPct": -3.0738,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-09T00:00:03.000Z",
+          "t": 1715212803000,
+          "dprob": -0.03499999999999999,
+          "direction": "short",
+          "entryPrice": 63074.01,
+          "exitPrice": 60799.99,
+          "returnPct": 3.6053,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-16T00:00:04.000Z",
+          "t": 1715817604000,
+          "dprob": 0.1,
+          "direction": "long",
+          "entryPrice": 65235.21,
+          "exitPrice": 67024,
+          "returnPct": 2.7421,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-17T00:00:03.000Z",
+          "t": 1715904003000,
+          "dprob": -0.03,
+          "direction": "short",
+          "entryPrice": 67024,
+          "exitPrice": 66915.2,
+          "returnPct": 0.1623,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-18T00:00:03.000Z",
+          "t": 1715990403000,
+          "dprob": 0.034999999999999976,
+          "direction": "long",
+          "entryPrice": 66915.2,
+          "exitPrice": 66274.01,
+          "returnPct": -0.9582,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-20T00:00:03.000Z",
+          "t": 1716163203000,
+          "dprob": -0.044999999999999984,
+          "direction": "short",
+          "entryPrice": 71446.62,
+          "exitPrice": 70148.34,
+          "returnPct": 1.8171,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-21T00:00:03.000Z",
+          "t": 1716249603000,
+          "dprob": 0.385,
+          "direction": "long",
+          "entryPrice": 70148.34,
+          "exitPrice": 69166.62,
+          "returnPct": -1.3995,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-22T00:00:03.000Z",
+          "t": 1716336003000,
+          "dprob": -0.15500000000000003,
+          "direction": "short",
+          "entryPrice": 69166.62,
+          "exitPrice": 67969.65,
+          "returnPct": 1.7306,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-23T00:00:03.000Z",
+          "t": 1716422403000,
+          "dprob": -0.07500000000000001,
+          "direction": "short",
+          "entryPrice": 67969.65,
+          "exitPrice": 68549.99,
+          "returnPct": -0.8538,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-24T00:00:03.000Z",
+          "t": 1716508803000,
+          "dprob": -0.145,
+          "direction": "short",
+          "entryPrice": 68549.99,
+          "exitPrice": 69290.57,
+          "returnPct": -1.0804,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-25T00:00:03.000Z",
+          "t": 1716595203000,
+          "dprob": -0.04999999999999999,
+          "direction": "short",
+          "entryPrice": 69290.57,
+          "exitPrice": 68507.67,
+          "returnPct": 1.1299,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-26T00:00:03.000Z",
+          "t": 1716681603000,
+          "dprob": -0.03,
+          "direction": "short",
+          "entryPrice": 68507.67,
+          "exitPrice": 69436.43,
+          "returnPct": -1.3557,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-28T00:00:03.000Z",
+          "t": 1716854403000,
+          "dprob": 0.05,
+          "direction": "long",
+          "entryPrice": 68398.39,
+          "exitPrice": 67652.42,
+          "returnPct": -1.0906,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-29T00:00:04.000Z",
+          "t": 1716940804000,
+          "dprob": -0.07,
+          "direction": "short",
+          "entryPrice": 67652.42,
+          "exitPrice": 68352.17,
+          "returnPct": -1.0343,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Will Bitcoin dip below $55k before June?",
+      "endDate": "2024-05-31T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 119283.43,
+      "dataPoints": 37,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": -0.8096277270696146
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": -0.8096277270696146
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.042350825608783844
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.029830314048018343
+        }
+      ],
+      "stats": {
+        "n": 18,
+        "winRate": 0.6111,
+        "cumPnl": 8.6509,
+        "avgWin": 2.0342,
+        "avgLoss": -1.9608,
+        "profitFactor": 1.6303,
+        "sharpe": 0.1716
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": -0.8096277270696146
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.042350825608783844
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.029830314048018343
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-04-27T00:00:03.000Z",
+          "t": 1714176003000,
+          "dprob": -0.17000000000000004,
+          "direction": "short",
+          "entryPrice": 63461.98,
+          "exitPrice": 63118.62,
+          "returnPct": 0.541,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-28T00:00:03.000Z",
+          "t": 1714262403000,
+          "dprob": 0.03500000000000003,
+          "direction": "long",
+          "entryPrice": 63118.62,
+          "exitPrice": 63866,
+          "returnPct": 1.1841,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-30T00:00:04.000Z",
+          "t": 1714435204000,
+          "dprob": -0.07,
+          "direction": "short",
+          "entryPrice": 60672,
+          "exitPrice": 58364.97,
+          "returnPct": 3.8025,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-01T00:00:03.000Z",
+          "t": 1714521603000,
+          "dprob": 0.22499999999999998,
+          "direction": "long",
+          "entryPrice": 58364.97,
+          "exitPrice": 59060.61,
+          "returnPct": 1.1919,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-02T00:00:03.000Z",
+          "t": 1714608003000,
+          "dprob": 0.1050000000000001,
+          "direction": "long",
+          "entryPrice": 59060.61,
+          "exitPrice": 62882.01,
+          "returnPct": 6.4703,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-03T00:00:03.000Z",
+          "t": 1714694403000,
+          "dprob": -0.06000000000000005,
+          "direction": "short",
+          "entryPrice": 62882.01,
+          "exitPrice": 63892.04,
+          "returnPct": -1.6062,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-04T00:00:03.000Z",
+          "t": 1714780803000,
+          "dprob": -0.245,
+          "direction": "short",
+          "entryPrice": 63892.04,
+          "exitPrice": 64012,
+          "returnPct": -0.1878,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-05T00:00:03.000Z",
+          "t": 1714867203000,
+          "dprob": -0.03999999999999998,
+          "direction": "short",
+          "entryPrice": 64012,
+          "exitPrice": 63165.19,
+          "returnPct": 1.3229,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-06T00:00:02.000Z",
+          "t": 1714953602000,
+          "dprob": -0.050000000000000044,
+          "direction": "short",
+          "entryPrice": 63165.19,
+          "exitPrice": 62312.08,
+          "returnPct": 1.3506,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-08T00:00:03.000Z",
+          "t": 1715126403000,
+          "dprob": 0.03999999999999998,
+          "direction": "long",
+          "entryPrice": 61193.03,
+          "exitPrice": 63074.01,
+          "returnPct": 3.0738,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-10T00:00:03.000Z",
+          "t": 1715299203000,
+          "dprob": -0.08999999999999997,
+          "direction": "short",
+          "entryPrice": 60799.99,
+          "exitPrice": 60825.99,
+          "returnPct": -0.0428,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-11T00:00:04.000Z",
+          "t": 1715385604000,
+          "dprob": 0.07500000000000001,
+          "direction": "long",
+          "entryPrice": 60825.99,
+          "exitPrice": 61483.99,
+          "returnPct": 1.0818,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-14T00:00:03.000Z",
+          "t": 1715644803000,
+          "dprob": -0.1,
+          "direction": "short",
+          "entryPrice": 61577.49,
+          "exitPrice": 66206.5,
+          "returnPct": -7.5174,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-15T00:00:04.000Z",
+          "t": 1715731204000,
+          "dprob": 0.035,
+          "direction": "long",
+          "entryPrice": 66206.5,
+          "exitPrice": 65235.21,
+          "returnPct": -1.4671,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-16T00:00:04.000Z",
+          "t": 1715817604000,
+          "dprob": -0.14,
+          "direction": "short",
+          "entryPrice": 65235.21,
+          "exitPrice": 67024,
+          "returnPct": -2.7421,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-17T00:00:03.000Z",
+          "t": 1715904003000,
+          "dprob": 0.030000000000000013,
+          "direction": "long",
+          "entryPrice": 67024,
+          "exitPrice": 66915.2,
+          "returnPct": -0.1623,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-18T00:00:03.000Z",
+          "t": 1715990403000,
+          "dprob": -0.030000000000000013,
+          "direction": "short",
+          "entryPrice": 66915.2,
+          "exitPrice": 66274.01,
+          "returnPct": 0.9582,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-21T00:00:03.000Z",
+          "t": 1716249603000,
+          "dprob": -0.04000000000000001,
+          "direction": "short",
+          "entryPrice": 70148.34,
+          "exitPrice": 69166.62,
+          "returnPct": 1.3995,
+          "win": true
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin all time high in April?",
+      "endDate": "2024-04-30T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 115518.14,
+      "dataPoints": 29,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.8236289494094651
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.8236289494094651
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.08109060169704561
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.0804835492405442
+        }
+      ],
+      "stats": {
+        "n": 18,
+        "winRate": 0.5556,
+        "cumPnl": 4.5112,
+        "avgWin": 1.7559,
+        "avgLoss": -1.631,
+        "profitFactor": 1.3457,
+        "sharpe": 0.1165
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.8236289494094651
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.08109060169704561
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.0804835492405442
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-04-04T00:00:03.000Z",
+          "t": 1712188803000,
+          "dprob": 0.08499999999999996,
+          "direction": "long",
+          "entryPrice": 68487.79,
+          "exitPrice": 67820.62,
+          "returnPct": -0.9741,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-05T00:00:03.000Z",
+          "t": 1712275203000,
+          "dprob": 0.10000000000000009,
+          "direction": "long",
+          "entryPrice": 67820.62,
+          "exitPrice": 68896,
+          "returnPct": 1.5856,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-06T00:00:03.000Z",
+          "t": 1712361603000,
+          "dprob": -0.10000000000000009,
+          "direction": "short",
+          "entryPrice": 68896,
+          "exitPrice": 69360.39,
+          "returnPct": -0.674,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-07T00:00:02.000Z",
+          "t": 1712448002000,
+          "dprob": 0.04500000000000004,
+          "direction": "long",
+          "entryPrice": 69360.39,
+          "exitPrice": 71620,
+          "returnPct": 3.2578,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-09T00:00:03.000Z",
+          "t": 1712620803000,
+          "dprob": 0.14,
+          "direction": "long",
+          "entryPrice": 69146,
+          "exitPrice": 70631.08,
+          "returnPct": 2.1477,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-10T00:00:03.000Z",
+          "t": 1712707203000,
+          "dprob": -0.10999999999999999,
+          "direction": "short",
+          "entryPrice": 70631.08,
+          "exitPrice": 70006.23,
+          "returnPct": 0.8847,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-11T00:00:03.000Z",
+          "t": 1712793603000,
+          "dprob": 0.07499999999999996,
+          "direction": "long",
+          "entryPrice": 70006.23,
+          "exitPrice": 67116.52,
+          "returnPct": -4.1278,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-13T00:00:02.000Z",
+          "t": 1712966402000,
+          "dprob": -0.23999999999999994,
+          "direction": "short",
+          "entryPrice": 63924.51,
+          "exitPrice": 65661.84,
+          "returnPct": -2.7178,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-14T00:00:03.000Z",
+          "t": 1713052803000,
+          "dprob": -0.17000000000000004,
+          "direction": "short",
+          "entryPrice": 65661.84,
+          "exitPrice": 63419.99,
+          "returnPct": 3.4142,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-15T00:00:03.000Z",
+          "t": 1713139203000,
+          "dprob": 0.07,
+          "direction": "long",
+          "entryPrice": 63419.99,
+          "exitPrice": 63793.39,
+          "returnPct": 0.5888,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-16T00:00:03.000Z",
+          "t": 1713225603000,
+          "dprob": -0.13499999999999998,
+          "direction": "short",
+          "entryPrice": 63793.39,
+          "exitPrice": 61277.37,
+          "returnPct": 3.944,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-18T00:00:03.000Z",
+          "t": 1713398403000,
+          "dprob": -0.065,
+          "direction": "short",
+          "entryPrice": 63470.08,
+          "exitPrice": 63818.01,
+          "returnPct": -0.5482,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-20T00:00:02.000Z",
+          "t": 1713571202000,
+          "dprob": 0.06,
+          "direction": "long",
+          "entryPrice": 64940.59,
+          "exitPrice": 64941.15,
+          "returnPct": 0.0009,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-22T00:00:03.000Z",
+          "t": 1713744003000,
+          "dprob": -0.065,
+          "direction": "short",
+          "entryPrice": 66819.32,
+          "exitPrice": 66414,
+          "returnPct": 0.6066,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-23T00:00:02.000Z",
+          "t": 1713830402000,
+          "dprob": 0.07500000000000001,
+          "direction": "long",
+          "entryPrice": 66414,
+          "exitPrice": 64289.59,
+          "returnPct": -3.1987,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-24T00:00:03.000Z",
+          "t": 1713916803000,
+          "dprob": -0.05499999999999999,
+          "direction": "short",
+          "entryPrice": 64289.59,
+          "exitPrice": 64498.34,
+          "returnPct": -0.3247,
+          "win": false
+        },
+        {
+          "dateISO": "2024-04-25T00:00:03.000Z",
+          "t": 1714003203000,
+          "dprob": -0.125,
+          "direction": "short",
+          "entryPrice": 64498.34,
+          "exitPrice": 63770.01,
+          "returnPct": 1.1292,
+          "win": true
+        },
+        {
+          "dateISO": "2024-04-26T00:00:02.000Z",
+          "t": 1714089602000,
+          "dprob": 0.032,
+          "direction": "long",
+          "entryPrice": 63770.01,
+          "exitPrice": 63461.98,
+          "returnPct": -0.483,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Will Bitcoin reach $75,000 in June?",
+      "endDate": "2024-06-30T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 109252.01,
+      "dataPoints": 31,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.5856312974872946
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5856312974872946
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.1627934532141642
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.017063864350207306
+        }
+      ],
+      "stats": {
+        "n": 12,
+        "winRate": 0.4167,
+        "cumPnl": -3.5163,
+        "avgWin": 0.6747,
+        "avgLoss": -0.9842,
+        "profitFactor": 0.4896,
+        "sharpe": -0.2631
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5856312974872946
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.1627934532141642
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.017063864350207306
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-06-04T00:00:02.000Z",
+          "t": 1717459202000,
+          "dprob": 0.09999999999999998,
+          "direction": "long",
+          "entryPrice": 70537.84,
+          "exitPrice": 71108,
+          "returnPct": 0.8083,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-05T00:00:02.000Z",
+          "t": 1717545602000,
+          "dprob": 0.18000000000000005,
+          "direction": "long",
+          "entryPrice": 71108,
+          "exitPrice": 70799.06,
+          "returnPct": -0.4345,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-07T00:00:02.000Z",
+          "t": 1717718402000,
+          "dprob": -0.030000000000000027,
+          "direction": "short",
+          "entryPrice": 69355.6,
+          "exitPrice": 69310.46,
+          "returnPct": 0.0651,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-08T00:00:02.000Z",
+          "t": 1717804802000,
+          "dprob": -0.11499999999999999,
+          "direction": "short",
+          "entryPrice": 69310.46,
+          "exitPrice": 69648.14,
+          "returnPct": -0.4872,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-09T00:00:03.000Z",
+          "t": 1717891203000,
+          "dprob": -0.04500000000000004,
+          "direction": "short",
+          "entryPrice": 69648.14,
+          "exitPrice": 69540,
+          "returnPct": 0.1553,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-11T00:00:02.000Z",
+          "t": 1718064002000,
+          "dprob": -0.04999999999999999,
+          "direction": "short",
+          "entryPrice": 67314.24,
+          "exitPrice": 68263.99,
+          "returnPct": -1.4109,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-12T00:00:03.000Z",
+          "t": 1718150403000,
+          "dprob": -0.14500000000000002,
+          "direction": "short",
+          "entryPrice": 68263.99,
+          "exitPrice": 66773.01,
+          "returnPct": 2.1841,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-13T00:00:03.000Z",
+          "t": 1718236803000,
+          "dprob": 0.03500000000000003,
+          "direction": "long",
+          "entryPrice": 66773.01,
+          "exitPrice": 66043.99,
+          "returnPct": -1.0918,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-14T00:00:03.000Z",
+          "t": 1718323203000,
+          "dprob": -0.10500000000000001,
+          "direction": "short",
+          "entryPrice": 66043.99,
+          "exitPrice": 66228.25,
+          "returnPct": -0.279,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-15T00:00:04.000Z",
+          "t": 1718409604000,
+          "dprob": -0.04999999999999999,
+          "direction": "short",
+          "entryPrice": 66228.25,
+          "exitPrice": 66676.87,
+          "returnPct": -0.6774,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-19T00:00:03.000Z",
+          "t": 1718755203000,
+          "dprob": -0.07,
+          "direction": "short",
+          "entryPrice": 64974.37,
+          "exitPrice": 64869.99,
+          "returnPct": 0.1606,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-24T00:00:03.000Z",
+          "t": 1719187203000,
+          "dprob": -0.031,
+          "direction": "short",
+          "entryPrice": 60293.3,
+          "exitPrice": 61806.01,
+          "returnPct": -2.5089,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $58,000 on July 19?",
+      "endDate": "2024-07-19T12:00:00Z",
+      "yesPrice": 1,
+      "volumeUsd": 105854.1,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.9128651986967106
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9128651986967106
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.2943689987836376
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.16397528055736654
+        }
+      ],
+      "stats": {
+        "n": 4,
+        "winRate": 0.5,
+        "cumPnl": 5.3261,
+        "avgWin": 3.476,
+        "avgLoss": -0.8129,
+        "profitFactor": 4.2758,
+        "sharpe": 0.4376
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9128651986967106
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.2943689987836376
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.16397528055736654
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-07-14T00:00:02.000Z",
+          "t": 1720915202000,
+          "dprob": 0.14500000000000002,
+          "direction": "long",
+          "entryPrice": 60797.91,
+          "exitPrice": 64724.14,
+          "returnPct": 6.4578,
+          "win": true
+        },
+        {
+          "dateISO": "2024-07-15T00:00:03.000Z",
+          "t": 1721001603000,
+          "dprob": 0.14500000000000002,
+          "direction": "long",
+          "entryPrice": 64724.14,
+          "exitPrice": 65043.99,
+          "returnPct": 0.4942,
+          "win": true
+        },
+        {
+          "dateISO": "2024-07-16T00:00:02.000Z",
+          "t": 1721088002000,
+          "dprob": 0.16000000000000003,
+          "direction": "long",
+          "entryPrice": 65043.99,
+          "exitPrice": 64087.99,
+          "returnPct": -1.4698,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-17T00:00:01.000Z",
+          "t": 1721174401000,
+          "dprob": 0.04499999999999993,
+          "direction": "long",
+          "entryPrice": 64087.99,
+          "exitPrice": 63987.92,
+          "returnPct": -0.1561,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $68,000 on May 31?",
+      "endDate": "2024-05-31T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 101895.58,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.961525589588249
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.961525589588249
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.6449017355015846
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.03287888953708282
+        }
+      ],
+      "stats": {
+        "n": 5,
+        "winRate": 0.6,
+        "cumPnl": 1.914,
+        "avgWin": 1.3463,
+        "avgLoss": -1.0625,
+        "profitFactor": 1.9007,
+        "sharpe": 0.3233
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.961525589588249
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.6449017355015846
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.03287888953708282
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-05-26T00:00:03.000Z",
+          "t": 1716681603000,
+          "dprob": 0.050000000000000044,
+          "direction": "long",
+          "entryPrice": 68507.67,
+          "exitPrice": 69436.43,
+          "returnPct": 1.3557,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-27T00:00:03.000Z",
+          "t": 1716768003000,
+          "dprob": -0.06999999999999995,
+          "direction": "short",
+          "entryPrice": 69436.43,
+          "exitPrice": 68398.39,
+          "returnPct": 1.495,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-28T00:00:03.000Z",
+          "t": 1716854403000,
+          "dprob": 0.125,
+          "direction": "long",
+          "entryPrice": 68398.39,
+          "exitPrice": 67652.42,
+          "returnPct": -1.0906,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-29T00:00:04.000Z",
+          "t": 1716940804000,
+          "dprob": -0.11499999999999999,
+          "direction": "short",
+          "entryPrice": 67652.42,
+          "exitPrice": 68352.17,
+          "returnPct": -1.0343,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-30T00:00:03.000Z",
+          "t": 1717027203000,
+          "dprob": -0.11500000000000005,
+          "direction": "short",
+          "entryPrice": 68352.17,
+          "exitPrice": 67540.01,
+          "returnPct": 1.1882,
+          "win": true
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin all time high in June?",
+      "endDate": "2024-06-30T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 97627.81,
+      "dataPoints": 27,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.5467283317139912
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5467283317139912
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.17230071277801728
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.1006051847826701
+        }
+      ],
+      "stats": {
+        "n": 12,
+        "winRate": 0.5,
+        "cumPnl": -3.9048,
+        "avgWin": 0.7961,
+        "avgLoss": -1.4469,
+        "profitFactor": 0.5502,
+        "sharpe": -0.2247
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.5467283317139912
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.1006051847826701
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.17230071277801728
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-06-06T00:00:03.000Z",
+          "t": 1717632003000,
+          "dprob": 0.09500000000000008,
+          "direction": "long",
+          "entryPrice": 70799.06,
+          "exitPrice": 69355.6,
+          "returnPct": -2.0388,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-07T00:00:02.000Z",
+          "t": 1717718402000,
+          "dprob": -0.050000000000000044,
+          "direction": "short",
+          "entryPrice": 69355.6,
+          "exitPrice": 69310.46,
+          "returnPct": 0.0651,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-08T00:00:02.000Z",
+          "t": 1717804802000,
+          "dprob": -0.135,
+          "direction": "short",
+          "entryPrice": 69310.46,
+          "exitPrice": 69648.14,
+          "returnPct": -0.4872,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-09T00:00:03.000Z",
+          "t": 1717891203000,
+          "dprob": -0.04999999999999993,
+          "direction": "short",
+          "entryPrice": 69648.14,
+          "exitPrice": 69540,
+          "returnPct": 0.1553,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-10T00:00:04.000Z",
+          "t": 1717977604000,
+          "dprob": 0.04499999999999993,
+          "direction": "long",
+          "entryPrice": 69540,
+          "exitPrice": 67314.24,
+          "returnPct": -3.2007,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-12T00:00:03.000Z",
+          "t": 1718150403000,
+          "dprob": -0.16999999999999993,
+          "direction": "short",
+          "entryPrice": 68263.99,
+          "exitPrice": 66773.01,
+          "returnPct": 2.1841,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-13T00:00:03.000Z",
+          "t": 1718236803000,
+          "dprob": -0.040000000000000036,
+          "direction": "short",
+          "entryPrice": 66773.01,
+          "exitPrice": 66043.99,
+          "returnPct": 1.0918,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-14T00:00:03.000Z",
+          "t": 1718323203000,
+          "dprob": -0.09499999999999997,
+          "direction": "short",
+          "entryPrice": 66043.99,
+          "exitPrice": 66228.25,
+          "returnPct": -0.279,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-15T00:00:04.000Z",
+          "t": 1718409604000,
+          "dprob": -0.095,
+          "direction": "short",
+          "entryPrice": 66228.25,
+          "exitPrice": 66676.87,
+          "returnPct": -0.6774,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-17T00:00:04.000Z",
+          "t": 1718582404000,
+          "dprob": 0.03999999999999998,
+          "direction": "long",
+          "entryPrice": 66504.33,
+          "exitPrice": 65175.32,
+          "returnPct": -1.9984,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-19T00:00:03.000Z",
+          "t": 1718755203000,
+          "dprob": -0.09000000000000001,
+          "direction": "short",
+          "entryPrice": 64974.37,
+          "exitPrice": 64869.99,
+          "returnPct": 0.1606,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-20T00:00:04.000Z",
+          "t": 1718841604000,
+          "dprob": -0.03,
+          "direction": "short",
+          "entryPrice": 64869.99,
+          "exitPrice": 64143.56,
+          "returnPct": 1.1198,
+          "win": true
+        }
+      ]
+    },
+    {
+      "question": "Will Bitcoin dip below $45k before June?",
+      "endDate": "2024-05-31T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 89744.11,
+      "dataPoints": 37,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": -0.3779547203378488
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": -0.3779547203378488
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.2644926325237742
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.12317811554153414
+        }
+      ],
+      "stats": {
+        "n": 3,
+        "winRate": 0.3333,
+        "cumPnl": 4.6763,
+        "avgWin": 6.4703,
+        "avgLoss": -0.897,
+        "profitFactor": 3.6066,
+        "sharpe": 0.4427
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": -0.3779547203378488
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.12317811554153414
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": 0.2644926325237742
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-05-02T00:00:03.000Z",
+          "t": 1714608003000,
+          "dprob": 0.125,
+          "direction": "long",
+          "entryPrice": 59060.61,
+          "exitPrice": 62882.01,
+          "returnPct": 6.4703,
+          "win": true
+        },
+        {
+          "dateISO": "2024-05-03T00:00:03.000Z",
+          "t": 1714694403000,
+          "dprob": -0.065,
+          "direction": "short",
+          "entryPrice": 62882.01,
+          "exitPrice": 63892.04,
+          "returnPct": -1.6062,
+          "win": false
+        },
+        {
+          "dateISO": "2024-05-04T00:00:03.000Z",
+          "t": 1714780803000,
+          "dprob": -0.045,
+          "direction": "short",
+          "entryPrice": 63892.04,
+          "exitPrice": 64012,
+          "returnPct": -0.1878,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $69,000 on June 7?",
+      "endDate": "2024-06-07T12:00:00Z",
+      "yesPrice": 1,
+      "volumeUsd": 87385.47,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.7664865190187189
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7664865190187189
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.632955757294891
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.009807561884770076
+        }
+      ],
+      "stats": {
+        "n": 3,
+        "winRate": 0.3333,
+        "cumPnl": -1.665,
+        "avgWin": 0.8083,
+        "avgLoss": -1.2367,
+        "profitFactor": 0.3268,
+        "sharpe": -0.4762
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.7664865190187189
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.009807561884770076
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.632955757294891
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-06-04T00:00:02.000Z",
+          "t": 1717459202000,
+          "dprob": 0.12,
+          "direction": "long",
+          "entryPrice": 70537.84,
+          "exitPrice": 71108,
+          "returnPct": 0.8083,
+          "win": true
+        },
+        {
+          "dateISO": "2024-06-05T00:00:02.000Z",
+          "t": 1717545602000,
+          "dprob": 0.22499999999999998,
+          "direction": "long",
+          "entryPrice": 71108,
+          "exitPrice": 70799.06,
+          "returnPct": -0.4345,
+          "win": false
+        },
+        {
+          "dateISO": "2024-06-06T00:00:03.000Z",
+          "t": 1717632003000,
+          "dprob": 0.09999999999999998,
+          "direction": "long",
+          "entryPrice": 70799.06,
+          "exitPrice": 69355.6,
+          "returnPct": -2.0388,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $57,000 on July 12?",
+      "endDate": "2024-07-12T12:00:00Z",
+      "yesPrice": 1,
+      "volumeUsd": 80340.17,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.9695002028441161
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9695002028441161
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.7416950816235135
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.45831196994964873
+        }
+      ],
+      "stats": {
+        "n": 5,
+        "winRate": 0.2,
+        "cumPnl": -3.0055,
+        "avgWin": 1.5339,
+        "avgLoss": -1.1349,
+        "profitFactor": 0.3379,
+        "sharpe": -0.4823
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9695002028441161
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": -0.45831196994964873
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.7416950816235135
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-07-07T00:00:02.000Z",
+          "t": 1720310402000,
+          "dprob": 0.16000000000000003,
+          "direction": "long",
+          "entryPrice": 55857.81,
+          "exitPrice": 56714.62,
+          "returnPct": 1.5339,
+          "win": true
+        },
+        {
+          "dateISO": "2024-07-08T00:00:02.000Z",
+          "t": 1720396802000,
+          "dprob": -0.265,
+          "direction": "short",
+          "entryPrice": 56714.62,
+          "exitPrice": 58050,
+          "returnPct": -2.3546,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-09T00:00:02.000Z",
+          "t": 1720483202000,
+          "dprob": 0.10499999999999998,
+          "direction": "long",
+          "entryPrice": 58050,
+          "exitPrice": 57725.85,
+          "returnPct": -0.5584,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-10T00:00:03.000Z",
+          "t": 1720569603000,
+          "dprob": 0.245,
+          "direction": "long",
+          "entryPrice": 57725.85,
+          "exitPrice": 57339.89,
+          "returnPct": -0.6686,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-11T00:00:03.000Z",
+          "t": 1720656003000,
+          "dprob": -0.06499999999999995,
+          "direction": "short",
+          "entryPrice": 57339.89,
+          "exitPrice": 57889.1,
+          "returnPct": -0.9578,
+          "win": false
+        }
+      ]
+    },
+    {
+      "question": "Bitcoin above $61,000 on July 5?",
+      "endDate": "2024-07-05T12:00:00Z",
+      "yesPrice": 0,
+      "volumeUsd": 72724.45,
+      "dataPoints": 7,
+      "optimalLag": {
+        "lag": -1,
+        "lagH": -24,
+        "rho": 0.9193322844483055
+      },
+      "top5Lags": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9193322844483055
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.6710674830340071
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.004645132955359442
+        }
+      ],
+      "stats": {
+        "n": 5,
+        "winRate": 0.6,
+        "cumPnl": 1.8716,
+        "avgWin": 2.0627,
+        "avgLoss": -2.1583,
+        "profitFactor": 1.4336,
+        "sharpe": 0.1349
+      },
+      "corrData": [
+        {
+          "lag": -1,
+          "lagH": -24,
+          "rho": 0.9193322844483055
+        },
+        {
+          "lag": 0,
+          "lagH": 0,
+          "rho": 0.6710674830340071
+        },
+        {
+          "lag": 1,
+          "lagH": 24,
+          "rho": -0.004645132955359442
+        }
+      ],
+      "signals": [
+        {
+          "dateISO": "2024-06-30T00:00:02.000Z",
+          "t": 1719705602000,
+          "dprob": 0.07500000000000001,
+          "direction": "long",
+          "entryPrice": 62772.01,
+          "exitPrice": 62899.99,
+          "returnPct": 0.2039,
+          "win": true
+        },
+        {
+          "dateISO": "2024-07-01T00:00:02.000Z",
+          "t": 1719792002000,
+          "dprob": 0.21999999999999997,
+          "direction": "long",
+          "entryPrice": 62899.99,
+          "exitPrice": 62135.47,
+          "returnPct": -1.2155,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-02T00:00:03.000Z",
+          "t": 1719878403000,
+          "dprob": 0.05500000000000005,
+          "direction": "long",
+          "entryPrice": 62135.47,
+          "exitPrice": 60208.58,
+          "returnPct": -3.1011,
+          "win": false
+        },
+        {
+          "dateISO": "2024-07-03T00:00:02.000Z",
+          "t": 1719964802000,
+          "dprob": -0.06000000000000005,
+          "direction": "short",
+          "entryPrice": 60208.58,
+          "exitPrice": 57050.01,
+          "returnPct": 5.246,
+          "win": true
+        },
+        {
+          "dateISO": "2024-07-04T00:00:03.000Z",
+          "t": 1720051203000,
+          "dprob": -0.37999999999999995,
+          "direction": "short",
+          "entryPrice": 57050.01,
+          "exitPrice": 56628.79,
+          "returnPct": 0.7383,
+          "win": true
+        }
+      ]
+    }
+  ]
+}

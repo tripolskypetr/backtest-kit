@@ -1,0 +1,1 @@
+npx ts-node polymarket-backtest.ts --tf 1d --threshold 0.03 --lag 14 --maxMarkets 20
