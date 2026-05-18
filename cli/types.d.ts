@@ -240,17 +240,12 @@ declare class SymbolSchemaService {
     addSchema: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 }
 
-type ModuleExports = {
-    [key: string]: any;
-    default?: any;
-};
-
 declare class ConfigConnectionService {
     readonly loggerService: LoggerService;
     readonly resolveService: ResolveService;
     readonly loaderService: LoaderService;
     hasConfig: (fileName: string) => boolean;
-    loadConfig: ((fileName: string) => Promise<ModuleExports>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<ModuleExports>>;
+    loadConfig: ((fileName: string) => Promise<any>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<any>>;
 }
 
 declare class FrontendProviderService {

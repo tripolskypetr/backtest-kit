@@ -52,8 +52,14 @@ const GET_ALIAS_EXPORTS_FN = (self: LoaderService) => {
       continue;
     }
     const instance = self.getInstance(baseDir);
-    const exports = instance.import(filePath);
-    return "default" in exports ? exports.default : exports;
+    const alias = instance.import(filePath);
+    if (!alias) {
+      return null;
+    }
+    if ("default" in alias) {
+      return alias.default;
+    }
+    return alias;
   }
   return null;
 };

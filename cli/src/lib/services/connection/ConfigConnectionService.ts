@@ -69,6 +69,10 @@ export class ConfigConnectionService {
       const config = await LOAD_CONFIG_CONFIG_FN(fileName, this);
       if (!config) {
         this.loadConfig.clear(fileName);
+        return null;
+      }
+      if ("default" in config) {
+        return config.default;
       }
       return config;
     }

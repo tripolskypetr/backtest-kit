@@ -1,8 +1,5 @@
 export type ModuleExports = {
     [key: string]: any;
-    default?: any;
+    (...args: any): any;
 }
 
-export interface ModuleModel {
-    exports: ModuleExports
-}

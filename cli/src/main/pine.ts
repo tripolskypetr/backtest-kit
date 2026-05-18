@@ -58,9 +58,16 @@ export const main = async () => {
     dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
+  await cli.configConnectionService.loadConfig("setup.config");
+
   {
-    await cli.configConnectionService.loadConfig("setup.config");
-    await cli.configConnectionService.loadConfig("loader.config");
+    const loader = await cli.configConnectionService.loadConfig("loader.config");
+    if (typeof loader === "function") {
+      await loader();
+    }
+    if (typeof loader?.loader === "function") {
+      await loader.loader();
+    }
   }
 
   await cli.moduleConnectionService.loadModule("pine.module");

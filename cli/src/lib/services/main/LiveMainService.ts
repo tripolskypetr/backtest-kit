@@ -60,9 +60,16 @@ export class LiveMainService {
       payload,
     });
 
+    await this.configConnectionService.loadConfig("setup.config");
+
     {
-      await this.configConnectionService.loadConfig("setup.config");
-      await this.configConnectionService.loadConfig("loader.config");
+      const loader = await this.configConnectionService.loadConfig("loader.config");
+      if (typeof loader === "function") {
+        await loader();
+      }
+      if (typeof loader?.loader === "function") {
+        await loader.loader();
+      }
     }
 
     {
