@@ -776,6 +776,16 @@ No changes to strategy code are needed — `setup()` wires up the adapters trans
 
 `@backtest-kit/cli` loads a `{projectRoot}/config/loader.config` file **after** `setup.config` but **before** any strategy or module code runs. Unlike `setup.config` (which is loaded for its side effects), `loader.config` exports a function that the CLI explicitly `await`s. Use it whenever you need to **wait for an async dependency** to be ready before the backtest starts.
 
+```bash
+monorepo/
+├── packages/
+│   ├── shared-broker/      # shared broker code
+│   ├── shared-signals/     # common indicators (RSI, MACD)
+│   ├── shared-db/          # mongodb wiring
+│   ├── strategy-momentum/  # strategy code
+│   └── strategy-mean-reversion/
+```
+
 **When to use it:**
 
 - **Wire microfrontends in a monorepo** — resolve and pre-load sibling packages, register cross-package services, or hydrate a shared DI container before strategies import from neighboring workspaces.
