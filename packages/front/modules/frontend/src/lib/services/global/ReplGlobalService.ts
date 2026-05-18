@@ -10,7 +10,7 @@ import {
 export class ReplGlobalService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
-    public eval = async (command: string): Promise<string> => {
+    public eval = async (command: string): Promise<string | null> => {
         this.loggerService.log("replGlobalService eval", {
             command,
         });
@@ -27,7 +27,8 @@ export class ReplGlobalService {
             }),
         });
         if (error) {
-            throw new Error(error);
+            console.error(error);
+            return null;
         }
         console.log(data);
         return data;
