@@ -50,11 +50,11 @@ The moment you start making money is the worst possible moment to rewrite your s
 monorepo/
 ├── content/
 │   ├── feb_2026.strategy/ 
-│   ├── feb_2026.strategy.ts   # strategy production code
-│   ├── feb_2026.test.ts       # developer playground
+│       ├── feb_2026.strategy.ts   # strategy production code
+│       ├── feb_2026.test.ts       # developer playground
 ├── packages/
-│   ├── shared-broker/         # shared broker code
-│   ├── shared-signals/        # common indicators (RSI, MACD)
+│   ├── shared-broker/             # shared broker code
+│   ├── shared-signals/            # common indicators (RSI, MACD)
 ```
 
 
