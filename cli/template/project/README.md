@@ -17,6 +17,7 @@ A minimal project scaffold for [backtest-kit](https://github.com/tripolskypetr/b
 | Strategy | Ticker | Period | Signal source | Net PNL | Sharpe |
 |---|---|---|---|---|---|
 | [DOTUSDT Feb 2021 — Python EMA Crossover](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2021.strategy) | DOTUSDT | Feb 2021 | Python EMA(9)/EMA(21) crossover via WebAssembly | **+5.52%** | **0.09** |
+| [BTCUSDT Apr 2024 — Polymarket Δprob](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/apr_2024.strategy) | BTCUSDT | Apr 2024 | Polymarket "yes" probability shifts on crypto-prices markets | **+0.63%** | **0.055** |
 | [BTCUSDT Oct 2021 — TensorFlow Neural Network](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/oct_2021.strategy) | BTCUSDT | Oct 2021 | TensorFlow NN predicting next candle close | **+18.26%** | **0.31** |
 | [BTCUSDT Dec 2025 — Pine Script Range Breakout](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/dec_2025.strategy) | BTCUSDT | Dec 2025 | Pine Script BB + range detector + volume spike | **+2.40%** | **0.06** |
 | [TRXUSDT Jan 2026 — Liquidity Harvesting](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content//jan_2026.strategy) | TRXUSDT | Jan 2026 | Telegram channel signals (inverted) | **+8.58%** | **1.14** |
