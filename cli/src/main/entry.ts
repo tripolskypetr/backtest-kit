@@ -165,14 +165,18 @@ export const main = async () => {
   cli.frontendProviderService.connect();
   cli.telegramProviderService.connect();
 
+  const cwd = process.cwd();
+
   {
-    const cwd = process.cwd();
     dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
   if (entryPoints.length === 1) {
-    process.chdir(path.dirname(path.resolve(entryPoints[0])));
-    Setup.update();
+    const absolutePath = path.resolve(entryPoints[0]);
+    const moduleRoot = path.dirname(absolutePath);
+    process.chdir(moduleRoot);
+    cwd !== moduleRoot && Setup.update();
+    dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
   }
 
   await cli.moduleConnectionService.loadModule(MODE_MODULE[mode]);
