@@ -170,6 +170,10 @@ export const main = async () => {
     dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
+  if (entryPoints.length === 1) {
+    process.chdir(path.dirname(path.resolve(entryPoints[0])));
+  }
+
   await cli.moduleConnectionService.loadModule(MODE_MODULE[mode]);
 
   listenFinish();
