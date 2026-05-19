@@ -138,13 +138,6 @@ export const main = async () => {
     throw new Error("At least one entry point is required");
   }
 
-  for (const entryPoint of entryPoints) {
-    if (values.noFlush) {
-      continue;
-    }
-    await flush(entryPoint);
-  }
-
   await cli.configConnectionService.loadConfig("setup.config");
 
   {
@@ -177,6 +170,13 @@ export const main = async () => {
     process.chdir(moduleRoot);
     cwd !== moduleRoot && Setup.update();
     dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
+  }
+
+  for (const entryPoint of entryPoints) {
+    if (values.noFlush) {
+      continue;
+    }
+    await flush(entryPoint);
   }
 
   await cli.moduleConnectionService.loadModule(MODE_MODULE[mode]);
