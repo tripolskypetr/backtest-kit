@@ -172,6 +172,7 @@ export const main = async () => {
 
   if (entryPoints.length === 1) {
     process.chdir(path.dirname(path.resolve(entryPoints[0])));
+    Setup.update();
   }
 
   await cli.moduleConnectionService.loadModule(MODE_MODULE[mode]);
