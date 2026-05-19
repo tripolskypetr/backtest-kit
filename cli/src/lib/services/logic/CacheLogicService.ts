@@ -6,6 +6,9 @@ import {
   checkCandles,
   warmCandles,
   CandleInterval,
+  intervalStepMs,
+  alignToInterval,
+  PersistCandleAdapter,
 } from "backtest-kit";
 import { getErrorMessage, retry } from "functools-kit";
 
@@ -19,6 +22,40 @@ const GET_TIMEFRAME_RANGE_FN = async (frameName: string) => {
   }
   const { startDate, endDate } = frameSchema;
   return { startDate, endDate };
+};
+
+
+const CHECK_CANDLES_FN = async (
+  interval: CandleInterval,
+  dto: {
+    symbol: string;
+    exchangeName: string;
+    from: Date;
+    to: Date;
+  },
+) => {
+  const stepMs = intervalStepMs(interval);
+  const fromTs = alignToInterval(dto.from, interval).getTime();
+  const toTs = alignToInterval(dto.to, interval).getTime();
+  const limit = Math.floor((toTs - fromTs) / stepMs);
+  if (limit <= 0) {
+    throw new Error(
+      `checkCandles: empty range for ${dto.symbol} ${interval} [${fromTs}, ${toTs})`,
+    );
+  }
+  const candles = await PersistCandleAdapter.readCandlesData(
+    dto.symbol,
+    interval,
+    dto.exchangeName,
+    limit,
+    fromTs,
+    toTs,
+  );
+  if (!candles) {
+    throw new Error(
+      `checkCandles: cache miss for ${dto.symbol} ${interval} [${fromTs}, ${toTs})`,
+    );
+  }
 };
 
 const CACHE_CANDLES_FN = retry(
@@ -35,13 +72,15 @@ const CACHE_CANDLES_FN = retry(
       console.log(
         `Checking candles cache for ${dto.symbol} ${interval} from ${dto.from} to ${dto.to}`,
       );
-      await checkCandles({
-        exchangeName: dto.exchangeName,
-        from: dto.from,
-        to: dto.to,
-        symbol: dto.symbol,
-        interval: <CandleInterval>interval,
-      });
+      await CHECK_CANDLES_FN(
+        <CandleInterval>interval,
+        {
+          exchangeName: dto.exchangeName,
+          from: dto.from,
+          to: dto.to,
+          symbol: dto.symbol,
+        }
+      );
     } catch (error) {
       console.log(
         `Caching candles for ${dto.symbol} ${interval} from ${dto.from} to ${dto.to}`,
