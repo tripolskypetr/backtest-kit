@@ -9,6 +9,8 @@ type ModuleInstance = Module & {
 
 interface ModuleConstructor {
   _cache: Record<string, ModuleInstance>;
+  _findPath: (request: string, paths: string[], isMain?: boolean) => string | false;
+  _nodeModulePaths: (from: string) => string[];
   _resolveFilename: (
     request: string,
     parent: ModuleInstance | null,
@@ -19,6 +21,8 @@ interface ModuleConstructor {
 }
 
 const ModuleWithCache = Module as unknown as ModuleConstructor;
+
+const LOOKUP_PATHS = ModuleWithCache._nodeModulePaths(process.cwd());
 
 const VIRTUAL_MAP = new Map<string, string>();
 
@@ -35,7 +39,9 @@ const VIRTUAL_MAP = new Map<string, string>();
 
 function overrideModule(moduleName: string, newExports: unknown) {
   const cache = ModuleWithCache._cache;
-  const key = moduleName;
+
+  const resolved = ModuleWithCache._findPath(moduleName, LOOKUP_PATHS, false);
+  const key = resolved || moduleName;
 
   VIRTUAL_MAP.set(moduleName, key);
 
