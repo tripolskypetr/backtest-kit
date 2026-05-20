@@ -1752,7 +1752,7 @@ The **backtest-monorepo-parallel** repository is a TypeScript monorepo template 
 #### Key Features
 - ⚡ **~6 300× Real-Time Aggregate**: 9 symbols × ~703× per-symbol replay speed, ~103 events/sec in the hot `listenActivePing → commitAverageBuy` loop on a commodity i5-13420H laptop
 - 🧵 **Single-Process Concurrency**: All 9 `Backtest.background(...)` contexts share one event loop, one Mongo pool, one Redis pool — no IPC, no fork overhead
-- 🧿 **DI Surface**: Workspace services typed via rolled-up `types.d.ts` and reachable from strategy files at evaluation time
+- 💉 **DI Surface**: Workspace services typed via rolled-up `types.d.ts` and reachable from strategy files at evaluation time
 - 🗂️ **Mode A / Mode B**: `--entry` flag toggles between parallel runner (`CC_SYMBOL_LIST` fan-out) and single-strategy CLI mode
 - 🧩 **Linear Scaling Recipe**: Adding a service = +1 file, +1 symbol, +1 provider, +1 ioc entry — no churn under `./content/`
 
