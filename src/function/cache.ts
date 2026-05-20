@@ -5,9 +5,11 @@ import { ExchangeInstance } from "../classes/Exchange";
 import { GLOBAL_CONFIG } from "../config/params";
 import { ExchangeName, CandleInterval } from "../interfaces/Exchange.interface";
 import { PersistCandleAdapter } from "../classes/Persist";
+import { retry } from "functools-kit";
 
 const WARM_CANDLES_METHOD_NAME = "cache.warmCandles";
 const CHECK_CANDLES_METHOD_NAME = "cache.checkCandles";
+const CACHE_CANDLES_METHOD_NAME = "cache.cacheCandles";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -59,7 +61,7 @@ const PRINT_PROGRESS_FN = (
  * Parameters for pre-caching candles into persist storage.
  * Used to download historical candle data before running a backtest.
  */
-export interface ICacheCandlesParams {
+export interface IWarmCandlesParams {
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Name of the registered exchange schema */
@@ -88,6 +90,59 @@ export interface ICheckCandlesParams {
   /** End date of the validation range (inclusive) */
   to: Date;
 }
+
+/**
+ * Parameters for the combined check-then-warm caching flow.
+ * Extends both validation and pre-cache parameter sets and adds
+ * lifecycle callbacks invoked before each phase of the flow.
+ */
+export interface ICacheCandlesParams extends IWarmCandlesParams, ICheckCandlesParams {
+  /** Invoked before the cache validation phase starts */
+  onWarmStart: (symbol: string, interval: CandleInterval, from: Date, to: Date) => void;
+  /** Invoked before the cache warm-up phase starts (after a validation miss) */
+  onCheckStart: (symbol: string, interval: CandleInterval, from: Date, to: Date) => void;
+}
+
+/**
+ * Retry-wrapped pipeline: validates the cache via `checkCandles` and, on miss,
+ * fills it via `warmCandles` and rethrows to trigger a retry pass that
+ * re-validates the freshly cached range. Limited to 2 attempts.
+ */
+const CACHE_CANDLES_FN = retry(
+  async (
+    interval: CandleInterval,
+    dto: {
+      symbol: string;
+      exchangeName: string;
+      from: Date;
+      to: Date;
+    },
+    onWarmStart: (symbol: string, interval: CandleInterval, from: Date, to: Date) => void,
+    onCheckStart: (symbol: string, interval: CandleInterval, from: Date, to: Date) => void,
+  ) => {
+    try {
+      onWarmStart && onWarmStart(dto.symbol, interval, dto.from, dto.to);
+      await checkCandles({
+        exchangeName: dto.exchangeName,
+        from: dto.from,
+        to: dto.to,
+        symbol: dto.symbol,
+        interval: <CandleInterval>interval,
+      });
+    } catch (error) {
+      onCheckStart && onCheckStart(dto.symbol, interval, dto.from, dto.to);
+      await warmCandles({
+        symbol: dto.symbol,
+        exchangeName: dto.exchangeName,
+        from: dto.from,
+        to: dto.to,
+        interval: <CandleInterval>interval,
+      });
+      throw error;
+    }
+  },
+  2,
+);
 
 /**
  * Checks cached candle timestamps for correct interval alignment.
@@ -263,7 +318,7 @@ export async function checkCandles(params: ICheckCandlesParams): Promise<void> {
  *
  * @param params - Cache parameters
  */
-export async function warmCandles(params: ICacheCandlesParams): Promise<void> {
+export async function warmCandles(params: IWarmCandlesParams): Promise<void> {
   const { symbol, exchangeName, interval, from, to } = params;
 
   backtest.loggerService.info(WARM_CANDLES_METHOD_NAME, {
@@ -310,4 +365,53 @@ export async function warmCandles(params: ICacheCandlesParams): Promise<void> {
     currentSince += chunkLimit * stepMs;
     PRINT_PROGRESS_FN(fetched, totalCandles, symbol, interval);
   }
+}
+
+/**
+ * Ensures candles for the given range are present in persist storage.
+ * Runs a check-then-warm pipeline with one retry: validates the cache first
+ * and, on a miss, downloads the missing data and re-validates.
+ *
+ * @param params - Combined cache parameters with optional lifecycle callbacks
+ */
+export async function cacheCandles(
+  {
+    symbol,
+    interval,
+    from,
+    to,
+    exchangeName,
+    onCheckStart = (symbol: string, interval: CandleInterval, from: Date, to: Date) => {
+      process.stdout.write("\n");
+      process.stdout.write(
+        `Checking candles cache for ${symbol} ${interval} from ${from} to ${to}\n`,
+      );
+    },
+    onWarmStart = (symbol: string, interval: CandleInterval, from: Date, to: Date) => {
+      process.stdout.write("\n\n");
+      process.stdout.write(
+        `Caching candles for ${symbol} ${interval} from ${from} to ${to}\n`,
+      );
+    },
+  }: ICacheCandlesParams
+) {
+  backtest.loggerService.info(CACHE_CANDLES_METHOD_NAME, {
+    symbol,
+    exchangeName,
+    interval,
+    from,
+    to,
+  });
+
+  await CACHE_CANDLES_FN(
+    interval, 
+    {
+      exchangeName,
+      from,
+      to,
+      symbol,
+    }, 
+    onWarmStart,
+    onCheckStart,
+  );
 }
