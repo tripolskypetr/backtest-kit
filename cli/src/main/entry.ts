@@ -182,7 +182,8 @@ export const main = async () => {
     if (values.noFlush) {
       continue;
     }
-    await flush(entryPoint);
+    const absolutePath = path.resolve(cwd, entryPoint);
+    await flush(absolutePath);
   }
 
   await cli.moduleConnectionService.loadModule(MODE_MODULE[mode]);
@@ -193,7 +194,8 @@ export const main = async () => {
   let absolutePath: string;
   
   for (const entryPoint of entryPoints) {
-    absolutePath = await cli.resolveService.attachEntry(entryPoint);
+    absolutePath = path.resolve(cwd, entryPoint);
+    await cli.resolveService.attachEntry(absolutePath);
   }
 
   await entrySubject.next(absolutePath);
