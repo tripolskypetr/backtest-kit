@@ -23,6 +23,7 @@ import { Setup } from "../../../classes/Setup";
 import path from "path";
 import dotenv from "dotenv";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
+import { entrySubject } from "../../../config/emitters";
 
 export class LiveMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -87,8 +88,10 @@ export class LiveMainService {
       dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
     }
 
+    let absolutePath: string;
+
     {
-      await this.resolveService.attachJavascript(payload.entryPoint);
+      absolutePath = await this.resolveService.attachJavascript(payload.entryPoint);
       await this.moduleConnectionService.loadModule("live.module");
     }
 
@@ -127,6 +130,8 @@ export class LiveMainService {
       });
       notifyVerbose();
     }
+
+    await entrySubject.next(absolutePath);
 
     Live.background(symbol, {
       strategyName,

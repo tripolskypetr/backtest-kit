@@ -16,6 +16,7 @@ import { Setup } from "../classes/Setup";
 import { flush } from "./flush";
 import path from "path";
 import dotenv from "dotenv";
+import { entrySubject } from "../config/emitters";
 
 type Mode = "backtest" | "live" | "paper" | "walker";
 
@@ -184,9 +185,13 @@ export const main = async () => {
   listenFinish();
   createGracefulShutdown(mode)();
 
+  let absolutePath: string;
+  
   for (const entryPoint of entryPoints) {
-    await cli.resolveService.attachEntry(entryPoint);
+    absolutePath = await cli.resolveService.attachEntry(entryPoint);
   }
+
+  await entrySubject.next(absolutePath);
 };
 
 main();

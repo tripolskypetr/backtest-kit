@@ -23,6 +23,7 @@ import { Setup } from "../../../classes/Setup";
 import path from "path";
 import dotenv from "dotenv";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
+import { entrySubject } from "../../../config/emitters";
 
 export class PaperMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -88,8 +89,10 @@ export class PaperMainService {
         dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
       }
 
+      let absolutePath: string;
+
       {
-        await this.resolveService.attachJavascript(payload.entryPoint);
+        absolutePath = await this.resolveService.attachJavascript(payload.entryPoint);
         await this.moduleConnectionService.loadModule("paper.module");
       }
 
@@ -130,6 +133,8 @@ export class PaperMainService {
         });
         notifyVerbose();
       }
+
+      await entrySubject.next(absolutePath);
 
       Live.background(symbol, {
         strategyName,
