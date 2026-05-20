@@ -225,8 +225,8 @@ declare class ResolveService implements IResolve {
     getIsLaunched: () => boolean;
     attachPine: (pinePath: string) => Promise<string>;
     attachStrategy: (jsPath: string) => Promise<void>;
-    attachJavascript: (jsPath: string) => Promise<void>;
-    attachEntry: (jsPath: string) => Promise<void>;
+    attachJavascript: (jsPath: string) => Promise<string>;
+    attachEntry: (jsPath: string) => Promise<string>;
 }
 
 declare class ErrorService {

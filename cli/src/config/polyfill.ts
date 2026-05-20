@@ -1,8 +1,10 @@
+const USE_ERROR_PROXY = false;
+
 /**
  * Fix for `Attempted to assign to readonly property (at redactToken)`
  * @see https://github.com/telegraf/telegraf/issues/2078
  */
-{
+if (USE_ERROR_PROXY) {
   const OriginalError = globalThis.Error;
   globalThis.Error = new Proxy(OriginalError, {
     construct(target, args) {
