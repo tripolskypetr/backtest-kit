@@ -59,7 +59,7 @@ export const main = async () => {
 
   try {
     await open(`http://localhost:${CC_WWWROOT_PORT}?pine=1`);
-    isOk = true
+    isOk = true;
   } catch {
     void 0;
   } finally {
