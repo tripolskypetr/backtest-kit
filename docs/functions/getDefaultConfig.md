@@ -43,6 +43,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_MAX_SIGNALS: number;
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
+    CC_ENABLE_BACKTEST_PARALLEL_SPIN: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_ENABLE_LONG_SIGNAL: boolean;
