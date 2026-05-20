@@ -25,6 +25,7 @@ import {
   POSITION_OVERLAP_LADDER_DEFAULT,
 } from "../config/ladder";
 import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
+import { Lookup } from "./Lookup";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
 const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
@@ -155,11 +156,21 @@ const INSTANCE_TASK_FN = async (
     self._isStopped = false;
     self._isDone = false;
   }
+  Lookup.addActivity({
+    symbol,
+    context,
+    backtest: true,
+  })
   for await (const _ of self.run(symbol, context)) {
     if (self._isStopped) {
       break;
     }
   }
+  Lookup.removeActivity({
+    symbol,
+    context,
+    backtest: true,
+  })
   if (!self._isDone) {
     await doneBacktestSubject.next({
       exchangeName: context.exchangeName,

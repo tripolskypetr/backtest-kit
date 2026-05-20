@@ -18,6 +18,7 @@ import {
 import { GLOBAL_CONFIG } from "../../../../config/params";
 import { and, errorData, getErrorMessage } from "functools-kit";
 import ActionCoreService from "../../core/ActionCoreService";
+import { Candle } from "../../../../classes/Candle";
 
 const ACTIVE_CANDLE_INCLUDED = 1;
 const SCHEDULE_ACTIVATION_CANDLE_SKIP = 1;
@@ -96,6 +97,23 @@ const TICK_FN = async (
   }
 };
 
+/**
+ * Wraps `exchangeCoreService.getNextCandles` with error capture and a cooperative
+ * event-loop hand-off after a successful fetch.
+ *
+ * Calls `Candle.spinLock(...)` on success: when multiple backtests run in parallel
+ * (`Lookup.isParallel === true`), this yields the event loop so a peer waiting on
+ * the candle-fetch mutex can take its turn, producing round-robin interleaving
+ * instead of one backtest monopolizing the loop until completion. The spin is a
+ * no-op for single-workload runs.
+ *
+ * @param self - Owning service instance, used for logging and exchange access.
+ * @param symbol - Trading pair symbol.
+ * @param candlesNeeded - Number of 1m candles to request.
+ * @param bufferStartTime - Inclusive start time for the fetch window.
+ * @param logMeta - Extra structured fields appended to the warn log on failure.
+ * @returns Fetched candles, or a {@link TFnError} discriminated union on failure.
+ */
 const GET_CANDLES_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
@@ -104,7 +122,9 @@ const GET_CANDLES_FN = async (
   logMeta: object
 ): Promise<ICandleData[] | TFnError> => {
   try {
-    return await self.exchangeCoreService.getNextCandles(symbol, "1m", candlesNeeded, bufferStartTime, true);
+    const result = await self.exchangeCoreService.getNextCandles(symbol, "1m", candlesNeeded, bufferStartTime, true);
+    await Candle.spinLock("BacktestLogicPrivateService GET_CANDLES_FN");
+    return result;
   } catch (error) {
     console.error(`backtestLogicPrivateService getNextCandles failed symbol=${symbol} strategyName=${self.methodContextService.context.strategyName} exchangeName=${self.methodContextService.context.exchangeName}`);
     self.loggerService.warn("backtestLogicPrivateService getNextCandles failed", {

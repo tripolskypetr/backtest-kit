@@ -281,6 +281,23 @@ export const GLOBAL_CONFIG = {
   CC_ENABLE_CANDLE_FETCH_MUTEX: true,
 
   /**
+   * Enables cooperative interleaving of concurrently running backtests after each candle fetch.
+   *
+   * Mechanism (implemented in `Candle.spinLock`):
+   * - After `getNextCandles` resolves, the current backtest awaits
+   *   `Promise.race([_spin.toPromise(), sleep(50)])`, where `_spin` is emitted whenever
+   *   another caller acquires the candle-fetch mutex.
+   * - This hands the event loop to a peer backtest waiting on the same mutex, so multiple
+   *   parallel `Backtest.run` / `Walker` workloads progress in round-robin fashion instead
+   *   of one monopolizing the event loop until completion.
+   * - The spin is skipped entirely when `Lookup.isParallel` is `false` (single active workload —
+   *   no peer to yield to) or when `CC_ENABLE_CANDLE_FETCH_MUTEX` is disabled.
+   *
+   * Default: true (parallel backtests are interleaved on each candle fetch boundary)
+   */
+  CC_ENABLE_BACKTEST_PARALLEL_SPIN: true,
+
+  /**
    * Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.
    * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
    * This can help improve average entry price in cases where price has rebounded after entry but is still below priceOpen, without waiting for a new lower price.

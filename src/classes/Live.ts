@@ -30,6 +30,7 @@ import {
   POSITION_OVERLAP_LADDER_DEFAULT,
 } from "../config/ladder";
 import { SignalNotificationPayload } from "../lib/services/helpers/NotificationHelperService";
+import { Lookup } from "./Lookup";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
 const LIVE_METHOD_NAME_BACKGROUND = "LiveUtils.background";
@@ -125,11 +126,21 @@ const INSTANCE_TASK_FN = async (
     self._isStopped = false;
     self._isDone = false;
   }
+  Lookup.addActivity({
+    symbol,
+    context,
+    backtest: false,
+  })
   for await (const signal of self.run(symbol, context)) {
     if (signal?.action === "closed" && self._isStopped) {
       break;
     }
   }
+  Lookup.removeActivity({
+    symbol,
+    context,
+    backtest: false,
+  })
   if (!self._isDone) {
     await doneLiveSubject.next({
       exchangeName: context.exchangeName,

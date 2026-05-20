@@ -19,6 +19,7 @@ import { ExchangeName } from "../../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../../interfaces/Frame.interface";
 import { IWalkerSchema } from "../../../../interfaces/Walker.interface";
 import { BacktestStatisticsModel } from "../../../../model/BacktestStatistics.model";
+import { Lookup } from "../../../../classes/Lookup";
 
 /**
  * Wrapper to call onStrategyStart callback with error handling.
@@ -287,6 +288,15 @@ export class WalkerLogicPrivateService {
           frameName: context.frameName,
         });
 
+        Lookup.addActivity({
+          symbol,
+          context: {
+            strategyName,
+            exchangeName: context.exchangeName,
+            frameName: context.frameName,
+          },
+          backtest: true,
+        })
         try {
           await resolveDocuments(iterator);
         } catch (error) {
@@ -303,6 +313,16 @@ export class WalkerLogicPrivateService {
           // Call onStrategyError callback if provided
           await CALL_STRATEGY_ERROR_CALLBACKS_FN(this, walkerSchema, strategyName, symbol, error);
           continue;
+        } finally {
+          Lookup.removeActivity({
+            symbol,
+            context: {
+              strategyName,
+              exchangeName: context.exchangeName,
+              frameName: context.frameName,
+            },
+            backtest: true,
+          })
         }
 
         this.loggerService.info("walkerLogicPrivateService backtest complete", {

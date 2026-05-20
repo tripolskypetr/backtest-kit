@@ -522,6 +522,7 @@ export {
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
 export { Schedule } from "./classes/Schedule";
+export { Lookup } from "./classes/Lookup";
 export { Performance } from "./classes/Performance";
 export { Walker } from "./classes/Walker";
 export { Heat } from "./classes/Heat";
