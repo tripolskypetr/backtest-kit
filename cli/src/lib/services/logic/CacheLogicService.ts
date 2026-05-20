@@ -70,8 +70,9 @@ const CACHE_CANDLES_FN = retry(
     },
   ) => {
     try {
-      console.log(
-        `Checking candles cache for ${dto.symbol} ${interval} from ${dto.from} to ${dto.to}`,
+      process.stdout.write("\n");
+      process.stdout.write(
+        `Checking candles cache for ${dto.symbol} ${interval} from ${dto.from} to ${dto.to}\n`,
       );
       await checkCandles({
         exchangeName: dto.exchangeName,
@@ -81,8 +82,9 @@ const CACHE_CANDLES_FN = retry(
         interval: <CandleInterval>interval,
       });
     } catch (error) {
-      console.log(
-        `Caching candles for ${dto.symbol} ${interval} from ${dto.from} to ${dto.to}`,
+      process.stdout.write("\n\n");
+      process.stdout.write(
+        `Caching candles for ${dto.symbol} ${interval} from ${dto.from} to ${dto.to}\n`,
       );
       await warmCandles({
         symbol: dto.symbol,
