@@ -1745,7 +1745,7 @@ npm start
 
 ### backtest-monorepo-parallel
 
-> **[Explore on GitHub](https://github.com/backtest-kit/backtest-monorepo-parallel)** 🧿
+> **[Explore on GitHub](https://github.com/backtest-kit/backtest-monorepo-parallel)** 🏎️
 
 The **backtest-monorepo-parallel** repository is a TypeScript monorepo template that runs **9 symbols in parallel** in a single Node process on top of shared Mongo + Redis infrastructure, with a self-enforcement runtime that exposes the workspace DI container to `./content/` strategy files. No wiring, no bundler hooks, no strategy-author changes.
 
