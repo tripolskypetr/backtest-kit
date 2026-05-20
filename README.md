@@ -1747,7 +1747,7 @@ npm start
 
 > **[Explore on GitHub](https://github.com/backtest-kit/backtest-monorepo-parallel)** 🧿
 
-The **backtest-monorepo-parallel** repository is a TypeScript monorepo template that runs **9 symbols in parallel** in a single Node process on top of shared Mongo + Redis infrastructure, with a self-enforcement runtime that exposes the workspace DI container to `./content/` strategy files via `globalThis.core` — no imports, no bundler hooks, no strategy-author changes.
+The **backtest-monorepo-parallel** repository is a TypeScript monorepo template that runs **9 symbols in parallel** in a single Node process on top of shared Mongo + Redis infrastructure, with a self-enforcement runtime that exposes the workspace DI container to `./content/` strategy files. No wiring, no bundler hooks, no strategy-author changes.
 
 #### Key Features
 - ⚡ **~6 300× Real-Time Aggregate**: 9 symbols × ~703× per-symbol replay speed, ~103 events/sec in the hot `listenActivePing → commitAverageBuy` loop on a commodity i5-13420H laptop
