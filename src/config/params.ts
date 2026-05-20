@@ -281,13 +281,19 @@ export const GLOBAL_CONFIG = {
   CC_ENABLE_CANDLE_FETCH_MUTEX: true,
 
   /**
-   * Enables parallel backtest interleaving by yielding the event loop after each candle fetch.
-   * Inserts `await sleep(0)` after `getNextCandles` so that other concurrently running backtests
-   * (waiting on the candle fetch mutex) get a chance to make progress between iterations.
-   * Without this flag, a single backtest monopolizes the event loop and processes its timeframes
-   * sequentially until completion, defeating the purpose of running backtests in parallel.
+   * Enables cooperative interleaving of concurrently running backtests after each candle fetch.
    *
-   * Default: true (event loop is yielded to emulate parallel backtest execution)
+   * Mechanism (implemented in `Candle.spinLock`):
+   * - After `getNextCandles` resolves, the current backtest awaits
+   *   `Promise.race([_spin.toPromise(), sleep(50)])`, where `_spin` is emitted whenever
+   *   another caller acquires the candle-fetch mutex.
+   * - This hands the event loop to a peer backtest waiting on the same mutex, so multiple
+   *   parallel `Backtest.run` / `Walker` workloads progress in round-robin fashion instead
+   *   of one monopolizing the event loop until completion.
+   * - The spin is skipped entirely when `Lookup.isParallel` is `false` (single active workload —
+   *   no peer to yield to) or when `CC_ENABLE_CANDLE_FETCH_MUTEX` is disabled.
+   *
+   * Default: true (parallel backtests are interleaved on each candle fetch boundary)
    */
   CC_ENABLE_BACKTEST_PARALLEL_SPIN: true,
 

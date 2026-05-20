@@ -97,6 +97,23 @@ const TICK_FN = async (
   }
 };
 
+/**
+ * Wraps `exchangeCoreService.getNextCandles` with error capture and a cooperative
+ * event-loop hand-off after a successful fetch.
+ *
+ * Calls `Candle.spinLock(...)` on success: when multiple backtests run in parallel
+ * (`Lookup.isParallel === true`), this yields the event loop so a peer waiting on
+ * the candle-fetch mutex can take its turn, producing round-robin interleaving
+ * instead of one backtest monopolizing the loop until completion. The spin is a
+ * no-op for single-workload runs.
+ *
+ * @param self - Owning service instance, used for logging and exchange access.
+ * @param symbol - Trading pair symbol.
+ * @param candlesNeeded - Number of 1m candles to request.
+ * @param bufferStartTime - Inclusive start time for the fetch window.
+ * @param logMeta - Extra structured fields appended to the warn log on failure.
+ * @returns Fetched candles, or a {@link TFnError} discriminated union on failure.
+ */
 const GET_CANDLES_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
