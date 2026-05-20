@@ -5,8 +5,8 @@ group: docs
 
 # ICheckCandlesParams
 
-Parameters for validating cached candle timestamps.
-Reads JSON files directly from persist storage directory.
+Parameters for validating cached candle presence.
+Queries persist storage adapter without scanning files.
 
 ## Properties
 
@@ -49,11 +49,3 @@ to: Date
 ```
 
 End date of the validation range (inclusive)
-
-### baseDir
-
-```ts
-baseDir: string
-```
-
-Base directory of candle persist storage (default: "./dump/data/candle")

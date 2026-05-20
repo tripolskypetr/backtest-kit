@@ -23,13 +23,25 @@ constructor();
 
 ## Properties
 
-### _notificationBacktestUtils
+### _notificationBacktestFactory
 
 ```ts
-_notificationBacktestUtils: any
+_notificationBacktestFactory: any
 ```
 
-Internal notification utils instance
+Factory producing the active notification utils instance
+
+### getInstance
+
+```ts
+getInstance: any
+```
+
+Lazily constructs the notification utils from the registered factory and
+memoizes the result via `singleshot`.
+
+The instance is built on the first call and cached for all subsequent calls.
+Reset via `clear()` so the next call rebuilds from the current factory.
 
 ### handleSignal
 
@@ -187,6 +199,6 @@ Notifications will be persisted to disk.
 clear: () => void
 ```
 
-Resets the cached utils instance to the default in-memory adapter.
+Clears the memoized utils instance.
 Call this when process.cwd() changes between strategy iterations
 so a new instance is created with the updated base path.

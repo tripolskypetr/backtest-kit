@@ -9,8 +9,9 @@ group: docs
 declare function checkCandles(params: ICheckCandlesParams): Promise<void>;
 ```
 
-Checks cached candle timestamps for correct interval alignment.
-Reads JSON files directly from persist storage without using abstractions.
+Checks cached candle presence via the persist adapter.
+Issues one ranged read; adapter-side `hasValue` covers each expected timestamp,
+so a single missing or unaligned candle yields a miss without loading the whole dataset.
 
 ## Parameters
 

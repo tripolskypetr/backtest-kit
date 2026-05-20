@@ -23,13 +23,26 @@ constructor();
 
 ## Properties
 
-### _log
+### _logFactory
 
 ```ts
-_log: any
+_logFactory: any
 ```
 
-Internal log utils instance
+Factory producing the active log utils instance
+
+### getInstance
+
+```ts
+getInstance: any
+```
+
+Lazily constructs the log utils from the registered factory and memoizes
+the result via `singleshot`.
+
+The instance is built on the first call and cached for all subsequent calls.
+Reset via `clear()` so the next call rebuilds from the current factory
+(e.g. when `process.cwd()` changes between strategy iterations).
 
 ### getList
 
@@ -128,6 +141,6 @@ Reads are performed by parsing all lines from the file.
 clear: () => void
 ```
 
-Clears the cached log instance by resetting to the default in-memory adapter.
+Clears the memoized log instance.
 Call this when process.cwd() changes between strategy iterations
 so a new adapter instance is created with the updated base path.

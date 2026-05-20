@@ -25,11 +25,28 @@ constructor();
 
 ## Properties
 
-### _brokerInstance
+### _brokerFactory
 
 ```ts
-_brokerInstance: any
+_brokerFactory: any
 ```
+
+Factory producing the active `BrokerProxy` instance
+
+### getInstance
+
+```ts
+getInstance: any
+```
+
+Lazily constructs the `BrokerProxy` from the registered factory and
+memoizes the result via `singleshot`.
+
+The proxy is built on the first call and cached for all subsequent calls.
+Returns `null` when no adapter has been registered via `useBrokerAdapter()`.
+
+Reset via `clear()` so the next call rebuilds from the current factory
+(e.g. when `process.cwd()` changes between strategy iterations).
 
 ### commitSignalOpen
 

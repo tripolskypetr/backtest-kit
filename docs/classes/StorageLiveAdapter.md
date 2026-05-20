@@ -23,13 +23,25 @@ constructor();
 
 ## Properties
 
-### _signalLiveUtils
+### _signalLiveFactory
 
 ```ts
-_signalLiveUtils: any
+_signalLiveFactory: any
 ```
 
-Internal storage utils instance
+Factory producing the active storage utils instance
+
+### getInstance
+
+```ts
+getInstance: any
+```
+
+Lazily constructs the storage utils from the registered factory and memoizes
+the result via `singleshot`.
+
+The instance is built on the first call and cached for all subsequent calls.
+Reset via `clear()` so the next call rebuilds from the current factory.
 
 ### handleOpened
 
@@ -145,6 +157,6 @@ Signals will be stored in memory only.
 clear: () => void
 ```
 
-Clears the cached utils instance by resetting to the default persistent adapter.
+Clears the memoized utils instance.
 Call this when process.cwd() changes between strategy iterations
 so a new instance is created with the updated base path.
