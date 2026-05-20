@@ -55,10 +55,15 @@ export const main = async () => {
   const { CC_WWWROOT_HOST, CC_WWWROOT_PORT } = getEnv();
   const unServer = serve(CC_WWWROOT_HOST, CC_WWWROOT_PORT, cli.resolveService.PROJECT_ROOT_DIR);
 
+  let isOk = true;
+
   try {
     await open(`http://localhost:${CC_WWWROOT_PORT}?pine=1`);
+    isOk = true
+  } catch {
+    void 0;
   } finally {
-    console.log(`Editor launched: http://localhost:${CC_WWWROOT_PORT}?pine=1`)
+    isOk && console.log(`Editor launched: http://localhost:${CC_WWWROOT_PORT}?pine=1`)
   }
 
   const beforeExit = () => {
