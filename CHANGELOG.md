@@ -1,3 +1,275 @@
+# 🏎️ Parallel Backtests (v9.8.2, 20/05/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/9.8.2)
+
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+v9.8.2 turns the multi-asset Docker runtime introduced in v9.0.0 into a fully concurrent, production-grade pipeline. The new `Lookup` registry tracks every in-flight backtest/live activity, and `Candle.spinLock` consults it after each candle fetch to yield the event loop to peer workloads — so parallel `Backtest.background()` calls now make round-robin progress instead of serializing behind whichever one started first. The brand-new [@backtest-kit/mongo](https://npmjs.org/package/@backtest-kit/mongo) package wires all 15 persistence slots to MongoDB + Redis behind a single `setup()` call, swapping file-based storage for atomic upserts with O(1) cache-key lookups. Memory, Session, State, and Recent persistence now carry an explicit `when` timestamp, giving backtest-kit a uniform look-ahead-bias guard across every storage adapter. On the CLI side, a new `config/setup.config` + `config/loader.config` pair takes ownership of the persistence layer and async startup gating, the previous `*.module` config files were renamed to `*.config`, and a one-shot `cacheCandles()` helper bundles the check-then-warm-then-revalidate retry pipeline behind a single call.
+
+**MongoDB persistence in one config file**
+
+```typescript
+// config/setup.config.ts
+import { setup } from "@backtest-kit/mongo";
+
+setup();
+```
+
+```env
+# .env
+CC_MONGO_CONNECTION_STRING=mongodb://localhost:27017/backtest-kit
+CC_REDIS_HOST=127.0.0.1
+CC_REDIS_PORT=6379
+```
+
+When `config/setup.config` is present, the CLI skips its own default `usePersist()` / `useLocal()` / `useMemory()` calls — the file takes full ownership of the persistence layer.
+
+**Combined cache pipeline**
+
+```typescript
+import { cacheCandles } from "backtest-kit";
+
+await cacheCandles({
+  symbol: "BTCUSDT",
+  exchangeName: "binance",
+  interval: "15m",
+  from: new Date("2026-02-01"),
+  to: new Date("2026-02-28"),
+});
+```
+
+Validates the cache, downloads missing data on a miss, then re-validates — all with one retry pass, lifecycle callbacks (`onCheckStart`, `onWarmStart`), and progress bars.
+
+## New Package: `@backtest-kit/mongo`
+
+A drop-in MongoDB + Redis adapter that replaces the default file-based storage for all 15 persistence subsystems (`Candle`, `Signal`, `Schedule`, `Risk`, `Partial`, `Breakeven`, `Storage`, `Notification`, `Log`, `Measure`, `Interval`, `Memory`, `Recent`, `State`, `Session`).
+
+```bash
+npm install @backtest-kit/mongo backtest-kit
+```
+
+```ts
+import { setup } from "@backtest-kit/mongo";
+
+setup({
+  CC_MONGO_CONNECTION_STRING: "mongodb://mongo:27017/mydb",
+  CC_REDIS_HOST: "redis",
+  CC_REDIS_PORT: 6379,
+  CC_REDIS_PASSWORD: "secret",
+});
+```
+
+**Architecture (per domain):**
+
+- **DbService** — talks to MongoDB via Mongoose. Every write is `findOneAndUpdate({ filter }, { $set: { payload } }, { upsert: true, new: true })`, so reads issued immediately after a write always see the new value. Candle records use `$setOnInsert` (first write wins) to keep the historical snapshot immutable.
+- **CacheService** — talks to Redis via ioredis. Every context-key lookup goes through Redis first (`GET` → MongoDB `_id`); cache misses fall back to an indexed Mongo query that hydrates Redis for the next call. Each write refreshes the Redis entry in the same call, so write-then-read is always O(1).
+
+**Look-ahead bias protection** — Risk, Partial, Breakeven, Recent, State, Session, Memory, and Interval store a `when: Number` (simulation timestamp in ms) alongside the payload. Reads issued from a logical time *before* the recorded `when` behave as not-found, so backtests cannot accidentally consume data that has not yet been written in simulation time.
+
+**Soft delete** — Measure, Interval, and Memory never physically remove records. `removeMeasureData` / `removeIntervalData` / `removeMemoryData` flip `removed: true`; listing operations filter on `removed: false`.
+
+**Public API:** `setup(config?)`, `install()`, `setConfig(config)`, `getConfig()`, `setLogger(logger)`, `getMongo()`, `getRedis()`.
+
+## Parallel Backtest Interleaving
+
+### `Lookup` — In-Memory Activity Registry
+
+A new top-level export (`src/classes/Lookup.ts`) tracks every running backtest and live activity. Each `Backtest.run` / `Live.run` / per-strategy walker iteration registers an `IActivityEntry { symbol, context, backtest }` on start and removes it on completion or failure.
+
+```ts
+Lookup.addActivity({ symbol: "BTCUSDT", context, backtest: true });
+try {
+  for await (const _ of run(symbol, context)) { ... }
+} finally {
+  Lookup.removeActivity({ symbol: "BTCUSDT", context, backtest: true });
+}
+```
+
+Composite keys are built as `symbol:strategy:exchange:frame:backtest` for backtest activities (frame included) and `symbol:strategy:exchange:live` for live activities (frame omitted), preventing collisions when the same triple runs simultaneously in backtest and live modes.
+
+The singleton exposes:
+- `Lookup.addActivity(entry)` / `Lookup.removeActivity(entry)` — register / deregister.
+- `Lookup.listActivity()` — snapshot of all in-flight runs.
+- `Lookup.isParallel` — `true` when more than one entry is registered. Consulted by the spin lock below.
+
+### `Candle.spinLock` — Cooperative Event-Loop Hand-Off
+
+After every `getNextCandles` resolves, the active backtest now races:
+
+```ts
+await Promise.race([_spin.toPromise(), sleep(50)]);
+```
+
+where `_spin` is emitted whenever another caller acquires the candle-fetch mutex. This hands the event loop to a peer backtest waiting on the same mutex, so multiple parallel `Backtest.background()` / `Walker` workloads progress in round-robin fashion rather than letting whichever one started first monopolize the loop until completion.
+
+The spin is skipped entirely when `Lookup.isParallel === false` (single workload, no peer to yield to) or when `CC_ENABLE_CANDLE_FETCH_MUTEX` is disabled — single-strategy backtests pay zero overhead.
+
+### New Config Flag: `CC_ENABLE_BACKTEST_PARALLEL_SPIN`
+
+Default `true`. Disables the post-candle-fetch spin globally when set to `false` — useful for benchmarking or for runs where deterministic candle ordering matters more than throughput.
+
+## Look-Ahead Guards on Memory / Session / State / Recent / Interval
+
+Every persistence subsystem whose data influences signal logic now carries an explicit `when: Date` (simulation timestamp) on every read and write. This applies a uniform anti-look-ahead guarantee across the whole persistence layer — not just the candle store.
+
+**Affected interfaces:**
+
+- `IMemoryInstance` — `writeMemory(id, value, description, when)`, `readMemory(id, when)`, `searchMemory(query, when)`, `listMemory(when)`, `removeMemory(id, when)`.
+- `ISessionInstance`, `IStateInstance`, `IPersistRecentInstance`, `IPersistIntervalInstance` — same `when` parameter pattern.
+- `IRiskParams`, `IBreakevenParams`, `IPartialParams` — now receive a `TimeMetaService time` instead of the broader `TExecutionContextService execution`. The time service exposes the simulation `when` directly without leaking unrelated execution context.
+
+**Behaviour:**
+
+- Writes record the supplied `when` alongside the payload.
+- Reads issued from a logical time *before* the recorded `when` behave as not-found — the entry is shadowed by look-ahead instead of returned.
+- `searchMemory` / `listMemory` filter out shadowed entries from result lists.
+
+The `signal.ts`, `state.ts`, `session.ts`, and `memory.ts` public function wrappers now read `when` from `executionContextService.context` and forward it transparently — strategy code does not need to be touched.
+
+**Migration:** Custom `IMemoryInstance` / `ISessionInstance` / `IStateInstance` implementations must accept and persist the new `when` argument; signatures changed but the call sites in user strategy code are unaffected because the public `writeMemory` / `readMemory` helpers wire `when` automatically.
+
+## `cacheCandles` — One-Call Cache Pipeline
+
+New top-level export combining `checkCandles` + `warmCandles` behind a 2-attempt retry pipeline:
+
+```ts
+import { cacheCandles } from "backtest-kit";
+
+await cacheCandles({
+  symbol: "BTCUSDT",
+  exchangeName: "binance",
+  interval: "15m",
+  from: new Date("2026-02-01"),
+  to: new Date("2026-02-28"),
+  // Optional lifecycle callbacks
+  onCheckStart: (symbol, interval, from, to) => console.log(`checking ${symbol} ${interval}`),
+  onWarmStart: (symbol, interval, from, to) => console.log(`warming ${symbol} ${interval}`),
+});
+```
+
+Flow:
+1. Validate the cache via `checkCandles` (queries `PersistCandleAdapter` directly — no filesystem scan).
+2. On miss, fire `onWarmStart`, fetch missing data via `warmCandles`, rethrow to trigger retry.
+3. Retry pass re-runs `checkCandles` against the freshly cached range.
+
+Limited to 2 attempts so a permanent gap fails loudly instead of looping forever.
+
+## `waitForReady` — Schema Registration Gate
+
+New `waitForReady(isBacktest = true)` export polls the schema registries for up to 10 seconds and resolves once the required schemas are present:
+
+- `isBacktest === true` — exchange + frame + strategy must all be registered.
+- `isBacktest === false` — only exchange + strategy required (frames are unused in live mode).
+
+```ts
+import { waitForReady, Backtest } from "backtest-kit";
+
+import "./schemas/exchange";
+import "./schemas/strategy";
+import "./schemas/frame";
+
+await waitForReady();
+Backtest.background("BTCUSDT", { strategyName, exchangeName, frameName });
+```
+
+Useful for entry-point scripts that register schemas asynchronously (lazy imports, remote config, plugin loading) and want the first `Backtest`/`Live` call to wait until the registries are populated.
+
+## `intervalStepMs` — Public Utility
+
+The helper used internally by `cacheCandles` and `Cache.warmup` is now exported:
+
+```ts
+import { intervalStepMs } from "backtest-kit";
+
+intervalStepMs("15m"); // 900_000
+intervalStepMs("1h");  // 3_600_000
+```
+
+Returns the step in milliseconds for a `CandleInterval` (`"1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "1d"`).
+
+## CLI — `config/setup.config` & `config/loader.config`
+
+The CLI now loads two new optional config files from `{projectRoot}/config/` before any strategy or module code runs.
+
+### `config/setup.config`
+
+Loaded **once** for its side effects, before the persistence layer is touched. Use it for one-time initialization that must happen before the first persistence call — registering a custom storage backend, configuring a logger, seeding global state.
+
+```ts
+// config/setup.config.ts
+import { setup } from "@backtest-kit/mongo";
+
+setup();
+```
+
+**Important:** when `setup.config` is present, the CLI skips its own default `usePersist*Adapter()` / `useLocal*Adapter()` / `useMemoryAdapter()` calls for every persistence slot. Your config takes full ownership of the persistence layer — no interference from CLI defaults.
+
+### `config/loader.config`
+
+Loaded **after** `setup.config` but **before** any strategy or module code runs. Unlike `setup.config`, this file exports an async function that the CLI explicitly `await`s. Use it whenever the run must wait for an async dependency to be ready:
+
+- Open and verify a database connection before the first persistence call so the run fails fast.
+- Pre-load sibling monorepo packages, register cross-package services, hydrate a shared DI container.
+- Warm up caches or external APIs, run schema migrations.
+
+```ts
+// config/loader.config.ts — default export (preferred)
+export default async () => {
+  await mongoose.connect(process.env.CC_MONGO_CONNECTION_STRING!);
+  await redis.ping();
+};
+```
+
+```ts
+// config/loader.config.ts — named export
+export const loader = async () => {
+  await mongoose.connect(process.env.CC_MONGO_CONNECTION_STRING!);
+};
+```
+
+Exactly one export style is allowed; if both are present, the `default` export wins and the named `loader` is ignored.
+
+## CLI — `*.module` Config Files Renamed to `*.config`
+
+For consistency with the new `setup.config` and `loader.config` files, the previously documented `config/alias.module` was renamed to `config/alias.config`. The same applies to the other CLI-recognized config files in `config/` — they now use the `*.config` suffix uniformly. Existing `*.module` files in user projects should be renamed to `*.config`.
+
+## CLI — Native Node Module Override
+
+Replaced the previous shim-based approach with a direct patch to Node's `Module._resolveFilename` (`cli/src/helpers/overrideModule.ts`). Aliases declared in `config/alias.config` are now installed into `Module._cache` under a virtual key returned by `Module._findPath`, so every subsequent `require()` / `import` hits the override transparently — no AST rewriting, no project-side `tsconfig.paths` changes.
+
+## CLI Init — `--init`
+
+The previously experimental scaffolding helper is documented as the recommended starting point:
+
+```bash
+npx @backtest-kit/cli --init --output backtest-kit-project
+cd backtest-kit-project
+npm install
+npm start -- --help
+```
+
+Creates a minimal strategy file plus the `config/` directory with `setup.config` / `loader.config` / `alias.config` placeholders — all boilerplate stays inside `@backtest-kit/cli` so the user's project starts at exactly one strategy file.
+
+## Risk Concurrency — Type Cleanup
+
+`IRiskParams`, `IBreakevenParams`, and `IPartialParams` now receive a focused `TimeMetaService time` instead of the broader `TExecutionContextService execution`. The time service exposes only the simulation `when` — risk implementations no longer accidentally couple to unrelated execution-context fields, and the resulting type surface is narrower.
+
+This is a follow-up to the v9.0.0 risk-concurrency lock work; the runtime semantics of `checkSignalAndReserve` / `addSignal` / `removeSignal` are unchanged.
+
+## Other Changes
+
+- **`Lock` class** — extended for use inside `Candle.spinLock` (event-loop hand-off mechanism). Existing `ClientRisk` lock semantics unchanged.
+- **`createSearchIndex`** — accepts the new `when` field on entries so BM25 search ranking is aware of the look-ahead guard.
+- **`Log` class** — minor logging-level refinements around adapter initialization.
+- **`BrokerProxy`** — small cleanup to the `waitForInit` sequencing introduced in v9.0.0.
+- **`ResolveService`** — symlink + path-resolution edge cases for `--entry` invoked via npm symlink now handled in `cli/src/lib/services/core/ResolveService.ts`.
+- **Docker workspace** — `cli/docker/docker-compose.yaml` healthcheck stanza tightened; `cli/docker/README.md` and `cli/template/project/README.md` updated.
+- **Demo workspaces & example reference implementation** — bumped to track the new APIs (`cacheCandles`, `waitForReady`, `intervalStepMs`, MongoDB persistence).
+
+
+
+
 # 🐳 Multi Asset Portfolio in Docker Runtime (v9.0.0, 15/05/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/9.0.0)
