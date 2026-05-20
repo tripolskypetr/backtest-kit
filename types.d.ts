@@ -2,9 +2,6 @@ import * as di_scoped from 'di-scoped';
 import * as functools_kit from 'functools-kit';
 import { Subject } from 'functools-kit';
 import { WriteStream } from 'fs';
-import { ExchangeName as ExchangeName$1 } from 'src/interfaces/Exchange.interface';
-import { FrameName as FrameName$1 } from 'src/interfaces/Frame.interface';
-import { StrategyName as StrategyName$1 } from 'src/interfaces/Strategy.interface';
 
 /**
  * Retrieves current backtest timeframe for given symbol.
@@ -20327,9 +20324,9 @@ declare const Schedule: ScheduleUtils;
 interface IActivityEntry {
     symbol: string;
     context: {
-        strategyName: StrategyName$1;
-        exchangeName: ExchangeName$1;
-        frameName?: FrameName$1;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
     };
     backtest: boolean;
 }

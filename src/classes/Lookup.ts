@@ -1,7 +1,7 @@
-import { ExchangeName } from "src/interfaces/Exchange.interface";
-import { FrameName } from "src/interfaces/Frame.interface";
-import { StrategyName } from "src/interfaces/Strategy.interface";
-import LoggerService from "src/lib/services/base/LoggerService";
+import { ExchangeName } from "../interfaces/Exchange.interface";
+import { FrameName } from "../interfaces/Frame.interface";
+import { StrategyName } from "../interfaces/Strategy.interface";
+import LoggerService from "../lib/services/base/LoggerService";
 
 const METHOD_NAME_ADD_ACTIVITY = "LookupUtils.addActivity";
 const METHOD_NAME_LIST_ACTIVITY = "LookupUtils.removeActivity";
