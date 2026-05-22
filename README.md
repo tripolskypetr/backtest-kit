@@ -1830,7 +1830,6 @@ Perfect for traders working with emerging or regional markets absent from Tradin
 git clone https://github.com/backtest-kit/uzse-backtest-app.git
 ```
 
-
 ## 🧩 Strategy Examples
 
 #### 🧠 Neural Network Strategy (Oct 2021)
@@ -1874,6 +1873,12 @@ Same mechanics as SHORT version but LONG-biased with 3% profit target. Deployed 
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2021.strategy)
 
 Python-based (WASI) strategy that uses EMA(9) and EMA(21) crossover signals executed via WebAssembly. Trades trigger when fast EMA crosses slow EMA, confirmed by 4h range midpoint.
+
+## 👨‍💼 Commercial Support
+
+> **[TheOneTrade](https://theonetrade.github.io)** 💼
+
+**TheOneTrade** is the commercial vendor behind backtest-kit, providing paid support, custom strategy development, managed accounts, team training, and enterprise licensing. Contact for SLAs, private features, or quant team engagements that fall outside the MIT-licensed open-source scope.
 
 ## 🤖 Are you a robot?
 
