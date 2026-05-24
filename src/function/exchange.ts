@@ -3,7 +3,6 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 import { CandleInterval, IAggregatedTradeData, ICandleData, IOrderBookData } from "../interfaces/Exchange.interface";
-import { getContextTimestamp } from "../helpers/getContextTimestamp";
 
 const GET_CANDLES_METHOD_NAME = "exchange.getCandles";
 const GET_AVERAGE_PRICE_METHOD_NAME = "exchange.getAveragePrice";
@@ -246,7 +245,20 @@ export async function getTimestamp() {
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getTimestamp requires an execution context");
   }
-  return getContextTimestamp();
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getTimestamp requires a method context");
+  }
+  const { symbol, backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return backtest.timeMetaService.getTimestamp(
+    symbol,
+    {
+      exchangeName,
+      frameName,
+      strategyName,
+    },
+    isBacktest,
+  );
 };
 
 /**
