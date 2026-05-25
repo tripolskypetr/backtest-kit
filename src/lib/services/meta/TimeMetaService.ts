@@ -94,6 +94,36 @@ export class TimeMetaService {
   );
 
   /**
+   * Checks if a timestamp exists for the given symbol and context.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param context - Strategy, exchange, and frame identifiers
+   * @param backtest - True if backtest mode, false if live mode
+   * @returns True if a timestamp is available, false otherwise
+   */
+  public hasTimestamp = (
+    symbol: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest: boolean,
+  ) => {
+    const key = CREATE_KEY_FN(
+      symbol,
+      context.strategyName,
+      context.exchangeName,
+      context.frameName,
+      backtest,
+    );
+    if (!this.getSource.has(key)) {
+      return false;
+    }
+    return !!this.getSource.get(key)?.data;
+  }
+
+  /**
    * Returns the current candle timestamp (in milliseconds) for the given symbol and context.
    *
    * When called inside an execution context (i.e., during a signal handler or action),

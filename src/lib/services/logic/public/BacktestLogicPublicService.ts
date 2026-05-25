@@ -126,11 +126,10 @@ const CALL_AFTER_END_FN = trycatch(
       frameName: FrameName;
     },
   ) => {
-    const timestamp = await self.timeMetaService.getTimestamp(
-      symbol,
-      context,
-      true
-    );
+    const { startDate } = self.frameSchemaService.get(context.frameName);
+    const timestamp = self.timeMetaService.hasTimestamp(symbol, context, true)
+      ? await self.timeMetaService.getTimestamp(symbol, context, true)
+      : startDate.getTime();
     const when = new Date(timestamp);
     await MethodContextService.runInContext(async () => {
       await ExecutionContextService.runInContext(async () => {
