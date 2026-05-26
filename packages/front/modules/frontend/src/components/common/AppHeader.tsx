@@ -32,7 +32,7 @@ const MARGIN_BOTTOM = "10px";
 const toggleFullscreen = () => 
     document.fullscreenElement ?
         document.exitFullscreen() :
-        document.querySelector('body').requestFullscreen()
+        document.querySelector('body')?.requestFullscreen()
 
 const useStyles = makeStyles()((theme) => ({
     root: {
@@ -291,7 +291,13 @@ export const AppHeader = ({
         <Box className={classes.root}>
             <Box className={classes.container}>
                 <Center
-                    onClick={() => ioc.routerService.push("/main")}
+                    onClick={() => {
+                        if (ioc.routerService.location.pathname === "/main") {
+                            ioc.routerService.push("/about");
+                            return;
+                        }
+                        ioc.routerService.push("/main")
+                    }}
                     className={cx(classes.logo, LOGO_CLASS)}
                 >
                     <Avatar

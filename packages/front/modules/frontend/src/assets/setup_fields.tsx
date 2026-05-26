@@ -1,10 +1,13 @@
-import { Refresh } from "@mui/icons-material";
+import { Refresh, Settings } from "@mui/icons-material";
 import { alpha } from "@mui/material";
 import {
   TypedField,
   FieldType,
   useForceUpdate,
   ActionButton,
+  useActualValue,
+  OneIcon,
+  Subject,
 } from "react-declarative";
 
 interface IFeatureParams {
@@ -20,6 +23,8 @@ interface IOffsetParams {
   idx: number;
   fetchFunction: () => Promise<string[]>;
 }
+
+const closeSubject = new Subject<void>();
 
 const createItemListFromArray = (array: string[]): Record<string, string> => {
   const result: Record<string, string> = {};
@@ -169,6 +174,10 @@ const feature_list = [
   },
 ];
 
+const config_fields: TypedField[] = [
+
+];
+
 export const setup_fields: TypedField[] = [
   {
     type: FieldType.Group,
@@ -183,45 +192,96 @@ export const setup_fields: TypedField[] = [
         fieldBottomMargin: "1",
         fields: [
           {
-            type: FieldType.Typography,
-            fieldBottomMargin: "1",
-            typoVariant: "h6",
-            placeholder: "Running mode",
-          },
-          {
-            type: FieldType.Typography,
-            fieldBottomMargin: "1",
-            isVisible: ({ running_mode }) =>
-              running_mode === "backtest",
-            style: {
-              color: "orange",
+            type: FieldType.Box,
+            sx: {
+              display: "grid",
+              gridTemplateColumns: "auto 1fr auto",
+              alignItems: "center",
             },
-            typoVariant: "body1",
-            placeholder:
-              "Historical data processing",
-          },
-          {
-            type: FieldType.Typography,
-            fieldBottomMargin: "1",
-            isVisible: ({ running_mode }) =>
-              running_mode === "live",
-            style: {
-              color: "green",
-            },
-            typoVariant: "body1",
-            placeholder:
-              "Real-time exchange integration",
-          },
-          {
-            type: FieldType.Typography,
-            fieldBottomMargin: "1",
-            isVisible: ({ running_mode }) =>
-              running_mode === "none",
-            style: {
-              color: "red",
-            },
-            typoVariant: "body1",
-            placeholder: "UI only",
+            fields: [
+              {
+                type: FieldType.Box,
+                sx: {
+                  display: "grid",
+                  gridTemplateColumns: "1fr",
+                },
+                fields: [
+                  {
+                    type: FieldType.Typography,
+                    fieldBottomMargin: "1",
+                    typoVariant: "h6",
+                    placeholder: "Running mode",
+                  },
+                  {
+                    type: FieldType.Typography,
+                    fieldBottomMargin: "1",
+                    isVisible: ({ running_mode }) =>
+                      running_mode === "backtest",
+                    style: {
+                      color: "orange",
+                    },
+                    typoVariant: "body1",
+                    placeholder:
+                      "Historical data processing",
+                  },
+                  {
+                    type: FieldType.Typography,
+                    fieldBottomMargin: "1",
+                    isVisible: ({ running_mode }) =>
+                      running_mode === "live",
+                    style: {
+                      color: "green",
+                    },
+                    typoVariant: "body1",
+                    placeholder:
+                      "Real-time exchange integration",
+                  },
+                  {
+                    type: FieldType.Typography,
+                    fieldBottomMargin: "1",
+                    isVisible: ({ running_mode }) =>
+                      running_mode === "none",
+                    style: {
+                      color: "red",
+                    },
+                    typoVariant: "body1",
+                    placeholder: "UI only",
+                  },
+                ]
+              },
+              {
+                type: FieldType.Box,
+              },
+              {
+                type: FieldType.Component,
+                fieldBottomMargin: "0",
+                element: ({ _fieldData: data, onChange }) => {
+                  const data$ = useActualValue(data);
+                  return (
+                    <OneIcon
+                      noBadge
+                      size="small"
+                      sx={{
+                        transform: "translate(10px, -28px)",
+                        opacity: "0.5",
+                        transition: "opacity 500ms",
+                        "&:hover": {
+                          opacity: "1.0",
+                        }
+                      }}
+                      oneSx={{
+                        padding: "0 !important",
+                      }}
+                      fields={config_fields}
+                      closeSubject={closeSubject}
+                      handler={() => data}
+                    >
+                      <Settings />
+                    </OneIcon>
+                  );
+                },
+              },
+            ],
           },
           {
             type: FieldType.Radio,
