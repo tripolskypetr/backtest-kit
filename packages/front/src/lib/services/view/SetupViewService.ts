@@ -16,7 +16,7 @@ import {
     Live,
     getConfig,
 } from "backtest-kit";
-import { CC_ENABLE_MOCK } from "src/config/params";
+import { CC_ENABLE_MOCK } from "../../../config/params";
 import SetupMockService from "../mock/SetupMockService";
 
 const GET_MODE_FN = async () => {
@@ -59,6 +59,7 @@ export class SetupViewService {
         const enable_short = config.CC_ENABLE_SHORT_SIGNAL;
 
         return {
+            config: getConfig(),
             broker_enabled,
             dump_enabled,
             markdown_enabled,
