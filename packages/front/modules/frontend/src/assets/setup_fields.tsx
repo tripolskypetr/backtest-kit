@@ -242,7 +242,7 @@ const config_fields: TypedField[] = [
         type: FieldType.Box,
         sx: {
           display: "grid",
-          gridTemplateColumns: "auto 1fr auto",
+          gridTemplateColumns: "auto 1fr auto auto",
           alignItems: "center",
           paddingTop: "4px",
           paddingBottom: "4px",
@@ -266,6 +266,16 @@ const config_fields: TypedField[] = [
             type: FieldType.Icon,
             fieldBottomMargin: "0",
             fieldRightMargin: "0",
+            icon: Download,
+            async click(_name, _e, _data, payload) {
+              await closeSubject.next();
+              await payload.handleDownloadConfig();
+            },
+          },
+          {
+            type: FieldType.Icon,
+            fieldBottomMargin: "0",
+            fieldRightMargin: "0",
             icon: Close,
             click: () => closeSubject.next(),
           },
@@ -276,7 +286,7 @@ const config_fields: TypedField[] = [
         customLayout: ({ children }) => (
           <Box
             sx={{
-              overflow: "hidden",
+              overflow: "clip",
               overflowY: "auto",
               marginBottom: "16px",
               maxHeight: {
@@ -732,6 +742,10 @@ const config_fields: TypedField[] = [
           fieldRightMargin: "0",
           buttonVariant: "contained",
           title: "Download",
+          click: async (_name, _e, _data, payload) => {
+            await closeSubject.next();
+            await payload.handleDownloadConfig();
+          },
           icon: Download,
         }
       },
@@ -816,8 +830,7 @@ export const setup_fields: TypedField[] = [
               {
                 type: FieldType.Component,
                 fieldBottomMargin: "0",
-                element: ({ _fieldData: data, onChange }) => {
-                  const data$ = useActualValue(data);
+                element: ({ _fieldData: data, payload }) => {
                   return (
                     <OneIcon
                       noBadge
@@ -835,6 +848,7 @@ export const setup_fields: TypedField[] = [
                       }}
                       fields={config_fields}
                       closeSubject={closeSubject}
+                      payload={payload}
                       handler={() => data}
                     >
                       <Settings />

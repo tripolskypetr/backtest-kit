@@ -78,6 +78,15 @@ const handleReload = async () => {
   await reloadSubject.next();
 };
 
+const handleDownloadConfig = async () => {
+  const { config } = await ioc.setupViewService.getSetupData();
+  const blob = new Blob([JSON.stringify(config, null, 2)], {
+      type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  ioc.layoutService.downloadFile(url, `config_${Date.now()}.json`);
+};
+
 export const SetupView = () => {
 
   const [data, { execute: executeData, loading: loadingData }] = useAsyncValue(
@@ -112,7 +121,7 @@ export const SetupView = () => {
     return (
       <One<IBackendData>
         handler={data}
-        payload={() => ({ handleReload })}
+        payload={() => ({ handleReload, handleDownloadConfig })}
         fields={setup_fields}
       />
     )

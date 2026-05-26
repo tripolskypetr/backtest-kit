@@ -4,6 +4,7 @@ import TYPES from "../../core/TYPES";
 import { CC_CLIENT_ID, CC_SERVICE_NAME, CC_USER_ID } from "../../../config/params";
 
 export interface SetupData {
+  config: Record<string, unknown>;
   broker_enabled: boolean;
   dump_enabled: boolean;
   markdown_enabled: boolean;
