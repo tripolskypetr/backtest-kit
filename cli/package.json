@@ -105,7 +105,7 @@
     "di-scoped": "1.0.21",
     "dotenv": "17.3.1",
     "functools-kit": "2.3.0",
-    "get-moment-stamp": "1.1.2",
+    "get-moment-stamp": "2.0.0",
     "image-size": "1.1.1",
     "jsdom": "26.1.0",
     "markdownlint": "0.38.0",

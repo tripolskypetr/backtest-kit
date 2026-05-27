@@ -78,7 +78,7 @@
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
     "functools-kit": "^2.3.0",
-    "get-moment-stamp": "^1.1.2"
+    "get-moment-stamp": "^2.0.0"
   },
   "publishConfig": {
     "access": "public"
