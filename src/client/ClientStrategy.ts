@@ -563,6 +563,9 @@ const GET_SIGNAL_FN = trycatch(
     if (!signal) {
       return null;
     }
+    if (signal?.symbol && signal?.symbol !== self.params.execution.context.symbol) {
+      throw new Error(`Symbol mismatch: expected ${self.params.execution.context.symbol}, got ${signal.symbol}`);
+    }
     if (self._isStopped) {
       return null;
     }
