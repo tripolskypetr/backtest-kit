@@ -24,6 +24,7 @@ import path from "path";
 import dotenv from "dotenv";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
 import { entrySubject } from "../../../config/emitters";
+import { kill } from "../../../utils/notifyKill";
 
 export class PaperMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -75,7 +76,7 @@ export class PaperMainService {
           }
         } catch (error) {
           console.error("Module loader failed", error);
-          process.exit(-1);
+          kill();
         }
       }
 

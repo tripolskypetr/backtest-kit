@@ -5,6 +5,7 @@ import ResolveService from "../core/ResolveService";
 import path from "path";
 import LoaderService from "../core/LoaderService";
 import { memoize } from "functools-kit";
+import { kill } from "../../../utils/notifyKill";
 
 const GET_MODULE_VARIANTS_FN = (
   fileName: string,
@@ -42,7 +43,7 @@ const LOAD_MODULE_MODULE_FN = async (
       }
     } catch {
       console.warn(`Module module import failed filePath=${filePath} baseDir=${baseDir}`);
-      process.exit(-1);
+      kill();
     }
   }
   return false;

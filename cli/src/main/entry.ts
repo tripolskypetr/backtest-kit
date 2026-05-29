@@ -17,6 +17,7 @@ import { flush } from "./flush";
 import path from "path";
 import dotenv from "dotenv";
 import { entrySubject } from "../config/emitters";
+import notifyKill, { kill } from "../utils/notifyKill";
 
 type Mode = "backtest" | "live" | "paper" | "walker";
 
@@ -105,6 +106,7 @@ const createGracefulShutdown = (mode: Mode) => {
   const handler = singleshot(async () => {
     process.off("SIGINT", handler);
     notifyShutdown();
+    notifyKill();
     await stop();
   });
   return singleshot(() => {
@@ -129,7 +131,7 @@ export const main = async () => {
     console.error(
       "--entry requires exactly one of --backtest, --live, --paper, --walker",
     );
-    process.exit(1);
+    kill();
     return;
   }
 
@@ -152,7 +154,7 @@ export const main = async () => {
       }
     } catch (error) {
       console.error("Module loader failed", error);
-      process.exit(-1);
+      kill();
     }
   }
 

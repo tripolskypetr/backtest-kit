@@ -6,6 +6,7 @@ import { singleshot } from "functools-kit";
 import notifyShutdown from "../utils/notifyShutdown";
 import getEntry from "../helpers/getEntry";
 import cli from "../lib";
+import notifyKill from "../utils/notifyKill";
 
 const BEFORE_EXIT_FN = singleshot(async () => {
   process.off("SIGINT", BEFORE_EXIT_FN);
@@ -17,6 +18,7 @@ const BEFORE_EXIT_FN = singleshot(async () => {
   }
 
   notifyShutdown();
+  notifyKill();
 
   const { exchangeName, strategyName, symbol, status } = running;
 

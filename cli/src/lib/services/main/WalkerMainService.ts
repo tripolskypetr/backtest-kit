@@ -36,6 +36,7 @@ import WalkerName from "../../../enum/WalkerName";
 import { Setup } from "../../../classes/Setup";
 import ConfigService from "../core/ConfigService";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
+import { kill } from "../../../utils/notifyKill";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -100,7 +101,7 @@ export class WalkerMainService {
           }
         } catch (error) {
           console.error("Module loader failed", error);
-          process.exit(-1);
+          kill();
         }
       }
 
@@ -316,7 +317,7 @@ export class WalkerMainService {
         await mkdir(dumpDir, { recursive: true });
         await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
         console.log(`Saved: ${filePath}`);
-        process.exit(0);
+        kill();
         return;
       }
 
@@ -326,13 +327,13 @@ export class WalkerMainService {
         await mkdir(dumpDir, { recursive: true });
         await writeFile(filePath, report, "utf-8");
         console.log(`Saved: ${filePath}`);
-        process.exit(0);
+        kill();
         return;
       }
 
       const report = await Walker.getReport(symbol, { walkerName: WalkerName.DefaultWalker });
       console.log(report);
-      process.exit(0);
+      kill()
     },
   );
 

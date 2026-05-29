@@ -6,6 +6,7 @@ import LoaderService from "../core/LoaderService";
 import path from "path";
 import { ModuleExports } from "../../../model/Module.model";
 import { memoize } from "functools-kit";
+import { kill } from "../../../utils/notifyKill";
 
 const GET_CONFIG_VARIANTS_FN = (
   fileName: string,
@@ -42,7 +43,7 @@ const LOAD_CONFIG_CONFIG_FN = async (
       }
     } catch {
       console.warn(`Module module import failed filePath=${filePath} baseDir=${baseDir}`);
-      process.exit(-1);
+      kill();
     }
   }
   return null;

@@ -5,6 +5,8 @@ import fs from "fs";
 
 import { ILoader, ILoaderParams } from "../interfaces/Loader.interface";
 
+import { kill } from "../utils/notifyKill";
+
 import * as BacktestKit from "backtest-kit";
 import * as BacktestKitUi from "@backtest-kit/ui";
 import * as BacktestKitGraph from "@backtest-kit/graph";
@@ -37,7 +39,7 @@ const TRANSPILE_FN = memoize(
       console.log(
         `Error during transpilation error=\`${getErrorMessage(error)}\` path=\`${path}\` __filename=\`${__filename}\` __dirname=\`${__dirname}\``,
       );
-      process.exit(-1);
+      kill();
     }
     return {
       require,

@@ -3,10 +3,12 @@ import { singleshot } from "functools-kit";
 import cli from "../lib";
 import notifyShutdown from "../utils/notifyShutdown";
 import getEntry from "../helpers/getEntry";
+import notifyKill from "../utils/notifyKill";
 
 const BEFORE_EXIT_FN = singleshot(async () => {
   process.off("SIGINT", BEFORE_EXIT_FN);
   notifyShutdown();
+  notifyKill();
   cli.telegramProviderService.disable();
 });
 

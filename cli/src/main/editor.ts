@@ -7,6 +7,7 @@ import getEntry from "../helpers/getEntry";
 import { Setup } from "../classes/Setup";
 import path from "path";
 import dotenv from "dotenv";
+import { kill } from "../utils/notifyKill";
 
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
@@ -21,7 +22,7 @@ export const main = async () => {
 
   if (values.pine) {
     console.warn("--editor and --pine are mutually exclusive. Use one at a time.");
-    process.exit(1);
+    kill();
   }
 
   await cli.configConnectionService.loadConfig("setup.config");
@@ -37,7 +38,7 @@ export const main = async () => {
       }
     } catch (error) {
       console.error("Module loader failed", error);
-      process.exit(-1);
+      kill();
     }
   }
 
@@ -74,7 +75,7 @@ export const main = async () => {
   const beforeExit = () => {
     process.off("SIGINT", beforeExit)
     unServer();
-    process.exit(0);
+    kill();
   }
 
   process.on("SIGINT", beforeExit);

@@ -28,6 +28,7 @@ import path from "path";
 import dotenv from "dotenv";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
 import { entrySubject } from "../../../config/emitters";
+import { kill } from "../../../utils/notifyKill";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -103,7 +104,7 @@ export class BacktestMainService {
           }
         } catch (error) {
           console.error("Module loader failed", error);
-          process.exit(-1);
+          kill();
         }
       }
 

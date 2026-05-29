@@ -1,0 +1,15 @@
+import { singleshot } from "functools-kit";
+import treeKill from "../helpers/treeKill";
+
+export const kill = singleshot((code = -1) => {
+  treeKill(process.pid, "SIGKILL", () => {
+    process.exit(code);
+  });
+});
+
+export const notifyKill = () => {
+  console.log("press CTRL-C again to force quit");
+  process.on("SIGINT", kill);
+};
+
+export default notifyKill;
