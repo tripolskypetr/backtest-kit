@@ -38,7 +38,7 @@ export const kill = singleshot(async (code = -1) => {
 
 export const notifyKill = singleshot(() => {
   console.log("Press Ctrl+C again to force quit.");
-  process.on("SIGINT", kill);
+  process.on("SIGINT", () => kill());
 });
 
 export default notifyKill;
