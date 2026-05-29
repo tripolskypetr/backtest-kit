@@ -63,6 +63,11 @@ export class PaperMainService {
     }) => {
       this.loggerService.log("paperMainService init");
 
+      {
+        const cwd = process.cwd();
+        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+      }
+
       await this.configConnectionService.loadConfig("setup.config");
 
       {
@@ -89,11 +94,6 @@ export class PaperMainService {
       {
         this.frontendProviderService.connect();
         this.telegramProviderService.connect();
-      }
-
-      {
-        const cwd = process.cwd();
-        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
       }
 
       let absolutePath: string;

@@ -141,6 +141,11 @@ export const main = async () => {
     throw new Error("At least one entry point is required");
   }
 
+  {
+    const cwd = process.cwd();
+    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+  }
+
   await cli.configConnectionService.loadConfig("setup.config");
 
   {
@@ -168,10 +173,6 @@ export const main = async () => {
   cli.telegramProviderService.connect();
 
   const cwd = process.cwd();
-
-  {
-    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
-  }
 
   if (entryPoints.length === 1) {
     const absolutePath = path.resolve(entryPoints[0]);

@@ -88,6 +88,11 @@ export class WalkerMainService {
     }) => {
       this.loggerService.log("walkerMainService run", { payload });
 
+      {
+        const cwd = process.cwd();
+        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+      }
+
       await this.configConnectionService.loadConfig("setup.config");
 
       {
@@ -150,11 +155,6 @@ export class WalkerMainService {
 
         Cache.resetCounter();
         Interval.resetCounter();
-      }
-
-      {
-        const cwd = process.cwd();
-        dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
       }
 
       await this.moduleConnectionService.loadModule("walker.module");

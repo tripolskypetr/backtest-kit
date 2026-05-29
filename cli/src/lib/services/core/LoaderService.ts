@@ -64,7 +64,7 @@ const GET_ALIAS_EXPORTS_FN = (self: LoaderService) => {
   return null;
 };
 
-const INIT_ALIAS_FN = (self: LoaderService) => {
+const INIT_ALIAS_FN = singleshot((self: LoaderService) => {
   const alias = GET_ALIAS_EXPORTS_FN(self);
   if (!alias) {
     return;
@@ -78,7 +78,7 @@ const INIT_ALIAS_FN = (self: LoaderService) => {
     );
     Object.assign(IMPORT_ALIAS, alias);
   }
-};
+});
 
 export class LoaderService {
   readonly babelService = inject<BabelService>(TYPES.babelService);
@@ -87,13 +87,15 @@ export class LoaderService {
 
   getInstance = memoize(
     ([basePath]) => `${basePath}`,
-    (basePath: string) =>
-      new ClientLoader({
+    (basePath: string) => {
+      INIT_ALIAS_FN(this);
+      return new ClientLoader({
         babel: this.babelService,
         logger: this.loggerService,
         resolve: this.resolveService,
         path: basePath,
-      }),
+      });
+    },
   );
 
   public import = (filePath: string, basePath = process.cwd()) => {
@@ -113,11 +115,6 @@ export class LoaderService {
     const instance = this.getInstance(basePath);
     return instance.check(filePath);
   };
-
-  init = singleshot(() => {
-    this.loggerService.log("loaderService init");
-    INIT_ALIAS_FN(this);
-  });
 }
 
 export default LoaderService;

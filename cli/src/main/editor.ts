@@ -26,6 +26,11 @@ export const main = async () => {
     return;
   }
 
+  {
+    const cwd = process.cwd();
+    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+  }
+
   await cli.configConnectionService.loadConfig("setup.config");
 
   {
@@ -47,11 +52,6 @@ export const main = async () => {
   {
     await cli.configService.waitForInit();
     Setup.enable();
-  }
-
-  {
-    const cwd = process.cwd();
-    dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
   }
 
   await cli.moduleConnectionService.loadModule("editor.module");

@@ -209,7 +209,6 @@ declare class LoaderService {
     getInstance: ((basePath: string) => ClientLoader) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientLoader>;
     import: (filePath: string, basePath?: string) => any;
     check: (filePath: string, basePath?: string) => Promise<boolean>;
-    init: (() => void) & functools_kit.ISingleshotClearable<() => void>;
 }
 
 declare class ResolveService implements IResolve {

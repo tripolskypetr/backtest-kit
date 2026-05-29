@@ -62,6 +62,11 @@ export class LiveMainService {
       payload,
     });
 
+    {
+      const cwd = process.cwd();
+      dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
+    }
+
     await this.configConnectionService.loadConfig("setup.config");
 
     {
@@ -88,11 +93,6 @@ export class LiveMainService {
     {
       this.frontendProviderService.connect();
       this.telegramProviderService.connect();
-    }
-
-    {
-      const cwd = process.cwd();
-      dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
     }
 
     let absolutePath: string;
