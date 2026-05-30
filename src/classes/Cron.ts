@@ -514,7 +514,7 @@ export class CronUtils {
         if (this._firedOnce.has(onceKey)) {
           continue;
         }
-        aligned = when;
+        aligned = alignToInterval(when, "1m");
         alignedMs = ts;
         slotKey = `${entry.name}:once${scope}${genSuffix}`;
         firedKey = onceKey;
