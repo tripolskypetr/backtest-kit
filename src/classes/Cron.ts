@@ -256,7 +256,7 @@ export class CronUtils {
    * Build the singleshot promise for a single in-flight slot.
    *
    * Invokes `entry.handler(symbol, aligned, backtest)`, swallows and logs
-   * any error via `LOGGER_SERVICE.warn`, and clears the `_inFlight` slot
+   * any error via `console.error`, and clears the `_inFlight` slot
    * in `.finally()` so the next boundary produces a fresh promise. For
    * fire-once entries `firedKey` is added to `_firedOnce` on success so
    * subsequent ticks skip it.
@@ -280,7 +280,7 @@ export class CronUtils {
       await entry.handler(symbol, aligned, backtest);
     } catch (err) {
       failed = true;
-      LOGGER_SERVICE.warn(
+      console.error(
         `${CRON_METHOD_NAME_TICK} entry "${entry.name}" failed`,
         { symbol, alignedMs, err }
       );
