@@ -98,6 +98,27 @@ export interface CronHandle {
  *
  * Not exported — `CronUtils` is the only owner.
  */
+/**
+ * Internal record stored in `CronUtils._entries` per registered name.
+ *
+ * Wraps the user-supplied {@link CronEntry} with a monotonically increasing
+ * `generation` counter that is bumped on every `register(entry)` call for
+ * the same name. The generation participates in `firedKey`/`slotKey` so
+ * late writes from a still-in-flight handler of a previous incarnation can
+ * never collide with — or block — the new entry.
+ *
+ * Not exported — `CronUtils` is the only owner.
+ */
+interface ICronEntryRecord {
+  /** The user-supplied entry configuration as passed to `register`. */
+  entry: CronEntry;
+  /**
+   * Monotonic incarnation counter for this entry name. Re-registering the
+   * same name yields a new record with `generation = previous + 1`.
+   */
+  generation: number;
+}
+
 interface ICronInFlightSlot {
   /**
    * Shared handler promise. Every parallel `tick` for the same slot
@@ -163,8 +184,20 @@ interface ICronInFlightSlot {
  * ```
  */
 export class CronUtils {
-  /** Registered entries by `name`. */
-  private readonly _entries = new Map<string, CronEntry>();
+  /**
+   * Registered entries by `name`.
+   *
+   * Each record carries a monotonically increasing `generation` counter that
+   * is bumped on every `register(entry)` call for the same name. The
+   * generation participates in `firedKey` so writes from a still-in-flight
+   * handler of a previous incarnation cannot poison `_firedOnce` for the
+   * current incarnation — their key has a different generation suffix and
+   * is simply ignored on lookup.
+   */
+  private readonly _entries = new Map<string, ICronEntryRecord>();
+
+  /** Monotonic counter used to mint new entry generations on `register`. */
+  private _generationCounter = 0;
 
   /**
    * In-flight handler slots keyed by `${name}:${alignedMs}` (periodic) or
@@ -176,9 +209,16 @@ export class CronUtils {
   /**
    * Keys of fire-once entries whose handler has already settled successfully.
    *
-   * Key shape:
-   * - Global fire-once: `${name}` (the entry name as-is).
-   * - Fan-out fire-once: `${name}:${symbol}` — one entry per whitelisted symbol.
+   * Key shape (always includes the entry generation suffix `:g${generation}`):
+   * - Global fire-once: `${name}:g${generation}`.
+   * - Fan-out fire-once: `${name}:${symbol}:g${generation}` — one entry per
+   *   whitelisted symbol.
+   *
+   * The generation suffix isolates incarnations of the same `name`: writes
+   * landing from a still-in-flight handler of a previous `register()` carry
+   * the old generation and are never matched by the new entry's lookup.
+   * Stale entries are pruned by `_clearFiredOnceFor` on `unregister` and
+   * wiped by `resetAll`.
    *
    * Looked up by `tick` to decide whether to skip; written by `_runEntry`
    * on successful settle.
@@ -186,27 +226,18 @@ export class CronUtils {
   private readonly _firedOnce = new Set<string>();
 
   /**
-   * Drop every `_firedOnce` key that belongs to the entry `name`.
+   * Garbage-collect every `_firedOnce` key that belongs to the entry `name`
+   * (any generation, global or fan-out).
    *
-   * Covers both the global key (`name`) and all fan-out keys (`name:*`).
-   * Needed on `register`/`unregister` so a re-registration cannot inherit
-   * stale fired-once marks from a previous incarnation that had a
-   * different `symbols` set.
-   *
-   * Note: writes scheduled by an old in-flight `_runEntry.finally()` may
-   * still land after this call. That residue is harmless for global mode
-   * (it sits under `name` while the new entry is fan-out and looks up
-   * `name:symbol`, or vice versa) but would falsely block a new fan-out
-   * tick for the same symbol. The risk is small in practice because
-   * `register` is typically called before backtests start; if it becomes
-   * a real issue, attach the entry generation to the `firedKey` so
-   * stale writes are ignored.
+   * Called from `unregister` to free memory; **not** required for
+   * correctness — the generation suffix already isolates re-registrations,
+   * so leftover keys from old generations can never block a new entry.
+   * They just sit unused until they are GC'd here or by `resetAll`.
    */
   private _clearFiredOnceFor(name: string): void {
-    this._firedOnce.delete(name);
     const prefix = `${name}:`;
     for (const key of this._firedOnce) {
-      if (key.startsWith(prefix)) {
+      if (key === name || key.startsWith(prefix)) {
         this._firedOnce.delete(key);
       }
     }
@@ -282,8 +313,8 @@ export class CronUtils {
       interval: entry.interval,
       symbols: entry.symbols,
     });
-    this._entries.set(entry.name, entry);
-    this._clearFiredOnceFor(entry.name);
+    const generation = ++this._generationCounter;
+    this._entries.set(entry.name, { entry, generation });
     return () => this.unregister(entry.name);
   };
 
@@ -344,17 +375,21 @@ export class CronUtils {
    *    - Empty/undefined → **global** (slot key has no symbol component).
    *    - Non-empty → **fan-out**, slot key carries `:${symbol}` so each
    *      whitelisted symbol gets its own slot and handler invocation.
-   * 3. **Fire-once** (`entry.interval === undefined`):
-   *    - If the entry's fired-once key (`${name}` global, or `${name}:${symbol}`
-   *      fan-out) is already in `_firedOnce`, skip.
-   *    - Slot key: `${name}:once` (+ scope).
+   * 3. Append the current entry generation suffix `:g${generation}` to both
+   *    slot key and fired-once key. This isolates incarnations of the same
+   *    `name`: a `register()` after an in-flight handler bumps the
+   *    generation, so the late `_firedOnce` write from the old handler can
+   *    never block the new entry.
+   * 4. **Fire-once** (`entry.interval === undefined`):
+   *    - If the entry's fired-once key is already in `_firedOnce`, skip.
+   *    - Slot key: `${name}:once` (+ scope) (+ gen).
    *    - Use raw `when` (no align).
-   * 4. **Periodic** (`entry.interval` set):
+   * 5. **Periodic** (`entry.interval` set):
    *    - Align `when` to the interval boundary via {@link alignToInterval}.
    *    - If `when.getTime() !== alignedMs`, the tick is mid-interval — skip.
    *      (This is the "remainder === 0" boundary check from the spec.)
-   *    - Slot key: `${name}:${alignedMs}` (+ scope).
-   * 5. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
+   *    - Slot key: `${name}:${alignedMs}` (+ scope) (+ gen).
+   * 6. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
    *    already exists, `await` the same promise. Otherwise invoke
    *    `entry.handler`, store the promise, and `await` it. The slot is
    *    removed in `.finally()` so the next boundary creates a fresh promise;
@@ -388,13 +423,14 @@ export class CronUtils {
 
     const ts = when.getTime();
 
-    for (const entry of this._entries.values()) {
+    for (const { entry, generation } of this._entries.values()) {
       if (entry.symbols?.length && !entry.symbols.includes(symbol)) {
         continue;
       }
 
       const perSymbol = !!entry.symbols?.length;
       const scope = perSymbol ? `:${symbol}` : "";
+      const genSuffix = `:g${generation}`;
 
       let aligned: Date;
       let alignedMs: number;
@@ -402,13 +438,13 @@ export class CronUtils {
       let firedKey: string | null;
 
       if (entry.interval === undefined) {
-        const onceKey = `${entry.name}${scope}`;
+        const onceKey = `${entry.name}${scope}${genSuffix}`;
         if (this._firedOnce.has(onceKey)) {
           continue;
         }
         aligned = when;
         alignedMs = ts;
-        slotKey = `${entry.name}:once${scope}`;
+        slotKey = `${entry.name}:once${scope}${genSuffix}`;
         firedKey = onceKey;
       } else {
         aligned = alignToInterval(when, entry.interval);
@@ -416,7 +452,7 @@ export class CronUtils {
         if (ts !== alignedMs) {
           continue;
         }
-        slotKey = `${entry.name}:${alignedMs}${scope}`;
+        slotKey = `${entry.name}:${alignedMs}${scope}${genSuffix}`;
         firedKey = null;
       }
 
