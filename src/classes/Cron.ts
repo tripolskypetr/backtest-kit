@@ -90,15 +90,6 @@ export interface CronHandle {
 }
 
 /**
- * Internal bookkeeping for a single in-flight singleshot slot.
- *
- * One `ICronInFlightSlot` lives in `CronUtils._inFlight` per active
- * `(name, alignedMs)` pair from the moment the first parallel `tick`
- * opens it until `_runEntry`'s `.finally()` removes it.
- *
- * Not exported — `CronUtils` is the only owner.
- */
-/**
  * Internal record stored in `CronUtils._entries` per registered name.
  *
  * Wraps the user-supplied {@link CronEntry} with a monotonically increasing
@@ -119,6 +110,15 @@ interface ICronEntryRecord {
   generation: number;
 }
 
+/**
+ * Internal bookkeeping for a single in-flight singleshot slot.
+ *
+ * One `ICronInFlightSlot` lives in `CronUtils._inFlight` per active slot key
+ * from the moment the first parallel `tick` opens it until `_runEntry`'s
+ * `.finally()` removes it.
+ *
+ * Not exported — `CronUtils` is the only owner.
+ */
 interface ICronInFlightSlot {
   /**
    * Shared handler promise. Every parallel `tick` for the same slot
@@ -200,9 +200,17 @@ export class CronUtils {
   private _generationCounter = 0;
 
   /**
-   * In-flight handler slots keyed by `${name}:${alignedMs}` (periodic) or
-   * `${name}:once` (fire-once). See {@link ICronInFlightSlot} for the slot
-   * shape and how `initiator` is used by `reset(symbol)`.
+   * In-flight handler slots.
+   *
+   * Slot key shape (always includes the generation suffix `:g${generation}`;
+   * the `:${symbol}` scope is present only in fan-out mode):
+   * - Periodic global: `${name}:${alignedMs}:g${generation}`.
+   * - Periodic fan-out: `${name}:${alignedMs}:${symbol}:g${generation}`.
+   * - Fire-once global: `${name}:once:g${generation}`.
+   * - Fire-once fan-out: `${name}:once:${symbol}:g${generation}`.
+   *
+   * See {@link ICronInFlightSlot} for the slot shape, and `reset(symbol)`
+   * for how `initiator` is consumed.
    */
   private readonly _inFlight = new Map<string, ICronInFlightSlot>();
 
@@ -235,6 +243,9 @@ export class CronUtils {
    * They just sit unused until they are GC'd here or by `resetAll`.
    */
   private _clearFiredOnceFor(name: string): void {
+    if (!name) {
+      return;
+    }
     const prefix = `${name}:`;
     for (const key of this._firedOnce) {
       if (key === name || key.startsWith(prefix)) {
@@ -313,6 +324,7 @@ export class CronUtils {
       interval: entry.interval,
       symbols: entry.symbols,
     });
+    this._clearFiredOnceFor(entry.name);
     const generation = ++this._generationCounter;
     this._entries.set(entry.name, { entry, generation });
     return () => this.unregister(entry.name);
@@ -459,7 +471,7 @@ export class CronUtils {
       let slot = this._inFlight.get(slotKey);
 
       if (!slot) {
-        const token = Symbol();
+        const token = Symbol(`cron-slot:${slotKey}`);
         const promise = this._runEntry(entry, symbol, aligned, alignedMs, slotKey, firedKey, token);
         slot = { promise, initiator: symbol, token };
         this._inFlight.set(slotKey, slot);
