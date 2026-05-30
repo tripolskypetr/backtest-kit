@@ -1268,6 +1268,80 @@ Broker.enable();
 
 Signal open/close events are routed automatically via an internal event bus once `Broker.enable()` is called. **No manual wiring needed.** All other operations (`partialProfit`, `trailingStop`, `breakeven`, `averageBuy`) are intercepted explicitly before the corresponding state mutation.
 
+### 🔍 How Cron Works
+
+`Cron` is a periodic / fire-once scheduler that runs in **virtual time** — the same time stream your strategies see in backtest mode. Handlers fire on candle-interval boundaries (`1m`, `5m`, `1h`, `1d`, …) and are coordinated across parallel `Backtest.background(symbol, ...)` runs so the same boundary never produces two concurrent invocations.
+
+**Public API:**
+- **`Cron.register({ name, interval?, symbols?, handler })`** — register a job. Returns a disposer. Re-registering the same `name` replaces the previous entry and bumps an internal generation counter (late writes from old handlers are ignored).
+- **`Cron.enable()`** — subscribe `Cron` to the engine's lifecycle subjects (`beforeStart`, `idlePing`, `activePing`, `schedulePing`). Wrapped in `singleshot`; call once at startup.
+- **`Cron.disable()`** — tear down the subscriptions installed by `enable()`. Safe to call multiple times and before `enable()`.
+- **`Cron.unregister(name)`** — remove a registered job.
+- **`Cron.clear(symbol?)`** — clear fire-once marks. `symbol` provided → fan-out marks for that symbol only; no argument → all marks. Does **not** touch in-flight handlers.
+
+**Two modes per `interval`:**
+- **Periodic** (`interval: "1h"`) — handler fires once per boundary of that interval.
+- **Fire-once** (`interval` omitted) — handler fires on the first matching tick and never again until `clear()` / `unregister` / re-`register`.
+
+**Two scopes per `symbols`:**
+- **Global** (`symbols` omitted) — handler fires once per boundary across all parallel backtests. First symbol to reach the boundary opens the slot; others await the same promise.
+- **Fan-out** (`symbols: ["BTC", "ETH"]`) — handler fires once per boundary **per whitelisted symbol**. Each symbol has its own slot.
+
+<details>
+  <summary>
+    The code
+  </summary>
+
+```typescript
+import { Cron, Backtest } from "backtest-kit";
+
+// Global hourly job — fires once per virtual hour across all parallel backtests.
+Cron.register({
+  name: "tg-signal-parser",
+  interval: "1h",
+  handler: async (symbol, when, backtest) => {
+    await parseTelegramSignalsToMongo(when);
+  },
+});
+
+// Per-symbol fan-out — fires once per hour per whitelisted symbol.
+Cron.register({
+  name: "fetch-funding",
+  interval: "1h",
+  symbols: ["BTCUSDT", "ETHUSDT"],
+  handler: async (symbol, when, backtest) => {
+    await fetchFundingRate(symbol, when);
+  },
+});
+
+// Fire-once warm-up — runs once globally on the very first tick.
+Cron.register({
+  name: "warm-cache",
+  handler: async (symbol, when, backtest) => {
+    await warmupCache();
+  },
+});
+
+// Wire Cron to the engine once at startup. After this every strategy tick is
+// forwarded into Cron automatically — no manual listener wiring needed.
+Cron.enable();
+
+for (const symbol of ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "TRXUSDT"]) {
+  Backtest.background(symbol, { strategyName, exchangeName, frameName });
+}
+
+// On shutdown:
+// Cron.disable();
+```
+
+</details>
+
+#### Internals
+
+`Cron.enable()` subscribes a single `singlerun`-wrapped handler to four lifecycle subjects (`beforeStart`, `idlePing`, `activePing`, `schedulePing`). `singlerun` merges all four streams into one serial queue, so concurrent ticks on the same `(symbol, virtual-minute)` cannot race to open the same slot. Each incoming tick is **base-aligned to the 1-minute boundary** before any further processing — lifecycle pings may carry sub-second jitter, but Cron always reasons in whole minutes.
+
+Coordination keys are built as `${name}:${alignedMs}:${symbol?}:g${generation}`. Parallel backtests that hit the same key share a single in-flight promise (mutex semantics): the first opens the slot and runs the handler, others `await` the same promise and release together. After `.finally()` the slot is removed and the next boundary creates a fresh promise. Fire-once entries additionally record a `_firedOnce` mark on success so subsequent ticks skip them — a failed handler is **not** marked, so it retries on the next tick. The generation suffix isolates re-registrations: a late write from a still-in-flight handler of a previous `register()` carries the old generation and never collides with the new entry.
+
 ### 🔍 How getCandles Works
 
 backtest-kit uses Node.js `AsyncLocalStorage` to automatically provide
