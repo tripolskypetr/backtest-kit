@@ -51,12 +51,12 @@ const LOGGER_SERVICE = new LoggerService();
  *   Already aligned to the entry's `interval` boundary (e.g. for `1h`,
  *   minutes/seconds/ms are zero). In fire-once mode this is the raw tick
  *   time (no align).
- * @param backtest - The `backtest` flag forwarded by the caller of
- *   `Cron.tick(symbol, when, backtest)`. `true` for backtest ticks, `false`
- *   for live ticks. The value reflects the **opening** tick that won the
- *   singleshot for this slot — all parallel awaiters of the same slot
- *   observe the same value, even if a later concurrent tick would have
- *   passed a different one.
+ * @param backtest - Execution-mode flag taken from the originating lifecycle
+ *   event (`beforeStart` / `idlePing` / `activePing` / `schedulePing`,
+ *   wired by `Cron.enable()`). `true` for backtest runs, `false` for live.
+ *   The value reflects the **opening** tick that won the singleshot for
+ *   this slot — all parallel awaiters of the same slot observe the same
+ *   value, even if a later concurrent tick carried a different one.
  */
 export type CronCallback = (
   symbol: string,
@@ -167,7 +167,7 @@ interface ICronEntryRecord {
  *
  * @example
  * ```typescript
- * import { Cron, listenTickBacktest, listenDoneBacktest, Backtest } from "backtest-kit";
+ * import { Cron, Backtest } from "backtest-kit";
  *
  * Cron.register({
  *   name: "tg-signal-parser",
@@ -177,17 +177,17 @@ interface ICronEntryRecord {
  *   },
  * });
  *
- * listenTickBacktest(async ({ symbol, date }) => {
- *   await Cron.tick(symbol, date, true);
- * });
- *
- * listenDoneBacktest(({ symbol }) => {
- *   Cron.clear(symbol);
- * });
+ * // Subscribe Cron to the engine's lifecycle subjects (beforeStart,
+ * // idlePing, activePing, schedulePing) once at startup. After this every
+ * // strategy tick is forwarded into Cron automatically.
+ * Cron.enable();
  *
  * for (const symbol of ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "TRXUSDT"]) {
  *   Backtest.background(symbol, { strategyName, exchangeName, frameName });
  * }
+ *
+ * // On shutdown:
+ * // Cron.disable();
  * ```
  */
 export class CronUtils {
@@ -239,7 +239,7 @@ export class CronUtils {
    * Stale entries are pruned by `_clearFiredOnceFor` on `register`/`unregister`
    * and wiped by `clear()`.
    *
-   * Looked up by `tick` to decide whether to skip; written by `_runEntry`
+   * Looked up by `_tick` to decide whether to skip; written by `_runEntry`
    * on successful settle.
    */
   private readonly _firedOnce = new Set<string>();
@@ -386,8 +386,8 @@ export class CronUtils {
    *   marks for that symbol — keys of the shape `${name}:${symbol}:g${gen}`.
    *   Global fire-once marks (`${name}:g${gen}`, no symbol component) are
    *   left intact, since they are not attributable to a single symbol.
-   *   Intended for use from a backtest-done listener:
-   *   `listenDoneBacktest(({ symbol }) => Cron.clear(symbol))`.
+   *   Useful for re-arming fan-out fire-once entries when a particular
+   *   symbol's run finishes and you want a future re-run to fire again.
    * - **All** (no argument): wipes every fire-once mark across all entries
    *   and symbols. Registered entries are not removed — use `unregister`
    *   (or the disposer returned by `register`) for that.
@@ -423,9 +423,10 @@ export class CronUtils {
   /**
    * Process a virtual-time tick for `symbol` and fire any due cron entries.
    *
-   * **Private.** Not for direct use — wire `Cron.enable()` once and let it
-   * forward strategy lifecycle events (`beforeStart`, `idlePing`, `activePing`,
-   * `schedulePing`) into here automatically.
+   * **Private.** Invoked exclusively by the lifecycle bridge installed in
+   * {@link enable} — `beforeStart` / `idlePing` / `activePing` / `schedulePing`
+   * are funneled here through a shared `singlerun` queue, so calls to
+   * `_tick` are serialised end-to-end. Do not call directly.
    *
    * Algorithm (per registered entry):
    * 1. If `entry.symbols` is non-empty and does not include `symbol`, skip.
@@ -454,8 +455,8 @@ export class CronUtils {
    *    for fire-once entries the fired-once key is also added to
    *    `_firedOnce` on success so subsequent ticks skip it.
    *
-   * Errors thrown by `handler` are caught, logged via `LOGGER_SERVICE.warn`,
-   * and **not** rethrown — a failing handler must not break the per-symbol
+   * Errors thrown by `handler` are caught, logged via `console.error`, and
+   * **not** rethrown — a failing handler must not break the per-symbol
    * tick loop or unblock other parallel backtests with an unhandled
    * rejection. A failed fire-once handler is **not** marked as fired and
    * will retry on the next tick.
@@ -537,28 +538,33 @@ export class CronUtils {
    * entries fire automatically — no manual wiring of `listenTickBacktest` /
    * `listenSchedulePing` etc. needed.
    *
-   * Subjects piped through {@link _tick}:
-   * - `beforeStartSubject` — first event of every run; opens the boundary at
-   *   `event.when` (already aligned to 1-minute boundary by the engine).
+   * Subjects funneled into {@link _tick}:
+   * - `beforeStartSubject` — first event of every run.
    * - `idlePingSubject` — every tick when no signal is pending or scheduled.
    * - `activePingSubject` — every tick while a pending signal is being monitored.
    * - `schedulePingSubject` — every tick while a scheduled signal is being monitored.
    *
-   * For each event `_tick(event.symbol, new Date(event.timestamp), event.backtest)`
-   * is invoked (for `beforeStart`, `event.when` is used directly since it is
-   * already a `Date`). Together these four sources cover every tick the engine
-   * processes — Cron sees exactly one tick per `(symbol, virtual-minute)` pair
+   * All four subjects are subscribed to a single `singlerun`-wrapped
+   * handler that builds `_tick(event.symbol, new Date(event.timestamp),
+   * event.backtest)`. `singlerun` merges the four streams into one serial
+   * queue: at most one `_tick` runs at a time, the next waits. This matters
+   * because the engine can emit `beforeStart` and an immediate `idlePing`
+   * on the very same minute, and concurrent `_tick`s on the same
+   * `(symbol, minute)` would otherwise race to open the same `_inFlight`
+   * slot before either commit. Together these four sources cover every
+   * tick the engine processes for every `(symbol, virtual-minute)` pair
    * regardless of whether the strategy is idle, active, or scheduled.
    *
-   * The handler is wrapped in `singleshot`, so calling `enable()` repeatedly
-   * is a no-op — subsequent calls return the same disposer. The disposer
+   * `enable` itself is wrapped in `singleshot`, so calling it repeatedly is
+   * a no-op — subsequent calls return the same disposer. The disposer
    * unsubscribes from every subject and resets the singleshot so a future
    * `enable()` can re-subscribe cleanly. Equivalent to the
    * `RecentAdapter.enable` pattern.
    *
-   * Subscriptions are fire-and-forget: the underlying `Subject.subscribe`
-   * callback is synchronous, and `_tick`'s returned promise is not awaited
-   * here. Errors are already caught and logged inside `_runEntry`.
+   * The `.subscribe` callbacks are synchronous wrappers around the
+   * `singlerun`-async handler; `_tick`'s returned promise is awaited inside
+   * `singlerun` to enforce ordering but not bubbled back to the subject.
+   * Errors are caught and logged inside `_runEntry`.
    *
    * @returns Cleanup function that unsubscribes from all four subjects and
    *   resets the singleshot. Idempotent.
