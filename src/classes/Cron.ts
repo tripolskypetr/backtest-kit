@@ -49,8 +49,9 @@ const LOGGER_SERVICE = new LoggerService();
  *   whitelisted symbol whose tick produced this invocation.
  * @param when - The aligned virtual time at which the entry fires.
  *   Already aligned to the entry's `interval` boundary (e.g. for `1h`,
- *   minutes/seconds/ms are zero). In fire-once mode this is the raw tick
- *   time (no align).
+ *   minutes/seconds/ms are zero). In fire-once mode this is the tick time
+ *   aligned to the 1-minute boundary (the base alignment `_tick` applies
+ *   to every incoming tick), not raw wall-clock with sub-second precision.
  * @param backtest - Execution-mode flag taken from the originating lifecycle
  *   event (`beforeStart` / `idlePing` / `activePing` / `schedulePing`,
  *   wired by `Cron.enable()`). `true` for backtest runs, `false` for live.
@@ -429,6 +430,11 @@ export class CronUtils {
    * `_tick` are serialised end-to-end. Do not call directly.
    *
    * Algorithm (per registered entry):
+   * 0. Base-align the incoming `when` down to the 1-minute boundary (`ts`).
+   *    Lifecycle subjects may emit with sub-second jitter; rounding here
+   *    guarantees that `beforeStart` / `idlePing` / `activePing` /
+   *    `schedulePing` for the same virtual minute all hash to the same
+   *    slot key.
    * 1. If `entry.symbols` is non-empty and does not include `symbol`, skip.
    * 2. Decide scope from `entry.symbols`:
    *    - Empty/undefined → **global** (slot key has no symbol component).
@@ -442,11 +448,13 @@ export class CronUtils {
    * 4. **Fire-once** (`entry.interval === undefined`):
    *    - If the entry's fired-once key is already in `_firedOnce`, skip.
    *    - Slot key: `${name}:once` (+ scope) (+ gen).
-   *    - Use raw `when` (no align).
+   *    - `aligned` = the 1-minute-aligned `when` from step 0.
    * 5. **Periodic** (`entry.interval` set):
-   *    - Align `when` to the interval boundary via {@link alignToInterval}.
-   *    - If `when.getTime() !== alignedMs`, the tick is mid-interval — skip.
-   *      (This is the "remainder === 0" boundary check from the spec.)
+   *    - Align `when` further to the entry's interval via {@link alignToInterval}.
+   *    - If `ts !== alignedMs`, the tick is mid-interval — skip.
+   *      (This is the "remainder === 0" boundary check from the spec;
+   *      since `ts` is already on the 1-minute boundary, the check is exact
+   *      for `1m` and consistent for higher intervals.)
    *    - Slot key: `${name}:${alignedMs}` (+ scope) (+ gen).
    * 6. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
    *    already exists, `await` the same promise. Otherwise invoke
@@ -484,7 +492,7 @@ export class CronUtils {
       throw new Error("CronUtils _tick requires execution context");
     }
 
-    const ts = when.getTime();
+    const ts = alignToInterval(when, "1m").getTime();
     const taskList: Promise<void>[] = [];
 
     for (const { entry, generation } of this._entries.values()) {
