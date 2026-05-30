@@ -355,6 +355,17 @@ export class CronUtils {
    *   and symbols. Registered entries are not removed — use `unregister`
    *   (or the disposer returned by `register`) for that.
    *
+   * **Race with in-flight handlers.** `_firedOnce` is written in
+   * `_runEntry`'s `.finally()`, which can run *after* a concurrent
+   * `clear()` call. In that case the fire-once mark reappears immediately
+   * after being wiped, and the next tick will treat the entry as already
+   * fired. This is consistent with the singleshot promise itself surviving
+   * `clear()` — the handler is allowed to finish — and the entry's
+   * generation suffix in `firedKey` guarantees the stale mark cannot
+   * outlive a subsequent `register()` of the same name. If you need a hard
+   * re-arm, `unregister` + `register` bumps the generation and makes any
+   * late write a no-op.
+   *
    * @param symbol - Optional symbol filter; if omitted, clears all fire-once
    *   marks.
    */
