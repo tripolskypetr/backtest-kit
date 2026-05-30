@@ -1842,7 +1842,7 @@ git clone https://github.com/backtest-kit/backtest-monorepo-parallel.git
 
 ### backtest-ollama-crontab
 
-> **[Explore on GitHub](https://github.com/backtest-kit/backtest-ollama-crontab)** 🧿
+> **[Explore on GitHub](https://github.com/backtest-kit/backtest-ollama-crontab)** 🐟
 
 The **backtest-ollama-crontab** repository is a TypeScript monorepo template that wires a cloud/local **Ollama** into a trading-signal pipeline as a risk filter, with a **15-minute crontab** ingesting signals from any public Telegram channel. The **same code runs in both live and backtest modes** — the crontab re-polls live and pulls the entire frame at startup in backtest.
 
