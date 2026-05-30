@@ -36,7 +36,7 @@ import {
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
 import { ICandleData } from "../interfaces/Exchange.interface";
-import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist";
+import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -566,6 +566,10 @@ const GET_SIGNAL_FN = trycatch(
     if (signal?.symbol && signal?.symbol !== self.params.execution.context.symbol) {
       throw new Error(`Symbol mismatch: expected ${self.params.execution.context.symbol}, got ${signal.symbol}`);
     }
+    // Whipsaw protection: skip signal if its id matches the last accepted pending id
+    if (signal.id && signal.id === self._lastPendingId) {
+      return null;
+    }
     if (self._isStopped) {
       return null;
     }
@@ -624,6 +628,10 @@ const GET_SIGNAL_FN = trycatch(
         // Валидируем сигнал перед возвратом
         validatePendingSignal(signalRow, currentPrice);
 
+        if (signal.id) {
+          self._lastPendingId = signal.id;
+        }
+
         return signalRow;
       }
 
@@ -652,6 +660,10 @@ const GET_SIGNAL_FN = trycatch(
 
       // Валидируем сигнал перед возвратом
       validateScheduledSignal(scheduledSignalRow, currentPrice);
+
+      if (signal.id) {
+        self._lastPendingId = signal.id;
+      }
 
       return scheduledSignalRow;
     }
@@ -682,6 +694,10 @@ const GET_SIGNAL_FN = trycatch(
 
     // Валидируем сигнал перед возвратом
     validatePendingSignal(signalRow, currentPrice);
+
+    if (signal.id) {
+      self._lastPendingId = signal.id;
+    }
 
     return signalRow;
   },
@@ -717,6 +733,20 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   self.params.logger.debug("ClientStrategy waitForInit");
   if (self.params.execution.context.backtest) {
     return;
+  }
+
+  // Restore last pending signal id for whipsaw protection in GET_SIGNAL_FN
+  {
+    const recentSignal = await PersistRecentAdapter.readRecentData(
+      self.params.execution.context.symbol,
+      self.params.strategyName,
+      self.params.exchangeName,
+      self.params.method.context.frameName,
+      false,
+    );
+    if (recentSignal?.id) {
+      self._lastPendingId = recentSignal.id;
+    }
   }
 
   // Restore pending signal
@@ -4239,6 +4269,7 @@ export class ClientStrategy implements IStrategy {
 
   _pendingSignal: ISignalRow | null = null;
   _lastSignalTimestamp: number | null = null;
+  _lastPendingId: string | null = null;
 
   _scheduledSignal: IScheduledSignalRow | null = null;
   _cancelledSignal: IScheduledSignalCancelRow | null = null;
