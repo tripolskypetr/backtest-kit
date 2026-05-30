@@ -1,3 +1,4 @@
+import { compose, singlerun, singleshot } from "functools-kit";
 import LoggerService from "../lib/services/base/LoggerService";
 import { CandleInterval } from "../interfaces/Exchange.interface";
 import {
@@ -5,11 +6,23 @@ import {
   MethodContextService,
 } from "../lib";
 import { alignToInterval } from "../utils/alignToInterval";
+import {
+  beforeStartSubject,
+  idlePingSubject,
+  activePingSubject,
+  schedulePingSubject,
+} from "../config/emitters";
+import { BeforeStartContract } from "../contract/BeforeStart.contract";
+import IdlePingContract from "../contract/IdlePing.contract";
+import ActivePingContract from "../contract/ActivePing.contract";
+import SchedulePingContract from "../contract/SchedulePing.contract";
 
 const CRON_METHOD_NAME_REGISTER = "CronUtils.register";
 const CRON_METHOD_NAME_UNREGISTER = "CronUtils.unregister";
 const CRON_METHOD_NAME_CLEAR = "CronUtils.clear";
-const CRON_METHOD_NAME_TICK = "CronUtils.tick";
+const CRON_METHOD_NAME_TICK = "CronUtils._tick";
+const CRON_METHOD_NAME_ENABLE = "CronUtils.enable";
+const CRON_METHOD_NAME_DISABLE = "CronUtils.disable";
 
 /**
  * Local logger instance.
@@ -410,6 +423,10 @@ export class CronUtils {
   /**
    * Process a virtual-time tick for `symbol` and fire any due cron entries.
    *
+   * **Private.** Not for direct use — wire `Cron.enable()` once and let it
+   * forward strategy lifecycle events (`beforeStart`, `idlePing`, `activePing`,
+   * `schedulePing`) into here automatically.
+   *
    * Algorithm (per registered entry):
    * 1. If `entry.symbols` is non-empty and does not include `symbol`, skip.
    * 2. Decide scope from `entry.symbols`:
@@ -453,17 +470,17 @@ export class CronUtils {
    *   awaiters of that slot.
    * @throws Error if method or execution context is missing.
    */
-  public tick = async (symbol: string, when: Date, backtest: boolean): Promise<void> => {
+  private _tick = async (symbol: string, when: Date, backtest: boolean): Promise<void> => {
     LOGGER_SERVICE.debug(CRON_METHOD_NAME_TICK, {
       symbol,
       when,
     });
 
     if (!MethodContextService.hasContext()) {
-      throw new Error("CronUtils tick requires method context");
+      throw new Error("CronUtils _tick requires method context");
     }
     if (!ExecutionContextService.hasContext()) {
-      throw new Error("CronUtils tick requires execution context");
+      throw new Error("CronUtils _tick requires execution context");
     }
 
     const ts = when.getTime();
@@ -513,6 +530,84 @@ export class CronUtils {
     }
 
     await Promise.all(taskList);
+  };
+
+  /**
+   * Subscribe `Cron` to the engine's strategy lifecycle subjects so registered
+   * entries fire automatically — no manual wiring of `listenTickBacktest` /
+   * `listenSchedulePing` etc. needed.
+   *
+   * Subjects piped through {@link _tick}:
+   * - `beforeStartSubject` — first event of every run; opens the boundary at
+   *   `event.when` (already aligned to 1-minute boundary by the engine).
+   * - `idlePingSubject` — every tick when no signal is pending or scheduled.
+   * - `activePingSubject` — every tick while a pending signal is being monitored.
+   * - `schedulePingSubject` — every tick while a scheduled signal is being monitored.
+   *
+   * For each event `_tick(event.symbol, new Date(event.timestamp), event.backtest)`
+   * is invoked (for `beforeStart`, `event.when` is used directly since it is
+   * already a `Date`). Together these four sources cover every tick the engine
+   * processes — Cron sees exactly one tick per `(symbol, virtual-minute)` pair
+   * regardless of whether the strategy is idle, active, or scheduled.
+   *
+   * The handler is wrapped in `singleshot`, so calling `enable()` repeatedly
+   * is a no-op — subsequent calls return the same disposer. The disposer
+   * unsubscribes from every subject and resets the singleshot so a future
+   * `enable()` can re-subscribe cleanly. Equivalent to the
+   * `RecentAdapter.enable` pattern.
+   *
+   * Subscriptions are fire-and-forget: the underlying `Subject.subscribe`
+   * callback is synchronous, and `_tick`'s returned promise is not awaited
+   * here. Errors are already caught and logged inside `_runEntry`.
+   *
+   * @returns Cleanup function that unsubscribes from all four subjects and
+   *   resets the singleshot. Idempotent.
+   *
+   * @example
+   * ```typescript
+   * import { Cron } from "backtest-kit";
+   *
+   * Cron.register({ name: "tg-parser", interval: "1h", handler });
+   * Cron.enable(); // wire once at startup
+   * // ... run backtests / live as usual
+   * Cron.disable(); // on shutdown
+   * ```
+   */
+  public enable = singleshot(() => {
+    LOGGER_SERVICE.info(CRON_METHOD_NAME_ENABLE);
+
+    const handleTick = singlerun(async (event: BeforeStartContract | IdlePingContract | ActivePingContract | SchedulePingContract) => {
+      return await this._tick(event.symbol, new Date(event.timestamp), event.backtest);
+    })
+
+    const unBeforeStart = beforeStartSubject.subscribe(handleTick);
+    const unIdlePing = idlePingSubject.subscribe(handleTick);
+    const unActivePing = activePingSubject.subscribe(handleTick);
+    const unSchedulePing = schedulePingSubject.subscribe(handleTick);
+
+    return compose(
+      () => unBeforeStart(),
+      () => unIdlePing(),
+      () => unActivePing(),
+      () => unSchedulePing(),
+      () => this.enable.clear(),
+    );
+  });
+
+  /**
+   * Tear down the lifecycle subscriptions installed by {@link enable}.
+   *
+   * Safe to call multiple times and safe to call before `enable()` — both
+   * are no-ops. Does **not** unregister entries, does **not** touch
+   * `_inFlight`, and does **not** wipe `_firedOnce` (use `unregister` or
+   * `clear()` for those).
+   */
+  public disable = (): void => {
+    LOGGER_SERVICE.info(CRON_METHOD_NAME_DISABLE);
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+    }
   };
 }
 
