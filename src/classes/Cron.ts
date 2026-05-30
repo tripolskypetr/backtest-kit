@@ -28,10 +28,16 @@ const CRON_METHOD_NAME_TICK = "CronUtils.tick";
  *   Already aligned to the entry's `interval` boundary (e.g. for `1h`,
  *   minutes/seconds/ms are zero). In fire-once mode this is the raw tick
  *   time (no align).
+ * @param isBacktest - `true` when the firing tick came from a backtest run
+ *   (`backtest.executionContextService.context.backtest`), `false` when it
+ *   came from live execution. Captured from the **opening** tick that won
+ *   the singleshot — all parallel awaiters of the same slot observe the
+ *   same value.
  */
 export type CronCallback = (
   symbol: string,
-  when: Date
+  when: Date,
+  isBacktest: boolean
 ) => void | Promise<void>;
 
 /**
@@ -249,11 +255,12 @@ export class CronUtils {
     aligned: Date,
     alignedMs: number,
     slotKey: string,
-    firedKey: string | null
+    firedKey: string | null,
+    isBacktest: boolean
   ): Promise<void> {
     let failed = false;
     try {
-      await entry.handler(symbol, aligned);
+      await entry.handler(symbol, aligned, isBacktest);
     } catch (err) {
       failed = true;
       backtest.loggerService.warn(
@@ -439,6 +446,7 @@ export class CronUtils {
     }
 
     const ts = when.getTime();
+    const isBacktest = backtest.executionContextService.context.backtest;
     const taskList: Promise<void>[] = [];
 
     for (const { entry, generation } of this._entries.values()) {
@@ -477,7 +485,7 @@ export class CronUtils {
       let pending = this._inFlight.get(slotKey);
 
       if (!pending) {
-        pending = this._runEntry(entry, symbol, aligned, alignedMs, slotKey, firedKey);
+        pending = this._runEntry(entry, symbol, aligned, alignedMs, slotKey, firedKey, isBacktest);
         this._inFlight.set(slotKey, pending);
       }
 
