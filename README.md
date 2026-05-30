@@ -78,6 +78,7 @@ Install the core library and peer dependencies manually. Use this approach when 
 - 🛡️ **Risk Management**: Custom rules for position limits, time windows, and multi-strategy coordination.
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
 - 🗃️ **Transactional Live Orders**: Broker adapter intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
+- ⏰ **Built-in Crontab**: Register periodic or fire-once jobs that fire on virtual-time boundaries with singleshot coordination across parallel backtests — one handler invocation per boundary, no double-fires.
 - 🧪 **Tested**: 520+ unit/integration tests for validation, recovery, and events.
 - 🔓 **Self hosted**: Zero dependency on third-party node_modules or platforms; run entirely in your own environment.
 
