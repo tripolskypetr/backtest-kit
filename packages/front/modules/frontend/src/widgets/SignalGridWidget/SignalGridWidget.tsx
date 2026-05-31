@@ -20,7 +20,7 @@ import {
   IGridAction,
   ActionButton,
 } from "react-declarative";
-import { Button, darken, IconButton, Paper, Stack, SxProps } from "@mui/material";
+import { Box, Button, darken, IconButton, Paper, Stack, SxProps } from "@mui/material";
 import { useMemo } from "react";
 import {
   ArrowCircleDown,
@@ -81,7 +81,18 @@ const columns: IGridColumn<GridItem>[] = [
     minWidth: 115,
     width: (fullWidth) =>
       Math.max(fullWidth - 45 - 90 - 145 - 80 - 90 - 80, 45),
-    format: ({ symbol }) => symbol,
+    format: ({ symbol }) => (
+      <Box
+        sx={{
+          width: "75px",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {symbol}
+      </Box>
+    ),
   },
   {
     field: "position",
