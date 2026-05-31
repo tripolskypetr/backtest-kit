@@ -25,6 +25,7 @@ import {
   Broker,
   MarkdownWriter,
   ReportWriter,
+  Cron,
 } from "backtest-kit";
 
 import {
@@ -106,6 +107,10 @@ export class SetupUtils {
     }
 
     {
+      Cron.enable();
+    }
+
+    {
       Recent.enable();
       Storage.enable();
     }
@@ -132,6 +137,10 @@ export class SetupUtils {
     }
 
     this.enable.clear();
+
+    {
+      Cron.disable();
+    }
 
     {
       Recent.disable();
