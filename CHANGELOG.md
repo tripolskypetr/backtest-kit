@@ -1,3 +1,113 @@
+# ⏰ Virtual-Time Cron & Lifecycle Hooks (v10.1.0, 31/05/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/10.1.0)
+
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+v10.1.0 closes the loop on the parallel runtime introduced in v9.8.2. A brand-new `Cron` class turns the virtual time produced by parallel backtests into a real scheduler — register a handler against a candle interval (`"1m"`, `"1h"`, `"1d"`, …) or as a one-shot, and it fires exactly once per aligned boundary across every concurrent `Backtest.background()` run, with optional per-symbol fan-out. Two new lifecycle contracts — `BeforeStartContract` and `AfterEndContract` — bracket every `Backtest.run` / `Live.run` invocation with a guaranteed exactly-once pair (including on cancellation and errors), so subscribers finally have a clean place to hang per-run setup and teardown. The execution-context helpers (`getDate` / `getTimestamp` / `getMode` / `getSymbol` / `getContext`) were carved out of `function/exchange.ts` into a dedicated `function/meta.ts` module, and `getTimestamp` is now backed by `TimeMetaService` so it works *outside* an active tick (handy from `Cron` callbacks and `listenBeforeStart` listeners). On the safety side, `ClientStrategy` gained whipsaw protection — re-emitting the same `signal.id` is now a no-op, with the last-accepted id round-tripped through `PersistRecentAdapter` so restarts don't re-open a position that was already taken.
+
+**Virtual-time cron, coordinated across parallel backtests**
+
+```typescript
+import { Cron, Backtest } from "backtest-kit";
+
+Cron.register({
+  name: "tg-signal-parser",
+  interval: "1h",
+  handler: async (symbol, when, backtest) => {
+    await parseTelegramSignalsToMongo(when);
+  },
+});
+
+// One-shot per backtest run, fan-out across a whitelist of symbols
+Cron.register({
+  name: "snapshot-initial-balance",
+  symbols: ["BTCUSDT", "ETHUSDT", "SOLUSDT"],
+  handler: async (symbol, when, backtest) => {
+    await snapshotBalance(symbol, when);
+  },
+});
+
+Cron.enable(); // wire into beforeStart/idlePing/activePing/schedulePing once
+
+for (const symbol of ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "TRXUSDT"]) {
+  Backtest.background(symbol, { strategyName, exchangeName, frameName });
+}
+
+// On shutdown:
+Cron.disable();
+```
+
+When five parallel backtests all reach the same aligned `1h` boundary, the handler runs **once** — the first symbol to arrive opens the slot and every concurrent tick awaits the same promise. After the promise settles the slot clears and the next boundary produces a fresh one. The same coordination applies in fire-once mode (no `interval`) and in per-symbol fan-out mode (non-empty `symbols`).
+
+**Lifecycle pair around every run**
+
+```typescript
+import { listenBeforeStart, listenAfterEnd } from "backtest-kit";
+
+listenBeforeStart(({ symbol, strategyName, frameName, when, currentPrice }) => {
+  openRunLogFile({ symbol, strategyName, frameName, startedAt: when });
+});
+
+listenAfterEnd(({ symbol, when, timestamp }) => {
+  flushRunLogFile({ symbol, completedAt: when });
+});
+```
+
+`beforeStart` fires once per `run()` before the first candle is processed; `afterEnd` is guaranteed to fire afterwards — even if the iterator throws, is cancelled by the consumer, or is stopped externally — so paired setup/teardown is no longer a best-effort affair. In backtest mode `afterEnd.when` is the cursor position at completion (falling back to the frame's planned start if the run was interrupted before any candle), so `afterEnd.when - beforeStart.when` is always the **real processed** duration, never an inflated planned one.
+
+## New Class: `Cron`
+
+A top-level export (`src/classes/Cron.ts`) and matching singleton instance. Subscribes to the four engine lifecycle subjects (`beforeStartSubject`, `idlePingSubject`, `activePingSubject`, `schedulePingSubject`) through a shared `singlerun` queue, so calls into `_tick` are serialised end-to-end and the engine emitting both `beforeStart` and an immediate `idlePing` on the same minute can never race to open the same slot twice.
+
+**Coordination model:**
+
+- **Singleshot slots.** Each `(entry.name, alignedMs[, symbol], generation)` tuple maps to a single in-flight handler promise. Every parallel `tick` that hashes to the same slot awaits the same promise (mutex semantics) and is released together when it settles.
+- **Periodic vs fire-once.** `interval` set → handler fires on every aligned boundary. `interval` omitted → fire-once: handler runs on the first matching tick and never again. A throwing fire-once handler is **not** marked as fired and retries on the next tick.
+- **Global vs fan-out.** `symbols` empty/undefined → global singleshot (handler runs once per boundary across all parallel runs). `symbols` non-empty → per-symbol fan-out (handler runs once per whitelisted symbol per boundary). The same split applies in fire-once mode: global → once total, fan-out → once per whitelisted symbol.
+- **Generation-tracked re-registration.** Re-registering the same `name` bumps a monotonic generation counter that is suffixed to every slot/fired-once key. A late `_firedOnce.add()` from an in-flight handler of the previous incarnation carries the old generation and is invisible to the new entry — re-registration is always a clean slate without canceling work that was already running.
+- **Error isolation.** Handler errors are caught and logged via `console.error`; they never break the per-symbol tick loop and never produce an unhandled rejection that could trip up parallel backtests.
+
+**Public API:** `Cron.register(entry)` returns a disposer; `Cron.unregister(name)`, `Cron.clear(symbol?)` re-arms fire-once marks (optionally scoped to one symbol), `Cron.enable()` / `Cron.disable()` toggle the lifecycle wiring (both idempotent — `enable` is `singleshot`-wrapped), and `Cron.dispose()` hard-resets everything (entries + fired-once + subscriptions). Exported types: `CronEntry`, `CronHandle`, `CronCallback`.
+
+## New Contracts: `BeforeStartContract` & `AfterEndContract`
+
+Two new emitters (`beforeStartSubject`, `afterEndSubject`) wired into `BacktestLogicPublicService.run` and `LiveLogicPublicService.run`. Both fire under a fresh `MethodContextService` / `ExecutionContextService` frame, so listeners can call `getDate()` / `getSymbol()` / persistence APIs as if they were inside a tick. New public listener functions: `listenBeforeStart`, `listenBeforeStartOnce`, `listenAfterEnd`, `listenAfterEndOnce` — all queued so async handlers run sequentially in arrival order.
+
+**Guarantees:**
+
+- Exactly-once pairing: if `beforeStart` fires, `afterEnd` fires afterwards — through `try { yield* run } finally { afterEnd }` in the public service, which catches end-of-frame, exceptions, `stopStrategy`, and consumer-side `break` out of `for await`.
+- Listener errors are caught and routed to `errorEmitter` instead of aborting the run.
+- Both subjects are added to `System.SUBJECT_ISOLATION_LIST`, so the in-process subject isolation already used by parallel runtimes covers them too.
+
+**Mode-dependent `when`:**
+
+- Backtest `beforeStart.when` = `FrameSchemaService.startDate` aligned to `1m` — the planned start of the historical replay.
+- Backtest `afterEnd.when` = cursor position from `TimeMetaService.getTimestamp` at completion, with fallback to the frame's planned start if no candle was processed.
+- Live `beforeStart.when` / `afterEnd.when` = wall-clock now aligned to `1m`.
+
+## `function/meta.ts` — Execution-Context Helpers Split Out
+
+The `getDate` / `getTimestamp` / `getMode` / `getSymbol` / `getContext` helpers previously lived in `function/exchange.ts` alongside the candle/orderbook APIs. They were moved into a dedicated `function/meta.ts` module — the public exports from `backtest-kit` are unchanged (the names are re-exported from `src/index.ts`), but the new module is the canonical home and clarifies that these helpers are about *execution metadata*, not exchange data.
+
+**`getTimestamp` now resolves outside an active tick.** The new implementation delegates to `TimeMetaService.getTimestamp(symbol, context, backtest)` whenever called inside a `MethodContextService` frame but outside `ExecutionContextService`. This means `Cron` callbacks and `listenBeforeStart` / `listenAfterEnd` listeners can call `getTimestamp()` directly without having to thread the cursor through manually. A matching `TimeMetaService.hasTimestamp(symbol, context, backtest)` non-throwing existence check was added so the public service can fall back to the frame's planned start when no tick has been processed yet.
+
+## Whipsaw Protection in `ClientStrategy`
+
+`ClientStrategy` now tracks `_lastPendingId` — the id of the most recently accepted pending or scheduled signal. If a strategy yields the same `signal.id` again after that signal closes (the "whipsaw" pattern: a position re-opens on the same minute it just exited), `GET_SIGNAL_FN` returns `null` instead of re-opening. The id is persisted via `PersistRecentAdapter.readRecentData` on init, so the protection survives process restarts and crash-recovery.
+
+**Symbol-mismatch guard.** `ISignalDto` now carries an optional `symbol` field. When a yielded signal's `symbol` does not match the execution-context symbol, `GET_SIGNAL_FN` throws with an explicit `Symbol mismatch: expected X, got Y` error — useful when a strategy accidentally returns a signal it computed for a different ticker. Validation error messages across `validateCommonSignal` / `validatePendingSignal` / `validateScheduledSignal` / `validateSignal` now embed the symbol (`"... position (BTCUSDT): ..."`) for the same reason.
+
+## Other Changes
+
+- **New public exports** from `src/index.ts`: `Cron`, `CronEntry`, `CronHandle`, `CronCallback`, `BeforeStartContract`, `AfterEndContract`, `listenBeforeStart{,Once}`, `listenAfterEnd{,Once}`, `beginContext`, `beginTime`, `toPlainString`.
+- **`BacktestCommandService` / `LiveCommandService`** type maps were narrowed to omit the new internal dependencies (`exchangeConnectionService`, `frameSchemaService`, `timeMetaService`) so command-service consumers don't see them as part of the public surface.
+- The two logic public services (`BacktestLogicPublicService`, `LiveLogicPublicService`) converted `run` from an arrow returning a generator to a real `async function*` so the `try/finally` around `RUN_ITERATOR_FN` can deliver the paired `afterEnd` event on every termination path.
+
+
+
+
 # 🏎️ Parallel Backtests (v9.8.2, 20/05/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/9.8.2)
