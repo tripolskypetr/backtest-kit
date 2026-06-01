@@ -579,6 +579,7 @@ class HeatmapStorage {
       `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is compounded equity-curve max drawdown. N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals per symbol and span ≥${MIN_CALENDAR_SPAN_DAYS} days.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good.*`,
       `*All metrics require 100+ signals per symbol to be statistically reliable. Annualized metrics assume the observed trading frequency persists year-round.*`,
+      `*Negative values for Sharpe / Sortino / Calmar / Recovery indicate a losing symbol (avgPnl < 0 or totalPnl < 0). "Higher is better" still applies — closer to zero is less bad, positive is profitable.*`,
     ].join("\n");
   }
 

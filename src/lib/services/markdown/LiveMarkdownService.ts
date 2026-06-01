@@ -642,6 +642,7 @@ class ReportStorage {
       `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is compounded equity-curve max drawdown.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good.*`,
       `*All metrics require 100+ signals to be statistically reliable. Annualized metrics assume the observed trading frequency and market conditions persist year-round.*`,
+      `*Negative values for Sharpe / Sortino / Calmar / Recovery / Expected Yearly Returns indicate a losing strategy (avgPnl < 0 or totalPnl < 0). "Higher is better" still applies — closer to zero is less bad, positive is profitable.*`,
     ].join("\n");
   }
 
