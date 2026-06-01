@@ -379,14 +379,21 @@ class HeatmapStorage {
       }
       const calendarSpanDays = (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24);
       if (calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS) {
-        tradesPerYear = Math.min((signals.length / calendarSpanDays) * 365, MAX_TRADES_PER_YEAR);
-        if (blown) {
-          expectedYearlyReturns = -100;
-        } else {
-          // If raw value exceeds MAX_EXPECTED_YEARLY_RETURNS, leave null rather than
-          // show the cap — capped numbers mislead users into trusting them.
-          const raw = (Math.pow(equityFinal, tradesPerYear / signals.length) - 1) * 100;
-          expectedYearlyReturns = Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
+        // tradesPerYear uses RAW observed frequency — no clipping. If the raw value
+        // exceeds MAX_TRADES_PER_YEAR the sample is too clustered for reliable
+        // annualization, and we leave the annualized metric null instead of silently
+        // understating it with a clipped frequency.
+        const rawTradesPerYear = (signals.length / calendarSpanDays) * 365;
+        if (rawTradesPerYear <= MAX_TRADES_PER_YEAR) {
+          tradesPerYear = rawTradesPerYear;
+          if (blown) {
+            expectedYearlyReturns = -100;
+          } else {
+            // If raw value exceeds MAX_EXPECTED_YEARLY_RETURNS, leave null rather than
+            // show the cap — capped numbers mislead users into trusting them.
+            const raw = (Math.pow(equityFinal, tradesPerYear / signals.length) - 1) * 100;
+            expectedYearlyReturns = Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
+          }
         }
       }
     }

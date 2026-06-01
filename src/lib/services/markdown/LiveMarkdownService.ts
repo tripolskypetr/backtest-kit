@@ -454,15 +454,10 @@ class ReportStorage {
     }
 
     const closedEvents = this._eventList.filter((e) => e.action === "closed");
-    const totalClosed = closedEvents.length;
-    // Use explicit comparisons; `e.pnl && e.pnl > 0` would drop break-evens redundantly
-    // but `e.pnl < 0` excludes 0 already and reads cleanly.
-    const winCount = closedEvents.filter((e) => (e.pnl ?? 0) > 0).length;
-    const lossCount = closedEvents.filter((e) => (e.pnl ?? 0) < 0).length;
 
-    // Valid closed set — events with a numeric pnl AND valid timestamps. Single source of
-    // truth for returns AND calendar span, so the two never disagree (e.g. timestamps from
-    // the full closedEvents set while returns are filtered down by pnl).
+    // Valid closed set — single source of truth. Events must have numeric pnl AND valid
+    // timestamps. Win/loss counts, returns, calendar span, equity curve — all derived
+    // from this set so they cannot disagree.
     const validClosed = closedEvents.filter(
       (e) =>
         typeof e.pnl === "number" &&
@@ -470,6 +465,9 @@ class ReportStorage {
         e.timestamp > 0 &&
         typeof (e.pendingAt ?? e.timestamp) === "number"
     );
+    const totalClosed = validClosed.length;
+    const winCount = validClosed.filter((e) => (e.pnl as number) > 0).length;
+    const lossCount = validClosed.filter((e) => (e.pnl as number) < 0).length;
     const returns = validClosed.map((e) => e.pnl as number);
     const avgPnl = returns.length > 0
       ? returns.reduce((sum, r) => sum + r, 0) / returns.length
@@ -494,12 +492,17 @@ class ReportStorage {
     const calendarSpanDays = validClosed.length > 0
       ? (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24)
       : 0;
-    const canAnnualize =
-      returns.length >= MIN_SIGNALS_FOR_ANNUALIZATION &&
-      calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS;
-    const tradesPerYear = canAnnualize
-      ? Math.min((returns.length / calendarSpanDays) * 365, MAX_TRADES_PER_YEAR)
+    // tradesPerYear uses the RAW observed frequency — no clipping. Clipping would
+    // silently understate Sharpe / Calmar / expectedYearlyReturns. Instead, if the
+    // raw frequency exceeds MAX_TRADES_PER_YEAR we treat the sample as too clustered
+    // for reliable annualization and surface every annualized metric as null.
+    const rawTradesPerYear = returns.length >= MIN_SIGNALS_FOR_ANNUALIZATION &&
+      calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS
+      ? (returns.length / calendarSpanDays) * 365
       : 0;
+    const canAnnualize =
+      rawTradesPerYear > 0 && rawTradesPerYear <= MAX_TRADES_PER_YEAR;
+    const tradesPerYear = canAnnualize ? rawTradesPerYear : 0;
 
     // Per-trade Sharpe Ratio (risk-free rate = 0). Sample stddev (N-1).
     // Per-trade ratios are gated by MIN_SIGNALS_FOR_RATIOS — below that, variance estimates
@@ -517,25 +520,27 @@ class ReportStorage {
       : null;
 
     // Certainty Ratio: null (not zero) when there are no losing trades — a flawless
-    // strategy has undefined Certainty Ratio, not "worst case zero".
+    // strategy has undefined Certainty Ratio, not "worst case zero". Computed on
+    // validClosed for consistency with other ratios.
     let certaintyRatio: number | null = null;
     if (totalClosed > 0) {
-      const wins = closedEvents.filter((e) => (e.pnl ?? 0) > 0);
-      const losses = closedEvents.filter((e) => (e.pnl ?? 0) < 0);
+      const wins = validClosed.filter((e) => (e.pnl as number) > 0);
+      const losses = validClosed.filter((e) => (e.pnl as number) < 0);
       const avgWin = wins.length > 0
-        ? wins.reduce((sum, e) => sum + (e.pnl || 0), 0) / wins.length
+        ? wins.reduce((sum, e) => sum + (e.pnl as number), 0) / wins.length
         : 0;
       const avgLoss = losses.length > 0
-        ? losses.reduce((sum, e) => sum + (e.pnl || 0), 0) / losses.length
+        ? losses.reduce((sum, e) => sum + (e.pnl as number), 0) / losses.length
         : 0;
       certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
     }
 
     // Average only over signals that have the value — do not dilute the mean with zeros.
-    const peakValues = closedEvents
+    // Use validClosed to keep all metric denominators consistent.
+    const peakValues = validClosed
       .map((e) => e.peakPnl)
       .filter((v): v is number => typeof v === "number");
-    const fallValues = closedEvents
+    const fallValues = validClosed
       .map((e) => e.fallPnl)
       .filter((v): v is number => typeof v === "number");
     const avgPeakPnl: number | null = peakValues.length > 0

@@ -202,29 +202,35 @@ class ReportStorage {
     const decisiveTrades = winCount + lossCount;
     const winRate = decisiveTrades > 0 ? (winCount / decisiveTrades) * 100 : 0;
 
-    // Trade frequency from calendar span — gated by minimum span and sample size to
-    // suppress absurd annualization on short / sparse runs. Skip signals with corrupted
-    // timestamps (0 / NaN / undefined) so they don't drag firstPendingAt to 0 or break
-    // lastCloseAt — the gate would silently fail otherwise.
+    // Valid signal set — those with usable pendingAt AND closeTimestamp. Single source
+    // of truth for calendar-span calculations and tradesPerYear, so numerator and
+    // denominator can never disagree (raw totalSignals divided by span-from-subset would
+    // overstate frequency).
+    const validSignals = this._signalList.filter(
+      (s) =>
+        typeof s.signal.pendingAt === "number" && s.signal.pendingAt > 0 &&
+        typeof s.closeTimestamp === "number" && s.closeTimestamp > 0
+    );
     let firstPendingAt = Infinity;
     let lastCloseAt = -Infinity;
-    for (const s of this._signalList) {
-      const pendingAt = s.signal.pendingAt;
-      const closeAt = s.closeTimestamp;
-      if (typeof pendingAt !== "number" || pendingAt <= 0) continue;
-      if (typeof closeAt !== "number" || closeAt <= 0) continue;
-      if (pendingAt < firstPendingAt) firstPendingAt = pendingAt;
-      if (closeAt > lastCloseAt) lastCloseAt = closeAt;
+    for (const s of validSignals) {
+      if (s.signal.pendingAt < firstPendingAt) firstPendingAt = s.signal.pendingAt;
+      if (s.closeTimestamp > lastCloseAt) lastCloseAt = s.closeTimestamp;
     }
     const calendarSpanDays = isFinite(firstPendingAt) && isFinite(lastCloseAt)
       ? (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24)
       : 0;
-    const canAnnualize =
-      totalSignals >= MIN_SIGNALS_FOR_ANNUALIZATION &&
-      calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS;
-    const tradesPerYear = canAnnualize
-      ? Math.min((totalSignals / calendarSpanDays) * 365, MAX_TRADES_PER_YEAR)
+    // tradesPerYear uses the RAW observed frequency — no clipping. Clipping would
+    // silently understate Sharpe / Calmar / expectedYearlyReturns. Instead, if the
+    // raw frequency exceeds MAX_TRADES_PER_YEAR we treat the sample as too clustered
+    // for reliable annualization and surface every annualized metric as null.
+    const rawTradesPerYear = validSignals.length >= MIN_SIGNALS_FOR_ANNUALIZATION &&
+      calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS
+      ? (validSignals.length / calendarSpanDays) * 365
       : 0;
+    const canAnnualize =
+      rawTradesPerYear > 0 && rawTradesPerYear <= MAX_TRADES_PER_YEAR;
+    const tradesPerYear = canAnnualize ? rawTradesPerYear : 0;
 
     // Per-trade Sharpe Ratio (risk-free rate = 0). Sample stddev (N-1) for unbiased estimate.
     // Per-trade ratios are gated by MIN_SIGNALS_FOR_RATIOS — below that, variance estimates
@@ -244,15 +250,17 @@ class ReportStorage {
 
     // Equity-curve max drawdown via compounded equity (multiplicative, not additive).
     // Returns are per-trade on cost basis — compounding assumes equal capital allocation
-    // per trade ("as-if 100% allocation"). Signals stored newest-first; iterate in reverse.
-    // If equity goes ≤ 0 (e.g. leveraged short with r < -100%) — account is blown,
+    // per trade ("as-if 100% allocation"). Walks validSignals in chronological order
+    // (storage is newest-first, so iterate in reverse). Using validSignals (same set as
+    // tradesPerYear) keeps equityFinal consistent with the annualization exponent.
+    // If equity goes ≤ 0 (e.g. leveraged short with r < -100%) — account blown,
     // fix DD at 100% and stop walking the curve.
     let equity = 1;
     let peak = 1;
     let equityMaxDrawdown = 0;
     let blown = false;
-    for (let i = this._signalList.length - 1; i >= 0; i--) {
-      equity *= 1 + this._signalList[i].pnl.pnlPercentage / 100;
+    for (let i = validSignals.length - 1; i >= 0; i--) {
+      equity *= 1 + validSignals[i].pnl.pnlPercentage / 100;
       if (equity <= 0) {
         equityMaxDrawdown = 100;
         blown = true;
@@ -273,7 +281,9 @@ class ReportStorage {
       ? blown
         ? -100
         : (() => {
-            const raw = (Math.pow(equityFinal, tradesPerYear / totalSignals) - 1) * 100;
+            // Geometric annualization uses validSignals.length (same set that defined
+            // tradesPerYear); using totalSignals here would mismatch numerator/denominator.
+            const raw = (Math.pow(equityFinal, tradesPerYear / validSignals.length) - 1) * 100;
             return Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
           })()
       : null;
