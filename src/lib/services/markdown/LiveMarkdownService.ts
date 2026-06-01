@@ -121,9 +121,11 @@ function isUnsafe(value: number | null): boolean {
 }
 
 /** Minimum closed signals required to annualize Sharpe / yearly returns / Calmar. */
-const MIN_SIGNALS_FOR_ANNUALIZATION = 30;
+const MIN_SIGNALS_FOR_ANNUALIZATION = 10;
 /** Minimum calendar span (days) for trade-frequency extrapolation. */
-const MIN_CALENDAR_SPAN_DAYS = 7;
+const MIN_CALENDAR_SPAN_DAYS = 14;
+/** Hard cap on tradesPerYear — prevents absurd extrapolation from short windows / clustered trades. */
+const MAX_TRADES_PER_YEAR = 365;
 
 
 /**
@@ -474,7 +476,9 @@ class ReportStorage {
     const canAnnualize =
       totalClosed >= MIN_SIGNALS_FOR_ANNUALIZATION &&
       calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS;
-    const tradesPerYear = canAnnualize ? (totalClosed / calendarSpanDays) * 365 : 0;
+    const tradesPerYear = canAnnualize
+      ? Math.min((totalClosed / calendarSpanDays) * 365, MAX_TRADES_PER_YEAR)
+      : 0;
     // Compounded yearly return: (1 + avgPnl/100)^tradesPerYear - 1, expressed as percent.
     const expectedYearlyReturns: number | null = canAnnualize
       ? (Math.pow(1 + avgPnl / 100, tradesPerYear) - 1) * 100

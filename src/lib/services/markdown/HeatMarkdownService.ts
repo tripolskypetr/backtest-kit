@@ -111,9 +111,11 @@ function isUnsafe(value: number | null): boolean {
 }
 
 /** Minimum closed signals required to annualize Sharpe / yearly returns / Calmar. */
-const MIN_SIGNALS_FOR_ANNUALIZATION = 30;
+const MIN_SIGNALS_FOR_ANNUALIZATION = 10;
 /** Minimum calendar span (days) for trade-frequency extrapolation. */
-const MIN_CALENDAR_SPAN_DAYS = 7;
+const MIN_CALENDAR_SPAN_DAYS = 14;
+/** Hard cap on tradesPerYear — prevents absurd extrapolation from short windows / clustered trades. */
+const MAX_TRADES_PER_YEAR = 365;
 
 
 /**
@@ -353,7 +355,7 @@ class HeatmapStorage {
       }
       const calendarSpanDays = (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24);
       if (calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS) {
-        tradesPerYear = (signals.length / calendarSpanDays) * 365;
+        tradesPerYear = Math.min((signals.length / calendarSpanDays) * 365, MAX_TRADES_PER_YEAR);
         expectedYearlyReturns = (Math.pow(1 + avgPnl / 100, tradesPerYear) - 1) * 100;
       }
     }
@@ -444,16 +446,17 @@ class HeatmapStorage {
       return b.sharpeRatio - a.sharpeRatio;
     });
 
-    // Calculate portfolio-wide metrics
+    // Portfolio totals — sum only over symbols with non-null totalPnl. `s.totalPnl || 0`
+    // would silently treat a missing value as zero and hide that some symbols had no data.
     const totalSymbols = symbols.length;
     let portfolioTotalPnl: number | null = null;
     let portfolioTotalTrades = 0;
 
     if (symbols.length > 0) {
-      portfolioTotalPnl = symbols.reduce(
-        (acc, s) => acc + (s.totalPnl || 0),
-        0
-      );
+      const validTotalPnls = symbols.filter((s) => s.totalPnl !== null);
+      portfolioTotalPnl = validTotalPnls.length > 0
+        ? validTotalPnls.reduce((acc, s) => acc + s.totalPnl!, 0)
+        : null;
       portfolioTotalTrades = symbols.reduce((acc, s) => acc + s.totalTrades, 0);
     }
 
