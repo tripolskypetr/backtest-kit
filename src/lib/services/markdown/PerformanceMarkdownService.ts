@@ -113,12 +113,19 @@ function isUnsafe(value: number): boolean {
 }
 
 /**
- * Calculates percentile value from sorted array.
+ * Calculates percentile value from sorted array using linear interpolation
+ * between adjacent ranks (equivalent to numpy.percentile with default linear method).
+ * Falls back to nearest-rank for length 0/1.
  */
 function percentile(sortedArray: number[], p: number): number {
   if (sortedArray.length === 0) return 0;
-  const index = Math.ceil((sortedArray.length * p) / 100) - 1;
-  return sortedArray[Math.max(0, index)];
+  if (sortedArray.length === 1) return sortedArray[0];
+  const rank = (p / 100) * (sortedArray.length - 1);
+  const lower = Math.floor(rank);
+  const upper = Math.ceil(rank);
+  if (lower === upper) return sortedArray[lower];
+  const fraction = rank - lower;
+  return sortedArray[lower] * (1 - fraction) + sortedArray[upper] * fraction;
 }
 
 
@@ -283,9 +290,13 @@ class PerformanceStorage {
     const tableData = [header, separator, ...rows];
     const summaryTable = tableData.map((row) => `| ${row.join(" | ")} |`).join("\n");
 
-    // Calculate percentage of total time for each metric
+    // Calculate percentage of total time for each metric. Guard against zero total
+    // duration (all-instant operations) to avoid NaN% in the rendered report.
     const percentages = sortedMetrics.map((metric) => {
-      const pct = (metric.totalDuration / stats.totalDuration) * 100;
+      const pctRaw = stats.totalDuration > 0
+        ? (metric.totalDuration / stats.totalDuration) * 100
+        : 0;
+      const pct = isUnsafe(pctRaw) ? 0 : pctRaw;
       return `- **${metric.metricType}**: ${pct.toFixed(1)}% (${metric.totalDuration.toFixed(2)}ms total)`;
     });
 

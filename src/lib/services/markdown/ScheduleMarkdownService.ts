@@ -154,7 +154,9 @@ class ReportStorage {
    */
   public addOpenedEvent(data: IStrategyTickResultOpened) {
     const durationMs = data.signal.pendingAt - data.signal.scheduledAt;
-    const durationMin = Math.round(durationMs / 60000);
+    // Keep fractional minutes — rounding to whole minutes zeroed out sub-30s durations,
+    // which dragged high-frequency averages towards zero.
+    const durationMin = durationMs / 60000;
 
     const newEvent: ScheduledEvent = {
       timestamp: data.signal.pendingAt,
@@ -194,7 +196,8 @@ class ReportStorage {
    */
   public addCancelledEvent(data: IStrategyTickResultCancelled) {
     const durationMs = data.closeTimestamp - data.signal.scheduledAt;
-    const durationMin = Math.round(durationMs / 60000);
+    // Keep fractional minutes — rounding to whole minutes zeroed out sub-30s durations.
+    const durationMin = durationMs / 60000;
 
     const newEvent: ScheduledEvent = {
       timestamp: data.closeTimestamp,
@@ -263,26 +266,45 @@ class ReportStorage {
     const totalOpened = openedEvents.length;
     const totalCancelled = cancelledEvents.length;
 
-    // Calculate cancellation rate
+    // Rate denominators must include only scheduled events whose outcome (opened/cancelled)
+    // is also in the buffer. Otherwise a sliding window of 250 entries can drop the
+    // "scheduled" record before its outcome arrives, inflating rates above 100% or
+    // causing one rate to fire without the other. Match by signalId.
+    const scheduledIds = new Set(
+      scheduledEvents.map((e) => e.signalId).filter((id): id is string => typeof id === "string")
+    );
+    const openedFromScheduled = openedEvents.filter(
+      (e) => typeof e.signalId === "string" && scheduledIds.has(e.signalId)
+    );
+    const cancelledFromScheduled = cancelledEvents.filter(
+      (e) => typeof e.signalId === "string" && scheduledIds.has(e.signalId)
+    );
+    const resolvedScheduled = openedFromScheduled.length + cancelledFromScheduled.length;
+
     const cancellationRate =
-      totalScheduled > 0 ? (totalCancelled / totalScheduled) * 100 : null;
-
-    // Calculate activation rate
+      resolvedScheduled > 0
+        ? (cancelledFromScheduled.length / resolvedScheduled) * 100
+        : null;
     const activationRate =
-      totalScheduled > 0 ? (totalOpened / totalScheduled) * 100 : null;
-
-    // Calculate average wait time for cancelled signals
-    const avgWaitTime =
-      totalCancelled > 0
-        ? cancelledEvents.reduce((sum, e) => sum + (e.duration || 0), 0) /
-          totalCancelled
+      resolvedScheduled > 0
+        ? (openedFromScheduled.length / resolvedScheduled) * 100
         : null;
 
-    // Calculate average activation time for opened signals
+    // Average durations — include only events with a numeric duration, do not dilute
+    // the mean with zeros for missing values.
+    const cancelledDurations = cancelledEvents
+      .map((e) => e.duration)
+      .filter((d): d is number => typeof d === "number");
+    const openedDurations = openedEvents
+      .map((e) => e.duration)
+      .filter((d): d is number => typeof d === "number");
+    const avgWaitTime =
+      cancelledDurations.length > 0
+        ? cancelledDurations.reduce((sum, d) => sum + d, 0) / cancelledDurations.length
+        : null;
     const avgActivationTime =
-      totalOpened > 0
-        ? openedEvents.reduce((sum, e) => sum + (e.duration || 0), 0) /
-          totalOpened
+      openedDurations.length > 0
+        ? openedDurations.reduce((sum, d) => sum + d, 0) / openedDurations.length
         : null;
 
     return {
