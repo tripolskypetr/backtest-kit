@@ -18,6 +18,14 @@ id: string
 
 Optional signal ID (auto-generated if not provided)
 
+### symbol
+
+```ts
+symbol: string
+```
+
+Symbol of a ticker on exchange
+
 ### position
 
 ```ts
