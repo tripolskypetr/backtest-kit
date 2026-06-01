@@ -110,6 +110,11 @@ function isUnsafe(value: number | null): boolean {
   return false;
 }
 
+/** Minimum closed signals required to annualize Sharpe / yearly returns / Calmar. */
+const MIN_SIGNALS_FOR_ANNUALIZATION = 30;
+/** Minimum calendar span (days) for trade-frequency extrapolation. */
+const MIN_CALENDAR_SPAN_DAYS = 7;
+
 
 /**
  * Storage class for accumulating closed signals per strategy and generating heatmap.
@@ -179,10 +184,12 @@ class HeatmapStorage {
     const winCount = signals.filter((s) => s.pnl.pnlPercentage > 0).length;
     const lossCount = signals.filter((s) => s.pnl.pnlPercentage < 0).length;
 
-    // Calculate win rate
+    // Win rate excludes break-even trades from both numerator and denominator —
+    // they are neither wins nor losses.
     let winRate: number | null = null;
-    if (totalTrades > 0) {
-      winRate = (winCount / totalTrades) * 100;
+    const decisiveTrades = winCount + lossCount;
+    if (decisiveTrades > 0) {
+      winRate = (winCount / decisiveTrades) * 100;
     }
 
     // Calculate total PNL
@@ -197,35 +204,36 @@ class HeatmapStorage {
       avgPnl = totalPnl! / signals.length;
     }
 
-    // Calculate standard deviation
+    // Sample standard deviation (Bessel correction: divide by N-1, not N)
     let stdDev: number | null = null;
     if (signals.length > 1 && avgPnl !== null) {
       const variance =
         signals.reduce(
           (acc, s) => acc + Math.pow(s.pnl.pnlPercentage - avgPnl!, 2),
           0
-        ) / signals.length;
+        ) / (signals.length - 1);
       stdDev = Math.sqrt(variance);
     }
 
-    // Calculate Sharpe Ratio
+    // Per-trade Sharpe Ratio
     let sharpeRatio: number | null = null;
-    if (avgPnl !== null && stdDev !== null && stdDev !== 0) {
+    if (avgPnl !== null && stdDev !== null && stdDev > 0) {
       sharpeRatio = avgPnl / stdDev;
     }
 
-    // Equity-curve max drawdown: largest peak-to-trough decline of cumulative PNL.
-    // Signals are stored newest-first (unshift in addSignal), so iterate in reverse to
-    // build the equity curve in chronological order.
+    // Equity-curve max drawdown via compounded equity (multiplicative, not additive).
+    // Returns are per-trade percentages on per-trade cost basis; arithmetic sum mixes
+    // bases. Compounding equity *= (1 + r/100) gives the true portfolio drawdown.
+    // Signals are stored newest-first (unshift in addSignal), so iterate in reverse.
     let maxDrawdown: number | null = null;
     if (signals.length > 0) {
-      let peak = 0;
-      let cumPnl = 0;
+      let equity = 1;
+      let peak = 1;
       let maxDD = 0;
       for (let i = signals.length - 1; i >= 0; i--) {
-        cumPnl += signals[i].pnl.pnlPercentage;
-        if (cumPnl > peak) peak = cumPnl;
-        const dd = peak - cumPnl;
+        equity *= 1 + signals[i].pnl.pnlPercentage / 100;
+        if (equity > peak) peak = equity;
+        const dd = (peak - equity) / peak * 100;
         if (dd > maxDD) maxDD = dd;
       }
       maxDrawdown = maxDD;
@@ -285,13 +293,17 @@ class HeatmapStorage {
       }
     }
 
-    // Calculate Expectancy — use real lossRate (excludes break-even trades),
-    // not (100 - winRate) which would mis-classify break-evens as losses.
+    // Expectancy — probabilities from observed win/loss counts (break-evens contribute 0).
     let expectancy: number | null = null;
     if (totalTrades > 0 && avgWin !== null && avgLoss !== null) {
       const winProb = winCount / totalTrades;
       const lossProb = lossCount / totalTrades;
       expectancy = winProb * avgWin + lossProb * avgLoss;
+    } else if (totalTrades > 0 && avgWin !== null && avgLoss === null) {
+      // No losing trades — expectancy is just average win frequency × avgWin
+      expectancy = (winCount / totalTrades) * avgWin;
+    } else if (totalTrades > 0 && avgWin === null && avgLoss !== null) {
+      expectancy = (lossCount / totalTrades) * avgLoss;
     }
 
     // Average only over signals that have the value — do not dilute the mean with zeros.
@@ -327,10 +339,12 @@ class HeatmapStorage {
       }
     }
 
-    // Expected yearly returns — trade frequency from calendar span, not avg duration.
-    // Old approach (365 / avgDuration) ignored idle gaps between trades.
-    let expectedYearlyReturns = 0;
-    if (signals.length > 0 && avgPnl !== null) {
+    // Expected yearly returns with compounding. Annualization gated by sample size
+    // and calendar span to suppress absurd numbers from short windows / tiny N.
+    // Formula: (1 + avgPnl/100)^tradesPerYear - 1, expressed as percent.
+    let expectedYearlyReturns: number | null = null;
+    let tradesPerYear: number | null = null;
+    if (signals.length >= MIN_SIGNALS_FOR_ANNUALIZATION && avgPnl !== null) {
       let firstPendingAt = Infinity;
       let lastCloseAt = -Infinity;
       for (const s of signals) {
@@ -338,17 +352,22 @@ class HeatmapStorage {
         if (s.closeTimestamp > lastCloseAt) lastCloseAt = s.closeTimestamp;
       }
       const calendarSpanDays = (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24);
-      const tradesPerYear = calendarSpanDays > 0 ? (signals.length / calendarSpanDays) * 365 : 0;
-      expectedYearlyReturns = avgPnl * tradesPerYear;
+      if (calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS) {
+        tradesPerYear = (signals.length / calendarSpanDays) * 365;
+        expectedYearlyReturns = (Math.pow(1 + avgPnl / 100, tradesPerYear) - 1) * 100;
+      }
     }
 
-    // Calmar and Recovery use equity-curve max drawdown (already computed above as `maxDrawdown`),
-    // not the average intra-trade dip.
+    // Calmar = annualized return / equity-curve max drawdown. Null if annualization gated off.
     let calmarRatio: number | null = null;
     let recoveryFactor: number | null = null;
-    if (maxDrawdown !== null && maxDrawdown > 0 && totalPnl !== null) {
-      calmarRatio = expectedYearlyReturns / maxDrawdown;
-      recoveryFactor = totalPnl / maxDrawdown;
+    if (maxDrawdown !== null && maxDrawdown > 0) {
+      if (expectedYearlyReturns !== null) {
+        calmarRatio = expectedYearlyReturns / maxDrawdown;
+      }
+      if (totalPnl !== null) {
+        recoveryFactor = totalPnl / maxDrawdown;
+      }
     }
 
     // Apply safe math checks
@@ -438,15 +457,25 @@ class HeatmapStorage {
       portfolioTotalTrades = symbols.reduce((acc, s) => acc + s.totalTrades, 0);
     }
 
-    // Calculate portfolio Sharpe Ratio (weighted by number of trades)
+    // Portfolio Sharpe: true Sharpe over the pooled return set across all symbols,
+    // not a trade-count-weighted average of per-symbol Sharpes (which inflates with
+    // single-trade symbols and ignores cross-symbol variance).
     let portfolioSharpeRatio: number | null = null;
-    const validSharpes = symbols.filter((s) => s.sharpeRatio !== null);
-    if (validSharpes.length > 0 && portfolioTotalTrades > 0) {
-      const weightedSum = validSharpes.reduce(
-        (acc, s) => acc + s.sharpeRatio! * s.totalTrades,
-        0
-      );
-      portfolioSharpeRatio = weightedSum / portfolioTotalTrades;
+    const allReturns: number[] = [];
+    for (const signals of this.symbolData.values()) {
+      for (const s of signals) {
+        allReturns.push(s.pnl.pnlPercentage);
+      }
+    }
+    if (allReturns.length > 1) {
+      const portfolioAvg = allReturns.reduce((acc, r) => acc + r, 0) / allReturns.length;
+      const portfolioVariance =
+        allReturns.reduce((acc, r) => acc + Math.pow(r - portfolioAvg, 2), 0) /
+        (allReturns.length - 1);
+      const portfolioStdDev = Math.sqrt(portfolioVariance);
+      if (portfolioStdDev > 0) {
+        portfolioSharpeRatio = portfolioAvg / portfolioStdDev;
+      }
     }
 
     // Calculate portfolio-wide weighted average peak/fall PNL
@@ -544,9 +573,9 @@ class HeatmapStorage {
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
       `*Profit Factor: below 1.0 means strategy is losing overall. Above 1.5 is considered good.*`,
-      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is equity-curve max drawdown.*`,
+      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is compounded equity-curve max drawdown. N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals per symbol and span ≥${MIN_CALENDAR_SPAN_DAYS} days.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good.*`,
-      `*All metrics require 100+ signals per symbol to be statistically reliable. Calmar Ratio assumes the observed trading frequency persists year-round.*`,
+      `*All metrics require 100+ signals per symbol to be statistically reliable. Annualized metrics assume the observed trading frequency persists year-round.*`,
     ].join("\n");
   }
 

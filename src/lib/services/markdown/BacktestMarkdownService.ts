@@ -115,6 +115,11 @@ function isUnsafe(value: number | null): boolean {
   return false;
 }
 
+/** Minimum closed signals required to annualize Sharpe / yearly returns / Calmar. */
+const MIN_SIGNALS_FOR_ANNUALIZATION = 30;
+/** Minimum calendar span (days) for trade-frequency extrapolation. */
+const MIN_CALENDAR_SPAN_DAYS = 7;
+
 
 /**
  * Storage class for accumulating closed signals per strategy.
@@ -178,13 +183,16 @@ class ReportStorage {
     const winCount = this._signalList.filter((s) => s.pnl.pnlPercentage > 0).length;
     const lossCount = this._signalList.filter((s) => s.pnl.pnlPercentage < 0).length;
 
-    // Calculate basic statistics
+    // Basic statistics
     const avgPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / totalSignals;
     const totalPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0);
-    const winRate = (winCount / totalSignals) * 100;
 
-    // Calculate trade frequency from calendar span — accounts for idle time between trades.
-    // Old approach (365 / avgDuration) ignored gaps and overstated annualization by 10-100×.
+    // Win rate excludes break-even trades from both numerator and denominator.
+    const decisiveTrades = winCount + lossCount;
+    const winRate = decisiveTrades > 0 ? (winCount / decisiveTrades) * 100 : 0;
+
+    // Trade frequency from calendar span — gated by minimum span and sample size to
+    // suppress absurd annualization on short / sparse runs.
     let firstPendingAt = Infinity;
     let lastCloseAt = -Infinity;
     for (const s of this._signalList) {
@@ -192,16 +200,25 @@ class ReportStorage {
       if (s.closeTimestamp > lastCloseAt) lastCloseAt = s.closeTimestamp;
     }
     const calendarSpanDays = (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24);
-    const tradesPerYear = calendarSpanDays > 0 ? (totalSignals / calendarSpanDays) * 365 : 0;
-    const expectedYearlyReturns = avgPnl * tradesPerYear;
+    const canAnnualize =
+      totalSignals >= MIN_SIGNALS_FOR_ANNUALIZATION &&
+      calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS;
+    const tradesPerYear = canAnnualize ? (totalSignals / calendarSpanDays) * 365 : 0;
+    // Compounded yearly return: (1 + avgPnl/100)^tradesPerYear - 1, expressed as percent.
+    const expectedYearlyReturns: number | null = canAnnualize
+      ? (Math.pow(1 + avgPnl / 100, tradesPerYear) - 1) * 100
+      : null;
 
-    // Calculate per-trade Sharpe Ratio (risk-free rate = 0)
+    // Per-trade Sharpe Ratio (risk-free rate = 0). Sample stddev (N-1) for unbiased estimate.
     const returns = this._signalList.map((s) => s.pnl.pnlPercentage);
-    const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / totalSignals;
-    const stdDev = Math.sqrt(variance);
+    const stdDev = totalSignals > 1
+      ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / (totalSignals - 1))
+      : 0;
     const sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
-    // Annualize by trade frequency, not √365 — returns are per-trade, not daily
-    const annualizedSharpeRatio = sharpeRatio * Math.sqrt(tradesPerYear);
+    // Annualize only when gate passes; otherwise null.
+    const annualizedSharpeRatio: number | null = canAnnualize && stdDev > 0
+      ? sharpeRatio * Math.sqrt(tradesPerYear)
+      : null;
 
     // Calculate Certainty Ratio
     const wins = this._signalList.filter((s) => s.pnl.pnlPercentage > 0);
@@ -214,44 +231,48 @@ class ReportStorage {
       : 0;
     const certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
 
-    // Calculate average peak and fall PNL — average only over signals that have the value,
-    // do not dilute the mean with zeros for missing peak/fall.
+    // Average peak/fall PNL — only over signals that have the value, no zero dilution.
     const peakValues = this._signalList
       .map((s) => s.signal.peakProfit?.pnlPercentage)
       .filter((v): v is number => typeof v === "number");
     const fallValues = this._signalList
       .map((s) => s.signal.maxDrawdown?.pnlPercentage)
       .filter((v): v is number => typeof v === "number");
-    const avgPeakPnl = peakValues.length > 0
+    const avgPeakPnl: number | null = peakValues.length > 0
       ? peakValues.reduce((sum, v) => sum + v, 0) / peakValues.length
-      : 0;
-    const avgFallPnl = fallValues.length > 0
+      : null;
+    const avgFallPnl: number | null = fallValues.length > 0
       ? fallValues.reduce((sum, v) => sum + v, 0) / fallValues.length
-      : 0;
+      : null;
 
-    // Calculate Sortino Ratio: downside deviation = RMS of negative returns (losing trades only)
+    // Sortino: avgPnl / downside deviation (RMS of negative returns). Null if no losses —
+    // a strategy with zero losing trades has undefined Sortino, not zero.
     const negativeReturns = returns.filter((r) => r < 0);
-    const downsideVariance = negativeReturns.length > 0
-      ? negativeReturns.reduce((sum, r) => sum + r * r, 0) / negativeReturns.length
-      : 0;
-    const downsideDeviation = Math.sqrt(downsideVariance);
-    const sortinoRatio = downsideDeviation > 0 ? avgPnl / downsideDeviation : 0;
+    const sortinoRatio: number | null = (() => {
+      if (negativeReturns.length === 0) return null;
+      const downsideVariance = negativeReturns.reduce((sum, r) => sum + r * r, 0) / negativeReturns.length;
+      const downsideDeviation = Math.sqrt(downsideVariance);
+      return downsideDeviation > 0 ? avgPnl / downsideDeviation : null;
+    })();
 
-    // Equity-curve max drawdown: largest peak-to-trough decline of cumulative PNL.
-    // This is the standard denominator for Calmar and Recovery — not intra-trade dips.
-    // Iterates returns in chronological order (signal list stores newest first, so reverse).
-    let peak = 0;
-    let cumPnl = 0;
+    // Equity-curve max drawdown via compounded equity (multiplicative, not additive).
+    // Signals are stored newest-first; iterate in reverse for chronological order.
+    let equity = 1;
+    let peak = 1;
     let equityMaxDrawdown = 0;
     for (let i = this._signalList.length - 1; i >= 0; i--) {
-      cumPnl += this._signalList[i].pnl.pnlPercentage;
-      if (cumPnl > peak) peak = cumPnl;
-      const dd = peak - cumPnl;
+      equity *= 1 + this._signalList[i].pnl.pnlPercentage / 100;
+      if (equity > peak) peak = equity;
+      const dd = (peak - equity) / peak * 100;
       if (dd > equityMaxDrawdown) equityMaxDrawdown = dd;
     }
 
-    const calmarRatio = equityMaxDrawdown > 0 ? expectedYearlyReturns / equityMaxDrawdown : 0;
-    const recoveryFactor = equityMaxDrawdown > 0 ? totalPnl / equityMaxDrawdown : 0;
+    const calmarRatio: number | null = equityMaxDrawdown > 0 && expectedYearlyReturns !== null
+      ? expectedYearlyReturns / equityMaxDrawdown
+      : null;
+    const recoveryFactor: number | null = equityMaxDrawdown > 0
+      ? totalPnl / equityMaxDrawdown
+      : null;
 
     return {
       signalList: this._signalList,
@@ -335,13 +356,13 @@ class ReportStorage {
       "",
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
-      `*Annualized Sharpe Ratio: per-trade Sharpe scaled by √tradesPerYear, where tradesPerYear is computed from the actual calendar span (idle time between trades is included).*`,
+      `*Annualized Sharpe Ratio: per-trade Sharpe × √tradesPerYear; tradesPerYear = signals × 365 / calendarSpanDays. N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals and span ≥${MIN_CALENDAR_SPAN_DAYS} days. Assumes returns are iid — autocorrelated strategies are overstated.*`,
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
-      `*Expected Yearly Returns: avgPnl × tradesPerYear where tradesPerYear = signals / calendarSpan (idle time included).*`,
-      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is equity-curve max drawdown.*`,
+      `*Expected Yearly Returns: compounded — (1 + avgPnl)^tradesPerYear − 1. Same gating as Annualized Sharpe.*`,
+      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is compounded equity-curve max drawdown.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good.*`,
-      `*All metrics require 100+ signals to be statistically reliable. Annualized Sharpe and Expected Yearly Returns assume the observed trading frequency and market conditions persist year-round.*`,
+      `*All metrics require 100+ signals to be statistically reliable. Annualized metrics assume the observed trading frequency and market conditions persist year-round.*`,
     ].join("\n");
   }
 
