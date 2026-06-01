@@ -115,7 +115,7 @@ export interface LiveStatisticsModel {
   /** Sharpe Ratio (risk-adjusted return = avgPnl / stdDev), null if unsafe. Higher is better. */
   sharpeRatio: number | null;
 
-  /** Annualized Sharpe Ratio (sharpeRatio × √365), null if unsafe. Higher is better. */
+  /** Annualized Sharpe Ratio (sharpeRatio × √tradesPerYear), null if unsafe. Higher is better. */
   annualizedSharpeRatio: number | null;
 
   /** Certainty Ratio (avgWin / |avgLoss|), null if unsafe. Higher is better. */
@@ -130,7 +130,7 @@ export interface LiveStatisticsModel {
   /** Average fall PNL percentage across all closed signals (_fall.pnlPercentage), null if unsafe. Closer to 0 is better. */
   avgFallPnl: number | null;
 
-  /** Sortino Ratio (avgPnl / downside deviation — stdDev of losses only), null if unsafe. Higher is better. */
+  /** Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only), null if unsafe. Higher is better. */
   sortinoRatio: number | null;
 
   /** Calmar Ratio (annualized expected return / max drawdown), null if unsafe. Higher is better. */

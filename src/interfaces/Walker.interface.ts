@@ -10,7 +10,7 @@ import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
  */
 export type WalkerMetric =
   | "sharpeRatio"           // Risk-adjusted returns (default)
-  | "annualizedSharpeRatio" // Sharpe ratio × √365
+  | "annualizedSharpeRatio" // Sharpe ratio × √tradesPerYear
   | "winRate"               // Percentage of winning trades
   | "totalPnl"              // Total profit/loss percentage
   | "certaintyRatio"        // avgWin / |avgLoss|

@@ -7,7 +7,7 @@ export interface IHeatmapRow {
   symbol: string;
   /** Total profit/loss percentage across all closed trades */
   totalPnl: number | null;
-  /** Risk-adjusted return (Sharpe Ratio) */
+  /** Risk-adjusted return per trade (Sharpe Ratio = avgPnl / stdDev) */
   sharpeRatio: number | null;
   /** Maximum drawdown percentage (largest peak-to-trough decline) */
   maxDrawdown: number | null;
@@ -39,7 +39,7 @@ export interface IHeatmapRow {
   avgPeakPnl: number | null;
   /** Average fall PNL percentage across all trades (_fall.pnlPercentage). Closer to 0 is better. */
   avgFallPnl: number | null;
-  /** Sortino Ratio (avgPnl / downside deviation — stdDev of losses only). Higher is better. */
+  /** Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only). Higher is better. */
   sortinoRatio: number | null;
   /** Calmar Ratio (totalPnl / maxDrawdown). Higher is better. */
   calmarRatio: number | null;

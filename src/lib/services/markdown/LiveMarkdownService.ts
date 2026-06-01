@@ -449,16 +449,30 @@ class ReportStorage {
     const totalPnl = closedEvents.reduce((sum, e) => sum + (e.pnl || 0), 0);
     const winRate = (winCount / totalClosed) * 100;
 
-    // Calculate Sharpe Ratio (risk-free rate = 0)
+    // Calculate Expected Yearly Returns (needed first — used as Sharpe/Sortino annualization factor)
+    let expectedYearlyReturns = 0;
+    let tradesPerYear = 0;
+    if (totalClosed > 0) {
+      const avgDurationMin = closedEvents.reduce(
+        (sum, e) => sum + (e.duration || 0),
+        0
+      ) / totalClosed;
+      const avgDurationDays = avgDurationMin / (60 * 24);
+      tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
+      expectedYearlyReturns = avgPnl * tradesPerYear;
+    }
+
+    // Calculate per-trade Sharpe Ratio (risk-free rate = 0)
+    const returns = closedEvents.map((e) => e.pnl || 0);
     let sharpeRatio = 0;
     let stdDev = 0;
     if (totalClosed > 0) {
-      const returns = closedEvents.map((e) => e.pnl || 0);
       const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / totalClosed;
       stdDev = Math.sqrt(variance);
       sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
     }
-    const annualizedSharpeRatio = sharpeRatio * Math.sqrt(365);
+    // Annualize by trade frequency, not √365 — returns are per-trade, not daily
+    const annualizedSharpeRatio = sharpeRatio * Math.sqrt(tradesPerYear);
 
     // Calculate Certainty Ratio
     let certaintyRatio = 0;
@@ -474,18 +488,6 @@ class ReportStorage {
       certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
     }
 
-    // Calculate Expected Yearly Returns
-    let expectedYearlyReturns = 0;
-    if (totalClosed > 0) {
-      const avgDurationMin = closedEvents.reduce(
-        (sum, e) => sum + (e.duration || 0),
-        0
-      ) / totalClosed;
-      const avgDurationDays = avgDurationMin / (60 * 24);
-      const tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
-      expectedYearlyReturns = avgPnl * tradesPerYear;
-    }
-
     const avgPeakPnl = totalClosed > 0
       ? closedEvents.reduce((sum, e) => sum + (e.peakPnl || 0), 0) / totalClosed
       : 0;
@@ -493,18 +495,19 @@ class ReportStorage {
       ? closedEvents.reduce((sum, e) => sum + (e.fallPnl || 0), 0) / totalClosed
       : 0;
 
-    // Downside per signal: fallPnl captures the worst intra-trade dip (maxDrawdown.pnlPercentage)
-    const fallReturns = closedEvents.map((e) => e.fallPnl || 0);
-
-    // Calculate Sortino Ratio: avgPnl / stdDev(maxDrawdown per signal)
+    // Calculate Sortino Ratio: downside deviation = RMS of negative returns (losing trades only)
     let sortinoRatio = 0;
     if (totalClosed > 0) {
-      const fallVariance = fallReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / totalClosed;
-      const fallDeviation = Math.sqrt(fallVariance);
-      sortinoRatio = fallDeviation > 0 ? avgPnl / fallDeviation : 0;
+      const negativeReturns = returns.filter((r) => r < 0);
+      const downsideVariance = negativeReturns.length > 0
+        ? negativeReturns.reduce((sum, r) => sum + r * r, 0) / negativeReturns.length
+        : 0;
+      const downsideDeviation = Math.sqrt(downsideVariance);
+      sortinoRatio = downsideDeviation > 0 ? avgPnl / downsideDeviation : 0;
     }
 
     // Max absolute drawdown across all signals — denominator for Calmar and Recovery
+    const fallReturns = closedEvents.map((e) => e.fallPnl || 0);
     const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
 
     const calmarRatio = maxAbsFall > 0 ? expectedYearlyReturns / maxAbsFall : 0;
@@ -593,7 +596,7 @@ class ReportStorage {
       "",
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
-      `*Annualized Sharpe Ratio: theoretical maximum assuming continuous trading. Real-world value is lower due to idle periods.*`,
+      `*Annualized Sharpe Ratio: per-trade Sharpe scaled by √tradesPerYear (based on average trade duration). Theoretical maximum assuming continuous trading.*`,
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
       `*Expected Yearly Returns: theoretical maximum assuming all capital is deployed continuously with no idle time.*`,

@@ -159,7 +159,7 @@ class HeatmapStorage {
    * - **totalPnl** — sum of `pnlPercentage` across all signals
    * - **avgPnl** — arithmetic mean of `pnlPercentage`
    * - **stdDev** — population standard deviation of `pnlPercentage`
-   * - **sharpeRatio** — `avgPnl / stdDev`; requires ≥ 2 signals and `stdDev > 0`
+   * - **sharpeRatio** — per-trade Sharpe: `avgPnl / stdDev`; requires ≥ 2 signals and `stdDev > 0`
    * - **maxDrawdown** — largest cumulative loss streak (absolute value of peak negative equity)
    * - **profitFactor** — `sumWins / |sumLosses|`; requires at least one win and one loss
    * - **avgWin / avgLoss** — mean of positive / negative trades respectively
@@ -305,20 +305,23 @@ class HeatmapStorage {
       avgFallPnl = signals.reduce((acc, s) => acc + (s.signal.maxDrawdown?.pnlPercentage ?? 0), 0) / signals.length;
     }
 
-    // Downside per signal: maxDrawdown.pnlPercentage captures the worst intra-trade dip
-    const fallReturns = signals.map((s) => s.signal.maxDrawdown?.pnlPercentage ?? 0);
-
-    // Calculate Sortino Ratio: avgPnl / stdDev(maxDrawdown per signal)
+    // Calculate Sortino Ratio: downside deviation = RMS of negative returns (losing trades only)
     let sortinoRatio: number | null = null;
     if (signals.length > 0 && avgPnl !== null) {
-      const fallVariance = fallReturns.reduce((acc, r) => acc + Math.pow(r, 2), 0) / signals.length;
-      const fallDeviation = Math.sqrt(fallVariance);
-      if (fallDeviation > 0) {
-        sortinoRatio = avgPnl / fallDeviation;
+      const negativeReturns = signals
+        .map((s) => s.pnl.pnlPercentage)
+        .filter((r) => r < 0);
+      const downsideVariance = negativeReturns.length > 0
+        ? negativeReturns.reduce((acc, r) => acc + r * r, 0) / negativeReturns.length
+        : 0;
+      const downsideDeviation = Math.sqrt(downsideVariance);
+      if (downsideDeviation > 0) {
+        sortinoRatio = avgPnl / downsideDeviation;
       }
     }
 
     // Max absolute drawdown across all signals — denominator for Calmar and Recovery
+    const fallReturns = signals.map((s) => s.signal.maxDrawdown?.pnlPercentage ?? 0);
     const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
 
     // Expected yearly returns — needed for Calmar
