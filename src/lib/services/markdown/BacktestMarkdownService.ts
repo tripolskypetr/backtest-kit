@@ -258,17 +258,15 @@ class ReportStorage {
     // Compounded yearly return via geometric mean of equity curve.
     // equityFinal^(tradesPerYear / N) - 1 — accounts for volatility drag that
     // arithmetic-mean compounding ((1+avgPnl)^N) misses. If account is blown, full loss.
-    // Clamped to ±MAX_EXPECTED_YEARLY_RETURNS to suppress unrealistic compounding explosions.
+    // If the raw value would exceed MAX_EXPECTED_YEARLY_RETURNS, return null rather than
+    // showing the cap as a real figure — capped numbers mislead users into trusting them.
     const expectedYearlyReturns: number | null = canAnnualize
       ? blown
         ? -100
-        : Math.max(
-            -MAX_EXPECTED_YEARLY_RETURNS,
-            Math.min(
-              MAX_EXPECTED_YEARLY_RETURNS,
-              (Math.pow(equityFinal, tradesPerYear / totalSignals) - 1) * 100
-            )
-          )
+        : (() => {
+            const raw = (Math.pow(equityFinal, tradesPerYear / totalSignals) - 1) * 100;
+            return Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
+          })()
       : null;
 
     // Calculate Certainty Ratio
@@ -280,7 +278,9 @@ class ReportStorage {
     const avgLoss = losses.length > 0
       ? losses.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / losses.length
       : 0;
-    const certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
+    // Null (not zero) when there are no losing trades — a flawless strategy has
+    // undefined Certainty Ratio, not "worst case zero".
+    const certaintyRatio: number | null = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
 
     // Average peak/fall PNL — only over signals that have the value, no zero dilution.
     const peakValues = this._signalList

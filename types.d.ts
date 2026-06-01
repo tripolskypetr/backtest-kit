@@ -21480,7 +21480,7 @@ declare class HeatMarkdownService {
      * console.log(markdown);
      * // # Portfolio Heatmap: my-strategy
      * //
-     * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Portfolio Sharpe:** 1.85 | **Total Trades:** 120
+     * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Pooled Sharpe:** 1.85 | **Total Trades:** 120
      * //
      * // | Symbol | Total PNL | Sharpe | Max DD | Trades |
      * // | ---    | ---       | ---    | ---    | ---    |

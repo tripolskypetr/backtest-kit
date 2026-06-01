@@ -507,8 +507,9 @@ class ReportStorage {
       ? sharpeRatio * Math.sqrt(tradesPerYear)
       : null;
 
-    // Calculate Certainty Ratio
-    let certaintyRatio = 0;
+    // Certainty Ratio: null (not zero) when there are no losing trades — a flawless
+    // strategy has undefined Certainty Ratio, not "worst case zero".
+    let certaintyRatio: number | null = null;
     if (totalClosed > 0) {
       const wins = closedEvents.filter((e) => (e.pnl ?? 0) > 0);
       const losses = closedEvents.filter((e) => (e.pnl ?? 0) < 0);
@@ -518,7 +519,7 @@ class ReportStorage {
       const avgLoss = losses.length > 0
         ? losses.reduce((sum, e) => sum + (e.pnl || 0), 0) / losses.length
         : 0;
-      certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
+      certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
     }
 
     // Average only over signals that have the value — do not dilute the mean with zeros.
@@ -575,17 +576,15 @@ class ReportStorage {
 
     // Compounded yearly return via geometric mean of equity curve:
     // equityFinal^(tradesPerYear / N) - 1 — accounts for volatility drag.
-    // If account is blown, full loss. Clamped to ±MAX_EXPECTED_YEARLY_RETURNS.
+    // If account is blown, full loss. If raw value exceeds MAX_EXPECTED_YEARLY_RETURNS,
+    // return null rather than showing the cap — capped numbers mislead users.
     const expectedYearlyReturns: number | null = canAnnualize
       ? blown
         ? -100
-        : Math.max(
-            -MAX_EXPECTED_YEARLY_RETURNS,
-            Math.min(
-              MAX_EXPECTED_YEARLY_RETURNS,
-              (Math.pow(equityFinal, tradesPerYear / returns.length) - 1) * 100
-            )
-          )
+        : (() => {
+            const raw = (Math.pow(equityFinal, tradesPerYear / returns.length) - 1) * 100;
+            return Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
+          })()
       : null;
 
     // Calmar — cap |value| at MAX_CALMAR_RATIO to prevent explosion when DD is near zero.

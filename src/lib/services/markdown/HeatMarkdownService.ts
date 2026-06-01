@@ -380,11 +380,10 @@ class HeatmapStorage {
         if (blown) {
           expectedYearlyReturns = -100;
         } else {
+          // If raw value exceeds MAX_EXPECTED_YEARLY_RETURNS, leave null rather than
+          // show the cap — capped numbers mislead users into trusting them.
           const raw = (Math.pow(equityFinal, tradesPerYear / signals.length) - 1) * 100;
-          expectedYearlyReturns = Math.max(
-            -MAX_EXPECTED_YEARLY_RETURNS,
-            Math.min(MAX_EXPECTED_YEARLY_RETURNS, raw)
-          );
+          expectedYearlyReturns = Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
         }
       }
     }
@@ -456,9 +455,10 @@ class HeatmapStorage {
    *      (so a symbol with no data does not silently contribute 0). If every symbol's
    *      `totalPnl` is null, the portfolio value is null.
    *    - `portfolioTotalTrades` — sum of per-symbol `totalTrades`
-   *    - `portfolioSharpeRatio` — true Sharpe over the pooled return set across all
-   *      symbols (sample stddev, N-1). Not a per-symbol average — that would inflate
-   *      with single-trade symbols and ignore cross-symbol variance.
+   *    - `portfolioSharpeRatio` — POOLED Sharpe over all trades across symbols (sample
+   *      stddev, N-1). NOT a Markowitz portfolio Sharpe — ignores cross-symbol
+   *      correlations and capital allocation. Rendered as "Pooled Sharpe" in the report.
+   *      Gated by `MIN_SIGNALS_FOR_RATIOS` on the pooled count.
    *    - `portfolioAvgPeakPnl` / `portfolioAvgFallPnl` — trade-count-weighted means
    *      over symbols that have non-null values.
    *
@@ -495,9 +495,10 @@ class HeatmapStorage {
       portfolioTotalTrades = symbols.reduce((acc, s) => acc + s.totalTrades, 0);
     }
 
-    // Portfolio Sharpe: true Sharpe over the pooled return set across all symbols,
-    // not a trade-count-weighted average of per-symbol Sharpes (which inflates with
-    // single-trade symbols and ignores cross-symbol variance).
+    // Pooled Sharpe over all returns across symbols. NOTE: this is NOT a Markowitz
+    // portfolio Sharpe — it ignores cross-symbol correlations and treats trades as a
+    // single pooled sample. Gated by MIN_SIGNALS_FOR_RATIOS so a 2-trade pool cannot
+    // produce a noisy ±Sharpe.
     let portfolioSharpeRatio: number | null = null;
     const allReturns: number[] = [];
     for (const signals of this.symbolData.values()) {
@@ -505,7 +506,7 @@ class HeatmapStorage {
         allReturns.push(s.pnl.pnlPercentage);
       }
     }
-    if (allReturns.length > 1) {
+    if (allReturns.length >= MIN_SIGNALS_FOR_RATIOS) {
       const portfolioAvg = allReturns.reduce((acc, r) => acc + r, 0) / allReturns.length;
       const portfolioVariance =
         allReturns.reduce((acc, r) => acc + Math.pow(r - portfolioAvg, 2), 0) /
@@ -516,16 +517,20 @@ class HeatmapStorage {
       }
     }
 
-    // Calculate portfolio-wide weighted average peak/fall PNL
+    // Portfolio-wide weighted average peak/fall PNL. Denominator must include only
+    // symbols that contributed a value — otherwise trade-count-weighted mean is diluted
+    // by symbols without the metric.
     let portfolioAvgPeakPnl: number | null = null;
     let portfolioAvgFallPnl: number | null = null;
     const validPeak = symbols.filter((s) => s.avgPeakPnl !== null);
     const validFall = symbols.filter((s) => s.avgFallPnl !== null);
-    if (validPeak.length > 0 && portfolioTotalTrades > 0) {
-      portfolioAvgPeakPnl = validPeak.reduce((acc, s) => acc + s.avgPeakPnl! * s.totalTrades, 0) / portfolioTotalTrades;
+    const peakTradesTotal = validPeak.reduce((acc, s) => acc + s.totalTrades, 0);
+    const fallTradesTotal = validFall.reduce((acc, s) => acc + s.totalTrades, 0);
+    if (validPeak.length > 0 && peakTradesTotal > 0) {
+      portfolioAvgPeakPnl = validPeak.reduce((acc, s) => acc + s.avgPeakPnl! * s.totalTrades, 0) / peakTradesTotal;
     }
-    if (validFall.length > 0 && portfolioTotalTrades > 0) {
-      portfolioAvgFallPnl = validFall.reduce((acc, s) => acc + s.avgFallPnl! * s.totalTrades, 0) / portfolioTotalTrades;
+    if (validFall.length > 0 && fallTradesTotal > 0) {
+      portfolioAvgFallPnl = validFall.reduce((acc, s) => acc + s.avgFallPnl! * s.totalTrades, 0) / fallTradesTotal;
     }
 
     // Apply safe math
@@ -552,7 +557,7 @@ class HeatmapStorage {
    * ```
    * # Portfolio Heatmap: {strategyName}
    *
-   * **Total Symbols:** N | **Portfolio PNL:** X% | **Portfolio Sharpe:** Y | **Total Trades:** Z
+   * **Total Symbols:** N | **Portfolio PNL:** X% | **Pooled Sharpe:** Y | **Total Trades:** Z
    *
    * | col1 | col2 | ... |
    * | ---  | ---  | ... |
@@ -602,11 +607,12 @@ class HeatmapStorage {
     return [
       `# Portfolio Heatmap: ${strategyName}`,
       "",
-      `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"} | **Portfolio Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio) : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades} | **Avg Peak PNL:** ${data.portfolioAvgPeakPnl !== null ? str(data.portfolioAvgPeakPnl, "%") : "N/A"} | **Avg Max Drawdown PNL:** ${data.portfolioAvgFallPnl !== null ? str(data.portfolioAvgFallPnl, "%") : "N/A"}`,
+      `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"} | **Pooled Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio) : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades} | **Avg Peak PNL:** ${data.portfolioAvgPeakPnl !== null ? str(data.portfolioAvgPeakPnl, "%") : "N/A"} | **Avg Max Drawdown PNL:** ${data.portfolioAvgFallPnl !== null ? str(data.portfolioAvgFallPnl, "%") : "N/A"}`,
       "",
       table,
       "",
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
+      `*Pooled Sharpe: Sharpe computed over all trades across symbols treated as one sample. NOT a Markowitz portfolio Sharpe — ignores cross-symbol correlations and capital allocation. N/A unless ≥${MIN_SIGNALS_FOR_RATIOS} pooled trades.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals per symbol.*`,
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
@@ -829,7 +835,7 @@ export class HeatMarkdownService {
    * console.log(markdown);
    * // # Portfolio Heatmap: my-strategy
    * //
-   * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Portfolio Sharpe:** 1.85 | **Total Trades:** 120
+   * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Pooled Sharpe:** 1.85 | **Total Trades:** 120
    * //
    * // | Symbol | Total PNL | Sharpe | Max DD | Trades |
    * // | ---    | ---       | ---    | ---    | ---    |
