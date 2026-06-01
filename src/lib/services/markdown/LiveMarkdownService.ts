@@ -535,12 +535,15 @@ class ReportStorage {
       ? fallValues.reduce((sum, v) => sum + v, 0) / fallValues.length
       : null;
 
-    // Sortino: avgPnl / downside deviation. Null if sample too small or no losing trades.
+    // Sortino (canonical, Sortino 1991): avgPnl / downside deviation, where
+    // downsideDev = √( Σ min(0, r)² / N_total ). Dividing by N_total (not N_negative)
+    // properly penalises strategies with frequent losses; the "modified" form that
+    // divides by N_negative hides frequency risk in catastrophic-tail strategies.
     const sortinoRatio: number | null = (() => {
       if (!canComputeRatios) return null;
       const negativeReturns = returns.filter((r) => r < 0);
       if (negativeReturns.length === 0) return null;
-      const downsideVariance = negativeReturns.reduce((sum, r) => sum + r * r, 0) / negativeReturns.length;
+      const downsideVariance = negativeReturns.reduce((sum, r) => sum + r * r, 0) / returns.length;
       const downsideDeviation = Math.sqrt(downsideVariance);
       return downsideDeviation > 0 ? avgPnl / downsideDeviation : null;
     })();

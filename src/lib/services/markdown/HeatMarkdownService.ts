@@ -344,14 +344,17 @@ class HeatmapStorage {
         : null;
     }
 
-    // Sortino: avgPnl / downside deviation. Gated on sample size.
+    // Sortino (canonical, Sortino 1991): avgPnl / downside deviation, where
+    // downsideDev = √( Σ min(0, r)² / N_total ). Dividing by N_total (not N_negative)
+    // properly penalises strategies with frequent losses; the "modified" form that
+    // divides by N_negative hides frequency risk in catastrophic-tail strategies.
     let sortinoRatio: number | null = null;
     if (canComputeRatios && avgPnl !== null) {
       const negativeReturns = signals
         .map((s) => s.pnl.pnlPercentage)
         .filter((r) => r < 0);
       if (negativeReturns.length > 0) {
-        const downsideVariance = negativeReturns.reduce((acc, r) => acc + r * r, 0) / negativeReturns.length;
+        const downsideVariance = negativeReturns.reduce((acc, r) => acc + r * r, 0) / signals.length;
         const downsideDeviation = Math.sqrt(downsideVariance);
         if (downsideDeviation > 0) {
           sortinoRatio = avgPnl / downsideDeviation;
