@@ -152,7 +152,7 @@ const computeReference = (rows) => {
 // ---------------------------------------------------------------------------
 // 1. BacktestMarkdownService — full statistical suite
 // ---------------------------------------------------------------------------
-test("backtest_1.json: BacktestMarkdownService computes the full statistical suite", async ({ pass, fail }) => {
+test("BacktestMarkdownService computes the full statistical suite", async ({ pass, fail }) => {
   const svc = lib.backtestMarkdownService;
   svc.subscribe();
 
@@ -205,7 +205,7 @@ test("backtest_1.json: BacktestMarkdownService computes the full statistical sui
 // ---------------------------------------------------------------------------
 // 2. LiveMarkdownService — same statistical suite in live mode
 // ---------------------------------------------------------------------------
-test("backtest_1.json: LiveMarkdownService computes the same statistical suite (live mode)", async ({ pass, fail }) => {
+test("LiveMarkdownService computes the same statistical suite (live mode)", async ({ pass, fail }) => {
   const svc = lib.liveMarkdownService;
   svc.subscribe();
 
@@ -253,7 +253,7 @@ test("backtest_1.json: LiveMarkdownService computes the same statistical suite (
 // ---------------------------------------------------------------------------
 // 3. HeatMarkdownService — per-symbol + pooled portfolio Sharpe + drawdown
 // ---------------------------------------------------------------------------
-test("backtest_1.json: HeatMarkdownService computes per-symbol and pooled portfolio Sharpe", async ({ pass, fail }) => {
+test("HeatMarkdownService computes per-symbol and pooled portfolio Sharpe", async ({ pass, fail }) => {
   const svc = lib.heatMarkdownService;
   svc.subscribe();
 
@@ -305,7 +305,7 @@ test("backtest_1.json: HeatMarkdownService computes per-symbol and pooled portfo
 // ---------------------------------------------------------------------------
 // 4. ScheduleMarkdownService — cancellation/activation rates + avg durations
 // ---------------------------------------------------------------------------
-test("backtest_1.json: ScheduleMarkdownService computes activation/cancellation rates and avg wait", async ({ pass, fail }) => {
+test("ScheduleMarkdownService computes activation/cancellation rates and avg wait", async ({ pass, fail }) => {
   const svc = lib.scheduleMarkdownService;
   svc.subscribe();
 
