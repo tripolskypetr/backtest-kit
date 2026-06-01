@@ -214,25 +214,20 @@ class HeatmapStorage {
       sharpeRatio = avgPnl / stdDev;
     }
 
-    // Calculate Maximum Drawdown
+    // Equity-curve max drawdown: largest peak-to-trough decline of cumulative PNL.
+    // Signals are stored newest-first (unshift in addSignal), so iterate in reverse to
+    // build the equity curve in chronological order.
     let maxDrawdown: number | null = null;
     if (signals.length > 0) {
       let peak = 0;
-      let currentDrawdown = 0;
+      let cumPnl = 0;
       let maxDD = 0;
-
-      for (const signal of signals) {
-        peak += signal.pnl.pnlPercentage;
-        if (peak > 0) {
-          currentDrawdown = 0;
-        } else {
-          currentDrawdown = Math.abs(peak);
-          if (currentDrawdown > maxDD) {
-            maxDD = currentDrawdown;
-          }
-        }
+      for (let i = signals.length - 1; i >= 0; i--) {
+        cumPnl += signals[i].pnl.pnlPercentage;
+        if (cumPnl > peak) peak = cumPnl;
+        const dd = peak - cumPnl;
+        if (dd > maxDD) maxDD = dd;
       }
-
       maxDrawdown = maxDD;
     }
 
@@ -290,19 +285,31 @@ class HeatmapStorage {
       }
     }
 
-    // Calculate Expectancy
+    // Calculate Expectancy — use real lossRate (excludes break-even trades),
+    // not (100 - winRate) which would mis-classify break-evens as losses.
     let expectancy: number | null = null;
-    if (winRate !== null && avgWin !== null && avgLoss !== null) {
-      const lossRate = 100 - winRate;
-      expectancy = (winRate / 100) * avgWin + (lossRate / 100) * avgLoss;
+    if (totalTrades > 0 && avgWin !== null && avgLoss !== null) {
+      const winProb = winCount / totalTrades;
+      const lossProb = lossCount / totalTrades;
+      expectancy = winProb * avgWin + lossProb * avgLoss;
     }
 
-    // Calculate average peak and fall PNL
+    // Average only over signals that have the value — do not dilute the mean with zeros.
     let avgPeakPnl: number | null = null;
     let avgFallPnl: number | null = null;
     if (signals.length > 0) {
-      avgPeakPnl = signals.reduce((acc, s) => acc + (s.signal.peakProfit?.pnlPercentage ?? 0), 0) / signals.length;
-      avgFallPnl = signals.reduce((acc, s) => acc + (s.signal.maxDrawdown?.pnlPercentage ?? 0), 0) / signals.length;
+      const peakValues = signals
+        .map((s) => s.signal.peakProfit?.pnlPercentage)
+        .filter((v): v is number => typeof v === "number");
+      const fallValues = signals
+        .map((s) => s.signal.maxDrawdown?.pnlPercentage)
+        .filter((v): v is number => typeof v === "number");
+      avgPeakPnl = peakValues.length > 0
+        ? peakValues.reduce((sum, v) => sum + v, 0) / peakValues.length
+        : null;
+      avgFallPnl = fallValues.length > 0
+        ? fallValues.reduce((sum, v) => sum + v, 0) / fallValues.length
+        : null;
     }
 
     // Calculate Sortino Ratio: downside deviation = RMS of negative returns (losing trades only)
@@ -320,24 +327,28 @@ class HeatmapStorage {
       }
     }
 
-    // Max absolute drawdown across all signals — denominator for Calmar and Recovery
-    const fallReturns = signals.map((s) => s.signal.maxDrawdown?.pnlPercentage ?? 0);
-    const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
-
-    // Expected yearly returns — needed for Calmar
+    // Expected yearly returns — trade frequency from calendar span, not avg duration.
+    // Old approach (365 / avgDuration) ignored idle gaps between trades.
     let expectedYearlyReturns = 0;
     if (signals.length > 0 && avgPnl !== null) {
-      const avgDurationMs = signals.reduce((sum, s) => sum + (s.closeTimestamp - s.signal.pendingAt), 0) / signals.length;
-      const avgDurationDays = avgDurationMs / (1000 * 60 * 60 * 24);
-      const tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
+      let firstPendingAt = Infinity;
+      let lastCloseAt = -Infinity;
+      for (const s of signals) {
+        if (s.signal.pendingAt < firstPendingAt) firstPendingAt = s.signal.pendingAt;
+        if (s.closeTimestamp > lastCloseAt) lastCloseAt = s.closeTimestamp;
+      }
+      const calendarSpanDays = (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24);
+      const tradesPerYear = calendarSpanDays > 0 ? (signals.length / calendarSpanDays) * 365 : 0;
       expectedYearlyReturns = avgPnl * tradesPerYear;
     }
 
+    // Calmar and Recovery use equity-curve max drawdown (already computed above as `maxDrawdown`),
+    // not the average intra-trade dip.
     let calmarRatio: number | null = null;
     let recoveryFactor: number | null = null;
-    if (maxAbsFall > 0 && totalPnl !== null) {
-      calmarRatio = expectedYearlyReturns / maxAbsFall;
-      recoveryFactor = totalPnl / maxAbsFall;
+    if (maxDrawdown !== null && maxDrawdown > 0 && totalPnl !== null) {
+      calmarRatio = expectedYearlyReturns / maxDrawdown;
+      recoveryFactor = totalPnl / maxDrawdown;
     }
 
     // Apply safe math checks
@@ -533,9 +544,9 @@ class HeatmapStorage {
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
       `*Profit Factor: below 1.0 means strategy is losing overall. Above 1.5 is considered good.*`,
-      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Based on theoretical yearly returns.*`,
+      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is equity-curve max drawdown.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good.*`,
-      `*All metrics require 100+ signals per symbol to be statistically reliable. Time period matters only for Calmar Ratio — it assumes current market conditions hold year-round, which may not reflect reality.*`,
+      `*All metrics require 100+ signals per symbol to be statistically reliable. Calmar Ratio assumes the observed trading frequency persists year-round.*`,
     ].join("\n");
   }
 

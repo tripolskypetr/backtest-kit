@@ -183,13 +183,16 @@ class ReportStorage {
     const totalPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0);
     const winRate = (winCount / totalSignals) * 100;
 
-    // Calculate Expected Yearly Returns (needed first — used as Sharpe/Sortino annualization factor)
-    const avgDurationMs = this._signalList.reduce(
-      (sum, s) => sum + (s.closeTimestamp - s.signal.pendingAt),
-      0
-    ) / totalSignals;
-    const avgDurationDays = avgDurationMs / (1000 * 60 * 60 * 24);
-    const tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
+    // Calculate trade frequency from calendar span — accounts for idle time between trades.
+    // Old approach (365 / avgDuration) ignored gaps and overstated annualization by 10-100×.
+    let firstPendingAt = Infinity;
+    let lastCloseAt = -Infinity;
+    for (const s of this._signalList) {
+      if (s.signal.pendingAt < firstPendingAt) firstPendingAt = s.signal.pendingAt;
+      if (s.closeTimestamp > lastCloseAt) lastCloseAt = s.closeTimestamp;
+    }
+    const calendarSpanDays = (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24);
+    const tradesPerYear = calendarSpanDays > 0 ? (totalSignals / calendarSpanDays) * 365 : 0;
     const expectedYearlyReturns = avgPnl * tradesPerYear;
 
     // Calculate per-trade Sharpe Ratio (risk-free rate = 0)
@@ -211,9 +214,20 @@ class ReportStorage {
       : 0;
     const certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
 
-    // Calculate average peak and fall PNL across all signals
-    const avgPeakPnl = this._signalList.reduce((sum, s) => sum + (s.signal.peakProfit?.pnlPercentage ?? 0), 0) / totalSignals;
-    const avgFallPnl = this._signalList.reduce((sum, s) => sum + (s.signal.maxDrawdown?.pnlPercentage ?? 0), 0) / totalSignals;
+    // Calculate average peak and fall PNL — average only over signals that have the value,
+    // do not dilute the mean with zeros for missing peak/fall.
+    const peakValues = this._signalList
+      .map((s) => s.signal.peakProfit?.pnlPercentage)
+      .filter((v): v is number => typeof v === "number");
+    const fallValues = this._signalList
+      .map((s) => s.signal.maxDrawdown?.pnlPercentage)
+      .filter((v): v is number => typeof v === "number");
+    const avgPeakPnl = peakValues.length > 0
+      ? peakValues.reduce((sum, v) => sum + v, 0) / peakValues.length
+      : 0;
+    const avgFallPnl = fallValues.length > 0
+      ? fallValues.reduce((sum, v) => sum + v, 0) / fallValues.length
+      : 0;
 
     // Calculate Sortino Ratio: downside deviation = RMS of negative returns (losing trades only)
     const negativeReturns = returns.filter((r) => r < 0);
@@ -223,12 +237,21 @@ class ReportStorage {
     const downsideDeviation = Math.sqrt(downsideVariance);
     const sortinoRatio = downsideDeviation > 0 ? avgPnl / downsideDeviation : 0;
 
-    // Max absolute drawdown across all signals — used as denominator for Calmar and Recovery
-    const fallReturns = this._signalList.map((s) => s.signal.maxDrawdown?.pnlPercentage ?? 0);
-    const maxAbsFall = fallReturns.reduce((max, r) => Math.max(max, Math.abs(r)), 0);
+    // Equity-curve max drawdown: largest peak-to-trough decline of cumulative PNL.
+    // This is the standard denominator for Calmar and Recovery — not intra-trade dips.
+    // Iterates returns in chronological order (signal list stores newest first, so reverse).
+    let peak = 0;
+    let cumPnl = 0;
+    let equityMaxDrawdown = 0;
+    for (let i = this._signalList.length - 1; i >= 0; i--) {
+      cumPnl += this._signalList[i].pnl.pnlPercentage;
+      if (cumPnl > peak) peak = cumPnl;
+      const dd = peak - cumPnl;
+      if (dd > equityMaxDrawdown) equityMaxDrawdown = dd;
+    }
 
-    const calmarRatio = maxAbsFall > 0 ? expectedYearlyReturns / maxAbsFall : 0;
-    const recoveryFactor = maxAbsFall > 0 ? totalPnl / maxAbsFall : 0;
+    const calmarRatio = equityMaxDrawdown > 0 ? expectedYearlyReturns / equityMaxDrawdown : 0;
+    const recoveryFactor = equityMaxDrawdown > 0 ? totalPnl / equityMaxDrawdown : 0;
 
     return {
       signalList: this._signalList,
@@ -301,24 +324,24 @@ class ReportStorage {
       `**Total PNL:** ${stats.totalPnl === null ? "N/A" : `${stats.totalPnl > 0 ? "+" : ""}${stats.totalPnl.toFixed(2)}% (higher is better)`}`,
       `**Standard Deviation:** ${stats.stdDev === null ? "N/A" : `${stats.stdDev.toFixed(3)}% (lower is better)`}`,
       `**Sharpe Ratio:** ${stats.sharpeRatio === null ? "N/A" : `${stats.sharpeRatio.toFixed(3)} (higher is better)`}`,
-      `**Annualized Sharpe Ratio:** ${stats.annualizedSharpeRatio === null ? "N/A" : `${stats.annualizedSharpeRatio.toFixed(3)} (higher is better, theoretical)`}`,
+      `**Annualized Sharpe Ratio:** ${stats.annualizedSharpeRatio === null ? "N/A" : `${stats.annualizedSharpeRatio.toFixed(3)} (higher is better)`}`,
       `**Certainty Ratio:** ${stats.certaintyRatio === null ? "N/A" : `${stats.certaintyRatio.toFixed(3)} (higher is better)`}`,
-      `**Expected Yearly Returns:** ${stats.expectedYearlyReturns === null ? "N/A" : `${stats.expectedYearlyReturns > 0 ? "+" : ""}${stats.expectedYearlyReturns.toFixed(2)}% (higher is better, theoretical)`}`,
+      `**Expected Yearly Returns:** ${stats.expectedYearlyReturns === null ? "N/A" : `${stats.expectedYearlyReturns > 0 ? "+" : ""}${stats.expectedYearlyReturns.toFixed(2)}% (higher is better)`}`,
       `**Avg Peak PNL:** ${stats.avgPeakPnl === null ? "N/A" : `${stats.avgPeakPnl > 0 ? "+" : ""}${stats.avgPeakPnl.toFixed(2)}% (higher is better)`}`,
       `**Avg Max Drawdown PNL:** ${stats.avgFallPnl === null ? "N/A" : `${stats.avgFallPnl.toFixed(2)}% (closer to 0 is better)`}`,
       `**Sortino Ratio:** ${stats.sortinoRatio === null ? "N/A" : `${stats.sortinoRatio.toFixed(3)} (higher is better)`}`,
-      `**Calmar Ratio:** ${stats.calmarRatio === null ? "N/A" : `${stats.calmarRatio.toFixed(3)} (higher is better, theoretical)`}`,
+      `**Calmar Ratio:** ${stats.calmarRatio === null ? "N/A" : `${stats.calmarRatio.toFixed(3)} (higher is better)`}`,
       `**Recovery Factor:** ${stats.recoveryFactor === null ? "N/A" : `${stats.recoveryFactor.toFixed(3)} (higher is better)`}`,
       "",
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
-      `*Annualized Sharpe Ratio: per-trade Sharpe scaled by √tradesPerYear (based on average trade duration). Theoretical maximum assuming continuous trading.*`,
+      `*Annualized Sharpe Ratio: per-trade Sharpe scaled by √tradesPerYear, where tradesPerYear is computed from the actual calendar span (idle time between trades is included).*`,
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
-      `*Expected Yearly Returns: theoretical maximum assuming all capital is deployed continuously with no idle time.*`,
-      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Based on theoretical yearly returns.*`,
+      `*Expected Yearly Returns: avgPnl × tradesPerYear where tradesPerYear = signals / calendarSpan (idle time included).*`,
+      `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is equity-curve max drawdown.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good.*`,
-      `*All metrics require 100+ signals to be statistically reliable. Time period matters only for Annualized Sharpe Ratio and Expected Yearly Returns — they assume current market conditions hold year-round, which may not reflect reality.*`,
+      `*All metrics require 100+ signals to be statistically reliable. Annualized Sharpe and Expected Yearly Returns assume the observed trading frequency and market conditions persist year-round.*`,
     ].join("\n");
   }
 
