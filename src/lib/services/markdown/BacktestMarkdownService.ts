@@ -190,27 +190,34 @@ class ReportStorage {
       };
     }
 
-    const totalSignals = this._signalList.length;
-    const winCount = this._signalList.filter((s) => s.pnl.pnlPercentage > 0).length;
-    const lossCount = this._signalList.filter((s) => s.pnl.pnlPercentage < 0).length;
-
-    // Basic statistics
-    const avgPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / totalSignals;
-    const totalPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0);
-
-    // Win rate excludes break-even trades from both numerator and denominator.
-    const decisiveTrades = winCount + lossCount;
-    const winRate = decisiveTrades > 0 ? (winCount / decisiveTrades) * 100 : 0;
-
     // Valid signal set — those with usable pendingAt AND closeTimestamp. Single source
-    // of truth for calendar-span calculations and tradesPerYear, so numerator and
-    // denominator can never disagree (raw totalSignals divided by span-from-subset would
-    // overstate frequency).
+    // of truth for EVERY metric in this method (counts, sums, span, equity curve,
+    // ratios, annualization). If we used different subsets for different metrics, the
+    // numerator of one ratio could be drawn from a different population than the
+    // denominator of another and the report would silently lie. On clean data
+    // validSignals === this._signalList; the filter only matters for corrupted runtime
+    // data.
     const validSignals = this._signalList.filter(
       (s) =>
         typeof s.signal.pendingAt === "number" && s.signal.pendingAt > 0 &&
         typeof s.closeTimestamp === "number" && s.closeTimestamp > 0
     );
+    const totalSignals = validSignals.length;
+    const winCount = validSignals.filter((s) => s.pnl.pnlPercentage > 0).length;
+    const lossCount = validSignals.filter((s) => s.pnl.pnlPercentage < 0).length;
+
+    // Basic statistics — guard against an empty validSignals (e.g. every signal had
+    // corrupted timestamps) so we don't divide by zero.
+    const avgPnl = totalSignals > 0
+      ? validSignals.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / totalSignals
+      : 0;
+    const totalPnl = validSignals.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0);
+
+    // Win rate excludes break-even trades from both numerator and denominator.
+    const decisiveTrades = winCount + lossCount;
+    const winRate = decisiveTrades > 0 ? (winCount / decisiveTrades) * 100 : 0;
+
+    // Calendar span over the same validSignals set used for ratios.
     let firstPendingAt = Infinity;
     let lastCloseAt = -Infinity;
     for (const s of validSignals) {
@@ -224,9 +231,9 @@ class ReportStorage {
     // silently understate Sharpe / Calmar / expectedYearlyReturns. Instead, if the
     // raw frequency exceeds MAX_TRADES_PER_YEAR we treat the sample as too clustered
     // for reliable annualization and surface every annualized metric as null.
-    const rawTradesPerYear = validSignals.length >= MIN_SIGNALS_FOR_ANNUALIZATION &&
+    const rawTradesPerYear = totalSignals >= MIN_SIGNALS_FOR_ANNUALIZATION &&
       calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS
-      ? (validSignals.length / calendarSpanDays) * 365
+      ? (totalSignals / calendarSpanDays) * 365
       : 0;
     const canAnnualize =
       rawTradesPerYear > 0 && rawTradesPerYear <= MAX_TRADES_PER_YEAR;
@@ -235,7 +242,7 @@ class ReportStorage {
     // Per-trade Sharpe Ratio (risk-free rate = 0). Sample stddev (N-1) for unbiased estimate.
     // Per-trade ratios are gated by MIN_SIGNALS_FOR_RATIOS — below that, variance estimates
     // are too noisy to publish (high chance of spurious ±Sharpe).
-    const returns = this._signalList.map((s) => s.pnl.pnlPercentage);
+    const returns = validSignals.map((s) => s.pnl.pnlPercentage);
     const canComputeRatios = totalSignals >= MIN_SIGNALS_FOR_RATIOS;
     const stdDev = canComputeRatios
       ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / (totalSignals - 1))
@@ -288,9 +295,10 @@ class ReportStorage {
           })()
       : null;
 
-    // Calculate Certainty Ratio
-    const wins = this._signalList.filter((s) => s.pnl.pnlPercentage > 0);
-    const losses = this._signalList.filter((s) => s.pnl.pnlPercentage < 0);
+    // Certainty Ratio — over validSignals so wins/losses come from the same set as
+    // winCount/lossCount/avgPnl above.
+    const wins = validSignals.filter((s) => s.pnl.pnlPercentage > 0);
+    const losses = validSignals.filter((s) => s.pnl.pnlPercentage < 0);
     const avgWin = wins.length > 0
       ? wins.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / wins.length
       : 0;
@@ -301,11 +309,12 @@ class ReportStorage {
     // undefined Certainty Ratio, not "worst case zero".
     const certaintyRatio: number | null = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
 
-    // Average peak/fall PNL — only over signals that have the value, no zero dilution.
-    const peakValues = this._signalList
+    // Average peak/fall PNL — over validSignals; only signals that actually have the
+    // value contribute (no zero dilution from missing peakProfit/maxDrawdown).
+    const peakValues = validSignals
       .map((s) => s.signal.peakProfit?.pnlPercentage)
       .filter((v): v is number => typeof v === "number");
-    const fallValues = this._signalList
+    const fallValues = validSignals
       .map((s) => s.signal.maxDrawdown?.pnlPercentage)
       .filter((v): v is number => typeof v === "number");
     const avgPeakPnl: number | null = peakValues.length > 0
@@ -425,7 +434,7 @@ class ReportStorage {
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Annualized Sharpe Ratio: per-trade Sharpe × √tradesPerYear; tradesPerYear = signals × 365 / calendarSpanDays. N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals and span ≥${MIN_CALENDAR_SPAN_DAYS} days. Assumes returns are iid — autocorrelated strategies are overstated.*`,
-      `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
+      `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals. N/A when no losing trades — Sortino is mathematically undefined (infinite) and we cannot distinguish "truly flawless" from "lucky streak so far".*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
       `*Expected Yearly Returns: compounded geometric return from the equity curve, annualized by tradesPerYear. Same gating as Annualized Sharpe. Capped at ±${MAX_EXPECTED_YEARLY_RETURNS}% — values above the cap return N/A.*`,
       `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is compounded equity-curve max drawdown. Capped at ±${MAX_CALMAR_RATIO}.*`,

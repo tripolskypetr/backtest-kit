@@ -698,7 +698,7 @@ class ReportStorage {
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
       `*Annualized Sharpe Ratio: per-trade Sharpe × √tradesPerYear; tradesPerYear = signals × 365 / calendarSpanDays. N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals and span ≥${MIN_CALENDAR_SPAN_DAYS} days. Assumes returns are iid — autocorrelated strategies are overstated.*`,
-      `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
+      `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals. N/A when no losing trades — Sortino is mathematically undefined (infinite) and we cannot distinguish "truly flawless" from "lucky streak so far".*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
       `*Expected Yearly Returns: compounded geometric return from the equity curve, annualized by tradesPerYear. Same gating as Annualized Sharpe. Capped at ±${MAX_EXPECTED_YEARLY_RETURNS}% — values above the cap return N/A.*`,
       `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is compounded equity-curve max drawdown. Capped at ±${MAX_CALMAR_RATIO}.*`,

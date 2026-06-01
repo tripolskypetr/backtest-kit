@@ -626,7 +626,7 @@ class HeatmapStorage {
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Pooled Sharpe: Sharpe computed over all trades across symbols treated as one sample. NOT a Markowitz portfolio Sharpe — ignores cross-symbol correlations and capital allocation. N/A unless ≥${MIN_SIGNALS_FOR_RATIOS} pooled trades.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals per symbol.*`,
-      `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
+      `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals. N/A when no losing trades — Sortino is mathematically undefined (infinite) and we cannot distinguish "truly flawless" from "lucky streak so far".*`,
       `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
       `*Profit Factor: below 1.0 means strategy is losing overall. Above 1.5 is considered good.*`,
       `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is compounded equity-curve max drawdown. N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals per symbol and span ≥${MIN_CALENDAR_SPAN_DAYS} days. Capped at ±${MAX_CALMAR_RATIO}.*`,
