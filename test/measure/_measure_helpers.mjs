@@ -128,7 +128,10 @@ export const computePoolReference = (rows) => {
   const losses = returns.filter((r) => r < 0);
   const avgWin = wins.length ? wins.reduce((a, b) => a + b, 0) / wins.length : 0;
   const avgLoss = losses.length ? losses.reduce((a, b) => a + b, 0) / losses.length : 0;
-  const certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
+  // STDDEV_EPSILON guard mirrors the service: float-artifact losses produce
+  // spurious astronomical certaintyRatio without it.
+  const certaintyRatio =
+    Math.abs(avgLoss) > STDDEV_EPSILON && avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
 
   const peakVals = valid
     .map((r) => r.peakProfit?.pnlPercentage)
@@ -155,8 +158,14 @@ export const computePoolReference = (rows) => {
         )
       : null;
 
+  // Same MAX_CALMAR_RATIO clamp as the service — both compounded-profit/DD ratios.
   const recoveryFactor =
-    blown || equityMaxDD <= 0 ? null : ((equityFinal - 1) * 100) / equityMaxDD;
+    blown || equityMaxDD <= 0
+      ? null
+      : Math.max(
+          -MAX_CALMAR_RATIO,
+          Math.min(MAX_CALMAR_RATIO, ((equityFinal - 1) * 100) / equityMaxDD),
+        );
 
   return {
     n,
