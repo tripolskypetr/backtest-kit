@@ -20,6 +20,16 @@ import "./measure/backtest_15.test.mjs";
 import "./measure/backtest_16.test.mjs";
 import "./measure/backtest_17.test.mjs";
 import "./measure/backtest_18.test.mjs";
+import "./measure/backtest_19.test.mjs";
+import "./measure/backtest_20.test.mjs";
+import "./measure/backtest_21.test.mjs";
+import "./measure/backtest_22.test.mjs";
+import "./measure/backtest_23.test.mjs";
+import "./measure/backtest_24.test.mjs";
+import "./measure/schedule.test.mjs";
+import "./measure/performance.test.mjs";
+import "./measure/markdown_rendering.test.mjs";
+import "./measure/columns.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");
