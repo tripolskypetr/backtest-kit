@@ -538,7 +538,11 @@ class ReportStorage {
       const avgLoss = losses.length > 0
         ? losses.reduce((sum, e) => sum + (e.pnl as number), 0) / losses.length
         : 0;
-      certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
+      // STDDEV_EPSILON guard on |avgLoss| protects against float-artifact
+      // losses producing spurious astronomical certaintyRatio.
+      certaintyRatio = Math.abs(avgLoss) > STDDEV_EPSILON && avgLoss < 0
+        ? avgWin / Math.abs(avgLoss)
+        : null;
     }
 
     // Average only over signals that have the value — do not dilute the mean with zeros.
@@ -617,9 +621,14 @@ class ReportStorage {
     // Recovery Factor: numerator must be the compounded total return, not arithmetic totalPnl —
     // denominator is from the compounded equity curve, so mixing units inflates Recovery.
     // Null when account is blown.
+    // Same MAX_CALMAR_RATIO clamp as Calmar — both are compounded-profit/DD ratios
+    // and explode the same way when DD is near zero.
     const recoveryFactor: number | null = blown || equityMaxDrawdown <= 0
       ? null
-      : ((equityFinal - 1) * 100) / equityMaxDrawdown;
+      : Math.max(
+          -MAX_CALMAR_RATIO,
+          Math.min(MAX_CALMAR_RATIO, ((equityFinal - 1) * 100) / equityMaxDrawdown),
+        );
 
     return {
       eventList: this._eventList,

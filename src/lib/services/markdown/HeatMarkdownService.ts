@@ -277,7 +277,9 @@ class HeatmapStorage {
           .filter((s) => s.pnl.pnlPercentage < 0)
           .reduce((acc, s) => acc + s.pnl.pnlPercentage, 0)
       );
-      if (sumLosses > 0) {
+      // STDDEV_EPSILON guard — float-artifact losses (≈1e-15) would otherwise
+      // produce spurious astronomical profitFactor (≈1e14).
+      if (sumLosses > STDDEV_EPSILON) {
         profitFactor = sumWins / sumLosses;
       }
     }
@@ -416,7 +418,9 @@ class HeatmapStorage {
         calmarRatio = Math.max(-MAX_CALMAR_RATIO, Math.min(MAX_CALMAR_RATIO, raw));
       }
       if (!blown) {
-        recoveryFactor = ((equityFinal - 1) * 100) / maxDrawdown;
+        // Same MAX_CALMAR_RATIO clamp as Calmar — both compounded-profit/DD ratios.
+        const rawRec = ((equityFinal - 1) * 100) / maxDrawdown;
+        recoveryFactor = Math.max(-MAX_CALMAR_RATIO, Math.min(MAX_CALMAR_RATIO, rawRec));
       }
     }
 

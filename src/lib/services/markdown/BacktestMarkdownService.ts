@@ -312,9 +312,12 @@ class ReportStorage {
     const avgLoss = losses.length > 0
       ? losses.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / losses.length
       : 0;
-    // Null (not zero) when there are no losing trades — a flawless strategy has
-    // undefined Certainty Ratio, not "worst case zero".
-    const certaintyRatio: number | null = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : null;
+    // Null when no losing trades OR when |avgLoss| is below STDDEV_EPSILON.
+    // The latter guards against float-artifact losses (-1e-15) producing
+    // spurious astronomical certaintyRatio (≈1e14).
+    const certaintyRatio: number | null = Math.abs(avgLoss) > STDDEV_EPSILON && avgLoss < 0
+      ? avgWin / Math.abs(avgLoss)
+      : null;
 
     // Average peak/fall PNL — over validSignals; only signals that actually have the
     // value contribute (no zero dilution from missing peakProfit/maxDrawdown).
@@ -355,9 +358,14 @@ class ReportStorage {
     // not the arithmetic totalPnl — denominator (equityMaxDrawdown) is from the compounded
     // curve, so mixing units would inflate Recovery on long winning streaks.
     // Null when account is blown — ratio is meaningless after total loss.
+    // Same MAX_CALMAR_RATIO clamp as Calmar — both are compounded-profit/DD ratios
+    // and explode the same way when DD is near zero.
     const recoveryFactor: number | null = blown || equityMaxDrawdown <= 0
       ? null
-      : ((equityFinal - 1) * 100) / equityMaxDrawdown;
+      : Math.max(
+          -MAX_CALMAR_RATIO,
+          Math.min(MAX_CALMAR_RATIO, ((equityFinal - 1) * 100) / equityMaxDrawdown),
+        );
 
     return {
       signalList: this._signalList,

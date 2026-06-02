@@ -1,0 +1,2342 @@
+[
+  {
+    "id": "b75-001",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600000,
+    "pendingAt": 1767225600000,
+    "timestamp": 1767225600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600000,
+    "createdAt": 1767225600000,
+    "updatedAt": 1767225600001,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200000,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200000,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-002",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600001,
+    "pendingAt": 1767225600001,
+    "timestamp": 1767225600001,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600001
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600001,
+    "createdAt": 1767225600001,
+    "updatedAt": 1767225600002,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200001,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200001,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200001,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200001,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-003",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600002,
+    "pendingAt": 1767225600002,
+    "timestamp": 1767225600002,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600002
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600002,
+    "createdAt": 1767225600002,
+    "updatedAt": 1767225600003,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200002,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200002,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200002,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200002,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-004",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600003,
+    "pendingAt": 1767225600003,
+    "timestamp": 1767225600003,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600003
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600003,
+    "createdAt": 1767225600003,
+    "updatedAt": 1767225600004,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200003,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200003,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200003,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200003,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-005",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600004,
+    "pendingAt": 1767225600004,
+    "timestamp": 1767225600004,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600004
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600004,
+    "createdAt": 1767225600004,
+    "updatedAt": 1767225600005,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200004,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200004,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200004,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200004,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-006",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600005,
+    "pendingAt": 1767225600005,
+    "timestamp": 1767225600005,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600005
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600005,
+    "createdAt": 1767225600005,
+    "updatedAt": 1767225600006,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200005,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200005,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200005,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200005,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-007",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600006,
+    "pendingAt": 1767225600006,
+    "timestamp": 1767225600006,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600006
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600006,
+    "createdAt": 1767225600006,
+    "updatedAt": 1767225600007,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200006,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200006,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200006,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200006,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-008",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600007,
+    "pendingAt": 1767225600007,
+    "timestamp": 1767225600007,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600007
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600007,
+    "createdAt": 1767225600007,
+    "updatedAt": 1767225600008,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200007,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200007,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200007,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200007,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-009",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600008,
+    "pendingAt": 1767225600008,
+    "timestamp": 1767225600008,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600008
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600008,
+    "createdAt": 1767225600008,
+    "updatedAt": 1767225600009,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200008,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200008,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200008,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200008,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-010",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600009,
+    "pendingAt": 1767225600009,
+    "timestamp": 1767225600009,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600009
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600009,
+    "createdAt": 1767225600009,
+    "updatedAt": 1767225600010,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200009,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200009,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200009,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200009,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-011",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600010,
+    "pendingAt": 1767225600010,
+    "timestamp": 1767225600010,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600010
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600010,
+    "createdAt": 1767225600010,
+    "updatedAt": 1767225600011,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200010,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200010,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200010,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200010,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-012",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600011,
+    "pendingAt": 1767225600011,
+    "timestamp": 1767225600011,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600011
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600011,
+    "createdAt": 1767225600011,
+    "updatedAt": 1767225600012,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200011,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200011,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200011,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200011,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-013",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600012,
+    "pendingAt": 1767225600012,
+    "timestamp": 1767225600012,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600012
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600012,
+    "createdAt": 1767225600012,
+    "updatedAt": 1767225600013,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200012,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200012,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200012,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200012,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-014",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600013,
+    "pendingAt": 1767225600013,
+    "timestamp": 1767225600013,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600013
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600013,
+    "createdAt": 1767225600013,
+    "updatedAt": 1767225600014,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200013,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200013,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200013,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200013,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-015",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600014,
+    "pendingAt": 1767225600014,
+    "timestamp": 1767225600014,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600014
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600014,
+    "createdAt": 1767225600014,
+    "updatedAt": 1767225600015,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200014,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200014,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200014,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200014,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-016",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600015,
+    "pendingAt": 1767225600015,
+    "timestamp": 1767225600015,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600015
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600015,
+    "createdAt": 1767225600015,
+    "updatedAt": 1767225600016,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200015,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200015,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200015,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200015,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-017",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600016,
+    "pendingAt": 1767225600016,
+    "timestamp": 1767225600016,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600016
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600016,
+    "createdAt": 1767225600016,
+    "updatedAt": 1767225600017,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200016,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200016,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200016,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200016,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-018",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600017,
+    "pendingAt": 1767225600017,
+    "timestamp": 1767225600017,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600017
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600017,
+    "createdAt": 1767225600017,
+    "updatedAt": 1767225600018,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200017,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200017,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200017,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200017,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-019",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600018,
+    "pendingAt": 1767225600018,
+    "timestamp": 1767225600018,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600018
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600018,
+    "createdAt": 1767225600018,
+    "updatedAt": 1767225600019,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200018,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200018,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200018,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200018,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-020",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600019,
+    "pendingAt": 1767225600019,
+    "timestamp": 1767225600019,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600019
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600019,
+    "createdAt": 1767225600019,
+    "updatedAt": 1767225600020,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200019,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200019,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200019,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200019,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-021",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600020,
+    "pendingAt": 1767225600020,
+    "timestamp": 1767225600020,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600020
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600020,
+    "createdAt": 1767225600020,
+    "updatedAt": 1767225600021,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200020,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200020,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200020,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200020,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-022",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600021,
+    "pendingAt": 1767225600021,
+    "timestamp": 1767225600021,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600021
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600021,
+    "createdAt": 1767225600021,
+    "updatedAt": 1767225600022,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200021,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200021,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200021,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200021,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-023",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600022,
+    "pendingAt": 1767225600022,
+    "timestamp": 1767225600022,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600022
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600022,
+    "createdAt": 1767225600022,
+    "updatedAt": 1767225600023,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200022,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200022,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200022,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200022,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-024",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600023,
+    "pendingAt": 1767225600023,
+    "timestamp": 1767225600023,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600023
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600023,
+    "createdAt": 1767225600023,
+    "updatedAt": 1767225600024,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200023,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200023,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200023,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200023,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-025",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600024,
+    "pendingAt": 1767225600024,
+    "timestamp": 1767225600024,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600024
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600024,
+    "createdAt": 1767225600024,
+    "updatedAt": 1767225600025,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200024,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200024,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200024,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200024,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-026",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600025,
+    "pendingAt": 1767225600025,
+    "timestamp": 1767225600025,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600025
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600025,
+    "createdAt": 1767225600025,
+    "updatedAt": 1767225600026,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200025,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200025,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200025,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200025,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-027",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600026,
+    "pendingAt": 1767225600026,
+    "timestamp": 1767225600026,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600026
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600026,
+    "createdAt": 1767225600026,
+    "updatedAt": 1767225600027,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200026,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200026,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200026,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200026,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-028",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600027,
+    "pendingAt": 1767225600027,
+    "timestamp": 1767225600027,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600027
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600027,
+    "createdAt": 1767225600027,
+    "updatedAt": 1767225600028,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200027,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.8,
+      "timestamp": 1767229200027,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200027,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.8,
+      "timestamp": 1767229200027,
+      "pnlCost": -0.2,
+      "pnlPercentage": -0.2,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.8
+    },
+    "pnl": {
+      "pnlPercentage": -0.2,
+      "priceOpen": 100,
+      "priceClose": 99.8,
+      "pnlCost": -0.2,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-029",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600028,
+    "pendingAt": 1767225600028,
+    "timestamp": 1767225600028,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600028
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600028,
+    "createdAt": 1767225600028,
+    "updatedAt": 1767225600029,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200028,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200028,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200028,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200028,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b75-030",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "ART-SPAN-EPSILON",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600029,
+    "pendingAt": 1767225600029,
+    "timestamp": 1767225600029,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600029
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600029,
+    "createdAt": 1767225600029,
+    "updatedAt": 1767225600030,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200029,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200029,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1767229200029,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200029,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  }
+]
