@@ -1,0 +1,2342 @@
+[
+  {
+    "id": "b43-jan-001",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600000,
+    "pendingAt": 1767225600000,
+    "timestamp": 1767225600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600000,
+    "createdAt": 1767225600000,
+    "updatedAt": 1767240000000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767229200000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767229200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767229200000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767229200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-002",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767312000000,
+    "pendingAt": 1767312000000,
+    "timestamp": 1767312000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767312000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767312000000,
+    "createdAt": 1767312000000,
+    "updatedAt": 1767326400000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767315600000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767315600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767315600000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767315600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-003",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767398400000,
+    "pendingAt": 1767398400000,
+    "timestamp": 1767398400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767398400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767398400000,
+    "createdAt": 1767398400000,
+    "updatedAt": 1767412800000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767402000000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767402000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767402000000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767402000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-004",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767484800000,
+    "pendingAt": 1767484800000,
+    "timestamp": 1767484800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767484800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767484800000,
+    "createdAt": 1767484800000,
+    "updatedAt": 1767499200000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767488400000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767488400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767488400000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767488400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-005",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767571200000,
+    "pendingAt": 1767571200000,
+    "timestamp": 1767571200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767571200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767571200000,
+    "createdAt": 1767571200000,
+    "updatedAt": 1767585600000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767574800000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767574800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767574800000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767574800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-006",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767657600000,
+    "pendingAt": 1767657600000,
+    "timestamp": 1767657600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767657600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767657600000,
+    "createdAt": 1767657600000,
+    "updatedAt": 1767672000000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767661200000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767661200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767661200000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767661200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-007",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767744000000,
+    "pendingAt": 1767744000000,
+    "timestamp": 1767744000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767744000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767744000000,
+    "createdAt": 1767744000000,
+    "updatedAt": 1767758400000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767747600000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767747600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767747600000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767747600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-008",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767830400000,
+    "pendingAt": 1767830400000,
+    "timestamp": 1767830400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767830400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767830400000,
+    "createdAt": 1767830400000,
+    "updatedAt": 1767844800000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767834000000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767834000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767834000000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767834000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-009",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767916800000,
+    "pendingAt": 1767916800000,
+    "timestamp": 1767916800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767916800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767916800000,
+    "createdAt": 1767916800000,
+    "updatedAt": 1767931200000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1767920400000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767920400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1767920400000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767920400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jan-010",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1768003200000,
+    "pendingAt": 1768003200000,
+    "timestamp": 1768003200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1768003200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1768003200000,
+    "createdAt": 1768003200000,
+    "updatedAt": 1768017600000,
+    "_peak": {
+      "price": 100.4,
+      "timestamp": 1768006800000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1768006800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.4,
+      "timestamp": 1768006800000,
+      "pnlCost": 0.4,
+      "pnlPercentage": 0.4,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.4
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1768006800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.4,
+      "priceOpen": 100,
+      "priceClose": 100.4,
+      "pnlCost": 0.4,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-001",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780185600000,
+    "pendingAt": 1780185600000,
+    "timestamp": 1780185600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780185600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780185600000,
+    "createdAt": 1780185600000,
+    "updatedAt": 1780200000000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1780189200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.7,
+      "timestamp": 1780189200000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1780189200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.7,
+      "timestamp": 1780189200000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "pnl": {
+      "pnlPercentage": -0.3,
+      "priceOpen": 100,
+      "priceClose": 99.7,
+      "pnlCost": -0.3,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-002",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780272000000,
+    "pendingAt": 1780272000000,
+    "timestamp": 1780272000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780272000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780272000000,
+    "createdAt": 1780272000000,
+    "updatedAt": 1780286400000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1780275600000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1780275600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1780275600000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1780275600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-003",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780358400000,
+    "pendingAt": 1780358400000,
+    "timestamp": 1780358400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780358400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780358400000,
+    "createdAt": 1780358400000,
+    "updatedAt": 1780372800000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1780362000000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1780362000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1780362000000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1780362000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-004",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780444800000,
+    "pendingAt": 1780444800000,
+    "timestamp": 1780444800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780444800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780444800000,
+    "createdAt": 1780444800000,
+    "updatedAt": 1780459200000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1780448400000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1780448400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1780448400000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1780448400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-005",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780531200000,
+    "pendingAt": 1780531200000,
+    "timestamp": 1780531200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780531200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780531200000,
+    "createdAt": 1780531200000,
+    "updatedAt": 1780545600000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1780534800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.7,
+      "timestamp": 1780534800000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1780534800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.7,
+      "timestamp": 1780534800000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "pnl": {
+      "pnlPercentage": -0.3,
+      "priceOpen": 100,
+      "priceClose": 99.7,
+      "pnlCost": -0.3,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-006",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780617600000,
+    "pendingAt": 1780617600000,
+    "timestamp": 1780617600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780617600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780617600000,
+    "createdAt": 1780617600000,
+    "updatedAt": 1780632000000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1780621200000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1780621200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1780621200000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1780621200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-007",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780704000000,
+    "pendingAt": 1780704000000,
+    "timestamp": 1780704000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780704000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780704000000,
+    "createdAt": 1780704000000,
+    "updatedAt": 1780718400000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1780707600000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1780707600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1780707600000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1780707600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-008",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780790400000,
+    "pendingAt": 1780790400000,
+    "timestamp": 1780790400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780790400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780790400000,
+    "createdAt": 1780790400000,
+    "updatedAt": 1780804800000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1780794000000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1780794000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1780794000000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1780794000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-009",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780876800000,
+    "pendingAt": 1780876800000,
+    "timestamp": 1780876800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780876800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780876800000,
+    "createdAt": 1780876800000,
+    "updatedAt": 1780891200000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1780880400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.7,
+      "timestamp": 1780880400000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1780880400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.7,
+      "timestamp": 1780880400000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "pnl": {
+      "pnlPercentage": -0.3,
+      "priceOpen": 100,
+      "priceClose": 99.7,
+      "pnlCost": -0.3,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-010",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1780963200000,
+    "pendingAt": 1780963200000,
+    "timestamp": 1780963200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1780963200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1780963200000,
+    "createdAt": 1780963200000,
+    "updatedAt": 1780977600000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1780966800000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1780966800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1780966800000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1780966800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-011",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781049600000,
+    "pendingAt": 1781049600000,
+    "timestamp": 1781049600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781049600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781049600000,
+    "createdAt": 1781049600000,
+    "updatedAt": 1781064000000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781053200000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781053200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781053200000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781053200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-012",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781136000000,
+    "pendingAt": 1781136000000,
+    "timestamp": 1781136000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781136000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781136000000,
+    "createdAt": 1781136000000,
+    "updatedAt": 1781150400000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781139600000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781139600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781139600000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781139600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-013",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781222400000,
+    "pendingAt": 1781222400000,
+    "timestamp": 1781222400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781222400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781222400000,
+    "createdAt": 1781222400000,
+    "updatedAt": 1781236800000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1781226000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.7,
+      "timestamp": 1781226000000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1781226000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.7,
+      "timestamp": 1781226000000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "pnl": {
+      "pnlPercentage": -0.3,
+      "priceOpen": 100,
+      "priceClose": 99.7,
+      "pnlCost": -0.3,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-014",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781308800000,
+    "pendingAt": 1781308800000,
+    "timestamp": 1781308800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781308800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781308800000,
+    "createdAt": 1781308800000,
+    "updatedAt": 1781323200000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781312400000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781312400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781312400000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781312400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-015",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781395200000,
+    "pendingAt": 1781395200000,
+    "timestamp": 1781395200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781395200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781395200000,
+    "createdAt": 1781395200000,
+    "updatedAt": 1781409600000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781398800000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781398800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781398800000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781398800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-016",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781481600000,
+    "pendingAt": 1781481600000,
+    "timestamp": 1781481600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781481600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781481600000,
+    "createdAt": 1781481600000,
+    "updatedAt": 1781496000000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781485200000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781485200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781485200000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781485200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-017",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781568000000,
+    "pendingAt": 1781568000000,
+    "timestamp": 1781568000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781568000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781568000000,
+    "createdAt": 1781568000000,
+    "updatedAt": 1781582400000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1781571600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.7,
+      "timestamp": 1781571600000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1781571600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.7,
+      "timestamp": 1781571600000,
+      "pnlCost": -0.3,
+      "pnlPercentage": -0.3,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.7
+    },
+    "pnl": {
+      "pnlPercentage": -0.3,
+      "priceOpen": 100,
+      "priceClose": 99.7,
+      "pnlCost": -0.3,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-018",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781654400000,
+    "pendingAt": 1781654400000,
+    "timestamp": 1781654400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781654400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781654400000,
+    "createdAt": 1781654400000,
+    "updatedAt": 1781668800000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781658000000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781658000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781658000000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781658000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-019",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781740800000,
+    "pendingAt": 1781740800000,
+    "timestamp": 1781740800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781740800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781740800000,
+    "createdAt": 1781740800000,
+    "updatedAt": 1781755200000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781744400000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781744400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781744400000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781744400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b43-jun-020",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "EDGE-CLUSTERED",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1781827200000,
+    "pendingAt": 1781827200000,
+    "timestamp": 1781827200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1781827200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1781827200000,
+    "createdAt": 1781827200000,
+    "updatedAt": 1782777600000,
+    "_peak": {
+      "price": 100.49999999999999,
+      "timestamp": 1781830800000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1781830800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 100.49999999999999,
+      "timestamp": 1781830800000,
+      "pnlCost": 0.5,
+      "pnlPercentage": 0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1781830800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 0.5,
+      "priceOpen": 100,
+      "priceClose": 100.49999999999999,
+      "pnlCost": 0.5,
+      "pnlEntries": 100
+    }
+  }
+]
