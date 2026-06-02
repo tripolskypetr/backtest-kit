@@ -1,0 +1,2342 @@
+[
+  {
+    "id": "b69-spread-001",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767225600000,
+    "pendingAt": 1767225600000,
+    "timestamp": 1767225600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767225600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767225600000,
+    "createdAt": 1767225600000,
+    "updatedAt": 1767240000000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1767229200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.5,
+      "timestamp": 1767229200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1767229200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.5,
+      "timestamp": 1767229200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "pnl": {
+      "pnlPercentage": -0.5,
+      "priceOpen": 100,
+      "priceClose": 99.5,
+      "pnlCost": -0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-002",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767441600000,
+    "pendingAt": 1767441600000,
+    "timestamp": 1767441600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767441600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767441600000,
+    "createdAt": 1767441600000,
+    "updatedAt": 1767456000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1767445200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767445200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1767445200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767445200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-003",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767657600000,
+    "pendingAt": 1767657600000,
+    "timestamp": 1767657600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767657600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767657600000,
+    "createdAt": 1767657600000,
+    "updatedAt": 1767672000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1767661200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767661200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1767661200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767661200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-004",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1767873600000,
+    "pendingAt": 1767873600000,
+    "timestamp": 1767873600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1767873600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1767873600000,
+    "createdAt": 1767873600000,
+    "updatedAt": 1767888000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1767877200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1767877200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1767877200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1767877200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-005",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1768089600000,
+    "pendingAt": 1768089600000,
+    "timestamp": 1768089600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1768089600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1768089600000,
+    "createdAt": 1768089600000,
+    "updatedAt": 1768104000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1768093200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1768093200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1768093200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1768093200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-006",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1768305600000,
+    "pendingAt": 1768305600000,
+    "timestamp": 1768305600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1768305600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1768305600000,
+    "createdAt": 1768305600000,
+    "updatedAt": 1768320000000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1768309200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.5,
+      "timestamp": 1768309200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1768309200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.5,
+      "timestamp": 1768309200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "pnl": {
+      "pnlPercentage": -0.5,
+      "priceOpen": 100,
+      "priceClose": 99.5,
+      "pnlCost": -0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-007",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1768521600000,
+    "pendingAt": 1768521600000,
+    "timestamp": 1768521600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1768521600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1768521600000,
+    "createdAt": 1768521600000,
+    "updatedAt": 1768536000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1768525200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1768525200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1768525200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1768525200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-008",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1768737600000,
+    "pendingAt": 1768737600000,
+    "timestamp": 1768737600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1768737600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1768737600000,
+    "createdAt": 1768737600000,
+    "updatedAt": 1768752000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1768741200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1768741200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1768741200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1768741200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-009",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1768953600000,
+    "pendingAt": 1768953600000,
+    "timestamp": 1768953600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1768953600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1768953600000,
+    "createdAt": 1768953600000,
+    "updatedAt": 1768968000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1768957200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1768957200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1768957200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1768957200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-spread-010",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769169600000,
+    "pendingAt": 1769169600000,
+    "timestamp": 1769169600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769169600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769169600000,
+    "createdAt": 1769169600000,
+    "updatedAt": 1769184000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769173200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769173200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769173200000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769173200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-001",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769385600000,
+    "pendingAt": 1769385600000,
+    "timestamp": 1769385600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769385600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769385600000,
+    "createdAt": 1769385600000,
+    "updatedAt": 1769387400000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1769389200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.5,
+      "timestamp": 1769389200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1769389200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.5,
+      "timestamp": 1769389200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "pnl": {
+      "pnlPercentage": -0.5,
+      "priceOpen": 100,
+      "priceClose": 99.5,
+      "pnlCost": -0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-002",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769407200000,
+    "pendingAt": 1769407200000,
+    "timestamp": 1769407200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769407200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769407200000,
+    "createdAt": 1769407200000,
+    "updatedAt": 1769409000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769410800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769410800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769410800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769410800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-003",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769428800000,
+    "pendingAt": 1769428800000,
+    "timestamp": 1769428800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769428800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769428800000,
+    "createdAt": 1769428800000,
+    "updatedAt": 1769430600000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769432400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769432400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769432400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769432400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-004",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769450400000,
+    "pendingAt": 1769450400000,
+    "timestamp": 1769450400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769450400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769450400000,
+    "createdAt": 1769450400000,
+    "updatedAt": 1769452200000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769454000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769454000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769454000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769454000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-005",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769472000000,
+    "pendingAt": 1769472000000,
+    "timestamp": 1769472000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769472000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769472000000,
+    "createdAt": 1769472000000,
+    "updatedAt": 1769473800000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769475600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769475600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769475600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769475600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-006",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769493600000,
+    "pendingAt": 1769493600000,
+    "timestamp": 1769493600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769493600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769493600000,
+    "createdAt": 1769493600000,
+    "updatedAt": 1769495400000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1769497200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.5,
+      "timestamp": 1769497200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1769497200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.5,
+      "timestamp": 1769497200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "pnl": {
+      "pnlPercentage": -0.5,
+      "priceOpen": 100,
+      "priceClose": 99.5,
+      "pnlCost": -0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-007",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769515200000,
+    "pendingAt": 1769515200000,
+    "timestamp": 1769515200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769515200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769515200000,
+    "createdAt": 1769515200000,
+    "updatedAt": 1769517000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769518800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769518800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769518800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769518800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-008",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769536800000,
+    "pendingAt": 1769536800000,
+    "timestamp": 1769536800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769536800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769536800000,
+    "createdAt": 1769536800000,
+    "updatedAt": 1769538600000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769540400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769540400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769540400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769540400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-009",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769558400000,
+    "pendingAt": 1769558400000,
+    "timestamp": 1769558400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769558400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769558400000,
+    "createdAt": 1769558400000,
+    "updatedAt": 1769560200000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769562000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769562000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769562000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769562000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-010",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769580000000,
+    "pendingAt": 1769580000000,
+    "timestamp": 1769580000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769580000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769580000000,
+    "createdAt": 1769580000000,
+    "updatedAt": 1769581800000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769583600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769583600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769583600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769583600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-011",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769601600000,
+    "pendingAt": 1769601600000,
+    "timestamp": 1769601600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769601600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769601600000,
+    "createdAt": 1769601600000,
+    "updatedAt": 1769603400000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1769605200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.5,
+      "timestamp": 1769605200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1769605200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.5,
+      "timestamp": 1769605200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "pnl": {
+      "pnlPercentage": -0.5,
+      "priceOpen": 100,
+      "priceClose": 99.5,
+      "pnlCost": -0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-012",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769623200000,
+    "pendingAt": 1769623200000,
+    "timestamp": 1769623200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769623200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769623200000,
+    "createdAt": 1769623200000,
+    "updatedAt": 1769625000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769626800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769626800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769626800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769626800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-013",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769644800000,
+    "pendingAt": 1769644800000,
+    "timestamp": 1769644800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769644800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769644800000,
+    "createdAt": 1769644800000,
+    "updatedAt": 1769646600000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769648400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769648400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769648400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769648400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-014",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769666400000,
+    "pendingAt": 1769666400000,
+    "timestamp": 1769666400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769666400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769666400000,
+    "createdAt": 1769666400000,
+    "updatedAt": 1769668200000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769670000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769670000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769670000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769670000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-015",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769688000000,
+    "pendingAt": 1769688000000,
+    "timestamp": 1769688000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769688000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769688000000,
+    "createdAt": 1769688000000,
+    "updatedAt": 1769689800000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769691600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769691600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769691600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769691600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-016",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769709600000,
+    "pendingAt": 1769709600000,
+    "timestamp": 1769709600000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769709600000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769709600000,
+    "createdAt": 1769709600000,
+    "updatedAt": 1769711400000,
+    "_peak": {
+      "price": 100,
+      "timestamp": 1769713200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "_fall": {
+      "price": 99.5,
+      "timestamp": 1769713200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "peakProfit": {
+      "price": 100,
+      "timestamp": 1769713200000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "maxDrawdown": {
+      "price": 99.5,
+      "timestamp": 1769713200000,
+      "pnlCost": -0.5,
+      "pnlPercentage": -0.5,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 99.5
+    },
+    "pnl": {
+      "pnlPercentage": -0.5,
+      "priceOpen": 100,
+      "priceClose": 99.5,
+      "pnlCost": -0.5,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-017",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769731200000,
+    "pendingAt": 1769731200000,
+    "timestamp": 1769731200000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769731200000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769731200000,
+    "createdAt": 1769731200000,
+    "updatedAt": 1769733000000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769734800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769734800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769734800000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769734800000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-018",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769752800000,
+    "pendingAt": 1769752800000,
+    "timestamp": 1769752800000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769752800000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769752800000,
+    "createdAt": 1769752800000,
+    "updatedAt": 1769754600000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769756400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769756400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769756400000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769756400000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-019",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769774400000,
+    "pendingAt": 1769774400000,
+    "timestamp": 1769774400000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769774400000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769774400000,
+    "createdAt": 1769774400000,
+    "updatedAt": 1769776200000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769778000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769778000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769778000000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769778000000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  },
+  {
+    "id": "b69-squeeze-020",
+    "cost": 100,
+    "priceOpen": 100,
+    "position": "long",
+    "priceStopLoss": 95,
+    "priceTakeProfit": 105,
+    "minuteEstimatedTime": null,
+    "note": "synthetic",
+    "symbol": "SCEN-PYRAMID",
+    "exchangeName": "ccxt-exchange",
+    "strategyName": "jan_2026_strategy",
+    "frameName": "jan_2026_frame",
+    "scheduledAt": 1769796000000,
+    "pendingAt": 1769796000000,
+    "timestamp": 1769796000000,
+    "_isScheduled": false,
+    "_entry": [
+      {
+        "price": 100,
+        "cost": 100,
+        "timestamp": 1769796000000
+      }
+    ],
+    "originalPriceOpen": 100,
+    "originalPriceStopLoss": 95,
+    "originalPriceTakeProfit": 105,
+    "partialExecuted": 0,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "status": "closed",
+    "priority": 1769796000000,
+    "createdAt": 1769796000000,
+    "updatedAt": 1769817600000,
+    "_peak": {
+      "price": 101,
+      "timestamp": 1769799600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "_fall": {
+      "price": 100,
+      "timestamp": 1769799600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "peakProfit": {
+      "price": 101,
+      "timestamp": 1769799600000,
+      "pnlCost": 1,
+      "pnlPercentage": 1,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 101
+    },
+    "maxDrawdown": {
+      "price": 100,
+      "timestamp": 1769799600000,
+      "pnlCost": 0,
+      "pnlPercentage": 0,
+      "pnlEntries": 100,
+      "priceOpen": 100,
+      "priceClose": 100
+    },
+    "pnl": {
+      "pnlPercentage": 1,
+      "priceOpen": 100,
+      "priceClose": 101,
+      "pnlCost": 1,
+      "pnlEntries": 100
+    }
+  }
+]
