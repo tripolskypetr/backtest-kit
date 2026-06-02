@@ -6,7 +6,7 @@ import {
   runBacktestPool,
   runLivePool,
   approx,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // User scenario: a completely silent strategy — only 3 trades over 20 days.
 // 3 signals: +1%, -0.5%, +0.5% at 0, 10, 20-day pendingAt offsets.

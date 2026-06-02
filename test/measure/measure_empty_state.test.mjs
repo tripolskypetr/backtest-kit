@@ -1,7 +1,7 @@
 import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
-import { STRATEGY, EXCHANGE, FRAME } from "./_measure_helpers.mjs";
+import { STRATEGY, EXCHANGE, FRAME } from "../utils/_measure_helpers.mjs";
 
 // Empty-state contract: getData() on a storage with NO signals must return
 // the documented all-nulls / zeros shape; getReport() must return the

@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_72.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Float-artifact target: recoveryFactor when equityMaxDrawdown ≈ 1e-16.
 // 30 nearly-identical wins (+0.5%, one +0.5 + 1e-14 to force float drift).

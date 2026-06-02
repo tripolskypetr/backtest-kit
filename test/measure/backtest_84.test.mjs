@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_84.json" with { type: "json" };
-import { runBacktestPool, runLivePool, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, approx } from "../utils/_measure_helpers.mjs";
 
 // Sortino boundary: exactly 1 negative return.
 // 29 wins of +0.5%, 1 real loss -0.5%. negativeReturns.length=1.

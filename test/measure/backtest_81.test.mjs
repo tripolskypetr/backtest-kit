@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_81.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MIN_CALENDAR_SPAN_DAYS } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MIN_CALENDAR_SPAN_DAYS } from "../utils/_measure_helpers.mjs";
 
 // span just BELOW 14 days. n=10 (≥ MIN_SIGNALS_FOR_RATIOS) and span=13.999d.
 // Gate `calendarSpanDays >= MIN_CALENDAR_SPAN_DAYS` is false → annualization null.

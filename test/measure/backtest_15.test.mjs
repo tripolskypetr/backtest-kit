@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_15.json" with { type: "json" };
-import { runBacktestPool } from "./_measure_helpers.mjs";
+import { runBacktestPool } from "../utils/_measure_helpers.mjs";
 
 // Edge case: one signal with corrupted pendingAt=0.
 // Bug history: validSignals filter (pendingAt > 0 AND closeTimestamp > 0) is

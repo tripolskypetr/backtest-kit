@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_31.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Edge case: microscopic returns (±0.001% range).
 // avgPnl ≈ +0.0005%, stdDev ≈ 0.0015%, sharpe ≈ 0.33.

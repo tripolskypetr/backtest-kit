@@ -6,7 +6,7 @@ import {
   runBacktestPool,
   runLivePool,
   MIN_CALENDAR_SPAN_DAYS,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Edge case: each signal closes instantly — pendingAt === updatedAt.
 // span = 11 days (12 signals at 1-day pendingAt steps, but each closes at

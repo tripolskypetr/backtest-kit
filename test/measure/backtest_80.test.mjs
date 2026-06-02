@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_80.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_CALMAR_RATIO, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_CALMAR_RATIO, approx } from "../utils/_measure_helpers.mjs";
 
 // Negative compound + negative Calmar/Recovery.
 // 60 losses of -0.05%. compound ≈ -16.7%, DD ≈ 2.96%.

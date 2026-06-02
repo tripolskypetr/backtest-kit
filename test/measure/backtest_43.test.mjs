@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_43.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "../utils/_measure_helpers.mjs";
 
 // Edge case: holes in time. 30 signals split into two clusters with a
 // 5-month gap.

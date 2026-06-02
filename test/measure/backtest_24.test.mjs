@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_24.json" with { type: "json" };
-import { runHeat } from "./_measure_helpers.mjs";
+import { runHeat } from "../utils/_measure_helpers.mjs";
 
 // Edge case: Heat sort order.
 // 3 symbols × 12 trades each, each with a distinct Sharpe (high / mid / negative).

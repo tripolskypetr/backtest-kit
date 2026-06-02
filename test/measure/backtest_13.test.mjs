@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_13.json" with { type: "json" };
-import { runHeat } from "./_measure_helpers.mjs";
+import { runHeat } from "../utils/_measure_helpers.mjs";
 
 // Edge case: Heat pool below MIN_SIGNALS_FOR_RATIOS.
 // 3 symbols × 3 trades = 9 pooled. portfolioSharpeRatio must be gated to null

@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_23.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MIN_SIGNALS_FOR_RATIOS } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MIN_SIGNALS_FOR_RATIOS } from "../utils/_measure_helpers.mjs";
 
 // Edge case: boundary N == MIN_SIGNALS_FOR_RATIOS (10) AND span ≥ 14d.
 // Both gates pass at the threshold → ALL ratios + annualized metrics

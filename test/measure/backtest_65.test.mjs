@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_65.json" with { type: "json" };
-import { runBacktestPool, runLivePool, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, approx } from "../utils/_measure_helpers.mjs";
 
 // Intermediate scenario: small N (9) + single prophet trade.
 // 8 small losses -0.3%, 1 prophet +15%.

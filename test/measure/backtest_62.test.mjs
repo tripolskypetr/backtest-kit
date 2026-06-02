@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_62.json" with { type: "json" };
-import { runBacktestPool, runLivePool, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, approx } from "../utils/_measure_helpers.mjs";
 
 // Intermediate scenario: swans AND prophets combined.
 // 22 wins (20 small +0.5%, 2 prophets +20%), 8 losses (5 small -0.5%, 3 black swans -10%).

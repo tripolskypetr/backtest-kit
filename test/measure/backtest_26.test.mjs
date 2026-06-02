@@ -8,7 +8,7 @@ import {
   FRAME,
   toClosedTick,
   approx,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Sequence sensitivity: two symbols hold the SAME multiset of returns in two
 // different orders.

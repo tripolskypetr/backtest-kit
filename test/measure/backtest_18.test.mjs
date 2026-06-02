@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_18.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Edge case: all identical returns (stdDev = 0).
 // 12 signals at exactly +1.5%. Sharpe = avgPnl / stdDev = 1.5/0 — must be

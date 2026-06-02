@@ -1,7 +1,7 @@
 import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
-import { STRATEGY, EXCHANGE, FRAME, toClosedTick } from "./_measure_helpers.mjs";
+import { STRATEGY, EXCHANGE, FRAME, toClosedTick } from "../utils/_measure_helpers.mjs";
 
 // Heat per-symbol algorithmic metrics that the math suite (Sharpe / Sortino /
 // Calmar) does NOT exercise: maxWinStreak, maxLossStreak, profitFactor,

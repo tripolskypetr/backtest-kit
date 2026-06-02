@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_85.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Extreme single +1000% trade in a 30-trade pool.
 // 14 wins +0.5%, 1 monster +1000%, 15 wins +0.5%.

@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_14.json" with { type: "json" };
-import { runHeat, computeHeatReference } from "./_measure_helpers.mjs";
+import { runHeat, computeHeatReference } from "../utils/_measure_helpers.mjs";
 
 // Edge case: one symbol has no peak/fall metadata on any of its signals.
 // Bug history: portfolioAvgPeakPnl/FallPnl used to divide by

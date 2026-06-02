@@ -8,7 +8,7 @@ import {
   FRAME,
   toClosedTick,
   approx,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Two extreme arrangements of the SAME multiset (6 wins @ +2, 6 losses @ -1.5):
 //

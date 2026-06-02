@@ -8,7 +8,7 @@ import {
   FRAME,
   toClosedTick,
   approx,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Edge case: mirror image. Two symbols with the SAME multiset, the second
 // half of one is the EXACT reverse of the second half of the other.

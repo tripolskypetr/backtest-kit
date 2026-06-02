@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_64.json" with { type: "json" };
-import { runBacktestPool, runLivePool, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, approx } from "../utils/_measure_helpers.mjs";
 
 // Intermediate scenario: small N (6) + catastrophic black swan.
 // 4 wins +0.5%, 1 small loss -0.3%, 1 black swan -12%.

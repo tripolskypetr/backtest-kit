@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_5.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "../utils/_measure_helpers.mjs";
 
 // Edge case: rawTradesPerYear > MAX_TRADES_PER_YEAR=365.
 // 30 signals over 14 days → 30/14*365 ≈ 782 > 365.

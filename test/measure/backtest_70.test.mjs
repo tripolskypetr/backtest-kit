@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_70.json" with { type: "json" };
-import { runBacktestPool, runLivePool, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, approx } from "../utils/_measure_helpers.mjs";
 
 // Edge case: steady annuity — 60 identical +0.1% trades over 60 days.
 // avgPnl = 0.1, stdDev = 0 → sharpe NULL.

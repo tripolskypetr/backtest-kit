@@ -7,7 +7,7 @@ import {
   FRAME,
   toClosedTick,
   approx,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Heat avgPeakPnl / avgFallPnl shift after buffer overflow.
 // 100 signals with extreme intra-trade behavior (peak=+10%, fall=-5%) then

@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_83.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "../utils/_measure_helpers.mjs";
 
 // tradesPerYear just BELOW cap.
 // 30 trades over 30.05 days → tpy = 30/30.05*365 ≈ 364.4 (under 365).

@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_69.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_TRADES_PER_YEAR } from "../utils/_measure_helpers.mjs";
 
 // Edge case: pyramid frequency — clustering toward the end.
 // 30 signals: first 10 spread over 25 days, last 20 squeezed into last 5 days.

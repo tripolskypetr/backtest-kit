@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_20.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Edge case: Calmar cap.
 // 30 signals at +0.3% with ONE -0.01% dip. Compound expectedYearly ≈ +72%

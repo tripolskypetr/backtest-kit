@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_16.json" with { type: "json" };
-import { toClosedTick, STRATEGY, EXCHANGE, FRAME } from "./_measure_helpers.mjs";
+import { toClosedTick, STRATEGY, EXCHANGE, FRAME } from "../utils/_measure_helpers.mjs";
 
 // Edge case: one closed event with corrupted closeTimestamp.
 // Live's validClosed filter requires `typeof e.timestamp === "number" &&

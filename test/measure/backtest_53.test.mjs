@@ -8,7 +8,7 @@ import {
   FRAME,
   toClosedTick,
   approx,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Sliding window. Initial 350 signals of +0.5%, then 100 distinctive signals
 // of -0.4%. Total fed = 450.

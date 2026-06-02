@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_3.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Edge case: N=9 < MIN_SIGNALS_FOR_RATIOS=10
 // Expectation: sharpeRatio / sortinoRatio / annualizedSharpeRatio /

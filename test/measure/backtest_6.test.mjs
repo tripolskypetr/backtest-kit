@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_6.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_EXPECTED_YEARLY_RETURNS } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_EXPECTED_YEARLY_RETURNS } from "../utils/_measure_helpers.mjs";
 
 // Edge case: compound expectedYearlyReturns > MAX_EXPECTED_YEARLY_RETURNS=100.
 // 30 signals of steady +0.3% over 30 days → tradesPerYear=365, compound

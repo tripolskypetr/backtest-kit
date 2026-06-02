@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_32.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Edge case: single +50% whale among 29 modest signals.
 // avgPnl ≈ 1.73, stdDev ≈ 9.12 → Sharpe ≈ 0.19 (low — outlier inflates noise).

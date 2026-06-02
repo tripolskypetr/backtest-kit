@@ -8,7 +8,7 @@ import {
   FRAME,
   toClosedTick,
   MAX_TRADES_PER_YEAR,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Buffer overflow SHRINKS the post-trim calendar span.
 // 300 signals at 16h cadence. Full real span = 200 days.

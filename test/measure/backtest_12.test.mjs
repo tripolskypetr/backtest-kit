@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_12.json" with { type: "json" };
-import { runHeat } from "./_measure_helpers.mjs";
+import { runHeat } from "../utils/_measure_helpers.mjs";
 
 // Edge case: Heat mixed gating.
 // One symbol with 12 trades (per-symbol Sharpe computed), three with 3-4

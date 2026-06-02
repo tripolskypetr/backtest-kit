@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_76.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // STDDEV_EPSILON just-ABOVE boundary.
 // 30 returns of +0.5%, one offset by +1e-8 → sample stdDev ≈ 1.86e-9 > 1e-9.

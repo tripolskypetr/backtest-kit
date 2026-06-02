@@ -7,7 +7,7 @@ import {
   runLivePool,
   equityMaxDrawdown,
   approx,
-} from "./_measure_helpers.mjs";
+} from "../utils/_measure_helpers.mjs";
 
 // Edge case: equity climbs to ~+20%, falls to ~-16%, partially recovers to
 // ~+5%. The high-water-mark must remain at the +20% PEAK throughout the

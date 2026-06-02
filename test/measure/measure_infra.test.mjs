@@ -1,7 +1,7 @@
 import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
-import { STRATEGY, EXCHANGE, FRAME, toClosedTick } from "./_measure_helpers.mjs";
+import { STRATEGY, EXCHANGE, FRAME, toClosedTick } from "../utils/_measure_helpers.mjs";
 
 // Infrastructure tests: memoization isolation, clear semantics, subscribe
 // idempotency, unsubscribe, buffer trim. These guard the LIB-level invariants

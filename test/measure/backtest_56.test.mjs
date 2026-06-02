@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_56.json" with { type: "json" };
-import { runBacktestPool, runLivePool, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, approx } from "../utils/_measure_helpers.mjs";
 
 // User scenario #2: DCA trader with HUGE intra-trade swing but tiny realized PnL.
 // Each signal: pnl ≈ ±0.05% to 0.15%, peakProfit=+10%, maxDrawdown=-10%.

@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_73.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_CALMAR_RATIO, approx } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_CALMAR_RATIO, approx } from "../utils/_measure_helpers.mjs";
 
 // Float-artifact target: BOTH Calmar AND Recovery hit cap on near-zero DD.
 // 60 signals: 59 wins +0.05%, 1 REAL loss -0.001% (not artifact, genuine).

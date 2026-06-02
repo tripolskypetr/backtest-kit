@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_71.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // Float-artifact target: certaintyRatio with epsilon-scale avgLoss.
 // 29 wins of +0.4%, 1 loss of -1e-15 (artifact magnitude).

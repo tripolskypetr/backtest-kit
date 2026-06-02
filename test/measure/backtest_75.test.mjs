@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_75.json" with { type: "json" };
-import { runBacktestPool, runLivePool, MAX_CALMAR_RATIO } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool, MAX_CALMAR_RATIO } from "../utils/_measure_helpers.mjs";
 
 // Float-artifact target: calendar span ≈ 1 millisecond.
 // 30 trades packed within 30 milliseconds total.

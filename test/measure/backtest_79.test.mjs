@@ -2,7 +2,7 @@ import { test } from "worker-testbed";
 
 import { lib } from "../../build/index.mjs";
 import signals from "../data/backtest_79.json" with { type: "json" };
-import { runBacktestPool, runLivePool } from "./_measure_helpers.mjs";
+import { runBacktestPool, runLivePool } from "../utils/_measure_helpers.mjs";
 
 // MAX_EXPECTED_YEARLY_RETURNS just-OVER cap.
 // 30 trades, avg ≈ 0.198% → compound ≈ +105% (over 100% cap).
