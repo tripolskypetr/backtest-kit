@@ -5090,7 +5090,7 @@ declare function getActionSchema(actionName: ActionName): IActionSchema;
  * Backtest.background("BTCUSDT", { strategyName, exchangeName, frameName });
  * ```
  */
-declare function waitForReady(isBacktest?: boolean): Promise<string>;
+declare function waitForReady(isBacktest?: boolean): Promise<void>;
 
 /**
  * Tolerance zone configuration for DCA overlap detection.
