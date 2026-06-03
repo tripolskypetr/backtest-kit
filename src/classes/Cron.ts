@@ -247,6 +247,56 @@ export class CronUtils {
   private readonly _firedOnce = new Set<string>();
 
   /**
+   * Last interval boundary already fired per periodic slot.
+   *
+   * Key shape (no `alignedMs` segment — one entry per logical slot, not per
+   * boundary; always carries the generation suffix `:g${generation}`, and the
+   * `:${symbol}` scope only in fan-out mode):
+   * - Periodic global: `${name}${genSuffix}`.
+   * - Periodic fan-out: `${name}:${symbol}${genSuffix}`.
+   *
+   * Value is the aligned-boundary epoch ms (`alignedMs`) most recently opened
+   * for that slot. `_tick` fires a periodic entry whenever the incoming tick's
+   * aligned boundary is **strictly greater** than the stored value, instead of
+   * requiring the tick to land *exactly* on the boundary. This fixes the
+   * dropped-boundary bug: when virtual time jumps over a boundary (e.g. a
+   * `5m`-driven loop skipping from 00:14 to 00:29 never lands on the `15m`
+   * 00:15 boundary), the old `ts === alignedMs` check silently lost the tick.
+   * With the watermark, the next tick whose `alignedMs` advanced past the
+   * stored value fires once for the newest crossed boundary (catch-up
+   * collapses multiple skipped boundaries into a single invocation at the
+   * latest one).
+   *
+   * Written synchronously in `_tick` at slot-open time (before the `await`),
+   * so a still-in-flight handler does not let a later tick re-open the same
+   * (or an already-passed) boundary. Fire-once entries never touch this map —
+   * they use `_firedOnce`. Pruned by `_clearBoundaryFor` on
+   * `register`/`unregister` and wiped by `dispose`.
+   */
+  private readonly _lastBoundary = new Map<string, number>();
+
+  /**
+   * Garbage-collect every `_lastBoundary` key that belongs to the entry `name`
+   * (any generation, global or fan-out).
+   *
+   * Called from `register`/`unregister` alongside `_clearFiredOnceFor`. Like
+   * that helper this is memory hygiene, not correctness — the generation suffix
+   * already isolates re-registrations, so a stale watermark from an old
+   * generation can never gate a new entry.
+   */
+  private _clearBoundaryFor(name: string): void {
+    if (!name) {
+      return;
+    }
+    const prefix = `${name}:`;
+    for (const key of this._lastBoundary.keys()) {
+      if (key === name || key.startsWith(prefix)) {
+        this._lastBoundary.delete(key);
+      }
+    }
+  }
+
+  /**
    * Garbage-collect every `_firedOnce` key that belongs to the entry `name`
    * (any generation, global or fan-out).
    *
@@ -356,6 +406,7 @@ export class CronUtils {
       }
     }
     this._clearFiredOnceFor(entry.name);
+    this._clearBoundaryFor(entry.name);
     const generation = ++this._generationCounter;
     this._entries.set(entry.name, { entry, generation });
     return () => this.unregister(entry.name);
@@ -373,6 +424,7 @@ export class CronUtils {
     LOGGER_SERVICE.info(CRON_METHOD_NAME_UNREGISTER, { name });
     this._entries.delete(name);
     this._clearFiredOnceFor(name);
+    this._clearBoundaryFor(name);
   };
 
   /**
@@ -451,11 +503,24 @@ export class CronUtils {
    *    - Slot key: `${name}:once` (+ scope) (+ gen).
    *    - `aligned` = the 1-minute-aligned `when` from step 0.
    * 5. **Periodic** (`entry.interval` set):
-   *    - Align `when` further to the entry's interval via {@link alignToInterval}.
-   *    - If `ts !== alignedMs`, the tick is mid-interval — skip.
-   *      (This is the "remainder === 0" boundary check from the spec;
-   *      since `ts` is already on the 1-minute boundary, the check is exact
-   *      for `1m` and consistent for higher intervals.)
+   *    - Align `when` to the entry's interval via {@link alignToInterval} to
+   *      get `alignedMs`, the boundary this tick belongs to.
+   *    - Compare against the slot's watermark in `_lastBoundary` (keyed by
+   *      `${name}` + scope + gen, without the `alignedMs` segment). If a
+   *      watermark exists and `alignedMs <= lastBoundary`, this boundary was
+   *      already fired — skip.
+   *    - This **watermark** check replaces the old exact `ts === alignedMs`
+   *      match. The exact match required virtual time to land *precisely* on
+   *      the boundary; when a tick jumped clean over a boundary (e.g. a `5m`
+   *      loop going 00:14 → 00:29 never touching the `15m` 00:15 boundary)
+   *      the boundary was silently lost. With the watermark, the first tick
+   *      whose `alignedMs` advanced past the stored value fires once, at the
+   *      newest crossed boundary (catch-up collapses several skipped
+   *      boundaries into a single invocation at the latest one).
+   *    - The watermark is advanced to `alignedMs` synchronously when the slot
+   *      is opened (before the `await`), so a concurrent tick on the same or
+   *      an already-passed boundary cannot open a duplicate slot while the
+   *      handler is still in flight.
    *    - Slot key: `${name}:${alignedMs}` (+ scope) (+ gen).
    * 6. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
    *    already exists, `await` the same promise. Otherwise invoke
@@ -509,6 +574,9 @@ export class CronUtils {
       let alignedMs: number;
       let slotKey: string;
       let firedKey: string | null;
+      // Periodic-only watermark key (no `alignedMs` segment); null for
+      // fire-once entries, which coordinate via `_firedOnce` instead.
+      let boundaryKey: string | null;
 
       if (entry.interval === undefined) {
         const onceKey = `${entry.name}${scope}${genSuffix}`;
@@ -519,10 +587,17 @@ export class CronUtils {
         alignedMs = ts;
         slotKey = `${entry.name}:once${scope}${genSuffix}`;
         firedKey = onceKey;
+        boundaryKey = null;
       } else {
         aligned = alignToInterval(when, entry.interval);
         alignedMs = aligned.getTime();
-        if (ts !== alignedMs) {
+        boundaryKey = `${entry.name}${scope}${genSuffix}`;
+        const lastBoundary = this._lastBoundary.get(boundaryKey);
+        // Fire when the tick's aligned boundary has advanced past the last one
+        // we fired for this slot. Using `>` instead of the old `ts === alignedMs`
+        // means a virtual-time jump that skips clean over a boundary still
+        // fires once, at the newest crossed boundary, rather than dropping it.
+        if (lastBoundary !== undefined && alignedMs <= lastBoundary) {
           continue;
         }
         slotKey = `${entry.name}:${alignedMs}${scope}${genSuffix}`;
@@ -532,6 +607,13 @@ export class CronUtils {
       let pending = this._inFlight.get(slotKey);
 
       if (!pending) {
+        // Advance the watermark synchronously at slot-open time, before the
+        // await below. Otherwise a later tick on the same (or an already
+        // crossed) boundary, arriving while this handler is still in flight,
+        // would see the stale watermark and open a duplicate slot.
+        if (boundaryKey !== null) {
+          this._lastBoundary.set(boundaryKey, alignedMs);
+        }
         pending = this._runEntry(entry, symbol, aligned, alignedMs, slotKey, firedKey, backtest);
         this._inFlight.set(slotKey, pending);
       }
@@ -637,7 +719,10 @@ export class CronUtils {
    * 3. Wipes `_firedOnce` — all fire-once marks are dropped, so any future
    *    re-registration of the same `name` fires again on the next matching
    *    tick.
-   * 4. Does **not** touch `_inFlight` — in-flight handlers continue to
+   * 4. Wipes `_lastBoundary` — all periodic watermarks are dropped, so a
+   *    re-registered periodic entry starts firing from its next crossed
+   *    boundary again.
+   * 5. Does **not** touch `_inFlight` — in-flight handlers continue to
    *    settle in the background and clear their own slots via `.finally()`.
    *    Their final `_firedOnce.add(firedKey)` writes carry old-generation
    *    keys and are harmless (lookup uses the post-dispose generation).
@@ -656,6 +741,7 @@ export class CronUtils {
     this.disable();
     this._entries.clear();
     this._firedOnce.clear();
+    this._lastBoundary.clear();
   };
 }
 
