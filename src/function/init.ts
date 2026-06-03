@@ -4,7 +4,7 @@ import { entrySubject } from "../config/emitters";
 
 const WAIT_FOR_READY_METHOD_NAME = "init.waitForReady";
 
-const MAX_WAIT_SECONDS = 30;
+const MAX_WAIT_SECONDS = 45;
 const SECOND_DELAY = 1_000;
 
 const TIMEOUT_SYMBOL = Symbol('timeout');
