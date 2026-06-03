@@ -94,6 +94,52 @@ and wiped by `clear()`.
 Looked up by `_tick` to decide whether to skip; written by `_runEntry`
 on successful settle.
 
+### _lastBoundary
+
+```ts
+_lastBoundary: any
+```
+
+Last interval boundary already fired per periodic slot.
+
+Key shape (no `alignedMs` segment — one entry per logical slot, not per
+boundary; always carries the generation suffix `:g${generation}`, and the
+`:${symbol}` scope only in fan-out mode):
+- Periodic global: `${name}${genSuffix}`.
+- Periodic fan-out: `${name}:${symbol}${genSuffix}`.
+
+Value is the aligned-boundary epoch ms (`alignedMs`) most recently opened
+for that slot. `_tick` fires a periodic entry whenever the incoming tick's
+aligned boundary is **strictly greater** than the stored value, instead of
+requiring the tick to land *exactly* on the boundary. This fixes the
+dropped-boundary bug: when virtual time jumps over a boundary (e.g. a
+`5m`-driven loop skipping from 00:14 to 00:29 never lands on the `15m`
+00:15 boundary), the old `ts === alignedMs` check silently lost the tick.
+With the watermark, the next tick whose `alignedMs` advanced past the
+stored value fires once for the newest crossed boundary (catch-up
+collapses multiple skipped boundaries into a single invocation at the
+latest one).
+
+Written synchronously in `_tick` at slot-open time (before the `await`),
+so a still-in-flight handler does not let a later tick re-open the same
+(or an already-passed) boundary. Fire-once entries never touch this map —
+they use `_firedOnce`. Pruned by `_clearBoundaryFor` on
+`register`/`unregister` and wiped by `dispose`.
+
+### _clearBoundaryFor
+
+```ts
+_clearBoundaryFor: any
+```
+
+Garbage-collect every `_lastBoundary` key that belongs to the entry `name`
+(any generation, global or fan-out).
+
+Called from `register`/`unregister` alongside `_clearFiredOnceFor`. Like
+that helper this is memory hygiene, not correctness — the generation suffix
+already isolates re-registrations, so a stale watermark from an old
+generation can never gate a new entry.
+
 ### _clearFiredOnceFor
 
 ```ts
@@ -215,11 +261,24 @@ Algorithm (per registered entry):
    - Slot key: `${name}:once` (+ scope) (+ gen).
    - `aligned` = the 1-minute-aligned `when` from step 0.
 5. **Periodic** (`entry.interval` set):
-   - Align `when` further to the entry's interval via {@link alignToInterval}.
-   - If `ts !== alignedMs`, the tick is mid-interval — skip.
-     (This is the "remainder === 0" boundary check from the spec;
-     since `ts` is already on the 1-minute boundary, the check is exact
-     for `1m` and consistent for higher intervals.)
+   - Align `when` to the entry's interval via {@link alignToInterval} to
+     get `alignedMs`, the boundary this tick belongs to.
+   - Compare against the slot's watermark in `_lastBoundary` (keyed by
+     `${name}` + scope + gen, without the `alignedMs` segment). If a
+     watermark exists and `alignedMs &lt;= lastBoundary`, this boundary was
+     already fired — skip.
+   - This **watermark** check replaces the old exact `ts === alignedMs`
+     match. The exact match required virtual time to land *precisely* on
+     the boundary; when a tick jumped clean over a boundary (e.g. a `5m`
+     loop going 00:14 → 00:29 never touching the `15m` 00:15 boundary)
+     the boundary was silently lost. With the watermark, the first tick
+     whose `alignedMs` advanced past the stored value fires once, at the
+     newest crossed boundary (catch-up collapses several skipped
+     boundaries into a single invocation at the latest one).
+   - The watermark is advanced to `alignedMs` synchronously when the slot
+     is opened (before the `await`), so a concurrent tick on the same or
+     an already-passed boundary cannot open a duplicate slot while the
+     handler is still in flight.
    - Slot key: `${name}:${alignedMs}` (+ scope) (+ gen).
 6. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
    already exists, `await` the same promise. Otherwise invoke
@@ -304,7 +363,10 @@ Performs in order:
 3. Wipes `_firedOnce` — all fire-once marks are dropped, so any future
    re-registration of the same `name` fires again on the next matching
    tick.
-4. Does **not** touch `_inFlight` — in-flight handlers continue to
+4. Wipes `_lastBoundary` — all periodic watermarks are dropped, so a
+   re-registered periodic entry starts firing from its next crossed
+   boundary again.
+5. Does **not** touch `_inFlight` — in-flight handlers continue to
    settle in the background and clear their own slots via `.finally()`.
    Their final `_firedOnce.add(firedKey)` writes carry old-generation
    keys and are harmless (lookup uses the post-dispose generation).

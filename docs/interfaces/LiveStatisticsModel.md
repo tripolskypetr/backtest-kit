@@ -98,7 +98,7 @@ Sharpe Ratio (risk-adjusted return = avgPnl / stdDev), null if unsafe. Higher is
 annualizedSharpeRatio: number
 ```
 
-Annualized Sharpe Ratio (sharpeRatio × √365), null if unsafe. Higher is better.
+Annualized Sharpe Ratio (sharpeRatio × √tradesPerYear), null if unsafe. Higher is better.
 
 ### certaintyRatio
 
@@ -138,7 +138,7 @@ Average fall PNL percentage across all closed signals (_fall.pnlPercentage), nul
 sortinoRatio: number
 ```
 
-Sortino Ratio (avgPnl / downside deviation — stdDev of losses only), null if unsafe. Higher is better.
+Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only), null if unsafe. Higher is better.
 
 ### calmarRatio
 

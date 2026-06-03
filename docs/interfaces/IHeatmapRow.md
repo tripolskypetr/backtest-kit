@@ -32,7 +32,7 @@ Total profit/loss percentage across all closed trades
 sharpeRatio: number
 ```
 
-Risk-adjusted return (Sharpe Ratio)
+Risk-adjusted return per trade (Sharpe Ratio = avgPnl / stdDev)
 
 ### maxDrawdown
 
@@ -160,7 +160,7 @@ Average fall PNL percentage across all trades (_fall.pnlPercentage). Closer to 0
 sortinoRatio: number
 ```
 
-Sortino Ratio (avgPnl / downside deviation — stdDev of losses only). Higher is better.
+Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only). Higher is better.
 
 ### calmarRatio
 
