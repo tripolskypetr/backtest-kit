@@ -1,3 +1,218 @@
+# 📐 Statistical-Metrics Rewrite & Measure Testbed (v10.2.0, 03/06/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/10.2.0)
+
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+v10.2.0 is a focused correctness release for the analytics layer. Every ratio reported by `BacktestMarkdownService`, `LiveMarkdownService`, and `HeatMarkdownService` (Sharpe, Annualized Sharpe, Sortino, Calmar, Recovery Factor, Expected Yearly Returns) was rebuilt from scratch against canonical definitions — sample standard deviation with Bessel's correction, compounded equity-curve max drawdown, downside deviation per Sortino (1991), calendar-span trade frequency. A uniform set of sample-size and explosion guards (`MIN_SIGNALS_FOR_RATIOS`, `MIN_SIGNALS_FOR_ANNUALIZATION`, `MIN_CALENDAR_SPAN_DAYS`, `MAX_TRADES_PER_YEAR`, `MAX_EXPECTED_YEARLY_RETURNS`, `MAX_CALMAR_RATIO`, `STDDEV_EPSILON`) prevents tiny-sample noise and float-artifact stdDev (≈1e-17 on identical-returns series) from publishing astronomical Sharpe figures. `ScheduleMarkdownService` activation/cancellation rates are now denominated against scheduled signals whose outcome is also in the buffer — matched by `signalId` — so a sliding-window eviction can no longer push rates above 100%. `PerformanceMarkdownService` switched to linear-interpolation percentiles (numpy-compatible) and sample-stddev. To pin every formula in place, an 84-file **measure testbed** was added under `test/measure/` (`backtest_1.json` … `backtest_85.json`, each a real persisted multi-symbol run), backed by a fully independent reference implementation in `test/utils/measure_helpers.mjs` — every metric is now cross-checked against a second source of truth. Total project test count crossed **740+** (was 520+). Also new: the `Escaping zero expectation` concept article (`docs/concept/02_zero_expectation_escape.md`) and public docs for `CronUtils`, `CronEntry`, `CronHandle`, `CronCallback`, and the previously-undocumented `ISignalDto.symbol` field.
+
+**Canonical Sharpe / Annualized Sharpe / Sortino**
+
+```typescript
+// Sample stddev (Bessel correction: divide by N-1)
+const stdDev = Math.sqrt(
+  returns.reduce((s, r) => s + (r - avgPnl) ** 2, 0) / (totalSignals - 1)
+);
+
+// Sharpe — gated below MIN_SIGNALS_FOR_RATIOS, and STDDEV_EPSILON-guarded
+const sharpeRatio = canComputeRatios && stdDev > STDDEV_EPSILON
+  ? avgPnl / stdDev
+  : null;
+
+// Annualized — × √tradesPerYear, NOT × √365, and gated by calendar span
+const annualizedSharpeRatio = canAnnualize && sharpeRatio !== null
+  ? sharpeRatio * Math.sqrt(tradesPerYear)
+  : null;
+
+// Sortino (1991): downsideDev = √( Σ min(0, r)² / N_total )
+// N_total (not N_negative) — penalises strategies with frequent losses
+const downsideVariance = negativeReturns.reduce((sum, r) => sum + r * r, 0) / returns.length;
+const sortinoRatio = downsideDeviation > STDDEV_EPSILON
+  ? avgPnl / downsideDeviation
+  : null;
+```
+
+**Compounded equity-curve max drawdown**
+
+```typescript
+// "As-if 100% allocation per trade" — replaces additive peak-tracking from v10.1
+let equity = 1, peak = 1, equityMaxDrawdown = 0;
+for (const r of returns) {
+  equity *= 1 + r / 100;
+  if (equity <= 0) { equityMaxDrawdown = 100; blown = true; break; } // account blown
+  if (equity > peak) peak = equity;
+  const dd = (peak - equity) / peak * 100;
+  if (dd > equityMaxDrawdown) equityMaxDrawdown = dd;
+}
+
+// Expected Yearly Returns — geometric annualization, capped
+const raw = (Math.pow(equityFinal, tradesPerYear / N) - 1) * 100;
+const expectedYearlyReturns = Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
+
+// Recovery Factor — uses COMPOUNDED total return, not arithmetic totalPnl
+const recoveryFactor = ((equityFinal - 1) * 100) / equityMaxDrawdown;
+```
+
+## Statistical Suite — Behavioural Changes
+
+This release deliberately changes the *numbers* the report publishes. The new values are the canonical ones; numbers from v10.1.0 reports will not match.
+
+### Sample standard deviation (Bessel's correction)
+
+`BacktestMarkdownService`, `LiveMarkdownService`, `HeatMarkdownService`, and `PerformanceMarkdownService` all switched from population stddev (`Σ(r-μ)²/N`) to sample stddev (`/ (N-1)`). On a 22-trade run the change is ~2.4% larger stdDev — and a correspondingly ~2.4% smaller Sharpe / Sortino. The motivation: per-trade returns are a sample of an unknown underlying distribution, not the full population.
+
+### Win rate excludes break-even trades
+
+Was `winCount / totalSignals * 100`. Now `winCount / (winCount + lossCount) * 100`. A break-even trade (pnlPercentage exactly 0) is neither a win nor a loss; counting it in the denominator silently understated winrate on strategies that hit-and-flat. Affects Backtest, Live, and Heat reports.
+
+### `tradesPerYear` from calendar span, not avg trade duration
+
+v10.1.0 computed `tradesPerYear = 365 / avgDurationDays` from per-trade duration — which inflates frequency when most of the calendar is spent flat (no positions open). v10.2.0 uses the actual observed frequency over the run's calendar span:
+
+```ts
+calendarSpanDays = (lastCloseAt - firstPendingAt) / (1000 * 60 * 60 * 24)
+tradesPerYear   = (totalSignals / calendarSpanDays) * 365
+```
+
+Gated by `MIN_SIGNALS_FOR_ANNUALIZATION` (10 signals) **and** `MIN_CALENDAR_SPAN_DAYS` (14 days). Raw values above `MAX_TRADES_PER_YEAR` (365) flip every annualized metric to `null` rather than publishing a misleading figure — clustered-trades runs are surfaced as "not annualizable" instead of silently overstated.
+
+### Compounded equity-curve max drawdown
+
+Heat's `maxDrawdown` was previously an additive peak-track of cumulative pnlPercentage — which double-counts because returns are already percentages, not absolute deltas. The new implementation walks a compounded equity curve in chronological order (storage is newest-first, so iterated in reverse), tracking the high-water mark and the maximum peak-to-trough percentage. Blown-account detection (`equity ≤ 0`, e.g. leveraged short with r < -100%) fixes DD at 100% and stops walking the curve. The same algorithm is used by `BacktestMarkdownService` and `LiveMarkdownService` so `Calmar` / `Recovery Factor` denominators agree across all three services.
+
+### Geometric `Expected Yearly Returns`
+
+Was `avgPnl × tradesPerYear` (arithmetic). Now `(equityFinal^(tradesPerYear / N) - 1) * 100` — the geometric annualization of the compounded equity curve. The arithmetic form ignores volatility drag and overstates returns on noisy strategies; the geometric form is the value an investor actually realises. When the raw value exceeds `MAX_EXPECTED_YEARLY_RETURNS` (±100%) the field returns `null` rather than the cap — capped numbers mislead users into trusting them. Blown-account runs return `-100`.
+
+### Sortino — canonical (Sortino 1991), denominator over `N_total`
+
+`(avgPnl - MAR) / √( Σ min(0, r - MAR)² / N_total )` with `MAR = 0`. The denominator divides by total sample size, not the count of negative returns — that's the "modified Sortino" form, and it hides frequency risk in catastrophic-tail strategies. v10.1.0 used yet another formula (downside deviation of `maxDrawdown.pnlPercentage` per signal); the new form is the textbook one. Documentation in `BacktestStatisticsModel`, `LiveStatisticsModel`, and `IHeatmapRow` updated: "RMS of losing trades only" replaces "stdDev of losses only".
+
+### Sortino returns `null` when there are no losing trades
+
+Previously emitted `0` (downside deviation = 0 → divide-by-zero guard returned `0`), implying a meaningfully-bad strategy. Mathematically Sortino is infinite when there are no losses; we cannot distinguish "truly flawless" from "lucky streak so far", so the report now surfaces `N/A`.
+
+### Recovery Factor — compounded numerator
+
+Was `totalPnl / maxAbsFall`. Now `((equityFinal - 1) * 100) / equityMaxDrawdown` — the compounded total return over the compounded max drawdown, so numerator and denominator share units. The arithmetic form inflated Recovery on long winning streaks. Null when the account is blown or below `MIN_SIGNALS_FOR_RATIOS`. Clamped at `±MAX_CALMAR_RATIO` (1000) for the same reason as Calmar.
+
+### Calmar — compounded denominator, capped at ±1000
+
+`expectedYearlyReturns / equityMaxDrawdown`, clamped at `±MAX_CALMAR_RATIO`. Prevents explosion when DD is near zero. `null` when annualization is gated off (insufficient signals or calendar span).
+
+### Float-artifact `stdDev` epsilon guard
+
+Identical-returns series produce stdDev ≈1e-17 — mathematically `> 0` but a pure floating-point artifact. Without a guard, `sharpe = avgPnl / 1e-17` produces astronomical magnitudes (≈1e16) that any reader would mistake for a bug. Every ratio now uses `stdDev > STDDEV_EPSILON` (1e-9) instead of `stdDev > 0`. The same guard protects `certaintyRatio` (`Math.abs(avgLoss) > STDDEV_EPSILON`) and Heat's `profitFactor` (`sumLosses > STDDEV_EPSILON`).
+
+### `validSignals` — single source of truth
+
+The Backtest / Live services now filter once into `validSignals` (requires numeric `pendingAt` and `closeTimestamp` / `timestamp`) and derive **every** metric from that set — `winCount`, `lossCount`, `returns`, `firstPendingAt`, `lastCloseAt`, `equityFinal`, all of it. Previously different metrics filtered different subsets; on corrupted runtime data this could publish a Sharpe whose numerator came from a different population than its denominator. On clean data the change is invisible.
+
+### Per-symbol "Portfolio Sharpe" → "Pooled Sharpe"
+
+`HeatMarkdownService.portfolioSharpeRatio` was previously a trade-count-weighted average of per-symbol Sharpes — which is **not** a portfolio Sharpe (a real portfolio Sharpe needs the cross-symbol correlation matrix and capital allocation, neither of which the framework tracks). The new value pools all per-trade returns across symbols into a single sample and computes Sharpe on that pool. The Markdown header label changed from `Portfolio Sharpe` to `Pooled Sharpe` and a legend line explicitly disclaims Markowitz semantics.
+
+### Avg peak / fall PNL — non-null average
+
+Was `Σ(s.signal.peakProfit?.pnlPercentage ?? 0) / totalSignals` — a signal without the metric silently contributed zero, dragging the mean toward zero. Now averages only over signals that actually have the field. The same fix is applied to `expectancy` in Heat (probabilities from real win/loss counts) and to `portfolioAvgPeakPnl` / `portfolioAvgFallPnl` (denominator includes only symbols with the metric).
+
+### Markdown legend rewrite
+
+The footnote block under every report was rewritten to (a) describe the actual formula now in use, (b) list the gating thresholds (`≥MIN_SIGNALS_FOR_ANNUALIZATION`, `span ≥MIN_CALENDAR_SPAN_DAYS`), (c) print the active caps (`±MAX_EXPECTED_YEARLY_RETURNS`, `±MAX_CALMAR_RATIO`), (d) state the **100% capital allocation per trade** assumption that the equity curve is built under, and (e) note that "higher is better" still applies to negative values (closer to zero is less bad). The `(theoretical)` suffix was removed — the figures are now the canonical ones, not idealised projections.
+
+## `ScheduleMarkdownService` — Rates Matched by `signalId`
+
+`activationRate` and `cancellationRate` were previously `totalOpened / totalScheduled * 100` and `totalCancelled / totalScheduled * 100`. The fixed-size sliding window (250 entries) can drop a `scheduled` record before its `opened` / `cancelled` outcome arrives, which inflated rates above 100% on long runs. The new denominator is `resolvedScheduled = openedFromScheduled + cancelledFromScheduled` — outcomes are matched against `scheduledIds` by `signalId`, so the rates always sum to ≤100% and represent only signals whose full lifecycle is observable in the buffer. The header label changed from `**Scheduled signals:**` to `**Scheduled signals (raw):**` and a legend line explains the matched-pair convention.
+
+**Fractional minutes preserved.** `addOpenedEvent` / `addCancelledEvent` were rounding sub-minute durations to integer via `Math.round(durationMs / 60000)`, which zeroed out all sub-30-second durations and dragged high-frequency `avgActivationTime` / `avgWaitTime` toward zero. The new code keeps fractional minutes (`durationMs / 60000` without rounding).
+
+**Average durations skip null entries.** `avgWaitTime` / `avgActivationTime` previously used `sum(e.duration || 0) / count`, which diluted the mean on events with no duration. The new code filters `typeof d === "number"` before averaging.
+
+## `PerformanceMarkdownService` — Percentiles & Sample-stdDev
+
+- **Percentile uses linear interpolation.** Replaces the nearest-rank `Math.ceil((N * p) / 100) - 1` formula with linear interpolation between adjacent ranks — equivalent to `numpy.percentile` with the default `linear` method. Length-0 and length-1 fall back to nearest-rank.
+- **Sample stddev with Bessel correction** (`/ (N-1)`) on metric durations, consistent with the Sharpe/Sortino calculations in the other services.
+- **Zero-duration guard on percentage rendering.** All-instant runs (`stats.totalDuration === 0`) used to render `NaN%`; the new code defaults to `0%` and also guards `isUnsafe(pctRaw)`.
+
+## Public Constants
+
+The following gating thresholds are now embedded as module-level constants in `BacktestMarkdownService.ts`, `LiveMarkdownService.ts`, and `HeatMarkdownService.ts`:
+
+| Constant | Value | Effect |
+|---|---|---|
+| `MIN_SIGNALS_FOR_RATIOS` | 10 | Below this, Sharpe / Sortino / Certainty / Recovery / stdDev → `null` (sample size too small for unbiased variance estimate) |
+| `MIN_SIGNALS_FOR_ANNUALIZATION` | 10 | Below this, Annualized Sharpe / Expected Yearly Returns / Calmar → `null` |
+| `MIN_CALENDAR_SPAN_DAYS` | 14 | Below this, every annualized metric → `null` (extrapolation from short windows is too noisy) |
+| `MAX_TRADES_PER_YEAR` | 365 | Above this, every annualized metric → `null` (clustered trades, not a stable frequency) |
+| `MAX_EXPECTED_YEARLY_RETURNS` | 100 (±%) | Above this, `expectedYearlyReturns` → `null` (compound-interest blow-up) |
+| `MAX_CALMAR_RATIO` | 1000 | Clamps `calmarRatio` and `recoveryFactor` to `±1000` |
+| `STDDEV_EPSILON` | 1e-9 | Float-artifact guard on every ratio denominator |
+
+Mirrored in `test/utils/measure_helpers.mjs` so the reference implementation gates identically.
+
+## Measure Testbed — 84 Real-Data Tests, Independent Reference Implementation
+
+A new `test/measure/` directory contains 84 backtest snapshot files (`backtest_1.json` … `backtest_85.json`, with `_51` skipped) and a matching `backtest_N.test.mjs` per snapshot. Each snapshot is a real persisted multi-symbol run with 22 to 350 closed signals. Each test exercises every markdown service against that snapshot and asserts a full set of metrics against an **independent re-implementation** of the same math in `test/utils/measure_helpers.mjs`.
+
+The per-test structure is uniform:
+
+1. **`BacktestMarkdownService` — pooled full statistical suite.** All rows fed under a single synthetic `PORTFOLIO-BT*` symbol so the portfolio-level series is mathematically meaningful (Sortino / Calmar / Recovery require enough trades in one bucket). Asserts: `totalSignals`, `winCount`, `lossCount`, `winRate`, `avgPnl`, `totalPnl`, `stdDev`, `sharpeRatio`, `annualizedSharpeRatio`, `certaintyRatio`, `expectedYearlyReturns`, `avgPeakPnl`, `avgFallPnl`, `sortinoRatio`, `calmarRatio`, `recoveryFactor`.
+2. **`LiveMarkdownService` — same pooled suite in live mode.** Same row stream with `backtest: false` to confirm the live service computes the identical pooled math.
+3. **`HeatMarkdownService` — real multi-symbol portfolio aggregation.** Rows routed to their original `symbol` field. Asserts per-symbol `totalTrades`, `winRate`, `totalPnl`, `sharpeRatio`, `maxDrawdown`, the gating behaviour (per-symbol ratios `null` when bucket size < `MIN_SIGNALS_FOR_RATIOS`), and the pooled aggregates `portfolioTotalTrades`, `portfolioTotalPnl`, `portfolioSharpeRatio`.
+
+Each `backtest_N.test.mjs` also embeds a short comment describing the dataset — number of symbols, distribution of bucket sizes, whether per-symbol ratios pass the gate or are deliberately `null`, and what the pooled suite is expected to surface. This makes the suite double as a documented corpus of edge cases for the analytics layer.
+
+Total: **153** measure tests across 84 backtest files. Test count summary printed by `test/_run_measure.mjs` (standalone runner) and by `test/index.mjs` (full suite).
+
+## `test/spec/measure_*.test.mjs` — 18 Behavioural Suites
+
+In addition to the data-driven `measure/` tests, 18 spec files exercise the analytics layer's behavioural contracts (64 individual tests). Each suite isolates one concern; the test names are quoted verbatim so they can be searched directly:
+
+- **`measure.test.mjs`** (4 tests). The full statistical suite over the canonical `backtest_1.json` corpus — Backtest, Live, Heat, and Schedule services each verified against the reference implementation in one place. Anchor test for the entire measure layer.
+- **`measure_columns.test.mjs`** (2 tests). Heat report — `null sharpeRatio renders 'N/A' across all symbol rows`; `numeric or 'N/A', never 'NaN' or literal 'null'`. Guards against accidental JSON `null` or `Number.NaN` leaks into the rendered markdown.
+- **`measure_defensive_inputs.test.mjs`** (5 tests). Robustness of the public API to misuse — `tick with action!='closed' is dropped by Backtest service`; `clear() twice with same payload is safe`; `clear() invalidates memoised storage — next tick creates fresh bucket`; `Heat with single signal in a bucket — no NaN from stdDev divide-by-zero`; `Heat treats empty-string symbol as its own bucket, isolated from real symbols`.
+- **`measure_edge_inputs.test.mjs`** (5 tests). Numerical and domain edge cases — `pendingAt far in the future — gates correctly, no overflow/NaN`; `5KB strategyName/symbol — memoize key doesn't crash, bucket works`; `same signalId across different symbols → independent buckets`; `malformed tick doesn't crash service`; `tick() without subscribe doesn't throw, but getData throws as documented`.
+- **`measure_empty_state.test.mjs`** (4 tests). Documented all-nulls shape on empty storage for Backtest, Live, and Heat `getData`; placeholder string (no table) returned by `getReport`. Pins the documented contract that consumers can rely on before any tick has been processed.
+- **`measure_event_services.test.mjs`** (6 tests). Per-symbol memoization isolation in the sidecar event services — `breakeven`, `highestProfit`, `maxDrawdown`, `partial` (both `tickProfit` and `tickLoss` routed correctly), `risk` (`tickRejection` isolation), `sync` (open and close ticks both registered). Catches regressions in the executionContextService-keyed storage layer.
+- **`measure_heat_extras.test.mjs`** (5 tests). Heat-specific ratios — `maxWinStreak and maxLossStreak count consecutive runs`; `break-even between wins keeps the win streak alive (service convention)`; `profitFactor = sumWins / |sumLosses|`; `expectancy uses real winProb/lossProb (break-evens contribute 0)`; `per-symbol recoveryFactor gated to null when Sharpe is gated (N<10)`. Pins the streak-counting convention so it cannot be silently inverted by a future refactor.
+- **`measure_infra.test.mjs`** (5 tests). Storage-layer plumbing — `memoization isolation — two symbols don't share storage`; `clear({ payload }) wipes only the matching key`; `clear() without payload wipes all keys`; `subscribe() is idempotent — no double-counting on repeat calls`; `buffer trim keeps NEWEST 250 of 300 signals`. The buffer-trim test is load-bearing: the schedule rate-matching fix relies on this trim ordering.
+- **`measure_lifecycle.test.mjs`** (4 tests). Subscription lifecycle invariants — `unsubscribe before subscribe is a safe no-op`; `getData without subscribe throws documented error`; `ticks after unsubscribe are not counted`; `double-unsubscribe is a safe no-op`. Required by consumers that wire / unwire on a per-strategy lifetime.
+- **`measure_markdown_rendering.test.mjs`** (4 tests). Final-output assertions on the markdown string itself — `gated metrics render as 'N/A' (Backtest, N=9)`; `computed metrics include '(higher is better)' suffix (Backtest, n=22)`; `blown account — expectedYearly = -100.00%, recoveryFactor = N/A (Backtest)`; `Heat report — 'Pooled Sharpe' label present, not 'Portfolio Sharpe'`. The "Pooled Sharpe" assertion is the regression guard for the v10.1.0 → v10.2.0 label rename.
+- **`measure_mode_separation.test.mjs`** (2 tests). Heat — `(exchange, frame, backtest) keys separate storages for true vs false`; `clear({backtest:true}) does not wipe backtest=false counterpart`. Prevents paper / live / backtest cross-contamination in the report cache.
+- **`measure_performance.test.mjs`** (3 tests). `PerformanceMarkdownService` math — `percentile uses linear interpolation, stddev uses N-1`; `all-zero durations — pct guard, no NaN in report`; `multi-metric grouping — each type aggregated independently`.
+- **`measure_performance_extra.test.mjs`** (2 tests). `waitTime statistics — avg/min/max between consecutive events`; `getReport sorts metrics by totalDuration DESC (bottleneck first)`. The DESC sort is part of the report's documented contract (the slowest metric is shown first).
+- **`measure_schedule.test.mjs`** (3 tests). `activationRate + cancellationRate match resolved scheduled by signalId, sum ≤ 100%`; `avgActivationTime keeps fractional minutes (no round-to-int zero dilution)`; `empty state — totals zero, rates and durations null`. Pins the signalId-matched rate computation and the fractional-minute fix.
+- **`measure_schedule_extra.test.mjs`** (3 tests). `100% cancellation — activationRate=0, cancellationRate=100`; `avgWaitTime keeps fractional minutes for cancelled signals`; `buffer trims event list to a finite capacity`. Complementary edge cases to the main schedule suite.
+- **`measure_storage_keys.test.mjs`** (3 tests). Internal storage-key composition — `':' separator collision merges (sym=BTC:USDT, strat=X) with (sym=BTC, strat=USDT:X) into one bucket` (documented collision, not a bug); `frameName='' and frameName=undefined map to the same bucket (live mode contract)`; `getStorage is memoised — interleaved ticks are visible to subsequent getData`. Documents the colon-separator constraint on symbol names so it cannot be forgotten.
+- **`measure_walker.test.mjs`** (3 tests). Walker-mode pass-through — `BacktestStatisticsModel passes through unchanged`; `passes through bestStrategy/bestMetric from the latest contract`; `null metricValue does not displace a numeric winner`. The null-vs-numeric tiebreak is the regression guard for Walker leaderboards when sample sizes vary.
+- **`measure_walker_unbounded.test.mjs`** (1 test). `500 strategies fed — all retained, NO buffer cap`. Documents the deliberate exception to the 250-entry buffer rule: Walker leaderboard is unbounded so every contender survives the run.
+
+## Interface & Type Updates
+
+- **`IHeatmapRow.sharpeRatio` doc** — "Risk-adjusted return per trade (Sharpe Ratio = avgPnl / stdDev)" (was just "Risk-adjusted return (Sharpe Ratio)").
+- **`IHeatmapRow.sortinoRatio` doc** — "RMS of losing trades only" (was "stdDev of losses only"). The RMS form is the actual computation (`√(Σ r²/N)` for `r < 0`).
+- **`BacktestStatisticsModel` / `LiveStatisticsModel`** — `annualizedSharpeRatio` doc updated from `sharpeRatio × √365` to `sharpeRatio × √tradesPerYear`; `sortinoRatio` doc updated to "RMS of losing trades only". `types.d.ts` regenerated accordingly.
+- **`WalkerMetric` doc** — `annualizedSharpeRatio` comment updated from `Sharpe ratio × √365` to `Sharpe ratio × √tradesPerYear`.
+
+## Documentation
+
+- **`docs/concept/02_zero_expectation_escape.md`** — new concept article on escaping zero-expected-value trading by piggy-backing on Telegram pump-and-dump signals. Walks through the math (finite-sum vs growing-sum games), shows the 68% winrate / +2.37% mean-PNL baseline, and demonstrates a `momentum24hPct` filter that lifts winrate to 100% / +6.97% mean PNL over 11 trades. Includes the `ParseFormat<SignalFields>` regex schema and the inline filter code that the AI agent updates. Linked from the `01_monorepo_parallel_execution.md` concept and the `08_ai_liquidity_harvesting.md` article. Cover image: `assets/images/cover_zero_expectation_escape.jpg`; reference chart: `assets/images/luxalgo_plateau.png`.
+- **`docs/classes/CronUtils.md`** (319 lines) — full public-API reference for the `Cron` singleton introduced in v10.1.0 (slot keys, generation counters, in-flight promise semantics, fire-once vs periodic, global vs fan-out, `enable` / `disable` / `clear` / `dispose`). Indexed from `docs/index.md`.
+- **`docs/interfaces/CronEntry.md`**, **`docs/interfaces/CronHandle.md`**, **`docs/types/CronCallback.md`** — supporting interface and type docs for `Cron.register(entry)`.
+- **`docs/interfaces/ISignalDto.md`** — documents the `symbol: string` field added to `ISignalDto` in v10.1.0 (the symbol-mismatch guard). Previously the field existed in code but wasn't documented.
+- **README** — `Tested` badge bumped from `520+` to `740+`; the `backtest-ollama-crontab` emoji adjusted from 🐟 to 🐠 (cosmetic).
+
+## Other Changes
+
+- **`test/index.mjs`** — wires in the 18 `measure_*.test.mjs` spec files and all 84 `measure/backtest_*.test.mjs` files. Total runtime test count crossed 740+.
+- **`test/_run_measure.mjs`** — standalone runner for the 84-file measure suite only (skips the full `index.mjs` to keep the measure-only iteration loop fast).
+- **`test/utils/measure_helpers.mjs`** (549 lines) — shared reference implementation: `STRATEGY` / `EXCHANGE` / `FRAME` constants matching the snapshot files, all seven gating constants mirrored from the services, `toClosedTick`, `approx`, `sampleStdDev`, `equityMaxDrawdown`, `computePoolReference`, `computeHeatReference`. Independent of `src/` — the tests never call into the production code path under test.
+- **`docs/private/*.md`** — internal API ref pages regenerated against the new ratio constants and the rewritten markdown services.
+
+
+
+
 # ⏰ Virtual-Time Cron & Lifecycle Hooks (v10.1.0, 31/05/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/10.1.0)
