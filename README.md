@@ -75,6 +75,7 @@ Install the core library and peer dependencies manually. Use this approach when 
 - 🔄 **Efficient Execution**: Streaming architecture for large datasets; VWAP pricing for realism.
 - 🤖 **AI Integration**: LLM-powered strategy generation (Optimizer) with multi-timeframe analysis.
 - 📊 **Reports & Metrics**: Auto Markdown reports with PNL, Sharpe Ratio, win rate, and more.
+- 📐 **Portfolio Heatmap**: Cross-symbol portfolio report ranking every symbol by risk-adjusted return — Pooled Sharpe, Sortino & Calmar Ratio, Recovery Factor, Expectancy, Per-Trade Std Dev, mark-to-market Max Drawdown, Total/Avg Peak PNL and trade counts.
 - 🛡️ **Risk Management**: Custom rules for position limits, time windows, and multi-strategy coordination.
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
 - 🗃️ **Transactional Live Orders**: Broker adapter intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
