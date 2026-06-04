@@ -50,7 +50,7 @@ export const MenuIcon = ({
     return (
         <ActionMenu
             transparent
-            keepMounted
+            
             className={className}
             style={style}
             sx={sx}
