@@ -68,7 +68,7 @@ const fields: TypedField<IHeatmapRow>[] = [
     {
         type: FieldType.Text,
         columns: "6",
-        name: "totalPnl",
+        name: "sharpeRatio",
         title: "Sharpe Ratio",
         compute: (obj) => (obj.sharpeRatio !== null ? `${obj.sharpeRatio.toFixed(2)}%` : "N/A"),
         readonly: true,
