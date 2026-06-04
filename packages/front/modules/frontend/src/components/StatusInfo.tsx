@@ -34,7 +34,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const fmt = (v: number | null, suffix = "%") =>
-    v === null ? "—" : `${v.toFixed(2)}${suffix}`;
+    !v ? "—" : `${v.toFixed(2)}${suffix}`;
 
 const t = (key: string) =>
     window.Translate ? window.Translate.translateText(key) : key;
