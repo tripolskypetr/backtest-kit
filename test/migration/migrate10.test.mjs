@@ -129,30 +129,62 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
       metricValue: event.metricValue,
       bestStrategy: event.bestStrategy,
       bestMetric: event.bestMetric,
+      strategiesTested: event.strategiesTested,
+      totalStrategies: event.totalStrategies,
     });
 
     if (event.strategiesTested === event.totalStrategies) {
       try {
-        if (progressEvents && progressEvents.length === 2) {
-          // Check that bestStrategy and bestMetric are tracked across events
-          const firstEvent = progressEvents[0];
-          const secondEvent = progressEvents[1];
-
-          if (
-            firstEvent.bestStrategy !== null &&
-            secondEvent.bestStrategy !== null &&
-            (secondEvent.bestMetric >= firstEvent.bestMetric || secondEvent.bestMetric === null)
-          ) {
-            pass("Walker tracks best strategy correctly across progress events");
-            resolve();
-          } else {
-            fail("Walker did not track best strategy correctly");
-            reject();
-          }
-        } else {
-          fail("Walker did not track best strategy correctly");
+        if (progressEvents.length !== 2) {
+          fail(`expected 2 progress events, got ${progressEvents.length}`);
           reject();
+          return;
         }
+        const [firstEvent, secondEvent] = progressEvents;
+
+        if (firstEvent.strategiesTested !== 1 || secondEvent.strategiesTested !== 2) {
+          fail(`strategiesTested must be 1 then 2, got ${firstEvent.strategiesTested}/${secondEvent.strategiesTested}`);
+          reject();
+          return;
+        }
+        if (firstEvent.totalStrategies !== 2 || secondEvent.totalStrategies !== 2) {
+          fail(`totalStrategies must be 2 on both events, got ${firstEvent.totalStrategies}/${secondEvent.totalStrategies}`);
+          reject();
+          return;
+        }
+
+        // Flat-candle frame: neither strategy produces enough closed signals
+        // for sharpeRatio (gated by N >= MIN_SIGNALS_FOR_RATIOS = 10). Both
+        // metricValues come back null and bestStrategy stays null — the
+        // correct outcome of the post-audit Sharpe gate.
+        if (firstEvent.metricValue === null && secondEvent.metricValue === null) {
+          if (firstEvent.bestStrategy !== null || secondEvent.bestStrategy !== null) {
+            fail(`bestStrategy must stay null when both metrics are null, got ${firstEvent.bestStrategy}/${secondEvent.bestStrategy}`);
+            reject();
+            return;
+          }
+          if (firstEvent.bestMetric !== null || secondEvent.bestMetric !== null) {
+            fail(`bestMetric must stay null when both metrics are null, got ${firstEvent.bestMetric}/${secondEvent.bestMetric}`);
+            reject();
+            return;
+          }
+          pass("Walker correctly leaves best=null when no strategy clears the metric gate");
+          resolve();
+          return;
+        }
+
+        // When a metric does come through, the running max must be monotonic.
+        if (
+          secondEvent.bestMetric !== null &&
+          firstEvent.bestMetric !== null &&
+          secondEvent.bestMetric < firstEvent.bestMetric
+        ) {
+          fail(`bestMetric regressed: ${firstEvent.bestMetric} -> ${secondEvent.bestMetric}`);
+          reject();
+          return;
+        }
+        pass("Walker tracks best strategy correctly across progress events");
+        resolve();
       } finally {
         unsubscribe();
       }

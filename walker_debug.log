@@ -1,0 +1,18 @@
+[
+  {
+    "strategyName": "test-strategy-walker-best-1",
+    "metricValue": null,
+    "bestStrategy": null,
+    "bestMetric": null,
+    "strategiesTested": 1,
+    "totalStrategies": 2
+  },
+  {
+    "strategyName": "test-strategy-walker-best-2",
+    "metricValue": null,
+    "bestStrategy": null,
+    "bestMetric": null,
+    "strategiesTested": 2,
+    "totalStrategies": 2
+  }
+]
