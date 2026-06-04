@@ -79,7 +79,7 @@ Install the core library and peer dependencies manually. Use this approach when 
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
 - 🗃️ **Transactional Live Orders**: Broker adapter intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
 - ⏰ **Built-in Crontab**: Register periodic or fire-once jobs that fire on virtual-time boundaries with singleshot coordination across parallel backtests — one handler invocation per boundary, no double-fires.
-- 🧪 **Tested**: 740+ unit/integration tests for validation, recovery, and events.
+- 🧪 **Tested**: 770+ unit/integration tests for validation, recovery, and events.
 - 🔓 **Self hosted**: Zero dependency on third-party node_modules or platforms; run entirely in your own environment.
 
 ## 📋 Supported Order Types
@@ -1983,7 +1983,7 @@ Python-based (WASI) strategy that uses EMA(9) and EMA(21) crossover signals exec
 
 ## ✅ Tested & Reliable
 
-740+ tests cover validation, recovery, reports, and events.
+770+ tests cover validation, recovery, reports, and events.
 
 ## 🤝 Contribute
 
