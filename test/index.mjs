@@ -77,6 +77,7 @@ import "./migration/migrate6.test.mjs";
 import "./migration/migrate7.test.mjs";
 import "./migration/migrate8.test.mjs";
 import "./migration/migrate9.test.mjs";
+import "./migration/migrate10.test.mjs";
 
 import "./measure/backtest_1.test.mjs";
 import "./measure/backtest_2.test.mjs";
