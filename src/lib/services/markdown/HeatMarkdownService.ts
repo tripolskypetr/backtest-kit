@@ -521,11 +521,15 @@ class HeatmapStorage {
       portfolioTotalTrades = symbols.reduce((acc, s) => acc + s.totalTrades, 0);
     }
 
-    // Pooled Sharpe over all returns across symbols. NOTE: this is NOT a Markowitz
-    // portfolio Sharpe — it ignores cross-symbol correlations and treats trades as a
-    // single pooled sample. Gated by MIN_SIGNALS_FOR_RATIOS so a 2-trade pool cannot
-    // produce a noisy ±Sharpe.
+    // Pooled metrics over all returns across symbols. NOT a Markowitz portfolio —
+    // ignores cross-symbol correlations, treats trades as a single pooled sample.
+    // Gated by MIN_SIGNALS_FOR_RATIOS so a tiny pool can't produce noisy ratios.
     let portfolioSharpeRatio: number | null = null;
+    let portfolioStdDev: number | null = null;
+    let portfolioSortinoRatio: number | null = null;
+    let portfolioExpectancy: number | null = null;
+    let portfolioCalmarRatio: number | null = null;
+    let portfolioRecoveryFactor: number | null = null;
     const allReturns: number[] = [];
     for (const signals of this.symbolData.values()) {
       for (const s of signals) {
@@ -537,10 +541,71 @@ class HeatmapStorage {
       const portfolioVariance =
         allReturns.reduce((acc, r) => acc + Math.pow(r - portfolioAvg, 2), 0) /
         (allReturns.length - 1);
-      const portfolioStdDev = Math.sqrt(portfolioVariance);
+      const stdDev = Math.sqrt(portfolioVariance);
       // STDDEV_EPSILON guard — same protection as per-symbol Sharpe.
-      if (portfolioStdDev > STDDEV_EPSILON) {
-        portfolioSharpeRatio = portfolioAvg / portfolioStdDev;
+      portfolioStdDev = stdDev;
+      if (stdDev > STDDEV_EPSILON) {
+        portfolioSharpeRatio = portfolioAvg / stdDev;
+      }
+
+      // Canonical Sortino: downside dev = √( Σ min(0, r)² / N_total ), MAR=0.
+      const negativeReturns = allReturns.filter((r) => r < 0);
+      if (negativeReturns.length > 0) {
+        const downsideVariance =
+          negativeReturns.reduce((acc, r) => acc + r * r, 0) / allReturns.length;
+        const downsideDeviation = Math.sqrt(downsideVariance);
+        if (downsideDeviation > STDDEV_EPSILON) {
+          portfolioSortinoRatio = portfolioAvg / downsideDeviation;
+        }
+      }
+
+      // Pooled Expectancy: per-trade EV = winProb*avgWin + lossProb*avgLoss.
+      // Break-even trades contribute 0 (excluded from both probs).
+      const wins = allReturns.filter((r) => r > 0);
+      const losses = allReturns.filter((r) => r < 0);
+      const total = allReturns.length;
+      const avgWin = wins.length > 0 ? wins.reduce((a, b) => a + b, 0) / wins.length : 0;
+      const avgLoss = losses.length > 0 ? losses.reduce((a, b) => a + b, 0) / losses.length : 0;
+      if (wins.length > 0 || losses.length > 0) {
+        portfolioExpectancy = (wins.length / total) * avgWin + (losses.length / total) * avgLoss;
+      }
+
+      // Pooled equity-curve max drawdown (compounded).
+      let equity = 1;
+      let peak = 1;
+      let maxDD = 0;
+      let blown = false;
+      for (const r of allReturns) {
+        equity *= 1 + r / 100;
+        if (equity <= 0) {
+          maxDD = 100;
+          blown = true;
+          break;
+        }
+        if (equity > peak) peak = equity;
+        const dd = ((peak - equity) / peak) * 100;
+        if (dd > maxDD) maxDD = dd;
+      }
+      const equityFinal = blown ? 0 : equity;
+
+      // Pooled Calmar / Recovery, both clamped at ±MAX_CALMAR_RATIO and using
+      // compounded total return / DD. Same shape as per-symbol formula.
+      if (maxDD > 0) {
+        if (!blown) {
+          const rawCalmar = ((equityFinal - 1) * 100) / maxDD;
+          portfolioCalmarRatio = Math.max(
+            -MAX_CALMAR_RATIO,
+            Math.min(MAX_CALMAR_RATIO, rawCalmar),
+          );
+          const rawRec = ((equityFinal - 1) * 100) / maxDD;
+          portfolioRecoveryFactor = Math.max(
+            -MAX_CALMAR_RATIO,
+            Math.min(MAX_CALMAR_RATIO, rawRec),
+          );
+        } else {
+          // Blown — full loss is the only meaningful value; recovery undefined.
+          portfolioCalmarRatio = -1; // -100 / 100
+        }
       }
     }
 
@@ -565,6 +630,11 @@ class HeatmapStorage {
     if (isUnsafe(portfolioSharpeRatio)) portfolioSharpeRatio = null;
     if (isUnsafe(portfolioAvgPeakPnl)) portfolioAvgPeakPnl = null;
     if (isUnsafe(portfolioAvgFallPnl)) portfolioAvgFallPnl = null;
+    if (isUnsafe(portfolioStdDev)) portfolioStdDev = null;
+    if (isUnsafe(portfolioSortinoRatio)) portfolioSortinoRatio = null;
+    if (isUnsafe(portfolioCalmarRatio)) portfolioCalmarRatio = null;
+    if (isUnsafe(portfolioRecoveryFactor)) portfolioRecoveryFactor = null;
+    if (isUnsafe(portfolioExpectancy)) portfolioExpectancy = null;
 
     return {
       symbols,
@@ -574,6 +644,11 @@ class HeatmapStorage {
       portfolioTotalTrades,
       portfolioAvgPeakPnl,
       portfolioAvgFallPnl,
+      portfolioStdDev,
+      portfolioSortinoRatio,
+      portfolioCalmarRatio,
+      portfolioRecoveryFactor,
+      portfolioExpectancy,
     };
   }
 
@@ -635,6 +710,7 @@ class HeatmapStorage {
       `# Portfolio Heatmap: ${strategyName}`,
       "",
       `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"} | **Pooled Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio) : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades} | **Avg Peak PNL:** ${data.portfolioAvgPeakPnl !== null ? str(data.portfolioAvgPeakPnl, "%") : "N/A"} | **Avg Max Drawdown PNL:** ${data.portfolioAvgFallPnl !== null ? str(data.portfolioAvgFallPnl, "%") : "N/A"}`,
+      `**Standard Deviation:** ${data.portfolioStdDev !== null ? str(data.portfolioStdDev, "%") : "N/A"} | **Sortino Ratio:** ${data.portfolioSortinoRatio !== null ? str(data.portfolioSortinoRatio) : "N/A"} | **Calmar Ratio:** ${data.portfolioCalmarRatio !== null ? str(data.portfolioCalmarRatio) : "N/A"} | **Recovery Factor:** ${data.portfolioRecoveryFactor !== null ? str(data.portfolioRecoveryFactor) : "N/A"} | **Expectancy:** ${data.portfolioExpectancy !== null ? str(data.portfolioExpectancy, "%") : "N/A"}`,
       "",
       table,
       "",

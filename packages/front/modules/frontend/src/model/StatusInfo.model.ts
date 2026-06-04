@@ -20,6 +20,11 @@ export interface StatusInfoModel {
     portfolioTotalPnl: number | null;
     portfolioSharpeRatio: number | null;
     portfolioTotalTrades: number;
+    portfolioStdDev: number | null;
+    portfolioSortinoRatio: number | null;
+    portfolioCalmarRatio: number | null;
+    portfolioRecoveryFactor: number | null;
+    portfolioExpectancy: number | null;
     symbols: StatusInfoSymbol[];
     backtest: boolean;
 }

@@ -7,6 +7,11 @@
   "portfolioTotalPnl": 12.47,
   "portfolioSharpeRatio": 1.83,
   "portfolioTotalTrades": 18,
+  "portfolioStdDev": 1.92,
+  "portfolioSortinoRatio": 2.31,
+  "portfolioCalmarRatio": 1.45,
+  "portfolioRecoveryFactor": 1.45,
+  "portfolioExpectancy": 0.52,
   "symbols": [
     {
       "symbol": "BTCUSDT",

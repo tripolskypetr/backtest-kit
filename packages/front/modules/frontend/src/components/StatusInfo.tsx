@@ -40,7 +40,19 @@ const t = (key: string) =>
     window.Translate ? window.Translate.translateText(key) : key;
 
 const toMarkdown = (data: StatusInfoModel): string => {
-    const { context, portfolioTotalPnl, portfolioSharpeRatio, portfolioTotalTrades, symbols, backtest } = data;
+    const {
+        context,
+        portfolioTotalPnl,
+        portfolioSharpeRatio,
+        portfolioTotalTrades,
+        portfolioStdDev,
+        portfolioSortinoRatio,
+        portfolioCalmarRatio,
+        portfolioRecoveryFactor,
+        portfolioExpectancy,
+        symbols,
+        backtest,
+    } = data;
 
     const mode = backtest ? t("Backtest") : t("Live");
     const frame = context.frameName ? ` / ${context.frameName}` : "";
@@ -50,7 +62,12 @@ const toMarkdown = (data: StatusInfoModel): string => {
         "",
         `**${t("Total PNL")}:** ${fmt(portfolioTotalPnl)}  `,
         `**Sharpe Ratio:** ${fmt(portfolioSharpeRatio, "")}  `,
-        `**${t("Total trades")}:** ${portfolioTotalTrades}`,
+        `**${t("Total trades")}:** ${portfolioTotalTrades}  `,
+        `**${t("Standard Deviation")}:** ${fmt(portfolioStdDev)}  `,
+        `**${t("Sortino Ratio")}:** ${fmt(portfolioSortinoRatio, "")}  `,
+        `**${t("Calmar Ratio")}:** ${fmt(portfolioCalmarRatio, "")}  `,
+        `**${t("Recovery Factor")}:** ${fmt(portfolioRecoveryFactor, "")}  `,
+        `**${t("Expectancy")}:** ${fmt(portfolioExpectancy)}`,
         "",
     ];
 
