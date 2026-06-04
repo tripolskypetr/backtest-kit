@@ -531,9 +531,13 @@ class HeatmapStorage {
     let portfolioCalmarRatio: number | null = null;
     let portfolioRecoveryFactor: number | null = null;
     const allReturns: number[] = [];
+    let poolFirstPendingAt = Infinity;
+    let poolLastCloseAt = -Infinity;
     for (const signals of this.symbolData.values()) {
       for (const s of signals) {
         allReturns.push(s.pnl.pnlPercentage);
+        if (s.signal.pendingAt < poolFirstPendingAt) poolFirstPendingAt = s.signal.pendingAt;
+        if (s.closeTimestamp > poolLastCloseAt) poolLastCloseAt = s.closeTimestamp;
       }
     }
     if (allReturns.length >= MIN_SIGNALS_FOR_RATIOS) {
@@ -588,24 +592,50 @@ class HeatmapStorage {
       }
       const equityFinal = blown ? 0 : equity;
 
-      // Pooled Calmar / Recovery, both clamped at ±MAX_CALMAR_RATIO and using
-      // compounded total return / DD. Same shape as per-symbol formula.
-      if (maxDD > 0) {
-        if (!blown) {
-          const rawCalmar = ((equityFinal - 1) * 100) / maxDD;
-          portfolioCalmarRatio = Math.max(
-            -MAX_CALMAR_RATIO,
-            Math.min(MAX_CALMAR_RATIO, rawCalmar),
-          );
-          const rawRec = ((equityFinal - 1) * 100) / maxDD;
-          portfolioRecoveryFactor = Math.max(
-            -MAX_CALMAR_RATIO,
-            Math.min(MAX_CALMAR_RATIO, rawRec),
-          );
-        } else {
-          // Blown — full loss is the only meaningful value; recovery undefined.
-          portfolioCalmarRatio = -1; // -100 / 100
+      // Pooled expected yearly returns — geometric annualization of the pooled
+      // equity curve, gated exactly like the per-symbol path: requires a valid
+      // calendar span (≥ MIN_CALENDAR_SPAN_DAYS) and a non-clustered trade
+      // frequency (≤ MAX_TRADES_PER_YEAR). Above MAX_EXPECTED_YEARLY_RETURNS → null
+      // (don't surface the cap as a real figure). This is the numerator for Calmar.
+      let pooledExpectedYearlyReturns: number | null = null;
+      const poolSpanDays =
+        isFinite(poolFirstPendingAt) && isFinite(poolLastCloseAt)
+          ? (poolLastCloseAt - poolFirstPendingAt) / (1000 * 60 * 60 * 24)
+          : 0;
+      if (poolSpanDays >= MIN_CALENDAR_SPAN_DAYS) {
+        const rawTradesPerYear = (allReturns.length / poolSpanDays) * 365;
+        if (rawTradesPerYear <= MAX_TRADES_PER_YEAR) {
+          if (blown) {
+            pooledExpectedYearlyReturns = -100;
+          } else {
+            const raw = (Math.pow(equityFinal, rawTradesPerYear / allReturns.length) - 1) * 100;
+            pooledExpectedYearlyReturns =
+              Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
+          }
         }
+      }
+
+      // Pooled Calmar = annualized return / max drawdown — same formula and
+      // gating as per-symbol Calmar. NULL when the annualized numerator is
+      // unavailable (span/frequency gate, or over the yearly cap). This is what
+      // distinguishes it from Recovery, which uses the compounded TOTAL return —
+      // previously both used total return, making Calmar == Recovery (a bug).
+      if (maxDD > 0 && pooledExpectedYearlyReturns !== null) {
+        portfolioCalmarRatio = Math.max(
+          -MAX_CALMAR_RATIO,
+          Math.min(MAX_CALMAR_RATIO, pooledExpectedYearlyReturns / maxDD),
+        );
+      }
+
+      // Pooled Recovery Factor = compounded TOTAL return / max drawdown, clamped.
+      // Time-independent (no annualization), so it needs no span gate — only a
+      // valid DD and a non-blown account (ratio is meaningless after total loss).
+      if (maxDD > 0 && !blown) {
+        const rawRec = ((equityFinal - 1) * 100) / maxDD;
+        portfolioRecoveryFactor = Math.max(
+          -MAX_CALMAR_RATIO,
+          Math.min(MAX_CALMAR_RATIO, rawRec),
+        );
       }
     }
 
