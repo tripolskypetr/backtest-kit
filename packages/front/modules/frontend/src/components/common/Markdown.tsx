@@ -60,12 +60,14 @@ const CustomTable = ({ sx, ...props }: TableProps) => (
             marginTop: "8px",
             marginBottom: "8px",
             height: "calc(100dvh - 300px)",
-            "& *": {
-                scrollbarWidth: "none",
+            "&:not(:hover)": {
+                 "& *": {
+                    scrollbarWidth: "none",
+                },
             },
             "&:hover": {
                 "& *": {
-                    scrollbarWidth: "auto !important",
+                    scrollbarWidth: "auto",
                 },
             },
             ...sx
