@@ -20,7 +20,7 @@ Each signal opens a $100 bracket position (±2% TP/SL) via `Position.bracket`. T
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/dec_2025.strategy)
 
 ```bash
-npm start -- --backtest --symbol BTCUSDT --strategy dec_2025_strategy ./content/dec_2025.strategy/dec_2025.strategy.ts
+npm start -- --backtest --symbol BTCUSDT ./content/dec_2025.strategy/dec_2025.strategy.ts
 ```
 
 ## 📉 Price Context (December 2025)

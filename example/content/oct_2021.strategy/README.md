@@ -20,7 +20,7 @@ The strategy trains a simple feed-forward neural network (8→6→4→1 architec
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/oct_2021.strategy)
 
 ```bash
-npm start -- --backtest --symbol BTCUSDT --strategy oct_2021_strategy ./content/oct_2021.strategy/oct_2021.strategy.ts
+npm start -- --backtest --symbol BTCUSDT ./content/oct_2021.strategy/oct_2021.strategy.ts
 ```
 
 ## 🧠 Neural Network Architecture

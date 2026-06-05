@@ -20,7 +20,7 @@ Each signal opens a $100 bracket position (±2% TP/SL) via `Position.bracket`. T
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2021.strategy)
 
 ```bash
-npm start -- --backtest --symbol DOTUSDT --strategy feb_2021_strategy ./content/feb_2021.strategy/feb_2021.strategy.ts
+npm start -- --backtest --symbol DOTUSDT ./content/feb_2021.strategy/feb_2021.strategy.ts
 ```
 
 ## 📉 Price Context (February 2021)

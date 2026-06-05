@@ -20,7 +20,7 @@ The strategy takes published signals from a real Telegram crypto channel (Crypto
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/jan_2026.strategy)
 
 ```bash
-npm start -- --backtest --symbol TRXUSDT --strategy jan_2026_strategy ./content/jan_2026.strategy/jan_2026.strategy.ts
+npm start -- --backtest --symbol TRXUSDT ./content/jan_2026.strategy/jan_2026.strategy.ts
 ```
 
 ## 🔍 Methodology

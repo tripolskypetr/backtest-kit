@@ -20,7 +20,7 @@ Each signal opens a $100 SHORT via `Position.moonbag` (25% hard stop). While the
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/mar_2026.strategy)
 
 ```bash
-npm start -- --backtest --symbol BTCUSDT --strategy mar_2026_strategy ./content/mar_2026.strategy/mar_2026.strategy.ts
+npm start -- --backtest --symbol BTCUSDT ./content/mar_2026.strategy/mar_2026.strategy.ts
 ```
 
 ## 📉 Price Context (March 2026)

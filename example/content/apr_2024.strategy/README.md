@@ -20,7 +20,7 @@ The strategy reads Polymarket CLOB daily snapshots (Δprob — change of "yes" p
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/apr_2024.strategy)
 
 ```bash
-npm start -- --backtest --symbol BTCUSDT --strategy apr_2026_strategy ./content/apr_2024.strategy/apr_2024.strategy.ts
+npm start -- --backtest --symbol BTCUSDT ./content/apr_2024.strategy/apr_2024.strategy.ts
 ```
 
 ## 🔍 Methodology
