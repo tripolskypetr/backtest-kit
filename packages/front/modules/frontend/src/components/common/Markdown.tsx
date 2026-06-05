@@ -11,10 +11,11 @@ import {
     Typography,
     TypographyProps,
 } from "@mui/material";
+import { Children, Fragment, isValidElement, ReactNode, useMemo } from "react";
 import MuiMarkdown, { defaultOverrides } from "mui-markdown";
 import { applyFixes } from "markdownlint";
 import { lint } from "markdownlint/promise";
-import { PaperView, ScrollView, useAsyncValue } from "react-declarative";
+import { Grid, IGridColumn, PaperView, ScrollView, typo, useAsyncValue } from "react-declarative";
 import ioc from "../../lib";
 
 const CustomLink = (props: LinkProps) => (
@@ -59,7 +60,7 @@ const CustomTable = ({ sx, ...props }: TableProps) => (
             marginRight: "32px",
             marginTop: "8px",
             marginBottom: "8px",
-            height: "calc(100dvh - 300px)",
+            height: "max(calc(100dvh - 450px), 250px)",
             "&:not(:hover)": {
                  "& *": {
                     scrollbarWidth: "none",
@@ -83,6 +84,134 @@ const CustomTable = ({ sx, ...props }: TableProps) => (
         </ScrollView>
     </PaperView>
 );
+
+interface IVirtualRow {
+    id: string;
+    [cellKey: string]: ReactNode;
+}
+
+// Recursively flattens a React node tree into plain text (for header labels)
+const extractText = (node: ReactNode): string => {
+    if (node == null || typeof node === "boolean") {
+        return "";
+    }
+    if (typeof node === "string" || typeof node === "number") {
+        return String(node);
+    }
+    if (Array.isArray(node)) {
+        return node.map(extractText).join("");
+    }
+    if (isValidElement(node)) {
+        return extractText((node.props as { children?: ReactNode }).children);
+    }
+    return "";
+};
+
+// Finds the first descendant element whose intrinsic tag matches `tag`
+const findElementByTag = (node: ReactNode, tag: string): React.ReactElement | null => {
+    let found: React.ReactElement | null = null;
+    Children.forEach(node, (child) => {
+        if (found || !isValidElement(child)) {
+            return;
+        }
+        if (child.type === tag) {
+            found = child;
+            return;
+        }
+        found = findElementByTag((child.props as { children?: ReactNode }).children, tag);
+    });
+    return found;
+};
+
+// Collects all direct/nested descendant elements matching `tag` (e.g. all <tr>)
+const collectElementsByTag = (node: ReactNode, tag: string): React.ReactElement[] => {
+    const result: React.ReactElement[] = [];
+    Children.forEach(node, (child) => {
+        if (!isValidElement(child)) {
+            return;
+        }
+        if (child.type === tag) {
+            result.push(child);
+            return;
+        }
+        result.push(...collectElementsByTag((child.props as { children?: ReactNode }).children, tag));
+    });
+    return result;
+};
+
+// Returns the direct cell elements (<th>/<td>) of a table row
+const collectCells = (row: React.ReactElement): React.ReactElement[] => {
+    const cells: React.ReactElement[] = [];
+    Children.forEach((row.props as { children?: ReactNode }).children, (child) => {
+        if (isValidElement(child) && (child.type === "th" || child.type === "td")) {
+            cells.push(child);
+        }
+    });
+    return cells;
+};
+
+const VirtualTable = ({ children }: TableProps) => {
+    const { columns, data } = useMemo(() => {
+        const thead = findElementByTag(children, "thead");
+        const tbody = findElementByTag(children, "tbody");
+
+        const headerRow = thead ? collectElementsByTag(thead, "tr")[0] : undefined;
+        const headerCells = headerRow ? collectCells(headerRow) : [];
+
+        const columns: IGridColumn<IVirtualRow>[] = headerCells.map((cell, index) => {
+            const field = `cell_${index}` as const;
+            return {
+                field,
+                label: extractText(cell) || typo.nbsp,
+                minWidth: 120,
+                // Passthrough: the cell may hold custom components (links, bold, etc.)
+                format: (row) => <Fragment>{row[field]}</Fragment>,
+            };
+        });
+
+        const bodyRows = tbody ? collectElementsByTag(tbody, "tr") : [];
+        const data: IVirtualRow[] = bodyRows.map((row, rowIndex) => {
+            const cells = collectCells(row);
+            const entry: IVirtualRow = { id: `row_${rowIndex}` };
+            cells.forEach((cell, cellIndex) => {
+                entry[`cell_${cellIndex}`] = (cell.props as { children?: ReactNode }).children;
+            });
+            return entry;
+        });
+
+        return { columns, data };
+    }, [children]);
+
+    return (
+        <PaperView
+            variant="outlined"
+            sx={{
+                width: "calc(100% - 32px)",
+                marginRight: "32px",
+                marginTop: "8px",
+                marginBottom: "8px",
+                height: "max(calc(100dvh - 450px), 250px)",
+                "&:not(:hover)": {
+                    "& *": {
+                        scrollbarWidth: "none",
+                    },
+                },
+                "&:hover": {
+                    "& *": {
+                        scrollbarWidth: "auto",
+                    },
+                },
+            }}
+        >
+            <Grid<IVirtualRow>
+                sx={{ height: "100%", background: "transparent !important" }}
+                transparentPaper
+                data={data}
+                columns={columns}
+            />
+        </PaperView>
+    );
+};
 
 // Custom Paragraph component to preserve newlines and handle nested elements
 const CustomParagraph = (props: TypographyProps) => {
@@ -195,7 +324,22 @@ export const Markdown = ({ content }: IMarkdownProps) => {
                     component: CustomStrong, // Add custom strong component
                 },
                 table: {
-                    component: CustomTable,
+                    component: VirtualTable,
+                },
+                thead: {
+                    component: "thead",
+                },
+                tbody: {
+                    component: "tbody",
+                },
+                tr: {
+                    component: "tr",
+                },
+                th: {
+                    component: "th",
+                },
+                td: {
+                    component: "td",
                 },
             }}
         >
