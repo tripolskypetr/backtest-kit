@@ -4,6 +4,8 @@
 
 > Fixed-signal ladder strategy that opens a LONG on every new pending signal, then dollar-cost-averages down up to 10 steps while the position runs, closing at 3% portfolio profit.
 
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
@@ -12,6 +14,14 @@
 Each signal opens a $100 LONG via `Position.moonbag` (25% hard stop). While the position is active, `commitAverageBuy` fires whenever price moves outside a ±1–5% band around the last entry, adding another $100 rung up to 10 rungs total. The position closes as soon as portfolio PNL crosses +3%.
 
 **Strategy:** `apr_2026_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `apr_2026_frame`
+
+## 🚀 Quick Start
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/apr_2026.strategy)
+
+```bash
+npm start -- --backtest --symbol BTCUSDT --strategy apr_2026_strategy ./content/apr_2026.strategy/apr_2026.strategy.ts
+```
 
 ## 📉 Price Context (April 2026)
 

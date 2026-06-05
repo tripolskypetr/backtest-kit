@@ -15,10 +15,12 @@ const OUTPUT_DIR = "./docs/packages";
 const CLI_OUTPUT_DIR = "./docs/cli";
 const BEGIN_OUTPUT_DIR = "./docs/begin";
 const BEGIN_DIAGRAMS_DIR = "./docs/begin/diagrams";
+const STRATEGIES_OUTPUT_DIR = "./docs/strategies";
 
 const files = await glob("./packages/**/readme.md", { nodir: true, ignore: "**/node_modules/**" });
 const cliFiles = await glob("./cli/README.md", { nodir: true });
 const beginFiles = await glob("./example/docs/*.md", { nodir: true });
+const strategyFiles = await glob("./example/content/*.strategy/README.md", { nodir: true });
 
 if (existsSync(OUTPUT_DIR)) {
     await rm(OUTPUT_DIR, { recursive: true });
@@ -34,6 +36,11 @@ if (existsSync(BEGIN_OUTPUT_DIR)) {
     await rm(BEGIN_OUTPUT_DIR, { recursive: true });
 }
 await mkdir(BEGIN_OUTPUT_DIR, { recursive: true });
+
+if (existsSync(STRATEGIES_OUTPUT_DIR)) {
+    await rm(STRATEGIES_OUTPUT_DIR, { recursive: true });
+}
+await mkdir(STRATEGIES_OUTPUT_DIR, { recursive: true });
 
 await Promise.all(files.map(async (filePath) => {
     const content = await readFile(filePath, "utf-8");
@@ -88,6 +95,55 @@ await Promise.all(cliFiles.map(async (filePath) => {
     await writeFile(outputPath, newContent, "utf-8");
 }));
 
+// strategies/overview — example project README (Strategy Examples index)
+{
+    const rawReadme = await readFile("./example/README.md", "utf-8");
+    // Rewrite source links ./content/<name>.strategy/README.md -> ./<name>.md
+    // so they resolve to the flattened strategy docs in this directory.
+    const readmeContent = rawReadme.replace(
+        /\.\/content\/+([^./]+)\.strategy\/README\.md/gi,
+        "./$1.md"
+    );
+    const hasFrontmatter = readmeContent.trimStart().startsWith("---");
+    const newContent = hasFrontmatter
+        ? readmeContent
+        : str.newline(
+            `---`,
+            `title: strategies/overview`,
+            `group: strategies`,
+            `---`,
+            ``,
+            readmeContent
+        );
+    await writeFile(join(STRATEGIES_OUTPUT_DIR, "overview.md"), newContent, "utf-8");
+}
+
+// strategies/<name> — example strategy READMEs from example/content/*.strategy/README.md
+await Promise.all(strategyFiles.map(async (filePath) => {
+    const content = await readFile(filePath, "utf-8");
+
+    // Extract strategy name from path: example/content/apr_2024.strategy/README.md -> apr_2024
+    const parts = filePath.replace(/\\/g, "/").split("/");
+    const contentIdx = parts.indexOf("content");
+    const strategyName = (parts[contentIdx + 1] || "unknown").replace(/\.strategy$/, "");
+
+    const outputPath = join(STRATEGIES_OUTPUT_DIR, `${strategyName}.md`);
+
+    const hasFrontmatter = content.trimStart().startsWith("---");
+    const newContent = hasFrontmatter
+        ? content
+        : str.newline(
+            `---`,
+            `title: strategies/${strategyName}`,
+            `group: strategies`,
+            `---`,
+            ``,
+            content
+        );
+
+    await writeFile(outputPath, newContent, "utf-8");
+}));
+
 // begin/00-readme — example project README
 if (USE_EXAMPLE_README) {
     const readmeContent = await readFile("./example/README.md", "utf-8");
@@ -122,3 +178,4 @@ await Promise.all(diagramFiles.map(async (filePath) => {
 }));
 
 console.log(`[typedoc-packages-docs] Prepared ${files.length} package docs in ${OUTPUT_DIR}`);
+console.log(`[typedoc-packages-docs] Prepared ${strategyFiles.length} strategy docs in ${STRATEGIES_OUTPUT_DIR}`);

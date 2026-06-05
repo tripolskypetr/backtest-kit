@@ -4,6 +4,8 @@
 
 > Machine learning-based strategy that uses a TensorFlow neural network to predict next candle close prices.
 
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
@@ -12,6 +14,14 @@
 The strategy trains a simple feed-forward neural network (8→6→4→1 architecture) on normalized candle data every 8 hours. It predicts where the next candle will close within its high-low range. When current price is below the predicted price, it opens a $100 position via `Position.moonbag` with 1% hard stop. Positions close automatically via trailing take profit when profit retraces by 1% from peak.
 
 **Strategy:** `oct_2021_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `oct_2021_frame`
+
+## 🚀 Quick Start
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/oct_2021.strategy)
+
+```bash
+npm start -- --backtest --symbol BTCUSDT --strategy oct_2021_strategy ./content/oct_2021.strategy/oct_2021.strategy.ts
+```
 
 ## 🧠 Neural Network Architecture
 

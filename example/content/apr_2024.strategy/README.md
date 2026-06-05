@@ -4,6 +4,8 @@
 
 > Backtest that uses Polymarket "Bitcoin all-time high" probability shifts (Δprob) as a leading indicator for BTC direction, with a 1% trailing take-profit and 1% hard stop-loss.
 
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
@@ -12,6 +14,14 @@
 The strategy reads Polymarket CLOB daily snapshots (Δprob — change of "yes" probability for crypto-prices markets) from `assets/polymarket-backtest-result.json`. When `|Δprob| ≥ 0.10` and the snapshot is no older than 1h, it opens a position: `long` on positive Δprob, `short` on negative. The position runs with a 1% hard stop-loss and 1% trailing take-profit; if the trailing take never arms, the position closes after 24h.
 
 **Strategy:** `apr_2026_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `apr_2024_frame`
+
+## 🚀 Quick Start
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/apr_2024.strategy)
+
+```bash
+npm start -- --backtest --symbol BTCUSDT --strategy apr_2026_strategy ./content/apr_2024.strategy/apr_2024.strategy.ts
+```
 
 ## 🔍 Methodology
 

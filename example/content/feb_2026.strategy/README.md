@@ -15,6 +15,14 @@ An LLM reads live news from Tavily every few hours, produces a bullish / bearish
 
 **Strategy:** `feb_2026_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `feb_2026_frame`
 
+## 🚀 Quick Start
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2026.strategy)
+
+```bash
+npm start -- --backtest --symbol BTCUSDT --strategy feb_2026_strategy ./content/feb_2026.strategy/feb_2026.strategy.ts
+```
+
 ## 📉 Price Context (February 2026)
 
 | Metric | Value |

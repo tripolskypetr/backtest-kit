@@ -4,6 +4,8 @@
 
 > Pine Script indicator runs inside the strategy via `@backtest-kit/pinets`, computing Bollinger Bands, a range detector, and a volume-spike signal. Trades trigger on breakout from range, confirmed by volume.
 
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
@@ -12,6 +14,14 @@
 Each signal opens a $100 bracket position (±2% TP/SL) via `Position.bracket`. The Pine Script indicator (`btc_dec2025_range.pine`) runs on 1h candles with RSI length 14, cached per hour via `Cache.fn`. A signal fires only when price has not yet crossed the close price at signal time, and the market is not in a ranging regime (`isRanging === 0`).
 
 **Strategy:** `dec_2025_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `dec_2025_frame`
+
+## 🚀 Quick Start
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/dec_2025.strategy)
+
+```bash
+npm start -- --backtest --symbol BTCUSDT --strategy dec_2025_strategy ./content/dec_2025.strategy/dec_2025.strategy.ts
+```
 
 ## 📉 Price Context (December 2025)
 

@@ -4,6 +4,8 @@
 
 > Backtest that proves Crypto Yoda Channel signals work better in reverse: SHORT signals are opened as LONG, direction determined by 4h range midpoint.
 
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
@@ -12,6 +14,14 @@
 The strategy takes published signals from a real Telegram crypto channel (Crypto Yoda), enters at the same price zone and timestamp, but **inverts the direction** based on the 4h candle range midpoint. Positions close on a trailing take-profit (1% drawdown from peak) or peak staleness (peak >1% held for >240 min).
 
 **Strategy:** `jan_2026_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `jan_2026_frame`
+
+## 🚀 Quick Start
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/jan_2026.strategy)
+
+```bash
+npm start -- --backtest --symbol TRXUSDT --strategy jan_2026_strategy ./content/jan_2026.strategy/jan_2026.strategy.ts
+```
 
 ## 🔍 Methodology
 

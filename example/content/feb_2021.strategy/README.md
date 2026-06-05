@@ -4,6 +4,8 @@
 
 > Python-based (WASI) strategy that uses EMA(9) and EMA(21) crossover signals executed via WebAssembly. Trades trigger when fast EMA crosses slow EMA, confirmed by 4h range midpoint.
 
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
@@ -12,6 +14,14 @@
 Each signal opens a $100 bracket position (±2% TP/SL) via `Position.bracket`. The Python indicator (`strategy.py`) runs on 8h candles, cached per 8h via `Cache.fn`. A signal fires based on EMA crossover: if EMA(9) > EMA(21), open LONG; otherwise SELL.
 
 **Strategy:** `feb_2021_strategy` | **Exchange:** `ccxt-exchange` | **Frame:** `feb_2021_frame`
+
+## 🚀 Quick Start
+
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/example/content/feb_2021.strategy)
+
+```bash
+npm start -- --backtest --symbol DOTUSDT --strategy feb_2021_strategy ./content/feb_2021.strategy/feb_2021.strategy.ts
+```
 
 ## 📉 Price Context (February 2021)
 

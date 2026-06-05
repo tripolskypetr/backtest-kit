@@ -3,6 +3,7 @@ build/*
 node_modules
 .DS_Store
 wwwroot
+docs/strategies
 docs/packages
 docs/begin
 docs/cli
