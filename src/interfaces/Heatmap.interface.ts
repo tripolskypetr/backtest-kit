@@ -61,6 +61,14 @@ export interface IHeatmapRow {
   calmarRatio: number | null;
   /** Recovery Factor (totalPnl / maxDrawdown). Higher is better. */
   recoveryFactor: number | null;
+  /** Annualized Sharpe Ratio (sharpeRatio × √tradesPerYear). Higher is better. */
+  annualizedSharpeRatio: number | null;
+  /** Certainty Ratio (avgWin / |avgLoss|). Higher is better. */
+  certaintyRatio: number | null;
+  /** Expected yearly returns (geometric, capped at ±MAX_EXPECTED_YEARLY_RETURNS). Higher is better. */
+  expectedYearlyReturns: number | null;
+  /** Observed trade frequency extrapolated to one year (signals × 365 / calendarSpanDays). */
+  tradesPerYear: number | null;
 }
 
 /**

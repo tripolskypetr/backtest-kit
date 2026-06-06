@@ -59,6 +59,36 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     isVisible: () => true,
   },
   {
+    key: "annualizedSharpeRatio",
+    label: "Ann Sharpe",
+    format: (data) =>
+      data.annualizedSharpeRatio !== null ? str(data.annualizedSharpeRatio) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "certaintyRatio",
+    label: "Certainty",
+    format: (data) =>
+      data.certaintyRatio !== null ? str(data.certaintyRatio) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "expectedYearlyReturns",
+    label: "Exp Yearly",
+    format: (data) =>
+      data.expectedYearlyReturns !== null
+        ? str(data.expectedYearlyReturns, "%")
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "tradesPerYear",
+    label: "Trades/Yr",
+    format: (data) =>
+      data.tradesPerYear !== null ? data.tradesPerYear.toFixed(1) : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "profitFactor",
     label: "PF",
     format: (data) =>

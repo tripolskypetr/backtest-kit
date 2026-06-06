@@ -64,4 +64,16 @@ export interface HeatmapStatisticsModel {
 
   /** Pooled Expectancy: winProb*avgWin + lossProb*avgLoss (per-trade expected %). */
   portfolioExpectancy: number | null;
+
+  /** Pooled Annualized Sharpe Ratio (portfolioSharpeRatio × √portfolioTradesPerYear). Higher is better. */
+  portfolioAnnualizedSharpeRatio: number | null;
+
+  /** Pooled Certainty Ratio (pooledAvgWin / |pooledAvgLoss|). Higher is better. */
+  portfolioCertaintyRatio: number | null;
+
+  /** Pooled expected yearly returns (geometric annualization of pooled equity, capped at ±MAX_EXPECTED_YEARLY_RETURNS). */
+  portfolioExpectedYearlyReturns: number | null;
+
+  /** Pooled observed trade frequency extrapolated to one year. */
+  portfolioTradesPerYear: number | null;
 }

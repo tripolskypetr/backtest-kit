@@ -533,12 +533,39 @@ class HeatmapStorage {
       }
     }
 
+    // Annualized Sharpe — sharpeRatio × √tradesPerYear. Both inputs already
+    // carry their own gates (sharpeRatio: N>=MIN_SIGNALS_FOR_RATIOS + STDDEV_EPSILON;
+    // tradesPerYear: N>=MIN_SIGNALS_FOR_ANNUALIZATION + span>=MIN_CALENDAR_SPAN_DAYS
+    // + raw frequency under MAX_TRADES_PER_YEAR), so we just propagate nulls.
+    let annualizedSharpeRatio: number | null = null;
+    if (sharpeRatio !== null && tradesPerYear !== null && tradesPerYear > 0) {
+      annualizedSharpeRatio = sharpeRatio * Math.sqrt(tradesPerYear);
+    }
+
+    // Certainty Ratio = avgWin / |avgLoss|. Same gating shape as Backtest/Live:
+    // N >= MIN_SIGNALS_FOR_RATIOS, AND |avgLoss| above STDDEV_EPSILON (float-artifact
+    // losses near zero would otherwise produce spurious astronomical values).
+    let certaintyRatio: number | null = null;
+    if (
+      canComputeRatios &&
+      avgWin !== null &&
+      avgLoss !== null &&
+      avgLoss < 0 &&
+      Math.abs(avgLoss) > STDDEV_EPSILON
+    ) {
+      certaintyRatio = avgWin / Math.abs(avgLoss);
+    }
+
     // Apply safe math checks
     if (isUnsafe(winRate)) winRate = null;
     if (isUnsafe(totalPnl)) totalPnl = null;
     if (isUnsafe(avgPnl)) avgPnl = null;
     if (isUnsafe(stdDev)) stdDev = null;
     if (isUnsafe(sharpeRatio)) sharpeRatio = null;
+    if (isUnsafe(annualizedSharpeRatio)) annualizedSharpeRatio = null;
+    if (isUnsafe(certaintyRatio)) certaintyRatio = null;
+    if (isUnsafe(expectedYearlyReturns)) expectedYearlyReturns = null;
+    if (isUnsafe(tradesPerYear)) tradesPerYear = null;
     if (isUnsafe(maxDrawdown)) maxDrawdown = null;
     if (isUnsafe(profitFactor)) profitFactor = null;
     if (isUnsafe(avgWin)) avgWin = null;
@@ -588,6 +615,10 @@ class HeatmapStorage {
       sortinoRatio,
       calmarRatio,
       recoveryFactor,
+      annualizedSharpeRatio,
+      certaintyRatio,
+      expectedYearlyReturns,
+      tradesPerYear,
     };
   }
 
@@ -652,6 +683,10 @@ class HeatmapStorage {
     let portfolioExpectancy: number | null = null;
     let portfolioCalmarRatio: number | null = null;
     let portfolioRecoveryFactor: number | null = null;
+    let portfolioAnnualizedSharpeRatio: number | null = null;
+    let portfolioCertaintyRatio: number | null = null;
+    let portfolioExpectedYearlyReturns: number | null = null;
+    let portfolioTradesPerYear: number | null = null;
     const allReturns: number[] = [];
     // Parallel array of intra-trade troughs (≤ 0), aligned 1:1 with allReturns,
     // used for mark-to-market DD in the pooled equity curve below.
@@ -701,6 +736,13 @@ class HeatmapStorage {
         portfolioExpectancy = (wins.length / total) * avgWin + (losses.length / total) * avgLoss;
       }
 
+      // Pooled Certainty Ratio = pooledAvgWin / |pooledAvgLoss|. Same STDDEV_EPSILON
+      // guard as per-symbol — protects against float-artifact losses producing
+      // spuriously astronomical values.
+      if (losses.length > 0 && Math.abs(avgLoss) > STDDEV_EPSILON && avgLoss < 0) {
+        portfolioCertaintyRatio = avgWin / Math.abs(avgLoss);
+      }
+
       // Pooled equity-curve max drawdown (compounded). MARK-TO-MARKET: each trade's
       // intra-trade trough (allFalls, ≤ 0) is applied before booking the realized close,
       // so deep round-trip dips are captured rather than understating DD.
@@ -737,7 +779,6 @@ class HeatmapStorage {
       // calendar span (≥ MIN_CALENDAR_SPAN_DAYS) and a non-clustered trade
       // frequency (≤ MAX_TRADES_PER_YEAR). Above MAX_EXPECTED_YEARLY_RETURNS → null
       // (don't surface the cap as a real figure). This is the numerator for Calmar.
-      let pooledExpectedYearlyReturns: number | null = null;
       const poolSpanDays =
         isFinite(poolFirstPendingAt) && isFinite(poolLastCloseAt)
           ? (poolLastCloseAt - poolFirstPendingAt) / (1000 * 60 * 60 * 24)
@@ -745,14 +786,26 @@ class HeatmapStorage {
       if (poolSpanDays >= MIN_CALENDAR_SPAN_DAYS) {
         const rawTradesPerYear = (allReturns.length / poolSpanDays) * 365;
         if (rawTradesPerYear <= MAX_TRADES_PER_YEAR) {
+          portfolioTradesPerYear = rawTradesPerYear;
           if (blown) {
-            pooledExpectedYearlyReturns = -100;
+            portfolioExpectedYearlyReturns = -100;
           } else {
             const raw = (Math.pow(equityFinal, rawTradesPerYear / allReturns.length) - 1) * 100;
-            pooledExpectedYearlyReturns =
+            portfolioExpectedYearlyReturns =
               Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
           }
         }
+      }
+
+      // Pooled Annualized Sharpe — pooledSharpe × √pooledTradesPerYear. Both
+      // gates already enforced upstream; just propagate nulls.
+      if (
+        portfolioSharpeRatio !== null &&
+        portfolioTradesPerYear !== null &&
+        portfolioTradesPerYear > 0
+      ) {
+        portfolioAnnualizedSharpeRatio =
+          portfolioSharpeRatio * Math.sqrt(portfolioTradesPerYear);
       }
 
       // Pooled Calmar = annualized return / max drawdown — same formula and
@@ -760,10 +813,10 @@ class HeatmapStorage {
       // unavailable (span/frequency gate, or over the yearly cap). This is what
       // distinguishes it from Recovery, which uses the compounded TOTAL return —
       // previously both used total return, making Calmar == Recovery (a bug).
-      if (maxDD > 0 && pooledExpectedYearlyReturns !== null) {
+      if (maxDD > 0 && portfolioExpectedYearlyReturns !== null) {
         portfolioCalmarRatio = Math.max(
           -MAX_CALMAR_RATIO,
-          Math.min(MAX_CALMAR_RATIO, pooledExpectedYearlyReturns / maxDD),
+          Math.min(MAX_CALMAR_RATIO, portfolioExpectedYearlyReturns / maxDD),
         );
       }
 
@@ -898,6 +951,10 @@ class HeatmapStorage {
     if (isUnsafe(portfolioAvgConsecutiveLossPnl)) portfolioAvgConsecutiveLossPnl = null;
     if (isUnsafe(portfolioAvgWinDuration)) portfolioAvgWinDuration = null;
     if (isUnsafe(portfolioAvgLossDuration)) portfolioAvgLossDuration = null;
+    if (isUnsafe(portfolioAnnualizedSharpeRatio)) portfolioAnnualizedSharpeRatio = null;
+    if (isUnsafe(portfolioCertaintyRatio)) portfolioCertaintyRatio = null;
+    if (isUnsafe(portfolioExpectedYearlyReturns)) portfolioExpectedYearlyReturns = null;
+    if (isUnsafe(portfolioTradesPerYear)) portfolioTradesPerYear = null;
 
     return {
       symbols,
@@ -920,6 +977,10 @@ class HeatmapStorage {
       portfolioAvgConsecutiveLossPnl,
       portfolioAvgWinDuration,
       portfolioAvgLossDuration,
+      portfolioAnnualizedSharpeRatio,
+      portfolioCertaintyRatio,
+      portfolioExpectedYearlyReturns,
+      portfolioTradesPerYear,
     };
   }
 
@@ -983,6 +1044,10 @@ class HeatmapStorage {
       `**Total Symbols:** ${data.totalSymbols}`,
       `**Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"}`,
       `**Pooled Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio) : "N/A"}`,
+      `**Annualized Sharpe:** ${data.portfolioAnnualizedSharpeRatio !== null ? str(data.portfolioAnnualizedSharpeRatio) : "N/A"}`,
+      `**Certainty Ratio:** ${data.portfolioCertaintyRatio !== null ? str(data.portfolioCertaintyRatio) : "N/A"}`,
+      `**Expected Yearly Returns:** ${data.portfolioExpectedYearlyReturns !== null ? str(data.portfolioExpectedYearlyReturns, "%") : "N/A"}`,
+      `**Trades Per Year:** ${data.portfolioTradesPerYear !== null ? data.portfolioTradesPerYear.toFixed(1) : "N/A"}`,
       `**Total Trades:** ${data.portfolioTotalTrades}`,
       `**Avg Peak PNL:** ${data.portfolioAvgPeakPnl !== null ? str(data.portfolioAvgPeakPnl, "%") : "N/A"}`,
       `**Avg Max Drawdown PNL:** ${data.portfolioAvgFallPnl !== null ? str(data.portfolioAvgFallPnl, "%") : "N/A"}`,
@@ -1004,15 +1069,25 @@ class HeatmapStorage {
       "",
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Pooled Sharpe: Sharpe computed over all trades across symbols treated as one sample. NOT a Markowitz portfolio Sharpe — ignores cross-symbol correlations and capital allocation. N/A unless ≥${MIN_SIGNALS_FOR_RATIOS} pooled trades.*`,
+      `*Annualized Sharpe: per-trade Sharpe × √tradesPerYear. N/A unless the underlying Sharpe and tradesPerYear are both available (≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals, span ≥${MIN_CALENDAR_SPAN_DAYS} days, raw frequency ≤${MAX_TRADES_PER_YEAR}). Assumes returns are iid — autocorrelated strategies are overstated.*`,
+      `*Certainty Ratio: avgWin / |avgLoss|. Below 1.0 means average loss exceeds average win. Above 1.5 is considered good. N/A when no losing trades or |avgLoss| is sub-epsilon.*`,
+      `*Expected Yearly Returns: compounded geometric return from the equity curve, annualized by tradesPerYear. Same gating as Annualized Sharpe. Capped at ±${MAX_EXPECTED_YEARLY_RETURNS}% — values above the cap return N/A.*`,
+      `*Trades Per Year: observed trade frequency extrapolated to one year (signals × 365 / calendarSpanDays). N/A when too few signals or too short a calendar span; also null when the raw frequency exceeds ${MAX_TRADES_PER_YEAR} (too clustered for reliable annualization).*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals per symbol.*`,
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals. N/A when no losing trades — Sortino is mathematically undefined (infinite) and we cannot distinguish "truly flawless" from "lucky streak so far".*`,
       `*Profit Factor: below 1.0 means strategy is losing overall. Above 1.5 is considered good.*`,
       `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is the mark-to-market max drawdown (see below). N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals per symbol and span ≥${MIN_CALENDAR_SPAN_DAYS} days. Capped at ±${MAX_CALMAR_RATIO}.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good. Uses compounded total return as numerator and the mark-to-market max drawdown as denominator.*`,
+      `*Expectancy: per-trade expected value (winProb × avgWin + lossProb × avgLoss). Positive = profitable on average per trade. Break-even trades contribute 0.*`,
+      `*Median PNL: middle value of the pnl distribution. Robust to outliers; compare to Average PNL — a large gap signals a skewed distribution (e.g. one whale trade dragging the mean).*`,
+      `*Avg Peak PNL / Avg Max Drawdown PNL: mean of per-trade _peak.pnlPercentage / _fall.pnlPercentage. Higher avg-peak with deeper avg-drawdown means strategy needs to tolerate bigger swings to capture the upside.*`,
+      `*Peak Profit PNL / Max Drawdown PNL: extremes — the best best-case and worst worst-case observed across all trades. Tail behaviour the averages hide.*`,
+      `*Avg Duration / Avg Win Duration / Avg Loss Duration: mean hold time in minutes (closeTimestamp - pendingAt). Winner-shorter-than-loser is a red flag ("cut winners short, let losers run").*`,
+      `*Avg Consecutive Win/Loss PNL: average sum of pnlPercentage across consecutive streaks. Pairs with max streak length to show the typical (not worst-case) streak magnitude. Portfolio uses trade-count-weighted mean of per-symbol streak averages — concatenating streaks across symbols would be meaningless (different markets, different timeframes).*`,
       `*Max Drawdown: mark-to-market — both the per-symbol and pooled equity curves apply each trade's worst intra-trade excursion (the lowest unrealized point while the position was open) before booking its realized close, so deep round-trip dips count. It is NOT realized-only (close-to-close); a realized-only curve would understate drawdown and inflate Calmar/Recovery. NOTE: the pooled curve orders trades by storage sequence, not wall-clock time, so simultaneous cross-symbol drawdowns are not modelled.*`,
       `*All metrics require 100+ signals per symbol to be statistically reliable. Annualized metrics assume the observed trading frequency persists year-round.*`,
       `*IMPORTANT: Per-symbol equity curve, Expected Yearly Returns, Calmar, Recovery and Max Drawdown all assume **100% capital allocation per position** (no portfolio fraction). These metrics ignore the position-sizing subsystem (PositionSize / Kelly / ATR): pnlPercentage is a return on the position's own invested capital, never scaled by account balance. With DCA (commitAverageBuy) the cost basis is the sum of all entries and the entry price is dollar-cost-weighted, so per-trade % is measured against the averaged position, not a fixed stake. If your strategy risks X% of capital per trade, the realized return / drawdown will be roughly X/100 of the reported figures — these metrics represent a theoretical upper bound under full allocation.*`,
-      `*Negative values for Sharpe / Sortino / Calmar / Recovery indicate a losing symbol (avgPnl < 0 or totalPnl < 0). "Higher is better" still applies — closer to zero is less bad, positive is profitable.*`,
+      `*Negative values for Sharpe / Annualized Sharpe / Sortino / Calmar / Recovery / Expectancy / Expected Yearly Returns indicate a losing symbol (avgPnl < 0 or totalPnl < 0). "Higher is better" still applies — closer to zero is less bad, positive is profitable.*`,
     ].join("\n");
   }
 
