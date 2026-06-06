@@ -74,4 +74,22 @@ export interface BacktestStatisticsModel {
 
   /** Per-trade Expectancy (winProb*avgWin + lossProb*avgLoss), null if unsafe. Higher is better. */
   expectancy: number | null;
+
+  /** Average trade duration in minutes ((closeTimestamp - pendingAt) / 60_000), null if unsafe. */
+  avgDuration: number | null;
+
+  /** Median pnlPercentage — robust to outliers; reveals distribution skew when paired with avgPnl. */
+  medianPnl: number | null;
+
+  /** Average sum of pnlPercentage across consecutive winning streaks. Null if no win streak. */
+  avgConsecutiveWinPnl: number | null;
+
+  /** Average sum of pnlPercentage across consecutive losing streaks. Null if no loss streak. Closer to 0 is better. */
+  avgConsecutiveLossPnl: number | null;
+
+  /** Average duration in minutes of winning trades. */
+  avgWinDuration: number | null;
+
+  /** Average duration in minutes of losing trades. */
+  avgLossDuration: number | null;
 }

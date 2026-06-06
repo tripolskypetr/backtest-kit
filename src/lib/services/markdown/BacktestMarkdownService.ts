@@ -192,6 +192,12 @@ class ReportStorage {
         calmarRatio: null,
         recoveryFactor: null,
         expectancy: null,
+        avgDuration: null,
+        medianPnl: null,
+        avgConsecutiveWinPnl: null,
+        avgConsecutiveLossPnl: null,
+        avgWinDuration: null,
+        avgLossDuration: null,
       };
     }
 
@@ -350,6 +356,98 @@ class ReportStorage {
       ? (wins.length / totalSignals) * avgWin + (losses.length / totalSignals) * avgLoss
       : null;
 
+    // Median pnlPercentage — robust to outliers; reveals skew when avgPnl is
+    // dragged by a whale trade. Sort a copy (do not mutate validSignals).
+    let medianPnl: number | null = null;
+    if (returns.length > 0) {
+      const sortedReturns = returns.slice().sort((a, b) => a - b);
+      const mid = sortedReturns.length >> 1;
+      medianPnl = sortedReturns.length % 2 === 0
+        ? (sortedReturns[mid - 1] + sortedReturns[mid]) / 2
+        : sortedReturns[mid];
+    }
+
+    // Trade duration metrics in minutes (synchronized with strategy
+    // `minuteEstimatedTime`). validSignals already requires pendingAt > 0 and
+    // closeTimestamp > 0, so every signal here contributes a valid duration.
+    let avgDuration: number | null = null;
+    let avgWinDuration: number | null = null;
+    let avgLossDuration: number | null = null;
+    if (totalSignals > 0) {
+      const durations: number[] = [];
+      const winDurations: number[] = [];
+      const lossDurations: number[] = [];
+      for (const s of validSignals) {
+        const minutes = (s.closeTimestamp - s.signal.pendingAt) / 60_000;
+        durations.push(minutes);
+        const pnl = s.pnl.pnlPercentage;
+        if (pnl > 0) winDurations.push(minutes);
+        else if (pnl < 0) lossDurations.push(minutes);
+      }
+      avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+      if (winDurations.length > 0) {
+        avgWinDuration = winDurations.reduce((a, b) => a + b, 0) / winDurations.length;
+      }
+      if (lossDurations.length > 0) {
+        avgLossDuration = lossDurations.reduce((a, b) => a + b, 0) / lossDurations.length;
+      }
+    }
+
+    // Consecutive streak averages: sum the per-streak pnl, then mean across
+    // streaks. Storage is newest-first, so iterate in reverse for chronological
+    // streaks. Break-even (pnl=0) closes both runs (neither a win nor a loss).
+    let avgConsecutiveWinPnl: number | null = null;
+    let avgConsecutiveLossPnl: number | null = null;
+    {
+      const winStreakSums: number[] = [];
+      const lossStreakSums: number[] = [];
+      let curWin = 0;
+      let curLoss = 0;
+      let curWinSum = 0;
+      let curLossSum = 0;
+      for (let i = validSignals.length - 1; i >= 0; i--) {
+        const pnl = validSignals[i].pnl.pnlPercentage;
+        if (pnl > 0) {
+          if (curLoss > 0) {
+            lossStreakSums.push(curLossSum);
+            curLoss = 0;
+            curLossSum = 0;
+          }
+          curWin++;
+          curWinSum += pnl;
+        } else if (pnl < 0) {
+          if (curWin > 0) {
+            winStreakSums.push(curWinSum);
+            curWin = 0;
+            curWinSum = 0;
+          }
+          curLoss++;
+          curLossSum += pnl;
+        } else {
+          if (curWin > 0) {
+            winStreakSums.push(curWinSum);
+            curWin = 0;
+            curWinSum = 0;
+          }
+          if (curLoss > 0) {
+            lossStreakSums.push(curLossSum);
+            curLoss = 0;
+            curLossSum = 0;
+          }
+        }
+      }
+      if (curWin > 0) winStreakSums.push(curWinSum);
+      if (curLoss > 0) lossStreakSums.push(curLossSum);
+      if (winStreakSums.length > 0) {
+        avgConsecutiveWinPnl =
+          winStreakSums.reduce((a, b) => a + b, 0) / winStreakSums.length;
+      }
+      if (lossStreakSums.length > 0) {
+        avgConsecutiveLossPnl =
+          lossStreakSums.reduce((a, b) => a + b, 0) / lossStreakSums.length;
+      }
+    }
+
     // Average peak/fall PNL — over validSignals; only signals that actually have the
     // value contribute (no zero dilution from missing peakProfit/maxDrawdown).
     const peakValues = validSignals
@@ -419,6 +517,12 @@ class ReportStorage {
       calmarRatio: isUnsafe(calmarRatio) ? null : calmarRatio,
       recoveryFactor: isUnsafe(recoveryFactor) ? null : recoveryFactor,
       expectancy: isUnsafe(expectancy) ? null : expectancy,
+      avgDuration: isUnsafe(avgDuration) ? null : avgDuration,
+      medianPnl: isUnsafe(medianPnl) ? null : medianPnl,
+      avgConsecutiveWinPnl: isUnsafe(avgConsecutiveWinPnl) ? null : avgConsecutiveWinPnl,
+      avgConsecutiveLossPnl: isUnsafe(avgConsecutiveLossPnl) ? null : avgConsecutiveLossPnl,
+      avgWinDuration: isUnsafe(avgWinDuration) ? null : avgWinDuration,
+      avgLossDuration: isUnsafe(avgLossDuration) ? null : avgLossDuration,
     };
   }
 
@@ -481,6 +585,12 @@ class ReportStorage {
       `**Calmar Ratio:** ${stats.calmarRatio === null ? "N/A" : `${stats.calmarRatio.toFixed(3)} (higher is better)`}`,
       `**Recovery Factor:** ${stats.recoveryFactor === null ? "N/A" : `${stats.recoveryFactor.toFixed(3)} (higher is better)`}`,
       `**Expectancy:** ${stats.expectancy === null ? "N/A" : `${stats.expectancy > 0 ? "+" : ""}${stats.expectancy.toFixed(3)}% (higher is better)`}`,
+      `**Median PNL:** ${stats.medianPnl === null ? "N/A" : `${stats.medianPnl > 0 ? "+" : ""}${stats.medianPnl.toFixed(3)}% (closer to avgPnl = symmetric distribution)`}`,
+      `**Avg Duration:** ${stats.avgDuration === null ? "N/A" : `${stats.avgDuration.toFixed(1)} min`}`,
+      `**Avg Win Duration:** ${stats.avgWinDuration === null ? "N/A" : `${stats.avgWinDuration.toFixed(1)} min`}`,
+      `**Avg Loss Duration:** ${stats.avgLossDuration === null ? "N/A" : `${stats.avgLossDuration.toFixed(1)} min`}`,
+      `**Avg Consecutive Win PNL:** ${stats.avgConsecutiveWinPnl === null ? "N/A" : `${stats.avgConsecutiveWinPnl > 0 ? "+" : ""}${stats.avgConsecutiveWinPnl.toFixed(3)}% (higher is better)`}`,
+      `**Avg Consecutive Loss PNL:** ${stats.avgConsecutiveLossPnl === null ? "N/A" : `${stats.avgConsecutiveLossPnl.toFixed(3)}% (closer to 0 is better)`}`,
       "",
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
