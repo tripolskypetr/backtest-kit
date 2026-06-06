@@ -283,13 +283,21 @@ class ReportStorage {
     // mark-to-market low); equity then moves to the realized close.
     // If equity (at trough or close) goes ≤ 0 (e.g. leveraged loss < -100%) — account
     // blown, fix DD at 100% and stop walking the curve.
+    // Walk the equity curve in chronological close order. Storage is
+    // newest-first (unshift on addSignal); reverse-storage iteration normally
+    // gives chronological order, but explicitly sorting by closeTimestamp
+    // removes the dependency on insertion-order matching close-order (which
+    // can break under crash recovery, signal backfill, or disk replays).
+    const orderedSignals = [...validSignals].sort(
+      (a, b) => a.closeTimestamp - b.closeTimestamp,
+    );
     let equity = 1;
     let peak = 1;
     let equityMaxDrawdown = 0;
     let blown = false;
-    for (let i = validSignals.length - 1; i >= 0; i--) {
+    for (const s of orderedSignals) {
       // Intra-trade trough — mark-to-market low while the position was open.
-      const fallPct = validSignals[i].signal.maxDrawdown?.pnlPercentage;
+      const fallPct = s.signal.maxDrawdown?.pnlPercentage;
       if (typeof fallPct === "number" && fallPct < 0) {
         const trough = equity * (1 + fallPct / 100);
         if (trough <= 0) {
@@ -301,7 +309,7 @@ class ReportStorage {
         if (troughDd > equityMaxDrawdown) equityMaxDrawdown = troughDd;
       }
       // Realized close — book the final per-trade result.
-      equity *= 1 + validSignals[i].pnl.pnlPercentage / 100;
+      equity *= 1 + s.pnl.pnlPercentage / 100;
       if (equity <= 0) {
         equityMaxDrawdown = 100;
         blown = true;

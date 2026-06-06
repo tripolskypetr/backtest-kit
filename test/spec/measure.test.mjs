@@ -54,6 +54,10 @@ const computeReference = (rows) => {
       typeof r.pendingAt === "number" && r.pendingAt > 0 &&
       typeof r.updatedAt === "number" && r.updatedAt > 0
   );
+  // Equity curve walks in chronological close order — mirrors the post-fix
+  // BacktestMarkdownService / LiveMarkdownService (both explicitly sort by
+  // closeTimestamp / event.timestamp so out-of-order ingest can't reshape DD).
+  valid.sort((a, b) => a.updatedAt - b.updatedAt);
   const n = valid.length;
   const returns = valid.map((r) => r.pnl.pnlPercentage);
   // Intra-trade troughs (≤ 0) aligned with returns — mark-to-market DD input.

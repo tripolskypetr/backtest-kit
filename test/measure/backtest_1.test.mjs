@@ -86,11 +86,17 @@ const equityMaxDrawdown = (returns, falls = null) => {
  * computed over a pooled series, as a second source of truth.
  */
 const computePoolReference = (rows) => {
-  const valid = rows.filter(
-    (r) =>
-      typeof r.pendingAt === "number" && r.pendingAt > 0 &&
-      typeof r.updatedAt === "number" && r.updatedAt > 0
-  );
+  const valid = rows
+    .filter(
+      (r) =>
+        typeof r.pendingAt === "number" && r.pendingAt > 0 &&
+        typeof r.updatedAt === "number" && r.updatedAt > 0
+    )
+    // Equity curve walks in chronological close order — mirrors
+    // BacktestMarkdownService / LiveMarkdownService, both sort by
+    // closeTimestamp / event.timestamp so out-of-order ingest (crash recovery,
+    // backfill) doesn't reshape DD.
+    .sort((a, b) => a.updatedAt - b.updatedAt);
   const n = valid.length;
   const returns = valid.map((r) => r.pnl.pnlPercentage);
   const falls = valid.map((r) => {
@@ -173,7 +179,11 @@ const computeHeatReference = (rows) => {
     bySymbol.get(r.symbol).push(r);
   }
   const perSymbol = {};
-  for (const [symbol, sigs] of bySymbol.entries()) {
+  for (const [symbol, sigsRaw] of bySymbol.entries()) {
+    // Mirror HeatMarkdownService.calculateSymbolStats: walk chronologically
+    // by closeTimestamp (`updatedAt` on the row) so the per-symbol equity
+    // curve doesn't depend on insertion order.
+    const sigs = [...sigsRaw].sort((a, b) => a.updatedAt - b.updatedAt);
     const returns = sigs.map((s) => s.pnl.pnlPercentage);
     const falls = sigs.map((s) => {
       const f = s.maxDrawdown?.pnlPercentage;

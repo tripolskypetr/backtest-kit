@@ -254,11 +254,18 @@ class HeatmapStorage {
     let equityFinal = 1;
     let blown = false;
     if (signals.length > 0) {
+      // Walk the per-symbol equity curve in chronological close order.
+      // Storage is newest-first (unshift on addSignal), but if signals were
+      // ingested out-of-order (e.g. Live + crash recovery loading from disk in
+      // arbitrary order, or a backfill replay), reverse-storage iteration
+      // would misplace peak/trough and silently distort maxDrawdown. Sorting
+      // by closeTimestamp explicitly removes that dependency.
+      const ordered = [...signals].sort((a, b) => a.closeTimestamp - b.closeTimestamp);
       let equity = 1;
       let peak = 1;
       let maxDD = 0;
-      for (let i = signals.length - 1; i >= 0; i--) {
-        const fallPct = signals[i].signal.maxDrawdown?.pnlPercentage;
+      for (const s of ordered) {
+        const fallPct = s.signal.maxDrawdown?.pnlPercentage;
         if (typeof fallPct === "number" && fallPct < 0) {
           const trough = equity * (1 + fallPct / 100);
           if (trough <= 0) {
@@ -269,7 +276,7 @@ class HeatmapStorage {
           const troughDd = (peak - trough) / peak * 100;
           if (troughDd > maxDD) maxDD = troughDd;
         }
-        equity *= 1 + signals[i].pnl.pnlPercentage / 100;
+        equity *= 1 + s.pnl.pnlPercentage / 100;
         if (equity <= 0) {
           maxDD = 100;
           blown = true;

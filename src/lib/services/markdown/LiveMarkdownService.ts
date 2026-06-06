@@ -694,14 +694,20 @@ class ReportStorage {
     // snapshot, ≤ 0) is applied as a trough BEFORE booking the realized close. Without it
     // the curve only steps at close, so a trade that dipped to -18% and recovered to +2%
     // would register zero drawdown — understating DD and inflating Calmar/Recovery.
-    const chronological: { r: number; fall: number | null }[] = [];
-    for (let i = validClosed.length - 1; i >= 0; i--) {
-      const fall = validClosed[i].fallPnl;
-      chronological.push({
-        r: validClosed[i].pnl as number,
-        fall: typeof fall === "number" ? fall : null,
-      });
-    }
+    // Walk the equity curve in chronological close order. Reverse-storage
+    // iteration (newest-first storage → reverse) normally yields chronological
+    // order for live ingest, but explicitly sorting by event.timestamp removes
+    // the dependency on insertion-order matching close-order. This matters
+    // under crash recovery (events reloaded from disk in arbitrary order) and
+    // when ingest latency reorders closed events relative to wall-clock time.
+    const chronological: { r: number; fall: number | null }[] = validClosed
+      .map((e) => ({
+        r: e.pnl as number,
+        fall: typeof e.fallPnl === "number" ? e.fallPnl : null,
+        ts: e.timestamp,
+      }))
+      .sort((a, b) => a.ts - b.ts)
+      .map(({ r, fall }) => ({ r, fall }));
     let equity = 1;
     let peak = 1;
     let equityMaxDrawdown = 0;

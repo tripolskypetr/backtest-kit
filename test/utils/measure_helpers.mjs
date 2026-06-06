@@ -92,13 +92,19 @@ export const equityMaxDrawdown = (returns, falls = null) => {
  * .maxDrawdown) and filters validSignals exactly like the service does.
  */
 export const computePoolReference = (rows) => {
-  const valid = rows.filter(
-    (r) =>
-      typeof r.pendingAt === "number" &&
-      r.pendingAt > 0 &&
-      typeof r.updatedAt === "number" &&
-      r.updatedAt > 0,
-  );
+  const valid = rows
+    .filter(
+      (r) =>
+        typeof r.pendingAt === "number" &&
+        r.pendingAt > 0 &&
+        typeof r.updatedAt === "number" &&
+        r.updatedAt > 0,
+    )
+    // Equity curve walks in chronological close order (mirrors the post-fix
+    // BacktestMarkdownService / LiveMarkdownService — both explicitly sort by
+    // closeTimestamp / event.timestamp before building the curve so that
+    // out-of-order ingest (crash recovery, backfill) doesn't reshape DD).
+    .sort((a, b) => a.updatedAt - b.updatedAt);
   const n = valid.length;
   if (n === 0) return null;
 
@@ -230,7 +236,11 @@ export const computeHeatReference = (rows) => {
     bySymbol.get(r.symbol).push(r);
   }
   const perSymbol = {};
-  for (const [symbol, sigs] of bySymbol.entries()) {
+  for (const [symbol, sigsRaw] of bySymbol.entries()) {
+    // Sort per-symbol signals by closeTimestamp (`updatedAt` on the row) to
+    // match HeatMarkdownService.calculateSymbolStats — the per-symbol equity
+    // curve walks chronologically so out-of-order ingest doesn't distort DD.
+    const sigs = [...sigsRaw].sort((a, b) => a.updatedAt - b.updatedAt);
     const returns = sigs.map((s) => s.pnl.pnlPercentage);
     const falls = sigs.map((s) => {
       const f = s.maxDrawdown?.pnlPercentage;
