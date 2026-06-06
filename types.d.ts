@@ -10727,6 +10727,22 @@ interface IHeatmapRow {
     avgPeakPnl: number | null;
     /** Average fall PNL percentage across all trades (_fall.pnlPercentage). Closer to 0 is better. */
     avgFallPnl: number | null;
+    /** Maximum peak PNL percentage observed across all trades (best best-case). Higher is better. */
+    peakProfitPnl: number | null;
+    /** Minimum fall PNL percentage observed across all trades (worst worst-case). Closer to 0 is better. */
+    maxDrawdownPnl: number | null;
+    /** Average trade duration in minutes ((closeTimestamp - pendingAt) / 60_000). */
+    avgDuration: number | null;
+    /** Median pnlPercentage — robust to outliers; reveals distribution skew when paired with avgPnl. */
+    medianPnl: number | null;
+    /** Average sum of pnlPercentage across consecutive winning streaks. Null if no win streak. */
+    avgConsecutiveWinPnl: number | null;
+    /** Average sum of pnlPercentage across consecutive losing streaks. Null if no loss streak. Closer to 0 is better. */
+    avgConsecutiveLossPnl: number | null;
+    /** Average duration in minutes of winning trades. */
+    avgWinDuration: number | null;
+    /** Average duration in minutes of losing trades. */
+    avgLossDuration: number | null;
     /** Sortino Ratio (avgPnl / downside deviation — RMS of losing trades only). Higher is better. */
     sortinoRatio: number | null;
     /** Calmar Ratio (totalPnl / maxDrawdown). Higher is better. */
@@ -12634,6 +12650,22 @@ interface HeatmapStatisticsModel {
     portfolioAvgPeakPnl: number | null;
     /** Trade-count-weighted average fall PNL across all symbols. Closer to 0 is better. */
     portfolioAvgFallPnl: number | null;
+    /** Maximum peak PNL across all trades of all symbols (best best-case). Higher is better. */
+    portfolioPeakProfitPnl: number | null;
+    /** Minimum fall PNL across all trades of all symbols (worst worst-case). Closer to 0 is better. */
+    portfolioMaxDrawdownPnl: number | null;
+    /** Pooled average trade duration in minutes across all trades of all symbols. */
+    portfolioAvgDuration: number | null;
+    /** Pooled median pnlPercentage across all trades of all symbols. */
+    portfolioMedianPnl: number | null;
+    /** Trade-count-weighted mean of per-symbol avgConsecutiveWinPnl. Null if no symbol has a win streak. */
+    portfolioAvgConsecutiveWinPnl: number | null;
+    /** Trade-count-weighted mean of per-symbol avgConsecutiveLossPnl. Null if no symbol has a loss streak. */
+    portfolioAvgConsecutiveLossPnl: number | null;
+    /** Pooled average duration in minutes of winning trades. */
+    portfolioAvgWinDuration: number | null;
+    /** Pooled average duration in minutes of losing trades. */
+    portfolioAvgLossDuration: number | null;
     /** Pooled sample standard deviation of returns across all symbols. */
     portfolioStdDev: number | null;
     /** Pooled Sortino Ratio over all trades. Same canonical formula as per-symbol. */

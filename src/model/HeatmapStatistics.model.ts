@@ -26,6 +26,30 @@ export interface HeatmapStatisticsModel {
   /** Trade-count-weighted average fall PNL across all symbols. Closer to 0 is better. */
   portfolioAvgFallPnl: number | null;
 
+  /** Maximum peak PNL across all trades of all symbols (best best-case). Higher is better. */
+  portfolioPeakProfitPnl: number | null;
+
+  /** Minimum fall PNL across all trades of all symbols (worst worst-case). Closer to 0 is better. */
+  portfolioMaxDrawdownPnl: number | null;
+
+  /** Pooled average trade duration in minutes across all trades of all symbols. */
+  portfolioAvgDuration: number | null;
+
+  /** Pooled median pnlPercentage across all trades of all symbols. */
+  portfolioMedianPnl: number | null;
+
+  /** Trade-count-weighted mean of per-symbol avgConsecutiveWinPnl. Null if no symbol has a win streak. */
+  portfolioAvgConsecutiveWinPnl: number | null;
+
+  /** Trade-count-weighted mean of per-symbol avgConsecutiveLossPnl. Null if no symbol has a loss streak. */
+  portfolioAvgConsecutiveLossPnl: number | null;
+
+  /** Pooled average duration in minutes of winning trades. */
+  portfolioAvgWinDuration: number | null;
+
+  /** Pooled average duration in minutes of losing trades. */
+  portfolioAvgLossDuration: number | null;
+
   /** Pooled sample standard deviation of returns across all symbols. */
   portfolioStdDev: number | null;
 

@@ -317,26 +317,109 @@ class HeatmapStorage {
           .reduce((acc, s) => acc + s.pnl.pnlPercentage, 0) / lossCount;
     }
 
-    // Calculate Win/Loss Streaks
+    // Calculate Win/Loss Streaks AND per-streak pnl sums.
+    // A streak is a run of same-signed trades; break-even (pnl=0) ends both runs.
+    // The sign sequence is invariant under reversal, so iterating signals (newest
+    // first) gives the same streak boundaries as chronological order.
     let maxWinStreak = 0;
     let maxLossStreak = 0;
     let currentWinStreak = 0;
     let currentLossStreak = 0;
+    let currentWinStreakSum = 0;
+    let currentLossStreakSum = 0;
+    const winStreakSums: number[] = [];
+    const lossStreakSums: number[] = [];
 
     for (const signal of signals) {
-      if (signal.pnl.pnlPercentage > 0) {
+      const pnl = signal.pnl.pnlPercentage;
+      if (pnl > 0) {
+        if (currentLossStreak > 0) {
+          lossStreakSums.push(currentLossStreakSum);
+          currentLossStreak = 0;
+          currentLossStreakSum = 0;
+        }
         currentWinStreak++;
-        currentLossStreak = 0;
+        currentWinStreakSum += pnl;
         if (currentWinStreak > maxWinStreak) {
           maxWinStreak = currentWinStreak;
         }
-      } else if (signal.pnl.pnlPercentage < 0) {
+      } else if (pnl < 0) {
+        if (currentWinStreak > 0) {
+          winStreakSums.push(currentWinStreakSum);
+          currentWinStreak = 0;
+          currentWinStreakSum = 0;
+        }
         currentLossStreak++;
-        currentWinStreak = 0;
+        currentLossStreakSum += pnl;
         if (currentLossStreak > maxLossStreak) {
           maxLossStreak = currentLossStreak;
         }
+      } else {
+        // Break-even closes both runs (it's neither a win nor a loss).
+        if (currentWinStreak > 0) {
+          winStreakSums.push(currentWinStreakSum);
+          currentWinStreak = 0;
+          currentWinStreakSum = 0;
+        }
+        if (currentLossStreak > 0) {
+          lossStreakSums.push(currentLossStreakSum);
+          currentLossStreak = 0;
+          currentLossStreakSum = 0;
+        }
       }
+    }
+    // Flush trailing streak.
+    if (currentWinStreak > 0) winStreakSums.push(currentWinStreakSum);
+    if (currentLossStreak > 0) lossStreakSums.push(currentLossStreakSum);
+
+    let avgConsecutiveWinPnl: number | null = winStreakSums.length > 0
+      ? winStreakSums.reduce((a, b) => a + b, 0) / winStreakSums.length
+      : null;
+    let avgConsecutiveLossPnl: number | null = lossStreakSums.length > 0
+      ? lossStreakSums.reduce((a, b) => a + b, 0) / lossStreakSums.length
+      : null;
+
+    // Trade duration metrics. Source: closeTimestamp - signal.pendingAt, in minutes
+    // (synchronized with strategy `minuteEstimatedTime`). A signal missing either
+    // timestamp is excluded from the corresponding average — silent zeros would
+    // otherwise pull the mean towards zero.
+    let avgDuration: number | null = null;
+    let avgWinDuration: number | null = null;
+    let avgLossDuration: number | null = null;
+    {
+      const durations: number[] = [];
+      const winDurations: number[] = [];
+      const lossDurations: number[] = [];
+      for (const s of signals) {
+        const pendingAt = s.signal.pendingAt;
+        const closeTs = s.closeTimestamp;
+        if (typeof pendingAt !== "number" || pendingAt <= 0) continue;
+        if (typeof closeTs !== "number" || closeTs <= 0) continue;
+        const minutes = (closeTs - pendingAt) / 60_000;
+        durations.push(minutes);
+        const pnl = s.pnl.pnlPercentage;
+        if (pnl > 0) winDurations.push(minutes);
+        else if (pnl < 0) lossDurations.push(minutes);
+      }
+      if (durations.length > 0) {
+        avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+      }
+      if (winDurations.length > 0) {
+        avgWinDuration = winDurations.reduce((a, b) => a + b, 0) / winDurations.length;
+      }
+      if (lossDurations.length > 0) {
+        avgLossDuration = lossDurations.reduce((a, b) => a + b, 0) / lossDurations.length;
+      }
+    }
+
+    // Median pnlPercentage — robust to outliers. Sort a copy (do not mutate signals).
+    let medianPnl: number | null = null;
+    if (signals.length > 0) {
+      const sorted = signals.map((s) => s.pnl.pnlPercentage).sort((a, b) => a - b);
+      const mid = sorted.length >> 1;
+      medianPnl = sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
     }
 
     // Expectancy — probabilities from observed win/loss counts (break-evens contribute 0).
@@ -353,8 +436,12 @@ class HeatmapStorage {
     }
 
     // Average only over signals that have the value — do not dilute the mean with zeros.
+    // Extremes (peakProfitPnl / maxDrawdownPnl) are the best/worst observation
+    // across all trades, surfacing tail behaviour the average hides.
     let avgPeakPnl: number | null = null;
     let avgFallPnl: number | null = null;
+    let peakProfitPnl: number | null = null;
+    let maxDrawdownPnl: number | null = null;
     if (signals.length > 0) {
       const peakValues = signals
         .map((s) => s.signal.peakProfit?.pnlPercentage)
@@ -362,12 +449,14 @@ class HeatmapStorage {
       const fallValues = signals
         .map((s) => s.signal.maxDrawdown?.pnlPercentage)
         .filter((v): v is number => typeof v === "number");
-      avgPeakPnl = peakValues.length > 0
-        ? peakValues.reduce((sum, v) => sum + v, 0) / peakValues.length
-        : null;
-      avgFallPnl = fallValues.length > 0
-        ? fallValues.reduce((sum, v) => sum + v, 0) / fallValues.length
-        : null;
+      if (peakValues.length > 0) {
+        avgPeakPnl = peakValues.reduce((sum, v) => sum + v, 0) / peakValues.length;
+        peakProfitPnl = Math.max(...peakValues);
+      }
+      if (fallValues.length > 0) {
+        avgFallPnl = fallValues.reduce((sum, v) => sum + v, 0) / fallValues.length;
+        maxDrawdownPnl = Math.min(...fallValues);
+      }
     }
 
     // Sortino (canonical, Sortino 1991): (avgPnl - MAR) / downside deviation, where
@@ -457,6 +546,14 @@ class HeatmapStorage {
     if (isUnsafe(expectancy)) expectancy = null;
     if (isUnsafe(avgPeakPnl)) avgPeakPnl = null;
     if (isUnsafe(avgFallPnl)) avgFallPnl = null;
+    if (isUnsafe(peakProfitPnl)) peakProfitPnl = null;
+    if (isUnsafe(maxDrawdownPnl)) maxDrawdownPnl = null;
+    if (isUnsafe(avgDuration)) avgDuration = null;
+    if (isUnsafe(medianPnl)) medianPnl = null;
+    if (isUnsafe(avgConsecutiveWinPnl)) avgConsecutiveWinPnl = null;
+    if (isUnsafe(avgConsecutiveLossPnl)) avgConsecutiveLossPnl = null;
+    if (isUnsafe(avgWinDuration)) avgWinDuration = null;
+    if (isUnsafe(avgLossDuration)) avgLossDuration = null;
     if (isUnsafe(sortinoRatio)) sortinoRatio = null;
     if (isUnsafe(calmarRatio)) calmarRatio = null;
     if (isUnsafe(recoveryFactor)) recoveryFactor = null;
@@ -480,6 +577,14 @@ class HeatmapStorage {
       expectancy,
       avgPeakPnl,
       avgFallPnl,
+      peakProfitPnl,
+      maxDrawdownPnl,
+      avgDuration,
+      medianPnl,
+      avgConsecutiveWinPnl,
+      avgConsecutiveLossPnl,
+      avgWinDuration,
+      avgLossDuration,
       sortinoRatio,
       calmarRatio,
       recoveryFactor,
@@ -690,16 +795,109 @@ class HeatmapStorage {
       portfolioAvgFallPnl = validFall.reduce((acc, s) => acc + s.avgFallPnl! * s.totalTrades, 0) / fallTradesTotal;
     }
 
+    // Portfolio-wide extremes: best best-case and worst worst-case across
+    // every per-symbol extreme. Skips symbols whose extreme is null (no
+    // peakProfit/maxDrawdown snapshots) — they cannot vote in either direction.
+    let portfolioPeakProfitPnl: number | null = null;
+    let portfolioMaxDrawdownPnl: number | null = null;
+    const peakExtremes = symbols
+      .map((s) => s.peakProfitPnl)
+      .filter((v): v is number => typeof v === "number");
+    const fallExtremes = symbols
+      .map((s) => s.maxDrawdownPnl)
+      .filter((v): v is number => typeof v === "number");
+    if (peakExtremes.length > 0) {
+      portfolioPeakProfitPnl = Math.max(...peakExtremes);
+    }
+    if (fallExtremes.length > 0) {
+      portfolioMaxDrawdownPnl = Math.min(...fallExtremes);
+    }
+
+    // Portfolio duration metrics — pooled means over every trade with valid
+    // timestamps, regardless of symbol. A signal missing pendingAt/closeTimestamp
+    // is excluded from its average (the same rule as per-symbol).
+    let portfolioAvgDuration: number | null = null;
+    let portfolioAvgWinDuration: number | null = null;
+    let portfolioAvgLossDuration: number | null = null;
+    {
+      const durations: number[] = [];
+      const winDurations: number[] = [];
+      const lossDurations: number[] = [];
+      for (const signals of this.symbolData.values()) {
+        for (const s of signals) {
+          const pendingAt = s.signal.pendingAt;
+          const closeTs = s.closeTimestamp;
+          if (typeof pendingAt !== "number" || pendingAt <= 0) continue;
+          if (typeof closeTs !== "number" || closeTs <= 0) continue;
+          const minutes = (closeTs - pendingAt) / 60_000;
+          durations.push(minutes);
+          const pnl = s.pnl.pnlPercentage;
+          if (pnl > 0) winDurations.push(minutes);
+          else if (pnl < 0) lossDurations.push(minutes);
+        }
+      }
+      if (durations.length > 0) {
+        portfolioAvgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+      }
+      if (winDurations.length > 0) {
+        portfolioAvgWinDuration = winDurations.reduce((a, b) => a + b, 0) / winDurations.length;
+      }
+      if (lossDurations.length > 0) {
+        portfolioAvgLossDuration = lossDurations.reduce((a, b) => a + b, 0) / lossDurations.length;
+      }
+    }
+
+    // Portfolio median — pooled over allReturns (already collected for the
+    // Sharpe block). Robust to outliers like the per-symbol counterpart.
+    let portfolioMedianPnl: number | null = null;
+    if (allReturns.length > 0) {
+      const sortedAll = allReturns.slice().sort((a, b) => a - b);
+      const mid = sortedAll.length >> 1;
+      portfolioMedianPnl = sortedAll.length % 2 === 0
+        ? (sortedAll[mid - 1] + sortedAll[mid]) / 2
+        : sortedAll[mid];
+    }
+
+    // Portfolio streak averages — trade-count-weighted mean of per-symbol
+    // averages. Concatenating streaks across symbols would be wrong: trades on
+    // different symbols are not "consecutive" in any meaningful sense (different
+    // markets, different timeframes). Weighting by totalTrades matches the
+    // weighting used for portfolioAvgPeakPnl / portfolioAvgFallPnl.
+    let portfolioAvgConsecutiveWinPnl: number | null = null;
+    let portfolioAvgConsecutiveLossPnl: number | null = null;
+    const validWinStreak = symbols.filter((s) => s.avgConsecutiveWinPnl !== null);
+    const validLossStreak = symbols.filter((s) => s.avgConsecutiveLossPnl !== null);
+    const winStreakWeight = validWinStreak.reduce((acc, s) => acc + s.totalTrades, 0);
+    const lossStreakWeight = validLossStreak.reduce((acc, s) => acc + s.totalTrades, 0);
+    if (validWinStreak.length > 0 && winStreakWeight > 0) {
+      portfolioAvgConsecutiveWinPnl =
+        validWinStreak.reduce((acc, s) => acc + s.avgConsecutiveWinPnl! * s.totalTrades, 0) /
+        winStreakWeight;
+    }
+    if (validLossStreak.length > 0 && lossStreakWeight > 0) {
+      portfolioAvgConsecutiveLossPnl =
+        validLossStreak.reduce((acc, s) => acc + s.avgConsecutiveLossPnl! * s.totalTrades, 0) /
+        lossStreakWeight;
+    }
+
     // Apply safe math
     if (isUnsafe(portfolioTotalPnl)) portfolioTotalPnl = null;
     if (isUnsafe(portfolioSharpeRatio)) portfolioSharpeRatio = null;
     if (isUnsafe(portfolioAvgPeakPnl)) portfolioAvgPeakPnl = null;
     if (isUnsafe(portfolioAvgFallPnl)) portfolioAvgFallPnl = null;
+    if (isUnsafe(portfolioPeakProfitPnl)) portfolioPeakProfitPnl = null;
+    if (isUnsafe(portfolioMaxDrawdownPnl)) portfolioMaxDrawdownPnl = null;
     if (isUnsafe(portfolioStdDev)) portfolioStdDev = null;
     if (isUnsafe(portfolioSortinoRatio)) portfolioSortinoRatio = null;
     if (isUnsafe(portfolioCalmarRatio)) portfolioCalmarRatio = null;
     if (isUnsafe(portfolioRecoveryFactor)) portfolioRecoveryFactor = null;
     if (isUnsafe(portfolioExpectancy)) portfolioExpectancy = null;
+    if (isUnsafe(portfolioAvgDuration)) portfolioAvgDuration = null;
+    if (isUnsafe(portfolioMedianPnl)) portfolioMedianPnl = null;
+    if (isUnsafe(portfolioAvgConsecutiveWinPnl)) portfolioAvgConsecutiveWinPnl = null;
+    if (isUnsafe(portfolioAvgConsecutiveLossPnl)) portfolioAvgConsecutiveLossPnl = null;
+    if (isUnsafe(portfolioAvgWinDuration)) portfolioAvgWinDuration = null;
+    if (isUnsafe(portfolioAvgLossDuration)) portfolioAvgLossDuration = null;
 
     return {
       symbols,
@@ -709,11 +907,19 @@ class HeatmapStorage {
       portfolioTotalTrades,
       portfolioAvgPeakPnl,
       portfolioAvgFallPnl,
+      portfolioPeakProfitPnl,
+      portfolioMaxDrawdownPnl,
       portfolioStdDev,
       portfolioSortinoRatio,
       portfolioCalmarRatio,
       portfolioRecoveryFactor,
       portfolioExpectancy,
+      portfolioAvgDuration,
+      portfolioMedianPnl,
+      portfolioAvgConsecutiveWinPnl,
+      portfolioAvgConsecutiveLossPnl,
+      portfolioAvgWinDuration,
+      portfolioAvgLossDuration,
     };
   }
 
@@ -780,6 +986,14 @@ class HeatmapStorage {
       `**Total Trades:** ${data.portfolioTotalTrades}`,
       `**Avg Peak PNL:** ${data.portfolioAvgPeakPnl !== null ? str(data.portfolioAvgPeakPnl, "%") : "N/A"}`,
       `**Avg Max Drawdown PNL:** ${data.portfolioAvgFallPnl !== null ? str(data.portfolioAvgFallPnl, "%") : "N/A"}`,
+      `**Peak Profit PNL:** ${data.portfolioPeakProfitPnl !== null ? str(data.portfolioPeakProfitPnl, "%") : "N/A"}`,
+      `**Max Drawdown PNL:** ${data.portfolioMaxDrawdownPnl !== null ? str(data.portfolioMaxDrawdownPnl, "%") : "N/A"}`,
+      `**Median PNL:** ${data.portfolioMedianPnl !== null ? str(data.portfolioMedianPnl, "%") : "N/A"}`,
+      `**Avg Duration:** ${data.portfolioAvgDuration !== null ? `${data.portfolioAvgDuration.toFixed(1)} min` : "N/A"}`,
+      `**Avg Win Duration:** ${data.portfolioAvgWinDuration !== null ? `${data.portfolioAvgWinDuration.toFixed(1)} min` : "N/A"}`,
+      `**Avg Loss Duration:** ${data.portfolioAvgLossDuration !== null ? `${data.portfolioAvgLossDuration.toFixed(1)} min` : "N/A"}`,
+      `**Avg Consecutive Win PNL:** ${data.portfolioAvgConsecutiveWinPnl !== null ? str(data.portfolioAvgConsecutiveWinPnl, "%") : "N/A"}`,
+      `**Avg Consecutive Loss PNL:** ${data.portfolioAvgConsecutiveLossPnl !== null ? str(data.portfolioAvgConsecutiveLossPnl, "%") : "N/A"}`,
       `**Standard Deviation Per Trade:** ${data.portfolioStdDev !== null ? str(data.portfolioStdDev, "%") : "N/A"}`,
       `**Sortino Ratio:** ${data.portfolioSortinoRatio !== null ? str(data.portfolioSortinoRatio) : "N/A"}`,
       `**Calmar Ratio:** ${data.portfolioCalmarRatio !== null ? str(data.portfolioCalmarRatio) : "N/A"}`,
@@ -792,7 +1006,6 @@ class HeatmapStorage {
       `*Pooled Sharpe: Sharpe computed over all trades across symbols treated as one sample. NOT a Markowitz portfolio Sharpe — ignores cross-symbol correlations and capital allocation. N/A unless ≥${MIN_SIGNALS_FOR_RATIOS} pooled trades.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals per symbol.*`,
       `*Sortino Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals. N/A when no losing trades — Sortino is mathematically undefined (infinite) and we cannot distinguish "truly flawless" from "lucky streak so far".*`,
-      `*Certainty Ratio: below 1.0 means average loss exceeds average win. Above 1.5 is considered good.*`,
       `*Profit Factor: below 1.0 means strategy is losing overall. Above 1.5 is considered good.*`,
       `*Calmar Ratio: below 0.5 is poor, 0.5-1.0 is acceptable, above 1.0 is strong. Denominator is the mark-to-market max drawdown (see below). N/A unless ≥${MIN_SIGNALS_FOR_ANNUALIZATION} signals per symbol and span ≥${MIN_CALENDAR_SPAN_DAYS} days. Capped at ±${MAX_CALMAR_RATIO}.*`,
       `*Recovery Factor: below 1.0 means total profit does not cover max drawdown. Above 3.0 is considered good. Uses compounded total return as numerator and the mark-to-market max drawdown as denominator.*`,

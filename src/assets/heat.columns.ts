@@ -133,6 +133,66 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     isVisible: () => true,
   },
   {
+    key: "peakProfitPnl",
+    label: "Peak Profit PNL",
+    format: (data) =>
+      data.peakProfitPnl !== null ? str(data.peakProfitPnl, "%") : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "maxDrawdownPnl",
+    label: "Max DD PNL",
+    format: (data) =>
+      data.maxDrawdownPnl !== null ? str(data.maxDrawdownPnl, "%") : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "medianPnl",
+    label: "Median PNL",
+    format: (data) =>
+      data.medianPnl !== null ? str(data.medianPnl, "%") : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "avgDuration",
+    label: "Avg Dur (min)",
+    format: (data) =>
+      data.avgDuration !== null ? data.avgDuration.toFixed(1) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "avgWinDuration",
+    label: "Avg Win Dur",
+    format: (data) =>
+      data.avgWinDuration !== null ? data.avgWinDuration.toFixed(1) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "avgLossDuration",
+    label: "Avg Loss Dur",
+    format: (data) =>
+      data.avgLossDuration !== null ? data.avgLossDuration.toFixed(1) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "avgConsecutiveWinPnl",
+    label: "Avg Win Streak PNL",
+    format: (data) =>
+      data.avgConsecutiveWinPnl !== null
+        ? str(data.avgConsecutiveWinPnl, "%")
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "avgConsecutiveLossPnl",
+    label: "Avg Loss Streak PNL",
+    format: (data) =>
+      data.avgConsecutiveLossPnl !== null
+        ? str(data.avgConsecutiveLossPnl, "%")
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "sortinoRatio",
     label: "Sortino",
     format: (data) =>
