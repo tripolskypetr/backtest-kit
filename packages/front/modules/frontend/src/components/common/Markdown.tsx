@@ -17,6 +17,9 @@ import { applyFixes } from "markdownlint";
 import { lint } from "markdownlint/promise";
 import { Grid, IGridColumn, PaperView, ScrollView, typo, useAsyncValue } from "react-declarative";
 import ioc from "../../lib";
+import { Style } from "react-style-tag";
+
+const MARKDOWN_TARGET = "backtest-kit__markdownTarget";
 
 const CustomLink = (props: LinkProps) => (
     <Link
@@ -54,6 +57,7 @@ const CustomStrong = (props: TypographyProps) => (
 // Custom Table component with a horizontally scrollable container
 const CustomTable = ({ sx, ...props }: TableProps) => (
     <PaperView
+        className={MARKDOWN_TARGET}
         variant="outlined"
         sx={{
             width: "calc(100% - 32px)",
@@ -197,6 +201,7 @@ const VirtualTable = ({ children }: TableProps) => {
 
     return (
         <PaperView
+            className={MARKDOWN_TARGET}
             variant="outlined"
             sx={{
                 width: "calc(100% - 32px)",
@@ -303,61 +308,70 @@ export const Markdown = ({ content }: IMarkdownProps) => {
     }
 
     return (
-        <MuiMarkdown
-            overrides={{
-                ...defaultOverrides,
-                a: {
-                    component: CustomLink,
-                },
-                h1: {
-                    component: CustomHeader,
-                },
-                h2: {
-                    component: CustomHeader,
-                },
-                h3: {
-                    component: CustomHeader,
-                },
-                h4: {
-                    component: CustomHeader,
-                },
-                h5: {
-                    component: CustomHeader,
-                },
-                h6: {
-                    component: CustomHeader,
-                },
-                hr: {
-                    component: CustomDivider,
-                },
-                p: {
-                    component: CustomParagraph,
-                },
-                strong: {
-                    component: CustomStrong, // Add custom strong component
-                },
-                table: {
-                    component: VirtualTable,
-                },
-                thead: {
-                    component: "thead",
-                },
-                tbody: {
-                    component: "tbody",
-                },
-                tr: {
-                    component: "tr",
-                },
-                th: {
-                    component: "th",
-                },
-                td: {
-                    component: "td",
-                },
-            }}
-        >
-            {md}
-        </MuiMarkdown>
+            <>
+            <MuiMarkdown
+                overrides={{
+                    ...defaultOverrides,
+                    a: {
+                        component: CustomLink,
+                    },
+                    h1: {
+                        component: CustomHeader,
+                    },
+                    h2: {
+                        component: CustomHeader,
+                    },
+                    h3: {
+                        component: CustomHeader,
+                    },
+                    h4: {
+                        component: CustomHeader,
+                    },
+                    h5: {
+                        component: CustomHeader,
+                    },
+                    h6: {
+                        component: CustomHeader,
+                    },
+                    hr: {
+                        component: CustomDivider,
+                    },
+                    p: {
+                        component: CustomParagraph,
+                    },
+                    strong: {
+                        component: CustomStrong, // Add custom strong component
+                    },
+                    table: {
+                        component: VirtualTable,
+                    },
+                    thead: {
+                        component: "thead",
+                    },
+                    tbody: {
+                        component: "tbody",
+                    },
+                    tr: {
+                        component: "tr",
+                    },
+                    th: {
+                        component: "th",
+                    },
+                    td: {
+                        component: "td",
+                    },
+                }}
+            >
+                {md}
+            </MuiMarkdown>
+            <Style>
+                {`
+                    .react-declarative__scrollViewTarget:has(.${MARKDOWN_TARGET}:hover) {
+                        scrollbar-width: none;
+                    }
+                `}
+            </Style>
+        </>
     );
 };
 
