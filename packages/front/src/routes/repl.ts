@@ -17,6 +17,7 @@ const makeContext = singleshot(() => {
     BacktestKit,
     require,
     console,
+    process,
   });
 
   return context;
