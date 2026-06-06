@@ -259,3 +259,229 @@ test("heat: maxDrawdown is mark-to-market (intra-trade dip counts, not just real
   }
   pass(`mark-to-market DD captured: maxDrawdown=${row.maxDrawdown.toFixed(2)}% (realized-only would be ~0)`);
 });
+
+// ---------------------------------------------------------------------------
+// Test 8: pooled equity curve must walk trades CHRONOLOGICALLY (by
+// closeTimestamp), not by storage iteration order. Regression for a bug where
+// the pooled DD was determined by Map.values() × per-symbol newest-first
+// order — peak grew along storage sequence, so a deep round-trip drawdown on a
+// late wall-clock trade hit a peak that DID NOT EXIST at that moment in reality.
+// The bug silently understated MTM drawdown (and inflated RF / Calmar by ~60%
+// on a real 8-symbol portfolio).
+//
+// Scenario: 4 symbols, 5 trades. Chronological close order is:
+//   t0: A close, +30% realized (peak rises to 1.30)
+//   t1: B close, +0% realized but fall=-25%  (chronological MTM dip: peak=1.30, trough=1.30*0.75=0.975 → DD=25.0%)
+//   t2: C close, +5% realized
+//   t3: D close, +0% realized, fall=-1% (trivial)
+//   t4: A2 close, +0% realized, fall=-1% (trivial)
+//
+// Chronological pool: peak ascends to 1.30 (after A), then B's deep -25% MTM
+// trough is measured from 1.30 → DD = 25.00%.
+// Storage-order pool: trades flushed per-symbol newest-first. Symbol B is
+// processed BEFORE its peak (1.30) ever exists in the curve → peak when B is
+// applied is 1.00, trough = 0.75, DD only 25.00% from a peak=1.00 = 25%.
+// Both happen to coincide here — the regression needs a real reordering effect.
+// Make A's win happen between B's two halves: symbol A has trades close at t0
+// and t4 (split). Chronologically peak=1.30 ahead of D's trivial close. With
+// per-symbol newest-first iteration we get [A_t4, A_t0, B, C, D] — peak rises
+// only at A_t0 step #2 (after A_t4's neutral close), AFTER B has been measured
+// against peak=1.00.
+// ---------------------------------------------------------------------------
+test("heat: pooled equity curve walks trades chronologically (closeTimestamp)", async ({ pass, fail }) => {
+  const svc = lib.heatMarkdownService;
+  svc.subscribe();
+  await svc.clear({ exchangeName: EXCHANGE, frameName: FRAME, backtest: true });
+
+  // closeTimestamp ordering (real wall-clock):
+  //   day 0 → A wins +30%
+  //   day 1 → C neutral (+0%)
+  //   day 2 → D neutral (+0%, fall -1%)
+  //   day 3 → A neutral close (+0%, fall -1%)  ← second A trade closes here
+  //   day 4 → B closes +0%, intra-trade fall = -25%
+  //
+  // Chronological pool walk (peak ascends to 1.30 at day 0, then a deep -25%
+  // intra-trade drawdown on B at day 4 against peak=1.30 → DD = 25.00%).
+  // Storage-order walk groups per-symbol newest-first:
+  //   Map insertion order (unshift on first occurrence): A, C, D, B
+  //   A bucket: [A_day3 (neutral), A_day0 (+30%)] ← newest unshifted on top
+  //   C bucket: [C_day1] ; D bucket: [D_day2] ; B bucket: [B_day4]
+  // Storage-order returns sequence: [A_day3, A_day0, C_day1, D_day2, B_day4]
+  // Walking it: peak=1 after A_day3 neutral, peak rises to 1.30 after A_day0,
+  // stays at 1.30 through C/D, then B's trough = 1.30*0.75 = 0.975 → DD = 25.0%.
+  // Both orderings happen to give 25.0%, so this dataset does NOT distinguish.
+  //
+  // Replace: pre-B drawdown that depends on whether A's +30% was seen first.
+  // Add a step at day 3.5 where another symbol E loses 10% intra-trade. In
+  // chronological order: A's +30% on day 0 lifts peak to 1.30; E's -10% MTM
+  // on day 3.5 measures against peak=1.30 → DD = 23.0%. In storage-order the
+  // E trade is processed BEFORE A_day0 push (if symbol E is inserted before
+  // A's second trade)... too fragile.
+  //
+  // Cleaner: make EVERY symbol's MTM dip measure against the chronological
+  // peak. Choose 5 symbols, each with one trade. Symbol order in Map matches
+  // tick order. Chronologically, A's huge win FIRST then the dips measured
+  // against A's peak. Storage-order = tick-order = same sequence here.
+  //
+  // The only way storage-order and chronological diverge: a SINGLE symbol
+  // with multiple trades whose buckets get processed before later symbols
+  // catch up. Use that.
+  //
+  // Plan:
+  //   1) feed in NON-chronological order (so storage-order ≠ chronological)
+  //   2) per-symbol unshift means within each symbol newest-first iteration
+  //   3) ensure A's big win comes chronologically FIRST but is fed LAST
+  //
+  // Tick feed order vs closeTimestamp:
+  //   tick #1: B day4 fall=-25%, pnl=0
+  //   tick #2: C day1 pnl=0, fall=-1%
+  //   tick #3: D day2 pnl=0, fall=-1%
+  //   tick #4: A day3 pnl=0, fall=-1%   (second A trade chronologically later)
+  //   tick #5: A day0 pnl=+30%, fall=-1% (first A trade chronologically)
+  //
+  // Map insertion order (first-touch): B, C, D, A.
+  // Per-symbol newest-first (unshift order is reverse of feed):
+  //   B bucket: [B_day4]
+  //   C bucket: [C_day1]
+  //   D bucket: [D_day2]
+  //   A bucket: [A_day0 (last fed → newest), A_day3]
+  //
+  // STORAGE-ORDER pool sequence:
+  //   B_day4 → fall=-25% trough vs peak=1.00 → DD=25.00%
+  //   C_day1 → trivial
+  //   D_day2 → trivial
+  //   A_day0 → +30%, peak rises to 1.30
+  //   A_day3 → trivial; equity now ~1.287
+  //   storage RF numerator = (equityFinal-1)*100 = ~28.7, denom = 25 → RF≈1.149
+  //
+  // CHRONOLOGICAL pool sequence:
+  //   A_day0 +30% → peak=1.30
+  //   C_day1 trivial
+  //   D_day2 trivial
+  //   A_day3 trivial, fall=-1% → trough vs peak=1.30 → small DD
+  //   B_day4 fall=-25% → trough = equity_t4 * 0.75 vs peak=1.30 → DD ≈ huge
+  //
+  // equity at B_day4 ≈ 1.30 (only A's +30% counted, rest neutral). trough = 1.30*0.75 = 0.975.
+  // DD = (1.30 - 0.975) / 1.30 * 100 = 25.00%.  Damn — same number!
+  //
+  // The difference: chronological peak = 1.30, storage peak = 1.00. Trough is
+  // proportional to equity at the moment, which ALSO differs. DD% = (peak-trough)/peak,
+  // and if everything is proportional, the ratio is identical. We need a SECOND
+  // up-move BETWEEN B and the early A, so that peak in chronological order ≠ peak
+  // in storage order RELATIVE to equity at the time of B.
+  //
+  // Add E_day2 = +20% gain. Chronological order: A(+30%) → C → E(+20%) → D → A2 → B.
+  // Peak builds to 1.30 * 1.20 = 1.56. Then equity drifts at neutral closes to ~1.56.
+  // B's MTM trough from equity 1.56 * 0.75 = 1.17 → DD = (1.56-1.17)/1.56 = 25.00%.
+  // Still 25 because the dip percentage is fixed.
+  //
+  // The bug is invisible whenever a single trade's fall dominates DD. To expose
+  // it, need a COMBINED DD: prior realized loss + later MTM dip stacking on a
+  // chronological peak that storage-order never reaches.
+  //
+  // Final scenario:
+  //   t0: A +30% (peak rises to 1.30 chronologically)
+  //   t1: C +0% intra-fall -3%
+  //   t2: D +0%
+  //   t3: A -20% (realized loss); equity now 1.30 * 0.80 = 1.04 ; DD=20%
+  //   t4: B intra-fall -25%, realized 0 ; equity stays 1.04; trough = 1.04*0.75 = 0.78
+  //       DD = (1.30 - 0.78)/1.30 = 40.00% ← CHRONOLOGICAL MTM DD
+  //
+  // Feed order (non-chronological):
+  //   #1: B_day4 fall=-25%, pnl=0
+  //   #2: C_day1 fall=-3%, pnl=0
+  //   #3: D_day2 fall=-1%, pnl=0
+  //   #4: A_day3 fall=-1%, pnl=-20%   (second A, late)
+  //   #5: A_day0 fall=-1%, pnl=+30%   (first A, early — fed last)
+  //
+  // Storage-order walk (Map iteration: B, C, D, A; within A bucket newest-first):
+  //   B_day4: fall=-25%, trough vs peak=1.00 → DD=25.00%; equity=1.00
+  //   C_day1: trivial; equity=1.00
+  //   D_day2: trivial; equity=1.00
+  //   A bucket newest-first: A_day0 (last unshift), A_day3
+  //     A_day0: +30% → peak=1.30; equity=1.30
+  //     A_day3: -20% → equity=1.04; DD vs peak=1.30 → (1.30-1.04)/1.30=20.00%
+  //   storage maxDD = max(25, 20) = 25.00%
+  //
+  // Chronological walk (sorted by closeTimestamp):
+  //   A_day0 +30%: peak=1.30
+  //   C_day1 trivial
+  //   D_day2 trivial
+  //   A_day3 -20%: equity=1.04; DD=20.00%
+  //   B_day4 fall=-25% on equity=1.04: trough=1.04*0.75=0.78; DD=(1.30-0.78)/1.30=40.00%
+  //   chronological maxDD = 40.00% ← THE BUG MAKES STORAGE-ORDER MISS THIS
+  //
+  // RF and Calmar numerator (equityFinal-1)*100 is identical in both orderings
+  // (compound is commutative). So the bug is purely in DD denominator:
+  //   storage RF = (1.04-1)*100 / 25.00 = 0.16
+  //   chronological RF = (1.04-1)*100 / 40.00 = 0.10
+
+  const trades = [
+    // feed-order (NON-chronological):
+    { id: "B_day4", symbol: "POOL-B", closeAt: T0 + 4 * DAY, pnl: 0,    fall: -25 },
+    { id: "C_day1", symbol: "POOL-C", closeAt: T0 + 1 * DAY, pnl: 0,    fall: -3 },
+    { id: "D_day2", symbol: "POOL-D", closeAt: T0 + 2 * DAY, pnl: 0,    fall: -1 },
+    { id: "A_day3", symbol: "POOL-A", closeAt: T0 + 3 * DAY, pnl: -20,  fall: -1 },
+    { id: "A_day0", symbol: "POOL-A", closeAt: T0 + 0 * DAY, pnl: +30,  fall: -1 },
+  ];
+  for (const t of trades) {
+    await svc.tick(
+      toClosedTick({
+        id: t.id,
+        symbol: t.symbol,
+        pendingAt: t.closeAt - 60_000,
+        updatedAt: t.closeAt,
+        priceOpen: 100,
+        pnl: { pnlPercentage: t.pnl, priceOpen: 100, priceClose: 100 * (1 + t.pnl / 100), pnlCost: t.pnl, pnlEntries: 100 },
+        peakProfit: { pnlPercentage: Math.max(t.pnl, 0) },
+        maxDrawdown: { pnlPercentage: t.fall },
+        position: "long",
+        note: "",
+        exchangeName: EXCHANGE,
+        strategyName: STRATEGY,
+        frameName: FRAME,
+      }),
+    );
+  }
+
+  const stats = await svc.getData(EXCHANGE, FRAME, true);
+
+  // Compute chronological pooled MTM DD as reference (mirror of service walk
+  // but explicitly sorted by closeAt).
+  const sorted = [...trades].sort((a, b) => a.closeAt - b.closeAt);
+  let equity = 1, peak = 1, maxDD = 0;
+  for (const t of sorted) {
+    if (t.fall < 0) {
+      const trough = equity * (1 + t.fall / 100);
+      const dd = ((peak - trough) / peak) * 100;
+      if (dd > maxDD) maxDD = dd;
+    }
+    equity *= 1 + t.pnl / 100;
+    if (equity > peak) peak = equity;
+    const dd = ((peak - equity) / peak) * 100;
+    if (dd > maxDD) maxDD = dd;
+  }
+  const expectedFinal = equity;
+  const expectedRF = ((expectedFinal - 1) * 100) / maxDD;
+  // Expected: chronological DD ≈ 40%, RF ≈ 0.10.
+  if (Math.abs(maxDD - 40) > 0.1) {
+    return fail(`reference math broken: expected chronological MTM DD ≈ 40%, computed ${maxDD.toFixed(4)}%`);
+  }
+
+  // What the service should return after the chronological fix.
+  if (stats.portfolioRecoveryFactor === null) {
+    return fail(`portfolioRecoveryFactor must be computed, got null`);
+  }
+  // Service must produce the chronological RF (≈ 0.10), NOT the storage-order
+  // RF (≈ 0.16). A discrepancy here pinpoints the regression.
+  if (Math.abs(stats.portfolioRecoveryFactor - expectedRF) > 0.01) {
+    return fail(
+      `pooled curve still walks storage-order: portfolioRecoveryFactor=${stats.portfolioRecoveryFactor.toFixed(4)} ` +
+        `but chronological reference RF=${expectedRF.toFixed(4)} (storage-order would be ~0.16). ` +
+        `Sort by closeTimestamp before walking allReturns/allFalls.`,
+    );
+  }
+  pass(
+    `pooled curve chronological: RF=${stats.portfolioRecoveryFactor.toFixed(4)} matches reference (MTM DD≈${maxDD.toFixed(2)}%)`,
+  );
+});

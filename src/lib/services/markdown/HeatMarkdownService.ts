@@ -687,21 +687,34 @@ class HeatmapStorage {
     let portfolioCertaintyRatio: number | null = null;
     let portfolioExpectedYearlyReturns: number | null = null;
     let portfolioTradesPerYear: number | null = null;
-    const allReturns: number[] = [];
-    // Parallel array of intra-trade troughs (≤ 0), aligned 1:1 with allReturns,
-    // used for mark-to-market DD in the pooled equity curve below.
-    const allFalls: (number | null)[] = [];
+    // Collect every closed signal into a single chronological sequence ordered
+    // by closeTimestamp. The pooled equity curve must follow real-time order:
+    // a deep round-trip drawdown on a late trade should hit equity AT its
+    // actual peak, not at whatever peak storage-iteration order happens to
+    // expose. Using Map.values() iteration produced a peak determined by
+    // symbol-add-order × per-symbol newest-first, silently understating MTM
+    // drawdown by 30-60% on multi-symbol portfolios.
+    type PooledTrade = { r: number; fall: number | null; closeAt: number };
+    const pooledTrades: PooledTrade[] = [];
     let poolFirstPendingAt = Infinity;
     let poolLastCloseAt = -Infinity;
     for (const signals of this.symbolData.values()) {
       for (const s of signals) {
-        allReturns.push(s.pnl.pnlPercentage);
         const fall = s.signal.maxDrawdown?.pnlPercentage;
-        allFalls.push(typeof fall === "number" ? fall : null);
+        pooledTrades.push({
+          r: s.pnl.pnlPercentage,
+          fall: typeof fall === "number" ? fall : null,
+          closeAt: s.closeTimestamp,
+        });
         if (s.signal.pendingAt < poolFirstPendingAt) poolFirstPendingAt = s.signal.pendingAt;
         if (s.closeTimestamp > poolLastCloseAt) poolLastCloseAt = s.closeTimestamp;
       }
     }
+    pooledTrades.sort((a, b) => a.closeAt - b.closeAt);
+    const allReturns: number[] = pooledTrades.map((t) => t.r);
+    // Parallel array of intra-trade troughs (≤ 0), aligned 1:1 with allReturns,
+    // used for mark-to-market DD in the pooled equity curve below.
+    const allFalls: (number | null)[] = pooledTrades.map((t) => t.fall);
     if (allReturns.length >= MIN_SIGNALS_FOR_RATIOS) {
       const portfolioAvg = allReturns.reduce((acc, r) => acc + r, 0) / allReturns.length;
       const portfolioVariance =
@@ -1084,7 +1097,7 @@ class HeatmapStorage {
       `*Peak Profit PNL / Max Drawdown PNL: extremes — the best best-case and worst worst-case observed across all trades. Tail behaviour the averages hide.*`,
       `*Avg Duration / Avg Win Duration / Avg Loss Duration: mean hold time in minutes (closeTimestamp - pendingAt). Winner-shorter-than-loser is a red flag ("cut winners short, let losers run").*`,
       `*Avg Consecutive Win/Loss PNL: average sum of pnlPercentage across consecutive streaks. Pairs with max streak length to show the typical (not worst-case) streak magnitude. Portfolio uses trade-count-weighted mean of per-symbol streak averages — concatenating streaks across symbols would be meaningless (different markets, different timeframes).*`,
-      `*Max Drawdown: mark-to-market — both the per-symbol and pooled equity curves apply each trade's worst intra-trade excursion (the lowest unrealized point while the position was open) before booking its realized close, so deep round-trip dips count. It is NOT realized-only (close-to-close); a realized-only curve would understate drawdown and inflate Calmar/Recovery. NOTE: the pooled curve orders trades by storage sequence, not wall-clock time, so simultaneous cross-symbol drawdowns are not modelled.*`,
+      `*Max Drawdown: mark-to-market — both the per-symbol and pooled equity curves apply each trade's worst intra-trade excursion (the lowest unrealized point while the position was open) before booking its realized close, so deep round-trip dips count. It is NOT realized-only (close-to-close); a realized-only curve would understate drawdown and inflate Calmar/Recovery. The pooled curve walks trades chronologically by closeTimestamp; simultaneous cross-symbol drawdowns within the same minute are still serialised (one trade applied at a time), so genuine same-instant tail correlation is not modelled.*`,
       `*All metrics require 100+ signals per symbol to be statistically reliable. Annualized metrics assume the observed trading frequency persists year-round.*`,
       `*IMPORTANT: Per-symbol equity curve, Expected Yearly Returns, Calmar, Recovery and Max Drawdown all assume **100% capital allocation per position** (no portfolio fraction). These metrics ignore the position-sizing subsystem (PositionSize / Kelly / ATR): pnlPercentage is a return on the position's own invested capital, never scaled by account balance. With DCA (commitAverageBuy) the cost basis is the sum of all entries and the entry price is dollar-cost-weighted, so per-trade % is measured against the averaged position, not a fixed stake. If your strategy risks X% of capital per trade, the realized return / drawdown will be roughly X/100 of the reported figures — these metrics represent a theoretical upper bound under full allocation.*`,
       `*Negative values for Sharpe / Annualized Sharpe / Sortino / Calmar / Recovery / Expectancy / Expected Yearly Returns indicate a losing symbol (avgPnl < 0 or totalPnl < 0). "Higher is better" still applies — closer to zero is less bad, positive is profitable.*`,
