@@ -178,6 +178,7 @@ export {
   getMode,
   getContext,
   getSymbol,
+  getRuntimeInfo,
 } from "./function/meta";
 export {
   getLatestSignal,

@@ -8,6 +8,7 @@ const GET_TIMESTAMP_METHOD_NAME = "meta.getTimestamp";
 const GET_MODE_METHOD_NAME = "meta.getMode";
 const GET_SYMBOL_METHOD_NAME = "meta.getSymbol";
 const GET_CONTEXT_METHOD_NAME = "meta.getContext";
+const GET_RUNTIME_INFO_METHOD_NAME = "meta.getRuntimeInfo";
 
 /**
  * Gets the current date from execution context.
@@ -133,3 +134,47 @@ export async function getContext() {
   }
   return backtest.methodContextService.context;
 } 
+
+/**
+ * Gets runtime information about the current execution environment.
+ *
+ * This includes details such as the current symbol, exchange, timeframe, strategy, and whether it's a backtest or live run.
+ *
+ * @returns Promise resolving to an object containing runtime information
+ * @throws Error if method context or execution context is not active
+ *
+ * @example
+ * ```typescript
+ * const runtimeInfo = await getRuntimeInfo();
+ * console.log(runtimeInfo);
+ * // {
+ * //   symbol: "BTCUSDT",
+ * //   context: {,
+ * //     exchangeName: "Binance",
+ * //     frameName: "1m",
+ * //     strategyName: "MyStrategy",
+ * //   },
+ * //   backtest: false
+ * // }
+ * ```
+ */
+export async function getRuntimeInfo() {
+  backtest.loggerService.info(GET_RUNTIME_INFO_METHOD_NAME);
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getRuntimeInfo requires a method context");
+  }
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getRuntimeInfo requires an execution context");
+  }
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { symbol, backtest: isBacktest } = backtest.executionContextService.context;
+  return await backtest.runtimeMetaService.getRuntimeInfo(
+    symbol,
+    {
+      exchangeName,
+      frameName,
+      strategyName,
+    },
+    isBacktest
+  );
+}
