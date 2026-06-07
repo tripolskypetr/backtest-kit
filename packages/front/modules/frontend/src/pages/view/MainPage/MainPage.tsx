@@ -117,7 +117,7 @@ const options: IBreadcrumbs2Option[] = [
           </Link>
         </Breadcrumbs>
         <Box flex={1} />
-        <Async>
+        <Async reloadSubject={reloadSubject}>
           {async () => {
             const data = await ioc.runtimeViewService.getRuntimeInfo();
             if (!data) {
