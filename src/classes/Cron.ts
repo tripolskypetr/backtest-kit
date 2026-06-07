@@ -1,4 +1,4 @@
-import { compose, singlerun, singleshot } from "functools-kit";
+import { compose, errorData, getErrorMessage, singlerun, singleshot } from "functools-kit";
 import LoggerService from "../lib/services/base/LoggerService";
 import RuntimeMetaService from "../lib/services/meta/RuntimeMetaService";
 import { CandleInterval } from "../interfaces/Exchange.interface";
@@ -12,6 +12,7 @@ import {
   idlePingSubject,
   activePingSubject,
   schedulePingSubject,
+  errorEmitter,
 } from "../config/emitters";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import IdlePingContract from "../contract/IdlePing.contract";
@@ -431,12 +432,18 @@ export class CronUtils {
     try {
       const info = await RUNTIME_META_SERVICE.getRuntimeInfo(symbol, context, backtest);
       await entry.handler(info);
-    } catch (err) {
+    } catch (error) {
       failed = true;
-      console.error(
-        `${CRON_METHOD_NAME_TICK} entry "${entry.name}" failed`,
-        { symbol, alignedMs, err }
-      );
+      const message = `${CRON_METHOD_NAME_TICK} entry "${entry.name}" failed`;
+      const payload = {
+        symbol,
+        alignedMs,
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      LOGGER_SERVICE.warn(message, payload);
+      console.error(message, payload);
+      errorEmitter.next(error as Error);
     } finally {
       this._inFlight.delete(slotKey);
       if (!failed && firedKey !== null) {
@@ -744,14 +751,12 @@ export class CronUtils {
 
     // Roll back the watermark for any periodic slot THIS tick opened whose
     // handler failed, so the next tick re-opens the same boundary and retries
-    // it — mirroring how a skipped boundary is later caught up. We are still
-    // inside this `_tick`; `singlerun` serialises ticks, so no other tick could
-    // have advanced `_lastBoundary` for these keys between our synchronous `set`
-    // above and here. Restoring `prevBoundary` (or deleting the key when it was
-    // `undefined`) re-arms the strict-`>` gate without disturbing any earlier
-    // already-fired boundary. `await pending` is cheap — every promise already
-    // settled in `Promise.all` above; we re-await via `openedList` because its
-    // entries (opened slots only) do not line up with `taskList` indices.
+    // it — mirroring how a skipped boundary is later caught up. Restoring
+    // `prevBoundary` (or deleting the key when it was `undefined`) re-arms the
+    // strict-`>` gate without disturbing any earlier already-fired boundary.
+    // `await pending` is cheap — every promise already settled in `Promise.all`
+    // above; we re-await via `openedList` because its entries (opened slots
+    // only) do not line up with `taskList` indices.
     for (const { boundaryKey, prevBoundary, pending } of openedList) {
       const failed = await pending;
       if (!failed) {
