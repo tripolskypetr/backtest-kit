@@ -1,7 +1,9 @@
+import { RuntimeData } from "../interfaces/Strategy.interface";
 import backtest, {
   ExecutionContextService,
   MethodContextService,
 } from "../lib";
+import { IRuntimeInfo } from "../interfaces/Runtime.interface";
 
 const GET_DATE_METHOD_NAME = "meta.getDate";
 const GET_TIMESTAMP_METHOD_NAME = "meta.getTimestamp";
@@ -158,7 +160,7 @@ export async function getContext() {
  * // }
  * ```
  */
-export async function getRuntimeInfo() {
+export async function getRuntimeInfo<Data extends RuntimeData = RuntimeData>(): Promise<IRuntimeInfo<Data>> {
   backtest.loggerService.info(GET_RUNTIME_INFO_METHOD_NAME);
   if (!MethodContextService.hasContext()) {
     throw new Error("getRuntimeInfo requires a method context");
