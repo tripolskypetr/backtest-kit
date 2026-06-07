@@ -1,11 +1,13 @@
 import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { FrameName, IFrame } from "../../../interfaces/Frame.interface";
+import { FrameInterval, FrameName, IFrame } from "../../../interfaces/Frame.interface";
 import { memoize } from "functools-kit";
 import ClientFrame from "../../../client/ClientFrame";
 import FrameSchemaService from "../schema/FrameSchemaService";
 import { TMethodContextService } from "../context/MethodContextService";
+
+const DEFAULT_INTERVAL: FrameInterval = "1m";
 
 /**
  * Connection service routing frame operations to correct ClientFrame instance.
@@ -57,7 +59,7 @@ export class FrameConnectionService implements IFrame {
         logger: this.loggerService,
         startDate,
         endDate,
-        interval,
+        interval: interval || DEFAULT_INTERVAL,
         callbacks,
       });
     }

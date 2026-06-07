@@ -29,6 +29,8 @@ export type FrameInterval =
 export interface IFrameParams extends IFrameSchema {
     /** Logger service for debug output */
     logger: ILogger;
+    /** Frame name for identification */
+    interval: FrameInterval;
 }
 
 /**
@@ -76,8 +78,8 @@ export interface IFrameSchema {
   frameName: FrameName;
   /** Optional developer note for documentation */
   note?: string;
-  /** Interval for timestamp generation */
-  interval: FrameInterval;
+  /** Interval for time range generation. Defaults to "1m" if not specified */
+  interval?: FrameInterval;
   /** Start of backtest period (inclusive) */
   startDate: Date;
   /** End of backtest period (inclusive) */

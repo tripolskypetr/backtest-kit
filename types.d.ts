@@ -73,6 +73,8 @@ type FrameInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "
 interface IFrameParams extends IFrameSchema {
     /** Logger service for debug output */
     logger: ILogger;
+    /** Frame name for identification */
+    interval: FrameInterval;
 }
 /**
  * Callbacks for frame lifecycle events.
@@ -113,8 +115,8 @@ interface IFrameSchema {
     frameName: FrameName;
     /** Optional developer note for documentation */
     note?: string;
-    /** Interval for timestamp generation */
-    interval: FrameInterval;
+    /** Interval for time range generation. Defaults to "1m" if not specified */
+    interval?: FrameInterval;
     /** Start of backtest period (inclusive) */
     startDate: Date;
     /** End of backtest period (inclusive) */

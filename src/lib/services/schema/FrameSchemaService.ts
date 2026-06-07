@@ -53,9 +53,9 @@ export class FrameSchemaService {
       );
     }
 
-    if (typeof frameSchema.interval !== "string") {
+    if (frameSchema.interval && typeof frameSchema.interval !== "string") {
       throw new Error(
-        `frame schema validation failed: missing interval for frameName=${frameSchema.frameName}`
+        `frame schema validation failed: invalid interval for frameName=${frameSchema.frameName}`
       );
     }
 
