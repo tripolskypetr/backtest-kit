@@ -1081,6 +1081,12 @@ interface SchedulePingContract {
      */
     exchangeName: ExchangeName;
     /**
+     * Frame name (timeframe / date range) for the run. Empty string in live
+     * mode, where frames are not used. Same value as the monitored signal's
+     * `frameName` (`data.frameName`).
+     */
+    frameName: FrameName;
+    /**
      * Complete scheduled signal row data.
      * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
      */
@@ -1161,6 +1167,12 @@ interface ActivePingContract {
      * Identifies which exchange this ping event belongs to.
      */
     exchangeName: ExchangeName;
+    /**
+     * Frame name (timeframe / date range) for the run. Empty string in live
+     * mode, where frames are not used. Same value as the monitored signal's
+     * `frameName` (`data.frameName`).
+     */
+    frameName: FrameName;
     /**
      * Complete pending signal row data.
      * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
@@ -2403,6 +2415,13 @@ interface ActivateScheduledCommit extends SignalCommitBase {
 type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | AverageBuyCommit | ActivateScheduledCommit;
 
 /**
+ * Generic key-value type for strategy runtime data.
+ * Allows strategies to store arbitrary data for custom monitoring, reporting, or external logic.
+ * This is a flexible structure that can hold any additional information a strategy wants to track at runtime.
+ * The content of this object is not defined by the system and can be used freely by strategy implementations.
+ */
+type RuntimeData = Record<string, unknown>;
+/**
  * Commit payload for strategy commits.
  * Used in activateScheduled, closePending, cancelScheduled
  */
@@ -2877,6 +2896,8 @@ interface IStrategySchema {
     riskList?: RiskName[];
     /** Optional list of action identifiers to attach to this strategy */
     actions?: ActionName[];
+    /** Optional runtime for custom monitoring, reporting or external logic */
+    info?: RuntimeData;
 }
 /**
  * Reason why signal was closed.
@@ -26230,7 +26251,49 @@ declare class IntervalUtils {
 declare const Interval: IntervalUtils;
 
 /**
+ * Interface for runtime information and range used in backtesting and strategy execution.
+ * The interface defines the time range for the backtest while executing a strategy in backtest mode
+ */
+interface IRuntimeRange {
+    /** Start date of the runtime range */
+    from: Date;
+    /** End date of the runtime range */
+    to: Date;
+}
+/**
+ * Interface for runtime information returned by the RuntimeMetaService.
+ * This includes the symbol being traded, the time range of the backtest, any additional info defined by the strategy,
+ * and contextual information about the exchange, strategy, and frame being used.
+ */
+interface IRuntimeInfo<Data extends RuntimeData = RuntimeData> {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Time range for the backtest, null if running in live mode */
+    range: IRuntimeRange | null;
+    /** Additional runtime information defined by the strategy, can be used for custom monitoring or reporting */
+    info: Data | null;
+    /** Contextual information about the current execution environment */
+    context: {
+        exchangeName: ExchangeName;
+        strategyName: StrategyName;
+        frameName: FrameName;
+    };
+    /** Timestamp of the current candle or tick */
+    when: Date;
+    /** Current market price for the symbol at the time of execution */
+    currentPrice: number;
+    /** Whether the strategy is running in backtest mode */
+    backtest: boolean;
+}
+
+/**
  * Callback signature for a cron entry handler.
+ *
+ * Receives a single {@link IRuntimeInfo} snapshot assembled by
+ * `RuntimeMetaService.getRuntimeInfo` at the moment the entry fires. It bundles
+ * everything a handler typically needs — symbol, execution context, current
+ * price, backtest range and the strategy-defined `info` payload — so the
+ * handler does not have to re-query the meta-services itself.
  *
  * Invocation cardinality depends on `entry.symbols` (see {@link CronEntry}):
  * - **Global mode** (`symbols` empty/undefined): invoked once per aligned
@@ -26240,22 +26303,29 @@ declare const Interval: IntervalUtils;
  * - **Fan-out mode** (`symbols` non-empty): invoked once per aligned
  *   boundary **per whitelisted symbol**. Each symbol has its own slot.
  *
- * @param symbol - In global mode: the symbol of the backtest that first
+ * Key fields of the {@link IRuntimeInfo} argument:
+ * - `info.symbol` — In global mode: the symbol of the backtest that first
  *   reached the boundary (the singleshot "winner"). In fan-out mode: the
  *   whitelisted symbol whose tick produced this invocation.
- * @param when - The aligned virtual time at which the entry fires.
- *   Already aligned to the entry's `interval` boundary (e.g. for `1h`,
- *   minutes/seconds/ms are zero). In fire-once mode this is the tick time
- *   aligned to the 1-minute boundary (the base alignment `_tick` applies
- *   to every incoming tick), not raw wall-clock with sub-second precision.
- * @param backtest - Execution-mode flag taken from the originating lifecycle
- *   event (`beforeStart` / `idlePing` / `activePing` / `schedulePing`,
- *   wired by `Cron.enable()`). `true` for backtest runs, `false` for live.
- *   The value reflects the **opening** tick that won the singleshot for
- *   this slot — all parallel awaiters of the same slot observe the same
- *   value, even if a later concurrent tick carried a different one.
+ * - `info.context` — `{ strategyName, exchangeName, frameName }` taken from
+ *   the originating lifecycle event (`beforeStart` / `idlePing` / `activePing`
+ *   / `schedulePing`, wired by {@link CronUtils.enable}).
+ * - `info.backtest` — Execution-mode flag from the same event. `true` for
+ *   backtest runs, `false` for live. The value reflects the **opening** tick
+ *   that won the singleshot for this slot — all parallel awaiters of the same
+ *   slot observe the same value, even if a later concurrent tick carried a
+ *   different one.
+ * - `info.range` — Backtest frame range (`from`/`to`), or `null` in live mode.
+ * - `info.currentPrice` — Current market price at snapshot time.
+ * - `info.info` — Strategy-defined runtime payload (`IStrategySchema.info`),
+ *   or `null` when the strategy declares none.
+ * - `info.when` — Snapshot time. **Note:** this is the execution-context tick
+ *   time captured by `getRuntimeInfo`, not the cron-aligned boundary. The
+ *   aligned boundary still governs *when* the entry fires (and is used for the
+ *   slot/dedup keys); `info.when` is the wall/virtual time of the underlying
+ *   tick that opened the slot.
  */
-type CronCallback = (symbol: string, when: Date, backtest: boolean) => void | Promise<void>;
+type CronCallback = (info: IRuntimeInfo) => void | Promise<void>;
 /**
  * Configuration for a registered cron entry.
  */
@@ -26310,7 +26380,7 @@ interface CronEntry {
  * const dispose = Cron.register({
  *   name: "x",
  *   interval: "1h",
- *   handler: async (symbol, when, backtest) => { ... },
+ *   handler: async (info) => { ... },
  * });
  * dispose(); // unregisters
  * ```
@@ -26340,8 +26410,8 @@ interface CronHandle {
  * Cron.register({
  *   name: "tg-signal-parser",
  *   interval: "1h",
- *   handler: async (symbol, when, backtest) => {
- *     await parseTelegramSignalsToMongo(when);
+ *   handler: async (info) => {
+ *     await parseTelegramSignalsToMongo(info.when);
  *   },
  * });
  *
@@ -26459,16 +26529,25 @@ declare class CronUtils {
     /**
      * Build the singleshot promise for a single in-flight slot.
      *
-     * Invokes `entry.handler(symbol, aligned, backtest)`, swallows and logs
-     * any error via `console.error`, and clears the `_inFlight` slot
-     * in `.finally()` so the next boundary produces a fresh promise. For
-     * fire-once entries `firedKey` is added to `_firedOnce` on success so
-     * subsequent ticks skip it.
+     * Assembles the {@link IRuntimeInfo} snapshot via
+     * `RuntimeMetaService.getRuntimeInfo(symbol, context, backtest)` and invokes
+     * `entry.handler(info)`. Swallows and logs any error via `console.error`, and
+     * clears the `_inFlight` slot in `.finally()` so the next boundary produces a
+     * fresh promise. For fire-once entries `firedKey` is added to `_firedOnce` on
+     * success so subsequent ticks skip it.
      *
+     * `getRuntimeInfo` is the user-facing aggregator: its sub-fetches (range,
+     * info, price) are individually wrapped in `trycatch` with `null` fallbacks,
+     * so it never throws for missing data. Only the handler itself can throw, and
+     * that is caught here.
+     *
+     * @param context - Strategy/exchange/frame identifiers from the originating
+     *   lifecycle event, forwarded to `getRuntimeInfo` to resolve `range`/`info`.
      * @param firedKey - Key to add to `_firedOnce` on success, or `null` for
      *   periodic entries (which never populate `_firedOnce`).
-     * @param backtest - Value forwarded as the third handler argument; the
-     *   "winner" tick's flag is what all parallel awaiters of this slot see.
+     * @param backtest - Forwarded to `getRuntimeInfo` and surfaced as
+     *   `info.backtest`; the "winner" tick's flag is what all parallel awaiters
+     *   of this slot see.
      */
     private _runEntry;
     /**
@@ -26488,7 +26567,7 @@ declare class CronUtils {
      *   name: "fetch-funding",
      *   interval: "8h",
      *   symbols: ["BTCUSDT", "ETHUSDT"],
-     *   handler: async (symbol, when, backtest) => { ... },
+     *   handler: async (info) => { ... },
      * });
      * // Later:
      * dispose();
@@ -26565,7 +26644,7 @@ declare class CronUtils {
      * 4. **Fire-once** (`entry.interval === undefined`):
      *    - If the entry's fired-once key is already in `_firedOnce`, skip.
      *    - Slot key: `${name}:once` (+ scope) (+ gen).
-     *    - `aligned` = the 1-minute-aligned `when` from step 0.
+     *    - `alignedMs` = the 1-minute-aligned `when` from step 0 (`ts`).
      * 5. **Periodic** (`entry.interval` set):
      *    - Align `when` to the entry's interval via {@link alignToInterval} to
      *      get `alignedMs`, the boundary this tick belongs to.
@@ -26587,11 +26666,13 @@ declare class CronUtils {
      *      handler is still in flight.
      *    - Slot key: `${name}:${alignedMs}` (+ scope) (+ gen).
      * 6. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
-     *    already exists, `await` the same promise. Otherwise invoke
-     *    `entry.handler`, store the promise, and `await` it. The slot is
-     *    removed in `.finally()` so the next boundary creates a fresh promise;
-     *    for fire-once entries the fired-once key is also added to
-     *    `_firedOnce` on success so subsequent ticks skip it.
+     *    already exists, `await` the same promise. Otherwise open the slot via
+     *    {@link _runEntry} — which assembles the {@link IRuntimeInfo} snapshot
+     *    (from `symbol`, `context`, `backtest`) and invokes `entry.handler(info)`
+     *    — store the promise, and `await` it. The slot is removed in `.finally()`
+     *    so the next boundary creates a fresh promise; for fire-once entries the
+     *    fired-once key is also added to `_firedOnce` on success so subsequent
+     *    ticks skip it.
      *
      * Errors thrown by `handler` are caught, logged via `console.error`, and
      * **not** rethrown — a failing handler must not break the per-symbol
@@ -26604,9 +26685,12 @@ declare class CronUtils {
      * @param symbol - Trading symbol from the current tick.
      * @param when - Virtual time of the current tick.
      * @param backtest - `true` for backtest ticks, `false` for live ticks.
-     *   Forwarded as the third argument to `entry.handler`. Only the value
-     *   from the tick that **opens** a given slot is observed by all parallel
-     *   awaiters of that slot.
+     *   Forwarded to {@link _runEntry} and surfaced as `info.backtest`. Only the
+     *   value from the tick that **opens** a given slot is observed by all
+     *   parallel awaiters of that slot.
+     * @param context - Strategy/exchange/frame identifiers from the originating
+     *   lifecycle event, forwarded to `RuntimeMetaService.getRuntimeInfo` to
+     *   build the {@link IRuntimeInfo} snapshot passed to the handler.
      * @throws Error if method or execution context is missing.
      */
     private _tick;
@@ -26623,7 +26707,11 @@ declare class CronUtils {
      *
      * All four subjects are subscribed to a single `singlerun`-wrapped
      * handler that builds `_tick(event.symbol, new Date(event.timestamp),
-     * event.backtest)`. `singlerun` merges the four streams into one serial
+     * event.backtest, { strategyName, exchangeName, frameName })`. The context
+     * object is read uniformly from the event — every contract carries
+     * `strategyName`, `exchangeName` and `frameName` at the top level (Active /
+     * Schedule contracts gained `frameName` for exactly this reason), so no
+     * per-event branching is needed. `singlerun` merges the four streams into one serial
      * queue: at most one `_tick` runs at a time, the next waits. This matters
      * because the engine can emit `beforeStart` and an immediate `idlePing`
      * on the very same minute, and concurrent `_tick`s on the same
@@ -26708,7 +26796,7 @@ declare class CronUtils {
  * Cron.register({
  *   name: "tg-parser",
  *   interval: "1h",
- *   handler: async (symbol, when, backtest) => { ... },
+ *   handler: async (info) => { ... },
  * });
  * ```
  */
@@ -30901,6 +30989,19 @@ declare class PriceMetaService {
      * Instances are cached until clear() is called.
      */
     private getSource;
+    /**
+     * Checks if a price exists for the given key and has emitted at least one value.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Strategy, exchange, and frame identifiers
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns True if a price exists and has emitted a value, false otherwise
+     */
+    hasPrice: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }, backtest: boolean) => boolean;
     /**
      * Returns the current market price for the given symbol and context.
      *
@@ -36888,6 +36989,33 @@ declare const backtest: {
         };
         getContextTimestamp: () => number;
     };
+    runtimeMetaService: {
+        readonly loggerService: {
+            readonly methodContextService: {
+                readonly context: IMethodContext;
+            };
+            readonly executionContextService: {
+                readonly context: IExecutionContext;
+            };
+            _commonLogger: ILogger;
+            readonly _methodContext: {};
+            readonly _executionContext: {};
+            log: (topic: string, ...args: any[]) => Promise<void>;
+            debug: (topic: string, ...args: any[]) => Promise<void>;
+            info: (topic: string, ...args: any[]) => Promise<void>;
+            warn: (topic: string, ...args: any[]) => Promise<void>;
+            setLogger: (logger: ILogger) => void;
+        };
+        readonly timeMetaService: TimeMetaService;
+        readonly priceMetaService: PriceMetaService;
+        readonly frameSchemaService: FrameSchemaService;
+        readonly strategySchemaService: StrategySchemaService;
+        getRuntimeInfo: <Data extends RuntimeData = RuntimeData>(symbol: string, context: {
+            strategyName: string;
+            exchangeName: string;
+            frameName: string;
+        }, backtest: boolean) => Promise<IRuntimeInfo<Data>>;
+    };
     exchangeCoreService: ExchangeCoreService;
     strategyCoreService: StrategyCoreService;
     actionCoreService: ActionCoreService;
@@ -37014,4 +37142,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getRawCandles, getRiskSchema, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getRawCandles, getRiskSchema, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

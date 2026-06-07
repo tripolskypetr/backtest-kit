@@ -1,5 +1,6 @@
 import { compose, singlerun, singleshot } from "functools-kit";
 import LoggerService from "../lib/services/base/LoggerService";
+import RuntimeMetaService from "../lib/services/meta/RuntimeMetaService";
 import { CandleInterval } from "../interfaces/Exchange.interface";
 import {
   ExecutionContextService,
@@ -16,6 +17,7 @@ import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import IdlePingContract from "../contract/IdlePing.contract";
 import ActivePingContract from "../contract/ActivePing.contract";
 import SchedulePingContract from "../contract/SchedulePing.contract";
+import { IRuntimeInfo } from "../interfaces/Runtime.interface";
 
 const CRON_METHOD_NAME_REGISTER = "CronUtils.register";
 const CRON_METHOD_NAME_UNREGISTER = "CronUtils.unregister";
@@ -35,7 +37,28 @@ const CRON_METHOD_NAME_DISPOSE = "CronUtils.dispose";
 const LOGGER_SERVICE = new LoggerService();
 
 /**
+ * Local runtime-meta-service instance.
+ *
+ * Like {@link LOGGER_SERVICE}, instantiated directly via `new` rather than
+ * resolved from the DI container so `CronUtils` carries no compile-time
+ * dependency on a bootstrapped framework. `RuntimeMetaService` is built with
+ * the `singleton` HOF from `di-singleton`, so `new RuntimeMetaService()`
+ * returns the one shared singleton proxy — the same instance the rest of the
+ * framework injects — and resolves its own dependencies lazily on first use.
+ *
+ * Used by {@link CronUtils._runEntry} to assemble the {@link IRuntimeInfo}
+ * snapshot handed to each cron handler.
+ */
+const RUNTIME_META_SERVICE = new RuntimeMetaService();
+
+/**
  * Callback signature for a cron entry handler.
+ *
+ * Receives a single {@link IRuntimeInfo} snapshot assembled by
+ * `RuntimeMetaService.getRuntimeInfo` at the moment the entry fires. It bundles
+ * everything a handler typically needs — symbol, execution context, current
+ * price, backtest range and the strategy-defined `info` payload — so the
+ * handler does not have to re-query the meta-services itself.
  *
  * Invocation cardinality depends on `entry.symbols` (see {@link CronEntry}):
  * - **Global mode** (`symbols` empty/undefined): invoked once per aligned
@@ -45,25 +68,30 @@ const LOGGER_SERVICE = new LoggerService();
  * - **Fan-out mode** (`symbols` non-empty): invoked once per aligned
  *   boundary **per whitelisted symbol**. Each symbol has its own slot.
  *
- * @param symbol - In global mode: the symbol of the backtest that first
+ * Key fields of the {@link IRuntimeInfo} argument:
+ * - `info.symbol` — In global mode: the symbol of the backtest that first
  *   reached the boundary (the singleshot "winner"). In fan-out mode: the
  *   whitelisted symbol whose tick produced this invocation.
- * @param when - The aligned virtual time at which the entry fires.
- *   Already aligned to the entry's `interval` boundary (e.g. for `1h`,
- *   minutes/seconds/ms are zero). In fire-once mode this is the tick time
- *   aligned to the 1-minute boundary (the base alignment `_tick` applies
- *   to every incoming tick), not raw wall-clock with sub-second precision.
- * @param backtest - Execution-mode flag taken from the originating lifecycle
- *   event (`beforeStart` / `idlePing` / `activePing` / `schedulePing`,
- *   wired by `Cron.enable()`). `true` for backtest runs, `false` for live.
- *   The value reflects the **opening** tick that won the singleshot for
- *   this slot — all parallel awaiters of the same slot observe the same
- *   value, even if a later concurrent tick carried a different one.
+ * - `info.context` — `{ strategyName, exchangeName, frameName }` taken from
+ *   the originating lifecycle event (`beforeStart` / `idlePing` / `activePing`
+ *   / `schedulePing`, wired by {@link CronUtils.enable}).
+ * - `info.backtest` — Execution-mode flag from the same event. `true` for
+ *   backtest runs, `false` for live. The value reflects the **opening** tick
+ *   that won the singleshot for this slot — all parallel awaiters of the same
+ *   slot observe the same value, even if a later concurrent tick carried a
+ *   different one.
+ * - `info.range` — Backtest frame range (`from`/`to`), or `null` in live mode.
+ * - `info.currentPrice` — Current market price at snapshot time.
+ * - `info.info` — Strategy-defined runtime payload (`IStrategySchema.info`),
+ *   or `null` when the strategy declares none.
+ * - `info.when` — Snapshot time. **Note:** this is the execution-context tick
+ *   time captured by `getRuntimeInfo`, not the cron-aligned boundary. The
+ *   aligned boundary still governs *when* the entry fires (and is used for the
+ *   slot/dedup keys); `info.when` is the wall/virtual time of the underlying
+ *   tick that opened the slot.
  */
 export type CronCallback = (
-  symbol: string,
-  when: Date,
-  backtest: boolean
+  info: IRuntimeInfo
 ) => void | Promise<void>;
 
 /**
@@ -121,7 +149,7 @@ export interface CronEntry {
  * const dispose = Cron.register({
  *   name: "x",
  *   interval: "1h",
- *   handler: async (symbol, when, backtest) => { ... },
+ *   handler: async (info) => { ... },
  * });
  * dispose(); // unregisters
  * ```
@@ -174,8 +202,8 @@ interface ICronEntryRecord {
  * Cron.register({
  *   name: "tg-signal-parser",
  *   interval: "1h",
- *   handler: async (symbol, when, backtest) => {
- *     await parseTelegramSignalsToMongo(when);
+ *   handler: async (info) => {
+ *     await parseTelegramSignalsToMongo(info.when);
  *   },
  * });
  *
@@ -320,29 +348,39 @@ export class CronUtils {
   /**
    * Build the singleshot promise for a single in-flight slot.
    *
-   * Invokes `entry.handler(symbol, aligned, backtest)`, swallows and logs
-   * any error via `console.error`, and clears the `_inFlight` slot
-   * in `.finally()` so the next boundary produces a fresh promise. For
-   * fire-once entries `firedKey` is added to `_firedOnce` on success so
-   * subsequent ticks skip it.
+   * Assembles the {@link IRuntimeInfo} snapshot via
+   * `RuntimeMetaService.getRuntimeInfo(symbol, context, backtest)` and invokes
+   * `entry.handler(info)`. Swallows and logs any error via `console.error`, and
+   * clears the `_inFlight` slot in `.finally()` so the next boundary produces a
+   * fresh promise. For fire-once entries `firedKey` is added to `_firedOnce` on
+   * success so subsequent ticks skip it.
    *
+   * `getRuntimeInfo` is the user-facing aggregator: its sub-fetches (range,
+   * info, price) are individually wrapped in `trycatch` with `null` fallbacks,
+   * so it never throws for missing data. Only the handler itself can throw, and
+   * that is caught here.
+   *
+   * @param context - Strategy/exchange/frame identifiers from the originating
+   *   lifecycle event, forwarded to `getRuntimeInfo` to resolve `range`/`info`.
    * @param firedKey - Key to add to `_firedOnce` on success, or `null` for
    *   periodic entries (which never populate `_firedOnce`).
-   * @param backtest - Value forwarded as the third handler argument; the
-   *   "winner" tick's flag is what all parallel awaiters of this slot see.
+   * @param backtest - Forwarded to `getRuntimeInfo` and surfaced as
+   *   `info.backtest`; the "winner" tick's flag is what all parallel awaiters
+   *   of this slot see.
    */
   private async _runEntry(
     entry: CronEntry,
     symbol: string,
-    aligned: Date,
     alignedMs: number,
     slotKey: string,
     firedKey: string | null,
-    backtest: boolean
+    backtest: boolean,
+    context: { strategyName: string; exchangeName: string; frameName: string }
   ): Promise<void> {
     let failed = false;
     try {
-      await entry.handler(symbol, aligned, backtest);
+      const info = await RUNTIME_META_SERVICE.getRuntimeInfo(symbol, context, backtest);
+      await entry.handler(info);
     } catch (err) {
       failed = true;
       console.error(
@@ -374,7 +412,7 @@ export class CronUtils {
    *   name: "fetch-funding",
    *   interval: "8h",
    *   symbols: ["BTCUSDT", "ETHUSDT"],
-   *   handler: async (symbol, when, backtest) => { ... },
+   *   handler: async (info) => { ... },
    * });
    * // Later:
    * dispose();
@@ -501,7 +539,7 @@ export class CronUtils {
    * 4. **Fire-once** (`entry.interval === undefined`):
    *    - If the entry's fired-once key is already in `_firedOnce`, skip.
    *    - Slot key: `${name}:once` (+ scope) (+ gen).
-   *    - `aligned` = the 1-minute-aligned `when` from step 0.
+   *    - `alignedMs` = the 1-minute-aligned `when` from step 0 (`ts`).
    * 5. **Periodic** (`entry.interval` set):
    *    - Align `when` to the entry's interval via {@link alignToInterval} to
    *      get `alignedMs`, the boundary this tick belongs to.
@@ -523,11 +561,13 @@ export class CronUtils {
    *      handler is still in flight.
    *    - Slot key: `${name}:${alignedMs}` (+ scope) (+ gen).
    * 6. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
-   *    already exists, `await` the same promise. Otherwise invoke
-   *    `entry.handler`, store the promise, and `await` it. The slot is
-   *    removed in `.finally()` so the next boundary creates a fresh promise;
-   *    for fire-once entries the fired-once key is also added to
-   *    `_firedOnce` on success so subsequent ticks skip it.
+   *    already exists, `await` the same promise. Otherwise open the slot via
+   *    {@link _runEntry} — which assembles the {@link IRuntimeInfo} snapshot
+   *    (from `symbol`, `context`, `backtest`) and invokes `entry.handler(info)`
+   *    — store the promise, and `await` it. The slot is removed in `.finally()`
+   *    so the next boundary creates a fresh promise; for fire-once entries the
+   *    fired-once key is also added to `_firedOnce` on success so subsequent
+   *    ticks skip it.
    *
    * Errors thrown by `handler` are caught, logged via `console.error`, and
    * **not** rethrown — a failing handler must not break the per-symbol
@@ -540,15 +580,24 @@ export class CronUtils {
    * @param symbol - Trading symbol from the current tick.
    * @param when - Virtual time of the current tick.
    * @param backtest - `true` for backtest ticks, `false` for live ticks.
-   *   Forwarded as the third argument to `entry.handler`. Only the value
-   *   from the tick that **opens** a given slot is observed by all parallel
-   *   awaiters of that slot.
+   *   Forwarded to {@link _runEntry} and surfaced as `info.backtest`. Only the
+   *   value from the tick that **opens** a given slot is observed by all
+   *   parallel awaiters of that slot.
+   * @param context - Strategy/exchange/frame identifiers from the originating
+   *   lifecycle event, forwarded to `RuntimeMetaService.getRuntimeInfo` to
+   *   build the {@link IRuntimeInfo} snapshot passed to the handler.
    * @throws Error if method or execution context is missing.
    */
-  private _tick = async (symbol: string, when: Date, backtest: boolean): Promise<void> => {
+  private _tick = async (
+    symbol: string,
+    when: Date,
+    backtest: boolean,
+    context: { strategyName: string; exchangeName: string; frameName: string }
+  ): Promise<void> => {
     LOGGER_SERVICE.debug(CRON_METHOD_NAME_TICK, {
       symbol,
       when,
+      context,
     });
 
     if (!MethodContextService.hasContext()) {
@@ -570,7 +619,6 @@ export class CronUtils {
       const scope = perSymbol ? `:${symbol}` : "";
       const genSuffix = `:g${generation}`;
 
-      let aligned: Date;
       let alignedMs: number;
       let slotKey: string;
       let firedKey: string | null;
@@ -583,14 +631,12 @@ export class CronUtils {
         if (this._firedOnce.has(onceKey)) {
           continue;
         }
-        aligned = alignToInterval(when, "1m");
         alignedMs = ts;
         slotKey = `${entry.name}:once${scope}${genSuffix}`;
         firedKey = onceKey;
         boundaryKey = null;
       } else {
-        aligned = alignToInterval(when, entry.interval);
-        alignedMs = aligned.getTime();
+        alignedMs = alignToInterval(when, entry.interval).getTime();
         boundaryKey = `${entry.name}${scope}${genSuffix}`;
         const lastBoundary = this._lastBoundary.get(boundaryKey);
         // Fire when the tick's aligned boundary has advanced past the last one
@@ -614,7 +660,7 @@ export class CronUtils {
         if (boundaryKey !== null) {
           this._lastBoundary.set(boundaryKey, alignedMs);
         }
-        pending = this._runEntry(entry, symbol, aligned, alignedMs, slotKey, firedKey, backtest);
+        pending = this._runEntry(entry, symbol, alignedMs, slotKey, firedKey, backtest, context);
         this._inFlight.set(slotKey, pending);
       }
 
@@ -637,7 +683,11 @@ export class CronUtils {
    *
    * All four subjects are subscribed to a single `singlerun`-wrapped
    * handler that builds `_tick(event.symbol, new Date(event.timestamp),
-   * event.backtest)`. `singlerun` merges the four streams into one serial
+   * event.backtest, { strategyName, exchangeName, frameName })`. The context
+   * object is read uniformly from the event — every contract carries
+   * `strategyName`, `exchangeName` and `frameName` at the top level (Active /
+   * Schedule contracts gained `frameName` for exactly this reason), so no
+   * per-event branching is needed. `singlerun` merges the four streams into one serial
    * queue: at most one `_tick` runs at a time, the next waits. This matters
    * because the engine can emit `beforeStart` and an immediate `idlePing`
    * on the very same minute, and concurrent `_tick`s on the same
@@ -674,7 +724,16 @@ export class CronUtils {
     LOGGER_SERVICE.info(CRON_METHOD_NAME_ENABLE);
 
     const handleTick = singlerun(async (event: BeforeStartContract | IdlePingContract | ActivePingContract | SchedulePingContract) => {
-      return await this._tick(event.symbol, new Date(event.timestamp), event.backtest);
+      return await this._tick(
+        event.symbol,
+        new Date(event.timestamp),
+        event.backtest,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      );
     })
 
     const unBeforeStart = beforeStartSubject.subscribe(handleTick);
@@ -756,7 +815,7 @@ export class CronUtils {
  * Cron.register({
  *   name: "tg-parser",
  *   interval: "1h",
- *   handler: async (symbol, when, backtest) => { ... },
+ *   handler: async (info) => { ... },
  * });
  * ```
  */

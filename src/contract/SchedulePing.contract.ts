@@ -1,4 +1,5 @@
 import { ExchangeName } from "../interfaces/Exchange.interface";
+import { FrameName } from "../interfaces/Frame.interface";
 import { IScheduledSignalRow, StrategyName } from "../interfaces/Strategy.interface";
 
 /**
@@ -50,6 +51,13 @@ export interface SchedulePingContract {
    * Identifies which exchange this ping event belongs to.
    */
   exchangeName: ExchangeName;
+
+  /**
+   * Frame name (timeframe / date range) for the run. Empty string in live
+   * mode, where frames are not used. Same value as the monitored signal's
+   * `frameName` (`data.frameName`).
+   */
+  frameName: FrameName;
 
   /**
    * Complete scheduled signal row data.

@@ -1300,7 +1300,7 @@ import { Cron, Backtest } from "backtest-kit";
 Cron.register({
   name: "tg-signal-parser",
   interval: "1h",
-  handler: async (symbol, when, backtest) => {
+  handler: async ({ symbol, when, backtest }) => {
     await parseTelegramSignalsToMongo(when);
   },
 });
@@ -1310,7 +1310,7 @@ Cron.register({
   name: "fetch-funding",
   interval: "1h",
   symbols: ["BTCUSDT", "ETHUSDT"],
-  handler: async (symbol, when, backtest) => {
+  handler: async ({ symbol, when, backtest }) => {
     await fetchFundingRate(symbol, when);
   },
 });
@@ -1318,7 +1318,7 @@ Cron.register({
 // Fire-once warm-up — runs once globally on the very first tick.
 Cron.register({
   name: "warm-cache",
-  handler: async (symbol, when, backtest) => {
+  handler: async ({ symbol, when, backtest }) => {
     await warmupCache();
   },
 });

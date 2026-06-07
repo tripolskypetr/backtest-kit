@@ -254,6 +254,7 @@ export {
   StrategyCloseReason,
   IStrategyPnL,
   CommitPayload,
+  RuntimeData,
 } from "./interfaces/Strategy.interface";
 
 export {
@@ -602,6 +603,10 @@ export {
   type CronHandle,
   type CronCallback,
 } from "./classes/Cron";
+export {
+  type IRuntimeInfo,
+  type IRuntimeRange,
+} from "./interfaces/Runtime.interface";
 export { Breakeven } from "./classes/Breakeven";
 export { Strategy } from "./classes/Strategy";
 export { ActionBase } from "./classes/ActionBase";
