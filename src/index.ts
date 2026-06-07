@@ -232,6 +232,11 @@ export {
 } from "./interfaces/Logger.interface";
 
 export {
+  IRuntimeInfo,
+  IRuntimeRange,
+} from "./interfaces/Runtime.interface";
+
+export {
   SignalInterval,
   ISignalDto,
   ISignalRow,
@@ -603,10 +608,6 @@ export {
   type CronHandle,
   type CronCallback,
 } from "./classes/Cron";
-export {
-  type IRuntimeInfo,
-  type IRuntimeRange,
-} from "./interfaces/Runtime.interface";
 export { Breakeven } from "./classes/Breakeven";
 export { Strategy } from "./classes/Strategy";
 export { ActionBase } from "./classes/ActionBase";
