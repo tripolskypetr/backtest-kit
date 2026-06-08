@@ -1,4 +1,5 @@
-import { HtmlView, dayjs } from "react-declarative";
+import { HtmlView, dayjs, formatAmount } from "react-declarative";
+import getPriceScale from "../../../../../utils/getPriceScale";
 import {
   Avatar,
   Box,
@@ -673,7 +674,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       size="small"
                       sx={{ mt: 1, mr: 1 }}
-                      label={`${t("Avg entry")}: ${item.effectivePriceOpen}`}
+                      label={`${t("Avg entry")}: ${item.effectivePriceOpen != null ? formatAmount(item.effectivePriceOpen, getPriceScale(item.effectivePriceOpen)) : "N/A"}`}
                       variant="outlined"
                       color="warning"
                     />
@@ -682,7 +683,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       size="small"
                       sx={{ mt: 1, mr: 1 }}
-                      label={`${t("Orig entry")}: ${item.originalPriceOpen}`}
+                      label={`${t("Orig entry")}: ${item.originalPriceOpen != null ? formatAmount(item.originalPriceOpen, getPriceScale(item.originalPriceOpen)) : "N/A"}`}
                       variant="outlined"
                     />
                   )}
@@ -697,20 +698,20 @@ export const NotificationCard = forwardRef(
                           <Typography component="span" color="text.secondary">
                             {t("Current")}:{" "}
                           </Typography>
-                          {item.currentPrice}
+                          {item.currentPrice != null ? formatAmount(item.currentPrice, getPriceScale(item.currentPrice)) : "N/A"}
                         </Typography>
                       )}
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Take Profit")}:{" "}
                         </Typography>
-                        {item.priceTakeProfit}
+                        {item.priceTakeProfit != null ? formatAmount(item.priceTakeProfit, getPriceScale(item.priceTakeProfit)) : "N/A"}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Stop Loss")}:{" "}
                         </Typography>
-                        {item.priceStopLoss}
+                        {item.priceStopLoss != null ? formatAmount(item.priceStopLoss, getPriceScale(item.priceStopLoss)) : "N/A"}
                       </Typography>
                     </Stack>
                   </>
@@ -723,13 +724,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("PnL Entry")}:{" "}
                         </Typography>
-                        {item.pnlPriceOpen}
+                        {item.pnlPriceOpen != null ? formatAmount(item.pnlPriceOpen, getPriceScale(item.pnlPriceOpen)) : "N/A"}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("PnL Exit")}:{" "}
                         </Typography>
-                        {item.pnlPriceClose}
+                        {item.pnlPriceClose != null ? formatAmount(item.pnlPriceClose, getPriceScale(item.pnlPriceClose)) : "N/A"}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
@@ -760,13 +761,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("Peak Entry")}:{" "}
                         </Typography>
-                        {item.peakProfitPriceOpen}
+                        {item.peakProfitPriceOpen != null ? formatAmount(item.peakProfitPriceOpen, getPriceScale(item.peakProfitPriceOpen)) : "N/A"}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Peak Exit")}:{" "}
                         </Typography>
-                        {item.peakProfitPriceClose}
+                        {item.peakProfitPriceClose != null ? formatAmount(item.peakProfitPriceClose, getPriceScale(item.peakProfitPriceClose)) : "N/A"}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
@@ -797,13 +798,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("Drawdown Entry")}:{" "}
                         </Typography>
-                        {item.maxDrawdownPriceOpen}
+                        {item.maxDrawdownPriceOpen != null ? formatAmount(item.maxDrawdownPriceOpen, getPriceScale(item.maxDrawdownPriceOpen)) : "N/A"}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Drawdown Exit")}:{" "}
                         </Typography>
-                        {item.maxDrawdownPriceClose}
+                        {item.maxDrawdownPriceClose != null ? formatAmount(item.maxDrawdownPriceClose, getPriceScale(item.maxDrawdownPriceClose)) : "N/A"}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
