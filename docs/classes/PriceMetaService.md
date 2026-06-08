@@ -56,6 +56,14 @@ Memoized factory for BehaviorSubject streams keyed by (symbol, strategyName, exc
 Each subject holds the latest currentPrice emitted by the strategy iterator for that key.
 Instances are cached until clear() is called.
 
+### hasPrice
+
+```ts
+hasPrice: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest: boolean) => boolean
+```
+
+Checks if a price exists for the given key and has emitted at least one value.
+
 ### getCurrentPrice
 
 ```ts

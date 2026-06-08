@@ -155,3 +155,131 @@ recoveryFactor: number
 ```
 
 Recovery Factor (totalPnl / max drawdown), null if unsafe. Higher is better.
+
+### expectancy
+
+```ts
+expectancy: number
+```
+
+Per-trade Expectancy (winProb*avgWin + lossProb*avgLoss), null if unsafe. Higher is better.
+
+### avgDuration
+
+```ts
+avgDuration: number
+```
+
+Average trade duration in minutes ((timestamp - pendingAt) / 60_000), null if unsafe.
+
+### medianPnl
+
+```ts
+medianPnl: number
+```
+
+Median pnl — robust to outliers; reveals distribution skew when paired with avgPnl.
+
+### avgConsecutiveWinPnl
+
+```ts
+avgConsecutiveWinPnl: number
+```
+
+Average sum of pnl across consecutive winning streaks. Null if no win streak.
+
+### avgConsecutiveLossPnl
+
+```ts
+avgConsecutiveLossPnl: number
+```
+
+Average sum of pnl across consecutive losing streaks. Null if no loss streak. Closer to 0 is better.
+
+### avgWinDuration
+
+```ts
+avgWinDuration: number
+```
+
+Average duration in minutes of winning trades.
+
+### avgLossDuration
+
+```ts
+avgLossDuration: number
+```
+
+Average duration in minutes of losing trades.
+
+### medianStepSize
+
+```ts
+medianStepSize: number
+```
+
+Median &vert;close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers.
+
+### buyerPressure
+
+```ts
+buyerPressure: number
+```
+
+Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent.
+
+### sellerPressure
+
+```ts
+sellerPressure: number
+```
+
+Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure.
+
+### buyerStrength
+
+```ts
+buyerStrength: number
+```
+
+Share of upward absolute movement in total close-to-close movement. 0..1.
+
+### sellerStrength
+
+```ts
+sellerStrength: number
+```
+
+Share of downward absolute movement in total close-to-close movement. 0..1.
+
+### pressureImbalance
+
+```ts
+pressureImbalance: number
+```
+
+buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude.
+
+### trend
+
+```ts
+trend: "bullish" | "bearish" | "sideways" | "neutral"
+```
+
+Bivariate trend classification (slope × R²).
+
+### trendStrength
+
+```ts
+trendStrength: number
+```
+
+Log-price regression slope, in %/day.
+
+### trendConfidence
+
+```ts
+trendConfidence: number
+```
+
+R² of the log-price regression, in [0, 1].

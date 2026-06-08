@@ -80,6 +80,19 @@ riskValidationService: any
 actionValidationService: any
 ```
 
+### validate
+
+```ts
+validate: any
+```
+
+Validates walker and associated strategy configurations.
+Memoized to avoid redundant validations for the same walker-exchange-frame combination.
+
+Strategy/risk/action validation is performed explicitly here in addition to the
+cascade inside WalkerValidationService — this is critical-path code and the
+redundant check is intentional defense-in-depth.
+
 ### run
 
 ```ts

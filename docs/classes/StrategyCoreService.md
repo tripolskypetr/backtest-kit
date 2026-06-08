@@ -64,6 +64,12 @@ exchangeValidationService: any
 frameValidationService: any
 ```
 
+### actionValidationService
+
+```ts
+actionValidationService: any
+```
+
 ### validate
 
 ```ts

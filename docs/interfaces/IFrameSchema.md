@@ -32,7 +32,7 @@ Optional developer note for documentation
 interval: FrameInterval
 ```
 
-Interval for timestamp generation
+Interval for time range generation. Defaults to "1m" if not specified
 
 ### startDate
 

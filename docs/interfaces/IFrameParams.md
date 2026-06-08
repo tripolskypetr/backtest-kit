@@ -17,3 +17,11 @@ logger: ILogger
 ```
 
 Logger service for debug output
+
+### interval
+
+```ts
+interval: FrameInterval
+```
+
+Frame name for identification

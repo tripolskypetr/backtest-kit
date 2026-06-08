@@ -77,3 +77,11 @@ actions: string[]
 ```
 
 Optional list of action identifiers to attach to this strategy
+
+### info
+
+```ts
+info: RuntimeData
+```
+
+Optional runtime for custom monitoring, reporting or external logic

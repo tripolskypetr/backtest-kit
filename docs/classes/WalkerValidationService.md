@@ -32,6 +32,36 @@ constructor();
 loggerService: any
 ```
 
+### walkerSchemaService
+
+```ts
+walkerSchemaService: any
+```
+
+### strategyValidationService
+
+```ts
+strategyValidationService: any
+```
+
+### strategySchemaService
+
+```ts
+strategySchemaService: any
+```
+
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
+### actionValidationService
+
+```ts
+actionValidationService: any
+```
+
 ### _walkerMap
 
 ```ts
@@ -52,7 +82,9 @@ Adds a walker schema to the validation service
 validate: (walkerName: string, source: string) => void
 ```
 
-Validates the existence of a walker
+Validates the existence of a walker and its associated strategy configurations.
+Each strategy referenced by the walker is validated via StrategyValidationService,
+which in turn validates the strategy's risk profiles and actions.
 
 ### list
 

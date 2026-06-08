@@ -65,12 +65,15 @@ the `:${symbol}` scope is present only in fan-out mode):
 - Fire-once global: `${name}:once:g${generation}`.
 - Fire-once fan-out: `${name}:once:${symbol}:g${generation}`.
 
-Value is the shared in-flight handler promise. Every parallel `tick` for
-the same slot key awaits this exact promise (mutex semantics) and is
-released together when it settles. `_inFlight` is owned exclusively by
-`_runEntry` — `clear()` does **not** touch it, so the singleshot promise
-survives concurrent `clear` calls and continues to coordinate parallel
-ticks until it settles.
+Value is the shared in-flight handler promise. It resolves to a `boolean`
+"failed" flag (`true` when the handler — or the runtime-info assembly —
+threw), which `_tick` uses to roll back the periodic watermark of the slot
+it opened so a failed boundary is retried. Every parallel `tick` for the
+same slot key awaits this exact promise (mutex semantics) and is released
+together when it settles. `_inFlight` is owned exclusively by `_runEntry` —
+`clear()` does **not** touch it, so the singleshot promise survives
+concurrent `clear` calls and continues to coordinate parallel ticks until
+it settles.
 
 ### _firedOnce
 
@@ -122,9 +125,12 @@ latest one).
 
 Written synchronously in `_tick` at slot-open time (before the `await`),
 so a still-in-flight handler does not let a later tick re-open the same
-(or an already-passed) boundary. Fire-once entries never touch this map —
-they use `_firedOnce`. Pruned by `_clearBoundaryFor` on
-`register`/`unregister` and wiped by `dispose`.
+(or an already-passed) boundary. If that handler then **fails**, the
+advance is rolled back after the slot settles — the prior value is restored
+(or the key deleted if there was none) — so the failed boundary is retried
+on the next tick, mirroring catch-up of a skipped boundary. Fire-once
+entries never touch this map — they use `_firedOnce`. Pruned by
+`_clearBoundaryFor` on `register`/`unregister` and wiped by `dispose`.
 
 ### _clearBoundaryFor
 
@@ -162,11 +168,22 @@ _runEntry: any
 
 Build the singleshot promise for a single in-flight slot.
 
-Invokes `entry.handler(symbol, aligned, backtest)`, swallows and logs
-any error via `console.error`, and clears the `_inFlight` slot
-in `.finally()` so the next boundary produces a fresh promise. For
-fire-once entries `firedKey` is added to `_firedOnce` on success so
-subsequent ticks skip it.
+Assembles the {@link IRuntimeInfo} snapshot via
+`RuntimeMetaService.getRuntimeInfo(symbol, context, backtest)` and invokes
+`entry.handler(info)`. Logs any error via `console.error` and **returns** a
+`failed` boolean (`true` when the handler — or the runtime-info assembly —
+threw) so the caller (`_tick`) can roll back the periodic watermark of the
+slot it opened and retry that boundary. The error is **not** rethrown, so a
+failing handler never produces an unhandled rejection. Clears the
+`_inFlight` slot in `.finally()` so the next boundary produces a fresh
+promise. For fire-once entries `firedKey` is added to `_firedOnce` on
+success so subsequent ticks skip it.
+
+`getRuntimeInfo` is the user-facing aggregator: its sub-fetches (range,
+info, price) are individually wrapped in `trycatch` with `null` fallbacks,
+so it almost never throws for missing data. Whatever does throw — the
+handler, or in rare cases `getRuntimeInfo` — is caught here and reported via
+the returned `failed` flag; the watermark rollback treats both identically.
 
 ### register
 
@@ -259,7 +276,7 @@ Algorithm (per registered entry):
 4. **Fire-once** (`entry.interval === undefined`):
    - If the entry's fired-once key is already in `_firedOnce`, skip.
    - Slot key: `${name}:once` (+ scope) (+ gen).
-   - `aligned` = the 1-minute-aligned `when` from step 0.
+   - `alignedMs` = the 1-minute-aligned `when` from step 0 (`ts`).
 5. **Periodic** (`entry.interval` set):
    - Align `when` to the entry's interval via {@link alignToInterval} to
      get `alignedMs`, the boundary this tick belongs to.
@@ -281,17 +298,25 @@ Algorithm (per registered entry):
      handler is still in flight.
    - Slot key: `${name}:${alignedMs}` (+ scope) (+ gen).
 6. Singleshot per slot key: look up the slot in `_inFlight`. If a promise
-   already exists, `await` the same promise. Otherwise invoke
-   `entry.handler`, store the promise, and `await` it. The slot is
-   removed in `.finally()` so the next boundary creates a fresh promise;
-   for fire-once entries the fired-once key is also added to
-   `_firedOnce` on success so subsequent ticks skip it.
+   already exists, `await` the same promise. Otherwise open the slot via
+   {@link _runEntry} — which assembles the {@link IRuntimeInfo} snapshot
+   (from `symbol`, `context`, `backtest`) and invokes `entry.handler(info)`
+   — store the promise, and `await` it. The slot is removed in `.finally()`
+   so the next boundary creates a fresh promise; for fire-once entries the
+   fired-once key is also added to `_firedOnce` on success so subsequent
+   ticks skip it.
+7. After `await Promise.all`, roll back the watermark for every **periodic**
+   slot this tick *opened* (not the ones whose in-flight promise it reused)
+   whose handler reported failure, so the next tick re-opens and re-runs
+   that boundary.
 
 Errors thrown by `handler` are caught, logged via `console.error`, and
 **not** rethrown — a failing handler must not break the per-symbol
 tick loop or unblock other parallel backtests with an unhandled
 rejection. A failed fire-once handler is **not** marked as fired and
-will retry on the next tick.
+will retry on the next tick. A failed **periodic** handler likewise
+retries: the boundary watermark advanced at slot-open time is rolled back
+after the slot settles (step 7), so the next tick re-opens that boundary.
 
 Requires active method context and execution context.
 
@@ -313,7 +338,11 @@ Subjects funneled into {@link _tick}:
 
 All four subjects are subscribed to a single `singlerun`-wrapped
 handler that builds `_tick(event.symbol, new Date(event.timestamp),
-event.backtest)`. `singlerun` merges the four streams into one serial
+event.backtest, { strategyName, exchangeName, frameName })`. The context
+object is read uniformly from the event — every contract carries
+`strategyName`, `exchangeName` and `frameName` at the top level (Active /
+Schedule contracts gained `frameName` for exactly this reason), so no
+per-event branching is needed. `singlerun` merges the four streams into one serial
 queue: at most one `_tick` runs at a time, the next waits. This matters
 because the engine can emit `beforeStart` and an immediate `idlePing`
 on the very same minute, and concurrent `_tick`s on the same

@@ -88,6 +88,14 @@ frameValidationService: any
 
 Frame validation service for validating frame existence.
 
+### actionValidationService
+
+```ts
+actionValidationService: any
+```
+
+Action validation service for validating frame existence.
+
 ### validate
 
 ```ts

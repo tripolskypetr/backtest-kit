@@ -45,6 +45,16 @@ exchangeName: string
 Exchange name where this active pending signal is being monitored.
 Identifies which exchange this ping event belongs to.
 
+### frameName
+
+```ts
+frameName: string
+```
+
+Frame name (timeframe / date range) for the run. Empty string in live
+mode, where frames are not used. Same value as the monitored signal's
+`frameName` (`data.frameName`).
+
 ### data
 
 ```ts

@@ -62,6 +62,15 @@ riskValidationService: any
 actionValidationService: any
 ```
 
+### validate
+
+```ts
+validate: any
+```
+
+Validates strategy and associated risk configuration.
+Memoized to avoid redundant validations for the same strategy-exchange combination.
+
 ### run
 
 ```ts
