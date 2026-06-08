@@ -2,6 +2,11 @@ import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { WalkerName, IWalkerSchema } from "../../../interfaces/Walker.interface";
+import WalkerSchemaService from "../schema/WalkerSchemaService";
+import StrategySchemaService from "../schema/StrategySchemaService";
+import StrategyValidationService from "./StrategyValidationService";
+import RiskValidationService from "./RiskValidationService";
+import ActionValidationService from "./ActionValidationService";
 import { memoize } from "functools-kit";
 
 /**
@@ -39,6 +44,41 @@ export class WalkerValidationService {
 
   /**
    * @private
+   * @readonly
+   * Injected walker schema service instance
+   */
+  private readonly walkerSchemaService = inject<WalkerSchemaService>(TYPES.walkerSchemaService);
+
+  /**
+   * @private
+   * @readonly
+   * Injected strategy validation service instance
+   */
+  private readonly strategyValidationService = inject<StrategyValidationService>(TYPES.strategyValidationService);
+
+  /**
+   * @private
+   * @readonly
+   * Injected strategy schema service instance
+   */
+  private readonly strategySchemaService = inject<StrategySchemaService>(TYPES.strategySchemaService);
+
+  /**
+   * @private
+   * @readonly
+   * Injected risk validation service instance
+   */
+  private readonly riskValidationService = inject<RiskValidationService>(TYPES.riskValidationService);
+
+  /**
+   * @private
+   * @readonly
+   * Injected action validation service instance
+   */
+  private readonly actionValidationService = inject<ActionValidationService>(TYPES.actionValidationService);
+
+  /**
+   * @private
    * Map storing walker schemas by walker name
    */
   private _walkerMap = new Map<WalkerName, IWalkerSchema>();
@@ -60,9 +100,12 @@ export class WalkerValidationService {
   };
 
   /**
-   * Validates the existence of a walker
+   * Validates the existence of a walker and its associated strategy configurations.
+   * Each strategy referenced by the walker is validated via StrategyValidationService,
+   * which in turn validates the strategy's risk profiles and actions.
    * @public
    * @throws {Error} If walkerName is not found
+   * @throws {Error} If any referenced strategy (or its risk/actions) is invalid
    * Memoized function to cache validation results
    */
   public validate = memoize(
@@ -77,6 +120,14 @@ export class WalkerValidationService {
         throw new Error(
           `walker ${walkerName} not found source=${source}`
         );
+      }
+      const walkerSchema = this.walkerSchemaService.get(walkerName);
+      for (const strategyName of walkerSchema.strategies) {
+        const { riskName, riskList, actions } = this.strategySchemaService.get(strategyName);
+        this.strategyValidationService.validate(strategyName, source);
+        riskName && this.riskValidationService.validate(riskName, source);
+        riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, source));
+        actions && actions.forEach((actionName) => this.actionValidationService.validate(actionName, source));
       }
       return true as never;
     }

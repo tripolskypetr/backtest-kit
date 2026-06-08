@@ -33164,6 +33164,7 @@ declare class StrategyCoreService implements TStrategy {
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
     private readonly frameValidationService;
+    private readonly actionValidationService;
     /**
      * Validates strategy and associated risk configuration.
      *
@@ -34809,6 +34810,18 @@ declare class WalkerCommandService implements TWalkerLogicPublicService {
     private readonly riskValidationService;
     private readonly actionValidationService;
     /**
+     * Validates walker and associated strategy configurations.
+     * Memoized to avoid redundant validations for the same walker-exchange-frame combination.
+     *
+     * Strategy/risk/action validation is performed explicitly here in addition to the
+     * cascade inside WalkerValidationService — this is critical-path code and the
+     * redundant check is intentional defense-in-depth.
+     *
+     * @param context - Context with walkerName, exchangeName and frameName
+     * @param methodName - Name of the calling method for error tracking
+     */
+    private validate;
+    /**
      * Runs walker comparison for a symbol with context propagation.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
@@ -35204,6 +35217,14 @@ declare class LiveCommandService implements TLiveLogicPublicService {
     private readonly riskValidationService;
     private readonly actionValidationService;
     /**
+     * Validates strategy and associated risk configuration.
+     * Memoized to avoid redundant validations for the same strategy-exchange combination.
+     *
+     * @param context - Context with strategyName, exchangeName
+     * @param methodName - Name of the calling method for error tracking
+     */
+    private validate;
+    /**
      * Runs live trading for a symbol with context propagation.
      *
      * Infinite async generator with crash recovery support.
@@ -35251,6 +35272,14 @@ declare class BacktestCommandService implements TBacktestLogicPublicService {
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
     private readonly frameValidationService;
+    /**
+     * Validates strategy and associated risk configuration.
+     * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
+     *
+     * @param context - Context with strategyName, exchangeName and frameName
+     * @param methodName - Name of the calling method for error tracking
+     */
+    private validate;
     /**
      * Runs backtest for a symbol with context propagation.
      *
@@ -35489,6 +35518,36 @@ declare class WalkerValidationService {
     private readonly loggerService;
     /**
      * @private
+     * @readonly
+     * Injected walker schema service instance
+     */
+    private readonly walkerSchemaService;
+    /**
+     * @private
+     * @readonly
+     * Injected strategy validation service instance
+     */
+    private readonly strategyValidationService;
+    /**
+     * @private
+     * @readonly
+     * Injected strategy schema service instance
+     */
+    private readonly strategySchemaService;
+    /**
+     * @private
+     * @readonly
+     * Injected risk validation service instance
+     */
+    private readonly riskValidationService;
+    /**
+     * @private
+     * @readonly
+     * Injected action validation service instance
+     */
+    private readonly actionValidationService;
+    /**
+     * @private
      * Map storing walker schemas by walker name
      */
     private _walkerMap;
@@ -35499,9 +35558,12 @@ declare class WalkerValidationService {
      */
     addWalker: (walkerName: WalkerName, walkerSchema: IWalkerSchema) => void;
     /**
-     * Validates the existence of a walker
+     * Validates the existence of a walker and its associated strategy configurations.
+     * Each strategy referenced by the walker is validated via StrategyValidationService,
+     * which in turn validates the strategy's risk profiles and actions.
      * @public
      * @throws {Error} If walkerName is not found
+     * @throws {Error} If any referenced strategy (or its risk/actions) is invalid
      * Memoized function to cache validation results
      */
     validate: (walkerName: WalkerName, source: string) => void;
@@ -35751,6 +35813,10 @@ declare class PartialGlobalService implements TPartial {
      */
     private readonly frameValidationService;
     /**
+     * Action validation service for validating action existence.
+     */
+    private readonly actionValidationService;
+    /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
      *
@@ -35867,6 +35933,10 @@ declare class BreakevenGlobalService implements TBreakeven {
      * Frame validation service for validating frame existence.
      */
     private readonly frameValidationService;
+    /**
+     * Action validation service for validating frame existence.
+     */
+    private readonly actionValidationService;
     /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
