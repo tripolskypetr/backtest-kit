@@ -30,6 +30,15 @@ type StatusInfoSymbol = {
     avgConsecutiveLossPnl: number | null;
     avgWinDuration: number | null;
     avgLossDuration: number | null;
+    medianStepSize: number | null;
+    buyerPressure: number | null;
+    sellerPressure: number | null;
+    buyerStrength: number | null;
+    sellerStrength: number | null;
+    pressureImbalance: number | null;
+    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
+    trendStrength: number | null;
+    trendConfidence: number | null;
 };
 
 export interface StatusInfoModel {

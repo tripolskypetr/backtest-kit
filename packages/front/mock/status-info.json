@@ -58,7 +58,16 @@
       "avgConsecutiveWinPnl": 2.84,
       "avgConsecutiveLossPnl": -1.18,
       "avgWinDuration": 35.4,
-      "avgLossDuration": 53.7
+      "avgLossDuration": 53.7,
+      "medianStepSize": 0.92,
+      "buyerPressure": 0.58,
+      "sellerPressure": 0.42,
+      "buyerStrength": 0.61,
+      "sellerStrength": 0.39,
+      "pressureImbalance": 0.22,
+      "trend": "bullish",
+      "trendStrength": 0.34,
+      "trendConfidence": 0.52
     },
     {
       "symbol": "ETHUSDT",
@@ -91,7 +100,16 @@
       "avgConsecutiveWinPnl": 1.43,
       "avgConsecutiveLossPnl": -1.62,
       "avgWinDuration": 44.1,
-      "avgLossDuration": 60.2
+      "avgLossDuration": 60.2,
+      "medianStepSize": 1.18,
+      "buyerPressure": 0.51,
+      "sellerPressure": 0.49,
+      "buyerStrength": 0.48,
+      "sellerStrength": 0.52,
+      "pressureImbalance": -0.04,
+      "trend": "sideways",
+      "trendStrength": 0.08,
+      "trendConfidence": 0.21
     }
   ],
   "backtest": true
