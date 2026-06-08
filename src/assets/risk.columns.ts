@@ -1,4 +1,5 @@
 import { ColumnModel } from "../model/Column.model";
+import { getPriceScale } from "../helpers/getPriceScale";
 import { RiskEvent } from "../model/RiskStatistics.model";
 import { toPlainString } from "../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -83,7 +84,7 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     label: "Open Price",
     format: (data) =>
       data.currentSignal.priceOpen !== undefined
-        ? `${data.currentSignal.priceOpen.toFixed(8)} USD`
+        ? `${data.currentSignal.priceOpen.toFixed(getPriceScale(data.currentSignal.priceOpen))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -92,7 +93,7 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     label: "Take Profit",
     format: (data) =>
       data.currentSignal.priceTakeProfit !== undefined
-        ? `${data.currentSignal.priceTakeProfit.toFixed(8)} USD`
+        ? `${data.currentSignal.priceTakeProfit.toFixed(getPriceScale(data.currentSignal.priceTakeProfit))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -101,7 +102,7 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     label: "Stop Loss",
     format: (data) =>
       data.currentSignal.priceStopLoss !== undefined
-        ? `${data.currentSignal.priceStopLoss.toFixed(8)} USD`
+        ? `${data.currentSignal.priceStopLoss.toFixed(getPriceScale(data.currentSignal.priceStopLoss))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -110,7 +111,7 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     label: "Original TP",
     format: (data) =>
       data.currentSignal.originalPriceTakeProfit !== undefined
-        ? `${data.currentSignal.originalPriceTakeProfit.toFixed(8)} USD`
+        ? `${data.currentSignal.originalPriceTakeProfit.toFixed(getPriceScale(data.currentSignal.originalPriceTakeProfit))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -119,7 +120,7 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     label: "Original SL",
     format: (data) =>
       data.currentSignal.originalPriceStopLoss !== undefined
-        ? `${data.currentSignal.originalPriceStopLoss.toFixed(8)} USD`
+        ? `${data.currentSignal.originalPriceStopLoss.toFixed(getPriceScale(data.currentSignal.originalPriceStopLoss))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -128,7 +129,7 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     label: "Original Entry",
     format: (data) =>
       data.currentSignal.originalPriceOpen !== undefined
-        ? `${data.currentSignal.originalPriceOpen.toFixed(8)} USD`
+        ? `${data.currentSignal.originalPriceOpen.toFixed(getPriceScale(data.currentSignal.originalPriceOpen))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -162,7 +163,7 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
   {
     key: "currentPrice",
     label: "Current Price",
-    format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    format: (data) => `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD`,
     isVisible: () => true,
   },
   {

@@ -1,4 +1,5 @@
 import { ColumnModel } from "../model/Column.model";
+import { getPriceScale } from "../helpers/getPriceScale";
 import { SyncEvent } from "../model/SyncStatistics.model";
 
 /**
@@ -54,25 +55,25 @@ export const sync_columns: ColumnModel<SyncEvent>[] = [
   {
     key: "currentPrice",
     label: "Current Price",
-    format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    format: (data) => `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD`,
     isVisible: () => true,
   },
   {
     key: "priceOpen",
     label: "Entry Price",
-    format: (data) => `${data.priceOpen.toFixed(8)} USD`,
+    format: (data) => `${data.priceOpen.toFixed(getPriceScale(data.priceOpen))} USD`,
     isVisible: () => true,
   },
   {
     key: "priceTakeProfit",
     label: "Take Profit",
-    format: (data) => `${data.priceTakeProfit.toFixed(8)} USD`,
+    format: (data) => `${data.priceTakeProfit.toFixed(getPriceScale(data.priceTakeProfit))} USD`,
     isVisible: () => true,
   },
   {
     key: "priceStopLoss",
     label: "Stop Loss",
-    format: (data) => `${data.priceStopLoss.toFixed(8)} USD`,
+    format: (data) => `${data.priceStopLoss.toFixed(getPriceScale(data.priceStopLoss))} USD`,
     isVisible: () => true,
   },
   {

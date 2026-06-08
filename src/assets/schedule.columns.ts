@@ -1,4 +1,5 @@
 import { ColumnModel } from "../model/Column.model";
+import { getPriceScale } from "../helpers/getPriceScale";
 import { ScheduledEvent } from "../model/ScheduleStatistics.model";
 import { toPlainString } from "../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -85,25 +86,25 @@ export const schedule_columns: ColumnModel<ScheduledEvent>[] = [
     key: "currentPrice",
     label: "Current Price",
     format: (data) =>
-      data.currentPrice ? `${data.currentPrice.toFixed(8)} USD` : "N/A",
+      data.currentPrice ? `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD` : "N/A",
     isVisible: () => true,
   },
   {
     key: "priceOpen",
     label: "Entry Price",
-    format: (data) => `${data.priceOpen.toFixed(8)} USD`,
+    format: (data) => `${data.priceOpen.toFixed(getPriceScale(data.priceOpen))} USD`,
     isVisible: () => true,
   },
   {
     key: "takeProfit",
     label: "Take Profit",
-    format: (data) => `${data.priceTakeProfit.toFixed(8)} USD`,
+    format: (data) => `${data.priceTakeProfit.toFixed(getPriceScale(data.priceTakeProfit))} USD`,
     isVisible: () => true,
   },
   {
     key: "stopLoss",
     label: "Stop Loss",
-    format: (data) => `${data.priceStopLoss.toFixed(8)} USD`,
+    format: (data) => `${data.priceStopLoss.toFixed(getPriceScale(data.priceStopLoss))} USD`,
     isVisible: () => true,
   },
   {
@@ -111,7 +112,7 @@ export const schedule_columns: ColumnModel<ScheduledEvent>[] = [
     label: "Original TP",
     format: (data) =>
       data.originalPriceTakeProfit !== undefined
-        ? `${data.originalPriceTakeProfit.toFixed(8)} USD`
+        ? `${data.originalPriceTakeProfit.toFixed(getPriceScale(data.originalPriceTakeProfit))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -120,7 +121,7 @@ export const schedule_columns: ColumnModel<ScheduledEvent>[] = [
     label: "Original SL",
     format: (data) =>
       data.originalPriceStopLoss !== undefined
-        ? `${data.originalPriceStopLoss.toFixed(8)} USD`
+        ? `${data.originalPriceStopLoss.toFixed(getPriceScale(data.originalPriceStopLoss))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -129,7 +130,7 @@ export const schedule_columns: ColumnModel<ScheduledEvent>[] = [
     label: "Original Entry",
     format: (data) =>
       data.originalPriceOpen !== undefined
-        ? `${data.originalPriceOpen.toFixed(8)} USD`
+        ? `${data.originalPriceOpen.toFixed(getPriceScale(data.originalPriceOpen))} USD`
         : "N/A",
     isVisible: () => true,
   },

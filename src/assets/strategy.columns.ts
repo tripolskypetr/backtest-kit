@@ -1,4 +1,5 @@
 import { ColumnModel } from "../model/Column.model";
+import { getPriceScale } from "../helpers/getPriceScale";
 import { StrategyEvent } from "../model/StrategyStatistics.model";
 import { GLOBAL_CONFIG } from "../config/params";
 
@@ -65,7 +66,7 @@ export const strategy_columns: ColumnModel<StrategyEvent>[] = [
   {
     key: "currentPrice",
     label: "Price",
-    format: (data) => (data.currentPrice !== undefined ? `${data.currentPrice.toFixed(8)} USD` : "N/A"),
+    format: (data) => (data.currentPrice !== undefined ? `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD` : "N/A"),
     isVisible: () => true,
   },
   {

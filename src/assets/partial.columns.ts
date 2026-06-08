@@ -1,4 +1,5 @@
 import { ColumnModel } from "../model/Column.model";
+import { getPriceScale } from "../helpers/getPriceScale";
 import { PartialEvent } from "../model/PartialStatistics.model";
 import { toPlainString } from "../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -81,43 +82,43 @@ export const partial_columns: ColumnModel<PartialEvent>[] = [
   {
     key: "currentPrice",
     label: "Current Price",
-    format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    format: (data) => `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD`,
     isVisible: () => true,
   },
   {
     key: "priceOpen",
     label: "Entry Price",
-    format: (data) => (data.priceOpen ? `${data.priceOpen.toFixed(8)} USD` : "N/A"),
+    format: (data) => (data.priceOpen ? `${data.priceOpen.toFixed(getPriceScale(data.priceOpen))} USD` : "N/A"),
     isVisible: () => true,
   },
   {
     key: "priceTakeProfit",
     label: "Take Profit",
-    format: (data) => (data.priceTakeProfit ? `${data.priceTakeProfit.toFixed(8)} USD` : "N/A"),
+    format: (data) => (data.priceTakeProfit ? `${data.priceTakeProfit.toFixed(getPriceScale(data.priceTakeProfit))} USD` : "N/A"),
     isVisible: () => true,
   },
   {
     key: "priceStopLoss",
     label: "Stop Loss",
-    format: (data) => (data.priceStopLoss ? `${data.priceStopLoss.toFixed(8)} USD` : "N/A"),
+    format: (data) => (data.priceStopLoss ? `${data.priceStopLoss.toFixed(getPriceScale(data.priceStopLoss))} USD` : "N/A"),
     isVisible: () => true,
   },
   {
     key: "originalPriceTakeProfit",
     label: "Original TP",
-    format: (data) => (data.originalPriceTakeProfit ? `${data.originalPriceTakeProfit.toFixed(8)} USD` : "N/A"),
+    format: (data) => (data.originalPriceTakeProfit ? `${data.originalPriceTakeProfit.toFixed(getPriceScale(data.originalPriceTakeProfit))} USD` : "N/A"),
     isVisible: () => true,
   },
   {
     key: "originalPriceStopLoss",
     label: "Original SL",
-    format: (data) => (data.originalPriceStopLoss ? `${data.originalPriceStopLoss.toFixed(8)} USD` : "N/A"),
+    format: (data) => (data.originalPriceStopLoss ? `${data.originalPriceStopLoss.toFixed(getPriceScale(data.originalPriceStopLoss))} USD` : "N/A"),
     isVisible: () => true,
   },
   {
     key: "originalPriceOpen",
     label: "Original Entry",
-    format: (data) => (data.originalPriceOpen ? `${data.originalPriceOpen.toFixed(8)} USD` : "N/A"),
+    format: (data) => (data.originalPriceOpen ? `${data.originalPriceOpen.toFixed(getPriceScale(data.originalPriceOpen))} USD` : "N/A"),
     isVisible: () => true,
   },
   {

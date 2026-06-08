@@ -1,5 +1,6 @@
 import { IStrategyTickResultClosed } from "../interfaces/Strategy.interface";
 import { ColumnModel } from "../model/Column.model";
+import { getPriceScale } from "../helpers/getPriceScale";
 import { toPlainString } from "../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../config/params";
 
@@ -64,43 +65,43 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
   {
     key: "openPrice",
     label: "Open Price",
-    format: (data) => `${data.signal.priceOpen.toFixed(8)} USD`,
+    format: (data) => `${data.signal.priceOpen.toFixed(getPriceScale(data.signal.priceOpen))} USD`,
     isVisible: () => true,
   },
   {
     key: "closePrice",
     label: "Close Price",
-    format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    format: (data) => `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD`,
     isVisible: () => true,
   },
   {
     key: "takeProfit",
     label: "Take Profit",
-    format: (data) => `${data.signal.priceTakeProfit.toFixed(8)} USD`,
+    format: (data) => `${data.signal.priceTakeProfit.toFixed(getPriceScale(data.signal.priceTakeProfit))} USD`,
     isVisible: () => true,
   },
   {
     key: "stopLoss",
     label: "Stop Loss",
-    format: (data) => `${data.signal.priceStopLoss.toFixed(8)} USD`,
+    format: (data) => `${data.signal.priceStopLoss.toFixed(getPriceScale(data.signal.priceStopLoss))} USD`,
     isVisible: () => true,
   },
   {
     key: "originalPriceTakeProfit",
     label: "Original TP",
-    format: (data) => `${data.signal.originalPriceTakeProfit.toFixed(8)} USD`,
+    format: (data) => `${data.signal.originalPriceTakeProfit.toFixed(getPriceScale(data.signal.originalPriceTakeProfit))} USD`,
     isVisible: () => true,
   },
   {
     key: "originalPriceStopLoss",
     label: "Original SL",
-    format: (data) => `${data.signal.originalPriceStopLoss.toFixed(8)} USD`,
+    format: (data) => `${data.signal.originalPriceStopLoss.toFixed(getPriceScale(data.signal.originalPriceStopLoss))} USD`,
     isVisible: () => true,
   },
   {
     key: "originalPriceOpen",
     label: "Original Entry",
-    format: (data) => `${data.signal.originalPriceOpen.toFixed(8)} USD`,
+    format: (data) => `${data.signal.originalPriceOpen.toFixed(getPriceScale(data.signal.originalPriceOpen))} USD`,
     isVisible: () => true,
   },
   {

@@ -1,4 +1,5 @@
 import { ColumnModel } from "../model/Column.model";
+import { getPriceScale } from "../helpers/getPriceScale";
 import { TickEvent } from "../model/LiveStatistics.model";
 import { toPlainString } from "../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -79,14 +80,14 @@ export const live_columns: ColumnModel<TickEvent>[] = [
   {
     key: "currentPrice",
     label: "Current Price",
-    format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    format: (data) => `${data.currentPrice.toFixed(getPriceScale(data.currentPrice))} USD`,
     isVisible: () => true,
   },
   {
     key: "openPrice",
     label: "Open Price",
     format: (data) =>
-      data.priceOpen !== undefined ? `${data.priceOpen.toFixed(8)} USD` : "N/A",
+      data.priceOpen !== undefined ? `${data.priceOpen.toFixed(getPriceScale(data.priceOpen))} USD` : "N/A",
     isVisible: () => true,
   },
   {
@@ -94,7 +95,7 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     label: "Take Profit",
     format: (data) =>
       data.priceTakeProfit !== undefined
-        ? `${data.priceTakeProfit.toFixed(8)} USD`
+        ? `${data.priceTakeProfit.toFixed(getPriceScale(data.priceTakeProfit))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -102,7 +103,7 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     key: "stopLoss",
     label: "Stop Loss",
     format: (data) =>
-      data.priceStopLoss !== undefined ? `${data.priceStopLoss.toFixed(8)} USD` : "N/A",
+      data.priceStopLoss !== undefined ? `${data.priceStopLoss.toFixed(getPriceScale(data.priceStopLoss))} USD` : "N/A",
     isVisible: () => true,
   },
   {
@@ -110,7 +111,7 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     label: "Original TP",
     format: (data) =>
       data.originalPriceTakeProfit !== undefined
-        ? `${data.originalPriceTakeProfit.toFixed(8)} USD`
+        ? `${data.originalPriceTakeProfit.toFixed(getPriceScale(data.originalPriceTakeProfit))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -119,7 +120,7 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     label: "Original SL",
     format: (data) =>
       data.originalPriceStopLoss !== undefined
-        ? `${data.originalPriceStopLoss.toFixed(8)} USD`
+        ? `${data.originalPriceStopLoss.toFixed(getPriceScale(data.originalPriceStopLoss))} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -128,7 +129,7 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     label: "Original Entry",
     format: (data) =>
       data.originalPriceOpen !== undefined
-        ? `${data.originalPriceOpen.toFixed(8)} USD`
+        ? `${data.originalPriceOpen.toFixed(getPriceScale(data.originalPriceOpen))} USD`
         : "N/A",
     isVisible: () => true,
   },
