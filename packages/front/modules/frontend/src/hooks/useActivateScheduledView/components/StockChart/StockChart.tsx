@@ -12,6 +12,7 @@ import {
   ISeriesApi,
 } from "lightweight-charts";
 import { createChart } from "lightweight-charts";
+import getPriceScale from "../../../../utils/getPriceScale";
 import { makeStyles } from "../../../../styles";
 import { dayjs, fromMomentStamp, getMomentStamp } from "react-declarative";
 import { colors } from "@mui/material";
@@ -319,6 +320,9 @@ export const StockChart = ({
 
     const chart = createChart(chartElement, {
       ...chartOptions,
+      localization: {
+        priceFormatter: (price: number) => formatAmount(price, getPriceScale(price)),
+      },
       width,
       height,
       crosshair: {
@@ -454,7 +458,7 @@ export const StockChart = ({
           const dateFormat =
             source === "1m" ? "DD/MM/YYYY HH:mm:ss" : "DD/MM/YYYY HH:mm";
           const dateTime = dayjs(data.originalTime).format(dateFormat);
-          const price = formatAmount(data.value.toFixed(6));
+          const price = formatAmount(data.value, getPriceScale(data.value));
           setTooltipDate(`${dateTime}: ${price}`);
         } else {
           setTooltipDate(null);

@@ -17,6 +17,7 @@ import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../styles";
 import { colors } from "@mui/material";
 import { dayjs, formatAmount } from "react-declarative";
+import getPriceScale from "../../../utils/getPriceScale";
 
 declare function parseFloat(value: unknown): number;
 
@@ -150,6 +151,9 @@ export const StockChart = ({
 
         const chart = createChart(chartElement, {
             ...chartOptions,
+            localization: {
+                priceFormatter: (price: number) => formatAmount(price, getPriceScale(price)),
+            },
             width,
             height,
             crosshair: {
@@ -323,7 +327,7 @@ export const StockChart = ({
                     const dateTime = dayjs(data.timestamp).format(
                         "DD/MM/YYYY HH:mm:ss",
                     );
-                    const price = formatAmount(data.close.toFixed(6));
+                    const price = formatAmount(data.close, getPriceScale(data.close));
                     setTooltipDate(`${dateTime}: ${price}`);
                 } else {
                     setTooltipDate(null);

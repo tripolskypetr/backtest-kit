@@ -62,6 +62,7 @@ import { reloadSubject } from "../../../config/emitters";
 import StatusInfo from "../../../components/StatusInfo";
 import downloadMarkdown from "../../../utils/downloadMarkdown";
 import str from "../../../utils/str";
+import getPriceScale from "../../../utils/getPriceScale";
 import Tooltip from "../../../components/common/Tooltip";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
@@ -83,18 +84,6 @@ interface IRoute {
     to: string;
     color: string;
     icon: React.ComponentType<any>;
-}
-
-function getPriceScale(value: number) {
-    // The bigger the integer part, the fewer decimals we need.
-    const abs = Math.abs(value);
-    if (abs >= 1) {
-        // 1..9 -> 4 decimals, 10..99 -> 3, 100..999 -> 2, 1000+ -> 1, capped at 2
-        const digits = Math.floor(Math.log10(abs)) + 1;
-        return Math.max(2, 6 - digits);
-    }
-    // Sub-dollar prices need more precision; keep up to 8 decimals.
-    return 8;
 }
 
 function isLightColor(hex: string) {
