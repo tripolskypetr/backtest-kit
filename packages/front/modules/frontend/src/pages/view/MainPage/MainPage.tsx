@@ -69,8 +69,7 @@ import downloadMarkdown from "../../../utils/downloadMarkdown";
 import str from "../../../utils/str";
 import getPriceScale from "../../../utils/getPriceScale";
 import Tooltip from "../../../components/common/Tooltip";
-
-const RUNTIME_INFO_TTL = 15_000;
+import NavigationView from "./components/NavigationView";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
 const GROUP_ROOT = "backtest-kit__groupRoot";
@@ -105,101 +104,7 @@ function isLightColor(hex: string) {
 const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Component,
-    element: () => {
-      const { reloadTrigger, doReload } = useReloadTrigger(RUNTIME_INFO_TTL);
-      return (
-        <Stack direction="row" alignItems="center">
-          <Breadcrumbs aria-label="breadcrumb">
-            <Link
-              underline="always"
-              color="inherit"
-              href="#"
-              onClick={(e) => e.preventDefault()}
-            >
-              Main
-            </Link>
-            <Link
-              underline="always"
-              color="inherit"
-              href="#"
-              onClick={(e) => e.preventDefault()}
-            >
-              Navigation
-            </Link>
-          </Breadcrumbs>
-          <Box flex={1} />
-          <Async reloadSubject={reloadSubject} deps={[reloadTrigger]}>
-            {async () => {
-              const fetch = trycatch(ioc.runtimeViewService.getRuntimeInfo, { defaultValue: null })
-              const data = await fetch();
-              if (!data) {
-                return null;
-              }
-              const { symbol, when, currentPrice, backtest } = data;
-              return (
-                <Tooltip placement="bottom" description={backtest ? "Backtest mode" : "Live mode"}>
-                  <Stack 
-                    direction="row" 
-                    alignItems="center" 
-                    spacing={1}
-                    sx={{
-                      display: {
-                        xs: "none",
-                        sm: "flex",
-                      },
-                      cursor: "pointer",
-                    }}
-                    onClick={() => {
-                      ioc.runtimeViewService.getRuntimeInfo.clear();
-                      doReload();
-                    }}
-                  >
-                    <IconButton 
-                      size="small"
-                    >
-                      <CloudSync />
-                    </IconButton>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        opacity: 0.5,
-                      }}
-                    >
-                      Symbol:
-                      {typo.nbsp}
-                      <b>{symbol}</b>
-                    </Typography>
-                    <Divider orientation="vertical" flexItem />
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        opacity: 0.5,
-                      }}
-                    >
-                      Time:
-                      {typo.nbsp}
-                      <b>{dayjs(when).format("HH:mm DD MMM YYYY")}</b>
-                    </Typography>
-                    <Divider orientation="vertical" flexItem />
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        opacity: 0.5,
-                      }}
-                    >
-                      Price:
-                      {typo.nbsp}
-                      <b>{formatAmount(currentPrice, getPriceScale(currentPrice))}$</b>
-                    </Typography>
-                  </Stack>
-                </Tooltip>
-              );
-            }}
-          </Async>
-          <Box pr={1} />
-        </Stack>
-      );
-    },
+    element: NavigationView,
   },
 ];
 
