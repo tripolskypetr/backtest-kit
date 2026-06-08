@@ -4671,6 +4671,24 @@ interface BacktestStatisticsModel {
     avgWinDuration: number | null;
     /** Average duration in minutes of losing trades. */
     avgLossDuration: number | null;
+    /** Median |close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers. */
+    medianStepSize: number | null;
+    /** Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent. */
+    buyerPressure: number | null;
+    /** Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure. */
+    sellerPressure: number | null;
+    /** Share of upward absolute movement in total close-to-close movement. 0..1. */
+    buyerStrength: number | null;
+    /** Share of downward absolute movement in total close-to-close movement. 0..1. */
+    sellerStrength: number | null;
+    /** buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude. */
+    pressureImbalance: number | null;
+    /** Bivariate trend classification (slope × R²). */
+    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
+    /** Log-price regression slope, in %/day. */
+    trendStrength: number | null;
+    /** R² of the log-price regression, in [0, 1]. */
+    trendConfidence: number | null;
 }
 
 /**
@@ -10852,6 +10870,24 @@ interface IHeatmapRow {
     expectedYearlyReturns: number | null;
     /** Observed trade frequency extrapolated to one year (signals × 365 / calendarSpanDays). */
     tradesPerYear: number | null;
+    /** Median |close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers. */
+    medianStepSize: number | null;
+    /** Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent. */
+    buyerPressure: number | null;
+    /** Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure. */
+    sellerPressure: number | null;
+    /** Share of upward absolute movement in total close-to-close movement. 0..1. */
+    buyerStrength: number | null;
+    /** Share of downward absolute movement in total close-to-close movement. 0..1. */
+    sellerStrength: number | null;
+    /** buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude. */
+    pressureImbalance: number | null;
+    /** Bivariate trend classification (slope × R²). */
+    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
+    /** Log-price regression slope, in %/day. */
+    trendStrength: number | null;
+    /** R² of the log-price regression, in [0, 1]. */
+    trendConfidence: number | null;
 }
 
 /**
@@ -12744,6 +12780,24 @@ interface LiveStatisticsModel {
     avgWinDuration: number | null;
     /** Average duration in minutes of losing trades. */
     avgLossDuration: number | null;
+    /** Median |close[i] - close[i-1]| / close[i-1] across trade closes, in %. Robust to outliers. */
+    medianStepSize: number | null;
+    /** Fraction of up-moves among decisive close-to-close moves. 0..1. Higher = buyers more frequent. */
+    buyerPressure: number | null;
+    /** Fraction of down-moves among decisive moves. 0..1. Equals 1 - buyerPressure. */
+    sellerPressure: number | null;
+    /** Share of upward absolute movement in total close-to-close movement. 0..1. */
+    buyerStrength: number | null;
+    /** Share of downward absolute movement in total close-to-close movement. 0..1. */
+    sellerStrength: number | null;
+    /** buyerStrength - sellerStrength ∈ [-1, 1]. Positive = bullish bias on magnitude. */
+    pressureImbalance: number | null;
+    /** Bivariate trend classification (slope × R²). */
+    trend: "bullish" | "bearish" | "sideways" | "neutral" | null;
+    /** Log-price regression slope, in %/day. */
+    trendStrength: number | null;
+    /** R² of the log-price regression, in [0, 1]. */
+    trendConfidence: number | null;
 }
 
 /**

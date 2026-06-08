@@ -17,6 +17,7 @@ import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 import { GLOBAL_CONFIG } from "../../../config/params";
+import { getPriceProfile } from "../../../helpers/getPriceProfile";
 
 /**
  * Type alias for column configuration used in heatmap markdown reports.
@@ -592,6 +593,15 @@ class HeatmapStorage {
     if (isUnsafe(calmarRatio)) calmarRatio = null;
     if (isUnsafe(recoveryFactor)) recoveryFactor = null;
 
+    // Price profile — buyer/seller pressure, trend classification. Built from
+    // the chronological close-price series of this symbol's closed signals.
+    // N-gated internally by the helper (MIN_SIGNALS = 10).
+    const priceProfile = getPriceProfile(
+      [...signals]
+        .sort((a, b) => a.closeTimestamp - b.closeTimestamp)
+        .map((s) => ({ closeAt: s.closeTimestamp, close: s.currentPrice })),
+    );
+
     return {
       symbol,
       totalPnl,
@@ -626,6 +636,15 @@ class HeatmapStorage {
       certaintyRatio,
       expectedYearlyReturns,
       tradesPerYear,
+      medianStepSize: priceProfile.medianStepSize,
+      buyerPressure: priceProfile.buyerPressure,
+      sellerPressure: priceProfile.sellerPressure,
+      buyerStrength: priceProfile.buyerStrength,
+      sellerStrength: priceProfile.sellerStrength,
+      pressureImbalance: priceProfile.pressureImbalance,
+      trend: priceProfile.trend,
+      trendStrength: priceProfile.trendStrength,
+      trendConfidence: priceProfile.trendConfidence,
     };
   }
 
@@ -1107,6 +1126,9 @@ class HeatmapStorage {
       `*Max Drawdown: mark-to-market — both the per-symbol and pooled equity curves apply each trade's worst intra-trade excursion (the lowest unrealized point while the position was open) before booking its realized close, so deep round-trip dips count. It is NOT realized-only (close-to-close); a realized-only curve would understate drawdown and inflate Calmar/Recovery. The pooled curve walks trades chronologically by closeTimestamp; simultaneous cross-symbol drawdowns within the same minute are still serialised (one trade applied at a time), so genuine same-instant tail correlation is not modelled.*`,
       `*All metrics require 100+ signals per symbol to be statistically reliable. Annualized metrics assume the observed trading frequency persists year-round.*`,
       `*IMPORTANT: Per-symbol equity curve, Expected Yearly Returns, Calmar, Recovery and Max Drawdown all assume **100% capital allocation per position** (no portfolio fraction). These metrics ignore the position-sizing subsystem (PositionSize / Kelly / ATR): pnlPercentage is a return on the position's own invested capital, never scaled by account balance. With DCA (commitAverageBuy) the cost basis is the sum of all entries and the entry price is dollar-cost-weighted, so per-trade % is measured against the averaged position, not a fixed stake. If your strategy risks X% of capital per trade, the realized return / drawdown will be roughly X/100 of the reported figures — these metrics represent a theoretical upper bound under full allocation.*`,
+      `*Trend / Trend %/d / Trend R² (per-symbol only): linear regression of log(close) vs days across that symbol's closed-trade prices. Classification gates on R² ≥ 0.30 AND |slope| ≥ 0.25 × medianStepSize — self-tunes to the instrument. Not aggregated portfolio-wide (price series across symbols are not comparable).*`,
+      `*Buyer / Seller Pres (per-symbol only): fraction of up-moves (resp. down-moves) among decisive close-to-close changes for that symbol. Buyer / Seller Str: magnitude share. Pres Imb: buyerStrength − sellerStrength ∈ [−1, +1].*`,
+      `*Median Step (per-symbol only): typical |close[i] − close[i−1]| / close[i−1] across closed trades, in %. Robust to outliers. NOT classical volatility — there are no candles between closes in the report data.*`,
       `*Negative values for Sharpe / Annualized Sharpe / Sortino / Calmar / Recovery / Expectancy / Expected Yearly Returns indicate a losing symbol (avgPnl < 0 or totalPnl < 0). "Higher is better" still applies — closer to zero is less bad, positive is profitable.*`,
     ].join("\n");
   }

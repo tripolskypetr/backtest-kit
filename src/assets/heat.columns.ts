@@ -223,6 +223,79 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     isVisible: () => true,
   },
   {
+    key: "trend",
+    label: "Trend",
+    format: (data) => data.trend ?? "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "trendStrength",
+    label: "Trend %/d",
+    format: (data) =>
+      data.trendStrength !== null ? str(data.trendStrength, "%") : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "trendConfidence",
+    label: "Trend R²",
+    format: (data) =>
+      data.trendConfidence !== null ? data.trendConfidence.toFixed(3) : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "buyerPressure",
+    label: "Buyer Pres",
+    format: (data) =>
+      data.buyerPressure !== null
+        ? (data.buyerPressure * 100).toFixed(1) + "%"
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "sellerPressure",
+    label: "Seller Pres",
+    format: (data) =>
+      data.sellerPressure !== null
+        ? (data.sellerPressure * 100).toFixed(1) + "%"
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "buyerStrength",
+    label: "Buyer Str",
+    format: (data) =>
+      data.buyerStrength !== null
+        ? (data.buyerStrength * 100).toFixed(1) + "%"
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "sellerStrength",
+    label: "Seller Str",
+    format: (data) =>
+      data.sellerStrength !== null
+        ? (data.sellerStrength * 100).toFixed(1) + "%"
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "pressureImbalance",
+    label: "Pres Imb",
+    format: (data) =>
+      data.pressureImbalance !== null
+        ? (data.pressureImbalance > 0 ? "+" : "") +
+          data.pressureImbalance.toFixed(3)
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "medianStepSize",
+    label: "Median Step",
+    format: (data) =>
+      data.medianStepSize !== null ? str(data.medianStepSize, "%") : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "sortinoRatio",
     label: "Sortino",
     format: (data) =>

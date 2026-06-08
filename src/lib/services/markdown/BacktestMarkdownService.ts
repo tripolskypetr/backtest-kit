@@ -16,6 +16,7 @@ import { FrameName } from "../../../interfaces/Frame.interface";
 import { MarkdownWriter } from "../../../classes/Writer";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 import { GLOBAL_CONFIG } from "../../../config/params";
+import { getPriceProfile } from "../../../helpers/getPriceProfile";
 
 /**
  * Type alias for column configuration used in backtest markdown reports.
@@ -198,6 +199,15 @@ class ReportStorage {
         avgConsecutiveLossPnl: null,
         avgWinDuration: null,
         avgLossDuration: null,
+        medianStepSize: null,
+        buyerPressure: null,
+        sellerPressure: null,
+        buyerStrength: null,
+        sellerStrength: null,
+        pressureImbalance: null,
+        trend: null,
+        trendStrength: null,
+        trendConfidence: null,
       };
     }
 
@@ -506,6 +516,16 @@ class ReportStorage {
           Math.min(MAX_CALMAR_RATIO, ((equityFinal - 1) * 100) / equityMaxDrawdown),
         );
 
+    // Price profile — buyer/seller pressure, trend classification. Walks the
+    // chronological close series (`orderedSignals` is already sorted by
+    // closeTimestamp). N-gated internally by the helper (MIN_SIGNALS = 10).
+    const priceProfile = getPriceProfile(
+      orderedSignals.map((s) => ({
+        closeAt: s.closeTimestamp,
+        close: s.currentPrice,
+      })),
+    );
+
     return {
       signalList: this._signalList,
       totalSignals,
@@ -531,6 +551,15 @@ class ReportStorage {
       avgConsecutiveLossPnl: isUnsafe(avgConsecutiveLossPnl) ? null : avgConsecutiveLossPnl,
       avgWinDuration: isUnsafe(avgWinDuration) ? null : avgWinDuration,
       avgLossDuration: isUnsafe(avgLossDuration) ? null : avgLossDuration,
+      medianStepSize: priceProfile.medianStepSize,
+      buyerPressure: priceProfile.buyerPressure,
+      sellerPressure: priceProfile.sellerPressure,
+      buyerStrength: priceProfile.buyerStrength,
+      sellerStrength: priceProfile.sellerStrength,
+      pressureImbalance: priceProfile.pressureImbalance,
+      trend: priceProfile.trend,
+      trendStrength: priceProfile.trendStrength,
+      trendConfidence: priceProfile.trendConfidence,
     };
   }
 
@@ -599,6 +628,15 @@ class ReportStorage {
       `**Avg Loss Duration:** ${stats.avgLossDuration === null ? "N/A" : `${stats.avgLossDuration.toFixed(1)} min`}`,
       `**Avg Consecutive Win PNL:** ${stats.avgConsecutiveWinPnl === null ? "N/A" : `${stats.avgConsecutiveWinPnl > 0 ? "+" : ""}${stats.avgConsecutiveWinPnl.toFixed(3)}% (higher is better)`}`,
       `**Avg Consecutive Loss PNL:** ${stats.avgConsecutiveLossPnl === null ? "N/A" : `${stats.avgConsecutiveLossPnl.toFixed(3)}% (closer to 0 is better)`}`,
+      `**Trend:** ${stats.trend === null ? "N/A" : stats.trend}`,
+      `**Trend Strength:** ${stats.trendStrength === null ? "N/A" : `${stats.trendStrength > 0 ? "+" : ""}${stats.trendStrength.toFixed(3)}%/day`}`,
+      `**Trend Confidence (R²):** ${stats.trendConfidence === null ? "N/A" : stats.trendConfidence.toFixed(3)}`,
+      `**Buyer Pressure:** ${stats.buyerPressure === null ? "N/A" : `${(stats.buyerPressure * 100).toFixed(1)}%`}`,
+      `**Seller Pressure:** ${stats.sellerPressure === null ? "N/A" : `${(stats.sellerPressure * 100).toFixed(1)}%`}`,
+      `**Buyer Strength:** ${stats.buyerStrength === null ? "N/A" : `${(stats.buyerStrength * 100).toFixed(1)}%`}`,
+      `**Seller Strength:** ${stats.sellerStrength === null ? "N/A" : `${(stats.sellerStrength * 100).toFixed(1)}%`}`,
+      `**Pressure Imbalance:** ${stats.pressureImbalance === null ? "N/A" : `${stats.pressureImbalance > 0 ? "+" : ""}${stats.pressureImbalance.toFixed(3)}`}`,
+      `**Median Step Size:** ${stats.medianStepSize === null ? "N/A" : `${stats.medianStepSize.toFixed(3)}%`}`,
       "",
       `*Win Rate: reliable above 200+ signals; below 30 signals a single streak can shift it by 10-20%.*`,
       `*Sharpe Ratio: below 1.0 is poor, 1.0-2.0 is acceptable, above 2.0 is strong. Requires 30+ signals.*`,
@@ -612,6 +650,11 @@ class ReportStorage {
       `*Expectancy: per-trade expected value (winProb × avgWin + lossProb × avgLoss). Positive = profitable on average per trade. Break-even trades contribute 0.*`,
       `*All metrics require 100+ signals to be statistically reliable. Annualized metrics assume the observed trading frequency and market conditions persist year-round.*`,
       `*IMPORTANT: Equity curve, Expected Yearly Returns, Calmar, Recovery and Max Drawdown all assume **100% capital allocation per position** (no portfolio fraction). These metrics ignore the position-sizing subsystem (PositionSize / Kelly / ATR): pnlPercentage is a return on the position's own invested capital, never scaled by account balance. With DCA (commitAverageBuy) the cost basis is the sum of all entries and the entry price is dollar-cost-weighted, so per-trade % is measured against the averaged position, not a fixed stake. If your strategy risks X% of capital per trade, the realized portfolio return / drawdown will be roughly X/100 of the reported figures — these metrics represent a theoretical upper bound under full allocation.*`,
+      `*Trend / Trend Strength / Trend Confidence: linear regression of log(close) vs days across closed-trade prices. "Trend Strength" is the slope in %/day; "Trend Confidence" is R². Classification gates on R² ≥ 0.30 (else "sideways") AND |slope| ≥ 0.25 × medianStepSize (else "neutral" — a real but weak tilt). Self-tunes to the instrument's typical move size — no magic constants on price magnitude.*`,
+      `*Buyer / Seller Pressure: fraction of up-moves (resp. down-moves) among decisive close-to-close changes. Frequency-based; flats excluded.*`,
+      `*Buyer / Seller Strength: share of upward (resp. downward) absolute movement in total movement. Magnitude-based. A divergence between pressure and strength surfaces asymmetry: "frequent shallow buys, rare deep sells" is a different regime than "rare deep buys, frequent shallow sells".*`,
+      `*Pressure Imbalance: buyerStrength − sellerStrength ∈ [−1, +1]. Single signed summary of magnitude bias.*`,
+      `*Median Step Size: median |close[i] − close[i−1]| / close[i−1] across closed trades, in %. Robust to outliers — describes the typical close-to-close jump. Used as the scale that normalises the slope-vs-step trend gate. NOTE: this is NOT classical (candle-based) volatility — there are no candles between trade closes in the report data; it measures step-distribution at the rate trades close.*`,
       `*Negative values for Sharpe / Sortino / Calmar / Recovery / Expected Yearly Returns indicate a losing strategy (avgPnl < 0 or totalPnl < 0). "Higher is better" still applies — closer to zero is less bad, positive is profitable.*`,
     ].join("\n");
   }
