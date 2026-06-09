@@ -308,8 +308,6 @@ class PerformanceStorage {
       "",
       summaryTable,
       "",
-      "**Note:** All durations are in milliseconds. P95/P99 represent 95th and 99th percentile response times. Wait times show the interval between consecutive events of the same type.",
-      "",
       `**Total events:** ${stats.totalEvents}`,
       `**Total execution time:** ${stats.totalDuration.toFixed(2)}ms`,
       `**Number of metric types:** ${Object.keys(stats.metricStats).length}`,
@@ -318,6 +316,17 @@ class PerformanceStorage {
       "",
       percentages.join("\n"),
       "",
+      `*Total events: integer count of every performance event in the ring buffer (capped at CC_MAX_PERFORMANCE_MARKDOWN_ROWS, newest-first; oldest entries are dropped past the cap). UNITS: count.*`,
+      `*Total execution time: arithmetic sum of \`event.duration\` over every event in the buffer (Σ duration). UNITS: milliseconds.*`,
+      `*Number of metric types: count of distinct \`metricType\` keys present in the buffer. UNITS: count.*`,
+      `*Time Distribution (per metric): each metric's totalDuration / overall totalDuration × 100; rendered as a percent next to that metric's totalDuration in milliseconds. Guard: when overall totalDuration is 0 (all-instant operations) the percent is forced to 0 instead of NaN. UNITS: percent of total execution time.*`,
+      `*Count (table column): integer number of events of this metricType in the buffer.*`,
+      `*Total Duration (table column = totalDuration per metric): Σ \`event.duration\` for that metricType. UNITS: milliseconds.*`,
+      `*Avg Duration (table column = avgDuration per metric): totalDuration / count. UNITS: milliseconds.*`,
+      `*Min / Max Duration (table columns): smallest / largest \`event.duration\` in the metricType bucket. UNITS: milliseconds.*`,
+      `*Std Dev (table column = stdDev per metric): sample standard deviation (Bessel-corrected, N−1 denominator) of \`event.duration\` for that metricType. UNITS: milliseconds. Zero when the bucket has only one event (no variance defined).*`,
+      `*Median / P95 / P99 (table columns): percentiles of the sorted \`event.duration\` array using linear interpolation between adjacent ranks — equivalent to numpy.percentile with the default linear method. P95 / P99 represent the 95th / 99th percentile response times (tail latency). UNITS: milliseconds. Buckets of size 0 fall back to 0; size 1 returns the single value for every percentile.*`,
+      `*Avg / Min / Max Wait Time (table columns): wait time = \`event.timestamp − event.previousTimestamp\` for events where previousTimestamp is non-null; this captures the interval between consecutive events of the same metricType. Mean / smallest / largest of those gaps. UNITS: milliseconds. All zero when no event in the bucket carries a previousTimestamp.*`,
     ].join("\n");
   }
 

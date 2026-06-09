@@ -372,7 +372,14 @@ class ReportStorage {
       `**Average activation time:** ${stats.avgActivationTime === null ? "N/A" : `${stats.avgActivationTime.toFixed(2)} minutes`}`,
       `**Average wait time (cancelled):** ${stats.avgWaitTime === null ? "N/A" : `${stats.avgWaitTime.toFixed(2)} minutes`}`,
       "",
-      `*Activation / Cancellation rates are computed over scheduled signals whose outcome (opened or cancelled) is also in the buffer — matched by signalId. "Scheduled signals (raw)" above is the unmatched count and may include records whose outcome has not yet arrived or was evicted from the buffer.*`
+      `*Total events: integer count of every scheduled / opened / cancelled event in the ring buffer (capped at CC_MAX_SCHEDULE_MARKDOWN_ROWS, newest-first; oldest entries are dropped past the cap). UNITS: count.*`,
+      `*Scheduled signals (raw) = totalScheduled: count of events whose action is "scheduled" in the buffer. UNITS: count. NOTE: this is the unmatched raw count — it may include records whose outcome (opened/cancelled) has not yet arrived or was evicted from the buffer. Activation / Cancellation rates do NOT use this denominator (see below).*`,
+      `*Opened signals = totalOpened: count of events whose action is "opened" in the buffer. UNITS: count.*`,
+      `*Cancelled signals = totalCancelled: count of events whose action is "cancelled" in the buffer. UNITS: count.*`,
+      `*Activation rate: openedFromScheduled / resolvedScheduled × 100, where openedFromScheduled = count of "opened" events whose signalId also appears among the buffer's "scheduled" events, cancelledFromScheduled = same for "cancelled", and resolvedScheduled = openedFromScheduled + cancelledFromScheduled. The signalId match guarantees numerator and denominator come from the SAME population — a sliding window of CC_MAX_SCHEDULE_MARKDOWN_ROWS can otherwise drop a "scheduled" record before its outcome arrives, inflating rates above 100% or firing one rate without the other. UNITS: percent in [0, 100]. Null when resolvedScheduled = 0 (no matched outcomes in the buffer).*`,
+      `*Cancellation rate: cancelledFromScheduled / resolvedScheduled × 100 — same signalId-matched denominator as Activation rate. UNITS: percent in [0, 100]. Null when resolvedScheduled = 0. By construction Activation rate + Cancellation rate = 100% (or both null together).*`,
+      `*Average activation time: arithmetic mean of \`event.duration\` over events whose action is "opened" AND whose duration is a number. Events without a numeric duration are excluded from both numerator and denominator (no zero dilution). UNITS: minutes. Null when no "opened" event carries a numeric duration. The duration on an opened event represents wait time from scheduledAt to activation (pendingAt).*`,
+      `*Average wait time (cancelled): arithmetic mean of \`event.duration\` over events whose action is "cancelled" AND whose duration is a number. Same exclusion rule as Average activation time. UNITS: minutes. Null when no "cancelled" event carries a numeric duration. The duration on a cancelled event represents wait time from scheduledAt until cancellation.*`,
     ].join("\n");
   }
 
