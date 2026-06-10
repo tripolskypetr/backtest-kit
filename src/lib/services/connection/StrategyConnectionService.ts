@@ -252,11 +252,11 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
       backtest,
       timestamp,
     };
-    await schedulePingSubject.next(event);
     {
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName }, backtest);
     }
+    await schedulePingSubject.next(event);
     await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
   },
   {
@@ -301,11 +301,11 @@ const CREATE_COMMIT_IDLE_PING_FN = (self: StrategyConnectionService) => trycatch
       backtest,
       timestamp,
     };
-    await idlePingSubject.next(event);
     {
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: frameName }, backtest);
     }
+    await idlePingSubject.next(event);
     await self.actionCoreService.pingIdle(backtest, event, { strategyName, exchangeName, frameName });
   },
   {
@@ -351,11 +351,11 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
       backtest,
       timestamp,
     };
-    await activePingSubject.next(event);
     {
       await self.priceMetaService.next(symbol, currentPrice, { strategyName, exchangeName, frameName: data.frameName }, backtest);
       await self.timeMetaService.next(symbol, timestamp, { strategyName, exchangeName, frameName: data.frameName }, backtest);
     }
+    await activePingSubject.next(event);
     await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
   },
   {
