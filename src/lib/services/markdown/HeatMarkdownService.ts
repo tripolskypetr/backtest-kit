@@ -236,9 +236,12 @@ class HeatmapStorage {
 
     // Per-trade Sharpe Ratio
     let sharpeRatio: number | null = null;
+    // canComputeRatios gate is explicit here (matching the standalone Backtest/Live
+    // paths) even though stdDev is already null below MIN_SIGNALS_FOR_RATIOS — relying
+    // on the stdDev===null implication would couple the gate to an unrelated branch.
     // STDDEV_EPSILON guard — protects against float-artifact stdDev producing
     // spuriously astronomical sharpe on identical-returns symbols.
-    if (avgPnl !== null && stdDev !== null && stdDev > STDDEV_EPSILON) {
+    if (canComputeRatios && avgPnl !== null && stdDev !== null && stdDev > STDDEV_EPSILON) {
       sharpeRatio = avgPnl / stdDev;
     }
 
