@@ -431,15 +431,19 @@ class HeatmapStorage {
     }
 
     // Expectancy — probabilities from observed win/loss counts (break-evens contribute 0).
+    // Gated by MIN_SIGNALS_FOR_RATIOS (via canComputeRatios), same as the standalone
+    // Backtest/Live paths and the portfolio-level pooled Expectancy below — on a tiny
+    // sample the per-trade EV is too noisy to publish, and an ungated per-symbol value
+    // would disagree with the symbol's own standalone report (which IS gated).
     let expectancy: number | null = null;
-    if (totalTrades > 0 && avgWin !== null && avgLoss !== null) {
+    if (canComputeRatios && totalTrades > 0 && avgWin !== null && avgLoss !== null) {
       const winProb = winCount / totalTrades;
       const lossProb = lossCount / totalTrades;
       expectancy = winProb * avgWin + lossProb * avgLoss;
-    } else if (totalTrades > 0 && avgWin !== null && avgLoss === null) {
+    } else if (canComputeRatios && totalTrades > 0 && avgWin !== null && avgLoss === null) {
       // No losing trades — expectancy is just average win frequency × avgWin
       expectancy = (winCount / totalTrades) * avgWin;
-    } else if (totalTrades > 0 && avgWin === null && avgLoss !== null) {
+    } else if (canComputeRatios && totalTrades > 0 && avgWin === null && avgLoss !== null) {
       expectancy = (lossCount / totalTrades) * avgLoss;
     }
 
@@ -1150,7 +1154,7 @@ class HeatmapStorage {
       `*Sortino Ratio (column): per-symbol Avg PNL / downside deviation, where downside deviation = √( Σ min(0, per-trade PNL)² / total trade count ) (canonical Sortino: MAR = 0, divide by N_total). UNITS: dimensionless. Null when that symbol's trade count < ${MIN_SIGNALS_FOR_RATIOS}, OR no losing trades, OR downside deviation ≤ 1e-9 (float-artifact guard).*`,
       `*Calmar Ratio (column): per-symbol Expected Yearly Returns / Max Drawdown, clamped to ±${MAX_CALMAR_RATIO}. Denominator is the mark-to-market max drawdown of that symbol's compounded equity curve. Null when Expected Yearly Returns is null (requires ≥ ${MIN_SIGNALS_FOR_ANNUALIZATION} signals and a calendar span ≥ ${MIN_CALENDAR_SPAN_DAYS} days for that symbol) OR Max Drawdown ≤ 0.*`,
       `*Recovery Factor (column): per-symbol (final equity − 1) × 100 / Max Drawdown, clamped to ±${MAX_CALMAR_RATIO}. The numerator is the compounded total return of that symbol's equity curve. Null when that symbol's trade count < ${MIN_SIGNALS_FOR_RATIOS}, the equity curve blew up (reached ≤ 0), or Max Drawdown ≤ 0.*`,
-      `*Expectancy (column): per-symbol expected value per trade. Three cases depending on what kinds of trades exist for that symbol: (a) BOTH winning and losing trades present → (winning-trade count / Total Trades) × Avg Win + (losing-trade count / Total Trades) × Avg Loss; (b) only winning trades present → (winning-trade count / Total Trades) × Avg Win (zero contribution from non-existent losses); (c) only losing trades present → (losing-trade count / Total Trades) × Avg Loss. Break-even trades contribute 0 (excluded from both probabilities). UNITS: percent per trade. NOT gated by MIN_SIGNALS — computed whenever Total Trades ≥ 1 and at least one decisive trade exists. (Note: the portfolio-level Expectancy further up in this report uses a single combined formula and IS gated by MIN_SIGNALS_FOR_RATIOS over the pooled count; per-symbol Expectancy is intentionally looser to populate the row early.)*`,
+      `*Expectancy (column): per-symbol expected value per trade. Three cases depending on what kinds of trades exist for that symbol: (a) BOTH winning and losing trades present → (winning-trade count / Total Trades) × Avg Win + (losing-trade count / Total Trades) × Avg Loss; (b) only winning trades present → (winning-trade count / Total Trades) × Avg Win (zero contribution from non-existent losses); (c) only losing trades present → (losing-trade count / Total Trades) × Avg Loss. Break-even trades contribute 0 (excluded from both probabilities). UNITS: percent per trade. Null when that symbol's trade count < ${MIN_SIGNALS_FOR_RATIOS} — the same sample-size gate as the standalone Backtest/Live report and the portfolio-level pooled Expectancy further up, so the per-symbol value never disagrees with the symbol's own standalone report.*`,
       `*Max Drawdown (column): per-symbol mark-to-market max drawdown — the symbol's compounded equity curve applies each closed signal's worst intra-trade excursion (its trough-PNL snapshot, ≤ 0) before booking the realised close, so deep round-trip dips count rather than only realised close-to-close drops. UNITS: percent. NOT realised-only.*`,
       `*Avg Peak PNL / Avg Max Drawdown PNL (columns): per-symbol arithmetic means of each closed signal's peak-PNL / trough-PNL snapshot — the best / worst mark-to-market PNL recorded while the position was open. Signals that never recorded the snapshot are excluded — no zero dilution. UNITS: percent. NOT gated by MIN_SIGNALS — each is null only if no signal for that symbol carries the corresponding snapshot.*`,
       `*Peak Profit PNL / Max Drawdown PNL (columns): per-symbol MAX of the peak-PNL snapshot / MIN of the trough-PNL snapshot across the symbol's stored closed signals. UNITS: percent. The single best best-case and worst worst-case excursions for that symbol — tail behaviour the averages hide. NOT gated by MIN_SIGNALS — each is null only if no signal for that symbol carries the corresponding snapshot.*`,
