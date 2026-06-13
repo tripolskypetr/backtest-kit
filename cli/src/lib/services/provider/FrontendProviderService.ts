@@ -1,4 +1,4 @@
-import { singleshot } from "functools-kit";
+import { BehaviorSubject, singleshot, sleep } from "functools-kit";
 import { serve, lib } from "@backtest-kit/ui";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
@@ -9,6 +9,9 @@ import { getEnv } from "../../../helpers/getEnv";
 import ResolveService from "../core/ResolveService";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
 import { SymbolConfig } from "../../../model/Config.model";
+
+const READY_SUBJECT = new BehaviorSubject<true>();
+const MAX_WAIT_TIME = 5_000;
 
 const GET_SYMBOL_EXPORTS_FN = async (self: FrontendProviderService) => {
   const exports = await self.configConnectionService.loadConfig("symbol.config");
@@ -61,6 +64,18 @@ const MAP_SYMBOL_CONFIG_FN = (config: SymbolConfig[]) => {
   return symbolList;
 };
 
+const CREATE_LISTEN_FN = (self: FrontendProviderService) => async () => {
+  const promise = READY_SUBJECT.toPromise();
+  self.enable();
+  if (READY_SUBJECT.data) {
+    return;
+  }
+  await Promise.race([
+    promise,
+    sleep(MAX_WAIT_TIME),
+  ]);
+};
+
 export class FrontendProviderService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   readonly resolveService = inject<ResolveService>(TYPES.resolveService);
@@ -80,7 +95,12 @@ export class FrontendProviderService {
           lib.symbolConnectionService.getSymbolList.setValue(Promise.resolve(symbolList));
         }
       }
-      unServer = serve(CC_WWWROOT_HOST, CC_WWWROOT_PORT, this.resolveService.PROJECT_ROOT_DIR);
+      unServer = serve(
+        CC_WWWROOT_HOST, 
+        CC_WWWROOT_PORT, 
+        this.resolveService.PROJECT_ROOT_DIR,
+        () => READY_SUBJECT.next(true),
+      );
     }
     init();
 
@@ -103,7 +123,9 @@ export class FrontendProviderService {
     if (!getArgs().values.ui) {
       return;
     }
-    return getEntrySubject().subscribe(this.enable);
+    return getEntrySubject().subscribe(
+      CREATE_LISTEN_FN(this)
+    );
   });
 }
 
