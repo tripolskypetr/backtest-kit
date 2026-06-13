@@ -36,7 +36,7 @@ export class NotificationDbService extends BaseCRUD(NotificationModel) {
     this.loggerService.log("notificationDbService findByNotificationId", { backtest, notificationId });
     const cachedId = await this.notificationCacheService.getNotificationId(backtest, notificationId);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as INotificationRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as INotificationRow | null;
       if (cached) {
         return cached;
       }

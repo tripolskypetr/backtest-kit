@@ -39,7 +39,7 @@ export class BreakevenDbService extends BaseCRUD(BreakevenModel) {
     this.loggerService.log("breakevenDbService findByContext", { symbol, strategyName, exchangeName, signalId });
     const cachedId = await this.breakevenCacheService.getBreakevenId(symbol, strategyName, exchangeName, signalId);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IBreakevenRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IBreakevenRow | null;
       if (cached) {
         return cached;
       }

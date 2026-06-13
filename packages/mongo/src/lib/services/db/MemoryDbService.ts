@@ -37,7 +37,7 @@ export class MemoryDbService extends BaseCRUD(MemoryModel) {
     this.loggerService.log("memoryDbService findByMemoryId", { signalId, bucketName, memoryId });
     const cachedId = await this.memoryCacheService.getMemoryEntryId(signalId, bucketName, memoryId);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IMemoryRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IMemoryRow | null;
       if (cached) {
         return cached;
       }

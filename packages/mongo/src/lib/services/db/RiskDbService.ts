@@ -35,7 +35,7 @@ export class RiskDbService extends BaseCRUD(RiskModel) {
     this.loggerService.log("riskDbService findByContext", { riskName, exchangeName });
     const cachedId = await this.riskCacheService.getRiskId(riskName, exchangeName);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IRiskRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IRiskRow | null;
       if (cached) {
         return cached;
       }

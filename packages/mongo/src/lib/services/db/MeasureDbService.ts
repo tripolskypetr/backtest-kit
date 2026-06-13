@@ -27,7 +27,7 @@ export class MeasureDbService extends BaseCRUD(MeasureModel) {
     this.loggerService.log("measureDbService findByKey", { bucket, entryKey });
     const cachedId = await this.measureCacheService.getMeasureId(bucket, entryKey);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IMeasureRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IMeasureRow | null;
       if (cached) {
         return cached;
       }

@@ -27,7 +27,7 @@ export class StateDbService extends BaseCRUD(StateModel) {
     this.loggerService.log("stateDbService findByContext", { signalId, bucketName });
     const cachedId = await this.stateCacheService.getStateId(signalId, bucketName);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IStateRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IStateRow | null;
       if (cached) {
         return cached;
       }

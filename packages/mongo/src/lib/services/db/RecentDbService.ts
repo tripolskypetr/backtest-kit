@@ -41,7 +41,7 @@ export class RecentDbService extends BaseCRUD(RecentModel) {
     this.loggerService.log("recentDbService findByContext", { symbol, strategyName, exchangeName, frameName, backtest });
     const cachedId = await this.recentCacheService.getRecentId(symbol, strategyName, exchangeName, frameName, backtest);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IRecentRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IRecentRow | null;
       if (cached) {
         return cached;
       }

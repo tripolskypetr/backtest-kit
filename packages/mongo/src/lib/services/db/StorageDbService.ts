@@ -34,7 +34,7 @@ export class StorageDbService extends BaseCRUD(StorageModel) {
     this.loggerService.log("storageDbService findBySignalId", { backtest, signalId });
     const cachedId = await this.storageCacheService.getStorageId(backtest, signalId);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IStorageRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IStorageRow | null;
       if (cached) {
         return cached;
       }

@@ -63,7 +63,7 @@ export class CandleDbService extends BaseCRUD(CandleModel) {
     this.loggerService.log("candleDbService findBySymbolIntervalTimestamp", { symbol, interval, exchangeName, timestamp });
     const cachedId = await this.candleCacheService.getCandleId(symbol, interval, exchangeName, timestamp);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as ICandleRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as ICandleRow | null;
       if (cached) {
         return cached;
       }

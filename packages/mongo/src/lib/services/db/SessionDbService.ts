@@ -37,7 +37,7 @@ export class SessionDbService extends BaseCRUD(SessionModel) {
     this.loggerService.log("sessionDbService findByContext", { strategyName, exchangeName, frameName });
     const cachedId = await this.sessionCacheService.getSessionId(strategyName, exchangeName, frameName);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as ISessionRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as ISessionRow | null;
       if (cached) {
         return cached;
       }

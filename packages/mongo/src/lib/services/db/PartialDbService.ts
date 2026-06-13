@@ -39,7 +39,7 @@ export class PartialDbService extends BaseCRUD(PartialModel) {
     this.loggerService.log("partialDbService findByContext", { symbol, strategyName, exchangeName, signalId });
     const cachedId = await this.partialCacheService.getPartialId(symbol, strategyName, exchangeName, signalId);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IPartialRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IPartialRow | null;
       if (cached) {
         return cached;
       }

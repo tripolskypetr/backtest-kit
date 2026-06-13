@@ -36,7 +36,7 @@ export class ScheduleDbService extends BaseCRUD(ScheduleModel) {
     this.loggerService.log("scheduleDbService findByContext", { symbol, strategyName, exchangeName });
     const cachedId = await this.scheduleCacheService.getScheduleId(symbol, strategyName, exchangeName);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IScheduleRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IScheduleRow | null;
       if (cached) {
         return cached;
       }

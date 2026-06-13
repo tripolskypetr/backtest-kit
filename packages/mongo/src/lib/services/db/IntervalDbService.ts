@@ -27,7 +27,7 @@ export class IntervalDbService extends BaseCRUD(IntervalModel) {
     this.loggerService.log("intervalDbService findByKey", { bucket, entryKey });
     const cachedId = await this.intervalCacheService.getIntervalId(bucket, entryKey);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as IIntervalRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as IIntervalRow | null;
       if (cached) {
         return cached;
       }

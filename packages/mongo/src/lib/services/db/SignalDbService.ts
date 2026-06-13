@@ -36,7 +36,7 @@ export class SignalDbService extends BaseCRUD(SignalModel) {
     this.loggerService.log("signalDbService findByContext", { symbol, strategyName, exchangeName });
     const cachedId = await this.signalCacheService.getSignalId(symbol, strategyName, exchangeName);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as ISignalRowDoc | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as ISignalRowDoc | null;
       if (cached) {
         return cached;
       }

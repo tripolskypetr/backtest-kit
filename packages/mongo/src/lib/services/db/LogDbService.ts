@@ -29,7 +29,7 @@ export class LogDbService extends BaseCRUD(LogModel) {
     this.loggerService.log("logDbService findByEntryId", { entryId });
     const cachedId = await this.logCacheService.getLogId(entryId);
     if (cachedId) {
-      const cached = await super.findById(cachedId) as ILogRow | null;
+      const cached = await super.findByFilter({ _id: cachedId }) as ILogRow | null;
       if (cached) {
         return cached;
       }
