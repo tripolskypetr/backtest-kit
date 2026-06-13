@@ -191,7 +191,7 @@ Examples:
   node ${ENTRY_PATH} --walker --symbol BTCUSDT --noCache --noFlush --markdown ./content/feb_2026_v1.ts ./content/feb_2026_v2.ts
   node ${ENTRY_PATH} --paper --symbol ETHUSDT ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --live --ui --telegram ./content/feb_2026.strategy.ts
-  node ${ENTRY_PATH} --main ./content/feb_2026.entry.ts
+  node ${ENTRY_PATH} --main ./tools/fetch_fear_and_greed.ts
   node ${ENTRY_PATH} --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --jsonl
   node ${ENTRY_PATH} --editor
   node ${ENTRY_PATH} --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl

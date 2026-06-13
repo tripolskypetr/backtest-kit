@@ -83,6 +83,7 @@ As a result: you used to backtest your first idea is the same tool you use to ru
 | **Walker**       | `--walker`                 | A/B compare multiple strategies on the same historical data |
 | **Paper**        | `--paper`                  | Live prices, no real orders                  |
 | **Live**         | `--live`                   | Real trades via exchange API                 |
+| **Main**         | `--main`                   | Run a custom entry point with a prepared environment, no trading harness |
 | **UI Dashboard** | `--ui`                     | Web dashboard at `http://localhost:60050`    |
 | **Telegram**     | `--telegram`               | Trade notifications with price charts        |
 | **PineScript**   | `--pine`                   | Run a local `.pine` indicator against exchange data |
@@ -190,6 +191,7 @@ npm start -- --symbol BTCUSDT --ui
 | `--walker`                | boolean | Run Walker A/B strategy comparison (default: `false`)              |
 | `--paper`                 | boolean | Paper trading (live prices, no orders) (default: `false`)          |
 | `--live`                  | boolean | Run live trading (default: `false`)                                |
+| `--main`                  | boolean | Run a custom entry point with a prepared environment, no trading harness (default: `false`) |
 | `--ui`                    | boolean | Start web UI dashboard (default: `false`)                          |
 | `--telegram`              | boolean | Enable Telegram notifications (default: `false`)                   |
 | `--verbose`               | boolean | Log each candle fetch (default: `false`)                           |
@@ -320,6 +322,37 @@ npx @backtest-kit/cli --walker \
   ./content/feb_2026_v3.strategy.ts
 # → ./dump/feb_2026_comparison.md
 ```
+
+### Main — Custom Entry Point, No Trading Harness
+
+Runs a single entry point with the full CLI environment prepared — `.env`, `config/setup.config`, `config/loader.config`, and `./modules/main.module` are all loaded, the working directory is changed to the entry point folder, and graceful shutdown is wired up — but the CLI **never** starts a trading harness. Unlike `--backtest` / `--live` / `--paper` / `--walker`, it does not call `Backtest.background`/`Live.background`/`Walker.background` and does not pick a symbol, warm the cache, or resolve a strategy/exchange/frame. The entry point decides what to run.
+
+```json
+{
+  "scripts": {
+    "main": "npx @backtest-kit/cli --main ./tools/fetch_fear_and_greed.ts"
+  }
+}
+```
+
+```bash
+npm run main
+```
+
+**Main-specific flags:**
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--main` | boolean | Enable Main mode |
+| `--noFlush` | boolean | Skip removing report/log/markdown/agent folders before the run (default: `false`) |
+
+Exactly **one** positional entry point is required — the CLI throws `Entry point is required` if none is given. `process.cwd()` is changed to the entry point directory and its local `.env` is loaded (overriding the root `.env`), identical to the other modes.
+
+Although the CLI starts nothing itself, any `Backtest` / `Live` / `Walker` run that **your** entry point launches is still managed: the process exits automatically once `listenDone*` reports the run is complete, the first `Ctrl+C` stops every active run via `*.list()` / `*.stop()`, and a second `Ctrl+C` force-quits the process tree.
+
+**Module hook:** `./modules/main.module` is loaded automatically before the entry point runs (same `.ts` / `.mjs` / `.cjs` resolution rules as other modes).
+
+Main is a casual `--entry` alternative if you need to bootstrap environment for a quick action: for example, using 3rdparty API with automatic `.env` import.
 
 ## 🐙 Multiple Symbol Parallel
 
@@ -693,6 +726,7 @@ The CLI supports **mode-specific module files** that are loaded as side-effect i
 | `--paper`         | `./modules/paper.module.mjs`    | `Live.background()` (paper) |
 | `--backtest`      | `./modules/backtest.module.mjs` | `Backtest.background()`     |
 | `--walker`        | `./modules/walker.module.mjs`     | `Walker.background()`          |
+| `--main`          | `./modules/main.module.mjs`     | the custom entry point         |
 | `--brokerdebug`   | `./modules/brokerdebug.module.mjs` | broker commit test            |
 
 > File is resolved relative to `cwd` (the strategy directory). All of `.mjs`, `.cjs`, `.ts` extensions are tried automatically. Missing module is a soft warning — not an error.
