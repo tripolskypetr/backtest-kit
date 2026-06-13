@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/mongo",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "MongoDB + Redis persistence adapter for backtest-kit. Replaces the default file-based storage with a production-grade backend — O(1) reads via Redis, atomic writes via Mongoose.",
   "author": {
     "name": "Petr Tripolsky",
@@ -65,13 +65,13 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "backtest-kit": "12.6.0",
+    "backtest-kit": "12.7.0",
     "mongoose": "8.23.0",
     "ioredis": "5.6.1",
     "worker-testbed": "2.0.0"
   },
   "peerDependencies": {
-    "backtest-kit": "^12.6.0",
+    "backtest-kit": "^12.7.0",
     "mongoose": "^8.23.0",
     "ioredis": "^5.6.1",
     "typescript": "^5.0.0"
