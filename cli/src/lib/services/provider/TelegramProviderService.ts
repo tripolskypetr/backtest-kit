@@ -2,7 +2,7 @@ import { singleshot } from "functools-kit";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { getEntrySubject } from "../../../config/emitters";
+import { getReadySubject } from "../../../config/emitters";
 import { getEnv } from "../../../helpers/getEnv";
 import TelegramLogicService from "../logic/TelegramLogicService";
 import { getArgs } from "../../../helpers/getArgs";
@@ -45,7 +45,7 @@ export class TelegramProviderService {
     if (!getArgs().values.telegram) {
       return;
     }
-    return getEntrySubject().subscribe(this.enable);
+    return getReadySubject().subscribe(this.enable);
   });
 }
 

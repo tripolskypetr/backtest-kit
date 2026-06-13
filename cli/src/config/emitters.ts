@@ -1,5 +1,5 @@
 import { emitters } from "backtest-kit";
-import { BehaviorSubject, singleshot } from "functools-kit";
+import { BehaviorSubject, singleshot, Subject } from "functools-kit";
 
 const getEntrySubject = singleshot(() => {
   const entrySubject: BehaviorSubject<string> = emitters["entrySubject"];
@@ -9,4 +9,8 @@ const getEntrySubject = singleshot(() => {
   return new BehaviorSubject<string>();
 });
 
-export { getEntrySubject };
+const getReadySubject = singleshot(() => {
+  return new Subject<void>();
+});
+
+export { getEntrySubject, getReadySubject };
