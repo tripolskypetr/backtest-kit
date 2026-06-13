@@ -1,0 +1,1256 @@
+{
+  "version": 3,
+  "config": {
+    "windowK": 2,
+    "minClusters": 1,
+    "jaccardThreshold": 0.3,
+    "lagPeakThreshold": 0.4,
+    "maxBurstWindowMs": 3600000,
+    "mode": "single",
+    "stationarityWindowMs": null
+  },
+  "exit": {
+    "cells": {
+      "matrix": {},
+      "single": {
+        "crypto_yoda_channel": {
+          "SOLUSDT": {
+            "long": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 2,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            },
+            "short": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "HYPEUSDT": {
+            "long": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              },
+              "anomalous": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "NEARUSDT": {
+            "long": {
+              "calm": {
+                "trailingTake": 1,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 240,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            },
+            "short": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "TRXUSDT": {
+            "short": {
+              "calm": {
+                "trailingTake": 1,
+                "hardStop": 2,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 120,
+                "staleMinutes": 720,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "invert",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 60
+              },
+              "anomalous": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            },
+            "long": {
+              "calm": {
+                "trailingTake": 1,
+                "hardStop": 1,
+                "stalenessSinceProfit": 2,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 720,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "FARTCOINUSDT": {
+            "short": {
+              "calm": {
+                "trailingTake": 1,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "invert",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "ETHUSDT": {
+            "long": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 2.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              },
+              "anomalous": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "PUMPUSDT": {
+            "long": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "BTCUSDT": {
+            "long": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "POLUSDT": {
+            "short": {
+              "calm": {
+                "trailingTake": 2,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 120,
+                "staleMinutes": 720,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            },
+            "long": {
+              "calm": {
+                "trailingTake": 2,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 120,
+                "staleMinutes": 720,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "invert",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          },
+          "ENAUSDT": {
+            "short": {
+              "calm": {
+                "trailingTake": 0.5,
+                "hardStop": 1,
+                "stalenessSinceProfit": 0.5,
+                "stalenessSinceMinutes": 60,
+                "staleMinutes": 60,
+                "volZThreshold": 1.5,
+                "squeezePolicy": "none",
+                "squeezeThreshold": 0.55,
+                "volBaselineWindow": 20,
+                "cascadeWindowMinutes": 15
+              }
+            }
+          }
+        }
+      }
+    },
+    "bySymbolDir": {
+      "matrix": {},
+      "single": {
+        "SOLUSDT": {
+          "long": {
+            "trailingTake": 0.5,
+            "hardStop": 2,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          },
+          "short": {
+            "trailingTake": 0.5,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "HYPEUSDT": {
+          "long": {
+            "trailingTake": 2,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 120,
+            "staleMinutes": 720,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "NEARUSDT": {
+          "long": {
+            "trailingTake": 1,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 240,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          },
+          "short": {
+            "trailingTake": 0.5,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "TRXUSDT": {
+          "short": {
+            "trailingTake": 1,
+            "hardStop": 2,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 240,
+            "staleMinutes": 720,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "invert",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 60
+          },
+          "long": {
+            "trailingTake": 1,
+            "hardStop": 1,
+            "stalenessSinceProfit": 2,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 720,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "FARTCOINUSDT": {
+          "short": {
+            "trailingTake": 1,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "invert",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "ETHUSDT": {
+          "long": {
+            "trailingTake": 0.5,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "PUMPUSDT": {
+          "long": {
+            "trailingTake": 0.5,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "BTCUSDT": {
+          "long": {
+            "trailingTake": 0.5,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "POLUSDT": {
+          "short": {
+            "trailingTake": 2,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 120,
+            "staleMinutes": 720,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          },
+          "long": {
+            "trailingTake": 2,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 120,
+            "staleMinutes": 720,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "invert",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        },
+        "ENAUSDT": {
+          "short": {
+            "trailingTake": 0.5,
+            "hardStop": 1,
+            "stalenessSinceProfit": 0.5,
+            "stalenessSinceMinutes": 60,
+            "staleMinutes": 60,
+            "volZThreshold": 1.5,
+            "squeezePolicy": "none",
+            "squeezeThreshold": 0.55,
+            "volBaselineWindow": 20,
+            "cascadeWindowMinutes": 15
+          }
+        }
+      }
+    },
+    "byMode": {
+      "matrix": {
+        "trailingTake": 2,
+        "hardStop": 1,
+        "stalenessSinceProfit": 0.5,
+        "stalenessSinceMinutes": 120,
+        "staleMinutes": 720,
+        "volZThreshold": 1.5,
+        "squeezePolicy": "invert",
+        "squeezeThreshold": 0.55,
+        "volBaselineWindow": 20,
+        "cascadeWindowMinutes": 60
+      },
+      "single": {
+        "trailingTake": 2,
+        "hardStop": 1,
+        "stalenessSinceProfit": 0.5,
+        "stalenessSinceMinutes": 120,
+        "staleMinutes": 720,
+        "volZThreshold": 1.5,
+        "squeezePolicy": "invert",
+        "squeezeThreshold": 0.55,
+        "volBaselineWindow": 20,
+        "cascadeWindowMinutes": 60
+      }
+    },
+    "global": {
+      "trailingTake": 2,
+      "hardStop": 1,
+      "stalenessSinceProfit": 0.5,
+      "stalenessSinceMinutes": 120,
+      "staleMinutes": 720,
+      "volZThreshold": 1.5,
+      "squeezePolicy": "invert",
+      "squeezeThreshold": 0.55,
+      "volBaselineWindow": 20,
+      "cascadeWindowMinutes": 60
+    }
+  },
+  "policy": { "allow": ["enter", "invert", "tighten"] },
+  "riskReward": {
+    "bySymbol": {
+      "SOLUSDT": { "mean": 0.067079, "p95": 0.33932, "p99": 0.379451, "n": 5 },
+      "HYPEUSDT": { "mean": 2.35592, "p95": 5.376248, "p99": 5.644721, "n": 2 },
+      "NEARUSDT": {
+        "mean": 1.830404,
+        "p95": 3.852694,
+        "p99": 3.908686,
+        "n": 4
+      },
+      "TRXUSDT": {
+        "mean": 0.567239,
+        "p95": 1.720791,
+        "p99": 2.150441,
+        "n": 11
+      },
+      "FARTCOINUSDT": {
+        "mean": 0.736749,
+        "p95": 2.299823,
+        "p99": 2.438763,
+        "n": 2
+      },
+      "ETHUSDT": { "mean": 0.733381, "p95": 0.733381, "p99": 0.733381, "n": 1 },
+      "PUMPUSDT": {
+        "mean": -0.083893,
+        "p95": -0.083893,
+        "p99": -0.083893,
+        "n": 1
+      },
+      "BTCUSDT": {
+        "mean": -0.025121,
+        "p95": -0.025121,
+        "p99": -0.025121,
+        "n": 1
+      },
+      "POLUSDT": { "mean": 3.684509, "p95": 4.441377, "p99": 4.496916, "n": 4 },
+      "ENAUSDT": {
+        "mean": -0.510783,
+        "p95": -0.510783,
+        "p99": -0.510783,
+        "n": 1
+      }
+    },
+    "global": { "mean": 1.091675, "p95": 4.256247, "p99": 5.339517, "n": 32 }
+  },
+  "pnl": {
+    "bySymbol": {
+      "SOLUSDT": {
+        "mean": 0.000563,
+        "median": 0.001181,
+        "p5": -0.004604,
+        "p95": 0.003671,
+        "p99": 0.00385,
+        "n": 5
+      },
+      "HYPEUSDT": {
+        "mean": 0.023559,
+        "median": 0.023559,
+        "p5": -0.006644,
+        "p95": 0.053762,
+        "p99": 0.056447,
+        "n": 2
+      },
+      "NEARUSDT": {
+        "mean": 0.018304,
+        "median": 0.021995,
+        "p5": -0.007086,
+        "p95": 0.038527,
+        "p99": 0.039087,
+        "n": 4
+      },
+      "TRXUSDT": {
+        "mean": 0.008289,
+        "median": 0.011039,
+        "p5": -0.009152,
+        "p95": 0.023127,
+        "p99": 0.023565,
+        "n": 11
+      },
+      "FARTCOINUSDT": {
+        "mean": 0.007367,
+        "median": 0.007367,
+        "p5": -0.008263,
+        "p95": 0.022998,
+        "p99": 0.024388,
+        "n": 2
+      },
+      "ETHUSDT": {
+        "mean": 0.007334,
+        "median": 0.007334,
+        "p5": 0.007334,
+        "p95": 0.007334,
+        "p99": 0.007334,
+        "n": 1
+      },
+      "PUMPUSDT": {
+        "mean": -0.000839,
+        "median": -0.000839,
+        "p5": -0.000839,
+        "p95": -0.000839,
+        "p99": -0.000839,
+        "n": 1
+      },
+      "BTCUSDT": {
+        "mean": -0.000251,
+        "median": -0.000251,
+        "p5": -0.000251,
+        "p95": -0.000251,
+        "p99": -0.000251,
+        "n": 1
+      },
+      "POLUSDT": {
+        "mean": 0.036845,
+        "median": 0.036166,
+        "p5": 0.030227,
+        "p95": 0.044414,
+        "p99": 0.044969,
+        "n": 4
+      },
+      "ENAUSDT": {
+        "mean": -0.005108,
+        "median": -0.005108,
+        "p5": -0.005108,
+        "p95": -0.005108,
+        "p99": -0.005108,
+        "n": 1
+      }
+    },
+    "global": {
+      "mean": 0.011799,
+      "median": 0.007056,
+      "p5": -0.01,
+      "p95": 0.042562,
+      "p99": 0.053395,
+      "n": 32
+    }
+  },
+  "history": [
+    {
+      "id": "6a19c607f20d896ad6188c21",
+      "ids": ["6a19c607f20d896ad6188c21"],
+      "symbol": "SOLUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767597130000,
+      "entered": true,
+      "entryPrice": 135.46,
+      "exitPrice": 135.62000000000003,
+      "pnl": 0.0011811604901815782,
+      "peak": 0.0017717407352722623,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c27",
+      "ids": ["6a19c607f20d896ad6188c27"],
+      "symbol": "HYPEUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767688576000,
+      "entered": true,
+      "entryPrice": 26.48,
+      "exitPrice": 26.2152,
+      "pnl": -0.01,
+      "peak": 0.0014350453172205535,
+      "reason": "hard-stop",
+      "heldMinutes": 21,
+      "inverted": false,
+      "volRegime": "anomalous",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c26",
+      "ids": ["6a19c607f20d896ad6188c26"],
+      "symbol": "NEARUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767689094000,
+      "entered": true,
+      "entryPrice": 1.765,
+      "exitPrice": 1.8259999999999998,
+      "pnl": 0.03456090651558083,
+      "peak": 0.03966005665722383,
+      "reason": "life-cap",
+      "heldMinutes": 240,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c25",
+      "ids": ["6a19c607f20d896ad6188c25"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767694576000,
+      "entered": true,
+      "entryPrice": 0.2916,
+      "exitPrice": 0.2933,
+      "pnl": -0.005829903978052055,
+      "peak": 0.0013717421124828924,
+      "reason": "life-cap",
+      "heldMinutes": 720,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c24",
+      "ids": ["6a19c607f20d896ad6188c24"],
+      "symbol": "FARTCOINUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767696138000,
+      "entered": true,
+      "entryPrice": 0.4403,
+      "exitPrice": 0.444703,
+      "pnl": -0.01,
+      "peak": 0.004996593231887429,
+      "reason": "hard-stop",
+      "heldMinutes": 21,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c23",
+      "ids": ["6a19c607f20d896ad6188c23"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767725229000,
+      "entered": true,
+      "entryPrice": 0.2922,
+      "exitPrice": 0.2948,
+      "pnl": -0.008898015058179299,
+      "peak": 0.0013689253935660899,
+      "reason": "life-cap",
+      "heldMinutes": 720,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c22",
+      "ids": ["6a19c607f20d896ad6188c22"],
+      "symbol": "NEARUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767726556000,
+      "entered": true,
+      "entryPrice": 1.759,
+      "exitPrice": 1.8280000000000003,
+      "pnl": 0.03922683342808424,
+      "peak": 0.03922683342808424,
+      "reason": "trailing-take",
+      "heldMinutes": 158,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c28",
+      "ids": ["6a19c607f20d896ad6188c28"],
+      "symbol": "NEARUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767792430000,
+      "entered": true,
+      "entryPrice": 1.757,
+      "exitPrice": 1.7394299999999998,
+      "pnl": -0.01,
+      "peak": 0.001707455890722888,
+      "reason": "hard-stop",
+      "heldMinutes": 33,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c29",
+      "ids": ["6a19c607f20d896ad6188c29"],
+      "symbol": "ETHUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767888090000,
+      "entered": true,
+      "entryPrice": 3089.8,
+      "exitPrice": 3112.4599999999996,
+      "pnl": 0.007333808013463607,
+      "peak": 0.007848404427471034,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "anomalous",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c2b",
+      "ids": ["6a19c607f20d896ad6188c2b"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767967605000,
+      "entered": true,
+      "entryPrice": 0.2947,
+      "exitPrice": 0.2995,
+      "pnl": 0.016287750254495997,
+      "peak": 0.016287750254495997,
+      "reason": "peak-staleness",
+      "heldMinutes": 682,
+      "inverted": true,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c2a",
+      "ids": ["6a19c607f20d896ad6188c2a"],
+      "symbol": "NEARUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1767967857000,
+      "entered": true,
+      "entryPrice": 1.697,
+      "exitPrice": 1.681,
+      "pnl": 0.009428403064231004,
+      "peak": 0.009428403064231004,
+      "reason": "trailing-take",
+      "heldMinutes": 15,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c2c",
+      "ids": ["6a19c607f20d896ad6188c2c"],
+      "symbol": "PUMPUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768054356000,
+      "entered": true,
+      "entryPrice": 0.002384,
+      "exitPrice": 0.002382,
+      "pnl": -0.0008389261744965738,
+      "peak": 0.003775167785235037,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c2d",
+      "ids": ["6a19c607f20d896ad6188c2d"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768223282000,
+      "entered": true,
+      "entryPrice": 0.2977,
+      "exitPrice": 0.3005,
+      "pnl": -0.009405441719852097,
+      "peak": 0.0013436345314074955,
+      "reason": "life-cap",
+      "heldMinutes": 720,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c30",
+      "ids": ["6a19c607f20d896ad6188c30"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768302318000,
+      "entered": true,
+      "entryPrice": 0.2991,
+      "exitPrice": 0.3055,
+      "pnl": 0.02139752591106659,
+      "peak": 0.02774991641591451,
+      "reason": "life-cap",
+      "heldMinutes": 720,
+      "inverted": true,
+      "volRegime": "anomalous",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c2f",
+      "ids": ["6a19c607f20d896ad6188c2f"],
+      "symbol": "BTCUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768303803000,
+      "entered": true,
+      "entryPrice": 92154.01,
+      "exitPrice": 92130.86,
+      "pnl": -0.0002512099039422612,
+      "peak": 0.00008854742186480537,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c2e",
+      "ids": ["6a19c607f20d896ad6188c2e"],
+      "symbol": "HYPEUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768324848000,
+      "entered": true,
+      "entryPrice": 24.528,
+      "exitPrice": 25.929,
+      "pnl": 0.057118395303326804,
+      "peak": 0.057118395303326804,
+      "reason": "peak-staleness",
+      "heldMinutes": 606,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c33",
+      "ids": ["6a19c607f20d896ad6188c33"],
+      "symbol": "TRXUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768479039000,
+      "entered": true,
+      "entryPrice": 0.3056,
+      "exitPrice": 0.3125,
+      "pnl": 0.02257853403141367,
+      "peak": 0.02257853403141367,
+      "reason": "peak-staleness",
+      "heldMinutes": 661,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c32",
+      "ids": ["6a19c607f20d896ad6188c32"],
+      "symbol": "POLUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768484769000,
+      "entered": true,
+      "entryPrice": 0.1574,
+      "exitPrice": 0.1503,
+      "pnl": 0.045108005082592266,
+      "peak": 0.045108005082592266,
+      "reason": "trailing-take",
+      "heldMinutes": 143,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c31",
+      "ids": ["6a19c607f20d896ad6188c31"],
+      "symbol": "SOLUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768485276000,
+      "entered": true,
+      "entryPrice": 145.15,
+      "exitPrice": 144.28,
+      "pnl": -0.0059937995177403,
+      "peak": 0.003444712366517396,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c34",
+      "ids": ["6a19c607f20d896ad6188c34"],
+      "symbol": "TRXUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768586287000,
+      "entered": true,
+      "entryPrice": 0.308,
+      "exitPrice": 0.31140000000000007,
+      "pnl": 0.011038961038961084,
+      "peak": 0.013636363636363577,
+      "reason": "life-cap",
+      "heldMinutes": 720,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c35",
+      "ids": ["6a19c607f20d896ad6188c35"],
+      "symbol": "SOLUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1768800324000,
+      "entered": true,
+      "entryPrice": 133.51,
+      "exitPrice": 132.99,
+      "pnl": 0.0038948393378771765,
+      "peak": 0.004868549172346471,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c36",
+      "ids": ["6a19c607f20d896ad6188c36"],
+      "symbol": "POLUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769016601000,
+      "entered": true,
+      "entryPrice": 0.1334,
+      "exitPrice": 0.1388,
+      "pnl": 0.04047976011994015,
+      "peak": 0.04047976011994015,
+      "reason": "trailing-take",
+      "heldMinutes": 160,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c39",
+      "ids": ["6a19c607f20d896ad6188c39"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769073341000,
+      "entered": true,
+      "entryPrice": 0.2999,
+      "exitPrice": 0.307,
+      "pnl": 0.023674558186062004,
+      "peak": 0.0240080026675558,
+      "reason": "life-cap",
+      "heldMinutes": 720,
+      "inverted": true,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c38",
+      "ids": ["6a19c607f20d896ad6188c38"],
+      "symbol": "SOLUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769074271000,
+      "entered": true,
+      "entryPrice": 129.81,
+      "exitPrice": 130.17,
+      "pnl": 0.0027732840305060105,
+      "peak": 0.004159926045759125,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c37",
+      "ids": ["6a19c607f20d896ad6188c37"],
+      "symbol": "POLUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769084713000,
+      "entered": true,
+      "entryPrice": 0.1336,
+      "exitPrice": 0.1296,
+      "pnl": 0.02994011976047907,
+      "peak": 0.02994011976047907,
+      "reason": "peak-staleness",
+      "heldMinutes": 300,
+      "inverted": true,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c3a",
+      "ids": ["6a19c607f20d896ad6188c3a"],
+      "symbol": "ENAUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769172005000,
+      "entered": true,
+      "entryPrice": 0.1762,
+      "exitPrice": 0.1771,
+      "pnl": -0.005107832009080658,
+      "peak": 0.0005675368898977809,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c3c",
+      "ids": ["6a19c607f20d896ad6188c3c"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769424641000,
+      "entered": true,
+      "entryPrice": 0.2953,
+      "exitPrice": 0.2969,
+      "pnl": -0.005418218760582426,
+      "peak": 0.0020318320352183863,
+      "reason": "life-cap",
+      "heldMinutes": 720,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c3b",
+      "ids": ["6a19c607f20d896ad6188c3b"],
+      "symbol": "FARTCOINUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769444365000,
+      "entered": true,
+      "entryPrice": 0.283,
+      "exitPrice": 0.29,
+      "pnl": 0.0247349823321555,
+      "peak": 0.0247349823321555,
+      "reason": "trailing-take",
+      "heldMinutes": 46,
+      "inverted": true,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c3d",
+      "ids": ["6a19c607f20d896ad6188c3d"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769504963000,
+      "entered": true,
+      "entryPrice": 0.2951,
+      "exitPrice": 0.2931,
+      "pnl": 0.006777363605557257,
+      "peak": 0.006777363605557257,
+      "reason": "peak-staleness",
+      "heldMinutes": 582,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c3f",
+      "ids": ["6a19c607f20d896ad6188c3f"],
+      "symbol": "POLUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769609881000,
+      "entered": true,
+      "entryPrice": 0.1193,
+      "exitPrice": 0.1155,
+      "pnl": 0.03185247275775354,
+      "peak": 0.03185247275775354,
+      "reason": "peak-staleness",
+      "heldMinutes": 452,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c3e",
+      "ids": ["6a19c607f20d896ad6188c3e"],
+      "symbol": "SOLUSDT",
+      "direction": "long",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769638442000,
+      "entered": true,
+      "entryPrice": 125.31,
+      "exitPrice": 125.43,
+      "pnl": 0.0009576250897773885,
+      "peak": 0.0043093129039980214,
+      "reason": "life-cap",
+      "heldMinutes": 60,
+      "inverted": false,
+      "volRegime": "calm",
+      "independentClusters": 1
+    },
+    {
+      "id": "6a19c607f20d896ad6188c40",
+      "ids": ["6a19c607f20d896ad6188c40"],
+      "symbol": "TRXUSDT",
+      "direction": "short",
+      "channel": "crypto_yoda_channel",
+      "ts": 1769775531000,
+      "entered": true,
+      "entryPrice": 0.2899,
+      "exitPrice": 0.2954,
+      "pnl": 0.01897205933080374,
+      "peak": 0.01897205933080374,
+      "reason": "peak-staleness",
+      "heldMinutes": 704,
+      "inverted": true,
+      "volRegime": "calm",
+      "independentClusters": 1
+    }
+  ],
+  "meta": {
+    "trainedAt": 1781356434907,
+    "folds": 4,
+    "shrinkageK": 5,
+    "cvScore": 0.007994,
+    "nestedScore": 0.001663,
+    "cvWinrate": 0.697917,
+    "cvSupport": 6.5,
+    "gridSize": 139968,
+    "mode": "single",
+    "modeReason": "auto → single: один канал — корреляция невозможна",
+    "impactHorizonMinutes": 720,
+    "confidence": 0.18634,
+    "reliable": false,
+    "support": 0.464286,
+    "stability": 0.481686,
+    "significance": 0.833213,
+    "totalSamples": 26,
+    "certification": {
+      "certified": false,
+      "dsr": 0.3626101064553633,
+      "pbo": 0.8333333333333334,
+      "spaPValue": 0.000999000999000999,
+      "minTRL": 6.0147298247802885,
+      "actualN": 26,
+      "nestedScore": 0.001663,
+      "reasons": [
+        "DSR 0.363 < 0.95 — эдж не переживает поправку на 139968 испытаний",
+        "PBO 0.833 > 0.1 — конфиг оверфитнут (CSCV)"
+      ]
+    },
+    "effectiveTrials": 139968,
+    "innerTrials": 139968,
+    "fitAttempts": 1,
+    "labeling": { "candidates": 32, "outcomes": { "ok": 32 }, "errors": {} }
+  }
+}

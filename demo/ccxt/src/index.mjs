@@ -1,8 +1,12 @@
 import { addExchangeSchema, Exchange, roundTicks } from "backtest-kit";
 import { singleshot } from "functools-kit";
-import * as anomaly from "volume-anomaly";
+import * as volume from "volume-anomaly";
+import * as pump from "pump-anomaly";
 import * as volatility from "garch";
 import ccxt from "ccxt";
+
+import signals from "../assets/parser-items.json" with { type: "json" };
+import weights from "../assets/model-weights.json" with { type: "json" };
 
 const ANOMALY_CONFIDENCE = 0.75; // volume-anomaly composite score
 const N_TRAIN = 1200; // baseline count
@@ -100,7 +104,7 @@ const getExecutedTradesSkew = async (symbol) => {
   const all = await Exchange.getAggregatedTrades(symbol, {
     exchangeName: "ccxt-exchange",
   }, N_TRAIN + N_DETECT);
-  return anomaly.predict(
+  return volume.predict(
     all.slice(0, N_TRAIN),
     all.slice(N_TRAIN),
     ANOMALY_CONFIDENCE,
@@ -163,6 +167,55 @@ const getVolatilityForecast = async (symbol) => {
   };
 }
 
+const getPumpWeights = async () => {
+  const getCandles = async (symbol, interval, limit, sDate, eDate) => {
+    return await Exchange.getRawCandles(
+      symbol,
+      interval,
+      {
+        exchangeName: "ccxt-exchange",
+      },
+      limit,
+      sDate,
+      eDate,
+    );
+  };
+  const model = await pump.PumpMatrix.fit(signals, getCandles);
+  return await model.save()
+};
+
+const getPumpLive = async () => {
+  const model = pump.PumpMatrix.load(weights);
+  const getCandles = async (symbol, interval, limit, sDate, eDate) =>
+    await Exchange.getRawCandles(
+      symbol,
+      interval,
+      {
+        exchangeName: "ccxt-exchange",
+      },
+      limit,
+      sDate,
+      eDate,
+    );
+  return await model.plan(signals, getCandles);
+};
+
+const getPumpBacktest = async () => {
+  const model = pump.PumpMatrix.load(weights);
+  const getCandles = async (symbol, interval, limit, sDate, eDate) =>
+    await Exchange.getRawCandles(
+      symbol,
+      interval,
+      {
+        exchangeName: "ccxt-exchange",
+      },
+      limit,
+      sDate,
+      eDate,
+    );
+  return await model.backtest(signals, getCandles);
+};
+
 console.log(
   await Exchange.getCandles("BTCUSDT", "1m", 5, {
     exchangeName: "ccxt-exchange",
@@ -176,3 +229,7 @@ console.log(
 console.log(
   await getVolatilityForecast("BTCUSDT")
 )
+
+console.log(
+  await getPumpBacktest()
+);

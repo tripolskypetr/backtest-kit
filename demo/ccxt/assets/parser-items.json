@@ -1,0 +1,290 @@
+[
+  {
+    "id": "6a19c607f20d896ad6188c21",
+    "channel": "crypto_yoda_channel",
+    "symbol": "SOLUSDT",
+    "direction": "long",
+    "ts": 1767597130000,
+    "entryFromPrice": 134.7,
+    "entryToPrice": 136.2
+  },
+  {
+    "id": "6a19c607f20d896ad6188c22",
+    "channel": "crypto_yoda_channel",
+    "symbol": "NEARUSDT",
+    "direction": "long",
+    "ts": 1767726556000,
+    "entryFromPrice": 1.741,
+    "entryToPrice": 1.76
+  },
+  {
+    "id": "6a19c607f20d896ad6188c23",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1767725229000,
+    "entryFromPrice": 0.2903,
+    "entryToPrice": 0.2936
+  },
+  {
+    "id": "6a19c607f20d896ad6188c24",
+    "channel": "crypto_yoda_channel",
+    "symbol": "FARTCOINUSDT",
+    "direction": "short",
+    "ts": 1767696138000,
+    "entryFromPrice": 0.44,
+    "entryToPrice": 0.46
+  },
+  {
+    "id": "6a19c607f20d896ad6188c25",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1767694576000,
+    "entryFromPrice": 0.2898,
+    "entryToPrice": 0.293
+  },
+  {
+    "id": "6a19c607f20d896ad6188c26",
+    "channel": "crypto_yoda_channel",
+    "symbol": "NEARUSDT",
+    "direction": "long",
+    "ts": 1767689094000,
+    "entryFromPrice": 1.746,
+    "entryToPrice": 1.765
+  },
+  {
+    "id": "6a19c607f20d896ad6188c27",
+    "channel": "crypto_yoda_channel",
+    "symbol": "HYPEUSDT",
+    "direction": "long",
+    "ts": 1767688576000,
+    "entryFromPrice": 26.2,
+    "entryToPrice": 26.49
+  },
+  {
+    "id": "6a19c607f20d896ad6188c28",
+    "channel": "crypto_yoda_channel",
+    "symbol": "NEARUSDT",
+    "direction": "long",
+    "ts": 1767792430000,
+    "entryFromPrice": 1.75,
+    "entryToPrice": 1.769
+  },
+  {
+    "id": "6a19c607f20d896ad6188c29",
+    "channel": "crypto_yoda_channel",
+    "symbol": "ETHUSDT",
+    "direction": "long",
+    "ts": 1767888090000,
+    "entryFromPrice": 3040,
+    "entryToPrice": 3090
+  },
+  {
+    "id": "6a19c607f20d896ad6188c2a",
+    "channel": "crypto_yoda_channel",
+    "symbol": "NEARUSDT",
+    "direction": "short",
+    "ts": 1767967857000,
+    "entryFromPrice": 1.697,
+    "entryToPrice": 1.716
+  },
+  {
+    "id": "6a19c607f20d896ad6188c2b",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1767967605000,
+    "entryFromPrice": 0.2938,
+    "entryToPrice": 0.2971
+  },
+  {
+    "id": "6a19c607f20d896ad6188c2c",
+    "channel": "crypto_yoda_channel",
+    "symbol": "PUMPUSDT",
+    "direction": "long",
+    "ts": 1768054356000,
+    "entryFromPrice": 0.0023,
+    "entryToPrice": 0.0024
+  },
+  {
+    "id": "6a19c607f20d896ad6188c2d",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1768223282000,
+    "entryFromPrice": 0.2968,
+    "entryToPrice": 0.3001
+  },
+  {
+    "id": "6a19c607f20d896ad6188c2e",
+    "channel": "crypto_yoda_channel",
+    "symbol": "HYPEUSDT",
+    "direction": "long",
+    "ts": 1768324848000,
+    "entryFromPrice": 24.41,
+    "entryToPrice": 24.68
+  },
+  {
+    "id": "6a19c607f20d896ad6188c2f",
+    "channel": "crypto_yoda_channel",
+    "symbol": "BTCUSDT",
+    "direction": "long",
+    "ts": 1768303803000,
+    "entryFromPrice": 91400,
+    "entryToPrice": 92200
+  },
+  {
+    "id": "6a19c607f20d896ad6188c30",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1768302318000,
+    "entryFromPrice": 0.2991,
+    "entryToPrice": 0.3024
+  },
+  {
+    "id": "6a19c607f20d896ad6188c31",
+    "channel": "crypto_yoda_channel",
+    "symbol": "SOLUSDT",
+    "direction": "long",
+    "ts": 1768485276000,
+    "entryFromPrice": 143.9,
+    "entryToPrice": 145.5
+  },
+  {
+    "id": "6a19c607f20d896ad6188c32",
+    "channel": "crypto_yoda_channel",
+    "symbol": "POLUSDT",
+    "direction": "short",
+    "ts": 1768484769000,
+    "entryFromPrice": 0.1574,
+    "entryToPrice": 0.1591
+  },
+  {
+    "id": "6a19c607f20d896ad6188c33",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "long",
+    "ts": 1768479039000,
+    "entryFromPrice": 0.3027,
+    "entryToPrice": 0.3061
+  },
+  {
+    "id": "6a19c607f20d896ad6188c34",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "long",
+    "ts": 1768586287000,
+    "entryFromPrice": 0.3046,
+    "entryToPrice": 0.308
+  },
+  {
+    "id": "6a19c607f20d896ad6188c35",
+    "channel": "crypto_yoda_channel",
+    "symbol": "SOLUSDT",
+    "direction": "short",
+    "ts": 1768800324000,
+    "entryFromPrice": 133.2,
+    "entryToPrice": 134.6
+  },
+  {
+    "id": "6a19c607f20d896ad6188c36",
+    "channel": "crypto_yoda_channel",
+    "symbol": "POLUSDT",
+    "direction": "long",
+    "ts": 1769016601000,
+    "entryFromPrice": 0.1334,
+    "entryToPrice": 0.1348
+  },
+  {
+    "id": "6a19c607f20d896ad6188c37",
+    "channel": "crypto_yoda_channel",
+    "symbol": "POLUSDT",
+    "direction": "long",
+    "ts": 1769084713000,
+    "entryFromPrice": 0.1335,
+    "entryToPrice": 0.1349
+  },
+  {
+    "id": "6a19c607f20d896ad6188c38",
+    "channel": "crypto_yoda_channel",
+    "symbol": "SOLUSDT",
+    "direction": "long",
+    "ts": 1769074271000,
+    "entryFromPrice": 129.4,
+    "entryToPrice": 130.9
+  },
+  {
+    "id": "6a19c607f20d896ad6188c39",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1769073341000,
+    "entryFromPrice": 0.2993,
+    "entryToPrice": 0.3026
+  },
+  {
+    "id": "6a19c607f20d896ad6188c3a",
+    "channel": "crypto_yoda_channel",
+    "symbol": "ENAUSDT",
+    "direction": "short",
+    "ts": 1769172005000,
+    "entryFromPrice": 0.171,
+    "entryToPrice": 0.19
+  },
+  {
+    "id": "6a19c607f20d896ad6188c3b",
+    "channel": "crypto_yoda_channel",
+    "symbol": "FARTCOINUSDT",
+    "direction": "short",
+    "ts": 1769444365000,
+    "entryFromPrice": 0.283,
+    "entryToPrice": 0.31
+  },
+  {
+    "id": "6a19c607f20d896ad6188c3c",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1769424641000,
+    "entryFromPrice": 0.2941,
+    "entryToPrice": 0.2973
+  },
+  {
+    "id": "6a19c607f20d896ad6188c3d",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1769504963000,
+    "entryFromPrice": 0.2934,
+    "entryToPrice": 0.2966
+  },
+  {
+    "id": "6a19c607f20d896ad6188c3e",
+    "channel": "crypto_yoda_channel",
+    "symbol": "SOLUSDT",
+    "direction": "long",
+    "ts": 1769638442000,
+    "entryFromPrice": 124.6,
+    "entryToPrice": 126
+  },
+  {
+    "id": "6a19c607f20d896ad6188c3f",
+    "channel": "crypto_yoda_channel",
+    "symbol": "POLUSDT",
+    "direction": "short",
+    "ts": 1769609881000,
+    "entryFromPrice": 0.1193,
+    "entryToPrice": 0.1206
+  },
+  {
+    "id": "6a19c607f20d896ad6188c40",
+    "channel": "crypto_yoda_channel",
+    "symbol": "TRXUSDT",
+    "direction": "short",
+    "ts": 1769775531000,
+    "entryFromPrice": 0.2886,
+    "entryToPrice": 0.2918
+  }
+]
