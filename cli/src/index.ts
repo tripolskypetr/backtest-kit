@@ -10,6 +10,7 @@ import "./main/backtest";
 import "./main/walker";
 import "./main/paper";
 import "./main/live";
+import "./main/main";
 
 import "./main/entry";
 

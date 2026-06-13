@@ -15,6 +15,7 @@ Modes:
   --walker   <entry...>       Run Walker A/B strategy comparison across multiple strategies
   --paper    <entry>          Paper trading (live prices, no real orders)
   --live     <entry>          Live trading with real orders
+  --main     <entry>          Run an entry point with prepared environment, no trading harness
   --pine     <entry>    Execute a local .pine indicator file
   --editor              Open the Pine Script visual editor in the browser
   --dump                Fetch and save raw OHLCV candles
@@ -64,6 +65,24 @@ Paper / Live flags:
   --verbose              Log every candle fetch to stdout
   --ui                   Start web dashboard
   --telegram             Send Telegram notifications
+
+Main flags (--main):
+
+  --noFlush              Skip removing report/log/markdown/agent folders before the run
+
+  Prepares the runtime environment (loads .env, setup.config, loader.config and
+  modules/main.module) and runs the single positional entry point — but does NOT
+  start any trading harness. Unlike --backtest/--live/--walker, the CLI never calls
+  Backtest/Live/Walker.background; the entry point decides what to run.
+
+  Exactly one positional entry point is required. process.cwd() is changed to the
+  entry point directory and its local .env is loaded.
+
+  Backtest, Live and Walker runs started from userspace are still tracked: the run
+  finishes automatically when one of them completes, Ctrl+C stops any active run,
+  and a second Ctrl+C force-quits.
+
+  Module file ./modules/main.module is loaded automatically if it exists.
 
 PineScript flags (--pine):
 
@@ -146,6 +165,7 @@ Module hooks (loaded automatically by each mode):
   modules/walker.module     --walker     Broker adapter for walker comparison
   modules/paper.module      --paper      Broker adapter for paper trading
   modules/live.module       --live       Broker adapter for live trading
+  modules/main.module       --main       Environment setup for a custom entry point
   modules/pine.module       --pine       Exchange schema for PineScript runs
   modules/editor.module     --editor     Exchange schema for the visual Pine editor
   modules/dump.module       --dump       Exchange schema for candle dumps
@@ -171,6 +191,7 @@ Examples:
   node ${ENTRY_PATH} --walker --symbol BTCUSDT --noCache --noFlush --markdown ./content/feb_2026_v1.ts ./content/feb_2026_v2.ts
   node ${ENTRY_PATH} --paper --symbol ETHUSDT ./content/feb_2026.strategy.ts
   node ${ENTRY_PATH} --live --ui --telegram ./content/feb_2026.strategy.ts
+  node ${ENTRY_PATH} --main ./content/feb_2026.entry.ts
   node ${ENTRY_PATH} --pine ./math/feb_2026.pine --timeframe 15m --limit 500 --jsonl
   node ${ENTRY_PATH} --editor
   node ${ENTRY_PATH} --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
