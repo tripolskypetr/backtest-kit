@@ -129,6 +129,21 @@ const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
   },
   {
     defaultValue: false,
+    fallback: (error, timestamp, currentPrice, pendingSignal, self) => {
+      const message = "ClientStrategy CALL_SIGNAL_SYNC_OPEN_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+        data: {
+          timestamp,
+          currentPrice,
+          signalId: pendingSignal.id,
+        }
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    }
   }
 );
 
@@ -179,6 +194,22 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
   },
   {
     defaultValue: false,
+    fallback: (error, timestamp, currentPrice, closeReason, signal, self) => {  
+      const message = "ClientStrategy CALL_SIGNAL_SYNC_CLOSE_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+        data: {
+          timestamp,
+          currentPrice,
+          closeReason,
+          signalId: signal.id,
+        }
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    }
   }
 );
 
