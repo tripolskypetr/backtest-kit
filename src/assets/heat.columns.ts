@@ -1,6 +1,5 @@
 import { IHeatmapRow } from "../interfaces/Heatmap.interface";
 import { ColumnModel } from "../model/Column.model";
-import { str } from "functools-kit";
 
 /**
  * Column configuration for portfolio heatmap markdown reports.
@@ -48,28 +47,28 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "totalPnl",
     label: "Total PNL",
     format: (data) =>
-      data.totalPnl !== null ? str(data.totalPnl, "%") : "N/A",
+      data.totalPnl !== null ? `${data.totalPnl.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "sharpeRatio",
     label: "Sharpe",
     format: (data) =>
-      data.sharpeRatio !== null ? str(data.sharpeRatio) : "N/A",
+      data.sharpeRatio !== null ? data.sharpeRatio.toFixed(3) : "N/A",
     isVisible: () => true,
   },
   {
     key: "annualizedSharpeRatio",
     label: "Ann Sharpe",
     format: (data) =>
-      data.annualizedSharpeRatio !== null ? str(data.annualizedSharpeRatio) : "N/A",
+      data.annualizedSharpeRatio !== null ? data.annualizedSharpeRatio.toFixed(3) : "N/A",
     isVisible: () => true,
   },
   {
     key: "certaintyRatio",
     label: "Certainty",
     format: (data) =>
-      data.certaintyRatio !== null ? str(data.certaintyRatio) : "N/A",
+      data.certaintyRatio !== null ? data.certaintyRatio.toFixed(3) : "N/A",
     isVisible: () => true,
   },
   {
@@ -77,7 +76,7 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     label: "Exp Yearly",
     format: (data) =>
       data.expectedYearlyReturns !== null
-        ? str(data.expectedYearlyReturns, "%")
+        ? `${data.expectedYearlyReturns.toFixed(2)}%`
         : "N/A",
     isVisible: () => true,
   },
@@ -92,42 +91,42 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "profitFactor",
     label: "PF",
     format: (data) =>
-      data.profitFactor !== null ? str(data.profitFactor) : "N/A",
+      data.profitFactor !== null ? data.profitFactor.toFixed(3) : "N/A",
     isVisible: () => true,
   },
   {
     key: "expectancy",
     label: "Expect",
     format: (data) =>
-      data.expectancy !== null ? str(data.expectancy, "%") : "N/A",
+      data.expectancy !== null ? `${data.expectancy.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "winRate",
     label: "WR",
     format: (data) =>
-      data.winRate !== null ? str(data.winRate, "%") : "N/A",
+      data.winRate !== null ? `${data.winRate.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "avgWin",
     label: "Avg Win",
     format: (data) =>
-      data.avgWin !== null ? str(data.avgWin, "%") : "N/A",
+      data.avgWin !== null ? `${data.avgWin.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "avgLoss",
     label: "Avg Loss",
     format: (data) =>
-      data.avgLoss !== null ? str(data.avgLoss, "%") : "N/A",
+      data.avgLoss !== null ? `${data.avgLoss.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "maxDrawdown",
     label: "Max DD",
     format: (data) =>
-      data.maxDrawdown !== null ? str(-data.maxDrawdown, "%") : "N/A",
+      data.maxDrawdown !== null ? `${(-data.maxDrawdown).toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
@@ -152,35 +151,35 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "avgPeakPnl",
     label: "Avg Peak PNL",
     format: (data) =>
-      data.avgPeakPnl !== null ? str(data.avgPeakPnl, "%") : "N/A",
+      data.avgPeakPnl !== null ? `${data.avgPeakPnl.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "avgFallPnl",
     label: "Avg DD PNL",
     format: (data) =>
-      data.avgFallPnl !== null ? str(data.avgFallPnl, "%") : "N/A",
+      data.avgFallPnl !== null ? `${data.avgFallPnl.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "peakProfitPnl",
     label: "Peak Profit PNL",
     format: (data) =>
-      data.peakProfitPnl !== null ? str(data.peakProfitPnl, "%") : "N/A",
+      data.peakProfitPnl !== null ? `${data.peakProfitPnl.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "maxDrawdownPnl",
     label: "Max DD PNL",
     format: (data) =>
-      data.maxDrawdownPnl !== null ? str(data.maxDrawdownPnl, "%") : "N/A",
+      data.maxDrawdownPnl !== null ? `${data.maxDrawdownPnl.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "medianPnl",
     label: "Median PNL",
     format: (data) =>
-      data.medianPnl !== null ? str(data.medianPnl, "%") : "N/A",
+      data.medianPnl !== null ? `${data.medianPnl.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
@@ -209,7 +208,7 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     label: "Avg Win Streak PNL",
     format: (data) =>
       data.avgConsecutiveWinPnl !== null
-        ? str(data.avgConsecutiveWinPnl, "%")
+        ? `${data.avgConsecutiveWinPnl.toFixed(2)}%`
         : "N/A",
     isVisible: () => true,
   },
@@ -218,7 +217,7 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     label: "Avg Loss Streak PNL",
     format: (data) =>
       data.avgConsecutiveLossPnl !== null
-        ? str(data.avgConsecutiveLossPnl, "%")
+        ? `${data.avgConsecutiveLossPnl.toFixed(2)}%`
         : "N/A",
     isVisible: () => true,
   },
@@ -232,7 +231,7 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "trendStrength",
     label: "Trend %/d",
     format: (data) =>
-      data.trendStrength !== null ? str(data.trendStrength, "%") : "N/A",
+      data.trendStrength !== null ? `${data.trendStrength.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
@@ -292,28 +291,28 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "medianStepSize",
     label: "Median Step",
     format: (data) =>
-      data.medianStepSize !== null ? str(data.medianStepSize, "%") : "N/A",
+      data.medianStepSize !== null ? `${data.medianStepSize.toFixed(2)}%` : "N/A",
     isVisible: () => true,
   },
   {
     key: "sortinoRatio",
     label: "Sortino",
     format: (data) =>
-      data.sortinoRatio !== null ? str(data.sortinoRatio) : "N/A",
+      data.sortinoRatio !== null ? data.sortinoRatio.toFixed(3) : "N/A",
     isVisible: () => true,
   },
   {
     key: "calmarRatio",
     label: "Calmar",
     format: (data) =>
-      data.calmarRatio !== null ? str(data.calmarRatio) : "N/A",
+      data.calmarRatio !== null ? data.calmarRatio.toFixed(3) : "N/A",
     isVisible: () => true,
   },
   {
     key: "recoveryFactor",
     label: "Recovery",
     format: (data) =>
-      data.recoveryFactor !== null ? str(data.recoveryFactor) : "N/A",
+      data.recoveryFactor !== null ? data.recoveryFactor.toFixed(3) : "N/A",
     isVisible: () => true,
   },
 ];
