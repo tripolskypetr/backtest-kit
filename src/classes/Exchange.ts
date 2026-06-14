@@ -6,6 +6,7 @@ import { PersistCandleAdapter } from "./Persist";
 import { Candle } from "./Candle";
 import { errorEmitter } from "../config/emitters";
 import { alignToInterval } from "../utils/alignToInterval";
+import { validateCandles } from "../validation/validateCandles";
 
 const EXCHANGE_METHOD_NAME_GET_CANDLES = "ExchangeUtils.getCandles";
 const EXCHANGE_METHOD_NAME_GET_AVERAGE_PRICE = "ExchangeUtils.getAveragePrice";
@@ -450,6 +451,10 @@ export class ExchangeInstance {
           `Adapter must return exact number of candles requested.`
         );
       }
+
+      // Reject corrupt OHLCV (NaN/Infinity) before persisting to cache:
+      // JSON serializes non-finite numbers as null and would break VWAP on read.
+      validateCandles(uniqueData);
 
       // Write to cache after successful fetch
       await WRITE_CANDLES_CACHE_FN(
@@ -925,6 +930,10 @@ export class ExchangeInstance {
           `Adapter must return exact number of candles requested.`
         );
       }
+
+      // Reject corrupt OHLCV (NaN/Infinity) before persisting to cache:
+      // JSON serializes non-finite numbers as null and would break VWAP on read.
+      validateCandles(uniqueData);
 
       // Write to cache after successful fetch
       await WRITE_CANDLES_CACHE_FN(

@@ -662,6 +662,7 @@ export { tpPercentShiftToPrice } from "./math/tpPercentShiftToPrice"
 export { percentToCloseCost } from "./math/percentToCloseCost";
 
 export { validateSignal } from "./validation/validateSignal";
+export { validateCandles } from "./validation/validateCandles";
 export { validateCommonSignal } from "./validation/validateCommonSignal";
 export { validatePendingSignal } from "./validation/validatePendingSignal";
 export { validateScheduledSignal } from "./validation/validateScheduledSignal";
