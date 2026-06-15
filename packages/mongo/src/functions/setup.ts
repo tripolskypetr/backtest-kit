@@ -5,6 +5,7 @@ import {
   PersistSignalAdapter,
   PersistRiskAdapter,
   PersistScheduleAdapter,
+  PersistStrategyAdapter,
   PersistPartialAdapter,
   PersistBreakevenAdapter,
   PersistStorageAdapter,
@@ -22,6 +23,7 @@ import PersistCandleInstance from "../classes/PersistCandleInstance";
 import PersistSignalInstance from "../classes/PersistSignalInstance";
 import PersistRiskInstance from "../classes/PersistRiskInstance";
 import PersistScheduleInstance from "../classes/PersistScheduleInstance";
+import PersistStrategyInstance from "../classes/PersistStrategyInstance";
 import PersistPartialInstance from "../classes/PersistPartialInstance";
 import PersistBreakevenInstance from "../classes/PersistBreakevenInstance";
 import PersistStorageInstance from "../classes/PersistStorageInstance";
@@ -85,6 +87,7 @@ export function setup(config?: Partial<Config>) {
  * - **Signal** — strategy signals (`PersistSignalAdapter`)
  * - **Risk** — risk manager positions (`PersistRiskAdapter`)
  * - **Schedule** — deferred signals (`PersistScheduleAdapter`)
+ * - **Strategy** — deferred strategy state: commit queue + deferred user actions (`PersistStrategyAdapter`)
  * - **Partial** — partial close data (`PersistPartialAdapter`)
  * - **Breakeven** — breakeven data (`PersistBreakevenAdapter`)
  * - **Storage** — general signal storage (`PersistStorageAdapter`)
@@ -106,6 +109,7 @@ export function install() {
     PersistSignalAdapter.usePersistSignalAdapter(PersistSignalInstance);
     PersistRiskAdapter.usePersistRiskAdapter(PersistRiskInstance);
     PersistScheduleAdapter.usePersistScheduleAdapter(PersistScheduleInstance);
+    PersistStrategyAdapter.usePersistStrategyAdapter(PersistStrategyInstance);
     PersistPartialAdapter.usePersistPartialAdapter(PersistPartialInstance);
     PersistBreakevenAdapter.usePersistBreakevenAdapter(PersistBreakevenInstance);
     PersistStorageAdapter.usePersistStorageAdapter(PersistStorageInstance);

@@ -9,6 +9,7 @@ import RedisService from "./services/base/RedisService";
 import CandleCacheService from "./services/cache/CandleCacheService";
 import SignalCacheService from "./services/cache/SignalCacheService";
 import ScheduleCacheService from "./services/cache/ScheduleCacheService";
+import StrategyCacheService from "./services/cache/StrategyCacheService";
 import RiskCacheService from "./services/cache/RiskCacheService";
 import PartialCacheService from "./services/cache/PartialCacheService";
 import BreakevenCacheService from "./services/cache/BreakevenCacheService";
@@ -25,6 +26,7 @@ import SessionCacheService from "./services/cache/SessionCacheService";
 import CandleDbService from "./services/db/CandleDbService";
 import SignalDbService from "./services/db/SignalDbService";
 import ScheduleDbService from "./services/db/ScheduleDbService";
+import StrategyDbService from "./services/db/StrategyDbService";
 import RiskDbService from "./services/db/RiskDbService";
 import PartialDbService from "./services/db/PartialDbService";
 import BreakevenDbService from "./services/db/BreakevenDbService";
@@ -48,6 +50,7 @@ const cacheServices = {
   candleCacheService: inject<CandleCacheService>(TYPES.candleCacheService),
   signalCacheService: inject<SignalCacheService>(TYPES.signalCacheService),
   scheduleCacheService: inject<ScheduleCacheService>(TYPES.scheduleCacheService),
+  strategyCacheService: inject<StrategyCacheService>(TYPES.strategyCacheService),
   riskCacheService: inject<RiskCacheService>(TYPES.riskCacheService),
   partialCacheService: inject<PartialCacheService>(TYPES.partialCacheService),
   breakevenCacheService: inject<BreakevenCacheService>(TYPES.breakevenCacheService),
@@ -66,6 +69,7 @@ const dbServices = {
   candleDbService: inject<CandleDbService>(TYPES.candleDbService),
   signalDbService: inject<SignalDbService>(TYPES.signalDbService),
   scheduleDbService: inject<ScheduleDbService>(TYPES.scheduleDbService),
+  strategyDbService: inject<StrategyDbService>(TYPES.strategyDbService),
   riskDbService: inject<RiskDbService>(TYPES.riskDbService),
   partialDbService: inject<PartialDbService>(TYPES.partialDbService),
   breakevenDbService: inject<BreakevenDbService>(TYPES.breakevenDbService),
