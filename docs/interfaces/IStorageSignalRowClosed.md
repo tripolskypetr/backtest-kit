@@ -25,3 +25,27 @@ pnl: IStrategyPnL
 ```
 
 Profit and loss value for the signal when closed
+
+### currentPrice
+
+```ts
+currentPrice: number
+```
+
+Final VWAP price at close (mirrors IStrategyTickResultClosed.currentPrice)
+
+### closeReason
+
+```ts
+closeReason: StrategyCloseReason
+```
+
+Why the signal closed (mirrors IStrategyTickResultClosed.closeReason)
+
+### closeTimestamp
+
+```ts
+closeTimestamp: number
+```
+
+Unix timestamp in milliseconds when the signal closed (mirrors IStrategyTickResultClosed.closeTimestamp)

@@ -636,6 +636,27 @@ Does NOT set stop flag - strategy can continue generating new signals.
 Note: Closed event will be emitted on next tick() call when strategy
 detects the pending signal was closed.
 
+### createSignal
+
+```ts
+createSignal: (backtest: boolean, symbol: string, dto: ISignalDto, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Queues a user-supplied signal DTO to be consumed by the next tick instead of getSignal.
+
+Delegates to ClientStrategy.createSignal(). Validated and rejected if a signal/deferred
+action is already in flight. Works out of the async-hooks execution context.
+
+### getStatus
+
+```ts
+getStatus: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<StrategyStatus>
+```
+
+Returns the in-memory deferred strategy-state snapshot for this iteration.
+
+Delegates to ClientStrategy.getStatus(). Synchronous in-memory read; works out of context.
+
 ### validatePartialProfit
 
 ```ts

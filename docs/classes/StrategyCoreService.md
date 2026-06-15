@@ -314,6 +314,28 @@ Delegates to StrategyConnectionService.closePending() to clear pending signal
 and emit closed event through emitters.
 Does not require execution context.
 
+### createSignal
+
+```ts
+createSignal: (backtest: boolean, symbol: string, dto: ISignalDto, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Queues a user-supplied signal DTO to be consumed by the next tick instead of getSignal.
+
+Validates the context, then delegates to StrategyConnectionService.createSignal().
+Rejected if a signal or deferred action is already in flight. Does not require execution context.
+
+### getStatus
+
+```ts
+getStatus: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<StrategyStatus>
+```
+
+Returns the in-memory deferred strategy-state snapshot for this iteration.
+
+Validates the context, then delegates to StrategyConnectionService.getStatus().
+Does not require execution context.
+
 ### dispose
 
 ```ts

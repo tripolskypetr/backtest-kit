@@ -243,6 +243,29 @@ Does NOT set stop flag - strategy can continue generating new signals.
 
 Use case: Close an active position that is no longer desired without stopping the entire strategy.
 
+### createSignal
+
+```ts
+createSignal: (symbol: string, currentPrice: number, dto: ISignalDto) => Promise<void>
+```
+
+Queues a user-supplied signal DTO to be consumed by the next tick instead of
+params.getSignal. Works out of the async-hooks execution context. The DTO is validated
+(reusing validateCommonSignal with priceOpen defaulting to currentPrice) before being
+stored, and the call is rejected if a signal or deferred action is already in flight.
+priceOpen is optional — when omitted the position opens immediately at currentPrice;
+when provided the pipeline decides immediate-vs-scheduled.
+
+### getStatus
+
+```ts
+getStatus: (symbol: string) => Promise<StrategyStatus>
+```
+
+Returns the deferred strategy-state snapshot held in memory for this iteration — exactly
+what would be written to persist (queued createSignal, commit queue, deferred user-action
+flags and the current pending signal id). Synchronous in-memory read; works out of context.
+
 ### partialProfit
 
 ```ts

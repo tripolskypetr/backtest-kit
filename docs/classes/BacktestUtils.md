@@ -521,6 +521,27 @@ Clears the pending signal (active position).
 Does NOT affect scheduled signals or strategy operation.
 Does NOT set stop flag - strategy can continue generating new signals.
 
+### createSignal
+
+```ts
+createSignal: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, dto: ISignalDto) => Promise<void>
+```
+
+Queues a user-supplied signal DTO to be consumed by the next backtest tick instead of
+params.getSignal.
+
+priceOpen decides the outcome via the existing pipeline: omitted → opens immediately at the
+current price; provided → opens immediately if already reached, otherwise registers a
+scheduled signal. Validated, and rejected if a signal or deferred action is already in flight.
+
+### getStrategyStatus
+
+```ts
+getStrategyStatus: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<StrategyStatus>
+```
+
+Returns the in-memory deferred strategy-state snapshot for the current backtest iteration.
+
 ### commitPartialProfit
 
 ```ts

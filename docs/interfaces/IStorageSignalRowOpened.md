@@ -16,3 +16,11 @@ status: "opened"
 ```
 
 Current status of the signal
+
+### currentPrice
+
+```ts
+currentPrice: number
+```
+
+VWAP price at signal open (mirrors IStrategyTickResultOpened.currentPrice)

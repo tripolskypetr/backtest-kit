@@ -61,6 +61,18 @@ methodContextService: { readonly context: IMethodContext; }
 actionCoreService: ActionCoreService
 ```
 
+### timeMetaService
+
+```ts
+timeMetaService: TimeMetaService
+```
+
+### priceMetaService
+
+```ts
+priceMetaService: PriceMetaService
+```
+
 ## Methods
 
 ### run
