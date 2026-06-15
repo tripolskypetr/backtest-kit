@@ -44,6 +44,7 @@ import {
   PersistRecentAdapter,
   PersistStateAdapter,
   PersistSessionAdapter,
+  PersistStrategyAdapter,
 } from "backtest-kit";
 
 import { cli } from "../lib";
@@ -178,6 +179,7 @@ export class SetupUtils {
       PersistRecentAdapter.clear();
       PersistStateAdapter.clear();
       PersistSessionAdapter.clear();
+      PersistStrategyAdapter.clear();
     }
 
     {

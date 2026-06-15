@@ -69,6 +69,7 @@ declare function setup(config?: Partial<Config>): void;
  * - **Signal** — strategy signals (`PersistSignalAdapter`)
  * - **Risk** — risk manager positions (`PersistRiskAdapter`)
  * - **Schedule** — deferred signals (`PersistScheduleAdapter`)
+ * - **Strategy** — deferred strategy state: commit queue + deferred user actions (`PersistStrategyAdapter`)
  * - **Partial** — partial close data (`PersistPartialAdapter`)
  * - **Breakeven** — breakeven data (`PersistBreakevenAdapter`)
  * - **Storage** — general signal storage (`PersistStorageAdapter`)
