@@ -25,7 +25,7 @@ const fields: TypedField[] = [
           style: { opacity: 0.5 },
           fieldBottomMargin: "3",
           typoVariant: "h6",
-          placeholder: "Закрытие позиции",
+          placeholder: "Close Position",
         },
         {
           type: FieldType.Outline,
@@ -33,8 +33,8 @@ const fields: TypedField[] = [
             {
               type: FieldType.Text,
               name: "note",
-              title: "Заметка",
-              placeholder: "Причина закрытия позиции",
+              title: "Note",
+              placeholder: "Reason for closing the position",
             },
           ],
         },
@@ -43,7 +43,7 @@ const fields: TypedField[] = [
           fieldBottomMargin: "3",
           typoVariant: "caption",
           sx: { pt: 2, opacity: 0.5, fontSize: 12 },
-          placeholder: `${typo.bullet} После нажатия на кнопку Далее закрытие будет совершено НЕЗАМЕДЛИТЕЛЬНО`,
+          placeholder: `${typo.bullet} After pressing the Next button, the closing will be performed IMMEDIATELY`,
         },
       ],
     },
@@ -66,7 +66,7 @@ export const FormView = ({
         <WizardNavigation
           hasPrev
           hasNext
-          labelPrev="Назад"
+          labelPrev="Back"
           onPrev={async () => {
             history.replace("/brief");
           }}

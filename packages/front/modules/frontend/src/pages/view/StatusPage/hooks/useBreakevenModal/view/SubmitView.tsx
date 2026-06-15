@@ -43,8 +43,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="error"
-          title="Ошибка переноса в безубыток"
-          description="Во время переноса в безубыток произошла ошибка"
+          title="Breakeven Error"
+          description="An error occurred while moving to breakeven"
           symbol={symbol}
         />
       );
@@ -53,8 +53,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="loading"
-          title="Перенос в безубыток"
-          description="Пожалуйста, подождите. Ваша операция обрабатывается..."
+          title="Moving to Breakeven"
+          description="Please wait. Your operation is being processed..."
           symbol={symbol}
         />
       );
@@ -62,8 +62,8 @@ export const SubmitView = ({
     return (
       <StatusCard
         type="success"
-        title="Безубыток установлен"
-        description="Поздравляем! Стоп-лосс перенесён в безубыток"
+        title="Breakeven Set"
+        description="Congratulations! The stop-loss was moved to breakeven"
         symbol={symbol}
       />
     );
@@ -72,7 +72,7 @@ export const SubmitView = ({
   const renderNavigation = () => (
     <WizardNavigation
       hasNext={success || !!error}
-      labelNext="Закрыть"
+      labelNext="Close"
       onNext={async () => {
         await beginSave();
       }}

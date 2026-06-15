@@ -55,8 +55,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="error"
-          title="Ошибка открытия позиции"
-          description="Во время открытия позиции произошла ошибка"
+          title="Position Opening Error"
+          description="An error occurred while opening the position"
           amount={`${formatAmount(parseFloat(cost || "0"))}$`}
           symbol={symbol}
         />
@@ -66,8 +66,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="loading"
-          title="Открытие позиции"
-          description="Пожалуйста, подождите. Ваша операция обрабатывается..."
+          title="Opening Position"
+          description="Please wait. Your operation is being processed..."
           amount={`${formatAmount(parseFloat(cost || "0"))}$`}
           symbol={symbol}
         />
@@ -76,8 +76,8 @@ export const SubmitView = ({
     return (
       <StatusCard
         type="success"
-        title="Позиция открыта"
-        description="Поздравляем! Позиция была успешно открыта"
+        title="Position Opened"
+        description="Congratulations! The position was opened successfully"
         amount={`${formatAmount(parseFloat(cost || "0"))}$`}
         symbol={symbol}
       />
@@ -87,7 +87,7 @@ export const SubmitView = ({
   const renderNavigation = () => (
     <WizardNavigation
       hasNext={success || !!error}
-      labelNext="Закрыть"
+      labelNext="Close"
       onNext={async () => {
         await beginSave();
       }}

@@ -26,7 +26,7 @@ const fields: TypedField[] = [
           style: { opacity: 0.5 },
           fieldBottomMargin: "3",
           typoVariant: "h6",
-          placeholder: "Открытие позиции",
+          placeholder: "Open Position",
         },
         {
           type: FieldType.Outline,
@@ -34,8 +34,8 @@ const fields: TypedField[] = [
             {
               type: FieldType.Combo,
               name: "position",
-              title: "Направление",
-              placeholder: "Выберите направление",
+              title: "Direction",
+              placeholder: "Select direction",
               itemList: ["long", "short"],
               validation: {
                 required: true,
@@ -55,7 +55,7 @@ const fields: TypedField[] = [
               validation: {
                 required: true,
               },
-              title: "Сумма USDT",
+              title: "Amount USDT",
               placeholder: "00000",
               inputFormatterSymbol: "0",
               inputFormatterAllowed: /[0-9]/,
@@ -71,7 +71,7 @@ const fields: TypedField[] = [
                   cursor: "not-allowed",
                 },
               },
-              title: "Количество монет",
+              title: "Coin Quantity",
               placeholder: "0.00",
               compute: (data, payload) => {
                 const amount = parseFloat(data.cost || "0");
@@ -86,8 +86,8 @@ const fields: TypedField[] = [
             {
               type: FieldType.Text,
               name: "note",
-              title: "Заметка",
-              placeholder: "Причина открытия позиции",
+              title: "Note",
+              placeholder: "Reason for opening the position",
             },
           ],
         },
@@ -96,7 +96,7 @@ const fields: TypedField[] = [
           fieldBottomMargin: "3",
           typoVariant: "caption",
           sx: { pt: 2, opacity: 0.5, fontSize: 12 },
-          placeholder: `${typo.bullet} После нажатия на кнопку Далее позиция будет открыта НЕЗАМЕДЛИТЕЛЬНО`,
+          placeholder: `${typo.bullet} After pressing the Next button, the position will be opened IMMEDIATELY`,
         },
       ],
     },
@@ -119,7 +119,7 @@ export const FormView = ({
         <WizardNavigation
           hasPrev
           hasNext
-          labelPrev="Назад"
+          labelPrev="Back"
           onPrev={async () => {
             history.replace("/brief");
           }}

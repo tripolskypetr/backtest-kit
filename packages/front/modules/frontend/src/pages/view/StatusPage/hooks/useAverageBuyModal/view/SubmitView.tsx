@@ -53,8 +53,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="error"
-          title="Ошибка усреднения"
-          description="Во время усреднения позиции произошла ошибка"
+          title="Averaging Error"
+          description="An error occurred while averaging the position"
           amount={`${formatAmount(parseFloat(cost || "0"))}$`}
           symbol={symbol}
         />
@@ -64,8 +64,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="loading"
-          title="Усреднение позиции"
-          description="Пожалуйста, подождите. Ваша операция обрабатывается..."
+          title="Averaging Position"
+          description="Please wait. Your operation is being processed..."
           amount={`${formatAmount(parseFloat(cost || "0"))}$`}
           symbol={symbol}
         />
@@ -74,8 +74,8 @@ export const SubmitView = ({
     return (
       <StatusCard
         type="success"
-        title="Позиция усреднена"
-        description="Поздравляем! Усреднение позиции было успешно выполнено"
+        title="Position Averaged"
+        description="Congratulations! The position was averaged successfully"
         amount={`${formatAmount(parseFloat(cost || "0"))}$`}
         symbol={symbol}
       />
@@ -85,7 +85,7 @@ export const SubmitView = ({
   const renderNavigation = () => (
     <WizardNavigation
       hasNext={success || !!error}
-      labelNext="Закрыть"
+      labelNext="Close"
       onNext={async () => {
         await beginSave();
       }}

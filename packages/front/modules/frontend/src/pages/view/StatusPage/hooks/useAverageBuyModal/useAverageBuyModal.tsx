@@ -30,7 +30,7 @@ export const useAverageBuyModal = ({ payload }: IParams) => {
   const { pickData, render } = useWizardModal({
     history,
     animation: "none",
-    title: "Усреднить позицию",
+    title: "Average Position",
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
         <IconButton size="small" onClick={onClose}>

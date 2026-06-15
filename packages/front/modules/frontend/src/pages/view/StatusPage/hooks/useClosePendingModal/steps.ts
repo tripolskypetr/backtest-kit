@@ -3,15 +3,15 @@ import { IWizardStep } from "react-declarative";
 const steps: IWizardStep[] = [
   {
     id: "brief",
-    label: "Брифинг",
+    label: "Briefing",
   },
   {
     id: "form",
-    label: "Ввод",
+    label: "Input",
   },
   {
     id: "submit",
-    label: "Закрытие",
+    label: "Closing",
   },
 ];
 

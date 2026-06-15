@@ -30,7 +30,7 @@ export const useClosePendingModal = ({ payload }: IParams) => {
   const { pickData, render } = useWizardModal({
     history,
     animation: "none",
-    title: "Закрыть позицию",
+    title: "Close Position",
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
         <IconButton size="small" onClick={onClose}>

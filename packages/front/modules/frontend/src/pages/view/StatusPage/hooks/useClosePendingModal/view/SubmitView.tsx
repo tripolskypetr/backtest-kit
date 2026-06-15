@@ -50,8 +50,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="error"
-          title="Ошибка закрытия позиции"
-          description="Во время закрытия позиции произошла ошибка"
+          title="Position Closing Error"
+          description="An error occurred while closing the position"
           symbol={symbol}
         />
       );
@@ -60,8 +60,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="loading"
-          title="Закрытие позиции"
-          description="Пожалуйста, подождите. Ваша операция обрабатывается..."
+          title="Closing Position"
+          description="Please wait. Your operation is being processed..."
           symbol={symbol}
         />
       );
@@ -69,8 +69,8 @@ export const SubmitView = ({
     return (
       <StatusCard
         type="success"
-        title="Позиция закрыта"
-        description="Поздравляем! Позиция была успешно закрыта"
+        title="Position Closed"
+        description="Congratulations! The position was closed successfully"
         symbol={symbol}
       />
     );
@@ -79,7 +79,7 @@ export const SubmitView = ({
   const renderNavigation = () => (
     <WizardNavigation
       hasNext={success || !!error}
-      labelNext="Закрыть"
+      labelNext="Close"
       onNext={async () => {
         await beginSave();
       }}

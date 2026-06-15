@@ -28,7 +28,7 @@ const fields: TypedField[] = [
           style: { opacity: 0.5 },
           fieldBottomMargin: "3",
           typoVariant: "h6",
-          placeholder: "Перенос в безубыток",
+          placeholder: "Move to Breakeven",
         },
         {
           type: FieldType.Outline,
@@ -37,7 +37,7 @@ const fields: TypedField[] = [
               type: FieldType.Text,
               name: "symbol",
               compute: ({}, payload) => payload.symbol,
-              title: "Символ",
+              title: "Symbol",
             },
             {
               type: FieldType.Text,
@@ -46,7 +46,7 @@ const fields: TypedField[] = [
               inputMode: "decimal",
               inputType: "tel",
               compute: ({}, payload) => `${formatAmount(payload.averagePrice)}$`,
-              title: "Цена монеты",
+              title: "Coin Price",
               placeholder: "000000.00",
               inputFormatterSymbol: "0",
               inputFormatterAllowed: /[0-9.]/,
@@ -58,7 +58,7 @@ const fields: TypedField[] = [
           fieldBottomMargin: "3",
           typoVariant: "caption",
           sx: { pt: 2, opacity: 0.5, fontSize: 12 },
-          placeholder: `${typo.bullet} Внимательно проверьте, что это та монета, по которой вы желаете перенести стоп в безубыток. Ориентируйтесь на символ И ЦЕНУ`,
+          placeholder: `${typo.bullet} Carefully verify that this is the coin whose stop you want to move to breakeven. Rely on the symbol AND THE PRICE`,
         },
       ],
     },
@@ -121,7 +121,7 @@ export const BriefView = ({
         <WizardNavigation
           hasPrev
           hasNext={!!info}
-          labelPrev="Закрыть"
+          labelPrev="Close"
           onPrev={async () => {
             await onClose();
           }}

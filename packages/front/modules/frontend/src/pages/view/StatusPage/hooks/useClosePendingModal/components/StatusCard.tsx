@@ -164,7 +164,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
             {amount && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Сумма
+                  Amount
                 </Typography>
                 <Typography
                   variant="subtitle1"
@@ -180,7 +180,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
             {price && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Цена
+                  Price
                 </Typography>
                 <Typography
                   variant="subtitle1"

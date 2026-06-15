@@ -24,7 +24,7 @@ const fields: TypedField[] = [
           style: { opacity: 0.5 },
           fieldBottomMargin: "3",
           typoVariant: "h6",
-          placeholder: "Перенос в безубыток",
+          placeholder: "Move to Breakeven",
         },
         {
           type: FieldType.Outline,
@@ -33,7 +33,7 @@ const fields: TypedField[] = [
               type: FieldType.Typography,
               typoVariant: "body1",
               placeholder:
-                "Стоп-лосс будет перенесён в точку безубытка по текущей позиции. Дополнительный ввод не требуется.",
+                "The stop-loss will be moved to the breakeven point of the current position. No additional input is required.",
             },
           ],
         },
@@ -42,7 +42,7 @@ const fields: TypedField[] = [
           fieldBottomMargin: "3",
           typoVariant: "caption",
           sx: { pt: 2, opacity: 0.5, fontSize: 12 },
-          placeholder: `${typo.bullet} После нажатия на кнопку Далее перенос в безубыток будет совершён НЕЗАМЕДЛИТЕЛЬНО`,
+          placeholder: `${typo.bullet} After pressing the Next button, the move to breakeven will be performed IMMEDIATELY`,
         },
       ],
     },
@@ -63,7 +63,7 @@ export const FormView = ({
         <WizardNavigation
           hasPrev
           hasNext
-          labelPrev="Назад"
+          labelPrev="Back"
           onPrev={async () => {
             history.replace("/brief");
           }}
