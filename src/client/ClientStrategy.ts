@@ -4606,7 +4606,7 @@ export class ClientStrategy implements IStrategy {
   public async getStopped(symbol: string): Promise<boolean> {
     this.params.logger.debug("ClientStrategy getStopped", {
       symbol,
-      strategyName: this.params.method.context.strategyName,
+      strategyName: this.params.strategyName,
     });
     return this._isStopped;
   }
@@ -6209,8 +6209,8 @@ export class ClientStrategy implements IStrategy {
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
       symbol,
-      this.params.method.context.strategyName,
-      this.params.method.context.exchangeName,
+      this.params.strategyName,
+      this.params.exchangeName,
     );
   }
 
@@ -6263,8 +6263,8 @@ export class ClientStrategy implements IStrategy {
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
       symbol,
-      this.params.method.context.strategyName,
-      this.params.method.context.exchangeName,
+      this.params.strategyName,
+      this.params.exchangeName,
     );
 
     // Commit will be emitted in tick() with correct currentTime
@@ -6325,8 +6325,8 @@ export class ClientStrategy implements IStrategy {
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
       symbol,
-      this.params.method.context.strategyName,
-      this.params.method.context.exchangeName,
+      this.params.strategyName,
+      this.params.exchangeName,
     );
 
     // Commit will be emitted AFTER successful risk check in tick()
