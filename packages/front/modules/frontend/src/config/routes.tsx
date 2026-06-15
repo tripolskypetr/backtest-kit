@@ -135,6 +135,10 @@ const dashboardRoutes: IRouteItem[] = [
         element: heavy(() => import("../pages/view/StatusPage")),
     },
     {
+        path: "/status/:id/control",
+        element: heavy(() => import("../pages/view/StatusPage")),
+    },
+    {
         path: "/report",
         element: heavy(() => import("../pages/view/ReportPage")),
     },

@@ -453,6 +453,81 @@ declare class RuntimeViewService {
     getRuntimeInfo: () => Promise<IRuntimeInfo>;
 }
 
+declare class ControlViewService {
+    private readonly loggerService;
+    private readonly controlMockService;
+    getStatus: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<{
+        strategyInfo: any;
+        pendingSignal: any;
+        currentPrice: any;
+    }>;
+    commitOpenPending: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, dto: {
+        position: "long" | "short";
+        cost: number;
+        note: string;
+    }) => Promise<void>;
+    commitAverageBuy: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, dto: {
+        cost: number;
+        note: string;
+    }) => Promise<void>;
+    commitClosePending: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, dto: {
+        note: string;
+    }) => Promise<void>;
+    commitBreakeven: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<void>;
+}
+
+declare class ControlMockService {
+    private readonly loggerService;
+    getStatus: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<{
+        strategyInfo: any;
+        pendingSignal: any;
+        currentPrice: any;
+    }>;
+    commitOpenPending: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, dto: {
+        position: "long" | "short";
+        cost: number;
+        note: string;
+    }) => Promise<void>;
+    commitAverageBuy: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, dto: {
+        cost: number;
+        note: string;
+    }) => Promise<void>;
+    commitClosePending: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, dto: {
+        note: string;
+    }) => Promise<void>;
+    commitBreakeven: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<void>;
+}
+
 declare const ioc: {
     notificationViewService: NotificationViewService;
     storageViewService: StorageViewService;
@@ -467,6 +542,7 @@ declare const ioc: {
     environmentViewService: EnvironmentViewService;
     setupViewService: SetupViewService;
     runtimeViewService: RuntimeViewService;
+    controlViewService: ControlViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
@@ -480,6 +556,7 @@ declare const ioc: {
     environmentMockService: EnvironmentMockService;
     setupMockService: SetupMockService;
     runtimeMockService: RuntimeMockService;
+    controlMockService: ControlMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
     backtestMetaService: BacktestMetaService;

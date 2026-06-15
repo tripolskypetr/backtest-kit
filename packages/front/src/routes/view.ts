@@ -178,6 +178,54 @@ interface RuntimeRequest {
   requestId: string;
 }
 
+interface ControlStatusRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+}
+
+interface ControlOpenPendingRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+  dto: { position: "long" | "short"; cost: number; note: string };
+}
+
+interface ControlAverageBuyRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+  dto: { cost: number; note: string };
+}
+
+interface ControlClosePendingRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+  dto: { note: string };
+}
+
+interface ControlBreakevenRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+}
+
 // SetupViewService endpoints
 router.post("/api/v1/view/setup_data", async (req, res) => {
   try {
@@ -724,6 +772,147 @@ router.post("/api/v1/view/status_one/:id", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/view/status_one/:id error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+// ControlViewService endpoints
+router.post("/api/v1/view/control_status", async (req, res) => {
+  try {
+    const request = <ControlStatusRequest>await micro.json(req);
+    const { symbol, context, requestId, serviceName } = request;
+    const data = await ioc.controlViewService.getStatus(symbol, context);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/control_status ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/control_status error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/control_open_pending", async (req, res) => {
+  try {
+    const request = <ControlOpenPendingRequest>await micro.json(req);
+    const { symbol, context, dto, requestId, serviceName } = request;
+    const data = await ioc.controlViewService.commitOpenPending(symbol, context, dto);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/control_open_pending ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/control_open_pending error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/control_average_buy", async (req, res) => {
+  try {
+    const request = <ControlAverageBuyRequest>await micro.json(req);
+    const { symbol, context, dto, requestId, serviceName } = request;
+    const data = await ioc.controlViewService.commitAverageBuy(symbol, context, dto);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/control_average_buy ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/control_average_buy error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/control_close_pending", async (req, res) => {
+  try {
+    const request = <ControlClosePendingRequest>await micro.json(req);
+    const { symbol, context, dto, requestId, serviceName } = request;
+    const data = await ioc.controlViewService.commitClosePending(symbol, context, dto);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/control_close_pending ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/control_close_pending error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/control_breakeven", async (req, res) => {
+  try {
+    const request = <ControlBreakevenRequest>await micro.json(req);
+    const { symbol, context, requestId, serviceName } = request;
+    const data = await ioc.controlViewService.commitBreakeven(symbol, context);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/control_breakeven ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/control_breakeven error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

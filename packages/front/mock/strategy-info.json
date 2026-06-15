@@ -1,0 +1,188 @@
+{
+  "pendingSignalId": "1b0cdc9a-438c-4000-ab7a-6e3b71306000",
+  "createSignal": {
+    "id": "9f3a1c20-7e44-4000-bd11-2c8f5a90a111",
+    "symbol": "BTCUSDT",
+    "position": "long",
+    "note": "RSI oversold reversal, queued for next tick",
+    "priceOpen": 44500,
+    "priceTakeProfit": 46100,
+    "priceStopLoss": 43800,
+    "minuteEstimatedTime": 90,
+    "cost": 100
+  },
+  "commitQueue": [
+    {
+      "action": "average-buy",
+      "symbol": "BTCUSDT",
+      "backtest": false,
+      "currentPrice": 44230.5,
+      "cost": 100,
+      "totalEntries": 2
+    },
+    {
+      "action": "partial-profit",
+      "symbol": "BTCUSDT",
+      "backtest": false,
+      "percentToClose": 30,
+      "currentPrice": 45620.75
+    },
+    {
+      "action": "trailing-stop",
+      "symbol": "BTCUSDT",
+      "backtest": false,
+      "percentShift": -25,
+      "currentPrice": 45720.1
+    },
+    {
+      "action": "breakeven",
+      "symbol": "BTCUSDT",
+      "backtest": false,
+      "currentPrice": 45180.4
+    }
+  ],
+  "closedSignal": {
+    "id": "7c5e9b41-2d66-4000-a3f8-1e9b4477c222",
+    "symbol": "ETHUSDT",
+    "strategyName": "rsi-dca",
+    "exchangeName": "binance",
+    "frameName": "",
+    "position": "short",
+    "cost": 100,
+    "priceOpen": 2480.5,
+    "priceTakeProfit": 2405.25,
+    "priceStopLoss": 2530.1,
+    "minuteEstimatedTime": 60,
+    "scheduledAt": 1708385400000,
+    "pendingAt": 1708385400000,
+    "timestamp": 1708385400000,
+    "_isScheduled": false,
+    "closeId": "close-7c5e9b41-001",
+    "closeNote": "Manual close: target reached on news spike",
+    "_entry": [
+      {
+        "price": 2480.5,
+        "cost": 100,
+        "timestamp": 1708385400000
+      }
+    ],
+    "_partial": [
+      {
+        "type": "profit",
+        "percent": 50,
+        "currentPrice": 2440.0,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1708386600000
+      }
+    ],
+    "_peak": {
+      "price": 2412.3,
+      "timestamp": 1708387200000,
+      "pnlPercentage": 2.71,
+      "pnlCost": 2.71,
+      "pnlEntries": 100,
+      "priceOpen": 2480.5,
+      "priceClose": 2412.3
+    },
+    "_fall": {
+      "price": 2495.8,
+      "timestamp": 1708385700000,
+      "pnlPercentage": -0.62,
+      "pnlCost": -0.62,
+      "pnlEntries": 100,
+      "priceOpen": 2480.5,
+      "priceClose": 2495.8
+    }
+  },
+  "cancelledSignal": {
+    "id": "3a8d4f12-9b27-4000-8e6a-7f2c1d55b333",
+    "symbol": "SOLUSDT",
+    "strategyName": "rsi-dca",
+    "exchangeName": "binance",
+    "frameName": "",
+    "position": "long",
+    "cost": 100,
+    "priceOpen": 96.4,
+    "priceTakeProfit": 101.2,
+    "priceStopLoss": 93.1,
+    "minuteEstimatedTime": 120,
+    "scheduledAt": 1708384200000,
+    "pendingAt": 0,
+    "timestamp": 1708384200000,
+    "_isScheduled": true,
+    "cancelId": "cancel-3a8d4f12-001",
+    "cancelNote": "Setup invalidated before activation",
+    "_entry": [
+      {
+        "price": 96.4,
+        "cost": 100,
+        "timestamp": 1708384200000
+      }
+    ],
+    "_partial": [],
+    "_peak": {
+      "price": 96.4,
+      "timestamp": 1708384200000,
+      "pnlPercentage": 0,
+      "pnlCost": 0,
+      "pnlEntries": 100,
+      "priceOpen": 96.4,
+      "priceClose": 96.4
+    },
+    "_fall": {
+      "price": 96.4,
+      "timestamp": 1708384200000,
+      "pnlPercentage": 0,
+      "pnlCost": 0,
+      "pnlEntries": 100,
+      "priceOpen": 96.4,
+      "priceClose": 96.4
+    }
+  },
+  "activatedSignal": {
+    "id": "5e1b7a93-4c18-4000-9d2f-8a3e6b22d444",
+    "symbol": "BNBUSDT",
+    "strategyName": "rsi-dca",
+    "exchangeName": "binance",
+    "frameName": "",
+    "position": "long",
+    "cost": 100,
+    "priceOpen": 312.7,
+    "priceTakeProfit": 326.4,
+    "priceStopLoss": 303.5,
+    "minuteEstimatedTime": 75,
+    "scheduledAt": 1708383000000,
+    "pendingAt": 0,
+    "timestamp": 1708383000000,
+    "_isScheduled": true,
+    "activateId": "activate-5e1b7a93-001",
+    "activateNote": "Early activation: breakout confirmed on volume",
+    "_entry": [
+      {
+        "price": 312.7,
+        "cost": 100,
+        "timestamp": 1708383000000
+      }
+    ],
+    "_partial": [],
+    "_peak": {
+      "price": 312.7,
+      "timestamp": 1708383000000,
+      "pnlPercentage": 0,
+      "pnlCost": 0,
+      "pnlEntries": 100,
+      "priceOpen": 312.7,
+      "priceClose": 312.7
+    },
+    "_fall": {
+      "price": 312.7,
+      "timestamp": 1708383000000,
+      "pnlPercentage": 0,
+      "pnlCost": 0,
+      "pnlEntries": 100,
+      "priceOpen": 312.7,
+      "priceClose": 312.7
+    }
+  }
+}

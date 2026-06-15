@@ -13,7 +13,7 @@ import {
     useOnce,
 } from "react-declarative";
 import { status_fields } from "../../../../assets/status_fields";
-import { Download, KeyboardArrowLeft, Print, Refresh } from "@mui/icons-material";
+import { Download, KeyboardArrowLeft, Print, Refresh, SportsEsports, VideogameAsset } from "@mui/icons-material";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import ioc from "../../../../lib";
 import { Background } from "../../../../components/common/Background";
@@ -44,6 +44,12 @@ const options: IBreadcrumbs2Option[] = [
     },
     {
         type: Breadcrumbs2Type.Button,
+        action: "control-action",
+        label: "Manual Control",
+        icon: VideogameAsset,
+    },
+    {
+        type: Breadcrumbs2Type.Fab,
         action: "print-action",
         label: "Print",
         icon: Print,
@@ -129,7 +135,9 @@ export const StatusView = ({ params }: IOutletProps) => {
     const handleAction = async (action: string) => {
         if (action === "back-action") {
             handleBack();
-            ioc.routerService.push("/");
+        }
+        if (action === "control-action") {
+            ioc.routerService.push(`/status/${params.id}/control`);
         }
         if (action === "update-now") {
             await reloadSubject.next();

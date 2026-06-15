@@ -1,0 +1,85 @@
+{
+  "id": "1b0cdc9a-438c-4000-ab7a-6e3b71306000",
+  "symbol": "BTCUSDT",
+  "strategyName": "rsi-dca",
+  "exchangeName": "binance",
+  "frameName": "",
+  "position": "long",
+  "cost": 100,
+  "priceOpen": 44597.5,
+  "priceTakeProfit": 46537.45,
+  "priceStopLoss": 44278.35,
+  "originalPriceOpen": 44950.99,
+  "originalPriceTakeProfit": 46537.45,
+  "originalPriceStopLoss": 44278.35,
+  "totalEntries": 2,
+  "totalPartials": 1,
+  "partialExecuted": 30,
+  "minuteEstimatedTime": 60,
+  "_trailingPriceStopLoss": 44597.5,
+  "pnl": {
+    "pnlPercentage": 1.58,
+    "priceOpen": 44597.5,
+    "priceClose": 45301.41,
+    "pnlCost": 1.58,
+    "pnlEntries": 200
+  },
+  "maxDrawdown": {
+    "pnlPercentage": -0.71,
+    "priceOpen": 44597.5,
+    "priceClose": 44280.0,
+    "pnlCost": -0.71,
+    "pnlEntries": 200
+  },
+  "peakProfit": {
+    "pnlPercentage": 2.29,
+    "priceOpen": 44597.5,
+    "priceClose": 45620.75,
+    "pnlCost": 2.29,
+    "pnlEntries": 200
+  },
+  "scheduledAt": 1708388340000,
+  "pendingAt": 1708388340000,
+  "timestamp": 1708388340000,
+  "_isScheduled": false,
+  "_entry": [
+    {
+      "price": 44950.99,
+      "cost": 100,
+      "timestamp": 1708388340000
+    },
+    {
+      "price": 44230.5,
+      "cost": 100,
+      "timestamp": 1708389060000
+    }
+  ],
+  "_partial": [
+    {
+      "type": "profit",
+      "percent": 30,
+      "currentPrice": 45620.75,
+      "costBasisAtClose": 200,
+      "entryCountAtClose": 2,
+      "timestamp": 1708389600000
+    }
+  ],
+  "_peak": {
+    "price": 45620.75,
+    "timestamp": 1708389600000,
+    "pnlPercentage": 2.29,
+    "pnlCost": 2.29,
+    "pnlEntries": 200,
+    "priceOpen": 44597.5,
+    "priceClose": 45620.75
+  },
+  "_fall": {
+    "price": 44280.0,
+    "timestamp": 1708388760000,
+    "pnlPercentage": -0.71,
+    "pnlCost": -0.71,
+    "pnlEntries": 200,
+    "priceOpen": 44597.5,
+    "priceClose": 44280.0
+  }
+}

@@ -4,8 +4,14 @@ import hasRouteMatch from "../../../utils/hasRouteMatch";
 import MainView from "./view/MainView";
 import ioc from "../../../lib";
 import StatusView from "./view/StatusView";
+import ControlView from "./view/ControlView";
 
 const routes: IOutlet[] = [
+    {
+        id: "control",
+        element: ControlView,
+        isActive: (pathname) => hasRouteMatch(["/status/:id/control"], pathname),
+    },
     {
         id: "status",
         element: StatusView,

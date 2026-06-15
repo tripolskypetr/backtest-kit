@@ -45,6 +45,8 @@ import SetupViewService from "./services/view/SetupViewService";
 import SetupMockService from "./services/mock/SetupMockService";
 import RuntimeViewService from "./services/view/RuntimeViewService";
 import RuntimeMockService from "./services/mock/RuntimeMockService";
+import ControlViewService from "./services/view/ControlViewService";
+import ControlMockService from "./services/mock/ControlMockService";
 
 import TYPES from "./core/TYPES";
 
@@ -84,6 +86,7 @@ const mockServices = {
   environmentMockService: inject<EnvironmentMockService>(TYPES.environmentMockService),
   setupMockService: inject<SetupMockService>(TYPES.setupMockService),
   runtimeMockService: inject<RuntimeMockService>(TYPES.runtimeMockService),
+  controlMockService: inject<ControlMockService>(TYPES.controlMockService),
 };
 
 const viewServices = {
@@ -100,6 +103,7 @@ const viewServices = {
   environmentViewService: inject<EnvironmentViewService>(TYPES.environmentViewService),
   setupViewService: inject<SetupViewService>(TYPES.setupViewService),
   runtimeViewService: inject<RuntimeViewService>(TYPES.runtimeViewService),
+  controlViewService: inject<ControlViewService>(TYPES.controlViewService),
 };
 
 export const ioc = {

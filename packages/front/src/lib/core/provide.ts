@@ -33,6 +33,8 @@ import PerformanceViewService from "../services/view/PerformanceViewService";
 import EnvironmentViewService from "../services/view/EnvironmentViewService";
 import SetupViewService from "../services/view/SetupViewService";
 import RuntimeViewService from "../services/view/RuntimeViewService";
+import ControlMockService from "../services/mock/ControlMockService";
+import ControlViewService from "../services/view/ControlViewService";
 
 {
   provide(TYPES.loggerService, () => new LoggerService());
@@ -64,6 +66,7 @@ import RuntimeViewService from "../services/view/RuntimeViewService";
   provide(TYPES.environmentMockService, () => new EnvironmentMockService());
   provide(TYPES.setupMockService, () => new SetupMockService());
   provide(TYPES.runtimeMockService, () => new RuntimeMockService());
+  provide(TYPES.controlMockService, () => new ControlMockService());
 }
 
 {
@@ -80,4 +83,5 @@ import RuntimeViewService from "../services/view/RuntimeViewService";
  provide(TYPES.environmentViewService, () => new EnvironmentViewService());
  provide(TYPES.setupViewService, () => new SetupViewService());
  provide(TYPES.runtimeViewService, () => new RuntimeViewService());
+ provide(TYPES.controlViewService, () => new ControlViewService());
 }
