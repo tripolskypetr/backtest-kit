@@ -36,7 +36,7 @@ import {
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
 import { ICandleData } from "../interfaces/Exchange.interface";
-import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter } from "../classes/Persist";
+import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, PersistStrategyAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -267,6 +267,10 @@ const PROCESS_COMMIT_QUEUE_FN = async (
   {
     self._commitQueue = [];
   }
+
+  // Persist the now-empty queue so a crash after draining does not replay commits
+  // that were already forwarded to the broker on the next restart.
+  await PERSIST_STRATEGY_FN(self);
 
   if (!self._pendingSignal) {
     return;
@@ -780,6 +784,24 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     }
   }
 
+  // Restore deferred strategy state (commit queue + deferred user actions) so any
+  // confirmed-but-not-yet-forwarded broker operation survives a live crash and is
+  // re-drained on the next tick. Placed before the pending/scheduled restore which
+  // may early-return on exchange/strategy mismatch.
+  {
+    const strategyData = await PersistStrategyAdapter.readStrategyData(
+      self.params.execution.context.symbol,
+      self.params.strategyName,
+      self.params.exchangeName,
+    );
+    if (strategyData) {
+      self._commitQueue = strategyData.commitQueue ?? [];
+      self._closedSignal = strategyData.closedSignal;
+      self._cancelledSignal = strategyData.cancelledSignal;
+      self._activatedSignal = strategyData.activatedSignal;
+    }
+  }
+
   // Restore pending signal
   const pendingSignal = await PersistSignalAdapter.readSignalData(
     self.params.execution.context.symbol,
@@ -870,6 +892,34 @@ const WAIT_FOR_DISPOSE_FN = async (self: ClientStrategy) => {
     self.params.exchangeName,
     self.params.method.context.frameName,
     self.params.execution.context.backtest
+  );
+};
+
+/**
+ * Persists the deferred strategy state snapshot (commit queue + deferred user actions)
+ * to disk in live mode.
+ *
+ * These fields carry confirmed-but-not-yet-forwarded broker operations and survive the
+ * gap between ticks (drained at the start of the next tick). Without persistence a live
+ * crash in that window silently loses the pending broker operation while _pendingSignal
+ * (already mutated and saved) claims it happened. Skipped in backtest mode.
+ *
+ * @param self - ClientStrategy instance
+ */
+const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
+  if (self.params.backtest) {
+    return;
+  }
+  await PersistStrategyAdapter.writeStrategyData(
+    {
+      commitQueue: self._commitQueue,
+      closedSignal: self._closedSignal,
+      cancelledSignal: self._cancelledSignal,
+      activatedSignal: self._activatedSignal,
+    },
+    self.params.symbol,
+    self.params.strategyName,
+    self.params.exchangeName,
   );
 };
 
@@ -5350,6 +5400,9 @@ export class ClientStrategy implements IStrategy {
       const cancelledSignal = this._cancelledSignal;
       this._cancelledSignal = null; // Clear after emitting
 
+      // Persist the cleared deferred state so the drained flag is not replayed on restart
+      await PERSIST_STRATEGY_FN(this);
+
       this.params.logger.info("ClientStrategy tick: scheduled signal was cancelled", {
         symbol: this.params.execution.context.symbol,
         signalId: cancelledSignal.id,
@@ -5436,6 +5489,9 @@ export class ClientStrategy implements IStrategy {
       }
 
       this._closedSignal = null; // Clear only after sync confirmed
+
+      // Persist the cleared deferred state so the drained flag is not replayed on restart
+      await PERSIST_STRATEGY_FN(this);
 
       this.params.logger.info("ClientStrategy tick: pending signal was closed", {
         symbol: this.params.execution.context.symbol,
@@ -5536,6 +5592,9 @@ export class ClientStrategy implements IStrategy {
 
       const activatedSignal = this._activatedSignal;
       this._activatedSignal = null; // Clear after emitting
+
+      // Persist the cleared deferred state so the drained flag is not replayed on restart
+      await PERSIST_STRATEGY_FN(this);
 
       this.params.logger.info("ClientStrategy tick: scheduled signal was activated", {
         symbol: this.params.execution.context.symbol,
@@ -6293,6 +6352,9 @@ export class ClientStrategy implements IStrategy {
       this.params.exchangeName,
     );
 
+    // Persist deferred _cancelledSignal so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
+
     // Commit will be emitted in tick() with correct currentTime
   }
 
@@ -6355,6 +6417,9 @@ export class ClientStrategy implements IStrategy {
       this.params.exchangeName,
     );
 
+    // Persist deferred _activatedSignal so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
+
     // Commit will be emitted AFTER successful risk check in tick()
   }
 
@@ -6409,6 +6474,9 @@ export class ClientStrategy implements IStrategy {
       this.params.strategyName,
       this.params.exchangeName,
     );
+
+    // Persist deferred _closedSignal so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
 
     // Commit will be emitted in tick() with correct currentTime
   }
@@ -6637,6 +6705,9 @@ export class ClientStrategy implements IStrategy {
       percentToClose,
       currentPrice,
     });
+
+    // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
 
     return true;
   }
@@ -6867,6 +6938,9 @@ export class ClientStrategy implements IStrategy {
       currentPrice,
     });
 
+    // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
+
     return true;
   }
 
@@ -7089,6 +7163,9 @@ export class ClientStrategy implements IStrategy {
       backtest,
       currentPrice,
     });
+
+    // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
 
     return true;
   }
@@ -7383,6 +7460,9 @@ export class ClientStrategy implements IStrategy {
       currentPrice,
     });
 
+    // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
+
     return true;
   }
 
@@ -7662,6 +7742,9 @@ export class ClientStrategy implements IStrategy {
       currentPrice,
     });
 
+    // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
+
     return true;
   }
 
@@ -7785,6 +7868,9 @@ export class ClientStrategy implements IStrategy {
       cost,
       totalEntries: this._pendingSignal._entry?.length ?? 1,
     });
+
+    // Persist the queued commit so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
 
     return true;
   }

@@ -16,6 +16,10 @@ import {
   IScheduledSignalRow,
   IPublicSignalRow,
   StrategyName,
+  ICommitRow,
+  ISignalCloseRow,
+  IScheduledSignalCancelRow,
+  IScheduledSignalActivateRow,
 } from "../interfaces/Strategy.interface";
 import { errorEmitter } from "../config/emitters";
 import { IRiskActivePosition, RiskName } from "../interfaces/Risk.interface";
@@ -73,6 +77,18 @@ const PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_JSON =
 const PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistScheduleUtils.useDummy";
 const PERSIST_SCHEDULE_UTILS_METHOD_NAME_CLEAR = "PersistScheduleUtils.clear";
+
+const PERSIST_STRATEGY_UTILS_METHOD_NAME_USE_PERSIST_STRATEGY_ADAPTER =
+  "PersistStrategyUtils.usePersistStrategyAdapter";
+const PERSIST_STRATEGY_UTILS_METHOD_NAME_READ_DATA =
+  "PersistStrategyUtils.readStrategyData";
+const PERSIST_STRATEGY_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistStrategyUtils.writeStrategyData";
+const PERSIST_STRATEGY_UTILS_METHOD_NAME_USE_JSON =
+  "PersistStrategyUtils.useJson";
+const PERSIST_STRATEGY_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistStrategyUtils.useDummy";
+const PERSIST_STRATEGY_UTILS_METHOD_NAME_CLEAR = "PersistStrategyUtils.clear";
 
 const PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_PERSIST_PARTIAL_ADAPTER =
   "PersistPartialUtils.usePersistPartialAdapter";
@@ -1467,6 +1483,311 @@ export class PersistScheduleUtils {
  * ```
  */
 export const PersistScheduleAdapter = new PersistScheduleUtils();
+
+/**
+ * Type for persisted deferred strategy state.
+ * Snapshot of the in-flight commit queue and deferred user actions that have not yet
+ * been forwarded to the broker. Restored on waitForInit after a live crash so the
+ * pending broker operations are not silently lost.
+ */
+export type StrategyData = {
+  /** Queued commit events (average-buy / partial-* / trailing-* / breakeven) not yet drained */
+  commitQueue: ICommitRow[];
+  /** Deferred user-initiated close (closePending), or null if none pending */
+  closedSignal: ISignalCloseRow | null;
+  /** Deferred user-initiated scheduled cancel (cancelScheduled), or null if none pending */
+  cancelledSignal: IScheduledSignalCancelRow | null;
+  /** Deferred user-initiated scheduled activate (activateScheduled), or null if none pending */
+  activatedSignal: IScheduledSignalActivateRow | null;
+};
+
+/**
+ * Per-context deferred strategy state persistence instance interface.
+ * Scoped to a specific (symbol, strategyName, exchangeName) triple.
+ *
+ * Custom adapters should implement this interface to override the default
+ * file-based deferred strategy state persistence behavior.
+ */
+export interface IPersistStrategyInstance {
+  /**
+   * Initialize storage for this strategy state context.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
+  waitForInit(initial: boolean): Promise<void>;
+
+  /**
+   * Read persisted deferred strategy state for this context.
+   *
+   * @returns Promise resolving to strategy state snapshot or null if none persisted
+   */
+  readStrategyData(): Promise<StrategyData | null>;
+
+  /**
+   * Write deferred strategy state for this context (null to clear).
+   *
+   * @param row - Strategy state snapshot to persist, or null to clear
+   * @returns Promise that resolves when write is complete
+   */
+  writeStrategyData(row: StrategyData | null): Promise<void>;
+}
+
+/**
+ * Default file-based implementation of IPersistStrategyInstance.
+ *
+ * Features:
+ * - Wraps PersistBase for atomic JSON writes
+ * - Uses fixed entity ID "strategy" within a per-context PersistBase
+ * - Crash-safe via atomic writes
+ *
+ * @example
+ * ```typescript
+ * const instance = new PersistStrategyInstance("BTCUSDT", "my-strategy", "binance");
+ * await instance.waitForInit(true);
+ * await instance.writeStrategyData(snapshot);
+ * const restored = await instance.readStrategyData();
+ * ```
+ */
+export class PersistStrategyInstance implements IPersistStrategyInstance {
+  /** Fixed entity key for storing the strategy state snapshot */
+  private static readonly STORAGE_KEY = "strategy";
+  /** Underlying file-based storage scoped to this context */
+  private readonly _storage: IPersistBase<StrategyData>;
+
+  /**
+   * Creates new deferred strategy state persistence instance.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   */
+  constructor(
+    readonly symbol: string,
+    readonly strategyName: StrategyName,
+    readonly exchangeName: ExchangeName,
+  ) {
+    this._storage = new PersistBase(
+      `${symbol}_${strategyName}_${exchangeName}`,
+      `./dump/data/strategy/`
+    );
+  }
+
+  /**
+   * Initializes the underlying PersistBase storage.
+   *
+   * @param initial - Whether this is the first initialization
+   * @returns Promise that resolves when initialization is complete
+   */
+  async waitForInit(initial: boolean): Promise<void> {
+    await this._storage.waitForInit(initial);
+  }
+
+  /**
+   * Reads the persisted strategy state snapshot using the fixed STORAGE_KEY.
+   *
+   * @returns Promise resolving to strategy state snapshot or null if not found
+   */
+  async readStrategyData(): Promise<StrategyData | null> {
+    if (await this._storage.hasValue(PersistStrategyInstance.STORAGE_KEY)) {
+      const strategyData = await this._storage.readValue(PersistStrategyInstance.STORAGE_KEY);
+      // JSON serializes Infinity as null, so an eternal-hold signal
+      // (minuteEstimatedTime: Infinity) reads back as null — restore it.
+      for (const signal of [strategyData.closedSignal, strategyData.cancelledSignal, strategyData.activatedSignal]) {
+        if (signal && signal.minuteEstimatedTime == null) {
+          signal.minuteEstimatedTime = Infinity;
+        }
+      }
+      return strategyData;
+    }
+    return null;
+  }
+
+  /**
+   * Writes the strategy state snapshot (or null to clear) using the fixed STORAGE_KEY.
+   *
+   * @param row - Strategy state snapshot to persist, or null to clear
+   * @returns Promise that resolves when write is complete
+   */
+  async writeStrategyData(row: StrategyData | null): Promise<void> {
+    await this._storage.writeValue(PersistStrategyInstance.STORAGE_KEY, row);
+  }
+}
+
+/**
+ * No-op IPersistStrategyInstance implementation used by PersistStrategyUtils.useDummy().
+ * All reads return null, all writes are discarded.
+ */
+class PersistStrategyDummyInstance implements IPersistStrategyInstance {
+  /**
+   * No-op constructor.
+   * Context arguments are accepted to satisfy TPersistStrategyInstanceCtor.
+   */
+  constructor(_symbol: string, _strategyName: StrategyName, _exchangeName: ExchangeName) {}
+  /**
+   * No-op initialization.
+   * @returns Promise that resolves immediately
+   */
+  async waitForInit(_initial: boolean): Promise<void> { void 0; }
+  /**
+   * Always returns null (no persisted strategy state).
+   * @returns Promise resolving to null
+   */
+  async readStrategyData(): Promise<StrategyData | null> { return null; }
+  /**
+   * No-op write (discards strategy state).
+   * @returns Promise that resolves immediately
+   */
+  async writeStrategyData(_row: StrategyData | null): Promise<void> { void 0; }
+}
+
+/**
+ * Constructor type for IPersistStrategyInstance.
+ * Used by PersistStrategyUtils.usePersistStrategyAdapter() to register custom adapters.
+ */
+export type TPersistStrategyInstanceCtor = new (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+) => IPersistStrategyInstance;
+
+/**
+ * Utility class for managing deferred strategy state persistence.
+ *
+ * Features:
+ * - Memoized storage instances per strategy
+ * - Custom adapter support
+ * - Atomic read/write operations for the deferred state snapshot
+ * - Crash-safe in-flight broker operation state management
+ *
+ * Used by ClientStrategy for live mode persistence of the commit queue and deferred
+ * user actions (_commitQueue, _closedSignal, _cancelledSignal, _activatedSignal).
+ */
+export class PersistStrategyUtils {
+  /**
+   * Constructor used to create per-context strategy state instances.
+   * Replaceable via usePersistStrategyAdapter() / useJson() / useDummy().
+   */
+  private PersistStrategyInstanceCtor: TPersistStrategyInstanceCtor = PersistStrategyInstance;
+
+  /**
+   * Memoized factory creating one IPersistStrategyInstance per (symbol, strategy, exchange) triple.
+   */
+  private getStrategyStorage = memoize(
+    ([symbol, strategyName, exchangeName]: [
+      string,
+      StrategyName,
+      ExchangeName
+    ]): string => `${symbol}:${strategyName}:${exchangeName}`,
+    (
+      symbol: string,
+      strategyName: StrategyName,
+      exchangeName: ExchangeName
+    ): IPersistStrategyInstance =>
+      Reflect.construct(this.PersistStrategyInstanceCtor, [symbol, strategyName, exchangeName])
+  );
+
+  /**
+   * Registers a custom IPersistStrategyInstance constructor.
+   * Clears the memoization cache so subsequent calls use the new adapter.
+   *
+   * @param Ctor - Custom IPersistStrategyInstance constructor
+   */
+  public usePersistStrategyAdapter(Ctor: TPersistStrategyInstanceCtor): void {
+    LOGGER_SERVICE.info(PERSIST_STRATEGY_UTILS_METHOD_NAME_USE_PERSIST_STRATEGY_ADAPTER);
+    this.PersistStrategyInstanceCtor = Ctor;
+    this.getStrategyStorage.clear();
+  }
+
+  /**
+   * Reads persisted deferred strategy state for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise resolving to strategy state snapshot or null if none persisted
+   */
+  public readStrategyData = async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName
+  ): Promise<StrategyData | null> => {
+    LOGGER_SERVICE.info(PERSIST_STRATEGY_UTILS_METHOD_NAME_READ_DATA);
+    const key = `${symbol}:${strategyName}:${exchangeName}`;
+    const isInitial = !this.getStrategyStorage.has(key);
+    const instance = this.getStrategyStorage(symbol, strategyName, exchangeName);
+    await instance.waitForInit(isInitial);
+    return instance.readStrategyData();
+  };
+
+  /**
+   * Writes deferred strategy state (or null to clear) for the given context.
+   * Lazily initializes the instance on first access.
+   *
+   * @param strategyRow - Strategy state snapshot to persist, or null to clear
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param exchangeName - Exchange identifier
+   * @returns Promise that resolves when write is complete
+   */
+  public writeStrategyData = async (
+    strategyRow: StrategyData | null,
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName
+  ): Promise<void> => {
+    LOGGER_SERVICE.info(PERSIST_STRATEGY_UTILS_METHOD_NAME_WRITE_DATA);
+    const key = `${symbol}:${strategyName}:${exchangeName}`;
+    const isInitial = !this.getStrategyStorage.has(key);
+    const instance = this.getStrategyStorage(symbol, strategyName, exchangeName);
+    await instance.waitForInit(isInitial);
+    return instance.writeStrategyData(strategyRow);
+  };
+
+  /**
+   * Clears the memoized instance cache.
+   * Call when process.cwd() changes between strategy iterations.
+   */
+  public clear(): void {
+    LOGGER_SERVICE.log(PERSIST_STRATEGY_UTILS_METHOD_NAME_CLEAR);
+    this.getStrategyStorage.clear();
+  }
+
+  /**
+   * Switches to the default file-based PersistStrategyInstance.
+   */
+  public useJson() {
+    LOGGER_SERVICE.log(PERSIST_STRATEGY_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistStrategyAdapter(PersistStrategyInstance);
+  }
+
+  /**
+   * Switches to PersistStrategyDummyInstance (all operations are no-ops).
+   */
+  public useDummy() {
+    LOGGER_SERVICE.log(PERSIST_STRATEGY_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistStrategyAdapter(PersistStrategyDummyInstance);
+  }
+}
+
+/**
+ * Global singleton instance of PersistStrategyUtils.
+ * Used by ClientStrategy for deferred strategy state persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistStrategyAdapter.usePersistStrategyAdapter(RedisPersist);
+ *
+ * // Read strategy state
+ * const state = await PersistStrategyAdapter.readStrategyData("BTCUSDT", "my-strategy", "binance");
+ *
+ * // Write strategy state
+ * await PersistStrategyAdapter.writeStrategyData(state, "BTCUSDT", "my-strategy", "binance");
+ * ```
+ */
+export const PersistStrategyAdapter = new PersistStrategyUtils();
 
 /**
  * Type for persisted partial data.
