@@ -606,6 +606,7 @@ const GET_SIGNAL_FN = trycatch(
       }
       if (self._userSignal) {
         signal = self._userSignal;
+        self._userSignal = null;
         await PERSIST_STRATEGY_FN(self);
       }
       self._userSignal = null;
