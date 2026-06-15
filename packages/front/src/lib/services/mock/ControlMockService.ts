@@ -35,6 +35,15 @@ export class ControlMockService {
         return { strategyInfo, pendingSignal, currentPrice };
     }
 
+    public getAveragePrice = async (symbol: string, context: { strategyName: string; exchangeName: string; }): Promise<number> => {
+        this.loggerService.log("controlMockService getAveragePrice", {
+            symbol,
+            context,
+        })
+        const pendingSignal = await READ_STRATEGY_FN();
+        return pendingSignal?.pnl?.priceClose ?? pendingSignal?.priceOpen ?? 0;
+    }
+
     public commitOpenPending = async (
         symbol: string, 
         context: { strategyName: string; exchangeName: string; },

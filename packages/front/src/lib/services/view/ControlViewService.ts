@@ -30,6 +30,24 @@ export class ControlViewService {
         throw new Error("ControlViewService getStatus live target not found");
     }
 
+    public getAveragePrice = async (symbol: string, context: { strategyName: string; exchangeName: string; }): Promise<number> => {
+        this.loggerService.log("controlViewService getAveragePrice", {
+            symbol,
+            context,
+        })
+        if (CC_ENABLE_MOCK) {
+            return await this.controlMockService.getAveragePrice(symbol, context);
+        }
+        const liveList = await Live.list();
+        const liveTarget = liveList.find((live) => live.symbol === symbol);
+        if (liveTarget) {
+            return await Exchange.getAveragePrice(symbol, {
+                exchangeName: liveTarget.exchangeName,
+            })
+        }
+        throw new Error("ControlViewService getAveragePrice live target not found");
+    }
+
     public commitOpenPending = async (
         symbol: string, 
         context: { strategyName: string; exchangeName: string; },

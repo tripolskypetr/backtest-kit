@@ -6,6 +6,14 @@ import ioc from "../../../../lib";
 import { Box, Container, Paper } from "@mui/material";
 import { reloadSubject } from "../../../../config/emitters";
 import { Background } from "../../../../components/common/Background";
+import OperationLabel from "../components/OperationLabel";
+
+const getLabel = (key: string) => {
+  if (key === "pnl") {
+    return "P&L";
+  }
+  return key;
+};
 
 type Payload = {
     symbol: string;
@@ -114,6 +122,9 @@ export const ControlView = ({ params }: IOutletProps) => {
             <RecordView
                 component={Paper}
                 sx={{ p: 1, minHeight: "calc(100dvh - 175px)" }}
+                payload={payload}
+                formatSearch={getLabel}
+                AfterSearch={OperationLabel}
                 data={data}
             />
         )

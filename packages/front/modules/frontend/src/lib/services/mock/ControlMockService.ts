@@ -29,6 +29,28 @@ export class ControlMockService {
     return data;
   };
 
+  public getAveragePrice = async (
+    symbol: string,
+    context: { strategyName: string; exchangeName: string },
+  ): Promise<number> => {
+    this.loggerService.log("controlMockService getAveragePrice", { symbol, context });
+    const { data, error } = await fetchApi("/api/v1/mock/control_average_price", {
+      method: "POST",
+      body: JSON.stringify({
+        clientId: CC_CLIENT_ID,
+        serviceName: CC_SERVICE_NAME,
+        userId: CC_USER_ID,
+        requestId: randomString(),
+        symbol,
+        context,
+      }),
+    });
+    if (error) {
+      throw new Error(error);
+    }
+    return data;
+  };
+
   public commitOpenPending = async (
     symbol: string,
     context: { strategyName: string; exchangeName: string },

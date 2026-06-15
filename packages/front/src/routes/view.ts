@@ -810,6 +810,34 @@ router.post("/api/v1/view/control_status", async (req, res) => {
   }
 });
 
+router.post("/api/v1/view/control_average_price", async (req, res) => {
+  try {
+    const request = <ControlStatusRequest>await micro.json(req);
+    const { symbol, context, requestId, serviceName } = request;
+    const data = await ioc.controlViewService.getAveragePrice(symbol, context);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/control_average_price ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/control_average_price error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
 router.post("/api/v1/view/control_open_pending", async (req, res) => {
   try {
     const request = <ControlOpenPendingRequest>await micro.json(req);

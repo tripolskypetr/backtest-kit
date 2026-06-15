@@ -464,6 +464,10 @@ declare class ControlViewService {
         pendingSignal: any;
         currentPrice: any;
     }>;
+    getAveragePrice: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<number>;
     commitOpenPending: (symbol: string, context: {
         strategyName: string;
         exchangeName: string;
@@ -501,6 +505,10 @@ declare class ControlMockService {
         pendingSignal: any;
         currentPrice: any;
     }>;
+    getAveragePrice: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<number>;
     commitOpenPending: (symbol: string, context: {
         strategyName: string;
         exchangeName: string;
