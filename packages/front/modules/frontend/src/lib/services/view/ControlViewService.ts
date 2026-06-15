@@ -11,6 +11,7 @@ import ControlMockService from "../mock/ControlMockService";
 import ControlStatusModel from "../../../model/ControlStatus.model";
 
 const FETCH_PRICE_TTL = 2.5 * 60 * 1_000;
+const FETCH_STATUS_TTL = 1.5 * 1_000;
 
 export class ControlViewService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -18,30 +19,36 @@ export class ControlViewService {
         TYPES.controlMockService,
     );
 
-    public getStrategyStatus = async (
-        symbol: string,
-        context: { strategyName: string; exchangeName: string },
-    ): Promise<ControlStatusModel> => {
-        this.loggerService.log("controlViewService getStrategyStatus", { symbol, context });
-        if (CC_ENABLE_MOCK) {
-            return await this.controlMockService.getStrategyStatus(symbol, context);
+    public getStrategyStatus = ttl(
+        async (
+            symbol: string,
+            context: { strategyName: string; exchangeName: string },
+        ): Promise<ControlStatusModel> => {
+            this.loggerService.log("controlViewService getStrategyStatus", { symbol, context });
+            if (CC_ENABLE_MOCK) {
+                return await this.controlMockService.getStrategyStatus(symbol, context);
+            }
+            const { data, error } = await fetchApi("/api/v1/view/control_status", {
+                method: "POST",
+                body: JSON.stringify({
+                    clientId: CC_CLIENT_ID,
+                    serviceName: CC_SERVICE_NAME,
+                    userId: CC_USER_ID,
+                    requestId: randomString(),
+                    symbol,
+                    context,
+                }),
+            });
+            if (error) {
+                throw new Error(error);
+            }
+            return data;
+        },
+        {
+            timeout: FETCH_STATUS_TTL,
+            key: ([symbol, context]) => `${symbol}-${context.strategyName}-${context.exchangeName}`,
         }
-        const { data, error } = await fetchApi("/api/v1/view/control_status", {
-            method: "POST",
-            body: JSON.stringify({
-                clientId: CC_CLIENT_ID,
-                serviceName: CC_SERVICE_NAME,
-                userId: CC_USER_ID,
-                requestId: randomString(),
-                symbol,
-                context,
-            }),
-        });
-        if (error) {
-            throw new Error(error);
-        }
-        return data;
-    };
+    );
 
     public getAveragePrice = ttl(
         async (

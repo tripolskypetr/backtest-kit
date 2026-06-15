@@ -1,4 +1,4 @@
-import { Breadcrumbs2, Breadcrumbs2Type, IBreadcrumbs2Action, IBreadcrumbs2Option, IOutletProps, RecordView, useActualCallback, useAsyncValue, useOnce } from "react-declarative";
+import { Breadcrumbs2, Breadcrumbs2Type, IBreadcrumbs2Action, IBreadcrumbs2Option, IOutletProps, RecordView, useActualCallback, useActualValue, useAsyncValue, useOnce } from "react-declarative";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import { Download, KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import { get } from "lodash";
@@ -7,6 +7,16 @@ import { Box, Container, Paper } from "@mui/material";
 import { reloadSubject } from "../../../../config/emitters";
 import { Background } from "../../../../components/common/Background";
 import OperationLabel from "../components/OperationLabel";
+import useOpenPendingModal from "../hooks/useOpenPendingModal";
+import useAverageBuyModal from "../hooks/useAverageBuyModal";
+import useClosePendingModal from "../hooks/useClosePendingModal";
+import useBreakevenModal from "../hooks/useBreakevenModal";
+import {
+    commitAverageBuyEmitter,
+    commitBreakevenEmitter,
+    commitClosePendingEmitter,
+    commitOpenPendingEmitter,
+} from "../config/emitters";
 
 const getLabel = (key: string) => {
   if (key === "pnl") {
@@ -100,7 +110,54 @@ export const ControlView = ({ params }: IOutletProps) => {
         }
     )
 
+    const payload$ = useActualValue(payload);
+
+    const {
+        pickData: handleOpenPending,
+        render: renderOpenPending
+    } = useOpenPendingModal({
+        payload: {
+            getContext: () => payload$.current!,
+            reloadSubject,
+        }
+    });
+
+    const {
+        pickData: handleAverageBuy,
+        render: renderAverageBuy
+    } = useAverageBuyModal({
+        payload: {
+            getContext: () => payload$.current!,
+            reloadSubject,
+        }
+    });
+
+    const {
+        pickData: handleClosePending,
+        render: renderClosePending
+    } = useClosePendingModal({
+        payload: {
+            getContext: () => payload$.current!,
+            reloadSubject,
+        }
+    });
+
+    const {
+        pickData: handleBreakeven,
+        render: renderBreakeven
+    } = useBreakevenModal({
+        payload: {
+            getContext: () => payload$.current!,
+            reloadSubject,
+        }
+    });
+
     useOnce(reloadSubject.subscribe(execute));
+
+    useOnce(commitOpenPendingEmitter.subscribe(handleOpenPending));
+    useOnce(commitAverageBuyEmitter.subscribe(handleAverageBuy));
+    useOnce(commitClosePendingEmitter.subscribe(handleClosePending));
+    useOnce(commitBreakevenEmitter.subscribe(handleBreakeven));
 
     const handleDownload = useActualCallback(async () => {
         if (!data) {
@@ -154,6 +211,10 @@ export const ControlView = ({ params }: IOutletProps) => {
             {renderInner()}
             <Box sx={{ paddingBottom: "24px" }} />
             <Background />
+            {renderOpenPending()}
+            {renderAverageBuy()}
+            {renderClosePending()}
+            {renderBreakeven()}
         </Container>
     );
 
