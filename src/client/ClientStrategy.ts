@@ -784,22 +784,22 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     }
   }
 
-  // Restore deferred strategy state (commit queue + deferred user actions) so any
+  // Read deferred strategy state (commit queue + deferred user actions) so any
   // confirmed-but-not-yet-forwarded broker operation survives a live crash and is
-  // re-drained on the next tick. Placed before the pending/scheduled restore which
-  // may early-return on exchange/strategy mismatch.
-  {
-    const strategyData = await PersistStrategyAdapter.readStrategyData(
-      self.params.execution.context.symbol,
-      self.params.strategyName,
-      self.params.exchangeName,
-    );
-    if (strategyData) {
-      self._commitQueue = strategyData.commitQueue ?? [];
-      self._closedSignal = strategyData.closedSignal;
-      self._cancelledSignal = strategyData.cancelledSignal;
-      self._activatedSignal = strategyData.activatedSignal;
-    }
+  // re-drained on the next tick. Read here, before the pending restore which may
+  // early-return on exchange/strategy mismatch.
+  const strategyData = await PersistStrategyAdapter.readStrategyData(
+    self.params.execution.context.symbol,
+    self.params.strategyName,
+    self.params.exchangeName,
+  );
+  if (strategyData) {
+    // Deferred user actions are restored unconditionally: a deferred close belongs to
+    // an already-cleared _pendingSignal, and cancel/activate belong to the scheduled
+    // signal — none of them are tied to the currently-pending signal's id.
+    self._closedSignal = strategyData.closedSignal;
+    self._cancelledSignal = strategyData.cancelledSignal;
+    self._activatedSignal = strategyData.activatedSignal;
   }
 
   // Restore pending signal
@@ -822,6 +822,15 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       pendingSignal.minuteEstimatedTime = Infinity;
     }
     self._pendingSignal = pendingSignal;
+
+    // Restore the commit queue only if the snapshot belongs to this exact pending
+    // signal (pendingSignalId === restored id). The queue holds confirmed-but-not-yet
+    // forwarded broker ops (average-buy / partial-* / trailing-* / breakeven) that are
+    // always tied to the active position; a mismatch means the snapshot is stale and
+    // the queue is dropped to avoid replaying ops against the wrong position.
+    if (strategyData && strategyData.pendingSignalId === pendingSignal.id) {
+      self._commitQueue = strategyData.commitQueue ?? [];
+    }
 
     // Call onActive callback for restored signal
     const currentPrice = await self.params.exchange.getAveragePrice(
@@ -912,6 +921,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
   }
   await PersistStrategyAdapter.writeStrategyData(
     {
+      pendingSignalId: self._pendingSignal?.id ?? null,
       commitQueue: self._commitQueue,
       closedSignal: self._closedSignal,
       cancelledSignal: self._cancelledSignal,

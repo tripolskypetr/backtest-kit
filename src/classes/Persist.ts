@@ -1491,6 +1491,13 @@ export const PersistScheduleAdapter = new PersistScheduleUtils();
  * pending broker operations are not silently lost.
  */
 export type StrategyData = {
+  /**
+   * Id of the pending signal these deferred operations belong to (from _pendingSignal.id),
+   * or null if there was no pending signal when the snapshot was written. On restore, the
+   * deferred fields are applied only when this matches the restored _pendingSignal.id —
+   * otherwise the snapshot belongs to a different/stale position and is discarded.
+   */
+  pendingSignalId: string | null;
   /** Queued commit events (average-buy / partial-* / trailing-* / breakeven) not yet drained */
   commitQueue: ICommitRow[];
   /** Deferred user-initiated close (closePending), or null if none pending */
