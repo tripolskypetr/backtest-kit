@@ -4033,13 +4033,27 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         closePrice = averagePrice; // time_expired uses VWAP
       }
 
-      return await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
+      const closeResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
         self,
         signal,
         closePrice,
         closeReason!,
         currentCandleTimestamp
       );
+
+      // Sync close accepted — position closed, return.
+      if (closeResult) {
+        return closeResult;
+      }
+
+      // Sync close rejected (e.g. broker rejected the order) — _pendingSignal is left
+      // intact (not cleared on rejection). Do NOT return/continue: fall through to the
+      // active-monitoring block below so this candle is processed exactly like live
+      // tick, which runs RETURN_PENDING_SIGNAL_ACTIVE_FN when CLOSE_PENDING_SIGNAL_FN
+      // returns null (updates _peak/_fall, fires active ping / breakeven / partial
+      // callbacks, drains the commit queue). The close is re-attempted on the next
+      // candle; for time_expired this eventually reaches the loop-exhausted close
+      // (which throws if still rejected).
     }
 
     // Call onPartialProfit/onPartialLoss callbacks during backtest candle processing
