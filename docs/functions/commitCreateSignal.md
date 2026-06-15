@@ -1,12 +1,12 @@
 ---
-title: docs/function/createSignal
+title: docs/function/commitCreateSignal
 group: docs
 ---
 
-# createSignal
+# commitCreateSignal
 
 ```ts
-declare function createSignal(symbol: string, dto: ISignalDto): Promise<void>;
+declare function commitCreateSignal(symbol: string, dto: ISignalDto): Promise<void>;
 ```
 
 Queues a user-supplied signal DTO to be consumed by the next tick instead of params.getSignal.

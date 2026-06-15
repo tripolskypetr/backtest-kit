@@ -243,7 +243,7 @@ group: docs
 - [hasNoPendingSignal](functions/hasNoPendingSignal.md)
 - [hasNoScheduledSignal](functions/hasNoScheduledSignal.md)
 - [commitSignalNotify](functions/commitSignalNotify.md)
-- [createSignal](functions/createSignal.md)
+- [commitCreateSignal](functions/commitCreateSignal.md)
 - [getStrategyStatus](functions/getStrategyStatus.md)
 - [stopStrategy](functions/stopStrategy.md)
 - [shutdown](functions/shutdown.md)

@@ -530,10 +530,10 @@ Clears the pending signal (active position).
 Does NOT affect scheduled signals or strategy operation.
 Does NOT set stop flag - strategy can continue generating new signals.
 
-### createSignal
+### commitCreateSignal
 
 ```ts
-createSignal: (symbol: string, context: { strategyName: string; exchangeName: string; }, dto: ISignalDto) => Promise<void>
+commitCreateSignal: (symbol: string, context: { strategyName: string; exchangeName: string; }, dto: ISignalDto) => Promise<void>
 ```
 
 Queues a user-supplied signal DTO to be consumed by the next live tick instead of
