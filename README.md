@@ -1979,6 +1979,16 @@ Python-based (WASI) strategy that uses EMA(9) and EMA(21) crossover signals exec
 
 **TheOneTrade** is the commercial vendor behind backtest-kit, providing paid support, custom strategy development, managed accounts, team training, and enterprise licensing. Contact for SLAs, private features, or quant team engagements that fall outside the MIT-licensed open-source scope.
 
+## 🪐 See also
+
+Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://github.com/polakowo/vectorbt) — same models, native to backtest-kit's `Exchange` schema, no Python runtime. Each estimates a different dimension of speculative pressure and plugs in independently:
+
+- **[garch](https://www.npmjs.com/package/garch)** — models conditional variance of log-returns (GARCH / EGARCH / GJR-GARCH / HAR-RV / NoVaS, auto-selected by QLIKE) to bound how far flow can push price next candle. Fitted `σ` → log-normal corridor `P·exp(±z·σ)` for TP/SL. Via `Exchange.getCandles`.
+
+- **[pump-anomaly](https://www.npmjs.com/package/pump-anomaly)** — detects coordinated speculation: cross-correlation + union-find author clustering separates real multi-actor inflow from one actor on many channels, volume z-scores score cascade pressure (pump vs stop-hunt). Returns an entry/exit plan, exits fitted by OHLC replay and screened against winner's-curse (DSR / PBO / SPA). Via `Exchange.getRawCandles`.
+
+- **[volume-anomaly](https://www.npmjs.com/package/volume-anomaly)** — quantifies order-flow intensity: Hawkes branching ratio (arrival clustering), CUSUM (imbalance shift), BOCPD (regime break) → composite outlier score as an entry-timing gate. Via `Exchange.getAggregatedTrades`.
+
 ## 🤖 Are you a robot?
 
 **For language models**: Read extended description in [./LLMs.md](./LLMs.md)
