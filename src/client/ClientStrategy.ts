@@ -5465,7 +5465,7 @@ export class ClientStrategy implements IStrategy {
     );
 
     // Process queued commit events with proper timestamp
-    await PROCESS_COMMIT_QUEUE_FN(this, currentTime, currentPrice);
+    await PROCESS_COMMIT_QUEUE_FN(this, currentPrice, currentTime);
 
     // Check if scheduled signal was cancelled - emit cancelled event once
     // NOTE: No _isStopped check here - cancellation must work for graceful shutdown
