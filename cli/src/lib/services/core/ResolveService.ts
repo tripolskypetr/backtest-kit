@@ -64,7 +64,7 @@ export class ResolveService implements IResolve{
             const cwd = process.cwd();
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
         }
-        this.loaderService.import(absolutePath, moduleRoot);
+        await this.loaderService.import(absolutePath, moduleRoot);
     }
 
     public attachJavascript = async (jsPath: string) => {
@@ -83,7 +83,7 @@ export class ResolveService implements IResolve{
             cwd !== moduleRoot && Setup.update();
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
             dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
-            this.loaderService.import(absolutePath);
+            await this.loaderService.import(absolutePath);
         }
         _is_launched = true;
         return absolutePath;
@@ -101,7 +101,7 @@ export class ResolveService implements IResolve{
         await access(absolutePath, constants.F_OK | constants.R_OK);
         dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
         {
-            this.loaderService.import(absolutePath);
+            await this.loaderService.import(absolutePath);
         }
         _is_launched = true;
         return absolutePath;

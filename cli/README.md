@@ -954,7 +954,27 @@ export default {
 };
 ```
 
-**How it works:** when strategy code calls `require("ccxt")`, the loader checks `IMPORT_ALIAS` first. If a key matches, the mapped value is returned instead of the real module — no monkey-patching of `node_modules` needed.
+Alias config may export an **async factory** instead of a plain mapping. The CLI `await`s it before any strategy code runs, so you can resolve ESM modules dynamically and hand the live bindings to the alias table:
+
+```ts
+// config/alias.config.ts — async factory (default export)
+export default async () => ({
+  // `nanoid` is ESM-only — `require("nanoid")` would throw,
+  // so pull it in with a dynamic import and alias it.
+  nanoid: await import("nanoid"),
+});
+```
+
+```ts
+// config/alias.config.ts — async factory (named `loader` export)
+export const loader = async () => ({
+  "p-limit": await import("p-limit"),
+});
+```
+
+Both export styles are supported — `export default` and `export const loader` — but **never both at once**; if both are present the `default` export wins. The factory must resolve to the same `{ moduleName: replacement }` shape as the object form. The CLI awaits it before loading the first strategy module, so strategy code keeps calling a plain `require("nanoid")` and transparently gets the ESM binding.
+
+When strategy code calls `require("ccxt")`, the loader checks `IMPORT_ALIAS` first. If a key matches, the mapped value is returned instead of the real module — no monkey-patching of `node_modules` needed.
 
 **Important:** It is **not** per-strategy — it applies to all modules loaded in the current process.
 

@@ -1,7 +1,7 @@
 import { singleshot } from "functools-kit";
-import ccxt from "ccxt";
 
 export const getExchange = singleshot(async () => {
+  const ccxt = await import("ccxt");
   const exchange = new ccxt.binance({
     options: {
       defaultType: "spot",

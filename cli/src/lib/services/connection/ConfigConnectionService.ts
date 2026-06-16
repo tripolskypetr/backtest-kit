@@ -39,7 +39,7 @@ const LOAD_CONFIG_CONFIG_FN = async (
   for (const {filePath, baseDir} of GET_CONFIG_VARIANTS_FN(fileName, self)) {
     try {
       if (await self.loaderService.check(filePath, baseDir)) {
-        return self.loaderService.import(filePath, baseDir);
+        return await self.loaderService.import(filePath, baseDir);
       }
     } catch {
       console.warn(`Module module import failed filePath=${filePath} baseDir=${baseDir}`);

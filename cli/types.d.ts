@@ -206,8 +206,8 @@ declare class LoaderService {
     readonly babelService: BabelService;
     readonly loggerService: LoggerService;
     readonly resolveService: ResolveService;
-    getInstance: ((basePath: string) => ClientLoader) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientLoader>;
-    import: (filePath: string, basePath?: string) => any;
+    _getInstance: ((basePath: string) => ClientLoader) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientLoader>;
+    import: (filePath: string, basePath?: string) => Promise<any>;
     check: (filePath: string, basePath?: string) => Promise<boolean>;
 }
 

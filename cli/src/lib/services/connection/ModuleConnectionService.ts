@@ -38,7 +38,7 @@ const LOAD_MODULE_MODULE_FN = async (
   for (const {filePath, baseDir} of GET_MODULE_VARIANTS_FN(fileName, self)) {
     try {
       if (await self.loaderService.check(filePath, baseDir)) {
-        self.loaderService.import(filePath, baseDir);
+        await self.loaderService.import(filePath, baseDir);
         return true;
       }
     } catch {
