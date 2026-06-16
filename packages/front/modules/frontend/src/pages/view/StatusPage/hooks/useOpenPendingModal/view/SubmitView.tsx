@@ -103,7 +103,7 @@ export const SubmitView = ({
       <StatusCard
         type="success"
         title="Position Opened"
-        description="Position has been scheduled successfully. Waiting for pending order"
+        description="Position has been scheduled successfully. Waiting for the order to be executed on the exchange"
         amount={`${formatAmount(parseFloat(cost || "0"))}$`}
         symbol={symbol}
       />

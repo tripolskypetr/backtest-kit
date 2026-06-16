@@ -95,7 +95,7 @@ export const SubmitView = ({
       <StatusCard
         type="success"
         title="Position Closed"
-        description="Position has been closed successfully"
+        description="Closing has been scheduled successfully. Waiting for the order to be executed on the exchange"
         symbol={symbol}
       />
     );

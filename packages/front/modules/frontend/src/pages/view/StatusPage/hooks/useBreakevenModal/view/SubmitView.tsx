@@ -88,7 +88,7 @@ export const SubmitView = ({
       <StatusCard
         type="success"
         title="Breakeven Set"
-        description="The stop-loss has been moved to breakeven successfully"
+        description="Breakeven has been scheduled successfully. Waiting for the order to be executed on the exchange"
         symbol={symbol}
       />
     );

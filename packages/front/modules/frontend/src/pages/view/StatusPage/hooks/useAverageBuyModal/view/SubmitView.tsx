@@ -100,7 +100,7 @@ export const SubmitView = ({
       <StatusCard
         type="success"
         title="Position Averaged"
-        description="Position has been averaged successfully"
+        description="Averaging has been scheduled successfully. Waiting for the order to be executed on the exchange"
         amount={`${formatAmount(parseFloat(cost || "0"))}$`}
         symbol={symbol}
       />

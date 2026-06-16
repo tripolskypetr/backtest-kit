@@ -81,7 +81,7 @@ export class LiveLogicPrivateService {
         });
       } catch (error) {
         console.warn(
-          `backtestLogicPrivateService tick failed when=${when.toISOString()} symbol=${symbol} strategyName=${
+          `liveLogicPrivateService tick failed when=${when.toISOString()} symbol=${symbol} strategyName=${
             this.methodContextService.context.strategyName
           } exchangeName=${this.methodContextService.context.exchangeName}`
         );
