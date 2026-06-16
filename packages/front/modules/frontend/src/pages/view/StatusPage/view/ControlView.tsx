@@ -191,6 +191,7 @@ export const ControlView = ({ params }: IOutletProps) => {
         return (
             <RecordView
                 component={Paper}
+                withExpandAll
                 sx={{ p: 1, minHeight: "calc(100dvh - 175px)" }}
                 payload={payload}
                 formatSearch={getLabel}

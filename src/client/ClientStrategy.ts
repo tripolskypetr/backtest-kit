@@ -818,7 +818,7 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // an already-cleared _pendingSignal, and cancel/activate belong to the scheduled
     // signal — none of them are tied to the currently-pending signal's id. A queued
     // createSignal is a not-yet-consumed signal source and likewise stands on its own.
-    self._userSignal = strategyData.createSignal;
+    self._userSignal = strategyData.createdSignal;
     self._closedSignal = strategyData.closedSignal;
     self._cancelledSignal = strategyData.cancelledSignal;
     self._activatedSignal = strategyData.activatedSignal;
@@ -944,7 +944,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
   await PersistStrategyAdapter.writeStrategyData(
     {
       pendingSignalId: self._pendingSignal?.id ?? null,
-      createSignal: self._userSignal,
+      createdSignal: self._userSignal,
       commitQueue: self._commitQueue,
       closedSignal: self._closedSignal,
       cancelledSignal: self._cancelledSignal,
@@ -6605,7 +6605,7 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy getStatus", { symbol });
     return {
       pendingSignalId: this._pendingSignal?.id ?? null,
-      createSignal: this._userSignal,
+      createdSignal: this._userSignal,
       commitQueue: this._commitQueue,
       closedSignal: this._closedSignal,
       cancelledSignal: this._cancelledSignal,

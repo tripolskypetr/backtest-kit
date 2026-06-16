@@ -5,6 +5,23 @@ import { Exchange, Live, Position, getConfig } from "backtest-kit";
 import ControlMockService from "../mock/ControlMockService";
 import { CC_ENABLE_MOCK } from "../../../config/params";
 
+/** Grid step (percent) the hard stop-loss distance snaps to. */
+const HARD_STOP_STEP_PERCENT = 2.5;
+
+/**
+ * Computes the hard stop-loss distance percent for an opened position.
+ *
+ * Snaps the configured max stop-loss distance to a {@link HARD_STOP_STEP_PERCENT} grid
+ * (rounded to the nearest step), then steps one notch down so the result stays strictly
+ * below CC_MAX_STOPLOSS_DISTANCE_PERCENT — which the signal validator rejects at the
+ * boundary (e.g. 20% config yields 20.008% after price rounding).
+ *
+ * @param maxDistance - CC_MAX_STOPLOSS_DISTANCE_PERCENT
+ * @returns Hard stop-loss distance in percent (e.g. 11 -> 7.5, 10 -> 7.5, 20 -> 17.5)
+ */
+const COMPUTE_HARD_STOP_FN = (maxDistance: number): number =>
+    Math.round(maxDistance / HARD_STOP_STEP_PERCENT) * HARD_STOP_STEP_PERCENT - HARD_STOP_STEP_PERCENT;
+
 export class ControlViewService {
     private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
     private readonly controlMockService = inject<ControlMockService>(TYPES.controlMockService);
@@ -72,14 +89,15 @@ export class ControlViewService {
             if (pending) {
                 throw new Error("ControlViewService commitOpenPending already have pending signal");
             }
+            const percentStopLoss = COMPUTE_HARD_STOP_FN(config.CC_MAX_STOPLOSS_DISTANCE_PERCENT);
             return await Live.commitCreateSignal(
-                symbol, 
-                context, 
-                { 
+                symbol,
+                context,
+                {
                     ...Position.moonbag({
                         position: dto.position,
                         currentPrice,
-                        percentStopLoss: config.CC_MAX_STOPLOSS_DISTANCE_PERCENT
+                        percentStopLoss,
                     }),
                     cost: dto.cost,
                     note: dto.note,

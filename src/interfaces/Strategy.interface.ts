@@ -37,7 +37,7 @@ export type StrategyStatus = {
    * of params.getSignal (set via createPending / createScheduled), or null if none queued.
    * createPending and createScheduled overwrite the same slot, so only the latest wins.
    */
-  createSignal: ISignalDto | null;
+  createdSignal: ISignalDto | null;
   /** Queued commit events (average-buy / partial-* / trailing-* / breakeven) not yet drained */
   commitQueue: ICommitRow[];
   /** Deferred user-initiated close (closePending), or null if none pending */

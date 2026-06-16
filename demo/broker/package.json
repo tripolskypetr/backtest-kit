@@ -1,0 +1,16 @@
+{
+  "name": "broker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./node_modules/@backtest-kit/cli/build/index.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@backtest-kit/cli": "^13.2.0"
+  }
+}
