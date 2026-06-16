@@ -1,15 +1,29 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   WizardContainer,
   WizardNavigation,
   IWizardModalProps,
   useAsyncValue,
   formatAmount,
+  useOnce,
+  getErrorMessage,
 } from "react-declarative";
 import { Box } from "@mui/material";
 import StatusCard from "../components/StatusCard";
 import ioc from "../../../../../../lib";
 import { IOpenPendingPayload } from "../useOpenPendingModal";
+
+interface IState {
+  success: boolean;
+  error: string;
+  loading: boolean;
+}
+
+const INITIAL_STATE = {
+  success: false,
+  loading: true,
+  error: "",
+};
 
 export const SubmitView = ({
   formState,
@@ -17,6 +31,9 @@ export const SubmitView = ({
   beginSave,
   setLoading,
 }: IWizardModalProps) => {
+
+  const [state, setState] = useState<IState>(INITIAL_STATE);
+
   const { position, cost, note, symbol } = useMemo(() => {
     const { position, cost, note, symbol } = formState.data.form;
     return {
@@ -27,8 +44,9 @@ export const SubmitView = ({
     };
   }, [formState]);
 
-  const [success, { error, loading }] = useAsyncValue(
-    async () => {
+  useOnce(async () => {
+    setLoading(true);
+    try {
       const context = payload.getContext() as IOpenPendingPayload;
       await ioc.controlViewService.commitOpenPending(
         context.symbol,
@@ -42,27 +60,35 @@ export const SubmitView = ({
           note: note || "",
         },
       );
-      return true;
-    },
-    {
-      onLoadStart: () => setLoading(true),
-      onLoadEnd: () => setLoading(false),
-    },
-  );
+      setState({
+        success: true,
+        loading: false,
+        error: "",
+      })
+    } catch (error) {
+      setState({
+        success: false,
+        loading: false,
+        error: getErrorMessage(error),
+      })
+    } finally {
+      setLoading(false);
+    }
+  });
 
   const renderInner = () => {
-    if (error) {
+    if (state.error) {
       return (
         <StatusCard
           type="error"
           title="Position Opening Error"
-          description="An error occurred while opening the position"
+          description={state.error}
           amount={`${formatAmount(parseFloat(cost || "0"))}$`}
           symbol={symbol}
         />
       );
     }
-    if (loading || !success) {
+    if (state.loading) {
       return (
         <StatusCard
           type="loading"
@@ -77,7 +103,7 @@ export const SubmitView = ({
       <StatusCard
         type="success"
         title="Position Opened"
-        description="Congratulations! The position was opened successfully"
+        description="Position has been scheduled successfully. Waiting for pending order"
         amount={`${formatAmount(parseFloat(cost || "0"))}$`}
         symbol={symbol}
       />
@@ -86,7 +112,7 @@ export const SubmitView = ({
 
   const renderNavigation = () => (
     <WizardNavigation
-      hasNext={success || !!error}
+      hasNext={state.success || !!state.error}
       labelNext="Close"
       onNext={async () => {
         await beginSave();

@@ -1,14 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   WizardContainer,
   WizardNavigation,
   IWizardModalProps,
-  useAsyncValue,
+  useOnce,
+  getErrorMessage,
 } from "react-declarative";
 import { Box } from "@mui/material";
 import StatusCard from "../components/StatusCard";
 import ioc from "../../../../../../lib";
 import { IBreakevenPayload } from "../useBreakevenModal";
+
+interface IState {
+  success: boolean;
+  error: string;
+  loading: boolean;
+}
+
+const INITIAL_STATE = {
+  success: false,
+  loading: true,
+  error: "",
+};
 
 export const SubmitView = ({
   formState,
@@ -16,6 +29,9 @@ export const SubmitView = ({
   beginSave,
   setLoading,
 }: IWizardModalProps) => {
+
+  const [state, setState] = useState<IState>(INITIAL_STATE);
+
   const { symbol } = useMemo(() => {
     const { symbol } = formState.data.form;
     return {
@@ -23,33 +39,42 @@ export const SubmitView = ({
     };
   }, [formState]);
 
-  const [success, { error, loading }] = useAsyncValue(
-    async () => {
+  useOnce(async () => {
+    setLoading(true);
+    try {
       const context = payload.getContext() as IBreakevenPayload;
       await ioc.controlViewService.commitBreakeven(context.symbol, {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
       });
-      return true;
-    },
-    {
-      onLoadStart: () => setLoading(true),
-      onLoadEnd: () => setLoading(false),
-    },
-  );
+      setState({
+        success: true,
+        loading: false,
+        error: "",
+      })
+    } catch (error) {
+      setState({
+        success: false,
+        loading: false,
+        error: getErrorMessage(error),
+      })
+    } finally {
+      setLoading(false);
+    }
+  });
 
   const renderInner = () => {
-    if (error) {
+    if (state.error) {
       return (
         <StatusCard
           type="error"
           title="Breakeven Error"
-          description="An error occurred while moving to breakeven"
+          description={state.error}
           symbol={symbol}
         />
       );
     }
-    if (loading || !success) {
+    if (state.loading) {
       return (
         <StatusCard
           type="loading"
@@ -63,7 +88,7 @@ export const SubmitView = ({
       <StatusCard
         type="success"
         title="Breakeven Set"
-        description="Congratulations! The stop-loss was moved to breakeven"
+        description="The stop-loss has been moved to breakeven successfully"
         symbol={symbol}
       />
     );
@@ -71,7 +96,7 @@ export const SubmitView = ({
 
   const renderNavigation = () => (
     <WizardNavigation
-      hasNext={success || !!error}
+      hasNext={state.success || !!state.error}
       labelNext="Close"
       onNext={async () => {
         await beginSave();

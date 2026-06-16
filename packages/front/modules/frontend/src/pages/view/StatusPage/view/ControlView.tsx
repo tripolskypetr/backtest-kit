@@ -57,6 +57,12 @@ const options: IBreadcrumbs2Option[] = [
         action: "back-action",
         label: "Manual Control",
     },
+    {
+        type: Breadcrumbs2Type.Button,
+        action: "update-now",
+        label: "Refresh",
+        icon: Refresh,
+    },
 ];
 
 const actions: IBreadcrumbs2Action[] = [
