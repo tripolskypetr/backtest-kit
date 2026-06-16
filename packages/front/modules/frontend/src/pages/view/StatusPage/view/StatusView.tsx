@@ -53,6 +53,12 @@ const options: IBreadcrumbs2Option[] = [
         action: "print-action",
         label: "Print",
         icon: Print,
+    },
+    {
+        type: Breadcrumbs2Type.Fab,
+        action: "update-now",
+        label: "Refresh",
+        icon: Refresh,
     }
 ];
 
