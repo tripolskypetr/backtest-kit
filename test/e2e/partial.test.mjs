@@ -124,10 +124,10 @@ test("PARTIAL BACKTEST: onPartialProfit for LONG with gradual profit", async ({ 
       };
     },
     callbacks: {
-      onPartialProfit: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialProfit: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialFillEvents.push({ currentPrice, revenuePercent, backtest });
       },
-      onPartialLoss: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialLoss: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialLossEvents.push({ currentPrice, revenuePercent, backtest });
       },
     },
@@ -304,10 +304,10 @@ test("PARTIAL BACKTEST: onPartialLoss for LONG with gradual loss", async ({ pass
       };
     },
     callbacks: {
-      onPartialProfit: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialProfit: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialFillEvents.push({ currentPrice, revenuePercent, backtest });
       },
-      onPartialLoss: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialLoss: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialLossEvents.push({ currentPrice, revenuePercent, backtest });
       },
     },
@@ -484,10 +484,10 @@ test("PARTIAL BACKTEST: onPartialProfit for SHORT with price falling", async ({ 
       };
     },
     callbacks: {
-      onPartialProfit: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialProfit: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialFillEvents.push({ currentPrice, revenuePercent, backtest });
       },
-      onPartialLoss: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialLoss: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialLossEvents.push({ currentPrice, revenuePercent, backtest });
       },
     },
@@ -659,10 +659,10 @@ test("PARTIAL BACKTEST: onPartialLoss for SHORT with price rising", async ({ pas
       };
     },
     callbacks: {
-      onPartialProfit: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialProfit: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialFillEvents.push({ currentPrice, revenuePercent, backtest });
       },
-      onPartialLoss: (_symbol, _data, currentPrice, revenuePercent, backtest) => {
+      onPartialLoss: (_symbol, _data, revenuePercent, currentPrice, _when, backtest) => {
         partialLossEvents.push({ currentPrice, revenuePercent, backtest });
       },
     },

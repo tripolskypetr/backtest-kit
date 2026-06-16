@@ -340,7 +340,7 @@ test("PARTIAL FUNCTION: Multiple partialProfit calls (30% + 40%)", async ({ pass
       };
     },
     callbacks: {
-      onPartialProfit: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (_symbol, _data, revenuePercent, _currentPrice, _when, _backtest) => {
         // Первый вызов при 10%
         if (!firstPartialCalled && revenuePercent >= 10) {
           firstPartialCalled = true;

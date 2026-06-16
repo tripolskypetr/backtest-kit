@@ -180,7 +180,7 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
       };
     },
     callbacks: {
-      onPartialProfit: async (_symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (_symbol, _signal, revenuePercent, _currentPrice, _when, _backtest) => {
         // Применяем breakeven при достижении 50% пути к TP
         if (!breakevenApplied && revenuePercent >= 50) {
           const pendingSignal = await Backtest.getPendingSignal("BTCUSDT", _currentPrice, {
@@ -401,7 +401,7 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
       };
     },
     callbacks: {
-      onPartialLoss: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+      onPartialLoss: async (_symbol, _data, revenuePercent, _currentPrice, _when, _backtest) => {
         if (!partialCalled && revenuePercent >= 20) {
           partialCalled = true;
           await commitPartialLoss("BTCUSDT", 40);

@@ -124,14 +124,14 @@ test("AVERAGE BACKTEST: commitAverageBuy updates effectivePriceOpen for LONG", a
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, _backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onSchedule]", { symbol, currentPrice, priceOpen: data.priceOpen });
       },
-      onOpen: (symbol, data, currentPrice, _backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onOpen]", { symbol, currentPrice, priceOpen: data.priceOpen, originalPriceOpen: data.originalPriceOpen });
         openEvents.push({ priceOpen: data.priceOpen, originalPriceOpen: data.originalPriceOpen, totalEntries: data.totalEntries });
       },
-      onActivePing: async (symbol, data, when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[onActivePing]", { symbol, currentPrice, effectivePriceOpen: data.priceOpen, totalEntries: data.totalEntries, averageExecuted });
         // Усредняем один раз когда цена на просадке ~98000
@@ -142,11 +142,11 @@ test("AVERAGE BACKTEST: commitAverageBuy updates effectivePriceOpen for LONG", a
           console.log("[commitAverageBuy result]", result);
         }
       },
-      onClose: (symbol, data, currentPrice, _backtest) => {
+      onClose: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onClose]", { symbol, currentPrice, priceOpen: data.priceOpen, originalPriceOpen: data.originalPriceOpen, totalEntries: data.totalEntries });
         closeEvents.push({ priceOpen: data.priceOpen, originalPriceOpen: data.originalPriceOpen, totalEntries: data.totalEntries });
       },
-      onCancel: (symbol, data, currentPrice, _backtest) => {
+      onCancel: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onCancel]", { symbol, currentPrice, priceOpen: data.priceOpen });
       },
     },
@@ -302,7 +302,7 @@ test("AVERAGE BACKTEST: commitAverageBuy rejected when price above last entry (L
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         // Пытаемся усредниться когда цена уже выросла выше entry
         if (!averageAttempted && currentPrice > basePrice + 1000) {
@@ -451,7 +451,7 @@ test("AVERAGE BACKTEST: double DCA (2x commitAverageBuy) for LONG", async ({ pas
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[onActivePing-3]", { currentPrice, averageCount });
         // Первое усреднение при ~98000
@@ -467,7 +467,7 @@ test("AVERAGE BACKTEST: double DCA (2x commitAverageBuy) for LONG", async ({ pas
           console.log("[DCA#2]", r, "currentPrice=", currentPrice);
         }
       },
-      onClose: (symbol, data, currentPrice, _backtest) => {
+      onClose: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onClose-3]", { currentPrice, priceOpen: data.priceOpen, totalEntries: data.totalEntries });
         closeEvents.push({
           priceOpen: data.priceOpen,
@@ -636,13 +636,13 @@ test("AVERAGE BACKTEST: commitAverageBuy for SHORT position (averaging up)", asy
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, _backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onSchedule-4]", { symbol, currentPrice, priceOpen: data.priceOpen });
       },
-      onOpen: (symbol, data, currentPrice, _backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onOpen-4]", { symbol, currentPrice, priceOpen: data.priceOpen });
       },
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[onActivePing-4]", { currentPrice, effectivePriceOpen: data.priceOpen, averageExecuted });
         // Усредняем SHORT на росте (currentPrice > last entry price)
@@ -652,7 +652,7 @@ test("AVERAGE BACKTEST: commitAverageBuy for SHORT position (averaging up)", asy
           console.log("[SHORT DCA]", r, "currentPrice=", currentPrice);
         }
       },
-      onClose: (symbol, data, currentPrice, _backtest) => {
+      onClose: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onClose-4]", { currentPrice, priceOpen: data.priceOpen, originalPriceOpen: data.originalPriceOpen, totalEntries: data.totalEntries });
         closeEvents.push({
           priceOpen: data.priceOpen,
@@ -660,7 +660,7 @@ test("AVERAGE BACKTEST: commitAverageBuy for SHORT position (averaging up)", asy
           totalEntries: data.totalEntries,
         });
       },
-      onCancel: (symbol, data, currentPrice, _backtest) => {
+      onCancel: (symbol, data, currentPrice, _when, _backtest) => {
         console.log("[onCancel-4]", { symbol, currentPrice, priceOpen: data.priceOpen });
       },
     },

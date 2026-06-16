@@ -148,7 +148,7 @@ test("DCA BACKTEST: commitPartialProfit → commitAverageBuy → TP close (LONG)
         console.log("[DCA-1 onOpen]", { symbol, currentPrice, priceOpen: data.priceOpen });
         openEvents.push({ priceOpen: data.priceOpen, totalEntries: data.totalEntries });
       },
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[DCA-1 onActivePing]", { currentPrice, partialProfitExecuted, averageExecuted, totalEntries: data.totalEntries });
 
@@ -355,7 +355,7 @@ test("DCA BACKTEST: DCA → partialProfit → DCA → TP close (LONG)", async ({
       };
     },
     callbacks: {
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[DCA-2 onActivePing]", { currentPrice, average1Executed, partialProfitExecuted, average2Executed, totalEntries: data.totalEntries });
 
@@ -581,7 +581,7 @@ test("DCA BACKTEST: partialLoss → DCA×2 → partialProfit → TP (LONG)", asy
       };
     },
     callbacks: {
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[DCA-3 onActivePing]", { currentPrice, partialLossExecuted, average1Executed, average2Executed, partialProfitExecuted, totalEntries: data.totalEntries });
 
@@ -812,7 +812,7 @@ test("DCA BACKTEST: SHORT DCA → partialProfit → TP close (SHORT)", async ({ 
       };
     },
     callbacks: {
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[DCA-4 onActivePing]", { currentPrice, averageExecuted, partialProfitExecuted, totalEntries: data.totalEntries });
 
@@ -1000,7 +1000,7 @@ test("DCA BACKTEST: partialProfit → partialProfit → DCA → TP (LONG)", asyn
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!partial1Executed && currentPrice >= 1060) {
@@ -1163,7 +1163,7 @@ test("DCA BACKTEST: DCA → DCA → partialProfit → partialLoss → TP (LONG)"
       };
     },
     callbacks: {
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[DCA-6 onActivePing]", { currentPrice, avg1Executed, avg2Executed, ppExecuted, plExecuted, totalEntries: data.totalEntries });
 
@@ -1323,7 +1323,7 @@ test("DCA BACKTEST: partialProfit → partialLoss → partialProfit → TP no DC
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!pp1Executed && currentPrice >= 1080) {
@@ -1487,7 +1487,7 @@ test("DCA BACKTEST: DCA → partialLoss → DCA → partialLoss → TP (LONG)", 
       };
     },
     callbacks: {
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[DCA-8 onActivePing]", { currentPrice, avg1Executed, pl1Executed, avg2Executed, pl2Executed, totalEntries: data.totalEntries });
 
@@ -1647,7 +1647,7 @@ test("DCA BACKTEST: partialProfit × 3 consecutive → TP no DCA (LONG)", async 
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!pp1Executed && currentPrice >= 1080) {
@@ -1849,7 +1849,7 @@ test("DCA BACKTEST: PP→DCA→DCA→PL→DCA→PP→DCA→TP (SD scenario, LONG
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         // Шаг 1: PP(30%) при росте до ~1150
@@ -2048,7 +2048,7 @@ test("DCA BACKTEST: partialProfit(50%) → averageBuy → partialProfit(60%) PAS
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!pp1Executed && currentPrice >= 1080) {
@@ -2204,7 +2204,7 @@ test("DCA BACKTEST: partialProfit(50%) → partialProfit(60%) without averageBuy
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!pp1Executed && currentPrice >= 1080) {
@@ -2360,7 +2360,7 @@ test("DCA BACKTEST: SHORT DCA×2 → partialProfit → stop_loss close", async (
       };
     },
     callbacks: {
-      onActivePing: async (symbol, data, _when, _backtest) => {
+      onActivePing: async (symbol, data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
         console.log("[DCA-13 onActivePing]", { currentPrice, avg1Executed, avg2Executed, ppExecuted, totalEntries: data.totalEntries });
 
@@ -2530,7 +2530,7 @@ test("DCA BACKTEST: partialProfit → stop_loss close (LONG)", async ({ pass, fa
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!ppExecuted && currentPrice >= 1080) {
@@ -2825,7 +2825,7 @@ test("DCA BACKTEST: DCA×2 → partialProfit → verify pnlCost/pnlEntries ident
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!avg1Executed && currentPrice <= 820) {
@@ -2997,7 +2997,7 @@ test("DCA BACKTEST: DCA принимается только при новом а
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         // DCA #1: падение до ~800 (< min=1000 ✓)
@@ -3172,7 +3172,7 @@ test("DCA BACKTEST: SHORT partialProfit → partialLoss → partialProfit → TP
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         // pp1: SHORT прибыль при падении до ~800
@@ -3353,7 +3353,7 @@ test("DCA BACKTEST: DCA → commitPartialProfit(100%) closes entire position (LO
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!avgExecuted && currentPrice <= 820) {
@@ -3521,7 +3521,7 @@ test("DCA BACKTEST: SHORT DCA принимается только при нов�
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         // DCA #1: рост до ~1100 (> max=1000 ✓)
@@ -3701,7 +3701,7 @@ test("DCA BACKTEST: 3 последовательных DCA на новых ми�
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         // DCA #1: падение до ~900 (< min=1000 ✓)
@@ -3894,7 +3894,7 @@ test("DCA BACKTEST: SHORT два partialProfit без DCA → SL убыток, 2
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         // pp#1: падение до ~850 (SHORT в профите: price < ep=1000 ✓)
@@ -4097,7 +4097,7 @@ test("DCA BACKTEST: LONG PP→DCA→PL→DCA→PP→DCA→PP→TP (4 парти�
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!pp1Done && currentPrice >= 1080) {
@@ -4304,7 +4304,7 @@ test("DCA BACKTEST: SHORT DCA→PP→DCA→PL→DCA→PP→PP→SL (4 парти
       };
     },
     callbacks: {
-      onActivePing: async (symbol, _data, _when, _backtest) => {
+      onActivePing: async (symbol, _data, _currentPrice, _when, _backtest) => {
         const currentPrice = await getAveragePrice(symbol);
 
         if (!dca1Done && currentPrice >= 1080) {
@@ -4482,7 +4482,7 @@ test("DCA BACKTEST: LONG PP→PP→DCA→DCA→PL→PL→PP→TP (6 партиа
       return { position:"long", priceOpen:1000, priceTakeProfit:1500, priceStopLoss:400, minuteEstimatedTime:200 };
     },
     callbacks: {
-      onActivePing: async (symbol, _d, _w, _b) => {
+      onActivePing: async (symbol, _d, _cp, _w, _b) => {
         const p = await getAveragePrice(symbol);
         if (!pp1Done && p>=1060) { pp1Done=true; await commitPartialProfit(symbol,15); }
         else if (pp1Done&&!pp2Done && p>=1100) { pp2Done=true; await commitPartialProfit(symbol,20); }
@@ -4598,7 +4598,7 @@ test("DCA BACKTEST: SHORT PP→PP→DCA→PL→PL→DCA→DCA→PP→SL (6 па�
       return { position:"short", priceOpen:1000, priceTakeProfit:300, priceStopLoss:2000, minuteEstimatedTime:200 };
     },
     callbacks: {
-      onActivePing: async (symbol, _d, _w, _b) => {
+      onActivePing: async (symbol, _d, _cp, _w, _b) => {
         const p = await getAveragePrice(symbol);
         if (!pp1Done && p<=820) { pp1Done=true; await commitPartialProfit(symbol,15); }
         else if (pp1Done&&!pp2Done && p<=670) { pp2Done=true; await commitPartialProfit(symbol,20); }
@@ -4712,7 +4712,7 @@ test("DCA BACKTEST: LONG DCA→DCA→DCA→PP→PP→PP→PL→PP→TP (5 пар
       return { position:"long", priceOpen:1000, priceTakeProfit:1500, priceStopLoss:400, minuteEstimatedTime:200 };
     },
     callbacks: {
-      onActivePing: async (symbol, _d, _w, _b) => {
+      onActivePing: async (symbol, _d, _cp, _w, _b) => {
         const p = await getAveragePrice(symbol);
         if (!dca1Done && p<=920) { dca1Done=true; await commitAverageBuy(symbol); }              // 900<1000 ✓
         else if (dca1Done&&!dca2Done && p<=820) { dca2Done=true; await commitAverageBuy(symbol); } // 800<900 ✓
@@ -4829,7 +4829,7 @@ test("DCA BACKTEST: SHORT DCA→DCA→PP→PL→PL→DCA→PP→PP→PL→TP (6 
       return { position:"short", priceOpen:1000, priceTakeProfit:400, priceStopLoss:1999, minuteEstimatedTime:200 };
     },
     callbacks: {
-      onActivePing: async (symbol, _d, _w, _b) => {
+      onActivePing: async (symbol, _d, _cp, _w, _b) => {
         const p = await getAveragePrice(symbol);
         if (!dca1Done && p>=1080) { dca1Done=true; await commitAverageBuy(symbol); }               // 1100>max=1000 ✓
         else if (dca1Done&&!dca2Done && p>=1230) { dca2Done=true; await commitAverageBuy(symbol); } // 1250>max=1100 ✓

@@ -86,7 +86,7 @@ test("RESTORE: Pending signal is restored after crash", async ({ pass, fail }) =
     interval: "1m",
     getSignal: async () => null,
     callbacks: {
-      onActive: (_symbol, signal, _price, _backtest) => {
+      onActive: (_symbol, signal, _price, _when, _backtest) => {
         onActiveCalled = true;
         restoredSignal = signal;
       },
@@ -194,7 +194,7 @@ test("RESTORE: Scheduled signal is restored after crash", async ({ pass, fail })
     interval: "1m",
     getSignal: async () => null,
     callbacks: {
-      onSchedule: (_symbol, signal, _price, _backtest) => {
+      onSchedule: (_symbol, signal, _price, _when, _backtest) => {
         onScheduleCalled = true;
         restoredScheduled = signal;
       },

@@ -919,7 +919,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for LONG position", async ({ pass, f
       };
     },
     callbacks: {
-      onBreakeven: async (symbol, data, currentPrice, backtest) => {
+      onBreakeven: async (symbol, data, currentPrice, _when, backtest) => {
         breakevenCallbacks.push({
           symbol,
           signalId: data.id,
@@ -1123,7 +1123,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for SHORT position", async ({ pass, 
       };
     },
     callbacks: {
-      onBreakeven: async (symbol, data, currentPrice, backtest) => {
+      onBreakeven: async (symbol, data, currentPrice, _when, backtest) => {
         breakevenCallbacks.push({
           symbol,
           signalId: data.id,
@@ -1350,10 +1350,10 @@ test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fa
       };
     },
     callbacks: {
-      onOpen: async (symbol, _signal, _priceOpen, _backtest) => {
+      onOpen: async (symbol, _signal, _priceOpen, _when, _backtest) => {
         // console.log((`[onOpen] Position opened at ${_priceOpen}`);
       },
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         // console.log((`[onPartialProfit] revenuePercent=${revenuePercent.toFixed(2)}%, currentPrice=${currentPrice}`);
         
         // Пытаемся применить breakeven при первом partial profit (любом уровне)
@@ -1376,7 +1376,7 @@ test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fa
           breakevenAttempted = true;
         }
       },
-      onPartialLoss: async (symbol, _signal, currentPrice, lossPercent, _backtest) => {
+      onPartialLoss: async (symbol, _signal, lossPercent, currentPrice, _when, _backtest) => {
         // console.log((`[onPartialLoss] lossPercent=${lossPercent.toFixed(2)}%, currentPrice=${currentPrice}`);
         
         // Также пытаемся применить breakeven при partial loss (когда цена ниже entry)

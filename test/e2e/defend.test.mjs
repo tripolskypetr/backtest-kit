@@ -102,13 +102,13 @@ test("DEFEND: LONG limit order activates BEFORE StopLoss (impossible to cancel p
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, backtest) => {
         scheduledResult = data;
       },
-      onOpen: (symbol, data, currentPrice, backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, backtest) => {
         openedResult = data;
       },
-      onClose: (symbol, data, priceClose, backtest) => {
+      onClose: (symbol, data, priceClose, _when, backtest) => {
         closedResult = { signal: data, priceClose };
       },
     },
@@ -256,13 +256,13 @@ test("DEFEND: SHORT limit order activates BEFORE StopLoss (impossible to cancel 
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, backtest) => {
         scheduledResult = data;
       },
-      onOpen: (symbol, data, currentPrice, backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, backtest) => {
         openedResult = data;
       },
-      onClose: (symbol, data, priceClose, backtest) => {
+      onClose: (symbol, data, priceClose, _when, backtest) => {
         closedResult = { signal: data, priceClose };
       },
     },
@@ -433,13 +433,13 @@ test("DEFEND: Scheduled signal activated and closed on same candle (instant TP)"
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, backtest) => {
         scheduledResult = data;
       },
-      onOpen: (symbol, data, currentPrice, backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, backtest) => {
         openedResult = data;
       },
-      onClose: (symbol, data, priceClose, backtest) => {
+      onClose: (symbol, data, priceClose, _when, backtest) => {
         closedResult = { signal: data, priceClose };
       },
     },

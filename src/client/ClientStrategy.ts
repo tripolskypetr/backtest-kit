@@ -1873,6 +1873,7 @@ const CALL_SCHEDULE_PING_CALLBACKS_FN = trycatch(
         await self.params.callbacks.onSchedulePing(
           self.params.execution.context.symbol,
           publicSignal,
+          currentPrice,
           new Date(timestamp),
           self.params.execution.context.backtest
         );
@@ -1925,6 +1926,7 @@ const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
         await self.params.callbacks.onActivePing(
           self.params.execution.context.symbol,
           publicSignal,
+          currentPrice,
           new Date(timestamp),
           self.params.execution.context.backtest
         );
@@ -2003,6 +2005,7 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
           self.params.execution.context.symbol,
           publicSignal,
           currentPrice,
+          new Date(timestamp),
           self.params.execution.context.backtest
         );
       }
@@ -2042,6 +2045,7 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
           self.params.execution.context.symbol,
           publicSignal,
           currentPrice,
+          new Date(timestamp),
           self.params.execution.context.backtest
         );
       }
@@ -2081,6 +2085,7 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
           self.params.execution.context.symbol,
           publicSignal,
           currentPrice,
+          new Date(timestamp),
           self.params.execution.context.backtest
         );
       }
@@ -2120,6 +2125,7 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
           self.params.execution.context.symbol,
           publicSignal,
           priceOpen,
+          new Date(timestamp),
           self.params.execution.context.backtest
         );
       }
@@ -2159,6 +2165,7 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
           self.params.execution.context.symbol,
           publicSignal,
           currentPrice,
+          new Date(timestamp),
           self.params.execution.context.backtest
         );
       }
@@ -2195,6 +2202,8 @@ const CALL_TICK_CALLBACKS_FN = trycatch(
         await self.params.callbacks.onTick(
           self.params.execution.context.symbol,
           result,
+          result.currentPrice,
+          new Date(timestamp),
           self.params.execution.context.backtest
         );
       }
@@ -2231,6 +2240,7 @@ const CALL_IDLE_CALLBACKS_FN = trycatch(
         await self.params.callbacks.onIdle(
           self.params.execution.context.symbol,
           currentPrice,
+          new Date(timestamp),
           self.params.execution.context.backtest
         );
       }
@@ -2436,8 +2446,9 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
         await self.params.callbacks.onPartialProfit(
           symbol,
           publicSignal,
-          currentPrice,
           percentTp,
+          currentPrice,
+          new Date(timestamp),
           backtest
         );
       }
@@ -2485,8 +2496,9 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
         await self.params.callbacks.onPartialLoss(
           symbol,
           publicSignal,
-          currentPrice,
           percentSl,
+          currentPrice,
+          new Date(timestamp),
           backtest
         );
       }
@@ -2533,6 +2545,7 @@ const CALL_BREAKEVEN_CHECK_FN = trycatch(
           symbol,
           publicSignal,
           currentPrice,
+          new Date(timestamp),
           backtest
         );
       }

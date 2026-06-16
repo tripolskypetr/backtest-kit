@@ -4,13 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node ./node_modules/@backtest-kit/cli/build/index.mjs"
+    "start": "node ./node_modules/@backtest-kit/cli/build/index.mjs",
+    "start:paper": "npm start -- --paper --ui ./content/manual_strategy.ts",
+    "start:live": "npm start -- --live --ui ./content/manual_strategy.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@backtest-kit/cli": "^13.2.0"
+    "@backtest-kit/cli": "13.2.0"
   }
 }

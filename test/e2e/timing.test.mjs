@@ -138,13 +138,13 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, backtest) => {
         scheduledTimestamp = data.scheduledAt;
       },
-      onOpen: (symbol, data, currentPrice, backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, backtest) => {
         activationTimestamp = data.pendingAt;
       },
-      onClose: (symbol, data, priceClose, backtest) => {
+      onClose: (symbol, data, priceClose, _when, backtest) => {
         closeTimestamp = Date.now();
         closeReason = "time_expired";
       },
@@ -290,7 +290,7 @@ test("Immediate signal (no priceOpen) has scheduledAt = pendingAt", async ({ pas
       };
     },
     callbacks: {
-      onOpen: (symbol, data, currentPrice, backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, backtest) => {
         signalData = data;
         // console.log(`[IMMEDIATE] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
         // console.log(`[IMMEDIATE] Are they equal? ${data.scheduledAt === data.pendingAt}`);
@@ -434,10 +434,10 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, backtest) => {
         scheduledSignalData = data;
       },
-      onOpen: (symbol, data, currentPrice, backtest) => {
+      onOpen: (symbol, data, currentPrice, _when, backtest) => {
         openedSignalData = data;
       },
     },
@@ -571,7 +571,7 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
     interval: "1m",
     getSignal: async () => null, // Не генерируем новые сигналы
     callbacks: {
-      onActive: (symbol, data, currentPrice, backtest) => {
+      onActive: (symbol, data, currentPrice, _when, backtest) => {
         // console.log(`[RESTORED PENDING] pendingAt=${data.pendingAt}, scheduledAt=${data.scheduledAt}`);
 
         const elapsedTime = Date.now() - data.pendingAt;
@@ -698,11 +698,11 @@ test("Scheduled signal closes by timeout when price never reaches priceOpen", as
       };
     },
     callbacks: {
-      onSchedule: (symbol, data, currentPrice, backtest) => {
+      onSchedule: (symbol, data, currentPrice, _when, backtest) => {
         scheduledTimestamp = data.scheduledAt;
         // console.log(`[SCHEDULED] scheduledAt=${data.scheduledAt}, priceOpen=${data.priceOpen}, currentPrice=${currentPrice}`);
       },
-      onCancel: (symbol, data, currentPrice, backtest) => {
+      onCancel: (symbol, data, currentPrice, _when, backtest) => {
         cancelledTimestamp = Date.now();
         // console.log(`[CANCELLED] Scheduled signal cancelled by timeout`);
         // console.log(`[CANCELLED] scheduledAt=${data.scheduledAt}, cancelledAt=${cancelledTimestamp}`);

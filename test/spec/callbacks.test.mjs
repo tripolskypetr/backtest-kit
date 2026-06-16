@@ -85,7 +85,7 @@ test("onOpen callback is called when signal opens", async ({ pass, fail }) => {
       };
     },
     callbacks: {
-      onOpen: (symbol, signal, currentPrice, backtest) => {
+      onOpen: (symbol, signal, currentPrice, _when, backtest) => {
         resolve({
           backtest,
           symbol,
@@ -188,7 +188,7 @@ test("onClose callback is called when signal closes", async ({ pass, fail }) => 
       };
     },
     callbacks: {
-      onClose: (symbol, signal, priceClose, backtest) => {
+      onClose: (symbol, signal, priceClose, _when, backtest) => {
         resolve({
           backtest,
           symbol,
@@ -390,7 +390,7 @@ test("callbacks receive backtest=true in backtest mode", async ({ pass, fail }) 
       };
     },
     callbacks: {
-      onOpen: (symbol, signal, currentPrice, backtest) => {
+      onOpen: (symbol, signal, currentPrice, _when, backtest) => {
         resolve(backtest);
       },
     },
@@ -596,7 +596,7 @@ test("onTick callback is called when signal closes in backtest", async ({ pass, 
       };
     },
     callbacks: {
-      onTick: (symbol, result, backtest) => {
+      onTick: (symbol, result, _currentPrice, _when, backtest) => {
         if (result.action === "closed") {
           resolve({ symbol, action: result.action, backtest });
         }
@@ -708,7 +708,7 @@ test("onActive callback is called in live mode when signal is active", async ({ 
       return null;
     },
     callbacks: {
-      onActive: (symbol, signal, currentPrice, backtest) => {
+      onActive: (symbol, signal, currentPrice, _when, backtest) => {
           resolve({
             symbol,
             signalId: signal.id,
@@ -795,7 +795,7 @@ test("onIdle callback is called in live mode when no signal is active", async ({
       return null;
     },
     callbacks: {
-      onIdle: (symbol, currentPrice, backtest) => {
+      onIdle: (symbol, currentPrice, _when, backtest) => {
         resolve({
           symbol,
           currentPrice,

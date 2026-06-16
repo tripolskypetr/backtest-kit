@@ -1069,7 +1069,7 @@ test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", asyn
       };
     },
     callbacks: {
-      onBreakeven: async (symbol, data, currentPrice, backtest) => {
+      onBreakeven: async (symbol, data, currentPrice, _when, backtest) => {
         breakevenCallbacks.push({
           symbol,
           signalId: data.id,
@@ -2140,7 +2140,7 @@ test("PARTIAL FUNCTION: partialProfit() closes 30% of LONG position", async ({ p
       };
     },
     callbacks: {
-      onPartialProfit: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (_symbol, _data, revenuePercent, _currentPrice, _when, _backtest) => {
         // Вызываем partialProfit при достижении 20% к TP
         if (!partialCalled && revenuePercent >= 20) {
           partialCalled = true;

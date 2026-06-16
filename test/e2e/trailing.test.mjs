@@ -168,7 +168,7 @@ test("TRAILING STOP: Tightens SL for LONG position with negative shift", async (
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, signal, currentPrice, revenuePercent, backtest) => {
+      onPartialProfit: async (symbol, signal, revenuePercent, currentPrice, _when, backtest) => {
         // Применяем trailing stop когда достигли +15%
         if (!trailingApplied && revenuePercent >= 15) {
           // console.log(`[onPartialProfit] Applying trailing stop: revenuePercent=${revenuePercent.toFixed(2)}%`);
@@ -396,7 +396,7 @@ test("TRAILING STOP: Tightens SL for SHORT position", async ({ pass, fail }) => 
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, signal, currentPrice, revenuePercent, backtest) => {
+      onPartialProfit: async (symbol, signal, revenuePercent, currentPrice, _when, backtest) => {
         if (!trailingApplied && revenuePercent >= 15) {
           // console.log(`[onPartialProfit SHORT] Applying trailing stop: revenuePercent=${revenuePercent.toFixed(2)}%`);
 
@@ -843,7 +843,7 @@ test("TRAILING STOP: Multiple adjustments on progressive profit with onPartialPr
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         profitEvents.push(revenuePercent);
 
         // Apply trailing stop at specific milestone levels (10%, 20%, 30%)
@@ -1321,7 +1321,7 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
       };
     },
     callbacks: {
-      onOpen: async (symbol, _signal, priceOpen, _backtest) => {
+      onOpen: async (symbol, _signal, priceOpen, _when, _backtest) => {
         // console.log(`[onOpen] Applying first trailing stop`);
 
         // Первый вызов: устанавливает направление UP
@@ -1332,7 +1332,7 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
 
         // console.log(`[trailingStop #1] Applied shift=-0.5%, direction set to UP (99.5k > 99k)`);
       },
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         // Второй вызов при 5% profit: пытается двигать вниз (должно быть отклонено)
         if (firstTrailingApplied && !secondTrailingApplied && revenuePercent >= 5) {
           // console.log(`[onPartialProfit] Second trailing: shift=+1% at ${revenuePercent.toFixed(2)}%`);
@@ -1581,14 +1581,14 @@ test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) =
       };
     },
     callbacks: {
-      onOpen: async (symbol, _signal, priceOpen, _backtest) => {
+      onOpen: async (symbol, _signal, priceOpen, _when, _backtest) => {
         // Первый вызов: устанавливает базовый trailing SL (подтягиваем на 1%)
         // Original SL: 98000, distance = 2%
         // percentShift = -1% → newDistance = 2% - 1% = 1% → newSL = 99000
         await commitTrailingStop(symbol, -1, priceOpen);
         firstTrailingApplied = true;
       },
-      onPartialProfit: async (symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, _currentPrice, _when, _backtest) => {
         // Второй вызов при 3% profit: пытается слабее защитить (меньший percentShift)
         if (firstTrailingApplied && !secondTrailingAttempted && revenuePercent >= 3 && revenuePercent < 5) {
           // percentShift = -0.5% → newDistance = 2% - 0.5% = 1.5% → newSL = 98500
@@ -1850,7 +1850,7 @@ test("TRAILING STOP: Price intrusion protection blocks trailing stop", async ({ 
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         // Пытаемся применить trailing stop при 5% profit
         if (!trailingAttempted && revenuePercent >= 5) {
           // console.log(`[onPartialProfit] Attempting trailing stop at ${revenuePercent.toFixed(2)}% profit, currentPrice=${currentPrice}`);
@@ -2095,7 +2095,7 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         // Применяем trailing profit когда достигли +10%
         if (!trailingApplied && revenuePercent >= 10) {
           // console.log(`[onPartialProfit] Applying trailing profit: revenuePercent=${revenuePercent.toFixed(2)}%`);
@@ -2330,7 +2330,7 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         if (!trailingApplied && revenuePercent >= 10) {
           // console.log(`[onPartialProfit SHORT] Applying trailing profit: revenuePercent=${revenuePercent.toFixed(2)}%`);
 
@@ -2576,7 +2576,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
       };
     },
     callbacks: {
-      onOpen: async (symbol, _signal, priceOpen, _backtest) => {
+      onOpen: async (symbol, _signal, priceOpen, _when, _backtest) => {
         try {
           // Первый вызов: устанавливает базовый trailing TP (подтягиваем на 5% ближе к entry)
           // Original TP: 120000, distance = 20%
@@ -2587,7 +2587,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
           // Unexpected error
         }
       },
-      onPartialProfit: async (symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, _currentPrice, _when, _backtest) => {
         // Второй вызов при 8% profit: пытается сделать менее консервативным (меньший percentShift)
         if (firstTrailingApplied && !secondTrailingAttempted && revenuePercent >= 8 && revenuePercent < 12) {
           try {
@@ -2855,7 +2855,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         // Первым применяем trailing profit при 10%
         if (!trailingTakeApplied && revenuePercent >= 10 && revenuePercent < 15) {
           // console.log(`[onPartialProfit] Applying trailing profit at ${revenuePercent.toFixed(2)}%`);
@@ -3121,7 +3121,7 @@ test("TRAILING PROFIT: Price intrusion protection blocks trailing profit", async
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (symbol, _signal, revenuePercent, currentPrice, _when, _backtest) => {
         // Пытаемся применить trailing profit при 90% прогресса к TP (currentPrice≈118k)
         if (!trailingAttempted && revenuePercent >= 90) {
           // console.log(`[onPartialProfit] Attempting trailing profit at ${revenuePercent.toFixed(2)}% progress, currentPrice=${currentPrice}`);

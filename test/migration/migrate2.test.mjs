@@ -165,7 +165,7 @@ test("Cancel scheduled signal after 5 onSchedulePing calls in backtest", async (
       onOpen: () => {
         openedCount++;
       },
-      onSchedulePing: async (_symbol, _data, when, _backtest) => {
+      onSchedulePing: async (_symbol, _data, _currentPrice, when, _backtest) => {
         pingCount++;
         pingTimestamps.push(when.getTime());
 
@@ -827,14 +827,14 @@ test("PARTIAL PROGRESS: Percentage calculation during TP achievement", async ({ 
       };
     },
     callbacks: {
-      onPartialProfit: async (symbol, data, currentPrice, revenuePercent, backtest) => {
+      onPartialProfit: async (symbol, data, revenuePercent, currentPrice, _when, backtest) => {
         const event = { symbol, signalId: data.id, currentPrice, revenuePercent, backtest };
         partialProfitEvents.push(event);
 
         // console.log(`[PROFIT EVENT] Level: ${revenuePercent.toFixed(2)}%, Price: ${currentPrice.toFixed(2)}, Expected: ${(priceOpen + tpDistance * (revenuePercent / 100)).toFixed(2)}`);
         await sleep(10); // Let // console.log flush
       },
-      onPartialLoss: async (symbol, data, currentPrice, revenuePercent, backtest) => {
+      onPartialLoss: async (symbol, data, revenuePercent, currentPrice, _when, backtest) => {
         const event = { symbol, signalId: data.id, currentPrice, revenuePercent, backtest };
         partialLossEvents.push(event);
 
@@ -1056,7 +1056,7 @@ test("PARTIAL FUNCTION: partialProfit() works for SHORT position", async ({ pass
       };
     },
     callbacks: {
-      onPartialProfit: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+      onPartialProfit: async (_symbol, _data, revenuePercent, _currentPrice, _when, _backtest) => {
         // Вызываем partialProfit при достижении 20% к TP для SHORT
         if (!partialCalled && revenuePercent >= 20) {
           partialCalled = true;
