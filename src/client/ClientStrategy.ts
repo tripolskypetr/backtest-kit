@@ -1803,7 +1803,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 
   await self.setScheduledSignal(null);
 
-  await self.setPendingSignal(activatedSignal);
+  await self.setPendingSignal(activatedSignal, activatedSignal.priceOpen);
 
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
@@ -2954,7 +2954,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     self.params.execution.context.backtest
   );
 
-  await self.setPendingSignal(null);
+  await self.setPendingSignal(null, currentPrice);
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
@@ -3015,6 +3015,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.callbacks.onWrite(
               signal.symbol,
               signal,
+              currentPrice,
+              new Date(currentTime),
               backtest
             );
           }
@@ -3072,6 +3074,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.callbacks.onWrite(
               signal.symbol,
               signal,
+              currentPrice,
+              new Date(currentTime),
               backtest
             );
           }
@@ -3132,6 +3136,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.callbacks.onWrite(
               signal.symbol,
               signal,
+              currentPrice,
+              new Date(currentTime),
               backtest
             );
           }
@@ -3189,6 +3195,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.callbacks.onWrite(
               signal.symbol,
               signal,
+              currentPrice,
+              new Date(currentTime),
               backtest
             );
           }
@@ -3492,7 +3500,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   await self.setScheduledSignal(null);
 
-  await self.setPendingSignal(activatedSignal);
+  await self.setPendingSignal(activatedSignal, activatedSignal.priceOpen);
 
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
@@ -3610,7 +3618,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self.params.execution.context.backtest
   );
 
-  await self.setPendingSignal(null);
+  await self.setPendingSignal(null, averagePrice);
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
@@ -3892,7 +3900,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
 
       await self.setScheduledSignal(null);
 
-      await self.setPendingSignal(pendingSignal);
+      await self.setPendingSignal(pendingSignal, averagePrice);
 
       await CALL_RISK_ADD_SIGNAL_FN(
         self,
@@ -4180,6 +4188,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               self.params.callbacks.onWrite(
                 signal.symbol,
                 signal,
+                averagePrice,
+                new Date(currentCandleTimestamp),
                 true
               );
             }
@@ -4222,6 +4232,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               self.params.callbacks.onWrite(
                 signal.symbol,
                 signal,
+                averagePrice,
+                new Date(currentCandleTimestamp),
                 true
               );
             }
@@ -4261,6 +4273,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               self.params.callbacks.onWrite(
                 signal.symbol,
                 signal,
+                averagePrice,
+                new Date(currentCandleTimestamp),
                 true
               );
             }
@@ -4303,6 +4317,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               self.params.callbacks.onWrite(
                 signal.symbol,
                 signal,
+                averagePrice,
+                new Date(currentCandleTimestamp),
                 true
               );
             }
@@ -4493,9 +4509,10 @@ export class ClientStrategy implements IStrategy {
    * Uses atomic file writes to prevent corruption.
    *
    * @param pendingSignal - New signal state (null to clear)
+   * @param currentPrice - Current market price (forwarded to the onWrite callback)
    * @returns Promise that resolves when update is complete
    */
-  public async setPendingSignal(pendingSignal: ISignalRow | null) {
+  public async setPendingSignal(pendingSignal: ISignalRow | null, currentPrice: number) {
     this.params.logger.debug("ClientStrategy setPendingSignal", {
       pendingSignal,
     });
@@ -4521,6 +4538,8 @@ export class ClientStrategy implements IStrategy {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
         publicSignal,
+        currentPrice,
+        this.params.execution.context.when,
         this.params.execution.context.backtest
       );
     }
@@ -5727,7 +5746,7 @@ export class ClientStrategy implements IStrategy {
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
-      await this.setPendingSignal(pendingSignal);
+      await this.setPendingSignal(pendingSignal, currentPrice);
 
       await CALL_RISK_ADD_SIGNAL_FN(
         this,
@@ -5867,7 +5886,7 @@ export class ClientStrategy implements IStrategy {
           );
         }
 
-        await this.setPendingSignal(signal);
+        await this.setPendingSignal(signal, signal.priceOpen);
       }
 
       if (this._pendingSignal) {
@@ -5876,7 +5895,7 @@ export class ClientStrategy implements IStrategy {
           return openResult;
         }
         // Risk rejected - clear pending signal and return idle
-        await this.setPendingSignal(null);
+        await this.setPendingSignal(null, this._pendingSignal.priceOpen);
       }
 
       const currentPrice = await this.params.exchange.getAveragePrice(
@@ -6829,6 +6848,8 @@ export class ClientStrategy implements IStrategy {
       this.params.callbacks.onWrite(
         this.params.symbol,
         TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
+        currentPrice,
+        new Date(timestamp),
         backtest
       );
     }
@@ -7061,6 +7082,8 @@ export class ClientStrategy implements IStrategy {
       this.params.callbacks.onWrite(
         this.params.symbol,
         TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
+        currentPrice,
+        new Date(timestamp),
         backtest
       );
     }
@@ -7214,7 +7237,8 @@ export class ClientStrategy implements IStrategy {
   public async breakeven(
     symbol: string,
     currentPrice: number,
-    backtest: boolean
+    backtest: boolean,
+    timestamp: number
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy breakeven", {
       symbol,
@@ -7288,6 +7312,8 @@ export class ClientStrategy implements IStrategy {
       this.params.callbacks.onWrite(
         this.params.symbol,
         publicSignal,
+        currentPrice,
+        new Date(timestamp),
         backtest
       );
     }
@@ -7452,7 +7478,8 @@ export class ClientStrategy implements IStrategy {
     symbol: string,
     percentShift: number,
     currentPrice: number,
-    backtest: boolean
+    backtest: boolean,
+    timestamp: number
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy trailingStop", {
       symbol,
@@ -7583,6 +7610,8 @@ export class ClientStrategy implements IStrategy {
       this.params.callbacks.onWrite(
         this.params.symbol,
         publicSignal,
+        currentPrice,
+        new Date(timestamp),
         backtest
       );
     }
@@ -7734,7 +7763,8 @@ export class ClientStrategy implements IStrategy {
     symbol: string,
     percentShift: number,
     currentPrice: number,
-    backtest: boolean
+    backtest: boolean,
+    timestamp: number
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy trailingTake", {
       symbol,
@@ -7865,6 +7895,8 @@ export class ClientStrategy implements IStrategy {
       this.params.callbacks.onWrite(
         this.params.symbol,
         publicSignal,
+        currentPrice,
+        new Date(timestamp),
         backtest
       );
     }
@@ -7991,6 +8023,8 @@ export class ClientStrategy implements IStrategy {
       this.params.callbacks.onWrite(
         this.params.symbol,
         TO_PUBLIC_SIGNAL("pending", this._pendingSignal, currentPrice),
+        currentPrice,
+        new Date(timestamp),
         backtest
       );
     }

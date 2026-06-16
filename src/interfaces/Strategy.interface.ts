@@ -609,8 +609,8 @@ export interface IStrategyCallbacks {
   onSchedule: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>;
   /** Called when scheduled signal is cancelled without opening position */
   onCancel: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>;
-  /** Called when signal is written to persist storage (for testing) */
-  onWrite: (symbol: string, data: ISignalRow | null, backtest: boolean) => void;
+  /** Called when signal is written to persist storage (for testing, backtest only) */
+  onWrite: (symbol: string, data: ISignalRow | null, currentPrice: number, when: Date, backtest: boolean) => void;
   /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
   onPartialProfit: (symbol: string, data: IPublicSignalRow, revenuePercent: number, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>;
   /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
@@ -1384,7 +1384,7 @@ export interface IStrategy {
    * }
    * ```
    */
-  trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+  trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>;
 
   /**
    * Checks whether `trailingStop` would succeed without executing it.
@@ -1454,7 +1454,7 @@ export interface IStrategy {
    * }
    * ```
    */
-  trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+  trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>;
 
   /**
    * Checks whether `trailingTake` would succeed without executing it.
@@ -1526,7 +1526,7 @@ export interface IStrategy {
    * }
    * ```
    */
-  breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
+  breakeven: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>;
 
   /**
    * Checks whether `breakeven` would succeed without executing it.
