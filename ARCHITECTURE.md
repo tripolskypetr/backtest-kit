@@ -532,6 +532,47 @@ src/
     └── toProfitLossDto.ts
 ```
 
+## Fragile Signatures
+
+TypeScript's structural typing cannot catch swapped positional args of the same primitive type (`f(timestamp, price)` ≡ `f(price, timestamp)` when both `number`). These signatures compile-safely accept swaps — guard future edits here. All are currently CORRECT
+
+### number/number adjacent — NO type separator
+
+| Function | File | Adjacent same-type params |
+| --- | --- | --- |
+| `onHighestProfit` / `onMaxDrawdown` | `src/interfaces/Strategy.interface.ts` | `currentPrice, timestamp` |
+| `PROCESS_COMMIT_QUEUE_FN` | `src/client/ClientStrategy.ts` | `currentPrice, timestamp` ← was the bug (fixed) |
+| `PARTIAL_PROFIT_FN` / `PARTIAL_LOSS_FN` | `src/client/ClientStrategy.ts` | `percentToClose, currentPrice, timestamp` (3 in a row) |
+| `AVERAGE_BUY_FN` | `src/client/ClientStrategy.ts` | `currentPrice, timestamp, cost` (3 in a row) |
+| `slPriceToPercentShift` / `tpPriceToPercentShift` | `src/math/` | `newPrice, originalPrice, effectivePriceOpen` (3 in a row) |
+| `slPercentShiftToPrice` / `tpPercentShiftToPrice` | `src/math/` | `percentShift, originalPrice, effectivePriceOpen` (position discriminant last) |
+| `investedCostToPercent` | `src/math/investedCostToPercent.ts` | `dollarAmount, investedCost` — swap = inverse % |
+| `percentToCloseCost` | `src/math/percentToCloseCost.ts` | `percentToClose, investedCost` — swap = ~40× error |
+| `percentValue` | `src/math/percentValue.ts` | `yesterdayValue, todayValue` — direction-sensitive |
+| `readCandlesData` | `src/classes/Persist.ts` (interface) | `limit, sinceTimestamp, untilTimestamp` |
+
+### string/string/string(/string) — context triples/quads
+
+| Function | File | Adjacent strings |
+| --- | --- | --- |
+| `getStorage` / `new ReportStorage` | all `src/lib/services/markdown/*.ts` | `symbol, strategyName, exchangeName, frameName` |
+| `getStrategy` | `src/lib/services/connection/StrategyConnectionService.ts` | `symbol, strategyName, exchangeName, frameName` |
+| `Persist*Instance` constructors | `src/classes/Persist.ts` | `symbol, strategyName, exchangeName` (and `strategyName, exchangeName, frameName`) |
+| `onInit` / `onDispose` | `src/interfaces/Strategy.interface.ts` | `symbol, strategyName, exchangeName, frameName` |
+| `_persistState` | `src/client/ClientPartial.ts` | `symbol, strategyName, exchangeName, frameName, signalId` |
+| `dumpText` / `dumpError` | `src/classes/Dump.ts` | `content, dumpId, description` |
+
+### Protected by a type separator
+
+Where a `string` discriminant or a `boolean` sits between two `number`s, a swap is a compile error. Listed for completeness — do not re-audit unless the separator is removed.
+
+| Function | File | Separator that protects it |
+| --- | --- | --- |
+| `CLOSE_*_IN_BACKTEST_FN` | `src/client/ClientStrategy.ts` | `closeReason: string` between `averagePrice` and `closeTimestamp` |
+| `onSchedulePing` / `onActivePing` / `onIdlePing` | `src/interfaces/Strategy.interface.ts` | `backtest: boolean` between `currentPrice` and `timestamp` |
+| `getTimestamp` / `getCurrentPrice` | `src/lib/services/meta/*.ts` | `context: object` (not positional strings) |
+
+
 ## Naming Conventions
 
 - **Candle** → **Exchange** (historical rename, preserved `ICandleData`)
