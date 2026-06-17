@@ -153,3 +153,12 @@ signalSync(event: SignalSyncContract): Promise<void>;
 
 Gate for position open/close via limit order.
 NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
+
+### orderPing
+
+```ts
+orderPing(event: SignalPingContract): Promise<void>;
+```
+
+Gate for the pending-order ping (order still open on exchange?).
+NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.

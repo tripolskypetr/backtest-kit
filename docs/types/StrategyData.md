@@ -8,7 +8,7 @@ group: docs
 ```ts
 type StrategyData = {
     pendingSignalId: string | null;
-    createSignal: ISignalDto | null;
+    createdSignal: ISignalDto | null;
     commitQueue: ICommitRow[];
     closedSignal: ISignalCloseRow | null;
     cancelledSignal: IScheduledSignalCancelRow | null;

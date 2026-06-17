@@ -70,6 +70,19 @@ Forwards a signal-close event to the registered broker adapter.
 Called automatically via syncSubject when `enable()` is active.
 Skipped silently in backtest mode or when no adapter is registered.
 
+### commitSignalPending
+
+```ts
+commitSignalPending: (payload: BrokerSignalPendingPayload) => Promise<void>
+```
+
+Forwards a pending-order ping to the registered broker adapter.
+
+Called automatically via syncPendingSubject when `enable()` is active, on every live tick
+while a pending signal is monitored. Skipped silently in backtest mode or when no adapter is
+registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
+syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed".
+
 ### commitPartialProfit
 
 ```ts

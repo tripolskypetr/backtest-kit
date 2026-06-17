@@ -8,6 +8,7 @@ group: docs
 ```ts
 type BrokerBreakevenPayload = {
     symbol: string;
+    signalId: string;
     currentPrice: number;
     newStopLossPrice: number;
     newTakeProfitPrice: number;

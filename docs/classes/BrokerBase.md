@@ -73,6 +73,23 @@ Use to place the actual entry order on the exchange.
 
 Default implementation: Logs signal-open event.
 
+### onOrderPing
+
+```ts
+onOrderPing(payload: BrokerSignalPendingPayload): Promise<void>;
+```
+
+Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+
+Override to query the exchange for the order by `payload.signalId` and THROW ONLY when it is
+definitively NOT FOUND by that id (filled, cancelled, or liquidated externally) — the framework
+then closes the position with closeReason "closed". The default implementation logs and returns
+normally, which keeps the position under normal TP/SL monitoring.
+
+CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+normally instead of throwing. A thrown network error would wrongly close an open position; only
+a confirmed "order not found by id" response is a valid reason to throw.
+
 ### onSignalCloseCommit
 
 ```ts

@@ -154,6 +154,15 @@ signalSync: (event: SignalSyncContract, backtest: boolean, context: { actionName
 Routes signalSync event to appropriate ClientAction instance.
 NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
 
+### orderPing
+
+```ts
+orderPing: (event: SignalPingContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Routes orderPing event to appropriate ClientAction instance.
+NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
+
 ### dispose
 
 ```ts

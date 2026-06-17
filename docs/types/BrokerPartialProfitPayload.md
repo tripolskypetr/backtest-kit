@@ -8,6 +8,7 @@ group: docs
 ```ts
 type BrokerPartialProfitPayload = {
     symbol: string;
+    signalId: string;
     percentToClose: number;
     cost: number;
     currentPrice: number;

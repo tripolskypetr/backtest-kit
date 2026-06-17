@@ -228,6 +228,15 @@ Gates position open/close across all registered actions.
 NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
 Returns true only if ALL actions return true.
 
+### orderPing
+
+```ts
+orderPing: (backtest: boolean, event: SignalPingContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Gates the pending-order ping across all registered actions.
+NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
+
 ### dispose
 
 ```ts

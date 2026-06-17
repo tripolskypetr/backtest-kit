@@ -8,6 +8,7 @@ group: docs
 ```ts
 type BrokerAverageBuyPayload = {
     symbol: string;
+    signalId: string;
     currentPrice: number;
     cost: number;
     position: "long" | "short";

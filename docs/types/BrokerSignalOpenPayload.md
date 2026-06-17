@@ -8,6 +8,7 @@ group: docs
 ```ts
 type BrokerSignalOpenPayload = {
     symbol: string;
+    signalId: string;
     cost: number;
     position: "long" | "short";
     priceOpen: number;

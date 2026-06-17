@@ -345,7 +345,7 @@ Never throws. Safe to call at any time as a pre-flight check.
 ### trailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>
+trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>
 ```
 
 Adjusts trailing stop-loss by shifting distance between entry and original SL.
@@ -403,7 +403,7 @@ Never throws. Safe to call at any time as a pre-flight check.
 ### trailingTake
 
 ```ts
-trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>
+trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>
 ```
 
 Adjusts the trailing take-profit distance for an active pending signal.
@@ -448,7 +448,7 @@ Never throws. Safe to call at any time as a pre-flight check.
 ### breakeven
 
 ```ts
-breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>
+breakeven: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>
 ```
 
 Moves stop-loss to breakeven (entry price) when price reaches threshold.

@@ -168,3 +168,23 @@ Return false (or throw) to reject the operation — framework will retry on next
 NOTE: Unlike other callbacks, exceptions from this method are NOT swallowed.
 They propagate up to CREATE_SYNC_FN which catches them and returns false.
 Throw to reject the operation — framework will retry on next tick.
+
+### onOrderPing
+
+```ts
+onOrderPing: (event: SignalPingContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+```
+
+Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
+to confirm the order is still pending (open) on the exchange.
+
+Query the exchange by `event.signalId` and THROW ONLY when the order is NOT FOUND by that id
+(filled, cancelled, or liquidated externally) — the framework then closes the position with
+closeReason "closed".
+
+CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+normally instead of throwing, otherwise a connectivity blip would wrongly close an open
+position. Throw exclusively on a confirmed "order not found by id" result.
+
+NOTE: Like onSignalSync, exceptions from this method are NOT swallowed. They propagate up to
+CREATE_SYNC_PENDING_FN which catches them and returns false.

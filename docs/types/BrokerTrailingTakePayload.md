@@ -8,6 +8,7 @@ group: docs
 ```ts
 type BrokerTrailingTakePayload = {
     symbol: string;
+    signalId: string;
     percentShift: number;
     currentPrice: number;
     newTakeProfitPrice: number;

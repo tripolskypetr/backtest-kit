@@ -8,6 +8,7 @@ group: docs
 ```ts
 type BrokerTrailingStopPayload = {
     symbol: string;
+    signalId: string;
     percentShift: number;
     currentPrice: number;
     newStopLossPrice: number;

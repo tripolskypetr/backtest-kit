@@ -13,7 +13,7 @@ Called when signals are opened, active, idle, closed, scheduled, or cancelled.
 ### onTick
 
 ```ts
-onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void | Promise<void>
+onTick: (symbol: string, result: IStrategyTickResult, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called on every tick with the result
@@ -21,7 +21,7 @@ Called on every tick with the result
 ### onOpen
 
 ```ts
-onOpen: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
+onOpen: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when new signal is opened (after validation)
@@ -29,7 +29,7 @@ Called when new signal is opened (after validation)
 ### onActive
 
 ```ts
-onActive: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
+onActive: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is being monitored (active state)
@@ -37,7 +37,7 @@ Called when signal is being monitored (active state)
 ### onIdle
 
 ```ts
-onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void | Promise<void>
+onIdle: (symbol: string, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when no active signal exists (idle state)
@@ -45,7 +45,7 @@ Called when no active signal exists (idle state)
 ### onClose
 
 ```ts
-onClose: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => void | Promise<void>
+onClose: (symbol: string, data: IPublicSignalRow, priceClose: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is closed with final price
@@ -53,7 +53,7 @@ Called when signal is closed with final price
 ### onSchedule
 
 ```ts
-onSchedule: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
+onSchedule: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when scheduled signal is created (delayed entry)
@@ -61,7 +61,7 @@ Called when scheduled signal is created (delayed entry)
 ### onCancel
 
 ```ts
-onCancel: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
+onCancel: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when scheduled signal is cancelled without opening position
@@ -69,15 +69,15 @@ Called when scheduled signal is cancelled without opening position
 ### onWrite
 
 ```ts
-onWrite: (symbol: string, data: ISignalRow, backtest: boolean) => void
+onWrite: (symbol: string, data: ISignalRow, currentPrice: number, when: Date, backtest: boolean) => void
 ```
 
-Called when signal is written to persist storage (for testing)
+Called when signal is written to persist storage (for testing, backtest only)
 
 ### onPartialProfit
 
 ```ts
-onPartialProfit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>
+onPartialProfit: (symbol: string, data: IPublicSignalRow, revenuePercent: number, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is in partial profit state (price moved favorably but not reached TP yet)
@@ -85,7 +85,7 @@ Called when signal is in partial profit state (price moved favorably but not rea
 ### onPartialLoss
 
 ```ts
-onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>
+onPartialLoss: (symbol: string, data: IPublicSignalRow, lossPercent: number, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is in partial loss state (price moved against position but not hit SL yet)
@@ -93,7 +93,7 @@ Called when signal is in partial loss state (price moved against position but no
 ### onBreakeven
 
 ```ts
-onBreakeven: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
+onBreakeven: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal reaches breakeven (stop-loss moved to entry price to protect capital)
@@ -101,7 +101,7 @@ Called when signal reaches breakeven (stop-loss moved to entry price to protect 
 ### onSchedulePing
 
 ```ts
-onSchedulePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>
+onSchedulePing: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called every minute for scheduled signals regardless of strategy interval (for custom monitoring like checking if signal should be cancelled)
@@ -109,7 +109,7 @@ Called every minute for scheduled signals regardless of strategy interval (for c
 ### onActivePing
 
 ```ts
-onActivePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>
+onActivePing: (symbol: string, data: IPublicSignalRow, currentPrice: number, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called every minute for active pending signals regardless of strategy interval (for custom monitoring and dynamic management)

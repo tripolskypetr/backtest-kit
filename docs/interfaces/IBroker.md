@@ -40,6 +40,21 @@ onSignalOpenCommit: (payload: BrokerSignalOpenPayload) => Promise<void>
 
 Called when a new signal is opened (position entry confirmed).
 
+### onOrderPing
+
+```ts
+onOrderPing: (payload: BrokerSignalPendingPayload) => Promise<void>
+```
+
+Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
+— the framework will then close the position with closeReason "closed". Return normally to keep
+monitoring.
+
+CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+normally instead of throwing, otherwise a connectivity blip would wrongly close an open
+position. Throw exclusively on a confirmed "order not found by id" result.
+
 ### onPartialProfitCommit
 
 ```ts
