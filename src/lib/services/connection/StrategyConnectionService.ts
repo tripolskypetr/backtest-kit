@@ -31,6 +31,7 @@ import {
   errorEmitter,
   strategyCommitSubject,
   syncSubject,
+  syncPendingSubject,
   highestProfitSubject,
   maxDrawdownSubject,
   idlePingSubject,
@@ -46,6 +47,7 @@ import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import beginTime from "../../../utils/beginTime";
 import SignalSyncContract from "../../../contract/SignalSync.contract";
+import SignalPingContract from "../../../contract/SignalPing.contract";
 import TimeMetaService from "../meta/TimeMetaService";
 import PriceMetaService from "../meta/PriceMetaService";
 
@@ -77,6 +79,41 @@ const CREATE_SYNC_FN = (
   }, {
     fallback: (error) => {
       const message = "StrategyConnectionService CREATE_SYNC_FN thrown. Broker rejected order request";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.error(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: false,
+  }
+);
+
+/**
+ * If the syncPendingSubject listener or any registered action throws, it means the order backing the
+ * open position is no longer pending on the exchange (filled/cancelled/liquidated externally).
+ * The trycatch wrapper collapses a throw OR an explicit false into false, and ClientStrategy closes
+ * the pending signal with closeReason "closed". Skipped in backtest — there is no live exchange.
+ */
+const CREATE_SYNC_PENDING_FN = (
+  self: StrategyConnectionService,
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  frameName: FrameName,
+  backtest: boolean
+) => trycatch(
+  async (event: SignalPingContract) => {
+    if (event.backtest) {
+      return true;
+    }
+    await syncPendingSubject.next(event);
+    await self.actionCoreService.orderPing(backtest, event, { strategyName, exchangeName, frameName });
+    return true;
+  }, {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_SYNC_PENDING_FN thrown. Order no longer pending on exchange";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -669,6 +706,7 @@ export class StrategyConnectionService implements TStrategy {
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
         onCommit: CREATE_COMMIT_FN(this),
         onSignalSync: CREATE_SYNC_FN(this, strategyName, exchangeName, frameName, backtest),
+        onSignalPing: CREATE_SYNC_PENDING_FN(this, strategyName, exchangeName, frameName, backtest),
         onHighestProfit: CREATE_HIGHEST_PROFIT_FN(this, strategyName, exchangeName, frameName, backtest),
         onMaxDrawdown: CREATE_MAX_DRAWDOWN_FN(this, strategyName, exchangeName, frameName, backtest),
       });

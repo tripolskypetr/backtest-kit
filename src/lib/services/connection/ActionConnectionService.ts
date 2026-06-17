@@ -17,6 +17,7 @@ import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 import { SignalSyncContract } from "../../../contract/SignalSync.contract";
+import { SignalPingContract } from "../../../contract/SignalPing.contract";
 import StrategyCoreService from "../core/StrategyCoreService";
 
 /**
@@ -358,6 +359,27 @@ export class ActionConnectionService implements TAction {
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest);
     await action.signalSync(event);
+  };
+
+  /**
+   * Routes orderPing event to appropriate ClientAction instance.
+   * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
+   *
+   * @param event - Pending-ping event with action "signal-ping"
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context
+   */
+  public orderPing = async (
+    event: SignalPingContract,
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("actionConnectionService orderPing", {
+      backtest,
+      context,
+    });
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await action.orderPing(event);
   };
 
   /**

@@ -2,11 +2,12 @@ import { compose, makeExtendable, singleshot } from "functools-kit";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import { IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
-import { syncSubject } from "../config/emitters";
+import { syncSubject, syncPendingSubject } from "../config/emitters";
 import bt from "../lib";
 
 const BROKER_METHOD_NAME_COMMIT_SIGNAL_OPEN = "BrokerAdapter.commitSignalOpen";
 const BROKER_METHOD_NAME_COMMIT_SIGNAL_CLOSE = "BrokerAdapter.commitSignalClose";
+const BROKER_METHOD_NAME_COMMIT_SIGNAL_PENDING = "BrokerAdapter.commitSignalPending";
 const BROKER_METHOD_NAME_COMMIT_PARTIAL_PROFIT = "BrokerAdapter.commitPartialProfit";
 const BROKER_METHOD_NAME_COMMIT_PARTIAL_LOSS = "BrokerAdapter.commitPartialLoss";
 const BROKER_METHOD_NAME_COMMIT_TRAILING_STOP = "BrokerAdapter.commitTrailingStop";
@@ -21,6 +22,7 @@ const BROKER_METHOD_NAME_CLEAR = "BrokerAdapter.clear";
 const BROKER_BASE_METHOD_NAME_WAIT_FOR_INIT = "BrokerBase.waitForInit";
 const BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN = "BrokerBase.onSignalOpenCommit";
 const BROKER_BASE_METHOD_NAME_ON_SIGNAL_CLOSE = "BrokerBase.onSignalCloseCommit";
+const BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING = "BrokerBase.onOrderPing";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_PROFIT = "BrokerBase.onPartialProfitCommit";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_LOSS = "BrokerBase.onPartialLossCommit";
 const BROKER_BASE_METHOD_NAME_ON_TRAILING_STOP = "BrokerBase.onTrailingStopCommit";
@@ -125,6 +127,65 @@ export type BrokerSignalClosePayload = {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
+ * Payload for the pending-order synchronization broker event.
+ *
+ * Emitted automatically via syncPendingSubject on every live tick while a pending signal is
+ * monitored, BEFORE the framework evaluates TP/SL/time. Forwarded to the registered IBroker
+ * adapter via `onOrderPing`.
+ *
+ * The adapter should query the exchange and THROW if the order is no longer open (filled,
+ * cancelled, or liquidated externally). A throw propagates to CREATE_SYNC_PENDING_FN, which
+ * makes the framework close the pending signal with closeReason "closed". Returning normally
+ * keeps the position under normal TP/SL monitoring.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerSignalPendingPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 50500,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerSignalPendingPayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Position direction */
+  position: "long" | "short";
+  /** Market price at the moment of the ping */
+  currentPrice: number;
+  /** Effective entry price (may differ from priceOpen after DCA averaging) */
+  priceOpen: number;
+  /** Effective take-profit price at the moment of the ping */
+  priceTakeProfit: number;
+  /** Effective stop-loss price at the moment of the ping */
+  priceStopLoss: number;
+  /** Unrealized PnL of the open position at the moment of the ping */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to this event */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to this event */
+  maxDrawdown: IStrategyPnL;
+  /** Total number of DCA entries (including initial open) */
+  totalEntries: number;
+  /** Total number of partial closes executed */
+  totalPartials: number;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -425,6 +486,13 @@ export interface IBroker {
   /** Called when a new signal is opened (position entry confirmed). */
   onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
 
+  /**
+   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+   * Query the exchange and THROW if the order is no longer open — the framework will then close
+   * the position with closeReason "closed". Return normally to keep monitoring.
+   */
+  onOrderPing(payload: BrokerSignalPendingPayload): Promise<void>;
+
   /** Called when a partial profit close is committed. */
   onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
 
@@ -504,6 +572,25 @@ export class BrokerProxy implements IBroker {
       return;
     }
     throw new Error("BrokerProxy onSignalOpenCommit is not implemented")
+  }
+
+  /**
+   * Forwards a pending-order ping to the underlying adapter.
+   *
+   * If the adapter does not implement `onOrderPing`, the call is silently skipped
+   * (the order is assumed still open). When implemented, exceptions propagate — a throw means
+   * the order is no longer open and the framework closes the position with closeReason "closed".
+   *
+   * @param payload - Pending ping details: symbol, position, prices, pnl, context, backtest flag.
+   */
+  public async onOrderPing(
+    payload: BrokerSignalPendingPayload,
+  ): Promise<void> {
+    if (this._instance.onOrderPing) {
+      await this.waitForInit();
+      await this._instance.onOrderPing(payload);
+      return;
+    }
   }
 
   /**
@@ -756,6 +843,33 @@ export class BrokerAdapter {
     const instance = this.getInstance();
     if (instance) {
       await instance.onSignalCloseCommit(payload);
+    }
+  };
+
+  /**
+   * Forwards a pending-order ping to the registered broker adapter.
+   *
+   * Called automatically via syncPendingSubject when `enable()` is active, on every live tick
+   * while a pending signal is monitored. Skipped silently in backtest mode or when no adapter is
+   * registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
+   * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed".
+   *
+   * @param payload - Pending ping details: symbol, position, prices, pnl, context, backtest flag
+   */
+  public commitSignalPending = async (payload: BrokerSignalPendingPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SIGNAL_PENDING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onOrderPing(payload);
     }
   };
 
@@ -1109,9 +1223,32 @@ export class BrokerAdapter {
       });
     });
 
+    const unSignalPending = syncPendingSubject.subscribe(async (event) => {
+      await this.commitSignalPending({
+        position: event.position,
+        currentPrice: event.currentPrice,
+        symbol: event.symbol,
+        priceOpen: event.priceOpen,
+        priceTakeProfit: event.priceTakeProfit,
+        priceStopLoss: event.priceStopLoss,
+        pnl: event.pnl,
+        peakProfit: event.peakProfit,
+        maxDrawdown: event.maxDrawdown,
+        totalEntries: event.totalEntries,
+        totalPartials: event.totalPartials,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
+      });
+    });
+
     const disposeFn = compose(
       () => unSignalOpen(),
       () => unSignalClose(),
+      () => unSignalPending(),
     );
 
     return () => {
@@ -1285,6 +1422,34 @@ class BrokerBase implements IBroker {
    */
   public async onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void> {
     bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+   *
+   * Override to query the exchange for the order backing this position and THROW when it is no
+   * longer open (filled, cancelled, or liquidated externally) — the framework then closes the
+   * position with closeReason "closed". The default implementation logs and returns normally,
+   * which keeps the position under normal TP/SL monitoring.
+   *
+   * @param payload - Pending ping details: symbol, position, prices, pnl, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onOrderPing(payload: BrokerSignalPendingPayload) {
+   *   super.onOrderPing(payload); // Keep parent logging
+   *   const order = await this.exchange.getOpenOrder(payload.symbol);
+   *   if (!order) {
+   *     throw new Error(`Order for ${payload.symbol} is no longer open on the exchange`);
+   *   }
+   * }
+   * ```
+   */
+  public async onOrderPing(payload: BrokerSignalPendingPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING, {
       symbol: payload.symbol,
       context: payload.context,
     });

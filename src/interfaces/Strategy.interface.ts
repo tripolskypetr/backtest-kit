@@ -9,6 +9,7 @@ import { FrameName } from "./Frame.interface";
 import { ActionName } from "./Action.interface";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
+import { SignalPingContract } from "../contract/SignalPing.contract";
 
 /**
  * Generic key-value type for strategy runtime data.
@@ -578,6 +579,13 @@ export interface IStrategyParams extends IStrategySchema {
   onCommit: (event: StrategyCommitContract) => Promise<void>;
   /** System callback for signal synchronization events (emits to syncSubject) */
   onSignalSync: (event: SignalSyncContract) => Promise<boolean> | boolean;
+  /**
+   * System callback for pending-order synchronization (emits to syncPendingSubject).
+   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+   * Returns true while the order is still open on the exchange; false (or a thrown listener) means
+   * the order is no longer pending and the framework closes the position with closeReason "closed".
+   */
+  onSignalPing: (event: SignalPingContract) => Promise<boolean> | boolean;
   /** System callback for highest profit updates (emits to highestProfitSubject) */
   onHighestProfit: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
   /** System callback for max drawdown updates (emits to maxDrawdownSubject) */

@@ -16,6 +16,7 @@ import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import SignalSyncContract from "../contract/SignalSync.contract";
+import SignalPingContract from "../contract/SignalPing.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
@@ -31,6 +32,16 @@ import { AfterEndContract } from "../contract/AfterEnd.contract";
  * Consumers should implement retry logic in their listeners to handle transient synchronization failures.
  */
 export const syncSubject = new Subject<SignalSyncContract>();
+
+/**
+ * Pending-order synchronization emitter.
+ * Emitted on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+ * Asks the exchange whether the order is STILL pending (open).
+ *
+ * If a listener returns false OR throws, the order is treated as no longer open on the exchange
+ * and the framework closes the pending signal with closeReason "closed". Never emitted in backtest.
+ */
+export const syncPendingSubject = new Subject<SignalPingContract>();
 
 /**
  * Global signal emitter for all trading events (live + backtest).

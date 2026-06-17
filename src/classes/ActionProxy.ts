@@ -6,6 +6,7 @@ import ActivePingContract from "../contract/ActivePing.contract";
 import IdlePingContract from "../contract/IdlePing.contract";
 import RiskContract from "../contract/Risk.contract";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
+import { SignalPingContract } from "../contract/SignalPing.contract";
 import LoggerService from "../lib/services/base/LoggerService";
 import {
   IStrategyTickResult,
@@ -622,6 +623,23 @@ export class ActionProxy implements IPublicAction {
       console.error("");
       console.error("You have been warned!");
       await this._target.signalSync(event);
+    }
+  }
+
+  /**
+   * Gate for the pending-order ping (order still open on exchange?).
+   * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
+   *
+   * @param event - Pending-ping event with action "signal-ping"
+   */
+  public async orderPing(event: SignalPingContract): Promise<void> {
+    if (this._target.orderPing) {
+      console.error("Action::orderPing is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+      console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderPing");
+      console.error("If Action::orderPing throws the framework will close the position with closeReason \"closed\"!");
+      console.error("");
+      console.error("You have been warned!");
+      await this._target.orderPing(event);
     }
   }
 

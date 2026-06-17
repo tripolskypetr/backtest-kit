@@ -10,6 +10,7 @@ import { FrameName } from "./Frame.interface";
 import { ILogger } from "./Logger.interface";
 import { ExchangeName } from "./Exchange.interface";
 import { SignalSyncContract } from "../contract/SignalSync.contract";
+import { SignalPingContract } from "../contract/SignalPing.contract";
 
 /**
  * Constructor type for action handlers with strategy context.
@@ -331,6 +332,24 @@ export interface IActionCallbacks {
    * @param backtest - True for backtest mode, false for live trading
    */
   onSignalSync(event: SignalSyncContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+
+  /**
+   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
+   * to confirm the order is still pending (open) on the exchange.
+   *
+   * NOTE: Like onSignalSync, exceptions from this method are NOT swallowed. They propagate up to
+   * CREATE_SYNC_PENDING_FN which catches them and returns false. Throw (or return) to signal the
+   * order is no longer open — framework closes the position with closeReason "closed".
+   *
+   * @deprecated This callback is not recommended for use. Exchange integration should be implemented
+   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderPing instead.
+   * @param event - Pending-ping event with action "signal-ping"
+   * @param actionName - Action identifier
+   * @param strategyName - Strategy identifier
+   * @param frameName - Timeframe identifier
+   * @param backtest - True for backtest mode, false for live trading
+   */
+  onOrderPing(event: SignalPingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 }
 
 /**
@@ -614,6 +633,20 @@ export interface IAction {
    * @param event - Sync event with action "signal-open" or "signal-close"
    */
   signalSync(event: SignalSyncContract): void | Promise<void>;
+
+  /**
+   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
+   * to confirm the order is still pending (open) on the exchange.
+   * Throw to signal the order is no longer open — framework closes the position with closeReason "closed".
+   *
+   * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_PENDING_FN.
+   *
+   * @deprecated This method is not recommended for use. Exchange integration should be implemented
+   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderPing instead.
+   * If Action::orderPing throws the framework will close the position with closeReason "closed"!
+   * @param event - Pending-ping event with action "signal-ping"
+   */
+  orderPing(event: SignalPingContract): void | Promise<void>;
 
   /**
    * Cleans up resources and subscriptions when action handler is no longer needed.

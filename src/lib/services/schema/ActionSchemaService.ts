@@ -35,6 +35,35 @@ const VALID_METHOD_NAMES: Key[] = [
 ];
 
 /**
+ * Exchange-integration handler methods that exist on IAction but are intentionally NOT in
+ * VALID_METHOD_NAMES. They are discouraged on action handlers: exchange synchronization belongs
+ * in the infrastructure domain layer (Broker.useBrokerAdapter), not in actions. Naming a handler
+ * method one of these produces a dedicated error redirecting to the Broker adapter instead of the
+ * generic "invalid method" suggestion.
+ */
+const DISCOURAGED_METHOD_NAMES: Key[] = ["signalSync", "orderPing"];
+
+/**
+ * Builds the dedicated error message for a discouraged exchange-integration handler method.
+ *
+ * @param actionName - Name of the action being validated
+ * @param methodName - The discouraged method name found on the handler
+ * @returns Multi-line error message redirecting to the Broker adapter
+ */
+const DISCOURAGED_METHOD_MESSAGE = (
+  actionName: ActionName,
+  methodName: string,
+): string =>
+  str.newline([
+    `ActionSchema ${actionName} contains discouraged method "${methodName}". `,
+    `Exchange integration must be implemented in Broker.useBrokerAdapter as the infrastructure domain layer, not in an action handler.`,
+    typo.nbsp,
+    `Use Broker.useBrokerAdapter with onOrderPing (order still open?) and onSignalOpenCommit / onSignalCloseCommit (order fill) instead.`,
+    typo.nbsp,
+    `If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`,
+  ]);
+
+/**
  * Calculates the Levenshtein distance between two strings.
  *
  * Levenshtein distance is the minimum number of single-character edits
@@ -165,6 +194,14 @@ const VALIDATE_CLASS_METHODS = (
     );
     const isMethod = descriptor && typeof descriptor.value === "function";
 
+    if (isMethod && DISCOURAGED_METHOD_NAMES.includes(<Key>methodName)) {
+      const msg = DISCOURAGED_METHOD_MESSAGE(actionName, methodName);
+      self.loggerService.log(`actionValidationService exception thrown`, {
+        msg,
+      });
+      console.log(msg);
+    }
+
     if (isMethod && !VALID_METHOD_NAMES.includes(<Key>methodName)) {
       const suggestions = FIND_SUGGESTIONS(methodName, VALID_METHOD_NAMES);
       const lines = [
@@ -212,6 +249,17 @@ const VALIDATE_OBJECT_METHODS = (
     // Skip private properties (starting with _)
     if (methodName.startsWith("_")) {
       continue;
+    }
+
+    if (
+      typeof handler[methodName] === "function" &&
+      DISCOURAGED_METHOD_NAMES.includes(<Key>methodName)
+    ) {
+      const msg = DISCOURAGED_METHOD_MESSAGE(actionName, methodName);
+      self.loggerService.log(`actionValidationService exception thrown`, {
+        msg,
+      });
+      console.log(msg);
     }
 
     if (

@@ -405,6 +405,10 @@ export {
   SignalSyncContract
 } from "./contract/SignalSync.contract";
 
+export {
+  SignalPingContract
+} from "./contract/SignalPing.contract";
+
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";
 
@@ -634,6 +638,7 @@ export {
   BrokerTrailingTakePayload,
   BrokerSignalOpenPayload,
   BrokerSignalClosePayload,
+  BrokerSignalPendingPayload,
 } from "./classes/Broker";
 
 export { type TickEvent } from "./model/LiveStatistics.model";

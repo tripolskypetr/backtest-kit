@@ -44,6 +44,7 @@ import { GLOBAL_CONFIG } from "../config/params";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
+import { SignalPingContract } from "../contract/SignalPing.contract";
 import validatePendingSignal from "../validation/validatePendingSignal";
 import validateScheduledSignal from "../validation/validateScheduledSignal";
 import validateSignal from "../validation/validateSignal";
@@ -205,6 +206,73 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
           timestamp,
           currentPrice,
           closeReason,
+          signalId: signal.id,
+        }
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    }
+  }
+);
+
+/**
+ * Calls onSignalPing callback for the pending-order synchronization event.
+ *
+ * Invoked at the start of the pending-signal monitoring block on every LIVE tick, BEFORE the
+ * framework evaluates TP/SL/time completion. It asks the external order management system
+ * whether the order backing this position is STILL pending (open) on the exchange.
+ *
+ * The Subject `await .next()` propagates listener exceptions passthrough, so the trycatch wrapper
+ * collapses both a thrown listener and an explicit `false` into `false` (defaultValue). A `false`
+ * result means the order is no longer open on the exchange and the caller closes the position with
+ * closeReason "closed". A missing/true result keeps the position under normal TP/SL monitoring.
+ */
+const CALL_SIGNAL_PING_FN = trycatch(
+  async (
+    timestamp: number,
+    currentPrice: number,
+    signal: ISignalRow,
+    self: ClientStrategy
+  ): Promise<boolean> => {
+    const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
+    return await self.params.onSignalPing({
+      action: "signal-ping",
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      exchangeName: self.params.exchangeName,
+      frameName: self.params.frameName,
+      backtest: self.params.execution.context.backtest,
+      signalId: signal.id,
+      timestamp,
+      signal: publicSignal,
+      currentPrice,
+      pnl: publicSignal.pnl,
+      peakProfit: publicSignal.peakProfit,
+      maxDrawdown: publicSignal.maxDrawdown,
+      position: publicSignal.position,
+      priceOpen: publicSignal.priceOpen,
+      priceTakeProfit: publicSignal.priceTakeProfit,
+      priceStopLoss: publicSignal.priceStopLoss,
+      originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+      originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+      originalPriceOpen: publicSignal.originalPriceOpen,
+      scheduledAt: publicSignal.scheduledAt,
+      pendingAt: publicSignal.pendingAt,
+      totalEntries: publicSignal.totalEntries,
+      totalPartials: publicSignal.totalPartials,
+    });
+  },
+  {
+    defaultValue: false,
+    fallback: (error, timestamp, currentPrice, signal, self) => {
+      const message = "ClientStrategy CALL_SIGNAL_PING_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+        data: {
+          timestamp,
+          currentPrice,
           signalId: signal.id,
         }
       };
@@ -2961,6 +3029,94 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     signal: publicSignal,
     currentPrice: currentPrice,
     closeReason: closeReason,
+    closeTimestamp: currentTime,
+    pnl: publicSignal.pnl,
+    strategyName: self.params.method.context.strategyName,
+    exchangeName: self.params.method.context.exchangeName,
+    frameName: self.params.method.context.frameName,
+    symbol: self.params.execution.context.symbol,
+    backtest: self.params.execution.context.backtest,
+    createdAt: currentTime,
+  };
+
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  return result;
+};
+
+/**
+ * Closes the pending signal with closeReason "closed" after the pending-order ping reported the
+ * order is no longer open on the exchange (CALL_SIGNAL_PING_FN returned false / threw).
+ *
+ * Unlike CLOSE_PENDING_SIGNAL_FN this does NOT re-confirm via onSignalSync — the ping already
+ * established the order is gone, so re-asking the broker would be redundant. Runs the same teardown
+ * (close callback, partial/breakeven clear, risk remove, setPendingSignal(null)). Live-only path.
+ */
+const CLOSE_PENDING_SIGNAL_AS_CLOSED_FN = async (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  currentPrice: number
+): Promise<IStrategyTickResultClosed> => {
+  const currentTime = self.params.execution.context.when.getTime();
+
+  const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
+
+  self.params.logger.info("ClientStrategy signal closed by pending-order ping (order no longer open on exchange)", {
+    symbol: self.params.execution.context.symbol,
+    signalId: signal.id,
+    priceClose: currentPrice,
+    pnlPercentage: publicSignal.pnl.pnlPercentage,
+  });
+
+  await CALL_CLOSE_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
+  await CALL_PARTIAL_CLEAR_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+  await CALL_BREAKEVEN_CLEAR_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  await self.setPendingSignal(null, currentPrice);
+
+  const result: IStrategyTickResultClosed = {
+    action: "closed",
+    signal: publicSignal,
+    currentPrice: currentPrice,
+    closeReason: "closed",
     closeTimestamp: currentTime,
     pnl: publicSignal.pnl,
     strategyName: self.params.method.context.strategyName,
@@ -5909,6 +6065,26 @@ export class ClientStrategy implements IStrategy {
     const averagePrice = await this.params.exchange.getAveragePrice(
       this.params.execution.context.symbol
     );
+
+    // Pending-order ping: before evaluating TP/SL/time, confirm the order is STILL open on the
+    // exchange. CALL_SIGNAL_PING_FN returns false when the listener returns false OR throws
+    // (Subject .next passthrough), meaning the order is no longer pending — close with "closed".
+    // Skipped in backtest: there is no live exchange to query.
+    if (!this.params.execution.context.backtest) {
+      const stillPending = await CALL_SIGNAL_PING_FN(
+        currentTime,
+        averagePrice,
+        this._pendingSignal,
+        this
+      );
+      if (!stillPending) {
+        return await CLOSE_PENDING_SIGNAL_AS_CLOSED_FN(
+          this,
+          this._pendingSignal,
+          averagePrice
+        );
+      }
+    }
 
     const closedResult = await CHECK_PENDING_SIGNAL_COMPLETION_FN(
       this,
