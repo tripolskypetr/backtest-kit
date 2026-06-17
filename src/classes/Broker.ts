@@ -53,6 +53,8 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
 export type BrokerSignalOpenPayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Dollar cost of the position entry (CC_POSITION_ENTRY_COST) */
   cost: number;
   /** Position direction */
@@ -105,6 +107,8 @@ export type BrokerSignalOpenPayload = {
 export type BrokerSignalClosePayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Total dollar cost basis of the position at close */
   cost: number;
   /** Position direction */
@@ -166,6 +170,8 @@ export type BrokerSignalClosePayload = {
 export type BrokerSignalPendingPayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Position direction */
   position: "long" | "short";
   /** Market price at the moment of the ping */
@@ -217,6 +223,8 @@ export type BrokerSignalPendingPayload = {
 export type BrokerPartialProfitPayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Percentage of the position to close (0–100) */
   percentToClose: number;
   /** Dollar value of the portion being closed */
@@ -260,6 +268,8 @@ export type BrokerPartialProfitPayload = {
 export type BrokerPartialLossPayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Percentage of the position to close (0–100) */
   percentToClose: number;
   /** Dollar value of the portion being closed */
@@ -305,6 +315,8 @@ export type BrokerPartialLossPayload = {
 export type BrokerTrailingStopPayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Percentage shift applied to the ORIGINAL SL distance (-100 to 100) */
   percentShift: number;
   /** Current market price used for intrusion validation */
@@ -348,6 +360,8 @@ export type BrokerTrailingStopPayload = {
 export type BrokerTrailingTakePayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Percentage shift applied to the ORIGINAL TP distance (-100 to 100) */
   percentShift: number;
   /** Current market price used for intrusion validation */
@@ -392,6 +406,8 @@ export type BrokerTrailingTakePayload = {
 export type BrokerBreakevenPayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Current market price at the moment breakeven is triggered */
   currentPrice: number;
   /** New stop-loss price = effectivePriceOpen (the position's effective entry price) */
@@ -431,6 +447,8 @@ export type BrokerBreakevenPayload = {
 export type BrokerAverageBuyPayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
+  /** Unique signal identifier (UUID v4) the order belongs to */
+  signalId: string;
   /** Market price at which the DCA entry is placed */
   currentPrice: number;
   /** Dollar amount of the new DCA entry (default: CC_POSITION_ENTRY_COST) */
@@ -1182,6 +1200,7 @@ export class BrokerAdapter {
         position: event.signal.position,
         cost: event.signal.cost,
         symbol: event.symbol,
+        signalId: event.signalId,
         priceTakeProfit: event.signal.priceTakeProfit,
         priceStopLoss: event.signal.priceStopLoss,
         priceOpen: event.signal.priceOpen,
@@ -1206,6 +1225,7 @@ export class BrokerAdapter {
         currentPrice: event.currentPrice,
         cost: event.signal.cost,
         symbol: event.symbol,
+        signalId: event.signalId,
         pnl: event.signal.pnl,
         priceOpen: event.signal.priceOpen,
         peakProfit: event.signal.peakProfit,
@@ -1228,6 +1248,7 @@ export class BrokerAdapter {
         position: event.position,
         currentPrice: event.currentPrice,
         symbol: event.symbol,
+        signalId: event.signalId,
         priceOpen: event.priceOpen,
         priceTakeProfit: event.priceTakeProfit,
         priceStopLoss: event.priceStopLoss,

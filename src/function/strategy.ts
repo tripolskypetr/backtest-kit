@@ -249,6 +249,7 @@ export async function commitPartialProfit(
   }
   await Broker.commitPartialProfit({
     symbol,
+    signalId: signalForProfit.id,
     percentToClose,
     cost: percentToCloseCost(percentToClose, investedCostForProfit),
     currentPrice,
@@ -345,6 +346,7 @@ export async function commitPartialLoss(
   }
   await Broker.commitPartialLoss({
     symbol,
+    signalId: signalForLoss.id,
     percentToClose,
     cost: percentToCloseCost(percentToClose, investedCostForLoss),
     currentPrice,
@@ -458,6 +460,7 @@ export async function commitTrailingStop(
   }
   await Broker.commitTrailingStop({
     symbol,
+    signalId: signal.id,
     percentShift,
     currentPrice,
     newStopLossPrice: slPercentShiftToPrice(
@@ -575,6 +578,7 @@ export async function commitTrailingTake(
   }
   await Broker.commitTrailingTake({
     symbol,
+    signalId: signal.id,
     percentShift,
     currentPrice,
     newTakeProfitPrice: tpPercentShiftToPrice(
@@ -666,6 +670,7 @@ export async function commitTrailingStopCost(
   }
   await Broker.commitTrailingStop({
     symbol,
+    signalId: signal.id,
     percentShift,
     currentPrice,
     newStopLossPrice,
@@ -752,6 +757,7 @@ export async function commitTrailingTakeCost(
   }
   await Broker.commitTrailingTake({
     symbol,
+    signalId: signal.id,
     percentShift,
     currentPrice,
     newTakeProfitPrice,
@@ -839,6 +845,7 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
   }
   await Broker.commitBreakeven({
     symbol,
+    signalId: signal.id,
     currentPrice,
     newStopLossPrice: breakevenNewStopLossPrice(effectivePriceOpen),
     newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
@@ -963,6 +970,7 @@ export async function commitAverageBuy(
   }
   await Broker.commitAverageBuy({
     symbol,
+    signalId: signalForAvgBuy.id,
     currentPrice,
     cost,
     position: signalForAvgBuy.position,
@@ -1448,6 +1456,7 @@ export async function commitPartialProfitCost(
   }
   await Broker.commitPartialProfit({
     symbol,
+    signalId: signalForProfitCost.id,
     percentToClose,
     cost: dollarAmount,
     currentPrice,
@@ -1547,6 +1556,7 @@ export async function commitPartialLossCost(
   }
   await Broker.commitPartialLoss({
     symbol,
+    signalId: signalForLossCost.id,
     percentToClose,
     cost: dollarAmount,
     currentPrice,

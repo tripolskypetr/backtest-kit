@@ -28690,6 +28690,8 @@ declare class ActionBase implements IPublicAction {
 type BrokerSignalOpenPayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Dollar cost of the position entry (CC_POSITION_ENTRY_COST) */
     cost: number;
     /** Position direction */
@@ -28741,6 +28743,8 @@ type BrokerSignalOpenPayload = {
 type BrokerSignalClosePayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Total dollar cost basis of the position at close */
     cost: number;
     /** Position direction */
@@ -28801,6 +28805,8 @@ type BrokerSignalClosePayload = {
 type BrokerSignalPendingPayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Position direction */
     position: "long" | "short";
     /** Market price at the moment of the ping */
@@ -28851,6 +28857,8 @@ type BrokerSignalPendingPayload = {
 type BrokerPartialProfitPayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Percentage of the position to close (0–100) */
     percentToClose: number;
     /** Dollar value of the portion being closed */
@@ -28893,6 +28901,8 @@ type BrokerPartialProfitPayload = {
 type BrokerPartialLossPayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Percentage of the position to close (0–100) */
     percentToClose: number;
     /** Dollar value of the portion being closed */
@@ -28937,6 +28947,8 @@ type BrokerPartialLossPayload = {
 type BrokerTrailingStopPayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Percentage shift applied to the ORIGINAL SL distance (-100 to 100) */
     percentShift: number;
     /** Current market price used for intrusion validation */
@@ -28979,6 +28991,8 @@ type BrokerTrailingStopPayload = {
 type BrokerTrailingTakePayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Percentage shift applied to the ORIGINAL TP distance (-100 to 100) */
     percentShift: number;
     /** Current market price used for intrusion validation */
@@ -29022,6 +29036,8 @@ type BrokerTrailingTakePayload = {
 type BrokerBreakevenPayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Current market price at the moment breakeven is triggered */
     currentPrice: number;
     /** New stop-loss price = effectivePriceOpen (the position's effective entry price) */
@@ -29060,6 +29076,8 @@ type BrokerBreakevenPayload = {
 type BrokerAverageBuyPayload = {
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
     /** Market price at which the DCA entry is placed */
     currentPrice: number;
     /** Dollar amount of the new DCA entry (default: CC_POSITION_ENTRY_COST) */

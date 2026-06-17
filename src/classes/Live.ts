@@ -3593,6 +3593,7 @@ export class LiveUtils {
     }
     await Broker.commitPartialProfit({
       symbol,
+      signalId: signalForProfit.id,
       percentToClose,
       cost: percentToCloseCost(percentToClose, investedCost),
       currentPrice,
@@ -3740,6 +3741,7 @@ export class LiveUtils {
     }
     await Broker.commitPartialLoss({
       symbol,
+      signalId: signalForLoss.id,
       percentToClose,
       cost: percentToCloseCost(percentToClose, investedCost),
       currentPrice,
@@ -3886,6 +3888,7 @@ export class LiveUtils {
     }
     await Broker.commitPartialProfit({
       symbol,
+      signalId: signalForProfitCost.id,
       percentToClose,
       cost: dollarAmount,
       currentPrice,
@@ -4032,6 +4035,7 @@ export class LiveUtils {
     }
     await Broker.commitPartialLoss({
       symbol,
+      signalId: signalForLossCost.id,
       percentToClose,
       cost: dollarAmount,
       currentPrice,
@@ -4194,6 +4198,7 @@ export class LiveUtils {
     }
     await Broker.commitTrailingStop({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newStopLossPrice: slPercentShiftToPrice(
@@ -4356,6 +4361,7 @@ export class LiveUtils {
     }
     await Broker.commitTrailingTake({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newTakeProfitPrice: tpPercentShiftToPrice(
@@ -4492,6 +4498,7 @@ export class LiveUtils {
     }
     await Broker.commitTrailingStop({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newStopLossPrice,
@@ -4623,6 +4630,7 @@ export class LiveUtils {
     }
     await Broker.commitTrailingTake({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newTakeProfitPrice,
@@ -4755,6 +4763,7 @@ export class LiveUtils {
     }
     await Broker.commitBreakeven({
       symbol,
+      signalId: signal.id,
       currentPrice,
       newStopLossPrice: breakevenNewStopLossPrice(effectivePriceOpen),
       newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
@@ -4957,6 +4966,7 @@ export class LiveUtils {
     }
     await Broker.commitAverageBuy({
       symbol,
+      signalId: signalForAvgBuy.id,
       currentPrice,
       cost,
       position: signalForAvgBuy.position,

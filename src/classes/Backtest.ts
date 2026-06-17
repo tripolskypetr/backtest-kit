@@ -3623,6 +3623,7 @@ export class BacktestUtils {
     }
     await Broker.commitPartialProfit({
       symbol,
+      signalId: signalForProfit.id,
       percentToClose,
       cost: percentToCloseCost(percentToClose, investedCostForProfit),
       currentPrice,
@@ -3752,6 +3753,7 @@ export class BacktestUtils {
     }
     await Broker.commitPartialLoss({
       symbol,
+      signalId: signalForLoss.id,
       percentToClose,
       cost: percentToCloseCost(percentToClose, investedCostForLoss),
       currentPrice,
@@ -3883,6 +3885,7 @@ export class BacktestUtils {
     }
     await Broker.commitPartialProfit({
       symbol,
+      signalId: signalForProfitCost.id,
       percentToClose,
       cost: dollarAmount,
       currentPrice,
@@ -4014,6 +4017,7 @@ export class BacktestUtils {
     }
     await Broker.commitPartialLoss({
       symbol,
+      signalId: signalForLossCost.id,
       percentToClose,
       cost: dollarAmount,
       currentPrice,
@@ -4158,6 +4162,7 @@ export class BacktestUtils {
     }
     await Broker.commitTrailingStop({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newStopLossPrice: slPercentShiftToPrice(
@@ -4306,6 +4311,7 @@ export class BacktestUtils {
     }
     await Broker.commitTrailingTake({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newTakeProfitPrice: tpPercentShiftToPrice(
@@ -4427,6 +4433,7 @@ export class BacktestUtils {
     }
     await Broker.commitTrailingStop({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newStopLossPrice,
@@ -4543,6 +4550,7 @@ export class BacktestUtils {
     }
     await Broker.commitTrailingTake({
       symbol,
+      signalId: signal.id,
       percentShift,
       currentPrice,
       newTakeProfitPrice,
@@ -4660,6 +4668,7 @@ export class BacktestUtils {
     }
     await Broker.commitBreakeven({
       symbol,
+      signalId: signal.id,
       currentPrice,
       newStopLossPrice: breakevenNewStopLossPrice(effectivePriceOpen),
       newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
@@ -4846,6 +4855,7 @@ export class BacktestUtils {
     }
     await Broker.commitAverageBuy({
       symbol,
+      signalId: signalForAvgBuy.id,
       currentPrice,
       cost,
       position: signalForAvgBuy.position,
