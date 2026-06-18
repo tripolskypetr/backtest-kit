@@ -61,7 +61,7 @@ const getImageFromUrl = execpool(
     console.log(`Image ${url} fetch end`);
     return processImageBuffer(nodeBuffer);
   },
-  { maxExec: 3 }
+  { maxExec: 3, delay: 1_000 }
 );
 
 const processMedia = async (media: string | InputFile): Promise<InputFile> => {
