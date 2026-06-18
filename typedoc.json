@@ -1,7 +1,7 @@
 {
     "entryPoints": ["./types.d.ts"],
     "readme": "./README.md", 
-    "projectDocuments": ["docs/*", "demo/**/*.md"],
+    "projectDocuments": ["./LLMs.md", "docs/*", "demo/**/*.md"],
     "name": "backtest-kit",
     "includeVersion": false,
     "logLevel": "Verbose",
