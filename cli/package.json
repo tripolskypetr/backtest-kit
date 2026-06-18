@@ -87,7 +87,7 @@
     "typedoc": "0.27.9",
     "pinets": "0.9.23",
     "ccxt": "4.5.39",
-    "worker-testbed": "2.0.0"
+    "worker-testbed": "2.1.0"
   },
   "peerDependencies": {
     "@babel/plugin-transform-modules-umd": "^7.27.1",
@@ -107,7 +107,7 @@
     "di-kit": "1.1.1",
     "di-scoped": "1.0.21",
     "dotenv": "17.3.1",
-    "functools-kit": "2.3.0",
+    "functools-kit": "3.0.0",
     "get-moment-stamp": "2.0.0",
     "image-size": "1.1.1",
     "jsdom": "26.1.0",
