@@ -2,7 +2,7 @@
 
 # 📟 @backtest-kit/cli
 
-> Zero-boilerplate CLI for launching backtests, paper trading, and live trading. Run any backtest-kit strategy from the command line — no setup code required.
+> Zero-boilerplate CLI for [backtest-kit](https://www.npmjs.com/package/backtest-kit). Point it at a strategy file, pick a mode, and it handles exchange connectivity, candle caching, the web dashboard, Telegram alerts, and graceful shutdown for you — no setup code.
 
 ![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot16.png)
 
@@ -10,97 +10,54 @@
 [![npm](https://img.shields.io/npm/v/@backtest-kit/cli.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/cli)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
-Point the CLI at your strategy file, choose a mode, and it handles exchange connectivity, candle caching, UI dashboard, and Telegram notifications for you.
+📚 **[Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** · 🌟 **[Reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example)** · 🐙 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
-📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
+> **New here?** The fastest real setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there, not from scratch.
 
-> **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+---
 
-## 🏎️ CLI Init
+## 🚀 Quick Start
 
-Minimal scaffold — all boilerplate stays inside @backtest-kit/cli:
-
-```bash 
+```bash
+# Scaffold a project (boilerplate stays inside the CLI; docs auto-fetched)
 npx @backtest-kit/cli --init --output backtest-kit-project
-cd backtest-kit-project
-npm install
-npm start -- --help
+cd backtest-kit-project && npm install && npm start -- --help
 ```
 
-## 🤔 Philosophy
-
-`@backtest-kit/cli` is designed to do **two things well** — and the same tool covers both.
-
-**1. The lightest possible runner for a solo quant on day one.**
-
-You write a strategy file, point the CLI at it, and you're trading. No DI container to learn, no project scaffold to fight, no infrastructure code to copy-paste. One developer, one strategy, one command:
+The whole onboarding is: write a strategy file that registers schemas via `backtest-kit`, point the CLI at it, choose a flag.
 
 ```bash
-npx @backtest-kit/cli --init
-npx @backtest-kit/cli --backtest ./content/feb_2026.strategy/index.ts
+npx @backtest-kit/cli --backtest ./content/feb_2026.strategy/index.ts --symbol BTCUSDT
 ```
 
-That's the whole onboarding. The first day you have an idea, you can backtest it. The first week you have an edge, you can paper-trade it. The first month you have a P&L, you can run it live — same CLI, different flag.
+<details>
+<summary>The strategy entry point (the CLI is only the runner)</summary>
 
-**2. Built-in monorepo tooling for when the business takes off.**
+```javascript
+// src/index.mjs — registers schemas via backtest-kit; @backtest-kit/cli just runs it
+import { addStrategySchema, addExchangeSchema, addFrameSchema } from 'backtest-kit';
+import ccxt from 'ccxt';
 
-The moment you start making money is the worst possible moment to rewrite your stack in another language. So the CLI is also a monorepo-grade runner from day one — even if you don't use it that way at first.
+addExchangeSchema({
+  exchangeName: 'binance',
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.binance();
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) =>
+      ({ timestamp, open, high, low, close, volume }));
+  },
+  formatPrice: (symbol, price) => price.toFixed(2),
+  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+});
 
+addFrameSchema({ frameName: 'feb-2024', interval: '1m',
+  startDate: new Date('2024-02-01'), endDate: new Date('2024-02-29') });
+
+addStrategySchema({ strategyName: 'my-strategy', interval: '15m',
+  getSignal: async (symbol) => null }); // return a signal or null
 ```
-monorepo/
-├── content/
-│   ├── feb_2026.strategy/ 
-│       ├── feb_2026.strategy.ts   # strategy production code
-│       ├── feb_2026.test.ts       # developer playground
-├── packages/
-│   ├── shared-broker/             # shared broker code
-│   ├── shared-signals/            # common indicators (RSI, MACD)
-```
 
-
-As a result: you used to backtest your first idea is the same tool you use to run a desk of strategies in production. No rewrite, no language switch, no framework migration when the business scales — only more files in the monorepo.
-
-## ✨ Features
-
-- 🚀 **Zero Config**: Run `npx @backtest-kit/cli --backtest ./strategy.mjs` — no boilerplate needed
-- 🔄 **Four Modes**: Backtest on historical data, walker A/B comparison, paper trade on live prices, or deploy live bots
-- 💾 **Auto Candle Cache**: Warms OHLCV cache for all required intervals before backtest starts
-- 🌐 **Web Dashboard**: Launch `@backtest-kit/ui` with a single `--ui` flag
-- 📬 **Telegram Alerts**: Send formatted trade notifications with charts via `--telegram`
-- 🔌 **Default Binance**: CCXT Binance exchange schema registered automatically when none is provided
-- 🧩 **Module Hooks**: Drop a `live.module.mjs`, `paper.module.mjs`, or `backtest.module.mjs` to register a `Broker` adapter. No manual wiring needed.
-- 🗃️ **Transactional Live Orders**: Broker adapter intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
-- 🔑 **Pluggable Logger**: Override the built-in logger with `setLogger()` from your strategy module
-- 🛑 **Graceful Shutdown**: SIGINT stops the active run and cleans up all subscriptions safely
-
-## 📋 What It Does
-
-`@backtest-kit/cli` wraps the `backtest-kit` engine and resolves all scaffolding automatically:
-
-| Mode             | Command Line Args          | Description                                  |
-|------------------|----------------------------|----------------------------------------------|
-| **Backtest**     | `--backtest`               | Run strategy on historical candle data       |
-| **Walker**       | `--walker`                 | A/B compare multiple strategies on the same historical data |
-| **Paper**        | `--paper`                  | Live prices, no real orders                  |
-| **Live**         | `--live`                   | Real trades via exchange API                 |
-| **Main**         | `--main`                   | Run a custom entry point with a prepared environment, no trading harness |
-| **UI Dashboard** | `--ui`                     | Web dashboard at `http://localhost:60050`    |
-| **Telegram**     | `--telegram`               | Trade notifications with price charts        |
-| **PineScript**   | `--pine`                   | Run a local `.pine` indicator against exchange data |
-| **Pine Editor**  | `--editor`                 | Open the visual Pine Script editor in the browser   |
-| **Candle Dump**  | `--dump`                   | Fetch and save raw OHLCV candles to a file   |
-| **PnL Debug**    | `--pnldebug`               | Simulate per-minute PnL for a given entry price and direction |
-| **Broker Debug** | `--brokerdebug`            | Fire a single broker commit against the live broker adapter   |
-| **Flush**        | `--flush`                  | Delete report/log/markdown/agent folders from strategy dump dir |
-| **Init Project** | `--init`                   | Scaffold a new backtest-kit project          |
-
-## 🚀 Installation
-
-Add `@backtest-kit/cli` to your project and wire it up in `package.json` scripts:
-
-```bash
-npm install @backtest-kit/cli
-```
+Wire it into `package.json` once and the positional path never changes:
 
 ```json
 {
@@ -109,631 +66,558 @@ npm install @backtest-kit/cli
     "paper":    "npx @backtest-kit/cli --paper    ./src/index.mjs",
     "start":    "npx @backtest-kit/cli --live     ./src/index.mjs"
   },
-  "dependencies": {
-    "@backtest-kit/cli": "latest",
-    "backtest-kit": "latest",
-    "ccxt": "latest"
-  }
-}
-```
-
-Or run once without installing:
-
-```bash
-npx @backtest-kit/cli --backtest ./src/index.mjs
-```
-
-## 📖 Quick Start
-
-Create your strategy entry point (`src/index.mjs`). The file registers schemas via `backtest-kit` — `@backtest-kit/cli` is only the runner:
-
-```javascript
-// src/index.mjs
-import { addStrategySchema, addExchangeSchema, addFrameSchema } from 'backtest-kit';
-import ccxt from 'ccxt';
-
-// Register exchange
-addExchangeSchema({
-  exchangeName: 'binance',
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.binance();
-    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume,
-    }));
-  },
-  formatPrice: (symbol, price) => price.toFixed(2),
-  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
-});
-
-// Register frame (backtest only)
-addFrameSchema({
-  frameName: 'feb-2024',
-  interval: '1m',
-  startDate: new Date('2024-02-01'),
-  endDate: new Date('2024-02-29'),
-});
-
-// Register strategy
-addStrategySchema({
-  strategyName: 'my-strategy',
-  interval: '15m',
-  getSignal: async (symbol) => {
-    // return signal or null
-    return null;
-  },
-});
-```
-
-Run a backtest:
-
-```bash
-npm run backtest -- --symbol BTCUSDT
-```
-
-Run with UI dashboard and Telegram:
-
-```bash
-npm run backtest -- --symbol BTCUSDT --ui --telegram
-```
-
-Run live trading:
-
-```bash
-npm start -- --symbol BTCUSDT --ui
-```
-
-## 🎛️ CLI Flags
-
-|     Command Line Args     | Type    | Description                                                        |
-|---------------------------|---------|--------------------------------------------------------------------|
-| `--backtest`              | boolean | Run historical backtest (default: `false`)                         |
-| `--walker`                | boolean | Run Walker A/B strategy comparison (default: `false`)              |
-| `--paper`                 | boolean | Paper trading (live prices, no orders) (default: `false`)          |
-| `--live`                  | boolean | Run live trading (default: `false`)                                |
-| `--main`                  | boolean | Run a custom entry point with a prepared environment, no trading harness (default: `false`) |
-| `--ui`                    | boolean | Start web UI dashboard (default: `false`)                          |
-| `--telegram`              | boolean | Enable Telegram notifications (default: `false`)                   |
-| `--verbose`               | boolean | Log each candle fetch (default: `false`)                           |
-| `--noCache`               | boolean | Skip candle cache warming before backtest (default: `false`)       |
-| `--noFlush`               | boolean | Skip removing report/log/markdown/agent folders before backtest run (default: `false`) |
-| `--symbol`                | string  | Trading pair (default: `"BTCUSDT"`)                                |
-| `--strategy`              | string  | Strategy name (default: first registered)                          |
-| `--exchange`              | string  | Exchange name (default: first registered)                          |
-| `--frame`                 | string  | Backtest frame name (default: first registered)                    |
-| `--cacheInterval`         | string  | Intervals to pre-cache before backtest (default: `"1m, 15m, 30m, 4h"`) |
-| `--brokerdebug`           | boolean | Fire a single broker commit against the live broker adapter (default: `false`) |
-| `--commit`                | string  | Commit type for `--brokerdebug` (default: `"signal-open"`) |
-
-**Positional argument (required):** path to your strategy entry point file (set once in `package.json` scripts).
-
-```json
-{
-  "scripts": {
-    "backtest": "npx @backtest-kit/cli --backtest ./src/index.mjs"
-  }
-}
-```
-
-## 🏃 Execution Modes
-
-### Backtest
-
-Runs the strategy against historical candle data using a registered `FrameSchema`.
-
-```json
-{
-  "scripts": {
-    "backtest": "npx @backtest-kit/cli --backtest --symbol ETHUSDT --strategy my-strategy --exchange binance --frame feb-2024 --cacheInterval \"1m, 15m, 1h, 4h\" ./src/index.mjs"
-  }
+  "dependencies": { "@backtest-kit/cli": "latest", "backtest-kit": "latest", "ccxt": "latest" }
 }
 ```
 
 ```bash
-npm run backtest
+npm run backtest -- --symbol BTCUSDT --ui --telegram   # add integrations with flags
 ```
 
-Before running, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from the strategy's `dump/` directory, then warms the candle cache for every interval in `--cacheInterval`. On the next run, cached data is used directly — no API calls needed. Pass `--noCache` to skip cache warming, `--noFlush` to keep existing output folders.
+</details>
 
-### Paper Trading
+---
 
-Connects to the live exchange but does not place real orders. Identical code path to live — safe for strategy validation.
+## 🤔 Philosophy — React vs Next.js, but for trading
 
-```json
-{
-  "scripts": {
-    "paper": "npx @backtest-kit/cli --paper --symbol BTCUSDT ./src/index.mjs"
-  }
-}
-```
+`@backtest-kit/cli` does **two things well with one tool**.
 
-```bash
-npm run paper
-```
+**1. The lightest runner for a solo quant on day one.** Write a strategy, point the CLI at it, you're trading. No DI container to learn, no scaffold to fight, no infra to copy-paste. The day you have an idea you can backtest it; the week you have an edge you can paper-trade it; the month you have a P&L you can run it live — same CLI, different flag.
 
-### Live Trading
+**2. A monorepo-grade runner for when the business takes off.** The moment you start making money is the worst moment to rewrite your stack. So the CLI is monorepo-ready from day one even if you don't use it that way at first: per-strategy `.env`, per-strategy broker modules, folder-based import aliases, isolated dump dirs. The tool you backtested your first idea with is the tool that runs a desk of strategies in production — no rewrite, no language switch, only more files.
 
-Deploys a real trading bot. Requires exchange API keys configured in your `.env` or environment.
+---
 
-```json
-{
-  "scripts": {
-    "start": "npx @backtest-kit/cli --live --ui --telegram --symbol BTCUSDT ./src/index.mjs"
-  }
-}
-```
+## 🗺️ Mode matrix
 
-```bash
-npm start
-```
+Every invocation is **one mode** (a primary flag) + a positional strategy/entry path + optional modifiers. `--ui` and `--telegram` are integrations that attach to any trading mode.
 
-### Walker — A/B Strategy Comparison
+| Mode | Flag | What it does |
+|------|------|--------------|
+| **Backtest** | `--backtest` | Run a strategy on historical candle data (uses a `FrameSchema`) |
+| **Paper** | `--paper` | Live prices, no real orders — identical code path to live |
+| **Live** | `--live` | Real trades via exchange API |
+| **Walker** | `--walker` | A/B-compare multiple strategies on the same history, ranked report |
+| **Main** | `--main` | Run a custom entry point with the full environment prepared, **no** trading harness |
+| **Pine** | `--pine` | Run a local `.pine` indicator against exchange data |
+| **Editor** | `--editor` | Open the visual Pine Script editor in the browser |
+| **Candle Dump** | `--dump` | Fetch & save raw OHLCV candles to a file |
+| **PnL Debug** | `--pnldebug` | Simulate per-minute PnL for a given entry price & direction |
+| **Broker Debug** | `--brokerdebug` | Fire a single broker commit against the live adapter |
+| **Flush** | `--flush` | Delete report/log/markdown/agent folders from a strategy dump dir |
+| **Init** | `--init` | Scaffold a new project |
+| **Docker** | `--docker` | Scaffold a self-contained Docker workspace |
+| *modifiers* | `--ui` · `--telegram` · `--entry` | Web dashboard · Telegram alerts · fan out one strategy across many symbols |
 
-Runs the same historical period against multiple strategy files and prints a ranked comparison report. Use it to pick the best variant before deploying to backtest or live.
-
-```json
-{
-  "scripts": {
-    "walker": "npx @backtest-kit/cli --walker --symbol BTCUSDT --noCache ./content/feb_2026_v1.strategy.ts ./content/feb_2026_v2.strategy.ts ./content/feb_2026_v3.strategy.ts"
-  }
-}
-```
-
-```bash
-npm run walker
-```
-
-Each positional argument is a separate strategy entry point. Before loading them, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from each entry point's `dump/` directory. Pass `--noFlush` to keep existing output. All files are loaded without changing `process.cwd()` — `.env` is read from the working directory only. After loading, `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files.
-
-If no frame is registered, the CLI falls back to the last 31 days from `Date.now()` with a console warning.
-
-**Walker-specific flags:**
+<details>
+<summary>Complete core flag reference</summary>
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--walker` | boolean | Enable Walker comparison mode |
-| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
-| `--cacheInterval` | string | Intervals to pre-cache (default: `"1m, 15m, 30m, 4h"`) |
-| `--noCache` | boolean | Skip candle cache warming (default: `false`) |
-| `--noFlush` | boolean | Skip removing report/log/markdown/agent folders before walker run (default: `false`) |
-| `--verbose` | boolean | Log each candle fetch and strategy progress (default: `false`) |
-| `--output` | string | Output file base name (default: `walker_{SYMBOL}_{TIMESTAMP}`) |
-| `--json` | boolean | Save results as JSON to `./dump/<output>.json` |
-| `--markdown` | boolean | Save report as Markdown to `./dump/<output>.md` |
+| `--backtest` | boolean | Run historical backtest (default `false`) |
+| `--walker` | boolean | Run Walker A/B comparison (default `false`) |
+| `--paper` | boolean | Paper trading — live prices, no orders (default `false`) |
+| `--live` | boolean | Run live trading (default `false`) |
+| `--main` | boolean | Custom entry point, no trading harness (default `false`) |
+| `--ui` | boolean | Start web UI dashboard (default `false`) |
+| `--telegram` | boolean | Enable Telegram notifications (default `false`) |
+| `--verbose` | boolean | Log each candle fetch (default `false`) |
+| `--noCache` | boolean | Skip candle cache warming before backtest (default `false`) |
+| `--noFlush` | boolean | Skip removing report/log/markdown/agent folders before run (default `false`) |
+| `--symbol` | string | Trading pair (default `"BTCUSDT"`) |
+| `--strategy` | string | Strategy name (default: first registered) |
+| `--exchange` | string | Exchange name (default: first registered) |
+| `--frame` | string | Backtest frame name (default: first registered) |
+| `--cacheInterval` | string | Intervals to pre-cache (default `"1m, 15m, 30m, 4h"`) |
+| `--brokerdebug` | boolean | Fire a single broker commit against the live adapter (default `false`) |
+| `--commit` | string | Commit type for `--brokerdebug` (default `"signal-open"`) |
 
-**Output modes:**
+**Positional argument (required):** path to your strategy entry point file — set once in `package.json` scripts. Tool-specific flags (`--pine`, `--dump`, `--pnldebug`, `--docker`, …) are documented in their sections below.
 
-- No flag — print Markdown report to stdout
-- `--json` — save `Walker.getData()` result as JSON and exit
-- `--markdown` — save `Walker.getReport()` as `.md` file and exit
+</details>
 
-**Module hook:** `./modules/walker.module` is loaded automatically before the comparison starts (same rules as other modes — `.ts`, `.mjs`, `.cjs` tried in order).
+---
 
-**Example — compare three variants and save the report:**
+## 📈 Trading modes
+
+The four modes that actually run strategies share one engine and one set of guarantees — only the clock and the order routing differ.
+
+### Backtest · Paper · Live
+
+<details>
+<summary>How each behaves</summary>
+
+**Backtest** (`--backtest`) — runs against historical candles via a registered `FrameSchema`. Before running, the CLI removes the `report`, `log`, `markdown`, and `agent` folders from the strategy's `dump/` dir, then warms the candle cache for every interval in `--cacheInterval`; subsequent runs reuse the cache with no API calls. `--noCache` skips warming, `--noFlush` keeps output folders.
+
+```json
+{ "scripts": { "backtest": "npx @backtest-kit/cli --backtest --symbol ETHUSDT --strategy my-strategy --exchange binance --frame feb-2024 --cacheInterval \"1m, 15m, 1h, 4h\" ./src/index.mjs" } }
+```
+
+**Paper** (`--paper`) — connects to the live exchange but places no real orders. **Identical code path to live** — the safe way to validate a strategy.
+
+```json
+{ "scripts": { "paper": "npx @backtest-kit/cli --paper --symbol BTCUSDT ./src/index.mjs" } }
+```
+
+**Live** (`--live`) — deploys a real bot. Requires exchange API keys in `.env`. Combine with `--ui --telegram` for a monitored deployment.
+
+```json
+{ "scripts": { "start": "npx @backtest-kit/cli --live --ui --telegram --symbol BTCUSDT ./src/index.mjs" } }
+```
+
+</details>
+
+### Walker — A/B strategy comparison
+
+Runs the same historical period against multiple strategy files and prints a ranked report. Use it to pick the best variant before deploying.
 
 ```bash
-npx @backtest-kit/cli --walker \
-  --symbol BTCUSDT \
-  --noCache \
-  --markdown \
-  --output feb_2026_comparison \
-  ./content/feb_2026_v1.strategy.ts \
-  ./content/feb_2026_v2.strategy.ts \
-  ./content/feb_2026_v3.strategy.ts
+npx @backtest-kit/cli --walker --symbol BTCUSDT --noCache --markdown --output feb_2026_comparison \
+  ./content/feb_2026_v1.strategy.ts ./content/feb_2026_v2.strategy.ts ./content/feb_2026_v3.strategy.ts
 # → ./dump/feb_2026_comparison.md
 ```
 
-### Main — Custom Entry Point, No Trading Harness
+<details>
+<summary>Walker flags, output modes & behavior</summary>
 
-Runs a single entry point with the full CLI environment prepared — `.env`, `config/setup.config`, `config/loader.config`, and `./modules/main.module` are all loaded, the working directory is changed to the entry point folder, and graceful shutdown is wired up — but the CLI **never** starts a trading harness. Unlike `--backtest` / `--live` / `--paper` / `--walker`, it does not call `Backtest.background`/`Live.background`/`Walker.background` and does not pick a symbol, warm the cache, or resolve a strategy/exchange/frame. The entry point decides what to run.
+Each positional argument is a separate strategy entry point. Before loading them the CLI removes the `report`/`log`/`markdown`/`agent` folders from each entry point's `dump/` (skip with `--noFlush`). All files load **without changing `process.cwd()`** — `.env` is read from the working directory only. After loading, `addWalkerSchema` is called automatically using the exchange and frame registered by the strategy files. If no frame is registered, the CLI falls back to the last 31 days from `Date.now()` with a warning.
 
-```json
-{
-  "scripts": {
-    "main": "npx @backtest-kit/cli --main ./tools/fetch_fear_and_greed.ts"
-  }
-}
-```
+| Flag | Type | Description |
+|------|------|-------------|
+| `--walker` | boolean | Enable Walker comparison |
+| `--symbol` | string | Trading pair (default `"BTCUSDT"`) |
+| `--cacheInterval` | string | Intervals to pre-cache (default `"1m, 15m, 30m, 4h"`) |
+| `--noCache` | boolean | Skip candle cache warming |
+| `--noFlush` | boolean | Skip removing output folders before the run |
+| `--verbose` | boolean | Log each candle fetch and strategy progress |
+| `--output` | string | Output file base name (default `walker_{SYMBOL}_{TIMESTAMP}`) |
+| `--json` | boolean | Save `Walker.getData()` as JSON to `./dump/<output>.json` and exit |
+| `--markdown` | boolean | Save `Walker.getReport()` as `./dump/<output>.md` and exit |
 
-```bash
-npm run main
-```
+**Output:** no flag → print Markdown report to stdout; `--json` / `--markdown` → save and exit. **Module hook:** `./modules/walker.module` loads automatically before the comparison (`.ts`/`.mjs`/`.cjs` tried in order).
 
-**Main-specific flags:**
+</details>
+
+### Main — custom entry point, no trading harness
+
+Runs a single entry point with the full CLI environment prepared (`.env`, `config/setup.config`, `config/loader.config`, `./modules/main.module`, cwd changed to the entry-point folder, graceful shutdown wired) — but **never** starts a trading harness. Use it to bootstrap the environment for a quick action, e.g. calling a 3rd-party API with automatic `.env` import.
+
+<details>
+<summary>Main behavior & flags</summary>
+
+Unlike the trading modes it does not call `Backtest/Live/Walker.background`, pick a symbol, warm the cache, or resolve a strategy/exchange/frame — the entry point decides what to run. Exactly **one** positional entry point is required (`Entry point is required` otherwise). `process.cwd()` changes to the entry-point directory and its local `.env` overrides the root `.env`.
+
+Although the CLI starts nothing itself, any `Backtest`/`Live`/`Walker` run **your** entry point launches is still managed: the process exits once `listenDone*` reports completion, the first `Ctrl+C` stops every active run via `*.list()`/`*.stop()`, a second force-quits. `./modules/main.module` loads automatically before the entry point.
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--main` | boolean | Enable Main mode |
-| `--noFlush` | boolean | Skip removing report/log/markdown/agent folders before the run (default: `false`) |
+| `--noFlush` | boolean | Skip removing output folders before the run |
 
-Exactly **one** positional entry point is required — the CLI throws `Entry point is required` if none is given. `process.cwd()` is changed to the entry point directory and its local `.env` is loaded (overriding the root `.env`), identical to the other modes.
+```json
+{ "scripts": { "main": "npx @backtest-kit/cli --main ./tools/fetch_fear_and_greed.ts" } }
+```
 
-Although the CLI starts nothing itself, any `Backtest` / `Live` / `Walker` run that **your** entry point launches is still managed: the process exits automatically once `listenDone*` reports the run is complete, the first `Ctrl+C` stops every active run via `*.list()` / `*.stop()`, and a second `Ctrl+C` force-quits the process tree.
+</details>
 
-**Module hook:** `./modules/main.module` is loaded automatically before the entry point runs (same `.ts` / `.mjs` / `.cjs` resolution rules as other modes).
+### Parallel multi-symbol (`--entry`)
 
-Main is a casual `--entry` alternative if you need to bootstrap environment for a quick action: for example, using 3rdparty API with automatic `.env` import.
+> **Power-user modifier — skip unless needed.** The standard flow runs one symbol from `--symbol`. Use `--entry` to fan one strategy out across many symbols at once, or to drive `*.background()` from a UI / DB / API.
 
-## 🐙 Multiple Symbol Parallel
+`--entry` is a modifier — combine it with exactly one of `--backtest`/`--live`/`--paper`/`--walker`, plus one positional entry file. The CLI does only the boilerplate (`Setup`, providers, the matching `./modules/<mode>.module`, SIGINT that stops every active run, `shutdown()` once `listenDone*` reports all runs complete); **you** pick the symbol set, warm cache, and call `*.background()`.
 
-> **For Poweruser — skip unless needed.** The standard flow runs one symbol from `--symbol`. Use `--entry` only to fan out one strategy across many symbols at once, or to drive `*.background()` from a UI / DB / API.
+<details>
+<summary>Example — backtest one strategy across five symbols</summary>
 
-With `--entry`, the CLI does only the boilerplate — `Setup`, providers (`--ui` / `--telegram`), the matching `./modules/<mode>.module`, SIGINT that stops every active run via `*.list()`, and `shutdown()` once `listenDone*` reports all your runs complete. Picking the symbol set, warming cache, and calling `*.background()` is on you.
+```javascript
+// src/multi-symbol.mjs
+import { addExchangeSchema, addFrameSchema, addStrategySchema, Backtest, warmCandles } from "backtest-kit";
+import ccxt from "ccxt";
 
-The `--entry` flag is a modifier — combine it with exactly one of `--backtest` / `--live` / `--paper` / `--walker`. One positional: the path to your entry file.
+addExchangeSchema({ exchangeName: "binance",
+  getCandles: async (symbol, interval, since, limit) => {
+    const exchange = new ccxt.binance();
+    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) =>
+      ({ timestamp, open, high, low, close, volume }));
+  },
+  formatPrice: (s, p) => p.toFixed(2), formatQuantity: (s, q) => q.toFixed(8) });
+
+addFrameSchema({ frameName: "feb-2026", interval: "1m",
+  startDate: new Date("2026-02-01"), endDate: new Date("2026-02-28") });
+addStrategySchema({ strategyName: "my-strategy", interval: "15m", getSignal: async () => null });
+
+// Decide the symbol set yourself — UI, database, API, or a list.
+for (const symbol of ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]) {
+  // optional: await warmCandles({ exchangeName: "binance", interval: "1m", symbol, from, to });
+  Backtest.background(symbol, { strategyName: "my-strategy", exchangeName: "binance", frameName: "feb-2026" });
+}
+```
 
 ```bash
 npx @backtest-kit/cli --backtest --entry ./src/multi-symbol.mjs
 ```
 
-### Example: backtest a strategy on five symbols at once
+The same shape works for `--live --entry` / `--paper --entry` (call `Live.background()` per symbol with your broker adapter).
 
-```javascript
-// src/multi-symbol.mjs
-import {
-  addExchangeSchema,
-  addFrameSchema,
-  addStrategySchema,
-  Backtest,
-  warmCandles,
-} from "backtest-kit";
+</details>
+
+---
+
+## 🛠️ Tooling modes
+
+Five utilities that don't run a strategy. They share one convention, explained once here and referenced below.
+
+> **The `<mode>.module` convention.** By default the CLI auto-registers CCXT Binance. To use a different exchange (custom API keys, rate limits, a non-spot market), drop a `modules/<mode>.module.ts` that calls `addExchangeSchema` from `backtest-kit`. The CLI loads it automatically before running, trying `.ts`/`.mjs`/`.cjs`; it's searched **next to the target file first, then in the project root**. `.env` is loaded root-first then the target-file dir (override), so API keys stay out of code.
+
+<details>
+<summary>The shared <code>&lt;mode&gt;.module.ts</code> shape (pine / editor / dump / pnldebug / brokerdebug)</summary>
+
+```typescript
+// modules/pine.module.ts  (same shape for editor/dump/pnldebug.module; brokerdebug registers a Broker instead)
+import { addExchangeSchema } from "backtest-kit";
 import ccxt from "ccxt";
 
 addExchangeSchema({
-  exchangeName: "binance",
+  exchangeName: "my-exchange",
   getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.binance();
+    const exchange = new ccxt.bybit({
+      apiKey: process.env.BYBIT_API_KEY, secret: process.env.BYBIT_API_SECRET, enableRateLimit: true,
+    });
     const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume,
-    }));
+    return ohlcv.map(([timestamp, open, high, low, close, volume]) =>
+      ({ timestamp, open, high, low, close, volume }));
   },
-  formatPrice: (symbol, price) => price.toFixed(2),
-  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
+  formatPrice: (s, p) => p.toFixed(2), formatQuantity: (s, q) => q.toFixed(8),
 });
-
-addFrameSchema({
-  frameName: "feb-2026",
-  interval: "1m",
-  startDate: new Date("2026-02-01"),
-  endDate: new Date("2026-02-28"),
-});
-
-addStrategySchema({
-  strategyName: "my-strategy",
-  interval: "15m",
-  getSignal: async (symbol) => null,
-});
-
-// Decide the symbol set yourself — from a UI, database, API, or just a list.
-const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
-
-for (const symbol of symbols) {
-
-  // 
-  // Optional
-  // 
-  // await warmCandles({
-  //   exchangeName: "binance,
-  //   from: new Date("2026-01-01T00:00:00Z"),
-  //   to: new Date("2026-01-31T23:59:59Z"),
-  //   interval: "1m",
-  //   symbol,
-  // })
-
-
-  Backtest.background(symbol, {
-    strategyName: "my-strategy",
-    exchangeName: "binance",
-    frameName: "feb-2026",
-  });
-}
 ```
 
-The same shape works for `--live --entry` / `--paper --entry` (call `Live.background()` per symbol with your broker adapter)
+```env
+# .env (loaded root-first, then next to the target file)
+BYBIT_API_KEY=xxx
+BYBIT_API_SECRET=yyy
+```
 
-## 🗂️ Monorepo Usage
+</details>
 
-`@backtest-kit/cli` works out of the box in a monorepo where each strategy lives in its own subdirectory. When the CLI loads your entry point file, it automatically changes the working directory to the file's location — so all relative paths (`dump/`, `modules/`, `template/`) resolve inside that strategy's folder, not the project root.
+### 🌲 Pine — run local PineScript (`--pine`)
 
-### How It Works
+Executes any local `.pine` file against a real exchange and prints results as a Markdown table — no TradingView account. Reads every `plot()` that uses `display=display.data_window` as an output column (others ignored); column names come straight from the plot names.
 
-Internally, `ResolveService` does the following before executing your entry point:
+```bash
+npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --symbol BTCUSDT --timeframe 15m --limit 180 --when "2025-09-24T12:00:00.000Z"
+```
+
+<details>
+<summary>Pine flags, requirements & output</summary>
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--pine` | boolean | Enable PineScript mode |
+| `--symbol` | string | Trading pair (default `"BTCUSDT"`) |
+| `--timeframe` | string | Candle interval (default `"15m"`) |
+| `--limit` | string | Candles to fetch (default `250`) |
+| `--when` | string | End date — ISO 8601 or Unix ms (default now) |
+| `--exchange` | string | Exchange (default: first registered, falls back to CCXT Binance) |
+| `--output` | string | Output base name (default: `.pine` file name) |
+| `--json` | boolean | Write plots as JSON array to `<pine-dir>/dump/{output}.json` |
+| `--jsonl` | boolean | Write plots as JSONL to `<pine-dir>/dump/{output}.jsonl` |
+| `--markdown` | boolean | Write Markdown table to `<pine-dir>/dump/{output}.md` |
+
+`--limit` must cover indicator warmup bars — rows before warmup show `N/A`. Positional: path to the `.pine` file. Exchange via `pine.module` (see convention above). Required plot form:
+
+```pine
+//@version=5
+indicator("MyIndicator", overlay=true)
+plot(close,    "Close",    display=display.data_window)
+plot(position, "Position", display=display.data_window)
+```
+
+Output (stdout, or `--markdown`/`--json`/`--jsonl` to `<pine-dir>/dump/`):
 
 ```
-process.chdir(path.dirname(entryPoint))  // cwd → strategy directory
-dotenv.config({ path: rootDir + '/.env' })            // load root .env first
+| Close | Position | timestamp |
+| --- | --- | --- |
+| 112871.28 | -1.0000 | 2025-09-22T15:00:00.000Z |
+| 112736.00 |  0.0000 | 2025-09-22T18:30:00.000Z |
+| 112653.90 |  1.0000 | 2025-09-22T22:15:00.000Z |
+```
+
+</details>
+
+### 🎨 Editor — visual Pine Script editor (`--editor`)
+
+![pine](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot32.png)
+
+A browser-based Pine Script editor (powered by `@backtest-kit/ui`) with a live chart that updates on **▶ Run**.
+
+```bash
+npx @backtest-kit/cli --editor   # → http://localhost:60050?pine=1 opens automatically
+```
+
+<details>
+<summary>Editor behavior & exchange</summary>
+
+The CLI loads `./modules/editor.module` if present (register your exchange, same as `pine.module`), starts the `@backtest-kit/ui` server on `CC_WWWROOT_PORT` (default `60050`), and opens the editor in your browser. **Ctrl+C** stops it. Env: `CC_WWWROOT_HOST` (default `0.0.0.0`), `CC_WWWROOT_PORT` (default `60050`).
+
+</details>
+
+### 💾 Candle Dump (`--dump`)
+
+Fetch raw OHLCV candles from any registered exchange and save them — no strategy file required. `dump/` is created in the current working directory.
+
+```bash
+npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --when "2026-02-28T00:00:00.000Z" --jsonl --output feb2026_btc
+# → ./dump/feb2026_btc.jsonl
+```
+
+<details>
+<summary>Dump flags</summary>
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--dump` | boolean | Enable candle dump |
+| `--symbol` | string | Trading pair (default `"BTCUSDT"`) |
+| `--timeframe` | string | Candle interval (default `"15m"`) |
+| `--limit` | string | Candles to fetch (default `250`) |
+| `--when` | string | End date — ISO 8601 or Unix ms (default now) |
+| `--exchange` | string | Exchange (default: first registered, falls back to CCXT Binance) |
+| `--output` | string | Output base name (default `{SYMBOL}_{LIMIT}_{TIMEFRAME}_{TIMESTAMP}`) |
+| `--json` | boolean | Write candles as JSON array to `./dump/{output}.json` |
+| `--jsonl` | boolean | Write candles as JSONL to `./dump/{output}.jsonl` |
+
+Exchange via `dump.module` (see convention above), searched in the current working directory. No flag → print to stdout.
+
+</details>
+
+### 🐞 PnL Debug (`--pnldebug`)
+
+Simulate a hypothetical position minute by minute — running PnL, peak profit, max drawdown per candle — without placing trades or loading a strategy.
+
+```bash
+npx @backtest-kit/cli --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120
+```
+
+<details>
+<summary>PnL Debug flags, columns & sample output</summary>
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--pnldebug` | boolean | Enable PnL debug |
+| `--priceopen` | number | Entry price (**required**) |
+| `--direction` | string | `long` or `short` (default `long`) |
+| `--when` | string | Start timestamp — ISO 8601 or Unix ms (default now) |
+| `--minutes` | string | Number of 1m candles to simulate (default `60`) |
+| `--symbol` | string | Trading pair (default `"BTCUSDT"`) |
+| `--exchange` | string | Exchange (default: first registered, falls back to CCXT Binance) |
+| `--output` | string | Output base name (default `{SYMBOL}_{DIRECTION}_{PRICEOPEN}_{TIMESTAMP}`) |
+| `--json` / `--jsonl` / `--markdown` | boolean | Save to `./dump/<output>.{json,jsonl,md}` |
+
+Columns: `min` (1-based offset), `timestamp`, `close`, `pnl%` (signed, vs entry), `peak%` (highest so far, ≥0), `drawdown%` (lowest so far, ≤0). Exchange via `pnldebug.module` (convention above).
+
+```
+Symbol: BTCUSDT | Direction: short | PriceOpen: 64069.50 | From: 2025-02-25T00:00:00.000Z | Minutes: 120
+  min | timestamp                 |        close  |    pnl%  |   peak%  | drawdown%
+    1 | 2025-02-25T00:01:00.000Z  |      64020.10 |   +0.08% |   +0.08% |     0.00%
+    2 | 2025-02-25T00:02:00.000Z  |      64105.30 |   -0.06% |   +0.08% |    -0.06%
+  120 | 2025-02-25T02:00:00.000Z  |      63200.00 |   +1.36% |   +1.36% |    -0.06%
+```
+
+</details>
+
+### 🐛 Broker Debug (`--brokerdebug`)
+
+Fire a single broker commit against your live adapter without a full strategy — verify your `brokerdebug.module` wires exchange calls correctly before waiting hours for a real signal.
+
+```bash
+npx @backtest-kit/cli --brokerdebug --commit signal-open --symbol BTCUSDT
+```
+
+<details>
+<summary>Broker Debug flags, commit types & how it works</summary>
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--brokerdebug` | boolean | Enable broker debug |
+| `--commit` | string | Commit type to fire (default `"signal-open"`) |
+| `--symbol` | string | Trading pair (default `"BTCUSDT"`) |
+| `--exchange` | string | Exchange (default: first registered) |
+
+`--commit` values → hook: `signal-open`→`onSignalOpenCommit`, `signal-close`→`onSignalCloseCommit`, `partial-profit`→`onPartialProfitCommit`, `partial-loss`→`onPartialLossCommit`, `average-buy`→`onAverageBuyCommit`, `trailing-stop`→`onTrailingStopCommit`, `trailing-take`→`onTrailingTakeCommit`, `breakeven`→`onBreakevenCommit`.
+
+The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--symbol`, derives a synthetic payload from `currentPrice` (TP = +2%, SL = −2%), and calls the selected hook once; exits `0` on success. The module registers a `Broker` adapter (`Broker.useBrokerAdapter(...)` + `Broker.enable()`), not an exchange.
+
+</details>
+
+### 🗑️ Flush (`--flush`)
+
+Delete generated output folders from one or more strategy dump dirs **without** touching cached candle data.
+
+```bash
+npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts ./content/mar_2026.strategy/modules/backtest.module.ts
+```
+
+<details>
+<summary>What flush removes</summary>
+
+For each positional entry point the CLI resolves its directory and removes from `<entry-dir>/dump/`: `report` (backtest `.jsonl`), `log` (`log.jsonl`), `markdown` (exported reports), `agent` (agent outlines). Candle cache (`dump/data/`) and AI forecast outlines (`dump/outline/`) are **not** removed.
+
+</details>
+
+---
+
+## 🗂️ Project & monorepo
+
+### Scaffolding (`--init`)
+
+Bootstraps a ready-to-use project with an example strategy, an example Pine indicator, an AI-agent `CLAUDE.md`, and documentation fetched automatically. The target dir must not exist or be empty.
+
+```bash
+npx @backtest-kit/cli --init --output my-trading-bot   # → ./my-trading-bot/
+```
+
+<details>
+<summary>Generated structure & automatic docs fetch</summary>
+
+```
+backtest-kit-project/
+├── package.json              # pre-configured with all backtest-kit deps
+├── CLAUDE.md                 # AI-agent guide for writing strategies
+├── content/feb_2026.strategy.ts   # example strategy entry point
+├── math/feb_2026.pine             # example PineScript indicator
+├── modules/{dump,pine}.module.ts  # exchange schemas for --dump / --pine
+├── report/feb_2026.md             # example research report
+├── docs/{...}.md + docs/lib/      # guides + fetched library READMEs
+└── scripts/fetch_docs.mjs         # downloads library READMEs into docs/lib/
+```
+
+After scaffolding the CLI runs `scripts/fetch_docs.mjs`, downloading the latest READMEs for `backtest-kit`, `@backtest-kit/graph`, `@backtest-kit/pinets`, `@backtest-kit/cli`, `garch`, `volume-anomaly`, `agent-swarm-kit`, `functools-kit` into `docs/lib/`. Re-run anytime with `node ./scripts/fetch_docs.mjs` or `npm run sync:lib`.
+
+</details>
+
+### Docker (`--docker`)
+
+Scaffolds a self-contained Docker workspace with `docker-compose.yaml` and a strategy entry point, for zero-downtime live trading.
+
+```bash
+npx @backtest-kit/cli --docker && cd backtest-kit-docker
+MODE=live SYMBOL=TRXUSDT STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts docker-compose up -d
+```
+
+<details>
+<summary>Two launch modes & environment variables</summary>
+
+**1. `command:` in `docker-compose.yaml`** — pin mode and flags directly; the entrypoint forwards all args to the CLI unchanged:
+
+```yaml
+command: [--live, --symbol, TRXUSDT, --strategy, feb_2026_strategy, --exchange, ccxt-exchange, ./content/feb_2026/feb_2026.strategy.ts, --ui]
+```
+
+**2. Inline env vars** — `MODE` + `STRATEGY_FILE` on the command line, no file edits:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MODE` | yes | — | `backtest` \| `live` \| `paper` \| `walker` |
+| `STRATEGY_FILE` | yes | — | Path to entry point (relative to `working_dir`) |
+| `SYMBOL` | no | `BTCUSDT` | Trading pair |
+| `STRATEGY` / `EXCHANGE` / `FRAME` | no | first registered | Names |
+| `UI` / `TELEGRAM` / `VERBOSE` / `NO_CACHE` / `NO_FLUSH` / `ENTRY` | no | — | Any non-empty value enables the matching flag |
+
+</details>
+
+### Monorepo cwd resolution
+
+When the CLI loads an entry point it **changes the working directory to that file's location**, so every relative path (`dump/`, `modules/`, `template/`) resolves inside that strategy's folder. Each strategy gets its own `.env`, broker modules, templates, and dump dir — so the same tool scales from one strategy to a desk of them.
+
+<details>
+<summary>How it works + isolated resources</summary>
+
+`ResolveService` runs, before executing your entry point:
+
+```
+process.chdir(path.dirname(entryPoint))                         // cwd → strategy directory
+dotenv.config({ path: rootDir + '/.env' })                      // root .env first
 dotenv.config({ path: strategyDir + '/.env', override: true })  // strategy .env overrides
 ```
-
-Everything that follows — candle cache warming, report generation, module loading, template resolution — uses the new cwd automatically.
-
-### Project Structure
 
 ```
 monorepo/
 ├── package.json              # root scripts (one per strategy)
-├── .env                      # shared API keys (exchange, Telegram, etc.)
+├── .env                      # shared API keys
 └── strategies/
     ├── oct_2025/
-    │   ├── index.mjs             # entry point — registers exchange/frame/strategy schemas
-    │   ├── .env                  # overrides root .env for this strategy 
-    │   ├── modules (optional)
-    │   |    ├── live.module.mjs       # broker adapter for --live mode (optional)
-    │   |    ├── paper.module.mjs      # broker adapter for --paper mode (optional)
-    │   |    ├── backtest.module.mjs   # broker adapter for --backtest mode (optional)
-    │   ├── template/             # custom Mustache templates (optional)
-    │   └── dump/                 # auto-created: candle cache + backtest reports
-    └── dec_2025/
-        ├── index.mjs
-        ├── .env
-        └── dump/
+    │   ├── index.mjs              # registers exchange/frame/strategy schemas
+    │   ├── .env                   # overrides root .env for this strategy
+    │   ├── modules/{live,paper,backtest}.module.mjs  # broker adapters (optional)
+    │   ├── template/              # custom Mustache templates (optional)
+    │   └── dump/                  # auto-created: candle cache + reports
+    └── dec_2025/ …
 ```
 
-### Root `package.json`
+| Resource | Path (relative to strategy dir) | Isolated |
+|----------|----------------------------------|----------|
+| Candle cache | `./dump/data/candle/` | ✅ per-strategy |
+| Backtest reports | `./dump/` | ✅ per-strategy |
+| Broker module (live/paper/backtest) | `./modules/{live,paper,backtest}.module.mjs` | ✅ per-strategy |
+| Config module (walker) | `./modules/walker.module.mjs` | ✅ loaded once |
+| Telegram templates | `./template/*.mustache` | ✅ per-strategy |
+| Environment variables | `./.env` (overrides root) | ✅ per-strategy |
 
-```json
-{
-  "scripts": {
-    "backtest:oct": "npx @backtest-kit/cli --backtest ./strategies/oct_2025/index.mjs",
-    "backtest:dec": "npx @backtest-kit/cli --backtest ./strategies/dec_2025/index.mjs"
-  },
-  "dependencies": {
-    "@backtest-kit/cli": "latest",
-    "backtest-kit": "latest",
-    "ccxt": "latest"
-  }
-}
-```
+Each run produces its own `dump/` — easy to compare results across periods, by inspection or by pointing an AI agent at a specific folder.
 
-```bash
-npm run backtest:oct
-npm run backtest:dec
-```
+</details>
 
-### Isolated Resources Per Strategy
+### Folder-based import aliases
 
-| Resource                 | Path (relative to strategy dir)   | Isolated         |
-|--------------------------|-----------------------------------|------------------|
-| Candle cache             | `./dump/data/candle/`             | ✅ per-strategy  |
-| Backtest reports         | `./dump/`                         | ✅ per-strategy  |
-| Broker module (live)     | `./modules/live.module.mjs`       | ✅ per-strategy  |
-| Broker module (paper)    | `./modules/paper.module.mjs`      | ✅ per-strategy  |
-| Broker module (backtest) | `./modules/backtest.module.mjs`   | ✅ per-strategy  |
-| Config module (walker)   | `./modules/walker.module.mjs`     | ✅ loaded once   |
-| Telegram templates       | `./template/*.mustache`           | ✅ per-strategy  |
-| Environment variables    | `./.env` (overrides root)         | ✅ per-strategy  |
+Every **top-level folder** in `process.cwd()` automatically becomes a bare import alias inside any strategy file — no config, just create the folder. Extract shared utilities, indicators, or AI-agent logic into named folders and reuse them across strategies without relative-path hell.
 
-Each strategy run produces its own `dump/` directory, making it straightforward to compare results across time periods — both by inspection and by pointing an AI agent at a specific strategy folder.
-
-## 🔗 Shared Import Aliases
-
-`@backtest-kit/cli` automatically turns every **top-level folder** in `process.cwd()` into a bare import alias available inside any strategy file. No configuration needed — just create the folder.
-
-### How It Works
-
-When the CLI loads a strategy file, it scans the current working directory for subdirectories and registers each one as an import alias. The alias name is the folder name. Both barrel imports and deep subpath imports are supported:
+<details>
+<summary>Resolution table, structure & tsconfig</summary>
 
 | Import | Resolves to |
 |--------|-------------|
-| `import { fn } from "utils"` | `<cwd>/utils/index.ts` (or `.js`, `.mjs`, `.cjs`) |
+| `import { fn } from "utils"` | `<cwd>/utils/index.ts` (or `.js`/`.mjs`/`.cjs`) |
 | `import { calcRSI } from "math/rsi"` | `<cwd>/math/rsi.ts` |
 | `import { research } from "logic"` | `<cwd>/logic/index.ts` |
-| `import { ResearchResponseContract } from "logic/contract/ResearchResponse.contract"` | `<cwd>/logic/contract/ResearchResponse.contract.ts` |
+| `import { X } from "logic/contract/ResearchResponse.contract"` | `<cwd>/logic/contract/ResearchResponse.contract.ts` |
 
-### Project Structure
-
-```
-my-project/
-├── utils/                    ← import { formatDate } from "utils"
-│   └── index.ts
-├── math/                     ← import { calcRSI } from "math/rsi"
-│   └── rsi.ts
-├── logic/                    ← import { research } from "logic"
-│   ├── index.ts              ←   barrel
-│   └── contract/
-│       └── ResearchResponse.contract.ts  ← import { ... } from "logic/contract/ResearchResponse.contract"
-└── content/
-    ├── feb_2026.strategy.ts  ← uses all three aliases freely
-    └── mar_2026.strategy.ts  ← same aliases, no duplication
-```
-
-This lets you extract shared utilities, math helpers, or AI agent logic (e.g. `agent-swarm-kit` workflows) into named folders and reuse them across every strategy in the project without relative path hell.
-
-### TypeScript Support
-
-Add a matching `paths` entry to your `tsconfig.json` so the editor resolves the aliases:
+Both barrel and deep-subpath imports are supported. Add a matching `paths` entry to `tsconfig.json` so the editor resolves them:
 
 ```json
 {
   "compilerOptions": {
     "moduleResolution": "bundler",
-    "paths": {
-      "logic": ["./logic/index.ts"],
-      "logic/*": ["./logic/*"],
-      "math": ["./math/index.ts"],
-      "math/*": ["./math/*"],
-      "utils": ["./utils/index.ts"],
-      "utils/*": ["./utils/*"]
-    }
+    "paths": { "logic": ["./logic/index.ts"], "logic/*": ["./logic/*"], "math": ["./math/index.ts"], "math/*": ["./math/*"], "utils": ["./utils/index.ts"], "utils/*": ["./utils/*"] }
   },
-  "include": [
-    "./logic",
-    "./math",
-    "./utils",
-    "./content",
-    "./modules",
-  ],
+  "include": ["./logic", "./math", "./utils", "./content", "./modules"]
 }
 ```
 
-## 🔔 Integrations
+</details>
 
-### Web Dashboard (`--ui`)
+### Entry point formats
 
-Starts `@backtest-kit/ui` server. Access the interactive dashboard at:
+The CLI auto-detects the format and loads it with the right runtime — no flags. `.ts` via [`tsx`](https://tsx.is/) `tsImport()` (handles ESM↔CJS cross-imports, no `tsc` step), `.mjs` via native `import()` (top-level `await`, ESM), `.cjs` via native `require()` (legacy/dual-package). Add `tsx` to deps for `.ts` strategies.
 
-```
-http://localhost:60050
-```
+---
 
-Customize host/port via environment variables `CC_WWWROOT_HOST` and `CC_WWWROOT_PORT`.
+## 🔌 Broker adapter — transactional live orders
 
-#### Symbol List (`symbol.config`)
+Mode-specific module files register a `Broker` adapter via side-effect import before the strategy starts. From then on, `backtest-kit` intercepts **every** trade-mutating call through the adapter *before* updating internal state — if the adapter throws, the position state is never changed (atomic rollback, retried next tick). No manual wiring; in backtest mode no adapter is called at all.
 
-By default the UI shows all symbols from the exchange. To restrict or reorder the list, create a `config/symbol.config` file in your strategy directory (next to the entry point).
+| Mode flag | Module file | Loaded before |
+|-----------|-------------|----------------|
+| `--live` | `./modules/live.module.mjs` | `Live.background()` |
+| `--paper` | `./modules/paper.module.mjs` | `Live.background()` (paper) |
+| `--backtest` | `./modules/backtest.module.mjs` | `Backtest.background()` |
+| `--walker` | `./modules/walker.module.mjs` | `Walker.background()` |
+| `--main` | `./modules/main.module.mjs` | the custom entry point |
+| `--brokerdebug` | `./modules/brokerdebug.module.mjs` | the broker commit test |
 
-**Resolution order — first match wins:**
+> Resolved relative to `cwd` (the strategy dir); `.mjs`/`.cjs`/`.ts` tried automatically. A missing module is a soft warning, not an error.
 
-| Priority | Path | Notes |
-|----------|------|-------|
-| 1 | `{strategyDir}/config/symbol.config` | per-strategy override (cwd after `chdir`) |
-| 2 | `{projectRoot}/config/symbol.config` | project-root override (cwd where `npx` was invoked) |
-| 3 | `@backtest-kit/cli/config/symbol.config` | built-in default shipped with the package |
-
-Supported file formats (`.ts`, `.cjs`, `.mjs`, `.js` tried automatically):
-
-```ts
-// config/symbol.config.ts
-export const symbol_list = [
-  {
-    icon: "/icon/btc.png",
-    logo: "/icon/128/btc.png",
-    symbol: "BTCUSDT",
-    displayName: "Bitcoin",
-    color: "#F7931A",
-    priority: 50,
-    description: "Bitcoin - the first and most popular cryptocurrency",
-  },
-  {
-    icon: "/icon/eth.png",
-    logo: "/icon/128/eth.png",
-    symbol: "ETHUSDT",
-    displayName: "Ethereum",
-    color: "#6F42C1",
-    priority: 50,
-    description: "Ethereum - a blockchain platform for smart contracts",
-  },
-];
-```
-
-#### Notification Filter (`notification.config`)
-
-Controls which notification categories are shown in the UI dashboard. Create a `config/notification.config` file in your strategy directory to override the defaults.
-
-**Resolution order — first match wins:**
-
-| Priority | Path | Notes |
-|----------|------|-------|
-| 1 | `{strategyDir}/config/notification.config` | per-strategy override (cwd after `chdir`) |
-| 2 | `{projectRoot}/config/notification.config` | project-root override (cwd where `npx` was invoked) |
-| 3 | `@backtest-kit/cli/config/notification.config` | built-in default shipped with the package |
-
-**Default values (built-in):**
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `signal` | `true` | Signal lifecycle: opened, scheduled, closed, cancelled |
-| `risk` | `true` | Risk manager rejection notifications |
-| `info` | `true` | Informational messages attached to an active signal |
-| `breakeven` | `true` | Breakeven level reached |
-| `common_error` | `true` | Non-fatal runtime errors |
-| `critical_error` | `true` | Fatal errors that terminate the session |
-| `validation_error` | `true` | Strategy config / input validation errors |
-| `strategy_commit` | `true` | All committed actions (partial close, DCA, trailing, etc.) |
-| `partial_loss` | `false` | Partial loss level reached (before commit) |
-| `partial_profit` | `false` | Partial profit level reached (before commit) |
-| `signal_sync` | `false` | Live order fill / exit confirmations from exchange sync |
-
-```js
-// config/notification.config.ts
-export default {
-  signal: true,
-  risk: true,
-  info: true,
-  breakeven: true,
-  common_error: true,
-  critical_error: true,
-  validation_error: true,
-  strategy_commit: true,
-  partial_loss: false,
-  partial_profit: false,
-  signal_sync: false,
-};
-```
-
-### Telegram Notifications (`--telegram`)
-
-Sends formatted HTML messages with 1m / 15m / 1h price charts to your Telegram channel for every position event: opened, closed, scheduled, cancelled, risk rejection, partial profit/loss, trailing stop/take, and breakeven.
-
-Requires `CC_TELEGRAM_TOKEN` and `CC_TELEGRAM_CHANNEL` in your environment.
-
-#### Telegram Message Adapter (`telegram.config`)
-
-By default messages are rendered from Mustache templates (`template/*.mustache`). To override rendering programmatically, create a `config/telegram.config` file and export an object with any subset of `get*Markdown` methods. Each method receives the event payload and must return a `Promise<string>` with the Markdown message body.
-
-Resolution order is the same as other configs (strategy dir → project root → package default).
-
-```ts
-// config/telegram.config.ts
-import {
-  IStrategyTickResultOpened,
-  IStrategyTickResultClosed,
-  RiskContract,
-} from "backtest-kit";
-
-export default {
-  async getOpenedMarkdown(event: IStrategyTickResultOpened): Promise<string> {
-    return `**Opened** ${event.symbol} at ${event.priceOpen}`;
-  },
-  async getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string> {
-    return `**Closed** ${event.symbol} at ${event.priceClosed}`;
-  },
-  async getRiskMarkdown(event: RiskContract): Promise<string> {
-    return `**Risk rejected** ${event.symbol}`;
-  },
-};
-```
-
-All methods are optional — unimplemented ones fall back to the Mustache template.
-
-| Method | Event type |
-|--------|------------|
-| `getOpenedMarkdown` | `IStrategyTickResultOpened` |
-| `getClosedMarkdown` | `IStrategyTickResultClosed` |
-| `getScheduledMarkdown` | `IStrategyTickResultScheduled` |
-| `getCancelledMarkdown` | `IStrategyTickResultCancelled` |
-| `getRiskMarkdown` | `RiskContract` |
-| `getPartialProfitMarkdown` | `PartialProfitCommit` |
-| `getPartialLossMarkdown` | `PartialLossCommit` |
-| `getBreakevenMarkdown` | `BreakevenCommit` |
-| `getTrailingTakeMarkdown` | `TrailingTakeCommit` |
-| `getTrailingStopMarkdown` | `TrailingStopCommit` |
-| `getAverageBuyMarkdown` | `AverageBuyCommit` |
-| `getSignalOpenMarkdown` | `SignalOpenContract` |
-| `getSignalCloseMarkdown` | `SignalCloseContract` |
-| `getCancelScheduledMarkdown` | `CancelScheduledCommit` |
-| `getClosePendingMarkdown` | `ClosePendingCommit` |
-| `getSignalInfoMarkdown` | `SignalInfoContract` |
-
-## 🧩 Module Hooks (Broker Adapter)
-
-The CLI supports **mode-specific module files** that are loaded as side-effect imports before the strategy starts. Each file is expected to call `Broker.useBrokerAdapter()` from `backtest-kit` to register a broker adapter.
-
-| Command Line Args | Module file                     | Loaded before               |
-|-------------------|---------------------------------|-----------------------------|
-| `--live`          | `./modules/live.module.mjs`     | `Live.background()`         |
-| `--paper`         | `./modules/paper.module.mjs`    | `Live.background()` (paper) |
-| `--backtest`      | `./modules/backtest.module.mjs` | `Backtest.background()`     |
-| `--walker`        | `./modules/walker.module.mjs`     | `Walker.background()`          |
-| `--main`          | `./modules/main.module.mjs`     | the custom entry point         |
-| `--brokerdebug`   | `./modules/brokerdebug.module.mjs` | broker commit test            |
-
-> File is resolved relative to `cwd` (the strategy directory). All of `.mjs`, `.cjs`, `.ts` extensions are tried automatically. Missing module is a soft warning — not an error.
-
-### How It Works
-
-The module file is a side-effect import. When the CLI loads it, your code runs and registers the adapter. From that point on, `backtest-kit` intercepts every trade-mutating call through the adapter **before** updating internal state — if the adapter throws, the position state is never changed.
+<details>
+<summary>Adapter example & hook reference</summary>
 
 ```javascript
 // live.module.mjs
@@ -741,1167 +625,249 @@ import { Broker } from 'backtest-kit';
 import { myExchange } from './exchange.mjs';
 
 class MyBroker {
-  async onSignalOpenCommit({ symbol, priceOpen, direction }) {
-    await myExchange.openPosition(symbol, direction, priceOpen);
-  }
-
-  async onSignalCloseCommit({ symbol, priceClosed }) {
-    await myExchange.closePosition(symbol, priceClosed);
-  }
-
-  async onPartialProfitCommit({ symbol, cost, currentPrice }) {
-    await myExchange.createOrder({
-      symbol,
-      side: 'sell',
-      quantity: cost / currentPrice,
-    });
-  }
-
-  async onAverageBuyCommit({ symbol, cost, currentPrice }) {
-    await myExchange.createOrder({
-      symbol,
-      side: 'buy',
-      quantity: cost / currentPrice,
-    });
-  }
+  async onSignalOpenCommit({ symbol, priceOpen, direction }) { await myExchange.openPosition(symbol, direction, priceOpen); }
+  async onSignalCloseCommit({ symbol, priceClosed })        { await myExchange.closePosition(symbol, priceClosed); }
+  async onPartialProfitCommit({ symbol, cost, currentPrice }) { await myExchange.createOrder({ symbol, side: 'sell', quantity: cost / currentPrice }); }
+  async onAverageBuyCommit({ symbol, cost, currentPrice })    { await myExchange.createOrder({ symbol, side: 'buy',  quantity: cost / currentPrice }); }
 }
 
 Broker.useBrokerAdapter(MyBroker);
-
 Broker.enable();
 ```
 
-### Available Broker Hooks
+| Method | Payload type | Triggered on |
+|--------|--------------|--------------|
+| `onSignalOpenCommit` | `BrokerSignalOpenPayload` | Position activation |
+| `onSignalCloseCommit` | `BrokerSignalClosePayload` | SL / TP / manual close |
+| `onPartialProfitCommit` | `BrokerPartialProfitPayload` | Partial profit |
+| `onPartialLossCommit` | `BrokerPartialLossPayload` | Partial loss |
+| `onTrailingStopCommit` | `BrokerTrailingStopPayload` | SL adjustment |
+| `onTrailingTakeCommit` | `BrokerTrailingTakePayload` | TP adjustment |
+| `onBreakevenCommit` | `BrokerBreakevenPayload` | SL moved to entry |
+| `onAverageBuyCommit` | `BrokerAverageBuyPayload` | DCA entry |
 
-| Method                   | Payload type                 | Triggered on              |
-|--------------------------|------------------------------|---------------------------|
-| `onSignalOpenCommit`     | `BrokerSignalOpenPayload`    | Position activation       |
-| `onSignalCloseCommit`    | `BrokerSignalClosePayload`   | SL / TP / manual close    |
-| `onPartialProfitCommit`  | `BrokerPartialProfitPayload` | PP                        |
-| `onPartialLossCommit`    | `BrokerPartialLossPayload`   | PL                        |
-| `onTrailingStopCommit`   | `BrokerTrailingStopPayload`  | SL adjustment             |
-| `onTrailingTakeCommit`   | `BrokerTrailingTakePayload`  | TP adjustment             |
-| `onBreakevenCommit`      | `BrokerBreakevenPayload`     | SL moved to entry         |
-| `onAverageBuyCommit`     | `BrokerAverageBuyPayload`    | DCA entry                 |
+All methods are optional; unimplemented hooks are silently skipped. TypeScript: implement `Partial<IBroker>` with typed payloads (`BrokerSignalOpenPayload`, etc.).
 
-All methods are optional. Unimplemented hooks are silently skipped. In backtest mode all broker calls are skipped automatically — no adapter code runs during backtests.
+</details>
 
-### TypeScript
+---
 
-```typescript
-import { Broker, IBroker, BrokerSignalOpenPayload, BrokerSignalClosePayload } from 'backtest-kit';
+## ⚙️ Configuration files (`config/*`)
 
-class MyBroker implements Partial<IBroker> {
-  async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
-    // place open order on exchange
-  }
+Loaded from `{projectRoot}/config/`. The three runtime configs load in order — **`setup.config` → `loader.config` → `alias.config`** — before any strategy or module code. The UI/Telegram configs resolve **strategy dir → project root → package default** (first match wins) and accept `.ts`/`.cjs`/`.mjs`/`.js`.
 
-  async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
-    // place close order on exchange
-  }
-}
+### `setup.config` — persistence & one-time init
 
-Broker.useBrokerAdapter(MyBroker);
+Loaded once before any persistence call. **When present, the CLI skips its own default adapter registration** — your config takes full ownership of the persistence layer.
 
-Broker.enable();
-```
+<details>
+<summary>MongoDB + Redis via @backtest-kit/mongo</summary>
 
-## ⚙️ Setup Hook (`config/setup.config`)
-
-`@backtest-kit/cli` loads a `{projectRoot}/config/setup.config` file once before any module hooks or strategy code run. Use it to perform one-time initialization that must happen before the first persistence call — registering a custom storage backend, configuring a logger, seeding global state, or anything else the process needs before `backtest-kit` starts.
-
-**Important:** When `setup.config` is present, the CLI skips its own default adapter registration — it does **not** call `usePersist()` / `useLocal()` / `useMemory()` for any of the persistence slots. This means your config takes full ownership of the persistence layer: whatever adapters you register in `{projectRoot}/config/setup.config` are the ones `backtest-kit` uses, with no interference from the CLI defaults.
-
-### Example: MongoDB + Redis persistence via `@backtest-kit/mongo`
-
-The most common use-case is swapping the default file-based persistence for a production-grade backend. Install `@backtest-kit/mongo` and call `setup()` — it registers all 15 persistence adapters in one call and reads connection parameters from environment variables:
-
-```bash
-npm install @backtest-kit/mongo
-```
+`setup()` registers all 15 persistence adapters in one call, reading connection params from env (or passed explicitly):
 
 ```ts
 // config/setup.config.ts
 import { setup } from '@backtest-kit/mongo';
-
-setup();
+setup(); // or setup({ CC_MONGO_CONNECTION_STRING, CC_REDIS_HOST, CC_REDIS_PORT, CC_REDIS_PASSWORD })
 ```
 
 ```env
-# .env
 CC_MONGO_CONNECTION_STRING=mongodb://localhost:27017/backtest-kit
 CC_REDIS_HOST=127.0.0.1
 CC_REDIS_PORT=6379
 ```
 
-Or pass connection parameters explicitly:
+No strategy-code changes — adapters are wired transparently before the first persistence call.
+
+</details>
+
+### `loader.config` — async startup gate
+
+Loaded **after** `setup.config`, **before** strategy/module code. Unlike `setup.config` (side-effect import), it exports a function the CLI `await`s — use it to wait for an async dependency before the run starts.
+
+<details>
+<summary>When to use it, export styles & examples</summary>
+
+**Use it to:** wire microfrontends in a monorepo (pre-load sibling packages, hydrate a shared DI container); wait for a DB connection so the backtest fails fast instead of mid-run; warm caches / external APIs (instruments, calendar, fee tables); run schema migrations before signals flow.
+
+Exactly one export style — **never both** (if both present, `default` wins):
 
 ```ts
-// config/setup.config.ts
-import { setup } from '@backtest-kit/mongo';
-
-setup({
-  CC_MONGO_CONNECTION_STRING: 'mongodb://mongo:27017/mydb',
-  CC_REDIS_HOST: 'redis',
-  CC_REDIS_PORT: 6379,
-  CC_REDIS_PASSWORD: 'secret',
-});
+// config/loader.config.ts — default export (preferred)
+export default async () => { await mongoose.connect(process.env.CC_MONGO_CONNECTION_STRING!); await redis.ping(); };
+// — or named export
+export const loader = async () => { /* … */ };
 ```
 
-No changes to strategy code are needed — `setup()` wires up the adapters transparently before `backtest-kit` makes its first persistence call.
+`@backtest-kit/mongo`'s `setup()` registers adapters synchronously but doesn't block on the connection; gate the run on a real connection here. To stitch microfrontends: `import "@my-org/brokers"; import "@my-org/signals";` (the `@my-org` alias is declared in `alias.config`).
 
-## 🧩 Module Loader (`config/loader.config`)
+</details>
 
-`@backtest-kit/cli` loads a `{projectRoot}/config/loader.config` file **after** `setup.config` but **before** any strategy or module code runs. Unlike `setup.config` (which is loaded for its side effects), `loader.config` exports a function that the CLI explicitly `await`s. Use it whenever you need to **wait for an async dependency** to be ready before the backtest starts.
+### `alias.config` — override any module import
 
-```bash
-monorepo/
-├── packages/
-│   ├── shared-broker/      # shared broker code
-│   ├── shared-signals/     # common indicators (RSI, MACD)
-│   ├── shared-db/          # mongodb wiring
-│   ├── strategy-momentum/  # strategy code
-│   └── strategy-mean-reversion/
-```
+Override any Node module import without touching strategy code. Loaded once on the first `import` and applied globally — e.g. replace a heavy dependency with a stub for backtesting, or swap an external API for a mock in CI.
 
-**When to use it:**
-
-- **Wire microfrontends in a monorepo** — resolve and pre-load sibling packages, register cross-package services, or hydrate a shared DI container before strategies import from neighboring workspaces.
-- **Wait for a database connection** — open a Mongo/Postgres/Redis connection and verify it's reachable before the first persistence call, so the backtest fails fast instead of mid-run.
-- **Warm up caches or external APIs** — pre-fetch reference data (instruments list, calendar, fee tables) so the strategy's first tick doesn't pay the round-trip cost.
-- **Run schema migrations** — apply any pending migrations to the persistence backend before signals start flowing.
-
-`loader.config` supports exactly one of two export styles — **never both at once**. If both are present, the `default` export wins and the named `loader` is ignored.
-
-```ts
-// config/loader.config.ts — default export (preferred, ESM style)
-export default async () => {
-  await mongoose.connect(process.env.CC_MONGO_CONNECTION_STRING!);
-  await redis.ping();
-};
-```
-
-```ts
-// config/loader.config.ts — named export
-export const loader = async () => {
-  await mongoose.connect(process.env.CC_MONGO_CONNECTION_STRING!);
-  await redis.ping();
-};
-```
-
-### Example: wait for MongoDB before running a backtest
-
-`@backtest-kit/mongo`'s `setup()` registers the adapters synchronously but doesn't block until the connection is established. If your backtest depends on data that must be present in Mongo before the first signal fires, use `loader.config` to gate the run on a real connection:
-
-```ts
-// config/setup.config.ts
-import { setup } from '@backtest-kit/mongo';
-
-setup();
-```
-
-```ts
-// config/loader.config.ts
-import mongoose from 'mongoose';
-
-export default async () => {
-  await mongoose.connect(process.env.CC_MONGO_CONNECTION_STRING!);
-  console.log('mongo connection verified, starting backtest');
-};
-```
-
-### Example: stitch microfrontends in a monorepo
-
-When `backtest-kit` strategies live in one workspace and shared services (broker adapters, signal feeds, dashboards) live in sibling workspaces, `loader.config` is the place to wire them together before the runner starts:
-
-```ts
-// config/loader.config.ts
-import "@my-org/brokers";
-import "@my-org/signals";
-```
-
-The `@my-org` alias should be declared in `config/alias.config`.
-
-## 🔀 Import Aliases (`config/alias.config`)
-
-`@backtest-kit/cli` lets you override any nodejs module import — without touching the strategy code. Drop a `config/alias.config` file in your project root and export a mapping from module name to replacement module.
-
-The alias table is loaded once (on the first `import` call) from `{projectRoot}/config/alias.config` and applied globally to every subsequent module load via `require`/ `import`.
-
-**Use cases:**
-
-- Replace a heavy dependency with a lighter stub for backtesting
-- Swap any external api for a mock during CI runs
+<details>
+<summary>Formats & async factory</summary>
 
 ```ts
 // config/alias.config.ts — named export
 export const ccxt = require("./stubs/ccxt.stub.cjs");
-```
-
-```js
 // config/alias.config.cjs — default export
-module.exports = {
-  ccxt: require("./stubs/ccxt.stub.cjs"),
-};
+module.exports = { ccxt: require("./stubs/ccxt.stub.cjs") };
 ```
+
+It may also export an **async factory** the CLI `await`s before strategy code runs — handy for ESM-only modules that `require()` would throw on:
+
+```ts
+// async factory (default export); or `export const loader = async () => ({...})`
+export default async () => ({ nanoid: await import("nanoid"), "p-limit": await import("p-limit") });
+```
+
+Both styles supported, never both at once (`default` wins). When strategy code calls `require("ccxt")`, the loader checks the alias table first — no monkey-patching of `node_modules`. Applies to **all** modules in the process (not per-strategy).
+
+</details>
+
+### `symbol.config` & `notification.config` — UI dashboard
+
+<details>
+<summary>symbol.config — restrict/reorder the UI symbol list</summary>
+
+By default the UI shows all exchange symbols. Override with a `config/symbol.config` (resolution: strategy dir → project root → package default):
+
+```ts
+// config/symbol.config.ts
+export const symbol_list = [
+  { icon: "/icon/btc.png", logo: "/icon/128/btc.png", symbol: "BTCUSDT", displayName: "Bitcoin",  color: "#F7931A", priority: 50, description: "Bitcoin — the first and most popular cryptocurrency" },
+  { icon: "/icon/eth.png", logo: "/icon/128/eth.png", symbol: "ETHUSDT", displayName: "Ethereum", color: "#6F42C1", priority: 50, description: "Ethereum — a blockchain platform for smart contracts" },
+];
+```
+
+</details>
+
+<details>
+<summary>notification.config — which notification categories the UI shows</summary>
+
+Defaults (override per strategy):
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `signal` | `true` | Signal lifecycle: opened, scheduled, closed, cancelled |
+| `risk` | `true` | Risk manager rejections |
+| `info` | `true` | Informational messages on an active signal |
+| `breakeven` | `true` | Breakeven level reached |
+| `common_error` | `true` | Non-fatal runtime errors |
+| `critical_error` | `true` | Fatal errors that terminate the session |
+| `validation_error` | `true` | Config / input validation errors |
+| `strategy_commit` | `true` | All committed actions (partial close, DCA, trailing, …) |
+| `partial_loss` | `false` | Partial loss level reached (before commit) |
+| `partial_profit` | `false` | Partial profit level reached (before commit) |
+| `signal_sync` | `false` | Live order fill / exit confirmations from exchange sync |
 
 ```js
-// config/alias.config.mjs — default export
-import ccxtStub from "./stubs/ccxt.stub.mjs";
+// config/notification.config.ts
+export default { signal: true, risk: true, info: true, breakeven: true, common_error: true, critical_error: true, validation_error: true, strategy_commit: true, partial_loss: false, partial_profit: false, signal_sync: false };
+```
 
+</details>
+
+### `telegram.config` — programmatic message rendering
+
+<details>
+<summary>Override Mustache rendering with get*Markdown methods</summary>
+
+By default messages render from Mustache templates (`template/*.mustache`). Export an object with any subset of `get*Markdown` methods (each gets the event payload, returns `Promise<string>`); unimplemented ones fall back to the template.
+
+```ts
+// config/telegram.config.ts
+import { IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract } from "backtest-kit";
 export default {
-  ccxt: ccxtStub,
+  async getOpenedMarkdown(e: IStrategyTickResultOpened) { return `**Opened** ${e.symbol} at ${e.priceOpen}`; },
+  async getClosedMarkdown(e: IStrategyTickResultClosed) { return `**Closed** ${e.symbol} at ${e.priceClosed}`; },
+  async getRiskMarkdown(e: RiskContract)                { return `**Risk rejected** ${e.symbol}`; },
 };
 ```
 
-Alias config may export an **async factory** instead of a plain mapping. The CLI `await`s it before any strategy code runs, so you can resolve ESM modules dynamically and hand the live bindings to the alias table:
+Methods → event types: `getOpenedMarkdown`/`getClosedMarkdown`/`getScheduledMarkdown`/`getCancelledMarkdown` (`IStrategyTickResult*`), `getRiskMarkdown` (`RiskContract`), `getPartialProfitMarkdown`/`getPartialLossMarkdown`/`getBreakevenMarkdown`/`getTrailingTakeMarkdown`/`getTrailingStopMarkdown`/`getAverageBuyMarkdown` (the matching `*Commit`), `getSignalOpenMarkdown`/`getSignalCloseMarkdown` (`SignalOpen/CloseContract`), `getCancelScheduledMarkdown`/`getClosePendingMarkdown` (`*Commit`), `getSignalInfoMarkdown` (`SignalInfoContract`).
 
-```ts
-// config/alias.config.ts — async factory (default export)
-export default async () => ({
-  // `nanoid` is ESM-only — `require("nanoid")` would throw,
-  // so pull it in with a dynamic import and alias it.
-  nanoid: await import("nanoid"),
-});
-```
+</details>
 
-```ts
-// config/alias.config.ts — async factory (named `loader` export)
-export const loader = async () => ({
-  "p-limit": await import("p-limit"),
-});
-```
+---
 
-Both export styles are supported — `export default` and `export const loader` — but **never both at once**; if both are present the `default` export wins. The factory must resolve to the same `{ moduleName: replacement }` shape as the object form. The CLI awaits it before loading the first strategy module, so strategy code keeps calling a plain `require("nanoid")` and transparently gets the ESM binding.
+## 🔔 Integrations
 
-When strategy code calls `require("ccxt")`, the loader checks `IMPORT_ALIAS` first. If a key matches, the mapped value is returned instead of the real module — no monkey-patching of `node_modules` needed.
+### Web dashboard (`--ui`)
 
-**Important:** It is **not** per-strategy — it applies to all modules loaded in the current process.
+Starts the `@backtest-kit/ui` server at `http://localhost:60050` (host/port via `CC_WWWROOT_HOST` / `CC_WWWROOT_PORT`). Restrict the symbol list with `symbol.config` and notification categories with `notification.config` (above).
 
-## 📦 Supported Entry Point Formats
+### Telegram (`--telegram`)
 
-`@backtest-kit/cli` automatically detects the format of your strategy file and loads it with the appropriate runtime — no flags or configuration required.
+Sends formatted HTML messages with 1m / 15m / 1h price charts for every position event — opened, closed, scheduled, cancelled, risk rejection, partial profit/loss, trailing stop/take, breakeven. Requires `CC_TELEGRAM_TOKEN` and `CC_TELEGRAM_CHANNEL`. Customize per-event rendering with `telegram.config` (above).
 
-| Format | Extension | Runtime | Use Case |
-|--------|-----------|---------|----------|
-| **TypeScript** | `.ts` | [`tsx`](https://tsx.is/) via `tsImport()` | TypeScript strategies with cross-imports (ESM ↔ CJS) |
-| **ES Module** | `.mjs` | Native `import()` | Modern JavaScript with top-level `await` and ESM syntax |
-| **CommonJS** | `.cjs` | Native `require()` | Legacy or dual-package strategies |
+---
 
-### TypeScript (`.ts`)
+## 🧪 Programmatic API — `run(mode, args)`
 
-Run TypeScript strategy files directly — no `tsc` compilation step needed. Powered by `tsx`, which handles cross-format imports transparently:
-
-```json
-{
-  "scripts": {
-    "backtest": "npx @backtest-kit/cli --backtest ./src/index.ts"
-  },
-  "dependencies": {
-    "@backtest-kit/cli": "latest",
-    "backtest-kit": "latest",
-    "tsx": "latest"
-  }
-}
-```
-
-### ES Module (`.mjs`)
-
-Standard ESM format. Supports top-level `await`, named exports, and `import` syntax:
-
-```json
-{
-  "scripts": {
-    "backtest": "npx @backtest-kit/cli --backtest ./src/index.mjs"
-  }
-}
-```
-
-### CommonJS (`.cjs`)
-
-For projects that compile to or use CommonJS. Loaded via `require()`:
-
-```json
-{
-  "scripts": {
-    "backtest": "npx @backtest-kit/cli --backtest ./dist/index.cjs"
-  }
-}
-```
-
-## 🌲 Running Local PineScript Indicators
-
-`@backtest-kit/cli` can execute any local `.pine` file against a real exchange and print the results as a Markdown table — no TradingView account required.
-
-### CLI Flags
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--pine` | boolean | Enable PineScript execution mode |
-| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
-| `--timeframe` | string | Candle interval (default: `"15m"`) |
-| `--limit` | string | Number of candles to fetch (default: `250`) |
-| `--when` | string | End date for candle window — ISO 8601 or Unix ms (default: now) |
-| `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
-| `--output` | string | Output file base name without extension (default: `.pine` file name) |
-| `--json` | boolean | Write plots as a JSON array to `<pine-dir>/dump/{output}.json` |
-| `--jsonl` | boolean | Write plots as JSONL (one row per line) to `<pine-dir>/dump/{output}.jsonl` |
-| `--markdown` | boolean | Write Markdown table to `<pine-dir>/dump/{output}.md` |
-
-**Important:** `limit` must cover indicator warmup bars — rows before warmup completes will show `N/A` 
-
-**Positional argument:** path to the `.pine` file.
-
-### Exchange via `pine.module`
-
-By default the CLI registers CCXT Binance automatically. To use a different exchange — or to configure API keys, custom rate limits, or a non-spot market — create a `modules/pine.module.ts` file. The CLI loads it automatically before running the script.
-
-The CLI looks for `modules/pine.module` in two locations (first match wins):
-
-1. **Next to the `.pine` file** — `<pine-file-dir>/modules/pine.module.ts`
-2. **Project root** — `<cwd>/modules/pine.module.ts`
-
-```
-my-project/
-├── math/
-│   ├── impulse_trend_15m.pine         ← indicator
-│   └── modules/
-│       └── pine.module.ts            ← loaded first (next to .pine file)
-├── modules/
-│   └── pine.module.ts                ← fallback (project root)
-└── package.json
-```
-
-Inside `pine.module.ts` call `addExchangeSchema` from `backtest-kit` and give the exchange a name:
+Use the CLI as a library — call `run()` from your own script, no child process or flag parsing.
 
 ```typescript
-// modules/pine.module.ts
-import { addExchangeSchema } from "backtest-kit";
-import ccxt from "ccxt";
+import { run } from '@backtest-kit/cli';
 
-addExchangeSchema({
-  exchangeName: "my-exchange",
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.bybit({ enableRateLimit: true });
-    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume,
-    }));
-  },
-  formatPrice: (symbol, price) => price.toFixed(2),
-  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
-});
+await run('backtest', { entryPoint: './src/index.mjs', symbol: 'ETHUSDT', frame: 'feb-2024', cacheInterval: ['1m','15m','1h'], verbose: true });
+await run('paper',    { entryPoint: './src/index.mjs', symbol: 'BTCUSDT' });
+await run('live',     { entryPoint: './src/index.mjs', symbol: 'BTCUSDT', verbose: true });
 ```
 
-### Environment variables (`.env`)
+<details>
+<summary>Payload fields (call once per process)</summary>
 
-Before loading `pine.module`, the CLI loads `.env` files in the same order as for strategy modules — project root first, then the `.pine` file directory (overrides root):
+`run()` can be called **only once per process** — a second call throws `"Should be called only once"`. `mode`: `"backtest" | "paper" | "live"`.
 
-```
-my-project/
-├── math/
-│   ├── .env                          ← loaded second (overrides root)
-│   └── impulse_trend_15m.pine
-├── .env                              ← loaded first
-└── package.json
-```
+**Backtest:** `entryPoint`, `symbol` (`"BTCUSDT"`), `strategy` (first registered), `exchange` (first registered), `frame` (first registered), `cacheInterval` (`["1m","15m","30m","1h","4h"]`), `noCache` (`false`), `noFlush` (`false`), `verbose` (`false`).
 
-Use this to store API keys without hardcoding them:
+**Paper / Live:** `entryPoint`, `symbol` (`"BTCUSDT"`), `strategy` (first registered), `exchange` (first registered), `verbose` (`false`).
+
+</details>
+
+---
+
+## 🌍 Environment variables
 
 ```env
-# .env
-BYBIT_API_KEY=xxx
-BYBIT_API_SECRET=yyy
+CC_TELEGRAM_TOKEN=your_bot_token_here     # required for --telegram (from @BotFather)
+CC_TELEGRAM_CHANNEL=-100123456789         # required for --telegram (channel/chat ID)
+CC_WWWROOT_HOST=0.0.0.0                    # UI bind address (default 0.0.0.0)
+CC_WWWROOT_PORT=60050                      # UI port (default 60050)
+CC_QUICKCHART_HOST=                        # optional self-hosted QuickChart URL
 ```
 
-```typescript
-// modules/pine.module.ts
-addExchangeSchema({
-  exchangeName: "my-exchange",
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.bybit({
-      apiKey: process.env.BYBIT_API_KEY,
-      secret: process.env.BYBIT_API_SECRET,
-      enableRateLimit: true,
-    });
-    // ...
-  },
-});
-```
+<details>
+<summary>Default behaviors (when a schema isn't registered)</summary>
 
-Then run:
+| Component | Default | Note |
+|-----------|---------|------|
+| **Exchange** | CCXT Binance (`default_exchange`) | warns; **does not support order book in backtest** — register a custom exchange with snapshot storage if your strategy calls `getOrderBook()` in backtest |
+| **Frame** | February 2024 (`default_frame`) | warns |
+| **Symbol** | `BTCUSDT` | — |
+| **Cache intervals** | `1m, 15m, 30m, 4h` | used if `--cacheInterval` not given; skip with `--noCache` |
 
-```bash
-npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine \
-  --exchange my-exchange \
-  --symbol BTCUSDT \
-  --timeframe 15m \
-  --limit 180 \
-  --when "2025-09-24T12:00:00.000Z"
-```
+</details>
 
-Or add it to `package.json`:
+---
 
-```json
-{
-  "scripts": {
-    "pine": "npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --symbol BTCUSDT --timeframe 15m --limit 180"
-  }
-}
-```
+## 💡 Why @backtest-kit/cli
 
-```bash
-npm run pine
-```
-
-### PineScript Requirements
-
-The CLI reads all `plot()` calls that use `display=display.data_window` as output columns. Every other `plot()` is ignored. Name each output plot explicitly:
-
-```pine
-//@version=5
-indicator("MyIndicator", overlay=true)
-
-// ... computation ...
-
-plot(close,    "Close",    display=display.data_window)
-plot(position, "Position", display=display.data_window)
-```
-
-The column names in the output Markdown table are taken directly from those plot names — no manual schema definition needed.
-
-### Output
-
-The CLI prints a Markdown table to stdout:
-
-```
-# PineScript Technical Analysis Dump
-
-**Signal ID**: CLI execution 2025-09-24T12:00:00.000Z
-
-| Close | Position | timestamp |
-| --- | --- | --- |
-| 112871.28 | -1.0000 | 2025-09-22T15:00:00.000Z |
-| 112666.69 | -1.0000 | 2025-09-22T15:15:00.000Z |
-| 112736.00 |  0.0000 | 2025-09-22T18:30:00.000Z |
-| 112653.90 |  1.0000 | 2025-09-22T22:15:00.000Z |
-```
-
-Save to `./math/dump/impulse_trend_15m.md` (uses `.pine` file name automatically, dump is created next to the `.pine` file):
-
-```bash
-npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --markdown
-```
-
-Override the output name with `--output`:
-
-```bash
-npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine --jsonl --output feb2026_bb
-# → ./math/dump/feb2026_bb.jsonl
-```
-
-Print to stdout (no flag):
-
-```bash
-npx @backtest-kit/cli --pine ./math/impulse_trend_15m.pine
-```
-
-## 🎨 Visual Pine Script Editor
-
-![pine](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot32.png)
-
-`@backtest-kit/cli` ships a browser-based Pine Script editor powered by `@backtest-kit/ui`. It lets you write, run, and iterate on indicators interactively — with a live chart that updates as you hit **▶ Run**
-
-### Usage
-
-```bash
-npx @backtest-kit/cli --editor
-```
-
-The CLI will:
-
-1. Load `./modules/editor.module` (if it exists) — use it to register your exchange schema, identical to `pine.module`
-2. Start the `@backtest-kit/ui` server on `http://localhost:60050` (or `CC_WWWROOT_PORT`)
-3. Open `http://localhost:{CC_WWWROOT_PORT}?pine=1` automatically in your default browser
-
-Press **Ctrl+C** to stop the server.
-
-### Exchange via `editor.module`
-
-Drop a `modules/editor.module.ts` next to your project to register the exchange that the editor's candle provider will use:
-
-```typescript
-// modules/editor.module.ts
-import { addExchangeSchema } from "backtest-kit";
-import ccxt from "ccxt";
-
-addExchangeSchema({
-  exchangeName: "my-exchange",
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.bybit({ enableRateLimit: true });
-    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume,
-    }));
-  },
-  formatPrice: (symbol, price) => price.toFixed(2),
-  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
-});
-```
-
-### Environment Variables
-
-| Variable          | Default   | Description                      |
-|-------------------|-----------|----------------------------------|
-| `CC_WWWROOT_HOST` | `0.0.0.0` | UI server bind address           |
-| `CC_WWWROOT_PORT` | `60050`   | UI server port                   |
-
-### `package.json` script
-
-```json
-{
-  "scripts": {
-    "editor": "npx @backtest-kit/cli --editor"
-  }
-}
-```
-
-```bash
-npm run editor
-```
-
-## 💾 Dumping Raw Candles
-
-`@backtest-kit/cli` can fetch raw OHLCV candles from any registered exchange and save them to a file — no strategy file required.
-
-### CLI Flags
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--dump` | boolean | Enable candle dump mode |
-| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
-| `--timeframe` | string | Candle interval (default: `"15m"`) |
-| `--limit` | string | Number of candles to fetch (default: `250`) |
-| `--when` | string | End date for candle window — ISO 8601 or Unix ms (default: now) |
-| `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
-| `--output` | string | Output file base name without extension (default: `{SYMBOL}_{LIMIT}_{TIMEFRAME}_{TIMESTAMP}`) |
-| `--json` | boolean | Write candles as a JSON array to `./dump/{output}.json` |
-| `--jsonl` | boolean | Write candles as JSONL (one row per line) to `./dump/{output}.jsonl` |
-
-The `dump/` directory is created in the current working directory (where the CLI is invoked from).
-
-### Exchange via `dump.module`
-
-By default the CLI registers CCXT Binance automatically. To use a different exchange — or to configure API keys, custom rate limits, or a non-spot market — create a `modules/dump.module.ts` file. The CLI loads it automatically before fetching candles.
-
-The CLI looks for `modules/dump.module` in the current working directory
-
-```
-my-project/
-├── modules/
-│   └── dump.module.ts            ← exchange registration
-├── dump/                         ← auto-created: candle output files
-└── package.json
-```
-
-Inside `dump.module.ts` call `addExchangeSchema` from `backtest-kit`:
-
-```typescript
-// modules/dump.module.ts
-import { addExchangeSchema } from "backtest-kit";
-import ccxt from "ccxt";
-
-addExchangeSchema({
-  exchangeName: "my-exchange",
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.bybit({ enableRateLimit: true });
-    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume,
-    }));
-  },
-  formatPrice: (symbol, price) => price.toFixed(2),
-  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
-});
-```
-
-### Output
-
-Each candle row contains OHLCV fields. Print to stdout:
-
-```bash
-npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 100
-```
-
-Save to `./dump/BTCUSDT_100_15m_{timestamp}.jsonl`:
-
-```bash
-npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 100 --jsonl
-```
-
-Fetch candles up to a specific date with `--when` and override the file name with `--output`:
-
-```bash
-npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 \
-  --when "2026-02-28T00:00:00.000Z" \
-  --jsonl --output feb2026_btc
-# → ./dump/feb2026_btc.jsonl
-```
-
-Or add it to `package.json`:
-
-```json
-{
-  "scripts": {
-    "dump": "npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl"
-  }
-}
-```
-
-```bash
-npx @backtest-kit/cli --dump --symbol BTCUSDT --timeframe 15m --limit 500 --jsonl
-```
-
-## 🐞 PnL Debug (`--pnldebug`)
-
-`@backtest-kit/cli` can simulate a hypothetical position minute by minute and print running PnL, peak profit, and maximum drawdown for each candle — without placing any trades or loading a strategy file.
-
-### CLI Flags
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--pnldebug` | boolean | Enable PnL debug mode |
-| `--priceopen` | number | Entry price (required) |
-| `--direction` | string | `long` or `short` (default: `long`) |
-| `--when` | string | Start timestamp — ISO 8601 or Unix ms (default: now) |
-| `--minutes` | string | Number of 1m candles to simulate (default: `60`) |
-| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
-| `--exchange` | string | Exchange name (default: first registered, falls back to CCXT Binance) |
-| `--output` | string | Output file base name (default: `{SYMBOL}_{DIRECTION}_{PRICEOPEN}_{TIMESTAMP}`) |
-| `--json` | boolean | Save results as JSON array to `./dump/<output>.json` |
-| `--jsonl` | boolean | Save results as JSONL to `./dump/<output>.jsonl` |
-| `--markdown` | boolean | Save results as Markdown table to `./dump/<output>.md` |
-
-### Output columns
-
-| Column | Description |
-|--------|-------------|
-| `min` | Minute offset from start (1-based) |
-| `timestamp` | Candle timestamp (ISO 8601) |
-| `close` | Candle close price |
-| `pnl%` | Running PnL vs entry price (signed %) |
-| `peak%` | Highest PnL reached so far (always ≥ 0) |
-| `drawdown%` | Lowest PnL reached so far (always ≤ 0) |
-
-### Exchange via `pnldebug.module`
-
-By default the CLI registers CCXT Binance automatically. To use a different exchange, create a `modules/pnldebug.module.ts` file in the current working directory — the CLI loads it automatically before fetching candles.
-
-```typescript
-// modules/pnldebug.module.ts
-import { addExchangeSchema } from "backtest-kit";
-import ccxt from "ccxt";
-
-addExchangeSchema({
-  exchangeName: "my-exchange",
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.bybit({ enableRateLimit: true });
-    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume,
-    }));
-  },
-  formatPrice: (symbol, price) => price.toFixed(2),
-  formatQuantity: (symbol, quantity) => quantity.toFixed(8),
-});
-```
-
-### Usage
-
-Print to stdout (default table format):
-
-```bash
-npx @backtest-kit/cli --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120
-```
-
-Save as Markdown:
-
-```bash
-npx @backtest-kit/cli --pnldebug --priceopen 67956.73 --direction long --when 1772064000000 --minutes 60 --markdown
-# → ./dump/BTCUSDT_long_67956.73_{timestamp}.md
-```
-
-Override the output file name with `--output`:
-
-```bash
-npx @backtest-kit/cli --pnldebug --priceopen 64069.50 --direction short --when "2025-02-25" --minutes 120 \
-  --jsonl --output feb25_short_debug
-# → ./dump/feb25_short_debug.jsonl
-```
-
-Or add it to `package.json`:
-
-```json
-{
-  "scripts": {
-    "pnldebug": "npx @backtest-kit/cli --pnldebug --symbol BTCUSDT --priceopen 64069.50 --direction short --when \"2025-02-25\" --minutes 120"
-  }
-}
-```
-
-```bash
-npm run pnldebug
-```
-
-### Example stdout output
-
-```
-Symbol: BTCUSDT | Direction: short | PriceOpen: 64069.50 | From: 2025-02-25T00:00:00.000Z | Minutes: 120
-
-  min | timestamp                 |        close  |    pnl%  |   peak%  | drawdown%
------------------------------------------------------------------------------------
-    1 | 2025-02-25T00:01:00.000Z  |      64020.10 |   +0.08% |   +0.08% |     0.00%
-    2 | 2025-02-25T00:02:00.000Z  |      64105.30 |   -0.06% |   +0.08% |    -0.06%
-  ...
-  120 | 2025-02-25T02:00:00.000Z  |      63200.00 |   +1.36% |   +1.36% |    -0.06%
-```
-
-## 🐛 Broker Debug (`--brokerdebug`)
-
-`@backtest-kit/cli` can fire a single broker commit against your live broker adapter without running a full strategy — useful for verifying that your `brokerdebug.module` correctly wires up exchange calls.
-
-### CLI Flags
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--brokerdebug` | boolean | Enable broker debug mode |
-| `--commit` | string | Commit type to fire (default: `"signal-open"`) |
-| `--symbol` | string | Trading pair (default: `"BTCUSDT"`) |
-| `--exchange` | string | Exchange name (default: first registered) |
-
-**Available `--commit` values:**
-
-| Value | Broker hook |
-|-------|-------------|
-| `signal-open` | `onSignalOpenCommit` |
-| `signal-close` | `onSignalCloseCommit` |
-| `partial-profit` | `onPartialProfitCommit` |
-| `partial-loss` | `onPartialLossCommit` |
-| `average-buy` | `onAverageBuyCommit` |
-| `trailing-stop` | `onTrailingStopCommit` |
-| `trailing-take` | `onTrailingTakeCommit` |
-| `breakeven` | `onBreakevenCommit` |
-
-### How It Works
-
-The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--symbol` / `--timeframe`, derives synthetic payload values from `currentPrice` (TP = +2%, SL = -2%), and calls the selected broker hook once. Exits with code `0` on success.
-
-### Broker via `brokerdebug.module`
-
-Create a `modules/brokerdebug.module.ts` file and register your broker adapter:
-
-```typescript
-// modules/brokerdebug.module.ts
-import { Broker } from 'backtest-kit';
-import { myExchange } from './exchange.mjs';
-
-class MyBroker {
-  async onSignalOpenCommit({ symbol, priceOpen, position }) {
-    await myExchange.openPosition(symbol, position, priceOpen);
-  }
-  // ... other hooks
-}
-
-Broker.useBrokerAdapter(MyBroker);
-Broker.enable();
-```
-
-### Usage
-
-```bash
-npx @backtest-kit/cli --brokerdebug --commit signal-open --symbol BTCUSDT
-npx @backtest-kit/cli --brokerdebug --commit partial-profit --symbol ETHUSDT --timeframe 1h
-```
-
-## 🗑️ Flushing Strategy Output (`--flush`)
-
-`@backtest-kit/cli` can delete generated output folders from one or more strategy dump directories without touching cached candle data.
-
-### CLI Flags
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--flush` | boolean | Enable flush mode |
-
-**Positional arguments (required):** one or more strategy entry point files. For each entry point the CLI resolves its directory and removes the following subdirectories from `<entry-dir>/dump/`:
-
-| Folder | Contents |
-|--------|----------|
-| `report` | Backtest report files (`.jsonl`) |
-| `log` | Run logs (`log.jsonl`) |
-| `markdown` | Exported Markdown reports |
-| `agent` | Agent outline files |
-
-Candle cache (`dump/data/`) and AI forecast outlines (`dump/outline/`) are **not** removed.
-
-### Usage
-
-Flush a single strategy:
-
-```bash
-npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts
-```
-
-Flush multiple strategies at once:
-
-```bash
-npx @backtest-kit/cli --flush \
-  ./content/feb_2026.strategy/modules/backtest.module.ts \
-  ./content/mar_2026.strategy/modules/backtest.module.ts
-```
-
-Or add it to `package.json`:
-
-```json
-{
-  "scripts": {
-    "flush": "npx @backtest-kit/cli --flush ./content/feb_2026.strategy/modules/backtest.module.ts"
-  }
-}
-```
-
-```bash
-npm run flush
-```
-
-## 🗂️ Scaffolding a New Project (`--init`)
-
-`@backtest-kit/cli` can bootstrap a ready-to-use project directory with a pre-configured layout, example strategy files, and all documentation fetched automatically.
-
-### CLI Flags
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--init` | boolean | Scaffold a new project |
-| `--output` | string | Target directory name (default: `backtest-kit-project`) |
-
-### Usage
-
-```bash
-npx @backtest-kit/cli --init
-```
-
-Creates `./backtest-kit-project/` in the current working directory.
-
-Override the directory name with `--output`:
-
-```bash
-npx @backtest-kit/cli --init --output my-trading-bot
-```
-
-Creates `./my-trading-bot/`.
-
-The target directory must not exist or must be empty — the command aborts if it contains any files.
-
-### Generated Project Structure
-
-```
-backtest-kit-project/
-├── package.json              # pre-configured with all backtest-kit dependencies
-├── .gitignore
-├── CLAUDE.md                 # AI-agent guide for writing strategies
-├── content/
-│   └── feb_2026.strategy.ts  # example strategy entry point
-├── docs/
-│   ├── lib/                  # fetched automatically (see below)
-│   ├── backtest_actions.md
-│   ├── backtest_graph_pattern.md
-│   ├── backtest_logging_jsonl.md
-│   ├── backtest_pinets_usage.md
-│   ├── backtest_risk_async.md
-│   ├── backtest_strategy_structure.md
-│   ├── pine_debug.md
-│   └── pine_indicator_warmup.md
-├── math/
-│   └── feb_2026.pine         # example PineScript indicator
-├── modules/
-│   ├── dump.module.ts        # exchange schema for --dump mode
-│   └── pine.module.ts        # exchange schema for --pine mode
-├── report/
-│   └── feb_2026.md           # example strategy research report
-└── scripts/
-    └── fetch_docs.mjs        # utility: downloads library READMEs into docs/lib/
-```
-
-### Automatic Documentation Fetch
-
-After scaffolding, the CLI immediately runs `scripts/fetch_docs.mjs` inside the new project, which downloads the latest README files for all bundled libraries into `docs/lib/`:
-
-| File | Source |
-|------|--------|
-| `backtest-kit.md` | `backtest-kit` README |
-| `backtest-kit__graph.md` | `@backtest-kit/graph` README |
-| `backtest-kit__pinets.md` | `@backtest-kit/pinets` README |
-| `backtest-kit__cli.md` | `@backtest-kit/cli` README |
-| `garch.md` | `garch` README |
-| `volume-anomaly.md` | `volume-anomaly` README |
-| `agent-swarm-kit.md` | `agent-swarm-kit` README |
-| `functools-kit.md` | `functools-kit` README |
-
-You can re-run this script at any time to refresh the docs:
-
-```bash
-cd backtest-kit-project
-node ./scripts/fetch_docs.mjs
-```
-
-Or via the pre-configured npm script:
-
-```bash
-npm run sync:lib
-```
-
-## 🐳 Running in Docker (`--docker`)
-
-CLI can create a ready-to-use Docker workspace: self-contained directory with `docker-compose.yaml` and a strategy entry point. 
-
-### CLI Flags
-
-| Flag | Type | Description |
-|------|------|-------------|
-| `--docker` | boolean | Scaffold a Docker workspace |
-| `--output` | string | Target directory name (default: `backtest-kit-docker`) |
-
-### Usage
-
-```bash
-npx @backtest-kit/cli --docker
-```
-
-Creates `./backtest-kit-docker/` in the current working directory.
-
-Override the directory name with `--output`:
-
-```bash
-npx @backtest-kit/cli --docker --output my-docker-workspace
-```
-
-The target directory must not exist or must be empty — the command aborts if it contains any files.
-
-### Two Launch Modes
-
-The Docker image entrypoint supports two ways to run a strategy:
-
-#### 1. `command:` in `docker-compose.yaml`
-
-Pin mode and flags directly in the compose file. The entrypoint forwards all arguments to the CLI unchanged:
-
-```yaml
-command:
-  - --live
-  - --symbol
-  - TRXUSDT
-  - --strategy
-  - feb_2026_strategy
-  - --exchange
-  - ccxt-exchange
-  - ./content/feb_2026/feb_2026.strategy.ts
-  - --ui
-```
-
-#### 2. Inline environment variables
-
-Pass `MODE` and `STRATEGY_FILE` on the command line — no file edits needed:
-
-```bash
-MODE=live SYMBOL=TRXUSDT STRATEGY_FILE=./content/feb_2026/feb_2026.strategy.ts docker-compose up -d
-```
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `MODE` | yes | — | `backtest` \| `live` \| `paper` \| `walker` |
-| `STRATEGY_FILE` | yes | — | Path to strategy entry point (relative to `working_dir`) |
-| `SYMBOL` | no | `BTCUSDT` | Trading pair |
-| `STRATEGY` | no | first registered | Strategy name |
-| `EXCHANGE` | no | first registered | Exchange name |
-| `FRAME` | no | first registered | Frame name (backtest only) |
-| `UI` | no | — | Any non-empty value enables `--ui` |
-| `TELEGRAM` | no | — | Any non-empty value enables `--telegram` |
-| `VERBOSE` | no | — | Any non-empty value enables `--verbose` |
-| `NO_CACHE` | no | — | Any non-empty value enables `--noCache` |
-| `NO_FLUSH` | no | — | Any non-empty value enables `--noFlush` |
-| `ENTRY` | no | — | Any non-empty value enables multiple symbols from userspace |
-
-## 🌍 Environment Variables
-
-Create a `.env` file in your project root:
-
-```env
-# Telegram notifications (required for --telegram)
-CC_TELEGRAM_TOKEN=your_bot_token_here
-CC_TELEGRAM_CHANNEL=-100123456789
-
-# Web UI server (optional, defaults shown)
-CC_WWWROOT_HOST=0.0.0.0
-CC_WWWROOT_PORT=60050
-
-# Custom QuickChart service URL (optional)
-CC_QUICKCHART_HOST=
-```
-
-| Variable               | Default     | Description                           |
-|------------------------|-------------|---------------------------------------|
-| `CC_TELEGRAM_TOKEN`    | —           | Telegram bot token (from @BotFather)  |
-| `CC_TELEGRAM_CHANNEL`  | —           | Telegram channel or chat ID           |
-| `CC_WWWROOT_HOST`      | `0.0.0.0`   | UI server bind address                |
-| `CC_WWWROOT_PORT`      | `60050`     | UI server port                        |
-| `CC_QUICKCHART_HOST`   | —           | Self-hosted QuickChart instance URL   |
-
-## ⚙️ Default Behaviors
-
-When your strategy module does not register an exchange, frame, or strategy name, the CLI falls back to built-in defaults and prints a console warning:
-
-| Component    | Default                        | Warning                                                                   |
-|--------------|--------------------------------|---------------------------------------------------------------------------|
-| **Exchange** | CCXT Binance (`default_exchange`) | `Warning: The default exchange schema is set to CCXT Binance...`       |
-| **Frame**    | February 2024 (`default_frame`)   | `Warning: The default frame schema is set to February 2024...`         |
-| **Symbol**   | `BTCUSDT`                         | —                                                                      |
-| **Cache intervals** | `1m, 15m, 30m, 4h`         | Used if `--cacheInterval` not provided; skip entirely with `--noCache` |
-
-> **Note:** The default exchange schema **does not support order book fetching in backtest mode**. If your strategy calls `getOrderBook()` during backtest, you must register a custom exchange schema with your own snapshot storage.
-
-## 🔧 Programmatic API
-
-In addition to the CLI, `@backtest-kit/cli` can be used as a library — call `run()` directly from your own script without spawning a child process or parsing CLI flags.
-
-### `run(mode, args)`
-
-```typescript
-import { run } from '@backtest-kit/cli';
-
-await run(mode, args);
-```
-
-| Parameter | Description |
-|-----------|-------------|
-| `mode` | `"backtest" \| "paper" \| "live"` — Execution mode |
-| `args` | Mode-specific options (all optional — same defaults as CLI) |
-
-`run()` can be called **only once per process**. A second call throws `"Should be called only once"`.
-
-### Payload fields
-
-**Backtest** (`mode: "backtest"`):
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `entryPoint` | `string` | Path to strategy entry point file |
-| `symbol` | `string` | Trading pair (default: `"BTCUSDT"`) |
-| `strategy` | `string` | Strategy name (default: first registered) |
-| `exchange` | `string` | Exchange name (default: first registered) |
-| `frame` | `string` | Frame name (default: first registered) |
-| `cacheInterval` | `CandleInterval[]` | Intervals to pre-cache (default: `["1m","15m","30m","1h","4h"]`) |
-| `noCache` | `boolean` | Skip candle cache warming (default: `false`) |
-| `noFlush` | `boolean` | Skip removing report/log/markdown/agent folders before the run (default: `false`) |
-| `verbose` | `boolean` | Log each candle fetch (default: `false`) |
-
-**Paper** and **Live** (`mode: "paper"` / `mode: "live"`):
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `entryPoint` | `string` | Path to strategy entry point file |
-| `symbol` | `string` | Trading pair (default: `"BTCUSDT"`) |
-| `strategy` | `string` | Strategy name (default: first registered) |
-| `exchange` | `string` | Exchange name (default: first registered) |
-| `verbose` | `boolean` | Log each candle fetch (default: `false`) |
-
-### Examples
-
-**Backtest:**
-
-```typescript
-import { run } from '@backtest-kit/cli';
-
-await run('backtest', {
-  entryPoint: './src/index.mjs',
-  symbol: 'ETHUSDT',
-  frame: 'feb-2024',
-  cacheInterval: ['1m', '15m', '1h'],
-  verbose: true,
-});
-```
-
-**Paper trading:**
-
-```typescript
-import { run } from '@backtest-kit/cli';
-
-await run('paper', {
-  entryPoint: './src/index.mjs',
-  symbol: 'BTCUSDT',
-});
-```
-
-**Live trading:**
-
-```typescript
-import { run } from '@backtest-kit/cli';
-
-await run('live', {
-  entryPoint: './src/index.mjs',
-  symbol: 'BTCUSDT',
-  verbose: true,
-});
-```
-
-## 💡 Why Use @backtest-kit/cli?
-
-Instead of writing infrastructure code for every project:
-
-**❌ Without @backtest-kit/cli (manual setup)**
-
-```typescript
-// index.ts
-import { setLogger, setConfig, Storage, Notification, Report, Markdown } from 'backtest-kit';
-import { serve } from '@backtest-kit/ui';
-
-setLogger({ log: console.log, ... });
-Storage.enable();
-Notification.enable();
-Report.enable();
-Markdown.disable();
-
-// ... parse CLI args manually
-// ... register exchange schema
-// ... warm candle cache
-// ... set up Telegram bot
-// ... handle SIGINT gracefully
-// ... load and run backtest
-```
-
-**✅ With @backtest-kit/cli (one script)**
+Instead of writing infrastructure for every project — manual logger/storage/notification setup, CLI arg parsing, exchange registration, cache warming, Telegram bot, SIGINT handling, run wiring — the whole thing is one script:
 
 ```json
 { "scripts": { "backtest": "npx @backtest-kit/cli --backtest --ui --telegram ./src/index.mjs" } }
 ```
 
-```bash
-npm run backtest
-```
-
-**Benefits:**
-
-- 🚀 From zero to running backtest in seconds
-- 💾 Automatic candle cache warming with retry logic
-- 🌐 Production-ready web dashboard out of the box
-- 📬 Telegram notifications with price charts — no chart code needed
-- 🛑 Graceful shutdown on SIGINT — no hanging processes
-- 🔌 Works with any `backtest-kit` strategy file as-is
-- 🧩 Broker adapter hooks via side-effect module files — no CLI internals to touch
+Zero to running backtest in seconds · automatic candle-cache warming with retry · production web dashboard out of the box · Telegram alerts with charts (no chart code) · graceful SIGINT shutdown (no hanging processes) · pluggable logger — override the built-in one with `setLogger()` from your strategy module · works with any `backtest-kit` strategy as-is · broker hooks via side-effect modules (no CLI internals to touch).
 
 ## 🤝 Contribute
 
-Fork/PR on [GitHub](https://github.com/tripolskypetr/backtest-kit).
+Fork / PR on [GitHub](https://github.com/tripolskypetr/backtest-kit).
 
 ## 📜 License
 

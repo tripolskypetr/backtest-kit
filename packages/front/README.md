@@ -14,6 +14,7 @@ Interactive dashboard for backtest-kit with signal visualization, candle charts,
 
 📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
 
+> **New here?** The fastest real setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there, not from scratch.
 
 ```bash
 npm install @backtest-kit/ui backtest-kit
@@ -168,19 +169,6 @@ A file browser for everything the engine wrote to disk.
 <summary>What's on the page</summary>
 
 A **tree-structured** browser of backtest output and artifact files. Icons mark file type — image, JSON, plain text, or generic. Clicking a file opens a **full-screen preview modal**. Keyword search filters the tree; manual refresh rebuilds it. Backed by the `FileTreeWidget`.
-
-</details>
-
-## Pine Editor — `/pine_page`
-
-![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot32.png)
-
-A focused, chrome-free Pine Script workspace.
-
-<details>
-<summary>What's on the page</summary>
-
-A code editor wrapped in its own state providers — **code, from-date, to-date, limit, symbol, timeframe** — so you can edit a Pine v5/v6 strategy and run it against a chosen symbol/timeframe window right in the browser, seeing the resulting signal. Rendered without the app header for maximum editing space.
 
 </details>
 
