@@ -1,6 +1,149 @@
-# 📐 Statistical-Metrics Rewrite & Measure Testbed (v10.2.0, 03/06/2026)
+# 🧩 Actions, Runtime Introspection & Broker-Level Order Sync (v14.0.0, 19/06/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/14.0.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+The headline is a new **Actions** subsystem: pluggable, per-strategy event handlers (`addActionSchema` / `IAction`) that receive the full event stream (signal/breakeven/partial/ping/risk) for state-management, notifications, and analytics integrations without touching strategy logic. Alongside it: a **runtime-introspection** API (`getRuntimeInfo`, `getStrategyStatus`), imperative signal creation from inside a tick (`commitCreateSignal`), broker-level **pending-order synchronization** (`onOrderPing` / `BrokerSignalPendingPayload`) that lets the infrastructure layer confirm a live order still exists on the exchange, a **price-profile** analytics bundle (buyer/seller pressure & strength, log-price trend regression) wired into Backtest/Live/Heat reports, a **candle-validation** guard against corrupt adapter output, a Mongo **strategy-state** persistence adapter, and a hardened **Cron watchdog**. Every commit function now carries `signalId` so deferred broker operations survive a restart against the correct position. Test count crossed **760+** (was 740+) with a new e2e Actions suite and migration tests `migrate10` / `migrate11`.
+
+**Actions — `addActionSchema` / `IAction`**
+
+```typescript
+import { addActionSchema, addStrategySchema, IAction, IStrategyTickResult } from "backtest-kit";
+
+// An action is a constructor (strategyName, frameName, actionName, backtest)
+// returning a partial IAction. It receives EVERY event the strategy emits.
+class TelegramNotifier implements Partial<IAction> {
+  constructor(
+    private strategyName: string,
+    private frameName: string,
+    private actionName: string,
+    private backtest: boolean,
+  ) {}
+
+  async init() { /* open connections, load state — runs once */ }
+
+  signal(event: IStrategyTickResult) {
+    if (!this.backtest && event.action === "opened") {
+      telegram.send(`[${this.strategyName}] opened ${event.signal.position}`);
+    }
+  }
+
+  async dispose() { /* flush buffers, close connections — runs once */ }
+}
+
+addActionSchema({ actionName: "telegram", handler: TelegramNotifier });
+
+// Attach by name; multiple actions per strategy are supported.
+addStrategySchema({ strategyName: "rsi", interval: "5m", getSignal, actions: ["telegram"] });
+```
+
+Each action is instantiated **per strategy-frame pair**. Lifecycle is `constructor → init() → events… → dispose()`, with `dispose()` guaranteed exactly once. Handlers cover the full surface: `signal` / `signalLive` / `signalBacktest`, `breakevenAvailable`, `partialProfitAvailable` / `partialLossAvailable`, `pingScheduled` / `pingActive` / `pingIdle`, `riskRejection`, plus the deferred-by-default `signalSync` and `orderPing`. Callbacks (`onInit`, `onSignal`, `onDispose`, …) on the schema mirror every method for those who prefer a plain object over a class.
+
+**Runtime introspection & imperative signals**
+
+```typescript
+import { getRuntimeInfo, getStrategyStatus, commitCreateSignal } from "backtest-kit";
+
+// Inside a strategy tick / ping callback:
+const rt = await getRuntimeInfo();
+// { symbol, range: { from, to } | null, info, context: { exchangeName, strategyName, frameName },
+//   when, currentPrice, backtest }
+
+// In-memory snapshot of deferred broker work tied to the current pending signal:
+const status = await getStrategyStatus("BTCUSDT");
+// { pendingSignalId, queued createSignal, commit queue, deferred-action flags }
+
+// Queue a user-built DTO to be consumed by the next tick instead of params.getSignal.
+// priceOpen omitted → opens at current price; provided → scheduled until price is reached.
+await commitCreateSignal("BTCUSDT", { position: "long", priceTakeProfit: 110, priceStopLoss: 90 });
+```
+
+`range` is `null` in live mode and carries the backtest window otherwise. `info` is the optional `RuntimeData` declared on the strategy schema (`info?: RuntimeData`), surfaced for custom monitoring/reporting and mirrored into the front-end runtime view.
+
+**Broker-level pending-order sync — `onOrderPing`**
+
+```typescript
+import { Broker, BrokerSignalPendingPayload } from "backtest-kit";
+
+Broker.useBrokerAdapter({
+  // Fires on every live tick while a pending signal is monitored, BEFORE TP/SL/time eval.
+  // Query the exchange by payload.signalId and THROW ONLY when the order is NOT FOUND
+  // (filled / cancelled / liquidated externally) — the framework then closes with reason "closed".
+  // Swallow transient/network errors (return normally) so a connectivity blip never closes a live position.
+  async onOrderPing(payload: BrokerSignalPendingPayload) {
+    const order = await exchange.getOrderById(payload.signalId);
+    if (!order) throw new Error("order not found");
+  },
+});
+```
+
+This moves exchange-truth reconciliation into the infrastructure domain layer where it belongs. The older `Action::orderPing` / `onOrderPing` strategy callback is now `@deprecated` in favour of the broker adapter.
+
+## New Public API
+
+| Export | Kind | What it does |
+|---|---|---|
+| `addActionSchema` | function | Register a per-strategy event-handler action |
+| `IAction` / `IPublicAction` / `IActionSchema` / `IActionCallbacks` / `TActionCtor` / `ActionName` | types | Action subsystem contracts |
+| `getRuntimeInfo` | function | Symbol / range / context / price / mode snapshot for the current tick |
+| `getStrategyStatus` | function | In-memory snapshot of deferred broker work for the pending signal |
+| `commitCreateSignal` | function | Queue a user-built `ISignalDto` for the next tick (immediate or scheduled by `priceOpen`) |
+| `IRuntimeInfo` / `IRuntimeRange` / `RuntimeData` / `StrategyStatus` | types | Runtime-introspection contracts |
+| `validateCandles` | function | OHLCV anomaly guard (NaN / Infinity / non-positive / incomplete-candle detection) |
+| `getPriceScale` | function | Magnitude-based display decimal count (2..8) for report rendering |
+| `SignalPingContract` | type | Payload for the pending-order ping event |
+| `BrokerSignalPendingPayload` | type | Broker adapter pending-ping payload (`onOrderPing`) |
+| `PersistStrategyAdapter` / `StrategyData` / `IPersistStrategyInstance` / `PersistStrategyInstance` / `TPersistStrategyInstanceCtor` | persistence | Strategy-state persistence (deferred broker queue survives restart) |
+
+## Price-Profile Analytics
+
+`src/helpers/getPriceProfile.ts` derives a nine-metric bundle from a strategy's chronological series of trade closes — **no candles, no exchange queries** — and the values are now exposed on `BacktestStatisticsModel`, `LiveStatisticsModel`, `IHeatmapRow`, and their portfolio aggregates:
+
+- **`buyerPressure` / `sellerPressure`** — fraction of up- vs down-moves among decisive close-to-close steps (frequency, sums to 1).
+- **`buyerStrength` / `sellerStrength`** — share of upward vs downward absolute magnitude (size).
+- **`pressureImbalance`** — `buyerStrength − sellerStrength ∈ [−1, 1]`; a divergence from pressure surfaces asymmetry ("rising on weak buys, falling on strong sells").
+- **`trend` / `trendStrength` / `trendConfidence`** — bivariate classification from a **log-price linear regression vs days**: slope in %/day, confidence as R². Both axes must agree (`R² ≥ 0.30` gate, slope normalised by `medianStepSize`); otherwise `sideways`/`neutral`. Log-price makes the slope scale-invariant across instruments.
+- **`medianStepSize`** — median `|close[i] − close[i-1]| / close[i-1]` in %, robust to outliers.
+
+Gated below `MIN_SIGNALS` (10) — every field is `null` on too-small or numerically-unsafe input.
+
+## New Statistics Fields
+
+Beyond price-profile, the report models gained the previously-flagged metrics:
+
+- **`expectancy`** (`winProb·avgWin + lossProb·avgLoss`) — added to `BacktestStatisticsModel` / `LiveStatisticsModel` (`portfolioExpectancy` on Heat), closing the long-standing `expectancy`-missing gap.
+- **Heat per-symbol & portfolio**: `peakProfitPnl`, `maxDrawdownPnl`, `avgDuration`, `medianPnl`, `avgConsecutiveWinPnl` / `avgConsecutiveLossPnl`, `avgWinDuration` / `avgLossDuration`, `annualizedSharpeRatio`, `certaintyRatio`, `expectedYearlyReturns`, `tradesPerYear` — and pooled `portfolio*` counterparts (`portfolioStdDev`, `portfolioSortinoRatio`, `portfolioCalmarRatio`, `portfolioRecoveryFactor`, `portfolioCertaintyRatio`, …).
+- **Backtest / Live**: `avgDuration`, `medianPnl`, `avgConsecutiveWinPnl` / `avgConsecutiveLossPnl`, `avgWinDuration` / `avgLossDuration` added alongside the v10.2.0 ratios.
+
+## Candle Validation
+
+`validateCandles` (wired into `ClientExchange` / `Exchange` before candles are cached or persisted) rejects corrupt adapter output before it can poison VWAP / averages on the next read:
+
+- Non-finite values (`NaN` / `±Infinity`) — JSON would silently serialise these to `null`.
+- Zero / negative prices and negative volume.
+- **Incomplete-candle detection** — prices abnormally below a reference (median for large sets, average for small), e.g. an exchange returning `0.1` instead of `100000`, via `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`.
+
+## `signalId` Threaded Through Every Commit
+
+Every `Broker.commit*` payload (`commitPartialProfit`, `commitPartialLoss`, `commitTrailingStop` / `commitTrailingTake` and their `*Cost` variants, `commitBreakeven`, `commitAverageBuy`) now carries the originating `signalId`. Combined with `StrategyStatus.pendingSignalId`, a deferred broker operation persisted across a restart is applied **only** when it matches the restored pending signal — a snapshot belonging to a stale/different position is discarded instead of misapplied.
+
+## Infrastructure & Other Changes
+
+- **Mongo strategy adapter** — `@backtest-kit/mongo` gained `PersistStrategyInstance` + `StrategyCacheService` / `StrategyDbService` so strategy-state (the deferred broker queue) persists to MongoDB.
+- **Cron watchdog** — `Cron.ts` reworked with a watchdog that detects and recovers stalled cron handles (relevant to long-running live deployments).
+- **`waitForReady` hardened** — now resolves immediately when the entry subject already has data, otherwise races schema readiness against a `45s` (was `10s`) timeout via `entrySubject`, logging a `waitForReady timeout` instead of hanging.
+- **`trailingStop` signature** — gained a trailing `timestamp` parameter on `IStrategy.trailingStop` for accurate event timing.
+- **Front-end** — runtime-info view (`RuntimeViewService` / `RuntimeMockService`), virtual-table rendering, and markdown-scrolling added to `packages/front`.
+- **Tests** — new `test/e2e/action.test.mjs`, migration suites `migrate10` (335 lines) / `migrate11` (207 lines), 15 additional measure snapshots (`backtest_86…100`); e2e timing/trailing/dca suites updated for the `signalId` + `timestamp` changes.
+
+
+
+
+# 📐 Statistical-Metrics & Measure Testbed (v10.2.0, 03/06/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/10.2.0)
+
 
 
 > 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
