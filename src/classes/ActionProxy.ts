@@ -3,6 +3,7 @@ import PartialLossContract from "../contract/PartialLoss.contract";
 import PartialProfitContract from "../contract/PartialProfit.contract";
 import SchedulePingContract from "../contract/SchedulePing.contract";
 import ScheduleEventContract from "../contract/ScheduleEvent.contract";
+import SignalEventContract from "../contract/SignalEvent.contract";
 import ActivePingContract from "../contract/ActivePing.contract";
 import IdlePingContract from "../contract/IdlePing.contract";
 import RiskContract from "../contract/Risk.contract";
@@ -345,6 +346,34 @@ const CALL_SCHEDULE_EVENT_FN = trycatch(
 );
 
 /**
+ * Wrapper to call pendingEvent method with error capture.
+ *
+ * Like CALL_SCHEDULE_EVENT_FN there is no hasPendingSignal guard: the "closed" action fires exactly
+ * while the pending signal is being removed, so guarding on its presence would suppress it.
+ */
+const CALL_PENDING_EVENT_FN = trycatch(
+  async (event: SignalEventContract, self: ActionProxy): Promise<void> => {
+    if (!self._target.pendingEvent) {
+      return;
+    }
+    return await self._target.pendingEvent(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "ActionProxy.pendingEvent thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      LOGGER_SERVICE.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Wrapper to call pingActive method with error capture.
  */
 const CALL_PING_ACTIVE_FN = trycatch(
@@ -611,6 +640,19 @@ export class ActionProxy implements IPublicAction {
    */
   public async scheduleEvent(event: ScheduleEventContract) {
     return await CALL_SCHEDULE_EVENT_FN(event, this);
+  }
+
+  /**
+   * Handles pending signal lifecycle events with error capture.
+   *
+   * Wraps the user's pendingEvent() method to catch and log any errors. Called once when a
+   * pending position is opened (action "opened") and once when it is closed (action "closed").
+   *
+   * @param event - Pending lifecycle data (action discriminates opened vs closed)
+   * @returns Promise resolving to user's pendingEvent() result or null on error
+   */
+  public async pendingEvent(event: SignalEventContract) {
+    return await CALL_PENDING_EVENT_FN(event, this);
   }
 
   /**

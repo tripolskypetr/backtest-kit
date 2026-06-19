@@ -14,6 +14,7 @@ import { PartialProfitContract } from "../../../contract/PartialProfit.contract"
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
 import { ScheduleEventContract } from "../../../contract/ScheduleEvent.contract";
+import { SignalEventContract } from "../../../contract/SignalEvent.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
@@ -298,6 +299,26 @@ export class ActionConnectionService implements TAction {
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
     await action.scheduleEvent(event);
+  };
+
+  /**
+   * Routes a pending signal lifecycle event (open / close) to the ClientAction instance.
+   *
+   * @param event - Pending lifecycle event data (action discriminates opened vs closed)
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
+   */
+  public pendingEvent = async (
+    event: SignalEventContract,
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionConnectionService pendingEvent", {
+      backtest,
+      context,
+    });
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.pendingEvent(event);
   };
 
   /**

@@ -53,6 +53,7 @@ import beginTime from "../../../utils/beginTime";
 import SignalSyncContract from "../../../contract/SignalSync.contract";
 import SignalPingContract from "../../../contract/SignalPing.contract";
 import ScheduleEventContract from "../../../contract/ScheduleEvent.contract";
+import SignalEventContract from "../../../contract/SignalEvent.contract";
 import TimeMetaService from "../meta/TimeMetaService";
 import PriceMetaService from "../meta/PriceMetaService";
 
@@ -394,7 +395,7 @@ const CREATE_COMMIT_SIGNAL_EVENT_FN = (self: StrategyConnectionService) => tryca
     timestamp: number,
     closeReason?: StrategyCloseReason
   ): Promise<void> => {
-    const event = {
+    const event: SignalEventContract = {
       action,
       symbol,
       strategyName,
@@ -407,6 +408,7 @@ const CREATE_COMMIT_SIGNAL_EVENT_FN = (self: StrategyConnectionService) => tryca
       timestamp,
     };
     await signalEventSubject.next(event);
+    await self.actionCoreService.pendingEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
   },
   {
     fallback: (error) => {

@@ -4,6 +4,7 @@ import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
+import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
@@ -291,6 +292,22 @@ export interface IActionCallbacks {
    * @param backtest - True for backtest mode, false for live trading
    */
   onScheduleEvent(event: ScheduleEventContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+
+  /**
+   * Called on pending signal lifecycle events (open / close).
+   *
+   * Triggered by: StrategyConnectionService via signalEventSubject
+   * Frequency: Once when a pending position is opened (action "opened": new signal / immediate /
+   * scheduled or user activation) and once when it is closed (action "closed" with closeReason
+   * take_profit / stop_loss / time_expired / closed).
+   *
+   * @param event - Pending lifecycle data (action discriminates opened vs closed)
+   * @param actionName - Action identifier
+   * @param strategyName - Strategy identifier
+   * @param frameName - Timeframe identifier
+   * @param backtest - True for backtest mode, false for live trading
+   */
+  onPendingEvent(event: SignalEventContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called during active pending signal monitoring (every minute while position is active).
@@ -624,6 +641,18 @@ export interface IAction {
    * @param event - Scheduled lifecycle data (action discriminates created vs cancelled)
    */
   scheduleEvent(event: ScheduleEventContract): void | Promise<void>;
+
+  /**
+   * Handles pending signal lifecycle events (open / close).
+   *
+   * Emitted by: StrategyConnectionService via signalEventSubject
+   * Source: CREATE_COMMIT_SIGNAL_EVENT_FN callback in StrategyConnectionService
+   * Frequency: Once when a pending position is opened (action "opened") and once when it is
+   * closed (action "closed" with closeReason take_profit / stop_loss / time_expired / closed).
+   *
+   * @param event - Pending lifecycle data (action discriminates opened vs closed)
+   */
+  pendingEvent(event: SignalEventContract): void | Promise<void>;
 
   /**
    * Handles active ping events during active pending signal monitoring.

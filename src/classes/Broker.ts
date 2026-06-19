@@ -1,7 +1,7 @@
 import { compose, makeExtendable, singleshot } from "functools-kit";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { IStrategyPnL, StrategyCancelReason, StrategyName } from "../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyCancelReason, StrategyCloseReason, StrategyName } from "../interfaces/Strategy.interface";
 import {
   syncSubject,
   syncPendingSubject,
@@ -9,6 +9,7 @@ import {
   schedulePingSubject,
   idlePingSubject,
   scheduleEventSubject,
+  signalEventSubject,
 } from "../config/emitters";
 import bt from "../lib";
 
@@ -20,6 +21,8 @@ const BROKER_METHOD_NAME_COMMIT_SCHEDULE_PING = "BrokerAdapter.commitSchedulePin
 const BROKER_METHOD_NAME_COMMIT_IDLE_PING = "BrokerAdapter.commitIdlePing";
 const BROKER_METHOD_NAME_COMMIT_SCHEDULE_OPEN = "BrokerAdapter.commitScheduleOpen";
 const BROKER_METHOD_NAME_COMMIT_SCHEDULE_CANCELLED = "BrokerAdapter.commitScheduleCancelled";
+const BROKER_METHOD_NAME_COMMIT_PENDING_OPEN = "BrokerAdapter.commitPendingOpen";
+const BROKER_METHOD_NAME_COMMIT_PENDING_CLOSE = "BrokerAdapter.commitPendingClose";
 const BROKER_METHOD_NAME_COMMIT_PARTIAL_PROFIT = "BrokerAdapter.commitPartialProfit";
 const BROKER_METHOD_NAME_COMMIT_PARTIAL_LOSS = "BrokerAdapter.commitPartialLoss";
 const BROKER_METHOD_NAME_COMMIT_TRAILING_STOP = "BrokerAdapter.commitTrailingStop";
@@ -40,6 +43,8 @@ const BROKER_BASE_METHOD_NAME_ON_SCHEDULE_PING = "BrokerBase.onSignalSchedulePin
 const BROKER_BASE_METHOD_NAME_ON_IDLE_PING = "BrokerBase.onSignalIdlePing";
 const BROKER_BASE_METHOD_NAME_ON_SCHEDULE_OPEN = "BrokerBase.onSignalScheduleOpen";
 const BROKER_BASE_METHOD_NAME_ON_SCHEDULE_CANCELLED = "BrokerBase.onSignalScheduleCancelled";
+const BROKER_BASE_METHOD_NAME_ON_PENDING_OPEN = "BrokerBase.onSignalPendingOpen";
+const BROKER_BASE_METHOD_NAME_ON_PENDING_CLOSE = "BrokerBase.onSignalPendingClose";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_PROFIT = "BrokerBase.onPartialProfitCommit";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_LOSS = "BrokerBase.onPartialLossCommit";
 const BROKER_BASE_METHOD_NAME_ON_TRAILING_STOP = "BrokerBase.onTrailingStopCommit";
@@ -446,6 +451,101 @@ export type BrokerScheduleCancelledPayload = {
 };
 
 /**
+ * Payload for the pending-signal-open broker event.
+ *
+ * Emitted automatically via signalEventSubject (action "opened") when a pending position is opened
+ * (new signal / immediate entry / scheduled or user activation). Forwarded to the registered IBroker
+ * adapter via `onSignalPendingOpen`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPendingOpenPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 50000,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerPendingOpenPayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Unique signal identifier (UUID v4) of the opened position */
+  signalId: string;
+  /** Position direction */
+  position: "long" | "short";
+  /** Effective entry price at the moment the position opened */
+  currentPrice: number;
+  /** Effective entry price (may differ from currentPrice after DCA averaging) */
+  priceOpen: number;
+  /** Take-profit price configured for the position */
+  priceTakeProfit: number;
+  /** Stop-loss price configured for the position */
+  priceStopLoss: number;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
+ * Payload for the pending-signal-close broker event.
+ *
+ * Emitted automatically via signalEventSubject (action "closed") when a pending position is closed.
+ * Forwarded to the registered IBroker adapter via `onSignalPendingClose`. The `closeReason`
+ * distinguishes take_profit / stop_loss / time_expired / user-close / broker fill / order gone.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPendingClosePayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 55000,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   closeReason: "take_profit",
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerPendingClosePayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Unique signal identifier (UUID v4) of the closed position */
+  signalId: string;
+  /** Position direction */
+  position: "long" | "short";
+  /** Market price at the moment of close */
+  currentPrice: number;
+  /** Effective entry price of the closed position */
+  priceOpen: number;
+  /** Effective take-profit price of the closed position */
+  priceTakeProfit: number;
+  /** Effective stop-loss price of the closed position */
+  priceStopLoss: number;
+  /** Why the position closed: "take_profit" / "stop_loss" / "time_expired" / "closed" */
+  closeReason?: StrategyCloseReason;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
  * Payload for a partial-profit close broker event.
  *
  * Forwarded to the registered IBroker adapter via `onPartialProfitCommit`.
@@ -790,6 +890,18 @@ export interface IBroker {
    */
   onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void>;
 
+  /**
+   * Called when a pending position is opened (new signal / immediate / scheduled or user
+   * activation). Purely informational lifecycle hook for the active phase of a signal.
+   */
+  onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
+
+  /**
+   * Called when a pending position is closed
+   * (reason: take_profit / stop_loss / time_expired / closed).
+   */
+  onSignalPendingClose(payload: BrokerPendingClosePayload): Promise<void>;
+
   /** Called when a partial profit close is committed. */
   onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
 
@@ -969,6 +1081,38 @@ export class BrokerProxy implements IBroker {
     if (this._instance.onSignalScheduleCancelled) {
       await this.waitForInit();
       await this._instance.onSignalScheduleCancelled(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards a pending-signal-open event to the underlying adapter.
+   * Silently skipped when the adapter does not implement `onSignalPendingOpen`.
+   *
+   * @param payload - Pending open details: symbol, signalId, position, prices, context, backtest.
+   */
+  public async onSignalPendingOpen(
+    payload: BrokerPendingOpenPayload,
+  ): Promise<void> {
+    if (this._instance.onSignalPendingOpen) {
+      await this.waitForInit();
+      await this._instance.onSignalPendingOpen(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards a pending-signal-close event to the underlying adapter.
+   * Silently skipped when the adapter does not implement `onSignalPendingClose`.
+   *
+   * @param payload - Pending close details: symbol, signalId, position, prices, closeReason, context, backtest.
+   */
+  public async onSignalPendingClose(
+    payload: BrokerPendingClosePayload,
+  ): Promise<void> {
+    if (this._instance.onSignalPendingClose) {
+      await this.waitForInit();
+      await this._instance.onSignalPendingClose(payload);
       return;
     }
   }
@@ -1378,6 +1522,56 @@ export class BrokerAdapter {
     const instance = this.getInstance();
     if (instance) {
       await instance.onSignalScheduleCancelled(payload);
+    }
+  };
+
+  /**
+   * Forwards a pending-signal-open to the registered broker adapter.
+   *
+   * Called automatically via signalEventSubject (action "opened") when a pending position is opened.
+   * Skipped silently in backtest mode or when no adapter is registered.
+   *
+   * @param payload - Pending open details: symbol, signalId, position, prices, context, backtest
+   */
+  public commitPendingOpen = async (payload: BrokerPendingOpenPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_PENDING_OPEN, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onSignalPendingOpen(payload);
+    }
+  };
+
+  /**
+   * Forwards a pending-signal-close to the registered broker adapter.
+   *
+   * Called automatically via signalEventSubject (action "closed") when a pending position is closed.
+   * Skipped silently in backtest mode or when no adapter is registered.
+   *
+   * @param payload - Pending close details: symbol, signalId, position, prices, closeReason, context, backtest
+   */
+  public commitPendingClose = async (payload: BrokerPendingClosePayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_PENDING_CLOSE, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onSignalPendingClose(payload);
     }
   };
 
@@ -1829,6 +2023,29 @@ export class BrokerAdapter {
       await this.commitScheduleCancelled({ ...payload, reason: event.reason });
     });
 
+    const unSignalEvent = signalEventSubject.subscribe(async (event) => {
+      const payload = {
+        symbol: event.symbol,
+        signalId: event.data.id,
+        position: event.data.position,
+        currentPrice: event.currentPrice,
+        priceOpen: event.data.priceOpen,
+        priceTakeProfit: event.data.priceTakeProfit,
+        priceStopLoss: event.data.priceStopLoss,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
+      };
+      if (event.action === "opened") {
+        await this.commitPendingOpen(payload);
+        return;
+      }
+      await this.commitPendingClose({ ...payload, closeReason: event.closeReason });
+    });
+
     const disposeFn = compose(
       () => unSignalOpen(),
       () => unSignalClose(),
@@ -1837,6 +2054,7 @@ export class BrokerAdapter {
       () => unSchedulePing(),
       () => unIdlePing(),
       () => unScheduleEvent(),
+      () => unSignalEvent(),
     );
 
     return () => {
@@ -2122,6 +2340,34 @@ class BrokerBase implements IBroker {
    */
   public async onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void> {
     bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SCHEDULE_CANCELLED, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a pending position is opened (new signal / immediate / scheduled or user activation).
+   *
+   * Informational lifecycle hook. Override to mirror the open into your own systems. The default logs.
+   *
+   * @param payload - Pending open details: symbol, signalId, position, prices, context, backtest
+   */
+  public async onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_PENDING_OPEN, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a pending position is closed (take_profit / stop_loss / time_expired / closed).
+   *
+   * Informational lifecycle hook. Override to mirror the close into your own systems. The default logs.
+   *
+   * @param payload - Pending close details: symbol, signalId, position, prices, closeReason, context, backtest
+   */
+  public async onSignalPendingClose(payload: BrokerPendingClosePayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_PENDING_CLOSE, {
       symbol: payload.symbol,
       context: payload.context,
     });

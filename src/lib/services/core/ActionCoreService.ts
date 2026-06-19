@@ -16,6 +16,7 @@ import { PartialProfitContract } from "../../../contract/PartialProfit.contract"
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
 import { ScheduleEventContract } from "../../../contract/ScheduleEvent.contract";
+import { SignalEventContract } from "../../../contract/SignalEvent.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
@@ -377,6 +378,35 @@ export class ActionCoreService implements TAction {
 
     for (const actionName of actions) {
       await this.actionConnectionService.scheduleEvent(event, backtest, { actionName, ...context });
+    }
+  };
+
+  /**
+   * Routes a pending signal lifecycle event (open / close) to all registered actions.
+   *
+   * Retrieves action list from strategy schema (IStrategySchema.actions) and invokes the
+   * pendingEvent handler on each ClientAction instance sequentially. Called once on open
+   * (action "opened") and once on close (action "closed").
+   *
+   * @param backtest - Whether running in backtest mode (true) or live mode (false)
+   * @param event - Pending lifecycle event data (action discriminates opened vs closed)
+   * @param context - Strategy execution context with strategyName, exchangeName, frameName
+   */
+  public pendingEvent = async (
+    backtest: boolean,
+    event: SignalEventContract,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionCoreService pendingEvent", {
+      context,
+    });
+
+    await this.validate(context);
+
+    const { actions = [] } = this.strategySchemaService.get(context.strategyName);
+
+    for (const actionName of actions) {
+      await this.actionConnectionService.pendingEvent(event, backtest, { actionName, ...context });
     }
   };
 

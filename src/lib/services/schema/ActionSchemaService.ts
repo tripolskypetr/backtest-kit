@@ -31,6 +31,7 @@ const VALID_METHOD_NAMES: Key[] = [
   "pingScheduled",
   "pingActive",
   "scheduleEvent",
+  "pendingEvent",
   "riskRejection",
   "dispose",
 ];
