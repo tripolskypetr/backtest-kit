@@ -43,9 +43,7 @@ const useStyles = makeStyles()((theme) => ({
         alignItems: "stretch",
         justifyContent: "stretch",
         flexDirection: "column",
-    },
-    appBar: {
-        zIndex: 99999,
+        zIndex: 1051,
     },
     container: {
         flex: 1,
@@ -156,8 +154,6 @@ export const AppHeader = ({
     loading,
 }: IAppHeaderProps) => {
     const { classes, cx } = useStyles();
-
-    const { total } = useModalManager();
 
     const { activeTabPath, tabs } = useMemo(() => {
         if (!routeItem.tabs) {
@@ -293,11 +289,7 @@ export const AppHeader = ({
     };
 
     return (
-        <Box 
-            className={cx(classes.root, {
-                [classes.appBar]: !total,
-            })}
-        >
+        <Box className={classes.root}>
             <Box className={classes.container}>
                 <Center
                     onClick={() => {
