@@ -136,7 +136,7 @@ Frequency: Once on creation (action "scheduled") and once on cancellation before
 (action "cancelled": timeout / price_reject / user). The scheduled -&gt; active transition is
 NOT reported here — activation surfaces as an "opened" signal instead.
 
-## Manual wiring — EVENT-BASED (driving the exchange from an action registered via `addActionSchema`)
+Manual wiring — EVENT-BASED (driving the exchange from an action registered via `addActionSchema`)
 
 An action is the alternative to a Broker adapter for binding the framework to a real exchange:
 both run inside the strategy tick, so the commit-functions from `src/function/strategy.ts` are
@@ -160,7 +160,7 @@ Frequency: Once when a pending position is opened (action "opened": new signal /
 scheduled or user activation) and once when it is closed (action "closed" with closeReason
 take_profit / stop_loss / time_expired / closed).
 
-## Manual wiring — EVENT-BASED (driving the exchange from an action registered via `addActionSchema`)
+Manual wiring — EVENT-BASED (driving the exchange from an action registered via `addActionSchema`)
 
 Alternative to a Broker adapter — the commit-functions from `src/function/strategy.ts` are
 callable here (same tick context) and apply on the next tick. On `event.action === "opened"`

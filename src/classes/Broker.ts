@@ -884,7 +884,7 @@ export interface IBroker {
    * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
    * position. Throw exclusively on a confirmed "order not found by id" result.
    *
-   * ## Manual wiring — EXCEPTION-BASED VARIANT
+   * Manual wiring — EXCEPTION-BASED VARIANT
    *
    * This is the throw-driven **alternative** to the imperative commit-function wiring in
    * `onSignalActivePing`:
@@ -919,7 +919,7 @@ export interface IBroker {
    * Purely informational mirror of the active-ping lifecycle — a throw here does NOT close the
    * position (unlike `onOrderCheck`).
    *
-   * ## Manual wiring — EVENT-BASED (driving an open position from real exchange state)
+   * Manual wiring — EVENT-BASED (driving an open position from real exchange state)
    *
    * Primary per-tick **event-based** hook for an open position (a throw does NOT close it — react to
    * the event and decide imperatively). This is where you reconcile the framework's VWAP view with
@@ -956,7 +956,7 @@ export interface IBroker {
    * Called on every live tick while a scheduled signal is monitored (waiting for priceOpen
    * activation). Purely informational.
    *
-   * ## Manual wiring — EVENT-BASED (driving the scheduled phase from real exchange state)
+   * Manual wiring — EVENT-BASED (driving the scheduled phase from real exchange state)
    *
    * Per-tick **event-based** hook (a throw does NOT veto anything — react and decide imperatively).
    * Poll your real resting/limit order and translate it via the commit-functions from
@@ -994,7 +994,7 @@ export interface IBroker {
    * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
    * The scheduled -> active transition is reported via `onSignalOpenCommit`, not here.
    *
-   * ## Manual wiring — EVENT-BASED (placing the resting order)
+   * Manual wiring — EVENT-BASED (placing the resting order)
    *
    * Fires ONCE at creation — place the real resting/limit order (tag it with `payload.signalId` so
    * `onSignalSchedulePing` can poll it later). If it resolves immediately, promote it with
@@ -1023,7 +1023,7 @@ export interface IBroker {
    * Called when a scheduled signal is cancelled before it ever activated
    * (reason: timeout / price_reject / user).
    *
-   * ## Manual wiring — EVENT-BASED (tearing down the resting order)
+   * Manual wiring — EVENT-BASED (tearing down the resting order)
    *
    * Outbound side — the framework has already dropped the scheduled signal, so there is nothing to
    * `commitCancelScheduled` here; instead cancel the real resting order you placed in
@@ -1042,7 +1042,7 @@ export interface IBroker {
    * Called when a pending position is opened (new signal / immediate / scheduled or user
    * activation). Purely informational lifecycle hook for the active phase of a signal.
    *
-   * ## Manual wiring — EVENT-BASED (placing entry + protective orders)
+   * Manual wiring — EVENT-BASED (placing entry + protective orders)
    *
    * Fires ONCE at open — place the real entry confirmation and protective TP/SL orders (tag them with
    * `payload.signalId`). Drive the rest per-tick from `onSignalActivePing`. This hook does not gate
@@ -1054,7 +1054,7 @@ export interface IBroker {
    * Called when a pending position is closed
    * (reason: take_profit / stop_loss / time_expired / closed).
    *
-   * ## Manual wiring — EVENT-BASED (tearing down the position)
+   * Manual wiring — EVENT-BASED (tearing down the position)
    *
    * Outbound side — the framework has already removed the pending signal, so there is nothing to
    * `commitClosePending` here; instead flatten the real position and cancel leftover TP/SL orders by
