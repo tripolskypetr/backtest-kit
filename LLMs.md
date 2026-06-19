@@ -50,6 +50,7 @@
 38. [JSONL report streams](#38-jsonl-report-streams)
 39. [Schema & graph validation](#39-schema--graph-validation)
 40. [Config in practice — where each parameter is consumed](#40-config-in-practice--where-each-parameter-is-consumed)
+41. [Binding the framework to a real exchange — EXCEPTION-BASED vs EVENT-BASED](#41-binding-the-framework-to-a-real-exchange--exception-based-vs-event-based)
 
 ---
 
