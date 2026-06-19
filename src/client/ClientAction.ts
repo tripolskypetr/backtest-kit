@@ -14,6 +14,7 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
+import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
@@ -201,6 +202,33 @@ const CALL_PING_SCHEDULED_CALLBACK_FN = trycatch(
   {
     fallback: (error, self) => {
       const message = "ClientAction CALL_PING_SCHEDULED_CALLBACK_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/** Wrapper to call scheduled lifecycle (creation / cancellation) callback with error handling */
+const CALL_SCHEDULE_EVENT_CALLBACK_FN = trycatch(
+  async (
+    self: ClientAction,
+    event: ScheduleEventContract,
+    strategyName: StrategyName,
+    frameName: FrameName,
+    backtest: boolean
+  ): Promise<void> => {
+    if (self.params.callbacks?.onScheduleEvent) {
+      await self.params.callbacks.onScheduleEvent(event, self.params.actionName, strategyName, frameName, backtest);
+    }
+  },
+  {
+    fallback: (error, self) => {
+      const message = "ClientAction CALL_SCHEDULE_EVENT_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -717,6 +745,34 @@ export class ClientAction implements IAction {
 
     // Call callback if defined
     await CALL_PING_SCHEDULED_CALLBACK_FN(
+      this,
+      event,
+      this.params.strategyName,
+      this.params.frameName,
+      event.backtest
+    );
+  };
+
+  /**
+   * Handles scheduled signal lifecycle events (creation / cancellation).
+   */
+  public async scheduleEvent(event: ScheduleEventContract): Promise<void> {
+    this.params.logger.debug("ClientAction scheduleEvent", {
+      actionName: this.params.actionName,
+      strategyName: this.params.strategyName,
+      frameName: this.params.frameName,
+      action: event.action,
+    });
+
+    if (!this._handlerInstance) {
+      await this.waitForInit();
+    }
+
+    // Call handler method if defined
+    await this._handlerInstance?.scheduleEvent(event);
+
+    // Call callback if defined
+    await CALL_SCHEDULE_EVENT_CALLBACK_FN(
       this,
       event,
       this.params.strategyName,

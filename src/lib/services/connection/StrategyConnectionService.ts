@@ -52,6 +52,7 @@ import ActionCoreService from "../core/ActionCoreService";
 import beginTime from "../../../utils/beginTime";
 import SignalSyncContract from "../../../contract/SignalSync.contract";
 import SignalPingContract from "../../../contract/SignalPing.contract";
+import ScheduleEventContract from "../../../contract/ScheduleEvent.contract";
 import TimeMetaService from "../meta/TimeMetaService";
 import PriceMetaService from "../meta/PriceMetaService";
 
@@ -342,7 +343,7 @@ const CREATE_COMMIT_SCHEDULE_EVENT_FN = (self: StrategyConnectionService) => try
     timestamp: number,
     reason?: StrategyCancelReason
   ): Promise<void> => {
-    const event = {
+    const event: ScheduleEventContract = {
       action,
       symbol,
       strategyName,
@@ -355,6 +356,7 @@ const CREATE_COMMIT_SCHEDULE_EVENT_FN = (self: StrategyConnectionService) => try
       timestamp,
     };
     await scheduleEventSubject.next(event);
+    await self.actionCoreService.scheduleEvent(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
   },
   {
     fallback: (error) => {

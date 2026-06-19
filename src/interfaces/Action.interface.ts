@@ -3,6 +3,7 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
+import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
@@ -274,6 +275,22 @@ export interface IActionCallbacks {
    * @param backtest - True for backtest mode, false for live trading
    */
   onPingScheduled(event: SchedulePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+
+  /**
+   * Called on scheduled signal lifecycle events (creation / cancellation).
+   *
+   * Triggered by: StrategyConnectionService via scheduleEventSubject
+   * Frequency: Once on creation (action "scheduled") and once on cancellation before activation
+   * (action "cancelled": timeout / price_reject / user). The scheduled -> active transition is
+   * NOT reported here — activation surfaces as an "opened" signal instead.
+   *
+   * @param event - Scheduled lifecycle data (action discriminates created vs cancelled)
+   * @param actionName - Action identifier
+   * @param strategyName - Strategy identifier
+   * @param frameName - Timeframe identifier
+   * @param backtest - True for backtest mode, false for live trading
+   */
+  onScheduleEvent(event: ScheduleEventContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called during active pending signal monitoring (every minute while position is active).
@@ -594,6 +611,19 @@ export interface IAction {
    * @param event - Scheduled signal monitoring data
    */
   pingScheduled(event: SchedulePingContract): void | Promise<void>;
+
+  /**
+   * Handles scheduled signal lifecycle events (creation / cancellation).
+   *
+   * Emitted by: StrategyConnectionService via scheduleEventSubject
+   * Source: CREATE_COMMIT_SCHEDULE_EVENT_FN callback in StrategyConnectionService
+   * Frequency: Once when a scheduled signal is created ("scheduled") and once when it is
+   * cancelled before activation ("cancelled": timeout / price_reject / user). The
+   * scheduled -> active transition is NOT reported here.
+   *
+   * @param event - Scheduled lifecycle data (action discriminates created vs cancelled)
+   */
+  scheduleEvent(event: ScheduleEventContract): void | Promise<void>;
 
   /**
    * Handles active ping events during active pending signal monitoring.

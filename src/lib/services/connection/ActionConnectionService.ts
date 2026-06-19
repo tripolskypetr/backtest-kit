@@ -13,6 +13,7 @@ import { BreakevenContract } from "../../../contract/Breakeven.contract";
 import { PartialProfitContract } from "../../../contract/PartialProfit.contract";
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
+import { ScheduleEventContract } from "../../../contract/ScheduleEvent.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
@@ -277,6 +278,26 @@ export class ActionConnectionService implements TAction {
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
     await action.pingScheduled(event);
+  };
+
+  /**
+   * Routes a scheduled signal lifecycle event (creation / cancellation) to the ClientAction instance.
+   *
+   * @param event - Scheduled lifecycle event data (action discriminates created vs cancelled)
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
+   */
+  public scheduleEvent = async (
+    event: ScheduleEventContract,
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionConnectionService scheduleEvent", {
+      backtest,
+      context,
+    });
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.scheduleEvent(event);
   };
 
   /**

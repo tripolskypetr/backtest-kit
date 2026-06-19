@@ -30,6 +30,7 @@ const VALID_METHOD_NAMES: Key[] = [
   "partialLossAvailable",
   "pingScheduled",
   "pingActive",
+  "scheduleEvent",
   "riskRejection",
   "dispose",
 ];

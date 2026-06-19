@@ -2,6 +2,7 @@ import BreakevenContract from "../contract/Breakeven.contract";
 import PartialLossContract from "../contract/PartialLoss.contract";
 import PartialProfitContract from "../contract/PartialProfit.contract";
 import SchedulePingContract from "../contract/SchedulePing.contract";
+import ScheduleEventContract from "../contract/ScheduleEvent.contract";
 import ActivePingContract from "../contract/ActivePing.contract";
 import IdlePingContract from "../contract/IdlePing.contract";
 import RiskContract from "../contract/Risk.contract";
@@ -316,6 +317,34 @@ const CALL_PING_IDLE_FN = trycatch(
 );
 
 /**
+ * Wrapper to call scheduleEvent method with error capture.
+ *
+ * Unlike CALL_PING_SCHEDULED_FN there is no hasScheduledSignal guard: the "cancelled" action fires
+ * exactly while the scheduled signal is being removed, so guarding on its presence would suppress it.
+ */
+const CALL_SCHEDULE_EVENT_FN = trycatch(
+  async (event: ScheduleEventContract, self: ActionProxy): Promise<void> => {
+    if (!self._target.scheduleEvent) {
+      return;
+    }
+    return await self._target.scheduleEvent(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "ActionProxy.scheduleEvent thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      LOGGER_SERVICE.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Wrapper to call pingActive method with error capture.
  */
 const CALL_PING_ACTIVE_FN = trycatch(
@@ -568,6 +597,20 @@ export class ActionProxy implements IPublicAction {
    */
   public async pingScheduled(event: SchedulePingContract) {
     return await CALL_PING_SCHEDULED_FN(event, this);
+  }
+
+  /**
+   * Handles scheduled signal lifecycle events with error capture.
+   *
+   * Wraps the user's scheduleEvent() method to catch and log any errors. Called once when a
+   * scheduled signal is created (action "scheduled") and once when it is cancelled before
+   * activation (action "cancelled").
+   *
+   * @param event - Scheduled lifecycle data (action discriminates created vs cancelled)
+   * @returns Promise resolving to user's scheduleEvent() result or null on error
+   */
+  public async scheduleEvent(event: ScheduleEventContract) {
+    return await CALL_SCHEDULE_EVENT_FN(event, this);
   }
 
   /**

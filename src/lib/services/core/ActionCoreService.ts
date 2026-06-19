@@ -15,6 +15,7 @@ import { BreakevenContract } from "../../../contract/Breakeven.contract";
 import { PartialProfitContract } from "../../../contract/PartialProfit.contract";
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
 import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
+import { ScheduleEventContract } from "../../../contract/ScheduleEvent.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
@@ -347,6 +348,35 @@ export class ActionCoreService implements TAction {
 
     for (const actionName of actions) {
       await this.actionConnectionService.pingScheduled(event, backtest, { actionName, ...context });
+    }
+  };
+
+  /**
+   * Routes a scheduled signal lifecycle event (creation / cancellation) to all registered actions.
+   *
+   * Retrieves action list from strategy schema (IStrategySchema.actions) and invokes the
+   * scheduleEvent handler on each ClientAction instance sequentially. Called once on creation
+   * (action "scheduled") and once on cancellation before activation (action "cancelled").
+   *
+   * @param backtest - Whether running in backtest mode (true) or live mode (false)
+   * @param event - Scheduled lifecycle event data (action discriminates created vs cancelled)
+   * @param context - Strategy execution context with strategyName, exchangeName, frameName
+   */
+  public scheduleEvent = async (
+    backtest: boolean,
+    event: ScheduleEventContract,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionCoreService scheduleEvent", {
+      context,
+    });
+
+    await this.validate(context);
+
+    const { actions = [] } = this.strategySchemaService.get(context.strategyName);
+
+    for (const actionName of actions) {
+      await this.actionConnectionService.scheduleEvent(event, backtest, { actionName, ...context });
     }
   };
 

@@ -26,7 +26,9 @@ import {
   signalNotifySubject,
   idlePingSubject,
   beforeStartSubject,
-  afterEndSubject
+  afterEndSubject,
+  scheduleEventSubject,
+  signalEventSubject,
 } from "../config/emitters";
 import { backtest } from "../lib";
 
@@ -60,7 +62,9 @@ const SUBJECT_ISOLATION_LIST: Subject<unknown>[] = [
   validationSubject,
   signalNotifySubject,
   beforeStartSubject,
-  afterEndSubject
+  afterEndSubject,
+  scheduleEventSubject,
+  signalEventSubject,
 ];
 
 /** Event key type accepted by EventEmitter */
