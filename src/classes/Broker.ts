@@ -1,13 +1,25 @@
 import { compose, makeExtendable, singleshot } from "functools-kit";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
-import { syncSubject, syncPendingSubject } from "../config/emitters";
+import { IStrategyPnL, StrategyCancelReason, StrategyName } from "../interfaces/Strategy.interface";
+import {
+  syncSubject,
+  syncPendingSubject,
+  activePingSubject,
+  schedulePingSubject,
+  idlePingSubject,
+  scheduleEventSubject,
+} from "../config/emitters";
 import bt from "../lib";
 
 const BROKER_METHOD_NAME_COMMIT_SIGNAL_OPEN = "BrokerAdapter.commitSignalOpen";
 const BROKER_METHOD_NAME_COMMIT_SIGNAL_CLOSE = "BrokerAdapter.commitSignalClose";
 const BROKER_METHOD_NAME_COMMIT_SIGNAL_PENDING = "BrokerAdapter.commitSignalPending";
+const BROKER_METHOD_NAME_COMMIT_ACTIVE_PING = "BrokerAdapter.commitActivePing";
+const BROKER_METHOD_NAME_COMMIT_SCHEDULE_PING = "BrokerAdapter.commitSchedulePing";
+const BROKER_METHOD_NAME_COMMIT_IDLE_PING = "BrokerAdapter.commitIdlePing";
+const BROKER_METHOD_NAME_COMMIT_SCHEDULE_OPEN = "BrokerAdapter.commitScheduleOpen";
+const BROKER_METHOD_NAME_COMMIT_SCHEDULE_CANCELLED = "BrokerAdapter.commitScheduleCancelled";
 const BROKER_METHOD_NAME_COMMIT_PARTIAL_PROFIT = "BrokerAdapter.commitPartialProfit";
 const BROKER_METHOD_NAME_COMMIT_PARTIAL_LOSS = "BrokerAdapter.commitPartialLoss";
 const BROKER_METHOD_NAME_COMMIT_TRAILING_STOP = "BrokerAdapter.commitTrailingStop";
@@ -23,6 +35,11 @@ const BROKER_BASE_METHOD_NAME_WAIT_FOR_INIT = "BrokerBase.waitForInit";
 const BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN = "BrokerBase.onSignalOpenCommit";
 const BROKER_BASE_METHOD_NAME_ON_SIGNAL_CLOSE = "BrokerBase.onSignalCloseCommit";
 const BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING = "BrokerBase.onOrderCheck";
+const BROKER_BASE_METHOD_NAME_ON_ACTIVE_PING = "BrokerBase.onSignalActivePing";
+const BROKER_BASE_METHOD_NAME_ON_SCHEDULE_PING = "BrokerBase.onSignalSchedulePing";
+const BROKER_BASE_METHOD_NAME_ON_IDLE_PING = "BrokerBase.onSignalIdlePing";
+const BROKER_BASE_METHOD_NAME_ON_SCHEDULE_OPEN = "BrokerBase.onSignalScheduleOpen";
+const BROKER_BASE_METHOD_NAME_ON_SCHEDULE_CANCELLED = "BrokerBase.onSignalScheduleCancelled";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_PROFIT = "BrokerBase.onPartialProfitCommit";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_LOSS = "BrokerBase.onPartialLossCommit";
 const BROKER_BASE_METHOD_NAME_ON_TRAILING_STOP = "BrokerBase.onTrailingStopCommit";
@@ -196,6 +213,228 @@ export type BrokerSignalPendingPayload = {
   totalEntries: number;
   /** Total number of partial closes executed */
   totalPartials: number;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
+ * Payload for the active-ping broker event.
+ *
+ * Emitted automatically via activePingSubject on every live tick while a pending (open) signal is
+ * monitored. Forwarded to the registered IBroker adapter via `onSignalActivePing`. Purely
+ * informational — unlike `onOrderCheck` a throw here does NOT close the position.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerActivePingPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 50500,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerActivePingPayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Unique signal identifier (UUID v4) of the monitored position */
+  signalId: string;
+  /** Position direction */
+  position: "long" | "short";
+  /** Market price at the moment of the ping */
+  currentPrice: number;
+  /** Effective entry price (may differ from priceOpen after DCA averaging) */
+  priceOpen: number;
+  /** Effective take-profit price at the moment of the ping */
+  priceTakeProfit: number;
+  /** Effective stop-loss price at the moment of the ping */
+  priceStopLoss: number;
+  /** Unrealized PnL of the open position at the moment of the ping */
+  pnl: IStrategyPnL;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
+ * Payload for the schedule-ping broker event.
+ *
+ * Emitted automatically via schedulePingSubject on every live tick while a scheduled signal is
+ * monitored (waiting for priceOpen activation). Forwarded to the registered IBroker adapter via
+ * `onSignalSchedulePing`. Purely informational.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerSchedulePingPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 49800,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerSchedulePingPayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Unique signal identifier (UUID v4) of the scheduled signal */
+  signalId: string;
+  /** Position direction */
+  position: "long" | "short";
+  /** Market price at the moment of the ping */
+  currentPrice: number;
+  /** Pending entry price the scheduled signal is waiting for */
+  priceOpen: number;
+  /** Take-profit price configured for the scheduled signal */
+  priceTakeProfit: number;
+  /** Stop-loss price configured for the scheduled signal */
+  priceStopLoss: number;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
+ * Payload for the idle-ping broker event.
+ *
+ * Emitted automatically via idlePingSubject on every live tick while the strategy has no pending or
+ * scheduled signal. Forwarded to the registered IBroker adapter via `onSignalIdlePing`. Purely
+ * informational — carries no signal because none is active.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerIdlePingPayload = {
+ *   symbol: "BTCUSDT",
+ *   currentPrice: 50500,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerIdlePingPayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Market price at the moment of the ping */
+  currentPrice: number;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
+ * Payload for the scheduled-signal-open broker event.
+ *
+ * Emitted automatically via scheduleEventSubject (action "scheduled") when a new scheduled signal is
+ * created and starts waiting for priceOpen activation. Forwarded to the registered IBroker adapter
+ * via `onSignalScheduleOpen`. The scheduled -> active transition is NOT reported here — activation
+ * arrives through `onSignalOpenCommit`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerScheduleOpenPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 49800,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerScheduleOpenPayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Unique signal identifier (UUID v4) of the scheduled signal */
+  signalId: string;
+  /** Position direction */
+  position: "long" | "short";
+  /** Market price at the moment the scheduled signal was created */
+  currentPrice: number;
+  /** Pending entry price the scheduled signal waits for */
+  priceOpen: number;
+  /** Take-profit price configured for the scheduled signal */
+  priceTakeProfit: number;
+  /** Stop-loss price configured for the scheduled signal */
+  priceStopLoss: number;
+  /** Strategy/exchange/frame routing context */
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName?: FrameName;
+  };
+  /** true when called during a backtest run — adapter should skip exchange calls */
+  backtest: boolean;
+};
+
+/**
+ * Payload for the scheduled-signal-cancelled broker event.
+ *
+ * Emitted automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
+ * removed before it ever activated. Forwarded to the registered IBroker adapter via
+ * `onSignalScheduleCancelled`. The `reason` distinguishes timeout / price reject / user cancel.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerScheduleCancelledPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 47500,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   reason: "price_reject",
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+export type BrokerScheduleCancelledPayload = {
+  /** Trading pair symbol, e.g. "BTCUSDT" */
+  symbol: string;
+  /** Unique signal identifier (UUID v4) of the cancelled scheduled signal */
+  signalId: string;
+  /** Position direction */
+  position: "long" | "short";
+  /** Market price at the moment of cancellation */
+  currentPrice: number;
+  /** Pending entry price the scheduled signal had been waiting for */
+  priceOpen: number;
+  /** Take-profit price that had been configured for the scheduled signal */
+  priceTakeProfit: number;
+  /** Stop-loss price that had been configured for the scheduled signal */
+  priceStopLoss: number;
+  /** Why the scheduled signal was cancelled: "timeout" / "price_reject" / "user" */
+  reason?: StrategyCancelReason;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -520,6 +759,37 @@ export interface IBroker {
    */
   onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void>;
 
+  /**
+   * Called on every live tick while a pending (open) signal is monitored.
+   * Purely informational mirror of the active-ping lifecycle — a throw here does NOT close the
+   * position (unlike `onOrderCheck`).
+   */
+  onSignalActivePing(payload: BrokerActivePingPayload): Promise<void>;
+
+  /**
+   * Called on every live tick while a scheduled signal is monitored (waiting for priceOpen
+   * activation). Purely informational.
+   */
+  onSignalSchedulePing(payload: BrokerSchedulePingPayload): Promise<void>;
+
+  /**
+   * Called on every live tick while the strategy is idle (no pending or scheduled signal).
+   * Purely informational.
+   */
+  onSignalIdlePing(payload: BrokerIdlePingPayload): Promise<void>;
+
+  /**
+   * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
+   * The scheduled -> active transition is reported via `onSignalOpenCommit`, not here.
+   */
+  onSignalScheduleOpen(payload: BrokerScheduleOpenPayload): Promise<void>;
+
+  /**
+   * Called when a scheduled signal is cancelled before it ever activated
+   * (reason: timeout / price_reject / user).
+   */
+  onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void>;
+
   /** Called when a partial profit close is committed. */
   onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
 
@@ -619,6 +889,86 @@ export class BrokerProxy implements IBroker {
     if (this._instance.onOrderCheck) {
       await this.waitForInit();
       await this._instance.onOrderCheck(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards an active-ping event to the underlying adapter.
+   * Silently skipped when the adapter does not implement `onSignalActivePing`.
+   *
+   * @param payload - Active ping details: symbol, signalId, position, prices, pnl, context, backtest.
+   */
+  public async onSignalActivePing(
+    payload: BrokerActivePingPayload,
+  ): Promise<void> {
+    if (this._instance.onSignalActivePing) {
+      await this.waitForInit();
+      await this._instance.onSignalActivePing(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards a schedule-ping event to the underlying adapter.
+   * Silently skipped when the adapter does not implement `onSignalSchedulePing`.
+   *
+   * @param payload - Schedule ping details: symbol, signalId, position, prices, context, backtest.
+   */
+  public async onSignalSchedulePing(
+    payload: BrokerSchedulePingPayload,
+  ): Promise<void> {
+    if (this._instance.onSignalSchedulePing) {
+      await this.waitForInit();
+      await this._instance.onSignalSchedulePing(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards an idle-ping event to the underlying adapter.
+   * Silently skipped when the adapter does not implement `onSignalIdlePing`.
+   *
+   * @param payload - Idle ping details: symbol, currentPrice, context, backtest.
+   */
+  public async onSignalIdlePing(
+    payload: BrokerIdlePingPayload,
+  ): Promise<void> {
+    if (this._instance.onSignalIdlePing) {
+      await this.waitForInit();
+      await this._instance.onSignalIdlePing(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards a scheduled-signal-open event to the underlying adapter.
+   * Silently skipped when the adapter does not implement `onSignalScheduleOpen`.
+   *
+   * @param payload - Scheduled open details: symbol, signalId, position, prices, context, backtest.
+   */
+  public async onSignalScheduleOpen(
+    payload: BrokerScheduleOpenPayload,
+  ): Promise<void> {
+    if (this._instance.onSignalScheduleOpen) {
+      await this.waitForInit();
+      await this._instance.onSignalScheduleOpen(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards a scheduled-signal-cancelled event to the underlying adapter.
+   * Silently skipped when the adapter does not implement `onSignalScheduleCancelled`.
+   *
+   * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest.
+   */
+  public async onSignalScheduleCancelled(
+    payload: BrokerScheduleCancelledPayload,
+  ): Promise<void> {
+    if (this._instance.onSignalScheduleCancelled) {
+      await this.waitForInit();
+      await this._instance.onSignalScheduleCancelled(payload);
       return;
     }
   }
@@ -900,6 +1250,134 @@ export class BrokerAdapter {
     const instance = this.getInstance();
     if (instance) {
       await instance.onOrderCheck(payload);
+    }
+  };
+
+  /**
+   * Forwards an active-ping to the registered broker adapter.
+   *
+   * Called automatically via activePingSubject when `enable()` is active, on every live tick while a
+   * pending signal is monitored. Skipped silently in backtest mode or when no adapter is registered.
+   * Purely informational — a throw does NOT close the position.
+   *
+   * @param payload - Active ping details: symbol, signalId, position, prices, pnl, context, backtest
+   */
+  public commitActivePing = async (payload: BrokerActivePingPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_ACTIVE_PING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onSignalActivePing(payload);
+    }
+  };
+
+  /**
+   * Forwards a schedule-ping to the registered broker adapter.
+   *
+   * Called automatically via schedulePingSubject when `enable()` is active, on every live tick while
+   * a scheduled signal is monitored. Skipped silently in backtest mode or when no adapter is
+   * registered. Purely informational.
+   *
+   * @param payload - Schedule ping details: symbol, signalId, position, prices, context, backtest
+   */
+  public commitSchedulePing = async (payload: BrokerSchedulePingPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SCHEDULE_PING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onSignalSchedulePing(payload);
+    }
+  };
+
+  /**
+   * Forwards an idle-ping to the registered broker adapter.
+   *
+   * Called automatically via idlePingSubject when `enable()` is active, on every live tick while the
+   * strategy has no pending or scheduled signal. Skipped silently in backtest mode or when no adapter
+   * is registered. Purely informational.
+   *
+   * @param payload - Idle ping details: symbol, currentPrice, context, backtest
+   */
+  public commitIdlePing = async (payload: BrokerIdlePingPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_IDLE_PING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onSignalIdlePing(payload);
+    }
+  };
+
+  /**
+   * Forwards a scheduled-signal-open to the registered broker adapter.
+   *
+   * Called automatically via scheduleEventSubject (action "scheduled") when a scheduled signal is
+   * created. Skipped silently in backtest mode or when no adapter is registered.
+   *
+   * @param payload - Scheduled open details: symbol, signalId, position, prices, context, backtest
+   */
+  public commitScheduleOpen = async (payload: BrokerScheduleOpenPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SCHEDULE_OPEN, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onSignalScheduleOpen(payload);
+    }
+  };
+
+  /**
+   * Forwards a scheduled-signal-cancelled to the registered broker adapter.
+   *
+   * Called automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
+   * removed before activation. Skipped silently in backtest mode or when no adapter is registered.
+   *
+   * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
+   */
+  public commitScheduleCancelled = async (payload: BrokerScheduleCancelledPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SCHEDULE_CANCELLED, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+    if (!this.enable.hasValue()) {
+      return;
+    }
+    if (payload.backtest) {
+      return;
+    }
+    const instance = this.getInstance();
+    if (instance) {
+      await instance.onSignalScheduleCancelled(payload);
     }
   };
 
@@ -1278,10 +1756,87 @@ export class BrokerAdapter {
       });
     });
 
+    const unActivePing = activePingSubject.subscribe(async (event) => {
+      await this.commitActivePing({
+        symbol: event.symbol,
+        signalId: event.data.id,
+        position: event.data.position,
+        currentPrice: event.currentPrice,
+        priceOpen: event.data.priceOpen,
+        priceTakeProfit: event.data.priceTakeProfit,
+        priceStopLoss: event.data.priceStopLoss,
+        pnl: event.data.pnl,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
+      });
+    });
+
+    const unSchedulePing = schedulePingSubject.subscribe(async (event) => {
+      await this.commitSchedulePing({
+        symbol: event.symbol,
+        signalId: event.data.id,
+        position: event.data.position,
+        currentPrice: event.currentPrice,
+        priceOpen: event.data.priceOpen,
+        priceTakeProfit: event.data.priceTakeProfit,
+        priceStopLoss: event.data.priceStopLoss,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
+      });
+    });
+
+    const unIdlePing = idlePingSubject.subscribe(async (event) => {
+      await this.commitIdlePing({
+        symbol: event.symbol,
+        currentPrice: event.currentPrice,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
+      });
+    });
+
+    const unScheduleEvent = scheduleEventSubject.subscribe(async (event) => {
+      const payload = {
+        symbol: event.symbol,
+        signalId: event.data.id,
+        position: event.data.position,
+        currentPrice: event.currentPrice,
+        priceOpen: event.data.priceOpen,
+        priceTakeProfit: event.data.priceTakeProfit,
+        priceStopLoss: event.data.priceStopLoss,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
+      };
+      if (event.action === "scheduled") {
+        await this.commitScheduleOpen(payload);
+        return;
+      }
+      await this.commitScheduleCancelled({ ...payload, reason: event.reason });
+    });
+
     const disposeFn = compose(
       () => unSignalOpen(),
       () => unSignalClose(),
       () => unSignalPending(),
+      () => unActivePing(),
+      () => unSchedulePing(),
+      () => unIdlePing(),
+      () => unScheduleEvent(),
     );
 
     return () => {
@@ -1494,6 +2049,79 @@ class BrokerBase implements IBroker {
    */
   public async onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void> {
     bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called on every live tick while a pending (open) signal is monitored.
+   *
+   * Purely informational mirror of the active-ping lifecycle — unlike `onOrderCheck`, a throw here
+   * does NOT close the position. Override to mirror live monitoring state into your own systems.
+   * The default implementation logs.
+   *
+   * @param payload - Active ping details: symbol, signalId, position, prices, pnl, context, backtest
+   */
+  public async onSignalActivePing(payload: BrokerActivePingPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_ACTIVE_PING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called on every live tick while a scheduled signal is monitored (waiting for priceOpen).
+   *
+   * Purely informational. Override to mirror scheduled-monitoring state. The default logs.
+   *
+   * @param payload - Schedule ping details: symbol, signalId, position, prices, context, backtest
+   */
+  public async onSignalSchedulePing(payload: BrokerSchedulePingPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SCHEDULE_PING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called on every live tick while the strategy is idle (no pending or scheduled signal).
+   *
+   * Purely informational. Override to track idle heartbeats. The default logs.
+   *
+   * @param payload - Idle ping details: symbol, currentPrice, context, backtest
+   */
+  public async onSignalIdlePing(payload: BrokerIdlePingPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_IDLE_PING, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
+   *
+   * The scheduled -> active transition is reported via `onSignalOpenCommit`, not here. Override to
+   * place a resting/limit order on the exchange. The default logs.
+   *
+   * @param payload - Scheduled open details: symbol, signalId, position, prices, context, backtest
+   */
+  public async onSignalScheduleOpen(payload: BrokerScheduleOpenPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SCHEDULE_OPEN, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a scheduled signal is cancelled before activation (timeout / price_reject / user).
+   *
+   * Override to cancel the resting/limit order on the exchange. The default logs.
+   *
+   * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
+   */
+  public async onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SCHEDULE_CANCELLED, {
       symbol: payload.symbol,
       context: payload.context,
     });

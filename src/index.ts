@@ -147,6 +147,8 @@ export {
   listenSchedulePingOnce,
   listenScheduleEvent,
   listenScheduleEventOnce,
+  listenSignalEvent,
+  listenSignalEventOnce,
   listenActivePing,
   listenActivePingOnce,
   listenIdlePing,
@@ -377,6 +379,7 @@ export { RiskContract } from "./contract/Risk.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
 export { SchedulePingContract } from "./contract/SchedulePing.contract";
 export { ScheduleEventContract } from "./contract/ScheduleEvent.contract";
+export { SignalEventContract } from "./contract/SignalEvent.contract";
 export { ActivePingContract } from "./contract/ActivePing.contract";
 export { IdlePingContract } from "./contract/IdlePing.contract";
 export { HighestProfitContract } from "./contract/HighestProfit.contract";
@@ -644,6 +647,11 @@ export {
   BrokerSignalOpenPayload,
   BrokerSignalClosePayload,
   BrokerSignalPendingPayload,
+  BrokerActivePingPayload,
+  BrokerSchedulePingPayload,
+  BrokerIdlePingPayload,
+  BrokerScheduleOpenPayload,
+  BrokerScheduleCancelledPayload,
 } from "./classes/Broker";
 
 export { type TickEvent } from "./model/LiveStatistics.model";

@@ -603,6 +603,21 @@ export interface IStrategyParams extends IStrategySchema {
     timestamp: number,
     reason?: StrategyCancelReason,
   ) => Promise<void>;
+  /**
+   * System callback for pending signal lifecycle events (emits to signalEventSubject).
+   * Called when a pending position is opened ("opened") or closed ("closed" with a closeReason).
+   */
+  onSignalEvent: (
+    action: "opened" | "closed",
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    data: IPublicSignalRow,
+    currentPrice: number,
+    backtest: boolean,
+    timestamp: number,
+    closeReason?: StrategyCloseReason,
+  ) => Promise<void>;
   /** System callback for dispose events (emits to disposeSubject) */
   onDispose: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
   /** System callback for commit events (emits to strategyCommitSubject) */

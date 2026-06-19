@@ -20,6 +20,7 @@ import {
   StrategyStatus,
   ISignalDto,
   StrategyCancelReason,
+  StrategyCloseReason,
 } from "../../../interfaces/Strategy.interface";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
@@ -29,6 +30,7 @@ import {
   signalLiveEmitter,
   schedulePingSubject,
   scheduleEventSubject,
+  signalEventSubject,
   activePingSubject,
   errorEmitter,
   strategyCommitSubject,
@@ -357,6 +359,56 @@ const CREATE_COMMIT_SCHEDULE_EVENT_FN = (self: StrategyConnectionService) => try
   {
     fallback: (error) => {
       const message = "StrategyConnectionService CREATE_COMMIT_SCHEDULE_EVENT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
+ * Creates a callback function for emitting pending signal lifecycle events to signalEventSubject.
+ *
+ * Called by ClientStrategy when a pending position is opened (action "opened") or closed
+ * (action "closed" with a closeReason).
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for pending signal lifecycle events
+ */
+const CREATE_COMMIT_SIGNAL_EVENT_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    action: "opened" | "closed",
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    data: IPublicSignalRow,
+    currentPrice: number,
+    backtest: boolean,
+    timestamp: number,
+    closeReason?: StrategyCloseReason
+  ): Promise<void> => {
+    const event = {
+      action,
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName: data.frameName,
+      data,
+      closeReason,
+      currentPrice,
+      backtest,
+      timestamp,
+    };
+    await signalEventSubject.next(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_SIGNAL_EVENT_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -755,6 +807,7 @@ export class StrategyConnectionService implements TStrategy {
         onInit: CREATE_COMMIT_INIT_FN(this),
         onSchedulePing: CREATE_COMMIT_SCHEDULE_PING_FN(this),
         onScheduleEvent: CREATE_COMMIT_SCHEDULE_EVENT_FN(this),
+        onSignalEvent: CREATE_COMMIT_SIGNAL_EVENT_FN(this),
         onActivePing: CREATE_COMMIT_ACTIVE_PING_FN(this),
         onIdlePing: CREATE_COMMIT_IDLE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),

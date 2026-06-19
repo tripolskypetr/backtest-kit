@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -13,6 +13,7 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
+import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
@@ -57,6 +58,8 @@ const LISTEN_SCHEDULE_PING_METHOD_NAME = "event.listenSchedulePing";
 const LISTEN_SCHEDULE_PING_ONCE_METHOD_NAME = "event.listenSchedulePingOnce";
 const LISTEN_SCHEDULE_EVENT_METHOD_NAME = "event.listenScheduleEvent";
 const LISTEN_SCHEDULE_EVENT_ONCE_METHOD_NAME = "event.listenScheduleEventOnce";
+const LISTEN_SIGNAL_EVENT_METHOD_NAME = "event.listenSignalEvent";
+const LISTEN_SIGNAL_EVENT_ONCE_METHOD_NAME = "event.listenSignalEventOnce";
 const LISTEN_ACTIVE_PING_METHOD_NAME = "event.listenActivePing";
 const LISTEN_ACTIVE_PING_ONCE_METHOD_NAME = "event.listenActivePingOnce";
 const LISTEN_IDLE_PING_METHOD_NAME = "event.listenIdlePing";
@@ -1368,6 +1371,78 @@ export function listenScheduleEventOnce(
   };
 
   return disposeFn = listenScheduleEvent(wrappedFn);
+}
+
+/**
+ * Subscribes to pending signal lifecycle events (open and close) with queued async processing.
+ *
+ * Emitted when a pending position is opened (action "opened": new signal / immediate / scheduled
+ * or user activation) or closed (action "closed" with closeReason "take_profit" / "stop_loss" /
+ * "time_expired" / "closed"), in both live and backtest.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ *
+ * @param fn - Callback function to handle pending lifecycle events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalEvent } from "./function/event";
+ *
+ * const unsubscribe = listenSignalEvent((event) => {
+ *   if (event.action === "opened") {
+ *     console.log(`Opened ${event.symbol} @ ${event.data.priceOpen}`);
+ *   } else {
+ *     console.log(`Closed ${event.symbol} (reason: ${event.closeReason})`);
+ *   }
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenSignalEvent(fn: (event: SignalEventContract) => void) {
+  backtest.loggerService.log(LISTEN_SIGNAL_EVENT_METHOD_NAME);
+  return signalEventSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered pending lifecycle events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for a specific open or close.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalEventOnce } from "./function/event";
+ *
+ * // Wait for the first close on BTCUSDT
+ * listenSignalEventOnce(
+ *   (event) => event.symbol === "BTCUSDT" && event.action === "closed",
+ *   (event) => console.log("BTCUSDT closed:", event.closeReason)
+ * );
+ * ```
+ */
+export function listenSignalEventOnce(
+  filterFn: (event: SignalEventContract) => boolean,
+  fn: (event: SignalEventContract) => void
+) {
+  backtest.loggerService.log(LISTEN_SIGNAL_EVENT_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: SignalEventContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenSignalEvent(wrappedFn);
 }
 
 /**

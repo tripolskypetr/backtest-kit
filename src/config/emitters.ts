@@ -13,6 +13,7 @@ import { WalkerStopContract } from "../contract/WalkerStop.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
+import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
@@ -184,6 +185,14 @@ export const schedulePingSubject = new Subject<SchedulePingContract>();
  * produces an "opened" signal on the regular signal emitters instead.
  */
 export const scheduleEventSubject = new Subject<ScheduleEventContract>();
+
+/**
+ * Pending signal lifecycle emitter (open and close).
+ * Emits when a pending position is opened (action "opened": new signal / immediate / scheduled
+ * or user activation) or closed (action "closed" with closeReason take_profit / stop_loss /
+ * time_expired / closed) during tick()/backtest().
+ */
+export const signalEventSubject = new Subject<SignalEventContract>();
 
 /**
  * Active ping emitter for active pending signal monitoring events.

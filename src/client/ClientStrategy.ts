@@ -29,6 +29,7 @@ import {
   SignalInterval,
   StrategyName,
   StrategyCancelReason,
+  StrategyCloseReason,
   ICommitRow,
   CommitPayload,
   IStrategyPnL,
@@ -1891,6 +1892,8 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     self.params.execution.context.backtest
   );
 
+  await CALL_SIGNAL_EVENT_FN(self, "opened", self._pendingSignal, self._pendingSignal.priceOpen, activationTime);
+
   await CALL_OPEN_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
@@ -2182,6 +2185,49 @@ const CALL_SCHEDULE_EVENT_FN = trycatch(
   {
     fallback: (error, self) => {
       const message = "ClientStrategy CALL_SCHEDULE_EVENT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
+ * Emits a pending signal lifecycle event (open / close) to onSignalEvent.
+ *
+ * Called when a pending position is opened (action "opened") or closed (action "closed" with a
+ * closeReason). Like CALL_SCHEDULE_EVENT_FN it does not run inside beginTime/runInContext: the
+ * timestamp is passed explicitly by the caller (tick when / candle timestamp) and forwarded to
+ * the connection-level emitter.
+ */
+const CALL_SIGNAL_EVENT_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    action: "opened" | "closed",
+    signal: ISignalRow,
+    currentPrice: number,
+    timestamp: number,
+    closeReason?: StrategyCloseReason
+  ): Promise<void> => {
+    await self.params.onSignalEvent(
+      action,
+      self.params.execution.context.symbol,
+      self.params.method.context.strategyName,
+      self.params.method.context.exchangeName,
+      TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
+      currentPrice,
+      self.params.execution.context.backtest,
+      timestamp,
+      closeReason
+    );
+  },
+  {
+    fallback: (error, self) => {
+      const message = "ClientStrategy CALL_SIGNAL_EVENT_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -2911,6 +2957,8 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
     self.params.execution.context.backtest
   );
 
+  await CALL_SIGNAL_EVENT_FN(self, "opened", signal, signal.priceOpen, currentTime);
+
   await CALL_OPEN_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
@@ -3044,6 +3092,8 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     pnlPercentage: publicSignal.pnl.pnlPercentage,
   });
 
+  await CALL_SIGNAL_EVENT_FN(self, "closed", signal, currentPrice, currentTime, closeReason);
+
   await CALL_CLOSE_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
@@ -3131,6 +3181,8 @@ const CLOSE_PENDING_SIGNAL_AS_CLOSED_FN = async (
     priceClose: currentPrice,
     pnlPercentage: publicSignal.pnl.pnlPercentage,
   });
+
+  await CALL_SIGNAL_EVENT_FN(self, "closed", signal, currentPrice, currentTime, "closed");
 
   await CALL_CLOSE_CALLBACKS_FN(
     self,
@@ -3726,6 +3778,8 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     self.params.execution.context.backtest
   );
 
+  await CALL_SIGNAL_EVENT_FN(self, "opened", activatedSignal, activatedSignal.priceOpen, activationTime);
+
   await CALL_OPEN_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
@@ -3797,6 +3851,8 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
       )}%`
     );
   }
+
+  await CALL_SIGNAL_EVENT_FN(self, "closed", signal, averagePrice, closeTimestamp, closeReason);
 
   await CALL_CLOSE_CALLBACKS_FN(
     self,
@@ -3911,6 +3967,8 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     signal: publicSignal,
     note: closedSignal.closeNote ?? closedSignal.note,
   });
+
+  await CALL_SIGNAL_EVENT_FN(self, "closed", closedSignal, averagePrice, closeTimestamp, "closed");
 
   await CALL_CLOSE_CALLBACKS_FN(
     self,
@@ -4029,6 +4087,8 @@ const CLOSE_PENDING_SIGNAL_AS_FILL_FN = async (
     signal: publicSignal,
     note: filledSignal.closeNote ?? filledSignal.note,
   });
+
+  await CALL_SIGNAL_EVENT_FN(self, "closed", filledSignal, closePrice, closeTimestamp, closeReason);
 
   await CALL_CLOSE_CALLBACKS_FN(
     self,
@@ -4276,6 +4336,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         totalPartials: publicSignalForCommit.totalPartials,
         note: activatedSignal.activateNote ?? publicSignalForCommit.note,
       });
+
+      await CALL_SIGNAL_EVENT_FN(self, "opened", pendingSignal, pendingSignal.priceOpen, candle.timestamp);
 
       await CALL_OPEN_CALLBACKS_FN(
         self,
@@ -5967,6 +6029,8 @@ export class ClientStrategy implements IStrategy {
         note: closedSignal.closeNote ?? closedSignal.note,
       });
 
+      await CALL_SIGNAL_EVENT_FN(this, "closed", closedSignal, currentPrice, currentTime, "closed");
+
       // Call onClose callback
       await CALL_CLOSE_CALLBACKS_FN(
         this,
@@ -6194,6 +6258,8 @@ export class ClientStrategy implements IStrategy {
         totalPartials: publicSignalForCommit.totalPartials,
         note: activatedSignal.activateNote ?? publicSignalForCommit.note,
       });
+
+      await CALL_SIGNAL_EVENT_FN(this, "opened", pendingSignal, currentPrice, currentTime);
 
       // Call onOpen callback
       await CALL_OPEN_CALLBACKS_FN(
