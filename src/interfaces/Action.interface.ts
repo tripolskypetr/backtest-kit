@@ -349,14 +349,14 @@ export interface IActionCallbacks {
    * CREATE_SYNC_PENDING_FN which catches them and returns false.
    *
    * @deprecated This callback is not recommended for use. Exchange integration should be implemented
-   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderPing instead.
+   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
    * @param event - Pending-ping event with action "signal-ping"
    * @param actionName - Action identifier
    * @param strategyName - Strategy identifier
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onOrderPing(event: SignalPingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+  onOrderCheck(event: SignalPingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 }
 
 /**
@@ -656,11 +656,11 @@ export interface IAction {
    * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_PENDING_FN.
    *
    * @deprecated This method is not recommended for use. Exchange integration should be implemented
-   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderPing instead.
-   * If Action::orderPing throws the framework will close the position with closeReason "closed"!
+   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
+   * If Action::orderCheck throws the framework will close the position with closeReason "closed"!
    * @param event - Pending-ping event with action "signal-ping"
    */
-  orderPing(event: SignalPingContract): void | Promise<void>;
+  orderCheck(event: SignalPingContract): void | Promise<void>;
 
   /**
    * Cleans up resources and subscriptions when action handler is no longer needed.

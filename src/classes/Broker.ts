@@ -22,7 +22,7 @@ const BROKER_METHOD_NAME_CLEAR = "BrokerAdapter.clear";
 const BROKER_BASE_METHOD_NAME_WAIT_FOR_INIT = "BrokerBase.waitForInit";
 const BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN = "BrokerBase.onSignalOpenCommit";
 const BROKER_BASE_METHOD_NAME_ON_SIGNAL_CLOSE = "BrokerBase.onSignalCloseCommit";
-const BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING = "BrokerBase.onOrderPing";
+const BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING = "BrokerBase.onOrderCheck";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_PROFIT = "BrokerBase.onPartialProfitCommit";
 const BROKER_BASE_METHOD_NAME_ON_PARTIAL_LOSS = "BrokerBase.onPartialLossCommit";
 const BROKER_BASE_METHOD_NAME_ON_TRAILING_STOP = "BrokerBase.onTrailingStopCommit";
@@ -146,7 +146,7 @@ export type BrokerSignalClosePayload = {
  *
  * Emitted automatically via syncPendingSubject on every live tick while a pending signal is
  * monitored, BEFORE the framework evaluates TP/SL/time. Forwarded to the registered IBroker
- * adapter via `onOrderPing`.
+ * adapter via `onOrderCheck`.
  *
  * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
  * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
@@ -518,7 +518,7 @@ export interface IBroker {
    * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
    * position. Throw exclusively on a confirmed "order not found by id" result.
    */
-  onOrderPing(payload: BrokerSignalPendingPayload): Promise<void>;
+  onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void>;
 
   /** Called when a partial profit close is committed. */
   onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
@@ -604,7 +604,7 @@ export class BrokerProxy implements IBroker {
   /**
    * Forwards a pending-order ping to the underlying adapter.
    *
-   * If the adapter does not implement `onOrderPing`, the call is silently skipped
+   * If the adapter does not implement `onOrderCheck`, the call is silently skipped
    * (the order is assumed still open). When implemented, exceptions propagate — a throw means
    * the order was NOT FOUND by `payload.signalId` and the framework closes the position with
    * closeReason "closed". The adapter must throw ONLY on a confirmed "order not found by id"
@@ -613,12 +613,12 @@ export class BrokerProxy implements IBroker {
    *
    * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest flag.
    */
-  public async onOrderPing(
+  public async onOrderCheck(
     payload: BrokerSignalPendingPayload,
   ): Promise<void> {
-    if (this._instance.onOrderPing) {
+    if (this._instance.onOrderCheck) {
       await this.waitForInit();
-      await this._instance.onOrderPing(payload);
+      await this._instance.onOrderCheck(payload);
       return;
     }
   }
@@ -899,7 +899,7 @@ export class BrokerAdapter {
     }
     const instance = this.getInstance();
     if (instance) {
-      await instance.onOrderPing(payload);
+      await instance.onOrderCheck(payload);
     }
   };
 
@@ -1476,8 +1476,8 @@ class BrokerBase implements IBroker {
    *
    * @example
    * ```typescript
-   * async onOrderPing(payload: BrokerSignalPendingPayload) {
-   *   super.onOrderPing(payload); // Keep parent logging
+   * async onOrderCheck(payload: BrokerSignalPendingPayload) {
+   *   super.onOrderCheck(payload); // Keep parent logging
    *   let order: Order | null;
    *   try {
    *     order = await this.exchange.getOrderById(payload.signalId);
@@ -1492,7 +1492,7 @@ class BrokerBase implements IBroker {
    * }
    * ```
    */
-  public async onOrderPing(payload: BrokerSignalPendingPayload): Promise<void> {
+  public async onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void> {
     bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING, {
       symbol: payload.symbol,
       context: payload.context,

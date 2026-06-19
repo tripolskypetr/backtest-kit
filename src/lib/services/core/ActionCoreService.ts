@@ -472,12 +472,12 @@ export class ActionCoreService implements TAction {
    * @param event - Pending-ping event with action "signal-ping"
    * @param context - Strategy execution context
    */
-  public orderPing = async (
+  public orderCheck = async (
     backtest: boolean,
     event: SignalPingContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
-    this.loggerService.log("actionCoreService orderPing", {
+    this.loggerService.log("actionCoreService orderCheck", {
       context,
     });
 
@@ -486,7 +486,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.orderPing(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.orderCheck(event, backtest, { actionName, ...context });
     }
   };
 

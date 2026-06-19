@@ -362,24 +362,24 @@ export class ActionConnectionService implements TAction {
   };
 
   /**
-   * Routes orderPing event to appropriate ClientAction instance.
+   * Routes orderCheck event to appropriate ClientAction instance.
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
    *
    * @param event - Pending-ping event with action "signal-ping"
    * @param backtest - Whether running in backtest mode
    * @param context - Execution context
    */
-  public orderPing = async (
+  public orderCheck = async (
     event: SignalPingContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
-    this.loggerService.log("actionConnectionService orderPing", {
+    this.loggerService.log("actionConnectionService orderCheck", {
       backtest,
       context,
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await action.orderPing(event);
+    await action.orderCheck(event);
   };
 
   /**

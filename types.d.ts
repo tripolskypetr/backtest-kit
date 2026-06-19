@@ -1521,8 +1521,8 @@ type SignalSyncContract = SignalOpenContract | SignalCloseContract;
  * Backtest never emits this event — there is no live exchange to query.
  *
  * Consumers:
- * - Broker adapter via `onOrderPing` (syncPendingSubject subscription)
- * - Registered actions via `orderPing` / `onOrderPing`
+ * - Broker adapter via `onOrderCheck` (syncPendingSubject subscription)
+ * - Registered actions via `orderCheck` / `onOrderCheck`
  */
 interface SignalPingContract {
     /** Discriminator for pending-ping action */
@@ -1904,14 +1904,14 @@ interface IActionCallbacks {
      * CREATE_SYNC_PENDING_FN which catches them and returns false.
      *
      * @deprecated This callback is not recommended for use. Exchange integration should be implemented
-     * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderPing instead.
+     * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
      * @param event - Pending-ping event with action "signal-ping"
      * @param actionName - Action identifier
      * @param strategyName - Strategy identifier
      * @param frameName - Timeframe identifier
      * @param backtest - True for backtest mode, false for live trading
      */
-    onOrderPing(event: SignalPingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    onOrderCheck(event: SignalPingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 }
 /**
  * Action schema registered via addActionSchema().
@@ -2199,11 +2199,11 @@ interface IAction {
      * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_PENDING_FN.
      *
      * @deprecated This method is not recommended for use. Exchange integration should be implemented
-     * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderPing instead.
-     * If Action::orderPing throws the framework will close the position with closeReason "closed"!
+     * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
+     * If Action::orderCheck throws the framework will close the position with closeReason "closed"!
      * @param event - Pending-ping event with action "signal-ping"
      */
-    orderPing(event: SignalPingContract): void | Promise<void>;
+    orderCheck(event: SignalPingContract): void | Promise<void>;
     /**
      * Cleans up resources and subscriptions when action handler is no longer needed.
      *
@@ -28995,7 +28995,7 @@ type BrokerSignalClosePayload = {
  *
  * Emitted automatically via syncPendingSubject on every live tick while a pending signal is
  * monitored, BEFORE the framework evaluates TP/SL/time. Forwarded to the registered IBroker
- * adapter via `onOrderPing`.
+ * adapter via `onOrderCheck`.
  *
  * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
  * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
@@ -29357,7 +29357,7 @@ interface IBroker {
      * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
      * position. Throw exclusively on a confirmed "order not found by id" result.
      */
-    onOrderPing(payload: BrokerSignalPendingPayload): Promise<void>;
+    onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void>;
     /** Called when a partial profit close is committed. */
     onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
     /** Called when a partial loss close is committed. */
@@ -29844,8 +29844,8 @@ declare class BrokerBase implements IBroker {
      *
      * @example
      * ```typescript
-     * async onOrderPing(payload: BrokerSignalPendingPayload) {
-     *   super.onOrderPing(payload); // Keep parent logging
+     * async onOrderCheck(payload: BrokerSignalPendingPayload) {
+     *   super.onOrderCheck(payload); // Keep parent logging
      *   let order: Order | null;
      *   try {
      *     order = await this.exchange.getOrderById(payload.signalId);
@@ -29860,7 +29860,7 @@ declare class BrokerBase implements IBroker {
      * }
      * ```
      */
-    onOrderPing(payload: BrokerSignalPendingPayload): Promise<void>;
+    onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void>;
     /**
      * Called when a position is fully closed (SL/TP hit or manual close).
      *
@@ -31498,7 +31498,7 @@ declare class ActionCoreService implements TAction$1 {
      * @param event - Pending-ping event with action "signal-ping"
      * @param context - Strategy execution context
      */
-    orderPing: (backtest: boolean, event: SignalPingContract, context: {
+    orderCheck: (backtest: boolean, event: SignalPingContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -33607,7 +33607,7 @@ declare class ActionProxy implements IPublicAction {
      *
      * @param event - Pending-ping event with action "signal-ping"
      */
-    orderPing(event: SignalPingContract): Promise<void>;
+    orderCheck(event: SignalPingContract): Promise<void>;
     /**
      * Cleans up resources with error capture.
      *
@@ -33763,7 +33763,7 @@ declare class ClientAction implements IAction {
      * Gate for the pending-order ping (order still open on exchange?).
      * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
      */
-    orderPing(event: SignalPingContract): Promise<void>;
+    orderCheck(event: SignalPingContract): Promise<void>;
     /**
      * Cleans up resources and subscriptions when action handler is no longer needed.
      * Uses singleshot pattern to ensure cleanup happens exactly once.
@@ -33984,14 +33984,14 @@ declare class ActionConnectionService implements TAction {
         frameName: FrameName;
     }) => Promise<void>;
     /**
-     * Routes orderPing event to appropriate ClientAction instance.
+     * Routes orderCheck event to appropriate ClientAction instance.
      * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
      *
      * @param event - Pending-ping event with action "signal-ping"
      * @param backtest - Whether running in backtest mode
      * @param context - Execution context
      */
-    orderPing: (event: SignalPingContract, backtest: boolean, context: {
+    orderCheck: (event: SignalPingContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;

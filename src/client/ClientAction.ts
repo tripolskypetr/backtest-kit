@@ -310,7 +310,7 @@ const CALL_SIGNAL_SYNC_CALLBACK_FN = async (
 };
 
 /**
- * Calls onOrderPing callback WITHOUT trycatch — exceptions must propagate
+ * Calls onOrderCheck callback WITHOUT trycatch — exceptions must propagate
  * up to CREATE_SYNC_PENDING_FN in StrategyConnectionService (which returns false on error).
  */
 const CALL_ORDER_PING_CALLBACK_FN = async (
@@ -320,8 +320,8 @@ const CALL_ORDER_PING_CALLBACK_FN = async (
   frameName: FrameName,
   isBacktest: boolean
 ): Promise<void> => {
-  if (self.params.callbacks?.onOrderPing) {
-    await self.params.callbacks.onOrderPing(event, self.params.actionName, strategyName, frameName, isBacktest);
+  if (self.params.callbacks?.onOrderCheck) {
+    await self.params.callbacks.onOrderCheck(event, self.params.actionName, strategyName, frameName, isBacktest);
   }
 };
 
@@ -838,8 +838,8 @@ export class ClientAction implements IAction {
    * Gate for the pending-order ping (order still open on exchange?).
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
    */
-  public async orderPing(event: SignalPingContract): Promise<void> {
-    this.params.logger.debug("ClientAction orderPing", {
+  public async orderCheck(event: SignalPingContract): Promise<void> {
+    this.params.logger.debug("ClientAction orderCheck", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -850,7 +850,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined — exceptions propagate
-    await this._handlerInstance?.orderPing(event);
+    await this._handlerInstance?.orderCheck(event);
 
     // Call callback if defined — exceptions propagate
     await CALL_ORDER_PING_CALLBACK_FN(

@@ -632,14 +632,14 @@ export class ActionProxy implements IPublicAction {
    *
    * @param event - Pending-ping event with action "signal-ping"
    */
-  public async orderPing(event: SignalPingContract): Promise<void> {
-    if (this._target.orderPing) {
-      console.error("Action::orderPing is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
-      console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderPing");
-      console.error("If Action::orderPing throws the framework will close the position with closeReason \"closed\"!");
+  public async orderCheck(event: SignalPingContract): Promise<void> {
+    if (this._target.orderCheck) {
+      console.error("Action::orderCheck is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+      console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+      console.error("If Action::orderCheck throws the framework will close the position with closeReason \"closed\"!");
       console.error("");
       console.error("You have been warned!");
-      await this._target.orderPing(event);
+      await this._target.orderCheck(event);
     }
   }
 

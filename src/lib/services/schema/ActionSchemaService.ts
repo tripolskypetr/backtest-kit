@@ -41,7 +41,7 @@ const VALID_METHOD_NAMES: Key[] = [
  * method one of these produces a dedicated error redirecting to the Broker adapter instead of the
  * generic "invalid method" suggestion.
  */
-const DISCOURAGED_METHOD_NAMES: Key[] = ["signalSync", "orderPing"];
+const DISCOURAGED_METHOD_NAMES: Key[] = ["signalSync", "orderCheck"];
 
 /**
  * Builds the dedicated error message for a discouraged exchange-integration handler method.
@@ -58,7 +58,7 @@ const DISCOURAGED_METHOD_MESSAGE = (
     `ActionSchema ${actionName} contains discouraged method "${methodName}". `,
     `Exchange integration must be implemented in Broker.useBrokerAdapter as the infrastructure domain layer, not in an action handler.`,
     typo.nbsp,
-    `Use Broker.useBrokerAdapter with onOrderPing (order still open?) and onSignalOpenCommit / onSignalCloseCommit (order fill) instead.`,
+    `Use Broker.useBrokerAdapter with onOrderCheck (order still open?) and onSignalOpenCommit / onSignalCloseCommit (order fill) instead.`,
     typo.nbsp,
     `If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`,
   ]);

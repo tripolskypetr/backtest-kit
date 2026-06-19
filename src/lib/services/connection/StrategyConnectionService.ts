@@ -109,7 +109,7 @@ const CREATE_SYNC_PENDING_FN = (
       return true;
     }
     await syncPendingSubject.next(event);
-    await self.actionCoreService.orderPing(backtest, event, { strategyName, exchangeName, frameName });
+    await self.actionCoreService.orderCheck(backtest, event, { strategyName, exchangeName, frameName });
     return true;
   }, {
     fallback: (error) => {
