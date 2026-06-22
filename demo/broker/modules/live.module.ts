@@ -101,7 +101,11 @@ Broker.useBrokerAdapter({
   onSignalCloseCommit: async (payload) => {
     console.log("SIGNAL_CLOSE", { payload });
     throw new Error("SIGNAL_CLOSE NOT ALLOWED!");
-  }
+  },
+  onOrderCheck: async (payload) => {
+    console.log("ORDER_CHECK", { payload });
+    throw new Error("ORDER_CHECK rollback");
+  },
 })
 
 Broker.enable();

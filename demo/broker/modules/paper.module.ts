@@ -98,7 +98,10 @@ Broker.useBrokerAdapter({
   },
   onSignalCloseCommit: async (payload) => {
     console.log("SIGNAL_CLOSE", { payload });
-  }
+  },
+  onOrderCheck: async (payload) => {
+    console.log("ORDER_CHECK", { payload });
+  },
 })
 
 Broker.enable();
