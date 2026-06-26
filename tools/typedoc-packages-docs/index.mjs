@@ -109,8 +109,8 @@ await Promise.all(cliFiles.map(async (filePath) => {
         ? readmeContent
         : str.newline(
             `---`,
-            `title: strategies/overview`,
-            `group: strategies`,
+            `title: demo/overview`,
+            `group: demo`,
             `---`,
             ``,
             readmeContent
@@ -134,8 +134,8 @@ await Promise.all(strategyFiles.map(async (filePath) => {
         ? content
         : str.newline(
             `---`,
-            `title: strategies/${strategyName}`,
-            `group: strategies`,
+            `title: demo/${strategyName}`,
+            `group: demo`,
             `---`,
             ``,
             content

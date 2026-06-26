@@ -1,6 +1,6 @@
 ---
-title: demo/exchange/readme
-group: demo/exchange
+title: other/exchange/readme
+group: other/exchange
 ---
 
 # Exchange Schema Demo

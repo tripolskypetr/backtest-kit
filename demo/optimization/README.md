@@ -1,6 +1,6 @@
 ---
-title: demo/optimization/readme
-group: demo/optimization
+title: other/optimization/readme
+group: other/optimization
 ---
 
 # AI Strategy Optimizer

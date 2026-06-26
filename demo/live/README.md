@@ -1,6 +1,6 @@
 ---
-title: demo/live/readme
-group: demo/live
+title: other/live/readme
+group: other/live
 ---
 
 # AI-Powered Live Trading Demo

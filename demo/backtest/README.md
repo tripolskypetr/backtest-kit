@@ -1,6 +1,6 @@
 ---
-title: demo/backtest/readme
-group: demo/backtest
+title: other/backtest/readme
+group: other/backtest
 ---
 
 # AI-Powered Backtest Demo

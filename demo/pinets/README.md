@@ -1,6 +1,6 @@
 ---
-title: demo/pinets/readme
-group: demo/pinets
+title: other/pinets/readme
+group: other/pinets
 ---
 
 # Pine Script Runner

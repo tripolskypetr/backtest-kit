@@ -1,6 +1,6 @@
 ---
-title: demo/broker/readme
-group: demo/broker
+title: other/broker/readme
+group: other/broker
 ---
 
 # Broker Adapter Demo
