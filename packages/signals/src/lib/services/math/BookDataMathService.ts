@@ -17,7 +17,6 @@
  * Only available in live mode (skipped in backtest mode).
  */
 
-import { ttl } from "functools-kit";
 import { formatPrice, formatQuantity, getOrderBook, IBidData, getDate } from "backtest-kit";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
@@ -83,16 +82,16 @@ export interface IBookDataAnalysis {
   bids: IOrderBookEntry[];
   /** Ask (sell) levels with percentages */
   asks: IOrderBookEntry[];
-  /** Highest bid price */
-  bestBid: number;
-  /** Lowest ask price */
-  bestAsk: number;
-  /** Mid price: (bestBid + bestAsk) / 2 */
-  midPrice: number;
-  /** Spread: bestAsk - bestBid */
-  spread: number;
-  /** Depth imbalance: (bidVol - askVol) / (bidVol + askVol) */
-  depthImbalance: number;
+  /** Highest bid price (null when the book side is empty) */
+  bestBid: number | null;
+  /** Lowest ask price (null when the book side is empty) */
+  bestAsk: number | null;
+  /** Mid price: (bestBid + bestAsk) / 2 (null when either side is empty) */
+  midPrice: number | null;
+  /** Spread: bestAsk - bestBid (null when either side is empty) */
+  spread: number | null;
+  /** Depth imbalance: (bidVol - askVol) / (bidVol + askVol) (null when the book is empty) */
+  depthImbalance: number | null;
 }
 
 /**
@@ -374,16 +373,18 @@ export class BookDataMathService {
 
     // Just process raw data - no calculations
     const bids = processOrderBookSide(
-      depth.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price))
+      [...depth.bids].sort((a, b) => parseFloat(b.price) - parseFloat(a.price))
     ); // Сортировка по убыванию
     const asks = processOrderBookSide(
-      depth.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
+      [...depth.asks].sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
     ); // Сортировка по возрастанию
 
-    const bestBid = bids.length > 0 ? bids[0].price : 0;
-    const bestAsk = asks.length > 0 ? asks[0].price : 0;
-    const midPrice = (bestBid + bestAsk) / 2;
-    const spread = bestAsk - bestBid;
+    const bestBid = bids.length > 0 ? bids[0].price : null;
+    const bestAsk = asks.length > 0 ? asks[0].price : null;
+    const midPrice =
+      bestBid !== null && bestAsk !== null ? (bestBid + bestAsk) / 2 : null;
+    const spread =
+      bestBid !== null && bestAsk !== null ? bestAsk - bestBid : null;
 
     // Calculate depth imbalance
     const totalBidVolume = bids.reduce((sum, bid) => sum + bid.quantity, 0);
@@ -391,7 +392,7 @@ export class BookDataMathService {
     const depthImbalance =
       totalBidVolume + totalAskVolume > 0
         ? (totalBidVolume - totalAskVolume) / (totalBidVolume + totalAskVolume)
-        : 0;
+        : null;
 
     return {
       symbol,

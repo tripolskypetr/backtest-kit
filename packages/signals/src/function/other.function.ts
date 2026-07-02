@@ -147,7 +147,7 @@ const commitHistorySetup = async (symbol: string, history: History) => {
   await commitSwingTermMath(symbol, history);
   await commitLongTermMath(symbol, history);
 
-  const displayName = await String(symbol).toUpperCase();
+  const displayName = String(symbol).toUpperCase();
 
   const currentPrice = await getAveragePrice(symbol);
   const currentData = await getDate();

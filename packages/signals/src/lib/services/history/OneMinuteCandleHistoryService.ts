@@ -124,7 +124,7 @@ export class OneMinuteCandleHistoryService {
       markdown += `- **High**: ${await formatPrice(symbol, candle.high)} USD\n`;
       markdown += `- **Low**: ${await formatPrice(symbol, candle.low)} USD\n`;
       markdown += `- **Close**: ${await formatPrice(symbol, candle.close)} USD\n`;
-      markdown += `- **Volume**: ${formatQuantity(symbol, candle.volume)}\n`;
+      markdown += `- **Volume**: ${await formatQuantity(symbol, candle.volume)}\n`;
       markdown += `- **1m Volatility**: ${volatilityPercent.toFixed(2)}%\n`;
       markdown += `- **Body Size**: ${bodyPercent.toFixed(1)}%\n\n`;
     }

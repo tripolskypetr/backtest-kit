@@ -632,7 +632,6 @@ interface ILongTermRow {
     pdi14: number | null;
     ndi14: number | null;
     atr14: number | null;
-    atr14_raw: number | null;
     atr20: number | null;
     cci20: number | null;
     bollinger20_2_upper: number | null;
@@ -1543,16 +1542,16 @@ interface IBookDataAnalysis {
     bids: IOrderBookEntry[];
     /** Ask (sell) levels with percentages */
     asks: IOrderBookEntry[];
-    /** Highest bid price */
-    bestBid: number;
-    /** Lowest ask price */
-    bestAsk: number;
-    /** Mid price: (bestBid + bestAsk) / 2 */
-    midPrice: number;
-    /** Spread: bestAsk - bestBid */
-    spread: number;
-    /** Depth imbalance: (bidVol - askVol) / (bidVol + askVol) */
-    depthImbalance: number;
+    /** Highest bid price (null when the book side is empty) */
+    bestBid: number | null;
+    /** Lowest ask price (null when the book side is empty) */
+    bestAsk: number | null;
+    /** Mid price: (bestBid + bestAsk) / 2 (null when either side is empty) */
+    midPrice: number | null;
+    /** Spread: bestAsk - bestBid (null when either side is empty) */
+    spread: number | null;
+    /** Depth imbalance: (bidVol - askVol) / (bidVol + askVol) (null when the book is empty) */
+    depthImbalance: number | null;
 }
 /**
  * Service for order book analysis and markdown report generation.

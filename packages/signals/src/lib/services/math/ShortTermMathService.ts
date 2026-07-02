@@ -156,6 +156,11 @@ const columns: Column[] = [
     format: (v) => (v !== null ? `${Number(v).toFixed(3)}%` : "N/A"),
   },
   {
+    key: "volumeTrendRatio",
+    label: "Volume Trend Ratio",
+    format: (v) => (v !== null ? `${Number(v).toFixed(2)}x` : "N/A"),
+  },
+  {
     key: "sma50",
     label: "SMA(50)",
     format: async (v, symbol) =>
@@ -351,8 +356,8 @@ function calculateFibonacciLevels(
     "61.8%": high - range * 0.618,
     "78.6%": high - range * 0.786,
     "100.0%": low,
-    "127.2%": high - range * 1.272,
-    "161.8%": high - range * 1.618,
+    "127.2% (downside)": high - range * 1.272,
+    "161.8% (downside)": high - range * 1.618,
   };
 
   const currentPrice = Number(candles[endIndex].close);
@@ -569,7 +574,8 @@ function generateAnalysis(
         bollingerResult &&
         !isUnsafe(bollingerResult.upper) &&
         !isUnsafe(bollingerResult.lower) &&
-        !isUnsafe(bollingerResult.middle)
+        !isUnsafe(bollingerResult.middle) &&
+        bollingerResult.middle !== 0
           ? ((bollingerResult.upper - bollingerResult.lower) /
               bollingerResult.middle) *
             100
@@ -645,7 +651,7 @@ function generateAnalysis(
       fibonacciDistance: fibonacciNearest.distance,
       bodySize,
       closePrice: close,
-      date: new Date(),
+      date: new Date(_candle.timestamp),
       lookbackPeriod: "144 candles (36 hours)",
     });
   });
@@ -746,6 +752,8 @@ async function generateHistoryTable(
   markdown +=
     "- **ROC(10)**: over previous 10 candles (150 minutes on 15m timeframe) before row timestamp (Min: -∞%, Max: +∞%)\n";
   markdown +=
+    "- **Volume Trend Ratio**: average volume of last 8 candles relative to previous 8 candles before row timestamp (Min: 0x, Max: +∞x; above 1x = volume increasing)\n";
+  markdown +=
     "- **SMA(50)**: over previous 50 candles (750 minutes on 15m timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=
     "- **EMA(8)**: over previous 8 candles (120 minutes on 15m timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
@@ -760,9 +768,9 @@ async function generateHistoryTable(
   markdown +=
     "- **Resistance**: over previous 48 candles (12 hours on 15m timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=
-    "- **Fibonacci Nearest Level**: nearest level name before row timestamp\n";
+    "- **Fibonacci Nearest Level**: nearest level name before row timestamp; levels marked (downside) lie below the range low\n";
   markdown +=
-    "- **Fibonacci Nearest Price**: nearest price level over 288 candles (72h on 15m timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
+    "- **Fibonacci Nearest Price**: nearest price level over up to 288 candles (limited by the 144-candle / 36h report history) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=
     "- **Fibonacci Distance**: distance to nearest level before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=

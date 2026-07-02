@@ -31,6 +31,12 @@ const TABLE_ROWS_LIMIT = 30;
  */
 const WARMUP_PERIOD = 34;
 
+/**
+ * Rolling window (in candles) for the volatility calculation.
+ * Keeps the metric comparable across rows regardless of total history length.
+ */
+const VOLATILITY_WINDOW = 20;
+
 interface ISwingTermRow {
   symbol: string;
   rsi14: number | null;
@@ -577,19 +583,21 @@ function generateAnalysis(
       return;
     }
 
-    const priceChanges = closes
-      .slice(0, i + 1)
-      .slice(1)
-      .map((price, idx) => {
-        const prevPrice = closes.slice(0, i + 1)[idx];
-        return ((price - prevPrice) / prevPrice) * 100;
-      });
+    let volatilitySumSq = 0;
+    let volatilityCount = 0;
+    for (let idx = Math.max(1, i + 1 - VOLATILITY_WINDOW); idx <= i; idx++) {
+      const prevPrice = closes[idx - 1];
+      const currPrice = closes[idx];
+      if (isUnsafe(prevPrice) || isUnsafe(currPrice) || prevPrice <= 0) {
+        continue;
+      }
+      const change = ((currPrice - prevPrice) / prevPrice) * 100;
+      volatilitySumSq += change ** 2;
+      volatilityCount += 1;
+    }
     const volatility =
-      priceChanges.length > 0
-        ? Math.sqrt(
-            priceChanges.reduce((sum, change) => sum + change ** 2, 0) /
-              priceChanges.length
-          )
+      volatilityCount > 0
+        ? Math.sqrt(volatilitySumSq / volatilityCount)
         : null;
 
     const { support, resistance } = calculateSupportResistance(candles, i);
@@ -711,7 +719,7 @@ function generateAnalysis(
       fibonacciPositionPercent: fibonacci.fibonacciPositionPercent,
       bodySize,
       closePrice: close,
-      date: new Date(),
+      date: new Date(_candle.timestamp),
       lookbackPeriod: "96 candles (48 hours)",
     });
   });
@@ -838,7 +846,7 @@ async function generateHistoryTable(
   markdown +=
     "- **Volume**: trading volume at row timestamp (Min: 0, Max: +∞)\n";
   markdown +=
-    "- **Volatility**: volatility percentage at row timestamp (Min: 0%, Max: +∞)\n";
+    "- **Volatility**: RMS of 1-candle percentage changes over previous 20 candles (10 hours on 30m timeframe) before row timestamp (Min: 0%, Max: +∞)\n";
 
   markdown += "\n## Column Descriptions\n\n";
   markdown += "**RSI(14) - Relative Strength Index**: Momentum oscillator measuring the speed and magnitude of price changes on 30-minute timeframe. Values above 70 indicate overbought conditions suitable for profit-taking, below 30 indicate oversold conditions suitable for entries.\n\n";

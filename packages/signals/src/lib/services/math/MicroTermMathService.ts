@@ -368,6 +368,11 @@ const columns: Column[] = [
     format: (v) => (v !== null ? `${Number(v).toFixed(2)}x` : "N/A"),
   },
   {
+    key: "volumeTrendRatio",
+    label: "Volume Trend Ratio",
+    format: (v) => (v !== null ? `${Number(v).toFixed(2)}x` : "N/A"),
+  },
+  {
     key: "volatility5",
     label: "Volatility(5)",
     format: (v) => (v !== null ? `${Number(v).toFixed(3)}%` : "N/A"),
@@ -469,10 +474,12 @@ function calculateVolumeMetrics(
   const volumeSma5 = new SMA(5);
   volumes.forEach((vol) => volumeSma5.update(vol, false));
   const avgVolumeRaw = volumeSma5.getResult();
-  const avgVolume = !isUnsafe(avgVolumeRaw) ? avgVolumeRaw : 0;
+  const avgVolume = !isUnsafe(avgVolumeRaw) ? avgVolumeRaw : null;
   const currentVolume = volumes[volumes.length - 1];
   const volumeRatio =
-    avgVolume > 0 && !isUnsafe(currentVolume) ? currentVolume / avgVolume : 1;
+    avgVolume !== null && avgVolume > 0 && !isUnsafe(currentVolume)
+      ? currentVolume / avgVolume
+      : null;
 
   let volumeTrendRatio: number | null = null;
 
@@ -525,19 +532,19 @@ function calculatePriceChanges(
   const current = closes[closes.length - 1];
 
   const priceChange1m =
-    closes.length >= 2
+    closes.length >= 2 && closes[closes.length - 2] > 0
       ? ((current - closes[closes.length - 2]) / closes[closes.length - 2]) *
         100
       : null;
 
   const priceChange3m =
-    closes.length >= 4
+    closes.length >= 4 && closes[closes.length - 4] > 0
       ? ((current - closes[closes.length - 4]) / closes[closes.length - 4]) *
         100
       : null;
 
   const priceChange5m =
-    closes.length >= 6
+    closes.length >= 6 && closes[closes.length - 6] > 0
       ? ((current - closes[closes.length - 6]) / closes[closes.length - 6]) *
         100
       : null;
@@ -709,9 +716,9 @@ function generateAnalysis(
     dema8.update(close, false);
     wma5.update(close, false);
     
-    // Determine minimum warm-up period needed (largest indicator period)
-    // EMA(21) is the largest period
-    // Skip rows until all indicators are warmed up
+    // Skip rows until the primary indicators are warmed up.
+    // WARMUP_PERIOD covers EMA(21); slower indicators (e.g. StochRSI(14)
+    // needs ~28 candles) render as N/A in the first rows until ready.
     if (i < WARMUP_PERIOD) {
       return;
     }
@@ -935,7 +942,7 @@ function generateAnalysis(
       squeezeMomentum,
       pressureIndex,
       closePrice: close,
-      date: new Date(),
+      date: new Date(_candle.timestamp),
       lookbackPeriod: "60 candles (60 minutes)",
     });
   });
@@ -1034,7 +1041,7 @@ async function generateHistoryTable(
   markdown +=
     "- **Bollinger Width(8,2.0)**: width percentage before row timestamp (Min: 0%, Max: +∞)\n";
   markdown +=
-    "- **Bollinger Position**: price position within bands before row timestamp (Min: 0%, Max: 100%)\n";
+    "- **Bollinger Position**: price position within bands before row timestamp (0% = lower band, 100% = upper band; can go below 0% or above 100% when price is outside the bands)\n";
   markdown +=
     "- **Stochastic K(3,3,3)**: over previous 3 candles (3 minutes on 1m timeframe) before row timestamp (Min: 0, Max: 100)\n";
   markdown +=
@@ -1071,6 +1078,8 @@ async function generateHistoryTable(
     "- **Volume SMA(5)**: over previous 5 candles (5 minutes on 1m timeframe) before row timestamp (Min: 0, Max: +∞)\n";
   markdown +=
     "- **Volume Ratio**: volume relative to average at row timestamp (Min: 0x, Max: +∞x)\n";
+  markdown +=
+    "- **Volume Trend Ratio**: average volume of last 3 candles relative to previous 3 candles at row timestamp (Min: 0x, Max: +∞x; above 1x = volume increasing)\n";
   markdown +=
     "- **Support**: over previous 30 candles (30 minutes on 1m timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=

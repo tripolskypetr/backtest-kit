@@ -121,11 +121,11 @@ export class HourCandleHistoryService {
       markdown += `### 1h Candle ${index + 1}\n`;
       markdown += `- **Price Change**: ${priceChangePercent.toFixed(3)}%\n`;
       markdown += `- **Time**: ${formattedTime}\n`;
-      markdown += `- **Open**: ${formatPrice(symbol, candle.open)} USD\n`;
-      markdown += `- **High**: ${formatPrice(symbol, candle.high)} USD\n`;
-      markdown += `- **Low**: ${formatPrice(symbol, candle.low)} USD\n`;
-      markdown += `- **Close**: ${formatPrice(symbol, candle.close)} USD\n`;
-      markdown += `- **Volume**: ${formatQuantity(symbol, candle.volume)}\n`;
+      markdown += `- **Open**: ${await formatPrice(symbol, candle.open)} USD\n`;
+      markdown += `- **High**: ${await formatPrice(symbol, candle.high)} USD\n`;
+      markdown += `- **Low**: ${await formatPrice(symbol, candle.low)} USD\n`;
+      markdown += `- **Close**: ${await formatPrice(symbol, candle.close)} USD\n`;
+      markdown += `- **Volume**: ${await formatQuantity(symbol, candle.volume)}\n`;
       markdown += `- **1h Volatility**: ${volatilityPercent.toFixed(2)}%\n`;
       markdown += `- **Body Size**: ${bodyPercent.toFixed(1)}%\n\n`;
     }
