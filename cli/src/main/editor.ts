@@ -69,7 +69,7 @@ export const main = async () => {
     await open(`http://localhost:${CC_WWWROOT_PORT}?pine=1`);
     isOk = true;
   } catch {
-    void 0;
+    isOk = false;
   } finally {
     isOk && console.log(`Editor launched: http://localhost:${CC_WWWROOT_PORT}?pine=1`)
   }
