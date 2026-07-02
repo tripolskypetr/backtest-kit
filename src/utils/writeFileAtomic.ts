@@ -77,16 +77,16 @@ export async function writeFileAtomic(
 
   if (IS_WINDOWS) {
     try {
-      // Create and write to temporary file
+      // Windows: write directly to the target file (no temp+rename here, so the
+      // write is best-effort, NOT atomic — fsync minimizes the corruption window)
       fileHandle = await fs.open(file, "w", mode);
 
-      // Write data to the temp file
+      // Write data to the target file
       await fileHandle.writeFile(data, { encoding });
 
       // Ensure data is flushed to disk
       await fileHandle.sync();
 
-      // Close the file before rename
       await fileHandle.close();
     } catch (error) {
       // Clean up if something went wrong

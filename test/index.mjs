@@ -28,7 +28,9 @@ import "./e2e/scheduled.test.mjs";
 import "./e2e/config.test.mjs";
 import "./e2e/columns.test.mjs";
 import "./e2e/candle_cache.test.mjs";
+import "./e2e/audit.test.mjs";
 
+import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
 import "./spec/scheduled.test.mjs";
 import "./spec/exchange.test.mjs";

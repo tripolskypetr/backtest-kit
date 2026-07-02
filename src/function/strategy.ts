@@ -218,13 +218,15 @@ export async function commitPartialProfit(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  const investedCostForProfit =
-    await backtest.strategyCoreService.getPositionInvestedCost(
+  // percentToClose is applied to the REMAINING cost basis (see PARTIAL_PROFIT_FN),
+  // so the broker-facing dollar cost is derived from the remaining basis too
+  const remainingCostForProfit =
+    await backtest.strategyCoreService.getTotalCostClosed(
       isBacktest,
       symbol,
       { exchangeName, frameName, strategyName },
     );
-  if (investedCostForProfit === null) {
+  if (remainingCostForProfit === null) {
     return false;
   }
   const signalForProfit = await backtest.strategyCoreService.getPendingSignal(
@@ -253,7 +255,7 @@ export async function commitPartialProfit(
     symbol,
     signalId: signalForProfit.id,
     percentToClose,
-    cost: percentToCloseCost(percentToClose, investedCostForProfit),
+    cost: percentToCloseCost(percentToClose, remainingCostForProfit),
     currentPrice,
     position: signalForProfit.position,
     priceTakeProfit: signalForProfit.priceTakeProfit,
@@ -315,13 +317,15 @@ export async function commitPartialLoss(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  const investedCostForLoss =
-    await backtest.strategyCoreService.getPositionInvestedCost(
+  // percentToClose is applied to the REMAINING cost basis (see PARTIAL_LOSS_FN),
+  // so the broker-facing dollar cost is derived from the remaining basis too
+  const remainingCostForLoss =
+    await backtest.strategyCoreService.getTotalCostClosed(
       isBacktest,
       symbol,
       { exchangeName, frameName, strategyName },
     );
-  if (investedCostForLoss === null) {
+  if (remainingCostForLoss === null) {
     return false;
   }
   const signalForLoss = await backtest.strategyCoreService.getPendingSignal(
@@ -350,7 +354,7 @@ export async function commitPartialLoss(
     symbol,
     signalId: signalForLoss.id,
     percentToClose,
-    cost: percentToCloseCost(percentToClose, investedCostForLoss),
+    cost: percentToCloseCost(percentToClose, remainingCostForLoss),
     currentPrice,
     position: signalForLoss.position,
     priceTakeProfit: signalForLoss.priceTakeProfit,
@@ -652,10 +656,14 @@ export async function commitTrailingStopCost(
   if (effectivePriceOpen === null) {
     return false;
   }
+  // ClientStrategy applies percentShift relative to the ORIGINAL stop-loss,
+  // so the conversion must use it too (signal.priceStopLoss is the effective,
+  // possibly trailing, level)
   const percentShift = slPriceToPercentShift(
     newStopLossPrice,
-    signal.priceStopLoss,
+    signal.originalPriceStopLoss ?? signal.priceStopLoss,
     effectivePriceOpen,
+    signal.position,
   );
   if (
     await not(
@@ -739,10 +747,14 @@ export async function commitTrailingTakeCost(
   if (effectivePriceOpen === null) {
     return false;
   }
+  // ClientStrategy applies percentShift relative to the ORIGINAL take-profit,
+  // so the conversion must use it too (signal.priceTakeProfit is the effective,
+  // possibly trailing, level)
   const percentShift = tpPriceToPercentShift(
     newTakeProfitPrice,
-    signal.priceTakeProfit,
+    signal.originalPriceTakeProfit ?? signal.priceTakeProfit,
     effectivePriceOpen,
+    signal.position,
   );
   if (
     await not(
@@ -997,6 +1009,9 @@ export async function commitAverageBuy(
  *
  * Automatically detects backtest/live mode from execution context.
  *
+ * @deprecated The name is misleading — the function returns the HELD share,
+ * not the closed one. Use {@link getTotalPercentHeld} instead.
+ *
  * @param symbol - Trading pair symbol
  * @returns Promise<number> - held percentage (0–100)
  *
@@ -1034,6 +1049,9 @@ export async function getTotalPercentClosed(symbol: string): Promise<number> {
  *
  * Automatically detects backtest/live mode from execution context.
  *
+ * @deprecated The name is misleading — the function returns the REMAINING
+ * cost basis, not the closed one. Use {@link getRemainingCostBasis} instead.
+ *
  * @param symbol - Trading pair symbol
  * @returns Promise<number> - held cost basis in dollars
  *
@@ -1063,6 +1081,50 @@ export async function getTotalCostClosed(symbol: string): Promise<number> {
     symbol,
     { exchangeName, frameName, strategyName },
   );
+}
+
+/**
+ * Returns the percentage of the position currently held (not yet closed by partials).
+ * 100 = nothing has been closed (full position), 0 = fully closed.
+ * Correctly accounts for DCA entries between partial closes.
+ *
+ * Correctly-named alias for {@link getTotalPercentClosed}.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise<number> - held percentage (0–100)
+ *
+ * @example
+ * ```typescript
+ * import { getTotalPercentHeld } from "backtest-kit";
+ *
+ * const heldPct = await getTotalPercentHeld("BTCUSDT");
+ * console.log(`Holding ${heldPct}% of position`);
+ * ```
+ */
+export async function getTotalPercentHeld(symbol: string): Promise<number> {
+  return await getTotalPercentClosed(symbol);
+}
+
+/**
+ * Returns the remaining cost basis in dollars — how much of the position is
+ * still held (not yet closed by partials). Correctly accounts for DCA entries
+ * between partial closes.
+ *
+ * Correctly-named alias for {@link getTotalCostClosed}.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise<number> - remaining cost basis in dollars
+ *
+ * @example
+ * ```typescript
+ * import { getRemainingCostBasis } from "backtest-kit";
+ *
+ * const remaining = await getRemainingCostBasis("BTCUSDT");
+ * console.log(`Holding $${remaining} of position`);
+ * ```
+ */
+export async function getRemainingCostBasis(symbol: string): Promise<number> {
+  return await getTotalCostClosed(symbol);
 }
 
 /**
@@ -1424,13 +1486,16 @@ export async function commitPartialProfitCost(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  const investedCost =
-    await backtest.strategyCoreService.getPositionInvestedCost(
+  // percentToClose is applied to the REMAINING cost basis (see PARTIAL_*_FN in
+  // ClientStrategy), so the dollar amount is converted against the remaining
+  // basis — converting against total invested under-closed after the first partial
+  const remainingCost =
+    await backtest.strategyCoreService.getTotalCostClosed(
       isBacktest,
       symbol,
       { exchangeName, frameName, strategyName },
     );
-  if (investedCost === null) {
+  if (remainingCost === null) {
     return false;
   }
   const signalForProfitCost = await backtest.strategyCoreService.getPendingSignal(
@@ -1442,7 +1507,7 @@ export async function commitPartialProfitCost(
   if (!signalForProfitCost) {
     return false;
   }
-  const percentToClose = investedCostToPercent(dollarAmount, investedCost);
+  const percentToClose = investedCostToPercent(dollarAmount, remainingCost);
   if (
     await not(
       backtest.strategyCoreService.validatePartialProfit(
@@ -1524,13 +1589,16 @@ export async function commitPartialLossCost(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  const investedCost =
-    await backtest.strategyCoreService.getPositionInvestedCost(
+  // percentToClose is applied to the REMAINING cost basis (see PARTIAL_*_FN in
+  // ClientStrategy), so the dollar amount is converted against the remaining
+  // basis — converting against total invested under-closed after the first partial
+  const remainingCost =
+    await backtest.strategyCoreService.getTotalCostClosed(
       isBacktest,
       symbol,
       { exchangeName, frameName, strategyName },
     );
-  if (investedCost === null) {
+  if (remainingCost === null) {
     return false;
   }
   const signalForLossCost = await backtest.strategyCoreService.getPendingSignal(
@@ -1542,7 +1610,7 @@ export async function commitPartialLossCost(
   if (!signalForLossCost) {
     return false;
   }
-  const percentToClose = investedCostToPercent(dollarAmount, investedCost);
+  const percentToClose = investedCostToPercent(dollarAmount, remainingCost);
   if (
     await not(
       backtest.strategyCoreService.validatePartialLoss(

@@ -4620,8 +4620,9 @@ export class LiveUtils {
     }
     const percentShift = slPriceToPercentShift(
       newStopLossPrice,
-      signal.priceStopLoss,
+      signal.originalPriceStopLoss ?? signal.priceStopLoss,
       effectivePriceOpen,
+      signal.position,
     );
     if (
       await not(
@@ -4752,8 +4753,9 @@ export class LiveUtils {
     }
     const percentShift = tpPriceToPercentShift(
       newTakeProfitPrice,
-      signal.priceTakeProfit,
+      signal.originalPriceTakeProfit ?? signal.priceTakeProfit,
       effectivePriceOpen,
+      signal.position,
     );
     if (
       await not(

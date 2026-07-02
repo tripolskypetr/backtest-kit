@@ -344,6 +344,17 @@ const PROCESS_COMMIT_QUEUE_FN = async (
   await PERSIST_STRATEGY_FN(self);
 
   if (!self._pendingSignal) {
+    // Delivery is at-most-once: the queue was already persisted as empty above.
+    // Never drop broker-confirmed operations silently — make the loss visible.
+    const message = "ClientStrategy PROCESS_COMMIT_QUEUE_FN: dropping queued commits — no pending signal to attribute them to";
+    const payload = {
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      droppedActions: queue.map(({ action }) => action),
+      droppedCount: queue.length,
+    };
+    self.params.logger.warn(message, payload);
+    console.warn(message, payload);
     return;
   }
 
@@ -697,6 +708,12 @@ const GET_SIGNAL_FN = trycatch(
     if (self._isStopped) {
       return null;
     }
+    // Risk check for every candidate signal (reserves a slot). The reservation is
+    // finalized by addSignal on a successful open, released on sync rejection /
+    // scheduled cancellation, and released by the trycatch fallback below if a
+    // validate* call throws after this point (previously that leak left a stale
+    // placeholder in the shared risk map). OPEN_NEW_PENDING_SIGNAL_FN deliberately
+    // does NOT re-check: user validations must run once per open attempt.
     if (
       await not(
         CALL_RISK_CHECK_SIGNAL_FN(
@@ -752,9 +769,9 @@ const GET_SIGNAL_FN = trycatch(
         // Валидируем сигнал перед возвратом
         validatePendingSignal(signalRow, currentPrice);
 
-        if (signal.id) {
-          self._lastPendingId = signal.id;
-        }
+        // NOTE: _lastPendingId (whipsaw protection) is recorded on SUCCESSFUL open
+        // (after the sync-open confirmation), not here — otherwise a sync/risk
+        // rejection would permanently block a deterministic signal id from retrying.
 
         return signalRow;
       }
@@ -785,18 +802,17 @@ const GET_SIGNAL_FN = trycatch(
       // Валидируем сигнал перед возвратом
       validateScheduledSignal(scheduledSignalRow, currentPrice);
 
-      if (signal.id) {
-        self._lastPendingId = signal.id;
-      }
-
       return scheduledSignalRow;
     }
 
+    // The spread comes FIRST: a DTO carrying its own `undefined` keys (id,
+    // cost, priceOpen) must not override the defaults below — an `undefined`
+    // priceOpen would fail validation and silently drop the signal.
     const signalRow: ISignalRow = {
+      ...structuredClone(signal),
       id: signal.id || randomString(),
       cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
       priceOpen: currentPrice,
-      ...structuredClone(signal),
       note: signal.note || "",
       minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
       symbol: self.params.execution.context.symbol,
@@ -819,10 +835,6 @@ const GET_SIGNAL_FN = trycatch(
     // Валидируем сигнал перед возвратом
     validatePendingSignal(signalRow, currentPrice);
 
-    if (signal.id) {
-      self._lastPendingId = signal.id;
-    }
-
     return signalRow;
   },
   {
@@ -836,9 +848,36 @@ const GET_SIGNAL_FN = trycatch(
       self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
+      // A throw after a successful checkSignalAndReserve (e.g. validate* rejected
+      // the built row) would otherwise leak the reservation in the shared risk
+      // map. No pending/scheduled signal exists while GET_SIGNAL_FN runs, so any
+      // placeholder under this key belongs to the failed attempt — release it.
+      // Fire-and-forget: CALL_RISK_REMOVE_SIGNAL_FN has its own trycatch.
+      void CALL_RISK_REMOVE_SIGNAL_FN(
+        self,
+        self.params.execution.context.symbol,
+        self.params.execution.context.when.getTime(),
+        self.params.execution.context.backtest
+      );
     },
   }
 );
+
+/**
+ * Progress (0-100) of the covered distance toward TP/SL.
+ *
+ * A non-positive total distance is reachable (e.g. breakeven moved the SL exactly
+ * to the effective entry, or a rejected sync close fell through to monitoring) and
+ * means the level is already at/behind the entry — report 100 instead of dividing
+ * by zero. The result is clamped to [0, 100] on both sides.
+ */
+const GET_PROGRESS_PERCENT_FN = (coveredDistance: number, totalDistance: number): number => {
+  if (totalDistance <= 0) {
+    return 100;
+  }
+  const progressPercent = (coveredDistance / totalDistance) * 100;
+  return Math.min(Math.max(progressPercent, 0), 100);
+};
 
 const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
   const sumPriceVolume = candles.reduce((acc, c) => {
@@ -897,19 +936,25 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     self._stopLossSignal = strategyData.stopLossSignal;
   }
 
-  // Restore pending signal
+  // Restore pending signal. A context mismatch skips ONLY this block (not an
+  // early return): the scheduled restore below and the onInit call must still run.
   const pendingSignal = await PersistSignalAdapter.readSignalData(
     self.params.execution.context.symbol,
     self.params.strategyName,
     self.params.exchangeName,
   );
-  if (pendingSignal) {
-    if (pendingSignal.exchangeName !== self.params.method.context.exchangeName) {
-      return;
-    }
-    if (pendingSignal.strategyName !== self.params.method.context.strategyName) {
-      return;
-    }
+  const pendingMatches = pendingSignal
+    && pendingSignal.exchangeName === self.params.method.context.exchangeName
+    && pendingSignal.strategyName === self.params.method.context.strategyName;
+  if (pendingSignal && !pendingMatches) {
+    self.params.logger.warn("ClientStrategy waitForInit: persisted pending signal context mismatch, skipping restore", {
+      symbol: self.params.execution.context.symbol,
+      signalId: pendingSignal.id,
+      persistedExchangeName: pendingSignal.exchangeName,
+      persistedStrategyName: pendingSignal.strategyName,
+    });
+  }
+  if (pendingMatches) {
     // JSON serializes Infinity as null: an eternal-hold signal (minuteEstimatedTime:
     // Infinity) reads back as null. Restore it so the position is not immediately
     // time-expired on restore (guards custom persist adapters too).
@@ -942,19 +987,25 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     );
   }
 
-  // Restore scheduled signal
+  // Restore scheduled signal. Same rule: a mismatch skips only this block so
+  // the onInit call below always runs.
   const scheduledSignal = await PersistScheduleAdapter.readScheduleData(
     self.params.execution.context.symbol,
     self.params.strategyName,
     self.params.exchangeName,
   );
-  if (scheduledSignal) {
-    if (scheduledSignal.exchangeName !== self.params.method.context.exchangeName) {
-      return;
-    }
-    if (scheduledSignal.strategyName !== self.params.method.context.strategyName) {
-      return;
-    }
+  const scheduledMatches = scheduledSignal
+    && scheduledSignal.exchangeName === self.params.method.context.exchangeName
+    && scheduledSignal.strategyName === self.params.method.context.strategyName;
+  if (scheduledSignal && !scheduledMatches) {
+    self.params.logger.warn("ClientStrategy waitForInit: persisted scheduled signal context mismatch, skipping restore", {
+      symbol: self.params.execution.context.symbol,
+      signalId: scheduledSignal.id,
+      persistedExchangeName: scheduledSignal.exchangeName,
+      persistedStrategyName: scheduledSignal.strategyName,
+    });
+  }
+  if (scheduledMatches) {
     // JSON serializes Infinity as null: an eternal-hold signal (minuteEstimatedTime:
     // Infinity) reads back as null. Restore it so the position is not immediately
     // time-expired on activation (guards custom persist adapters too).
@@ -1341,9 +1392,10 @@ const BREAKEVEN_FN = (
   const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
   // Calculate breakeven threshold based on slippage and fees
   // Need to cover: entry slippage + entry fee + exit slippage + exit fee
-  // Total: (slippage + fee) * 2 transactions
+  // Total: (slippage + fee) * 2 transactions, plus the configured extra margin
+  // (CC_BREAKEVEN_THRESHOLD) — keep in sync with getBreakeven/validateBreakeven
   const breakevenThresholdPercent =
-    (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2;
+    (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2 + GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD;
 
   // Check if trailing stop is already set
   if (signal._trailingPriceStopLoss !== undefined) {
@@ -1583,9 +1635,11 @@ const AVERAGE_BUY_FN = (
   timestamp: number,
   cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST
 ): boolean => {
-  // Ensure _entry is initialized (handles signals loaded from disk without _entry)
+  // Ensure _entry is initialized (handles signals loaded from disk without _entry).
+  // Use the signal's own cost — falling back to CC_POSITION_ENTRY_COST for a
+  // position opened with a custom cost would corrupt the whole dollar PnL basis.
   if (!signal._entry || signal._entry.length === 0) {
-    signal._entry = [{ price: signal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp }];
+    signal._entry = [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp }];
   }
 
   if (signal.position === "long") {
@@ -1655,6 +1709,14 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
   );
 
   await self.setScheduledSignal(null);
+
+  // Release the slot reserved at scheduled-signal creation
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, currentPrice, currentTime, "timeout");
 
@@ -1745,6 +1807,14 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
 
   const currentTime = self.params.execution.context.when.getTime();
 
+  // Release the slot reserved at scheduled-signal creation
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
   await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, currentPrice, currentTime, "price_reject");
 
   await CALL_CANCEL_CALLBACKS_FN(
@@ -1793,6 +1863,13 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       signalId: scheduled.id,
     });
     await self.setScheduledSignal(null);
+    // Release the slot reserved at scheduled-signal creation
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      activationTimestamp,
+      self.params.execution.context.backtest
+    );
     return null;
   }
 
@@ -1828,6 +1905,14 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       signalId: scheduled.id,
     });
     await self.setScheduledSignal(null);
+    // Release the slot reserved at scheduled-signal creation (the activation
+    // check above returned false, so no new reservation replaced it)
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      activationTime,
+      self.params.execution.context.backtest
+    );
     return null;
   }
 
@@ -1858,6 +1943,13 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       signalId: scheduled.id,
     });
     await self.setScheduledSignal(null);
+    // Release the slot reserved by checkSignalAndReserve above
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      activationTime,
+      self.params.execution.context.backtest
+    );
     const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
     await CALL_COMMIT_FN(self, {
       action: "cancel-scheduled",
@@ -1883,6 +1975,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   await self.setScheduledSignal(null);
 
   await self.setPendingSignal(activatedSignal, activatedSignal.priceOpen);
+
+  // Whipsaw protection: record the id only after a successful open
+  self._lastPendingId = activatedSignal.id;
 
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
@@ -2918,20 +3013,9 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
 ): Promise<IStrategyTickResultOpened | null> => {
   const currentTime = self.params.execution.context.when.getTime();
 
-  if (
-    await not(
-      CALL_RISK_CHECK_SIGNAL_FN(
-        self,
-        self.params.execution.context.symbol,
-        signal,
-        signal.priceOpen,
-        currentTime,
-        self.params.execution.context.backtest
-      )
-    )
-  ) {
-    return null;
-  }
+  // NOTE: the risk check (with slot reservation) already ran in GET_SIGNAL_FN for
+  // this signal within the same tick. Re-checking here would run user risk
+  // validations twice per open.
 
   // Sync open: if external system rejects — skip open, retry on next tick
   const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
@@ -2946,8 +3030,25 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: signal.id,
     });
+    // Release the slot reserved by checkSignalAndReserve in GET_SIGNAL_FN —
+    // otherwise the rejected open leaks a phantom reservation in the shared risk map.
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      currentTime,
+      self.params.execution.context.backtest
+    );
     return null;
   }
+
+  // Persist the pending signal only AFTER the broker confirmed the open —
+  // persisting earlier left a phantom position on disk if the process crashed
+  // between the write and the confirmation.
+  await self.setPendingSignal(signal, signal.priceOpen);
+
+  // Whipsaw protection: record the id only after a successful open so a
+  // rejected open can retry the same deterministic id on the next tick.
+  self._lastPendingId = signal.id;
 
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
@@ -3271,8 +3372,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         // Moving towards TP (use trailing TP if set)
         const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
         const tpDistance = effectiveTakeProfit - effectivePriceOpen;
-        const progressPercent = (currentDistance / tpDistance) * 100;
-        percentTp = Math.min(progressPercent, 100);
+        percentTp = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
 
         if (currentPrice > signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
@@ -3331,8 +3431,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         // Moving towards SL (use trailing SL if set)
         const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
         const slDistance = effectivePriceOpen - effectiveStopLoss;
-        const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
-        percentSl = Math.min(progressPercent, 100);
+        percentSl = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
         if (currentPrice < signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
@@ -3392,8 +3491,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         // Moving towards TP (use trailing TP if set)
         const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
         const tpDistance = effectivePriceOpen - effectiveTakeProfit;
-        const progressPercent = (currentDistance / tpDistance) * 100;
-        percentTp = Math.min(progressPercent, 100);
+        percentTp = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
 
         if (currentPrice < signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
@@ -3452,8 +3550,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         // Moving towards SL (use trailing SL if set)
         const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
         const slDistance = effectiveStopLoss - effectivePriceOpen;
-        const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
-        percentSl = Math.min(progressPercent, 100);
+        percentSl = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
         if (currentPrice > signal._fall.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
           signal._fall = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
@@ -3605,6 +3702,14 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   await self.setScheduledSignal(null);
 
+  // Release the slot reserved at scheduled-signal creation
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
+
   const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, averagePrice);
 
   await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, averagePrice, closeTimestamp, reason);
@@ -3678,12 +3783,19 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       signalId: scheduled.id,
     });
     await self.setScheduledSignal(null);
+    // Release the slot reserved at scheduled-signal creation
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      activationTimestamp,
+      self.params.execution.context.backtest
+    );
     return false;
   }
 
-  // В BACKTEST режиме activationTimestamp - это candle.timestamp + 60*1000
-  // (timestamp СЛЕДУЮЩЕЙ свечи после достижения priceOpen)
-  // Это обеспечивает точный расчёт minuteEstimatedTime от момента активации
+  // В BACKTEST режиме activationTimestamp - это candle.timestamp свечи,
+  // на которой цена достигла priceOpen (см. PROCESS_SCHEDULED_SIGNAL_CANDLES_FN).
+  // minuteEstimatedTime отсчитывается от этого момента активации.
   const activationTime = activationTimestamp;
 
   self.params.logger.info(
@@ -3714,6 +3826,14 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       signalId: scheduled.id,
     });
     await self.setScheduledSignal(null);
+    // Release the slot reserved at scheduled-signal creation (the activation
+    // check above returned false, so no new reservation replaced it)
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      activationTime,
+      self.params.execution.context.backtest
+    );
     return false;
   }
 
@@ -3744,6 +3864,13 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       signalId: scheduled.id,
     });
     await self.setScheduledSignal(null);
+    // Release the slot reserved by checkSignalAndReserve above
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      activationTime,
+      self.params.execution.context.backtest
+    );
     const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
     await CALL_COMMIT_FN(self, {
       action: "cancel-scheduled",
@@ -3769,6 +3896,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   await self.setScheduledSignal(null);
 
   await self.setPendingSignal(activatedSignal, activatedSignal.priceOpen);
+
+  // Whipsaw protection: record the id only after a successful open
+  self._lastPendingId = activatedSignal.id;
 
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
@@ -4222,6 +4352,13 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           signalId: activatedSignal.id,
         });
         await self.setScheduledSignal(null);
+        // Release the slot reserved at scheduled-signal creation
+        await CALL_RISK_REMOVE_SIGNAL_FN(
+          self,
+          self.params.execution.context.symbol,
+          candle.timestamp,
+          self.params.execution.context.backtest
+        );
         return { outcome: "pending" };
       }
 
@@ -4243,6 +4380,38 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           signalId: activatedSignal.id,
         });
         await self.setScheduledSignal(null);
+        // Release the slot reserved at scheduled-signal creation (the activation
+        // check above returned false, so no new reservation replaced it)
+        await CALL_RISK_REMOVE_SIGNAL_FN(
+          self,
+          self.params.execution.context.symbol,
+          candle.timestamp,
+          self.params.execution.context.backtest
+        );
+        // The signal is dropped for good — emit the cancellation so subscribers
+        // (commit + schedule event) see it instead of the signal silently vanishing
+        {
+          const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
+          await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candle.timestamp, "user");
+          await CALL_COMMIT_FN(self, {
+            action: "cancel-scheduled",
+            symbol: self.params.execution.context.symbol,
+            strategyName: self.params.strategyName,
+            exchangeName: self.params.exchangeName,
+            frameName: self.params.frameName,
+            signalId: activatedSignal.id,
+            backtest: self.params.execution.context.backtest,
+            timestamp: candle.timestamp,
+            totalEntries: activatedSignal._entry?.length ?? 1,
+            totalPartials: activatedSignal._partial?.length ?? 0,
+            originalPriceOpen: activatedSignal.priceOpen,
+            pnl: publicSignal.pnl,
+            maxDrawdown: publicSignal.maxDrawdown,
+            peakProfit: publicSignal.peakProfit,
+            signal: publicSignal,
+            note: activatedSignal.activateNote ?? activatedSignal.note,
+          });
+        }
         return { outcome: "pending" };
       }
 
@@ -4272,6 +4441,13 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           signalId: activatedSignal.id,
         });
         await self.setScheduledSignal(null);
+        // Release the slot reserved by checkSignalAndReserve above
+        await CALL_RISK_REMOVE_SIGNAL_FN(
+          self,
+          self.params.execution.context.symbol,
+          candle.timestamp,
+          self.params.execution.context.backtest
+        );
         const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
         await CALL_COMMIT_FN(self, {
           action: "cancel-scheduled",
@@ -4297,6 +4473,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       await self.setScheduledSignal(null);
 
       await self.setPendingSignal(pendingSignal, averagePrice);
+
+      // Whipsaw protection: record the id only after a successful open
+      self._lastPendingId = pendingSignal.id;
 
       await CALL_RISK_ADD_SIGNAL_FN(
         self,
@@ -4593,7 +4772,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // Moving towards TP (use trailing TP if set)
           const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
           const tpDistance = effectiveTakeProfit - effectivePriceOpen;
-          const progressPercent = (currentDistance / tpDistance) * 100;
+          const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
 
           if (averagePrice > signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
@@ -4630,7 +4809,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.symbol,
             signal,
             averagePrice,
-            Math.min(progressPercent, 100),
+            progressPercent,
             currentCandleTimestamp,
             self.params.execution.context.backtest
           );
@@ -4638,7 +4817,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // Moving towards SL (use trailing SL if set)
           const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
           const slDistance = effectivePriceOpen - effectiveStopLoss;
-          const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
+          const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           if (averagePrice < signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -4663,7 +4842,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.symbol,
             signal,
             averagePrice,
-            Math.min(progressPercent, 100),
+            progressPercent,
             currentCandleTimestamp,
             self.params.execution.context.backtest
           );
@@ -4678,7 +4857,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // Moving towards TP (use trailing TP if set)
           const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
           const tpDistance = effectivePriceOpen - effectiveTakeProfit;
-          const progressPercent = (currentDistance / tpDistance) * 100;
+          const progressPercent = GET_PROGRESS_PERCENT_FN(currentDistance, tpDistance);
 
           if (averagePrice < signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
@@ -4715,7 +4894,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.symbol,
             signal,
             averagePrice,
-            Math.min(progressPercent, 100),
+            progressPercent,
             currentCandleTimestamp,
             self.params.execution.context.backtest
           );
@@ -4723,7 +4902,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           // Moving towards SL (use trailing SL if set)
           const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
           const slDistance = effectiveStopLoss - effectivePriceOpen;
-          const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
+          const progressPercent = GET_PROGRESS_PERCENT_FN(Math.abs(currentDistance), slDistance);
           if (averagePrice > signal._fall.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
             signal._fall = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
@@ -4748,7 +4927,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.symbol,
             signal,
             averagePrice,
-            Math.min(progressPercent, 100),
+            progressPercent,
             currentCandleTimestamp,
             self.params.execution.context.backtest
           );
@@ -5378,7 +5557,7 @@ export class ClientStrategy implements IStrategy {
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to array of partial close records or null
    */
-  public async getPositionPartials(symbol: string): Promise<Partials> | null {
+  public async getPositionPartials(symbol: string): Promise<Partials | null> {
     this.params.logger.debug("ClientStrategy getPositionPartials", { symbol });
     if (!this._pendingSignal) {
       return null;
@@ -5403,7 +5582,7 @@ export class ClientStrategy implements IStrategy {
    * // No DCA: [{ price: 43000, cost: 100 }]
    * // One DCA: [{ price: 43000, cost: 100 }, { price: 42000, cost: 100 }]
    */
-  public async getPositionEntries(symbol: string, timestamp: number): Promise<Entries> | null {
+  public async getPositionEntries(symbol: string, timestamp: number): Promise<Entries | null> {
     this.params.logger.debug("ClientStrategy getPositionEntries", { symbol });
     if (!this._pendingSignal) {
       return null;
@@ -5910,6 +6089,14 @@ export class ClientStrategy implements IStrategy {
       // Persist the cleared deferred state so the drained flag is not replayed on restart
       await PERSIST_STRATEGY_FN(this);
 
+      // Release the slot reserved at scheduled-signal creation
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        this,
+        this.params.execution.context.symbol,
+        currentTime,
+        this.params.execution.context.backtest
+      );
+
       this.params.logger.info("ClientStrategy tick: scheduled signal was cancelled", {
         symbol: this.params.execution.context.symbol,
         signalId: cancelledSignal.id,
@@ -6153,6 +6340,13 @@ export class ClientStrategy implements IStrategy {
           signalId: activatedSignal.id,
         });
         await this.setScheduledSignal(null);
+        // Release the slot reserved at scheduled-signal creation
+        await CALL_RISK_REMOVE_SIGNAL_FN(
+          this,
+          this.params.execution.context.symbol,
+          currentTime,
+          this.params.execution.context.backtest
+        );
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
@@ -6173,6 +6367,38 @@ export class ClientStrategy implements IStrategy {
           symbol: this.params.execution.context.symbol,
           signalId: activatedSignal.id,
         });
+        // Release the slot reserved at scheduled-signal creation (the activation
+        // check above returned false, so no new reservation replaced it)
+        await CALL_RISK_REMOVE_SIGNAL_FN(
+          this,
+          this.params.execution.context.symbol,
+          currentTime,
+          this.params.execution.context.backtest
+        );
+        // The signal is dropped for good — emit the cancellation so subscribers
+        // (commit + schedule event) see it instead of the signal silently vanishing
+        {
+          const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, currentPrice);
+          await CALL_SCHEDULE_EVENT_FN(this, "cancelled", activatedSignal, currentPrice, currentTime, "user");
+          await CALL_COMMIT_FN(this, {
+            action: "cancel-scheduled",
+            symbol: this.params.execution.context.symbol,
+            strategyName: this.params.strategyName,
+            exchangeName: this.params.exchangeName,
+            frameName: this.params.frameName,
+            signalId: activatedSignal.id,
+            backtest: this.params.execution.context.backtest,
+            timestamp: currentTime,
+            totalEntries: activatedSignal._entry?.length ?? 1,
+            totalPartials: activatedSignal._partial?.length ?? 0,
+            originalPriceOpen: activatedSignal.priceOpen,
+            pnl: publicSignal.pnl,
+            maxDrawdown: publicSignal.maxDrawdown,
+            peakProfit: publicSignal.peakProfit,
+            signal: publicSignal,
+            note: activatedSignal.activateNote ?? activatedSignal.note,
+          });
+        }
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
@@ -6196,6 +6422,13 @@ export class ClientStrategy implements IStrategy {
           signalId: activatedSignal.id,
         });
         await this.setScheduledSignal(null);
+        // Release the slot reserved by checkSignalAndReserve above
+        await CALL_RISK_REMOVE_SIGNAL_FN(
+          this,
+          this.params.execution.context.symbol,
+          currentTime,
+          this.params.execution.context.backtest
+        );
         const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, currentPrice);
         await CALL_COMMIT_FN(this, {
           action: "cancel-scheduled",
@@ -6219,6 +6452,9 @@ export class ClientStrategy implements IStrategy {
       }
 
       await this.setPendingSignal(pendingSignal, currentPrice);
+
+      // Whipsaw protection: record the id only after a successful open
+      this._lastPendingId = pendingSignal.id;
 
       await CALL_RISK_ADD_SIGNAL_FN(
         this,
@@ -6360,16 +6596,15 @@ export class ClientStrategy implements IStrategy {
           );
         }
 
-        await this.setPendingSignal(signal, signal.priceOpen);
-      }
-
-      if (this._pendingSignal) {
-        const openResult = await OPEN_NEW_PENDING_SIGNAL_FN(this, this._pendingSignal);
+        // The pending signal is set/persisted INSIDE OPEN_NEW_PENDING_SIGNAL_FN,
+        // strictly after the sync-open confirmation. Setting it here first left a
+        // phantom position on disk when the process crashed before the broker
+        // confirmed (or rejected) the open.
+        const openResult = await OPEN_NEW_PENDING_SIGNAL_FN(this, signal as ISignalRow);
         if (openResult) {
           return openResult;
         }
-        // Risk rejected - clear pending signal and return idle
-        await this.setPendingSignal(null, this._pendingSignal.priceOpen);
+        // Sync rejected — nothing was persisted, fall through to idle
       }
 
       const currentPrice = await this.params.exchange.getAveragePrice(
@@ -6479,6 +6714,14 @@ export class ClientStrategy implements IStrategy {
       this._cancelledSignal = null; // Clear after using
 
       const closeTimestamp = this.params.execution.context.when.getTime();
+
+      // Release the slot reserved at scheduled-signal creation
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        this,
+        this.params.execution.context.symbol,
+        closeTimestamp,
+        this.params.execution.context.backtest
+      );
 
       // Emit commit with correct timestamp from backtest context
       const publicSignal = TO_PUBLIC_SIGNAL("scheduled", cancelledSignal, currentPrice);
@@ -7778,7 +8021,9 @@ export class ClientStrategy implements IStrategy {
     if (signal.position === "long" && breakevenPrice >= effectiveTakeProfit) return false;
     if (signal.position === "short" && breakevenPrice <= effectiveTakeProfit) return false;
 
-    const breakevenThresholdPercent = (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2;
+    // Keep in sync with BREAKEVEN_FN and getBreakeven
+    const breakevenThresholdPercent =
+      (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2 + GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD;
 
     if (signal._trailingPriceStopLoss !== undefined) {
       const trailingStopLoss = signal._trailingPriceStopLoss;
@@ -7880,7 +8125,8 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy breakeven", {
       symbol,
       currentPrice,
-      breakevenThresholdPercent: (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2,
+      breakevenThresholdPercent:
+        (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2 + GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD,
       hasPendingSignal: this._pendingSignal !== null,
     });
 
@@ -8586,7 +8832,7 @@ export class ClientStrategy implements IStrategy {
 
     const signal = this._pendingSignal;
     const entries = (!signal._entry || signal._entry.length === 0)
-      ? [{ price: signal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST }]
+      ? [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST }]
       : signal._entry;
 
     if (signal.position === "long") {
