@@ -66,11 +66,6 @@ const SETUP_ADAPTER_FN = () => {
   }
 
   {
-    RecentLive.usePersist();
-    RecentBacktest.useMemory();
-  }
-
-  {
     NotificationLive.usePersist();
     NotificationBacktest.useMemory();
   }
