@@ -17,6 +17,7 @@ import {
   PersistScheduleAdapter,
   PersistStorageAdapter,
   StorageBacktest,
+  Heat,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -887,4 +888,260 @@ test("AUDIT MATH: Backtest.getData statistics match independent reference values
   }
 
   pass(`All ${Object.keys(expected).length + 3} statistics match the independent reference implementation`);
+});
+
+/**
+ * AUDIT MATH #2: числовая сверка per-symbol и портфельной статистики
+ * Heat.getData с независимой эталонной реализацией (значения посчитаны
+ * отдельно на Python).
+ *
+ * 2 символа с ПЕРЕМЕШАННЫМИ по времени закрытиями (BTC — чётные дни,
+ * ETH — нечётные): это нагружает pooled equity walk в хронологическом
+ * порядке. Троги −3% (BTC) и −2% (ETH), цены закрытия — точные экспоненты
+ * с разным наклоном (1 %/day и 1.2 %/day).
+ */
+test("AUDIT MATH: Heat.getData per-symbol and portfolio statistics match reference", async ({ pass, fail }) => {
+  const DAY = 86_400_000;
+  const base = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const makeRows = (symbol, returns, offsetDays, falls, peaks, price0, slope) =>
+    returns.map((pnlPercentage, i) => {
+      const pendingAt = base + offsetDays * DAY + i * 2 * DAY;
+      const closeTimestamp = pendingAt + 30 * 60_000;
+      const days = offsetDays + i * 2;
+      const close = price0 * Math.exp(slope * days);
+      const row = {
+        id: `${symbol}-heat-${i}`,
+        status: "closed",
+        symbol,
+        strategyName: "audit-heat",
+        exchangeName: "binance-audit-heat",
+        frameName: "1m-audit-heat",
+        position: "long",
+        note: "",
+        cost: 100,
+        priceOpen: price0,
+        priceTakeProfit: price0 * 2,
+        priceStopLoss: price0 / 2,
+        originalPriceOpen: price0,
+        originalPriceTakeProfit: price0 * 2,
+        originalPriceStopLoss: price0 / 2,
+        minuteEstimatedTime: 60,
+        scheduledAt: pendingAt,
+        pendingAt,
+        timestamp: pendingAt,
+        closeTimestamp,
+        closeReason: "take_profit",
+        currentPrice: close,
+        pnl: { pnlPercentage, pnlCost: pnlPercentage, pnlEntries: pnlPercentage, priceOpen: price0, priceClose: close },
+        totalEntries: 1,
+        totalPartials: 0,
+        partialExecuted: 0,
+        createdAt: pendingAt,
+        updatedAt: pendingAt,
+        priority: pendingAt,
+      };
+      if (falls[i] !== undefined) {
+        row.maxDrawdown = { pnlPercentage: falls[i], pnlCost: falls[i], pnlEntries: falls[i], priceOpen: price0, priceClose: close };
+      }
+      if (peaks[i] !== undefined) {
+        row.peakProfit = { pnlPercentage: peaks[i], pnlCost: peaks[i], pnlEntries: peaks[i], priceOpen: price0, priceClose: close };
+      }
+      return row;
+    });
+
+  const btcRows = makeRows(
+    "BTCUSDT",
+    [0.25, -0.125, 0.375, 0.125, -0.25, 0.5, -0.125, -0.125, 0.25, 0.625, -0.375, 0.125],
+    0,
+    { 5: -3.0 },
+    { 0: 0.6, 9: 1.5 },
+    100,
+    0.01,
+  );
+  const ethRows = makeRows(
+    "ETHUSDT",
+    [0.2, -0.15, 0.3, -0.1, 0.4, 0.15, -0.2, 0.35, -0.05, 0.45],
+    1,
+    { 4: -2.0 },
+    { 2: 0.5, 7: 1.1 },
+    50,
+    0.012,
+  );
+  const rows = [...btcRows, ...ethRows];
+
+  PersistStorageAdapter.usePersistStorageAdapter(class {
+    constructor(backtest) {
+      this._backtest = backtest;
+    }
+    async waitForInit() {}
+    async readStorageData() {
+      return this._backtest ? rows : [];
+    }
+    async writeStorageData() {}
+  });
+  StorageBacktest.usePersist();
+
+  addExchangeSchema({
+    exchangeName: "binance-audit-heat",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({ timestamp: alignedSince + i * 60_000, open: 100, high: 101, low: 99, close: 100, volume: 100 });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "audit-heat",
+    interval: "1m",
+    getSignal: async () => null,
+  });
+
+  addFrameSchema({
+    frameName: "1m-audit-heat",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
+  });
+
+  const stats = await Heat.getData({
+    strategyName: "audit-heat",
+    exchangeName: "binance-audit-heat",
+    frameName: "1m-audit-heat",
+  }, true);
+
+  // Эталон посчитан независимой реализацией (Python):
+  const expectedBtc = {
+    totalTrades: 12, winCount: 7, lossCount: 5,
+    winRate: 58.333333333333336,
+    totalPnl: 1.25, avgPnl: 0.10416666666666667,
+    stdDev: 0.31002810234303635,
+    sharpeRatio: 0.33599104687422665,
+    annualizedSharpeRatio: 4.738576379048751,
+    sortinoRatio: 0.7216878364870323,
+    medianPnl: 0.125,
+    expectancy: 0.10416666666666669,
+    certaintyRatio: 1.6071428571428572,
+    profitFactor: 2.25,
+    maxDrawdown: 3.2425000000000024,
+    expectedYearlyReturns: 22.90089483877944,
+    calmarRatio: 7.062727783740763,
+    recoveryFactor: 0.38607432557352733,
+    tradesPerYear: 198.90255439924317,
+    avgConsecutiveWinPnl: 0.45,
+    avgConsecutiveLossPnl: -0.25,
+    maxWinStreak: 2, maxLossStreak: 2,
+    avgDuration: 30.0,
+    avgPeakPnl: 1.05, avgFallPnl: -3.0,
+    peakProfitPnl: 1.5, maxDrawdownPnl: -3.0,
+    medianStepSize: 2.0201340026755776,
+  };
+  const expectedEth = {
+    totalTrades: 10, winCount: 6, lossCount: 4,
+    winRate: 60.0,
+    totalPnl: 1.35, avgPnl: 0.135,
+    stdDev: 0.2427275564633457,
+    sharpeRatio: 0.5561791251352475,
+    annualizedSharpeRatio: 7.915414858471756,
+    sortinoRatio: 1.5588457268119895,
+    medianPnl: 0.175,
+    expectancy: 0.13499999999999995,
+    certaintyRatio: 2.4666666666666663,
+    profitFactor: 3.6999999999999997,
+    maxDrawdown: 2.0979999999999923,
+    expectedYearlyReturns: 31.352382961173152,
+    calmarRatio: 14.943938494362854,
+    recoveryFactor: 0.6461155049549037,
+    tradesPerYear: 202.5433526011561,
+    avgConsecutiveWinPnl: 0.37,
+    avgConsecutiveLossPnl: -0.125,
+    maxWinStreak: 2, maxLossStreak: 1,
+    avgDuration: 30.0,
+    avgPeakPnl: 0.8, avgFallPnl: -2.0,
+    peakProfitPnl: 1.1, maxDrawdownPnl: -2.0,
+    medianStepSize: 2.4290317890621527,
+  };
+  const expectedPortfolio = {
+    totalSymbols: 2,
+    portfolioTotalTrades: 22,
+    portfolioTotalPnl: 2.6,
+    portfolioStdDev: 0.2753981769078289,
+    portfolioSharpeRatio: 0.4291307208666514,
+    portfolioAnnualizedSharpeRatio: 8.194651785206906,
+    portfolioSortinoRatio: 0.9723448696087957,
+    portfolioExpectancy: 0.1181818181818182,
+    portfolioCertaintyRatio: 1.8923076923076922,
+    portfolioMedianPnl: 0.1375,
+    portfolioTradesPerYear: 364.6546830652791,
+    portfolioExpectedYearlyReturns: 53.63112122902609,
+    portfolioCalmarRatio: 17.877040409675363,
+    portfolioRecoveryFactor: 0.8747885775510851,
+    portfolioAvgPeakPnl: 0.9363636363636364,
+    portfolioAvgFallPnl: -2.5454545454545454,
+    portfolioPeakProfitPnl: 1.5,
+    portfolioMaxDrawdownPnl: -3.0,
+    portfolioAvgDuration: 30.0,
+    portfolioAvgConsecutiveWinPnl: 0.4136363636363637,
+    portfolioAvgConsecutiveLossPnl: -0.19318181818181818,
+  };
+  const expectedTrend = {
+    BTCUSDT: { trendStrength: 1.0, trendConfidence: 1.0, trend: "bullish" },
+    ETHUSDT: { trendStrength: 1.2, trendConfidence: 1.0, trend: "bullish" },
+  };
+
+  const approxEq = (actual, ref, tol) =>
+    typeof actual === "number" && Math.abs(actual - ref) <= tol * Math.max(1, Math.abs(ref));
+
+  const mismatches = [];
+  const checkAll = (label, actual, expected, tol = 1e-9) => {
+    for (const [key, ref] of Object.entries(expected)) {
+      if (!approxEq(actual[key], ref, tol)) {
+        mismatches.push(`${label}.${key}: expected ${ref}, got ${actual[key]}`);
+      }
+    }
+  };
+
+  const btcRow = stats.symbols.find((s) => s.symbol === "BTCUSDT");
+  const ethRow = stats.symbols.find((s) => s.symbol === "ETHUSDT");
+  if (!btcRow || !ethRow) {
+    fail(`Missing symbol rows: BTC=${!!btcRow}, ETH=${!!ethRow}`);
+    return;
+  }
+
+  checkAll("BTC", btcRow, expectedBtc);
+  checkAll("ETH", ethRow, expectedEth);
+  checkAll("PORTFOLIO", stats, expectedPortfolio);
+  for (const [symbol, exp] of Object.entries(expectedTrend)) {
+    const row = symbol === "BTCUSDT" ? btcRow : ethRow;
+    if (!approxEq(row.trendStrength, exp.trendStrength, 1e-6)) {
+      mismatches.push(`${symbol}.trendStrength: expected ${exp.trendStrength}, got ${row.trendStrength}`);
+    }
+    if (!approxEq(row.trendConfidence, exp.trendConfidence, 1e-6)) {
+      mismatches.push(`${symbol}.trendConfidence: expected ${exp.trendConfidence}, got ${row.trendConfidence}`);
+    }
+    if (row.trend !== exp.trend) {
+      mismatches.push(`${symbol}.trend: expected ${exp.trend}, got ${row.trend}`);
+    }
+  }
+
+  // Сортировка символов — по per-symbol Sharpe по убыванию (ETH 0.556 > BTC 0.336)
+  if (stats.symbols[0]?.symbol !== "ETHUSDT") {
+    mismatches.push(`symbols[0]: expected ETHUSDT (higher Sharpe first), got ${stats.symbols[0]?.symbol}`);
+  }
+
+  if (mismatches.length > 0) {
+    fail(`HEAT MATH MISMATCH (${mismatches.length}):\n${mismatches.join("\n")}`);
+    return;
+  }
+
+  const totalChecked =
+    Object.keys(expectedBtc).length +
+    Object.keys(expectedEth).length +
+    Object.keys(expectedPortfolio).length + 7;
+  pass(`All ${totalChecked} Heat statistics (per-symbol + pooled portfolio) match the independent reference`);
 });
