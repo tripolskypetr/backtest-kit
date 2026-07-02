@@ -721,3 +721,170 @@ test("AUDIT MD: Live.getData returns nulls (not zeros) when no closed trades exi
 
   pass(`Live stats with ${stats.totalEvents} events and 0 closed trades report N/A instead of 0%`);
 });
+
+/**
+ * AUDIT MATH: числовая сверка всей статистики Backtest.getData с независимой
+ * эталонной реализацией (значения посчитаны отдельно на Python).
+ *
+ * 12 закрытых трейдов, шаг 2 дня, длительность 30 мин, один intra-trade
+ * trough −3% (mark-to-market DD), два peak-снапшота, цены закрытия — точная
+ * экспонента 100·e^(0.01·days) (лог-линейный тренд: slope = 1 %/day, R² = 1).
+ */
+test("AUDIT MATH: Backtest.getData statistics match independent reference values", async ({ pass, fail }) => {
+  const DAY = 86_400_000;
+  const base = new Date("2024-01-01T00:00:00Z").getTime();
+  const returns = [0.5, -0.25, 0.75, 0.25, -0.5, 1.0, -0.25, -0.25, 0.5, 1.25, -0.75, 0.25];
+  const falls = { 5: -3.0 };
+  const peaks = { 0: 0.6, 9: 1.5 };
+
+  const rows = returns.map((pnlPercentage, i) => {
+    const pendingAt = base + i * 2 * DAY;
+    const closeTimestamp = pendingAt + 30 * 60_000;
+    const close = 100 * Math.exp(0.01 * (i * 2));
+    const row = {
+      id: `math-${i}`,
+      status: "closed",
+      symbol: "BTCUSDT",
+      strategyName: "audit-md-math",
+      exchangeName: "binance-audit-md-math",
+      frameName: "1m-audit-md-math",
+      position: "long",
+      note: "",
+      cost: 100,
+      priceOpen: 100,
+      priceTakeProfit: 200,
+      priceStopLoss: 50,
+      originalPriceOpen: 100,
+      originalPriceTakeProfit: 200,
+      originalPriceStopLoss: 50,
+      minuteEstimatedTime: 60,
+      scheduledAt: pendingAt,
+      pendingAt,
+      timestamp: pendingAt,
+      closeTimestamp,
+      closeReason: "take_profit",
+      currentPrice: close,
+      pnl: { pnlPercentage, pnlCost: pnlPercentage, pnlEntries: pnlPercentage, priceOpen: 100, priceClose: close },
+      totalEntries: 1,
+      totalPartials: 0,
+      partialExecuted: 0,
+      createdAt: pendingAt,
+      updatedAt: pendingAt,
+      priority: pendingAt,
+    };
+    if (falls[i] !== undefined) {
+      row.maxDrawdown = { pnlPercentage: falls[i], pnlCost: falls[i], pnlEntries: falls[i], priceOpen: 100, priceClose: close };
+    }
+    if (peaks[i] !== undefined) {
+      row.peakProfit = { pnlPercentage: peaks[i], pnlCost: peaks[i], pnlEntries: peaks[i], priceOpen: 100, priceClose: close };
+    }
+    return row;
+  });
+
+  PersistStorageAdapter.usePersistStorageAdapter(class {
+    constructor(backtest) {
+      this._backtest = backtest;
+    }
+    async waitForInit() {}
+    async readStorageData() {
+      return this._backtest ? rows : [];
+    }
+    async writeStorageData() {}
+  });
+  StorageBacktest.usePersist();
+
+  addExchangeSchema({
+    exchangeName: "binance-audit-md-math",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({ timestamp: alignedSince + i * 60_000, open: 100, high: 101, low: 99, close: 100, volume: 100 });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "audit-md-math",
+    interval: "1m",
+    getSignal: async () => null,
+  });
+
+  addFrameSchema({
+    frameName: "1m-audit-md-math",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
+  });
+
+  const stats = await Backtest.getData("BTCUSDT", {
+    strategyName: "audit-md-math",
+    exchangeName: "binance-audit-md-math",
+    frameName: "1m-audit-md-math",
+  });
+
+  // Эталон посчитан независимой реализацией (Python):
+  const expected = {
+    totalSignals: 12,
+    winCount: 7,
+    lossCount: 5,
+    totalPnl: 2.5,
+    avgPnl: 0.20833333333333334,
+    winRate: 58.333333333333336,
+    stdDev: 0.6200562046860727,
+    sharpeRatio: 0.33599104687422665,
+    annualizedSharpeRatio: 4.738576379048751,
+    sortinoRatio: 0.7216878364870323,
+    medianPnl: 0.25,
+    expectancy: 0.20833333333333337,
+    certaintyRatio: 1.6071428571428572,
+    expectedYearlyReturns: 50.75117637501228,
+    calmarRatio: 14.562747883791118,
+    recoveryFactor: 0.7194454128338333,
+    avgConsecutiveWinPnl: 0.9,
+    avgConsecutiveLossPnl: -0.5,
+    avgPeakPnl: 1.05,
+    avgFallPnl: -3.0,
+    avgDuration: 30.0,
+    avgWinDuration: 30.0,
+    avgLossDuration: 30.0,
+    medianStepSize: 2.0201340026755816,
+    buyerPressure: 1.0,
+    sellerPressure: 0.0,
+    buyerStrength: 1.0,
+    sellerStrength: 0.0,
+    pressureImbalance: 1.0,
+  };
+
+  const approxEq = (actual, ref, tol) =>
+    typeof actual === "number" && Math.abs(actual - ref) <= tol * Math.max(1, Math.abs(ref));
+
+  const mismatches = [];
+  for (const [key, ref] of Object.entries(expected)) {
+    const actual = stats[key];
+    if (!approxEq(actual, ref, 1e-9)) {
+      mismatches.push(`${key}: expected ${ref}, got ${actual}`);
+    }
+  }
+
+  // Регрессия по лог-цене на точной экспоненте: slope = 1 %/day, R² = 1 (float-допуск)
+  if (!approxEq(stats.trendStrength, 1.0, 1e-6)) {
+    mismatches.push(`trendStrength: expected 1.0, got ${stats.trendStrength}`);
+  }
+  if (!approxEq(stats.trendConfidence, 1.0, 1e-6)) {
+    mismatches.push(`trendConfidence: expected 1.0, got ${stats.trendConfidence}`);
+  }
+  if (stats.trend !== "bullish") {
+    mismatches.push(`trend: expected "bullish", got ${stats.trend}`);
+  }
+
+  if (mismatches.length > 0) {
+    fail(`MATH MISMATCH (${mismatches.length}):\n${mismatches.join("\n")}`);
+    return;
+  }
+
+  pass(`All ${Object.keys(expected).length + 3} statistics match the independent reference implementation`);
+});
