@@ -1,25 +1,39 @@
 import { singleshot } from "functools-kit";
 import { Telegraf } from "telegraf";
 import { getEnv } from "../helpers/getEnv";
+import { kill } from "../utils/notifyKill";
 
 const HEALTH_CHECK_DELAY = 60_000;
 
 let _is_stopped = false;
 
 const handleHealthCheck = singleshot(async (bot: Telegraf) => {
-  const fn = async () => {
-    if (_is_stopped) {
+  // Первый чек выполняется синхронно с запуском: ошибка уходит вызывающему
+  // getTelegram (бот не стартует, если Telegram недоступен сразу).
+  try {
+    await bot.telegram.getMe();
+  } catch {
+    console.log("Bot is offline");
+    throw new Error("Telegram goes offline");
+  }
+  // Периодические чеки: раньше throw внутри setTimeout-цикла становился
+  // unhandledRejection (никем не await-ился) и ронял процесс неконтролируемо,
+  // оставляя дочерние процессы (UI-сервер) живыми. Теперь — управляемый kill.
+  const schedule = () => {
+    setTimeout(() => {
+      if (_is_stopped) {
         return;
-    }
-    try {
-      await bot.telegram.getMe();
-      setTimeout(fn, HEALTH_CHECK_DELAY);
-    } catch (error) {
-      console.log("Bot is offline");
-      throw new Error("Telegram goes offline");
-    }
+      }
+      bot.telegram
+        .getMe()
+        .then(schedule)
+        .catch(() => {
+          console.log("Bot is offline");
+          kill(-1);
+        });
+    }, HEALTH_CHECK_DELAY);
   };
-  await fn();
+  schedule();
 });
 
 export const getTelegram = singleshot(async () => {

@@ -152,12 +152,12 @@ declare class FrameSchemaService {
 }
 
 interface IBabel {
-    transpile(code: string): string;
+    transpile(code: string, filename: string): string;
 }
 
 declare class BabelService implements IBabel {
     readonly loggerService: LoggerService;
-    transpile: (code: string) => any;
+    transpile: (code: string, filename: string) => any;
 }
 
 interface IResolve {

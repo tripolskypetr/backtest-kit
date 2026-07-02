@@ -180,7 +180,7 @@ export class TelegramLogicService {
   };
 
   private notifyRisk = async (event: RiskContract) => {
-    this.loggerService.log("telegramLogicService notifyClosed", {
+    this.loggerService.log("telegramLogicService notifyRisk", {
       event,
     });
     const markdown = await this.telegramTemplateService.getRiskMarkdown(event);

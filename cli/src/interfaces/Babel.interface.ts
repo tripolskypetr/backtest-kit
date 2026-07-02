@@ -1,3 +1,3 @@
 export interface IBabel {
-    transpile(code: string): string;
+    transpile(code: string, filename: string): string;
 }

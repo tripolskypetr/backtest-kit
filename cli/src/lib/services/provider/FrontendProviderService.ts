@@ -52,7 +52,7 @@ const MAP_SYMBOL_CONFIG_FN = (config: SymbolConfig[]) => {
       symbol,
       icon,
       logo: logo ?? icon,
-      priority: priority ?? idx,
+      priority: priority ?? -idx,
       displayName: displayName ?? symbol,
       index: idx,
       ...other,

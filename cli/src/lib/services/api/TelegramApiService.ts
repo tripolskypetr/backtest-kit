@@ -88,8 +88,11 @@ const publishInternal = queued(
     onScheduled();
     let isOk = true;
     try {
+      // Must persist across flood retries: declared inside `execute` it was reset
+      // on every recursive retry, re-sending the media group (duplicate channel
+      // posts) when the flood error hit the follow-up sendMessage.
+      let isImagesPublished = false;
       const execute = async (retry = 0) => {
-        let isImagesPublished = false;
         try {
           if (images?.length) {
             console.log("Bot fetching images");
@@ -195,11 +198,13 @@ export class TelegramApiService {
       task.finally(() => {
         TIMEOUT_COUNTER -= 1;
       })
+      // The watchdog must fire HERE: when every publish is stuck, this branch is
+      // the only one executing — checking after the early return made the kill
+      // reachable only once a publish suddenly succeeded (problem already gone).
+      if (TIMEOUT_COUNTER > MAX_TIMEOUT_COUNT) {
+        setTimeout(() => kill(-1), 5_000);
+      }
       return "Message scheduled for publication";
-    }
-
-    if (TIMEOUT_COUNTER > MAX_TIMEOUT_COUNT) {
-      setTimeout(() => kill(-1), 5_000);
     }
 
     return "Message published successfully";

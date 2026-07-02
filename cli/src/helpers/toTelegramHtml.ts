@@ -4,13 +4,57 @@ import sanitizeHtml from "sanitize-html";
 import { JSDOM } from "jsdom";
 import { typo } from "functools-kit";
 
-const TELEGAM_MAX_SYMBOLS = 4090;
+const TELEGRAM_MAX_SYMBOLS = 4090;
 const TELEGRAM_SYMBOL_RESERVED = 96;
+
+/** Void tags never get a closing counterpart when balancing truncated HTML. */
+const VOID_TAGS = new Set(["br"]);
+
+/**
+ * Truncates Telegram HTML without breaking it: a blunt substring could cut a
+ * tag or entity in half and leave unbalanced tags — Telegram then rejects the
+ * WHOLE message ("can't parse entities"), so the notification would be lost
+ * instead of shortened. Closing tags appended here fit into
+ * TELEGRAM_SYMBOL_RESERVED headroom.
+ */
+const truncateTelegramHtml = (html: string, maxChars: number): string => {
+  let result = html.substring(0, maxChars);
+  // Don't cut a tag in half
+  const lastOpen = result.lastIndexOf("<");
+  if (lastOpen > result.lastIndexOf(">")) {
+    result = result.substring(0, lastOpen);
+  }
+  // Don't cut an HTML entity in half
+  result = result.replace(/&[a-zA-Z0-9#]*$/, "");
+  // Close tags left open by the cut (input is sanitize-html output — well-formed)
+  const stack: string[] = [];
+  const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)(?:\s[^>]*)?>/g;
+  let match: RegExpExecArray | null;
+  while ((match = tagRe.exec(result))) {
+    const [, slash, rawName] = match;
+    const name = rawName.toLowerCase();
+    if (VOID_TAGS.has(name)) {
+      continue;
+    }
+    if (slash) {
+      const index = stack.lastIndexOf(name);
+      if (index !== -1) {
+        stack.splice(index, 1);
+      }
+    } else {
+      stack.push(name);
+    }
+  }
+  for (let i = stack.length - 1; i >= 0; i--) {
+    result += `</${stack[i]}>`;
+  }
+  return result;
+};
 
 // Function to convert Markdown to Telegram-compatible HTML
 export function toTelegramHtml(markdown: string): string {
 
-  const maxChars = TELEGAM_MAX_SYMBOLS - TELEGRAM_SYMBOL_RESERVED;
+  const maxChars = TELEGRAM_MAX_SYMBOLS - TELEGRAM_SYMBOL_RESERVED;
 
   // Initialize markdown-it with options
   const md = new MarkdownIt({
@@ -26,6 +70,16 @@ export function toTelegramHtml(markdown: string): string {
 
   // Render Markdown to HTML
   let telegramHtml = md.render(markdown);
+
+  // List markers must be injected as TEXT inside <li> before sanitizing:
+  // sanitize-html transformTags cannot insert text (a transform returning a
+  // string like "- " is silently ignored), so list items were losing their
+  // bullets/numbers entirely. Ordered lists get 1./2./..., unordered get "-".
+  telegramHtml = telegramHtml.replace(/<ol>([\s\S]*?)<\/ol>/g, (_, inner) => {
+    let counter = 0;
+    return `<ol>${inner.replace(/<li>/g, () => `<li>${++counter}. `)}</ol>`;
+  });
+  telegramHtml = telegramHtml.replace(/<li>(?!\d+\. )/g, "<li>- ");
 
   // Post-process with sanitize-html to ensure Telegram compatibility
   telegramHtml = sanitizeHtml(telegramHtml, {
@@ -58,10 +112,9 @@ export function toTelegramHtml(markdown: string): string {
       em: "i",
       // Remove p tags, replace with newlines
       p: () => "",
-      // Emulate unordered lists with bullets
+      // ul/ol/li tags are dropped by allowedTags; their text markers are injected
+      // BEFORE sanitizing (see above) — a string-returning transform can't do it
       ul: () => "",
-      li: () => "- ",
-      // Emulate ordered lists with numbers
       ol: () => "",
       // Remove hr, replace with text-based separator
       hr: () => "\n",
@@ -85,7 +138,7 @@ export function toTelegramHtml(markdown: string): string {
   // Check Telegram message length limit (4096 characters)
   if (telegramHtml.length > maxChars) {
     console.warn("HTML exceeds Telegram's 4096-character limit. Truncating...");
-    telegramHtml = telegramHtml.substring(0, maxChars);
+    telegramHtml = truncateTelegramHtml(telegramHtml, maxChars);
   }
 
   const telegramDom = new JSDOM(telegramHtml, {

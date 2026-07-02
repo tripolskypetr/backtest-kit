@@ -1,6 +1,4 @@
 import MarkdownIt from "markdown-it";
-import { applyFixes } from "markdownlint";
-import { lint } from "markdownlint/sync";
 import sanitizeHtml from "sanitize-html";
 import { toLintMarkdown } from "./toLintMarkdown";
 
@@ -20,6 +18,15 @@ export const toPlainString = async (content: string): Promise<string> => {
     });
 
     let telegramHtml = md.render(markdown);
+
+    // List markers must be injected as TEXT inside <li> before sanitizing:
+    // sanitize-html transformTags cannot insert text (a transform returning
+    // "• " is silently ignored), so list items were losing their bullets.
+    telegramHtml = telegramHtml.replace(/<ol>([\s\S]*?)<\/ol>/g, (_, inner) => {
+        let counter = 0;
+        return `<ol>${inner.replace(/<li>/g, () => `<li>${++counter}. `)}</ol>`;
+    });
+    telegramHtml = telegramHtml.replace(/<li>(?!\d+\. )/g, "<li>• ");
 
     telegramHtml = sanitizeHtml(telegramHtml, {
         allowedTags: [
@@ -48,8 +55,9 @@ export const toPlainString = async (content: string): Promise<string> => {
             strong: "",
             em: "",
             p: () => "",
+            // ul/ol/li tags are dropped by allowedTags; their text markers are
+            // injected BEFORE sanitizing (see above)
             ul: () => "",
-            li: () => "• ",
             ol: () => "",
             hr: () => "\n",
             br: () => "\n",

@@ -153,6 +153,7 @@ export class SetupUtils {
       Markdown.disable();
       Report.disable();
       Dump.disable();
+      State.disable();
       Memory.disable();
     }
 

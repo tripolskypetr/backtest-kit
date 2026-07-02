@@ -34,7 +34,7 @@ const TRANSPILE_FN = memoize(
     const module = { exports: {} as Record<string, unknown> };
     const exports = module.exports;
     try {
-      eval(self.params.babel.transpile(code));
+      eval(self.params.babel.transpile(code, path));
     } catch (error) {
       console.log(
         `Error during transpilation error=\`${getErrorMessage(error)}\` path=\`${path}\` __filename=\`${__filename}\` __dirname=\`${__dirname}\``,
