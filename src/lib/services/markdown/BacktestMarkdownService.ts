@@ -241,9 +241,14 @@ class ReportStorage {
       return;
     }
     const seen = new Set(this._signalList.map((s) => s.signal.id));
-    // _signalList is newest-first (addSignal unshifts); append older history to the
-    // tail, skipping ids already present from live ticks.
-    for (const closed of persisted) {
+    // _signalList is newest-first (addSignal unshifts); append history to the tail
+    // NEWEST-FIRST (reverse of the oldest-first load order) so the merged list stays
+    // monotonically newest-first. Pushing in load order put an ascending segment into
+    // a descending list — corrupting streak math (reverse-iteration assumes
+    // chronology), inverting trim retention (newest history dropped instead of
+    // oldest) and jumbling report row order.
+    for (let i = persisted.length - 1; i >= 0; i--) {
+      const closed = persisted[i];
       if (!seen.has(closed.signal.id)) {
         this._signalList.push(closed);
         seen.add(closed.signal.id);
@@ -327,6 +332,49 @@ class ReportStorage {
         typeof s.closeTimestamp === "number" && s.closeTimestamp > 0
     );
     const totalSignals = validSignals.length;
+
+    // Every stored signal had corrupted timestamps — no valid population to compute
+    // on. Report N/A (null) rather than 0%: a zero win rate / zero avgPnl would read
+    // as a real (terrible) result instead of "no usable data". The raw signalList is
+    // still returned so the table can render the rows.
+    if (totalSignals === 0) {
+      return {
+        signalList: this._signalList,
+        totalSignals: 0,
+        winCount: 0,
+        lossCount: 0,
+        winRate: null,
+        avgPnl: null,
+        totalPnl: null,
+        stdDev: null,
+        sharpeRatio: null,
+        annualizedSharpeRatio: null,
+        certaintyRatio: null,
+        expectedYearlyReturns: null,
+        avgPeakPnl: null,
+        avgFallPnl: null,
+        sortinoRatio: null,
+        calmarRatio: null,
+        recoveryFactor: null,
+        expectancy: null,
+        avgDuration: null,
+        medianPnl: null,
+        avgConsecutiveWinPnl: null,
+        avgConsecutiveLossPnl: null,
+        avgWinDuration: null,
+        avgLossDuration: null,
+        medianStepSize: null,
+        buyerPressure: null,
+        sellerPressure: null,
+        buyerStrength: null,
+        sellerStrength: null,
+        pressureImbalance: null,
+        trend: null,
+        trendStrength: null,
+        trendConfidence: null,
+      };
+    }
+
     const winCount = validSignals.filter((s) => s.pnl.pnlPercentage > 0).length;
     const lossCount = validSignals.filter((s) => s.pnl.pnlPercentage < 0).length;
 

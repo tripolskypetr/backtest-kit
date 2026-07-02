@@ -272,14 +272,20 @@ class HeatmapStorage {
    * NaN / Infinity / non-number):
    * - **totalPnl** — sum of `pnlPercentage` across all signals
    * - **avgPnl** — arithmetic mean of `pnlPercentage`
-   * - **stdDev** — population standard deviation of `pnlPercentage`
-   * - **sharpeRatio** — per-trade Sharpe: `avgPnl / stdDev`; requires ≥ 2 signals and `stdDev > 0`
-   * - **maxDrawdown** — largest cumulative loss streak (absolute value of peak negative equity)
+   * - **stdDev** — SAMPLE standard deviation of `pnlPercentage` (Bessel-corrected,
+   *   N−1 denominator); null below `MIN_SIGNALS_FOR_RATIOS` signals
+   * - **sharpeRatio** — per-trade Sharpe: `avgPnl / stdDev`; requires
+   *   ≥ `MIN_SIGNALS_FOR_RATIOS` signals and `stdDev > STDDEV_EPSILON`
+   * - **maxDrawdown** — mark-to-market max drawdown of the compounded equity curve
+   *   (each trade's intra-trade trough applied before booking its realized close)
    * - **profitFactor** — `sumWins / |sumLosses|`; requires at least one win and one loss
    * - **avgWin / avgLoss** — mean of positive / negative trades respectively
-   * - **winRate** — `winCount / totalTrades * 100`
+   * - **winRate** — `winCount / (winCount + lossCount) * 100`; break-even trades
+   *   are excluded from both numerator and denominator
    * - **maxWinStreak / maxLossStreak** — longest unbroken run of consecutive wins/losses
-   * - **expectancy** — `(winRate/100)*avgWin + (lossRate/100)*avgLoss`
+   * - **expectancy** — `(winCount/totalTrades)*avgWin + (lossCount/totalTrades)*avgLoss`
+   *   (probabilities over ALL trades, so break-evens contribute 0); gated by
+   *   `MIN_SIGNALS_FOR_RATIOS`
    *
    * @param symbol - Trading pair symbol (e.g. `"BTCUSDT"`)
    * @param signals - Array of closed signals for this symbol (newest first)

@@ -9,11 +9,14 @@ import {
   Live,
   listenDoneBacktest,
   listenSignalBacktest,
+  listenSignalLiveOnce,
   listenPartialProfitAvailable,
   commitPartialProfitCost,
   getTotalCostClosed,
   PersistSignalAdapter,
   PersistScheduleAdapter,
+  PersistStorageAdapter,
+  StorageBacktest,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -514,4 +517,207 @@ test("AUDIT: commitPartialProfitCost closes exact dollar amounts after prior par
   }
 
   pass(`Dollar partials are exact: $300 - $150 - $75 → remaining $${remainingAfter}`);
+});
+
+/**
+ * AUDIT MD #1: waitForInit в BacktestMarkdownService должен сливать
+ * персистированную историю newest-first.
+ *
+ * Регрессия: история загружалась oldest-first и push'илась в хвост
+ * newest-first списка — сегмент истории лежал по возрастанию, trim выбрасывал
+ * новейшие записи, стрики на стыке считались анти-хронологически.
+ */
+test("AUDIT MD: persisted closed history merges newest-first into report storage", async ({ pass, fail }) => {
+  const baseTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const hourMs = 3600_000;
+
+  const makeRow = (id, index, pnlPercentage) => ({
+    id,
+    status: "closed",
+    symbol: "BTCUSDT",
+    strategyName: "audit-md-merge",
+    exchangeName: "binance-audit-md",
+    frameName: "1m-audit-md",
+    position: "long",
+    note: "",
+    cost: 100,
+    priceOpen: 42000,
+    priceTakeProfit: 43000,
+    priceStopLoss: 41000,
+    originalPriceOpen: 42000,
+    originalPriceTakeProfit: 43000,
+    originalPriceStopLoss: 41000,
+    minuteEstimatedTime: 60,
+    scheduledAt: baseTime + index * hourMs,
+    pendingAt: baseTime + index * hourMs,
+    timestamp: baseTime + index * hourMs,
+    closeTimestamp: baseTime + index * hourMs + 30 * 60_000,
+    closeReason: "take_profit",
+    currentPrice: 42500,
+    pnl: { pnlPercentage, pnlCost: pnlPercentage, pnlEntries: pnlPercentage, priceOpen: 42000, priceClose: 42500 },
+    totalEntries: 1,
+    totalPartials: 0,
+    partialExecuted: 0,
+    createdAt: baseTime + index * hourMs,
+    updatedAt: baseTime + index * hourMs,
+    priority: baseTime + index * hourMs,
+  });
+
+  // Отдаём строки в перемешанном порядке — LOAD сортирует сам
+  const rows = [
+    makeRow("hist-mid", 1, 2),
+    makeRow("hist-old", 0, 1),
+    makeRow("hist-new", 2, 3),
+  ];
+
+  PersistStorageAdapter.usePersistStorageAdapter(class {
+    constructor(backtest) {
+      this._backtest = backtest;
+    }
+    async waitForInit() {}
+    async readStorageData() {
+      return this._backtest ? rows : [];
+    }
+    async writeStorageData() {}
+  });
+
+  // Бекенд по умолчанию — in-memory; переключаем на persist, чтобы
+  // StorageBacktest.list() читал через наш PersistStorageAdapter
+  StorageBacktest.usePersist();
+
+  addExchangeSchema({
+    exchangeName: "binance-audit-md",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({
+          timestamp: alignedSince + i * 60_000,
+          open: 42000,
+          high: 42100,
+          low: 41900,
+          close: 42000,
+          volume: 100,
+        });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "audit-md-merge",
+    interval: "1m",
+    getSignal: async () => null,
+  });
+
+  addFrameSchema({
+    frameName: "1m-audit-md",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
+  });
+
+  const stats = await Backtest.getData("BTCUSDT", {
+    strategyName: "audit-md-merge",
+    exchangeName: "binance-audit-md",
+    frameName: "1m-audit-md",
+  });
+
+  if (!stats || stats.totalSignals !== 3) {
+    fail(`Expected 3 persisted signals in stats, got ${stats?.totalSignals}`);
+    return;
+  }
+
+  const ids = stats.signalList.map((s) => s.signal.id);
+
+  if (ids[0] !== "hist-new" || ids[1] !== "hist-mid" || ids[2] !== "hist-old") {
+    fail(`REGRESSION: history merged in wrong order: [${ids.join(", ")}], expected newest-first [hist-new, hist-mid, hist-old]`);
+    return;
+  }
+
+  pass(`Persisted history merged newest-first: [${ids.join(", ")}]`);
+});
+
+/**
+ * AUDIT MD #2: Live.getData обязан возвращать null-метрики (N/A), а не 0%,
+ * когда в списке есть события, но нет ни одного закрытого трейда.
+ *
+ * Регрессия: сессия с одними idle-событиями показывала
+ * «Win rate 0.00% / Avg PNL +0.00%» вместо N/A.
+ */
+test("AUDIT MD: Live.getData returns nulls (not zeros) when no closed trades exist", async ({ pass, fail }) => {
+  const intervalMs = 60_000;
+  const basePrice = 42000;
+
+  addExchangeSchema({
+    exchangeName: "binance-audit-md-live",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "audit-md-live-idle",
+    interval: "1m",
+    getSignal: async () => null,
+  });
+
+  const firstTick = new Subject();
+  listenSignalLiveOnce((result) => {
+    if (result.strategyName === "audit-md-live-idle") {
+      firstTick.next(result);
+    }
+  });
+
+  Live.background("BTCUSDT", {
+    strategyName: "audit-md-live-idle",
+    exchangeName: "binance-audit-md-live",
+  });
+
+  await firstTick.toPromise();
+  // Даём markdown-сервису дописать событие (подписчики одного эмиттера)
+  await sleep(50);
+
+  const stats = await Live.getData("BTCUSDT", {
+    strategyName: "audit-md-live-idle",
+    exchangeName: "binance-audit-md-live",
+  });
+
+  if (!stats) {
+    fail("Live.getData returned nothing");
+    return;
+  }
+
+  if (stats.totalEvents < 1) {
+    fail(`Expected at least 1 recorded event (idle tick), got ${stats.totalEvents} — cannot exercise the regression path`);
+    return;
+  }
+
+  if (stats.totalClosed !== 0) {
+    fail(`Expected 0 closed trades, got ${stats.totalClosed}`);
+    return;
+  }
+
+  if (stats.winRate !== null || stats.avgPnl !== null || stats.totalPnl !== null) {
+    fail(`REGRESSION: with 0 closed trades expected null metrics (N/A), got winRate=${stats.winRate}, avgPnl=${stats.avgPnl}, totalPnl=${stats.totalPnl}`);
+    return;
+  }
+
+  pass(`Live stats with ${stats.totalEvents} events and 0 closed trades report N/A instead of 0%`);
 });
