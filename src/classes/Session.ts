@@ -269,8 +269,20 @@ export class SessionPersistInstance implements ISessionInstance {
       frameName: this.frameName,
       initial,
     });
-    await PersistSessionAdapter.waitForInit(this.strategyName, this.exchangeName, this.frameName, initial);
-    const data = await PersistSessionAdapter.readSessionData(this.strategyName, this.exchangeName, this.frameName);
+    await PersistSessionAdapter.waitForInit(this.strategyName, this.exchangeName, this.frameName, initial, this.symbol, this.backtest);
+    const data = await PersistSessionAdapter.readSessionData(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest);
+    const expectedId = CREATE_KEY_FN(this.symbol, this.strategyName, this.exchangeName, this.frameName, this.backtest);
+    if (data && data.id !== expectedId) {
+      // A record keyed for another context (e.g. a different symbol sharing the
+      // same storage slot in a custom adapter) must never be restored here —
+      // restoring it would leak one symbol's session state into another.
+      const message = `SessionPersistInstance: persisted session id mismatch, ignoring record (expected=${expectedId}, got=${data.id})`;
+      swarm.loggerService.warn(message);
+      console.warn(message);
+      this._data = null;
+      this._when = 0;
+      return;
+    }
     if (data) {
       this._data = data.data;
       this._when = data.when;
@@ -321,6 +333,8 @@ export class SessionPersistInstance implements ISessionInstance {
       this.exchangeName,
       this.frameName,
       when,
+      this.symbol,
+      this.backtest,
     );
   };
 
@@ -331,7 +345,7 @@ export class SessionPersistInstance implements ISessionInstance {
       exchangeName: this.exchangeName,
       frameName: this.frameName,
     });
-    await PersistSessionAdapter.dispose(this.strategyName, this.exchangeName, this.frameName);
+    await PersistSessionAdapter.dispose(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest);
   }
 }
 

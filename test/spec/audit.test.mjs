@@ -18,6 +18,8 @@ import {
   addStrategySchema,
   getAggregatedTrades,
   Exchange,
+  SessionBacktest,
+  PersistSessionAdapter,
 } from "../../build/index.mjs";
 
 const approx = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
@@ -410,4 +412,45 @@ test("AUDIT Exchange.getAggregatedTrades: empty history terminates outside execu
   }
 
   fail(`expected empty array, got ${JSON.stringify(trades)}`);
+});
+
+/**
+ * AUDIT: персистентная сессия не должна течь между символами.
+ * Раньше дисковая запись ключевалась только (strategy, exchange, frame):
+ * два символа одной стратегии клобберили одну запись, и после рестарта
+ * (новый инстанс) один символ восстанавливал состояние другого.
+ */
+test("AUDIT session persist: symbols do not share persisted session state", async ({ pass, fail }) => {
+  const context = {
+    strategyName: "audit-session-strategy",
+    exchangeName: "audit-session-exchange",
+    frameName: "audit-session-frame",
+  };
+  const when = new Date();
+
+  // Глобальный test-setup ставит PersistSessionAdapter.useDummy() —
+  // локально включаем реальный JSON-адаптер и возвращаем dummy в finally.
+  PersistSessionAdapter.useJson();
+  SessionBacktest.usePersist();
+  try {
+    await SessionBacktest.setData("BTCUSDT", { owner: "btc" }, context, when);
+    await SessionBacktest.setData("ETHUSDT", { owner: "eth" }, context, when);
+
+    // Drop memoized instances: the next getData restores from disk,
+    // reproducing a process restart.
+    SessionBacktest.clear();
+
+    const btc = await SessionBacktest.getData("BTCUSDT", context, when);
+    const eth = await SessionBacktest.getData("ETHUSDT", context, when);
+
+    if (btc?.owner === "btc" && eth?.owner === "eth") {
+      pass("each symbol restored its own session state");
+      return;
+    }
+    fail(`cross-symbol leak: btc=${JSON.stringify(btc)}, eth=${JSON.stringify(eth)}`);
+  } finally {
+    SessionBacktest.useLocal();
+    SessionBacktest.clear();
+    PersistSessionAdapter.useDummy();
+  }
 });

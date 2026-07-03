@@ -169,14 +169,26 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
   });
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -408,14 +420,26 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
   private _signals: Map<StorageId, IStorageSignalRow> = new Map();
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -696,14 +720,26 @@ export class StoragePersistLiveUtils implements IStorageUtils {
   });
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -935,14 +971,26 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
   private _signals: Map<StorageId, IStorageSignalRow> = new Map();
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -1196,8 +1244,8 @@ export class StorageDummyLiveUtils implements IStorageUtils {
  *
  * Features:
  * - Adapter pattern for swappable storage implementations
- * - Default adapter: StoragePersistBacktestUtils (persistent storage)
- * - Alternative adapters: StorageMemoryBacktestUtils, StorageDummyBacktestUtils
+ * - Default adapter: StorageMemoryBacktestUtils (in-memory storage)
+ * - Alternative adapters: StoragePersistBacktestUtils, StorageDummyBacktestUtils
  * - Convenience methods: usePersist(), useMemory(), useDummy()
  */
 export class StorageBacktestAdapter implements IStorageUtils {

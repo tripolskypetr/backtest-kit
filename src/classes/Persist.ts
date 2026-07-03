@@ -5447,21 +5447,34 @@ export class PersistSessionInstance implements IPersistSessionInstance {
   private readonly _storage: IPersistBase<SessionData>;
 
   /**
+   * Entity key inside the per-strategy/exchange/frame storage directory.
+   * Includes the symbol and backtest flag: without them two symbols running
+   * the same strategy would clobber one shared record and restore each
+   * other's session state after a restart.
+   */
+  private readonly _entityId: string;
+
+  /**
    * Creates new session persistence instance.
    *
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
-   * @param frameName - Frame identifier (also used as entity ID)
+   * @param frameName - Frame identifier (storage subdirectory)
+   * @param symbol - Trading pair symbol (part of the entity key)
+   * @param backtest - Whether the session belongs to a backtest run (part of the entity key)
    */
   constructor(
     readonly strategyName: string,
     readonly exchangeName: string,
     readonly frameName: string,
+    readonly symbol: string,
+    readonly backtest: boolean,
   ) {
     this._storage = new PersistBase(
       frameName,
       `./dump/session/${strategyName}/${exchangeName}/`
     );
+    this._entityId = `${symbol}_${backtest ? "backtest" : "live"}`;
   }
 
   /**
@@ -5475,25 +5488,25 @@ export class PersistSessionInstance implements IPersistSessionInstance {
   }
 
   /**
-   * Reads the persisted session data using `frameName` as the entity key.
+   * Reads the persisted session data using the per-symbol entity key.
    *
    * @returns Promise resolving to session data or null if not found
    */
   async readSessionData(): Promise<SessionData | null> {
-    if (await this._storage.hasValue(this.frameName)) {
-      return await this._storage.readValue(this.frameName);
+    if (await this._storage.hasValue(this._entityId)) {
+      return await this._storage.readValue(this._entityId);
     }
     return null;
   }
 
   /**
-   * Writes the session data using `frameName` as the entity key.
+   * Writes the session data using the per-symbol entity key.
    *
    * @param data - Session data to persist
    * @returns Promise that resolves when write is complete
    */
   async writeSessionData(data: SessionData, _when: Date): Promise<void> {
-    await this._storage.writeValue(this.frameName, data);
+    await this._storage.writeValue(this._entityId, data);
   }
 
   /**
@@ -5542,6 +5555,8 @@ export type TPersistSessionInstanceCtor = new (
   strategyName: string,
   exchangeName: string,
   frameName: string,
+  symbol: string,
+  backtest: boolean,
 ) => IPersistSessionInstance;
 
 /**
@@ -5565,14 +5580,26 @@ export class PersistSessionUtils {
 
   /**
    * Memoized factory creating one IPersistSessionInstance per
-   * (strategyName, exchangeName, frameName) triple.
+   * (strategyName, exchangeName, frameName, symbol, backtest) tuple.
    */
   private getSessionStorage = memoize(
-    ([strategyName, exchangeName, frameName]: [string, string, string]): string =>
-      `${strategyName}:${exchangeName}:${frameName}`,
-    (strategyName: string, exchangeName: string, frameName: string): IPersistSessionInstance =>
-      Reflect.construct(this.PersistSessionInstanceCtor, [strategyName, exchangeName, frameName])
+    ([strategyName, exchangeName, frameName, symbol, backtest]: [string, string, string, string, boolean]): string =>
+      PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest),
+    (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean): IPersistSessionInstance =>
+      Reflect.construct(this.PersistSessionInstanceCtor, [strategyName, exchangeName, frameName, symbol, backtest])
   );
+
+  /**
+   * Builds the memoization key for the given context.
+   * Kept in sync with the getSessionStorage key function.
+   */
+  private static GET_KEY_FN = (
+    strategyName: string,
+    exchangeName: string,
+    frameName: string,
+    symbol: string,
+    backtest: boolean,
+  ): string => `${strategyName}:${exchangeName}:${frameName}:${symbol}:${backtest ? "backtest" : "live"}`;
 
   /**
    * Registers a custom IPersistSessionInstance constructor.
@@ -5600,12 +5627,14 @@ export class PersistSessionUtils {
     strategyName: string,
     exchangeName: string,
     frameName: string,
-    initial: boolean
+    initial: boolean,
+    symbol: string,
+    backtest: boolean,
   ): Promise<void> => {
-    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WAIT_FOR_INIT, { strategyName, exchangeName, frameName, initial });
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WAIT_FOR_INIT, { strategyName, exchangeName, frameName, initial, symbol, backtest });
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     const isInitial = initial && !this.getSessionStorage.has(key);
-    const instance = this.getSessionStorage(strategyName, exchangeName, frameName);
+    const instance = this.getSessionStorage(strategyName, exchangeName, frameName, symbol, backtest);
     await instance.waitForInit(isInitial);
   };
 
@@ -5621,12 +5650,14 @@ export class PersistSessionUtils {
   public readSessionData = async (
     strategyName: string,
     exchangeName: string,
-    frameName: string
+    frameName: string,
+    symbol: string,
+    backtest: boolean,
   ): Promise<SessionData | null> => {
-    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_READ_DATA, { strategyName, exchangeName, frameName });
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_READ_DATA, { strategyName, exchangeName, frameName, symbol, backtest });
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     const isInitial = !this.getSessionStorage.has(key);
-    const instance = this.getSessionStorage(strategyName, exchangeName, frameName);
+    const instance = this.getSessionStorage(strategyName, exchangeName, frameName, symbol, backtest);
     await instance.waitForInit(isInitial);
     return instance.readSessionData();
   };
@@ -5648,11 +5679,13 @@ export class PersistSessionUtils {
     exchangeName: string,
     frameName: string,
     when: Date,
+    symbol: string,
+    backtest: boolean,
   ): Promise<void> => {
-    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WRITE_DATA, { strategyName, exchangeName, frameName });
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WRITE_DATA, { strategyName, exchangeName, frameName, symbol, backtest });
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     const isInitial = !this.getSessionStorage.has(key);
-    const instance = this.getSessionStorage(strategyName, exchangeName, frameName);
+    const instance = this.getSessionStorage(strategyName, exchangeName, frameName, symbol, backtest);
     await instance.waitForInit(isInitial);
     return instance.writeSessionData(data, when);
   };
@@ -5690,9 +5723,9 @@ export class PersistSessionUtils {
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    */
-  public dispose = (strategyName: string, exchangeName: string, frameName: string) => {
+  public dispose = (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_DISPOSE);
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     this.getSessionStorage.clear(key);
   };
 }

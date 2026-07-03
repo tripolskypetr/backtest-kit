@@ -10732,8 +10732,8 @@ declare function getMinutesSinceLatestSignalCreated(symbol: string): Promise<num
 /**
  * Reads the state value scoped to the current active signal.
  *
- * Resolves the active pending signal automatically from execution context.
- * If no pending signal exists, logs a warning and returns the initialValue.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Throws if neither a pending nor a scheduled signal exists.
  *
  * Automatically detects backtest/live mode from execution context.
  *
@@ -10770,8 +10770,8 @@ declare function getSignalState<Value extends object = object>(symbol: string, d
 /**
  * Updates the state value scoped to the current active signal.
  *
- * Resolves the active pending signal automatically from execution context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Throws if neither a pending nor a scheduled signal exists.
  *
  * Automatically detects backtest/live mode from execution context.
  *
@@ -17282,16 +17282,27 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
     readonly strategyName: string;
     readonly exchangeName: string;
     readonly frameName: string;
+    readonly symbol: string;
+    readonly backtest: boolean;
     /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Entity key inside the per-strategy/exchange/frame storage directory.
+     * Includes the symbol and backtest flag: without them two symbols running
+     * the same strategy would clobber one shared record and restore each
+     * other's session state after a restart.
+     */
+    private readonly _entityId;
     /**
      * Creates new session persistence instance.
      *
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
-     * @param frameName - Frame identifier (also used as entity ID)
+     * @param frameName - Frame identifier (storage subdirectory)
+     * @param symbol - Trading pair symbol (part of the entity key)
+     * @param backtest - Whether the session belongs to a backtest run (part of the entity key)
      */
-    constructor(strategyName: string, exchangeName: string, frameName: string);
+    constructor(strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean);
     /**
      * Initializes the underlying PersistBase storage.
      *
@@ -17300,13 +17311,13 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
      */
     waitForInit(initial: boolean): Promise<void>;
     /**
-     * Reads the persisted session data using `frameName` as the entity key.
+     * Reads the persisted session data using the per-symbol entity key.
      *
      * @returns Promise resolving to session data or null if not found
      */
     readSessionData(): Promise<SessionData | null>;
     /**
-     * Writes the session data using `frameName` as the entity key.
+     * Writes the session data using the per-symbol entity key.
      *
      * @param data - Session data to persist
      * @returns Promise that resolves when write is complete
@@ -17322,7 +17333,7 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
  * Constructor type for IPersistSessionInstance.
  * Used by PersistSessionUtils.usePersistSessionAdapter() to register custom adapters.
  */
-type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: string, frameName: string) => IPersistSessionInstance;
+type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => IPersistSessionInstance;
 /**
  * Utility class for managing session persistence.
  *
@@ -17343,9 +17354,14 @@ declare class PersistSessionUtils {
     private PersistSessionInstanceCtor;
     /**
      * Memoized factory creating one IPersistSessionInstance per
-     * (strategyName, exchangeName, frameName) triple.
+     * (strategyName, exchangeName, frameName, symbol, backtest) tuple.
      */
     private getSessionStorage;
+    /**
+     * Builds the memoization key for the given context.
+     * Kept in sync with the getSessionStorage key function.
+     */
+    private static GET_KEY_FN;
     /**
      * Registers a custom IPersistSessionInstance constructor.
      * Clears the memoization cache so subsequent calls use the new adapter.
@@ -17363,7 +17379,7 @@ declare class PersistSessionUtils {
      * @param initial - Whether this is the first initialization
      * @returns Promise that resolves when initialization is complete
      */
-    waitForInit: (strategyName: string, exchangeName: string, frameName: string, initial: boolean) => Promise<void>;
+    waitForInit: (strategyName: string, exchangeName: string, frameName: string, initial: boolean, symbol: string, backtest: boolean) => Promise<void>;
     /**
      * Reads persisted session data for the given context.
      * Lazily initializes the instance on first access.
@@ -17373,7 +17389,7 @@ declare class PersistSessionUtils {
      * @param frameName - Frame identifier
      * @returns Promise resolving to session data or null if none persisted
      */
-    readSessionData: (strategyName: string, exchangeName: string, frameName: string) => Promise<SessionData | null>;
+    readSessionData: (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => Promise<SessionData | null>;
     /**
      * Writes session data for the given context.
      * Lazily initializes the instance on first access.
@@ -17385,7 +17401,7 @@ declare class PersistSessionUtils {
      * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date) => Promise<void>;
+    writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date, symbol: string, backtest: boolean) => Promise<void>;
     /**
      * Switches to PersistSessionDummyInstance (all operations are no-ops).
      */
@@ -17407,7 +17423,7 @@ declare class PersistSessionUtils {
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      */
-    dispose: (strategyName: string, exchangeName: string, frameName: string) => void;
+    dispose: (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => void;
 }
 /**
  * Global singleton instance of PersistSessionUtils.
@@ -25396,8 +25412,8 @@ type TStorageUtilsCtor = new () => IStorageUtils;
  *
  * Features:
  * - Adapter pattern for swappable storage implementations
- * - Default adapter: StoragePersistBacktestUtils (persistent storage)
- * - Alternative adapters: StorageMemoryBacktestUtils, StorageDummyBacktestUtils
+ * - Default adapter: StorageMemoryBacktestUtils (in-memory storage)
+ * - Alternative adapters: StoragePersistBacktestUtils, StorageDummyBacktestUtils
  * - Convenience methods: usePersist(), useMemory(), useDummy()
  */
 declare class StorageBacktestAdapter implements IStorageUtils {

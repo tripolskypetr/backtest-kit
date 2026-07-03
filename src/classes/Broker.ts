@@ -1136,10 +1136,9 @@ export class BrokerProxy implements IBroker {
 
   /**
    * Forwards a signal-open event to the underlying adapter.
-   * Throws if the adapter does not implement `onSignalOpenCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onSignalOpenCommit`.
    *
    * @param payload - Signal open details: symbol, cost, position, prices, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onSignalOpenCommit`.
    */
   public async onSignalOpenCommit(
     payload: BrokerSignalOpenPayload,
@@ -1149,7 +1148,15 @@ export class BrokerProxy implements IBroker {
       await this._instance.onSignalOpenCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onSignalOpenCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onSignalOpenCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
@@ -1288,10 +1295,9 @@ export class BrokerProxy implements IBroker {
 
   /**
    * Forwards a signal-close event to the underlying adapter.
-   * Throws if the adapter does not implement `onSignalCloseCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onSignalCloseCommit`.
    *
    * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onSignalCloseCommit`.
    */
   public async onSignalCloseCommit(
     payload: BrokerSignalClosePayload,
@@ -1301,15 +1307,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onSignalCloseCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onSignalCloseCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onSignalCloseCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a partial-profit close event to the underlying adapter.
-   * Throws if the adapter does not implement `onPartialProfitCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onPartialProfitCommit`.
    *
    * @param payload - Partial profit details: symbol, percentToClose, cost, currentPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onPartialProfitCommit`.
    */
   public async onPartialProfitCommit(
     payload: BrokerPartialProfitPayload,
@@ -1319,15 +1332,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onPartialProfitCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onPartialProfitCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onPartialProfitCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a partial-loss close event to the underlying adapter.
-   * Throws if the adapter does not implement `onPartialLossCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onPartialLossCommit`.
    *
    * @param payload - Partial loss details: symbol, percentToClose, cost, currentPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onPartialLossCommit`.
    */
   public async onPartialLossCommit(
     payload: BrokerPartialLossPayload,
@@ -1337,15 +1357,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onPartialLossCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onPartialLossCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onPartialLossCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a trailing stop-loss update event to the underlying adapter.
-   * Throws if the adapter does not implement `onTrailingStopCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onTrailingStopCommit`.
    *
    * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onTrailingStopCommit`.
    */
   public async onTrailingStopCommit(
     payload: BrokerTrailingStopPayload,
@@ -1355,15 +1382,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onTrailingStopCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onTrailingStopCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onTrailingStopCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a trailing take-profit update event to the underlying adapter.
-   * Throws if the adapter does not implement `onTrailingTakeCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onTrailingTakeCommit`.
    *
    * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onTrailingTakeCommit`.
    */
   public async onTrailingTakeCommit(
     payload: BrokerTrailingTakePayload,
@@ -1373,15 +1407,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onTrailingTakeCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onTrailingTakeCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onTrailingTakeCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a breakeven event to the underlying adapter.
-   * Throws if the adapter does not implement `onBreakevenCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onBreakevenCommit`.
    *
    * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice (= effectivePriceOpen), newTakeProfitPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onBreakevenCommit`.
    */
   public async onBreakevenCommit(
     payload: BrokerBreakevenPayload,
@@ -1391,15 +1432,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onBreakevenCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onBreakevenCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onBreakevenCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a DCA average-buy entry event to the underlying adapter.
-   * Throws if the adapter does not implement `onAverageBuyCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onAverageBuyCommit`.
    *
    * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onAverageBuyCommit`.
    */
   public async onAverageBuyCommit(
     payload: BrokerAverageBuyPayload,
@@ -1409,7 +1457,15 @@ export class BrokerProxy implements IBroker {
       await this._instance.onAverageBuyCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onAverageBuyCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onAverageBuyCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 }
 
