@@ -158,12 +158,12 @@ export const ControlView = ({ params }: IOutletProps) => {
         }
     });
 
-    useOnce(reloadSubject.subscribe(execute));
+    useOnce(() => reloadSubject.subscribe(execute));
 
-    useOnce(commitOpenPendingEmitter.subscribe(handleOpenPending));
-    useOnce(commitAverageBuyEmitter.subscribe(handleAverageBuy));
-    useOnce(commitClosePendingEmitter.subscribe(handleClosePending));
-    useOnce(commitBreakevenEmitter.subscribe(handleBreakeven));
+    useOnce(() => commitOpenPendingEmitter.subscribe(handleOpenPending));
+    useOnce(() => commitAverageBuyEmitter.subscribe(handleAverageBuy));
+    useOnce(() => commitClosePendingEmitter.subscribe(handleClosePending));
+    useOnce(() => commitBreakevenEmitter.subscribe(handleBreakeven));
 
     const handleDownload = useActualCallback(async () => {
         if (!data) {

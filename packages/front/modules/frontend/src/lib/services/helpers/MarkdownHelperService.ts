@@ -48,7 +48,8 @@ export class MarkdownHelperService {
                         ? get(data, field.name)
                         : undefined;
                 const title = field.title;
-                if (value) {
+                // 0 и false — валидные значения отчёта, отбрасываем только пустоту
+                if (value != null && value !== "") {
                     const valueString = String(value);
                     lines.push(title ? `**${title}:** ${valueString}` : valueString);
                 }

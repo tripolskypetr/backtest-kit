@@ -1,5 +1,6 @@
 import LoggerService from "../base/LoggerService";
-import { fetchApi, inject, randomString, ttl } from "react-declarative";
+import { fetchApi, inject, randomString } from "react-declarative";
+import { ttl } from "../../../utils/ttl";
 import TYPES from "../../core/TYPES";
 import {
     CC_CLIENT_ID,

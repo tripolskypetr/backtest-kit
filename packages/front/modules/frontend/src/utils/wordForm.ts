@@ -11,11 +11,12 @@ export const wordForm = (value: number, {
 }: IWordForm) => {
 
   const getWord = () => {
-    if (value === 0 || (value >= 11 && value < 20)) return many
-    let lastDigit = value % 10
-    if (lastDigit === 0) return many
+    const abs = Math.abs(Math.trunc(value))
+    // 11–14 в любой сотне (11, 111, 211…) — форма "many"
+    if (abs % 100 >= 11 && abs % 100 <= 14) return many
+    const lastDigit = abs % 10
     if (lastDigit === 1) return one
-    if (lastDigit < 5) return two
+    if (lastDigit >= 2 && lastDigit <= 4) return two
     return many
   };
 

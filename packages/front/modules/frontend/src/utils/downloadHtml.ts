@@ -18,12 +18,11 @@ export async function downloadHtml(content: string) {
     if ("Sanitizer" in window) {
         const sanitizer = new window.Sanitizer(sanitize);
         element.setHTML(content, { sanitizer });
-        return element.innerHTML;
     } else {
         element.innerHTML = content;
-        element.style.padding = "20px";
-        element.style.fontFamily = "Arial, sans-serif";
     }
+    element.style.padding = "20px";
+    element.style.fontFamily = "Arial, sans-serif";
 
     // Configure html2pdf options
     const opt = {

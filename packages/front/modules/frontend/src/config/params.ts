@@ -1,11 +1,16 @@
 import { ISize, randomString } from "react-declarative";
 
-export const CC_ENABLE_MOCK = !!process.env.CC_ENABLE_MOCK || false;
+// env-переменные подставляются строками: "0"/"false" тоже должны выключать флаг
+const parseBool = (value?: string) =>
+  !!value && !["0", "false", "off", "no"].includes(String(value).toLowerCase());
+
+export const CC_ENABLE_MOCK = parseBool(process.env.CC_ENABLE_MOCK);
 
 export const CC_LIST_BUFFER_SIZE = parseInt(process.env.CC_LIST_BUFFER_SIZE) || 25;
 
-export const CC_FORCE_BROWSER_HISTORY =
-  !!process.env.CC_FORCE_BROWSER_HISTORY || false;
+export const CC_FORCE_BROWSER_HISTORY = parseBool(
+  process.env.CC_FORCE_BROWSER_HISTORY,
+);
 
 export const CC_DEFAULT_LIMIT = process.env.CC_DEFAULT_LIMIT
   ? parseInt(process.env.CC_DEFAULT_LIMIT)

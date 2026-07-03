@@ -4,7 +4,8 @@ import ISuccessRate from "../../../model/SuccessRate.model";
 import IDailyTrades from "../../../model/DailyTrades.model";
 import IRevenueCount from "../../../model/RevenueCount.model";
 import ioc from "../../../lib";
-import { dayjs, getMomentStamp, ttl } from "react-declarative";
+import { dayjs, getMomentStamp } from "react-declarative";
+import { ttl } from "../../../utils/ttl";
 
 type Mode = "live" | "backtest";
 type ClosedSignal = Extract<IStorageSignalRow, { status: "closed" }>;

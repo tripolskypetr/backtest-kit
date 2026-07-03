@@ -240,3 +240,33 @@ Breaking changes (кандидаты на major bump):
 Осознанный дизайн (по решению, не флагуется): REPL `/api/v1/repl/eval` («все кнопки не предусмотришь») и сопутствующий открытый CORS `*`; getSetupData отдаёт весь getConfig() в браузер (self-admin).
 
 Не исправлялось (не баги): StatusViewService — два идентичных ~45-строчных блока маппинга symbols (backtest/live) — кандидат на дедуп при следующей правке; icon-кэши без eviction (ограничены числом файлов иконок), негативного кэша для 404-иконок нет (каждый промах — existsSync+readFile). Проверено и корректно: traversal-guard getNode, единый try/catch-конверт роутов, SymbolConnectionService (дедуп+стабильная сортировка), omit не мутирует вход.
+
+---
+
+## Аудит packages/front/modules/frontend/src (исправлено)
+
+- [x] **P1: инвертированный useOnce в ControlView (ручная торговля)** — `useOnce(subject.subscribe(handler))`: subscribe выполнялся в теле рендера (новая подписка на каждый рендер), а useOnce на маунте вызывал unsubscribe только первой. Подписки на модульные эмиттеры копились и переживали unmount: «Open Position» открывала модалку по числу накопленных подписок, висели обработчики умерших инстансов со старым payload (риск модалки с контекстом прежнего символа). Фикс: `useOnce(() => subj.subscribe(...))` — 5 мест, единственный файл с этим паттерном (проверено grep'ом).
+
+- [x] **P2: ttl из react-declarative кэширует rejected-промисы** — проверено по реализации в бандле (memoize {value, ttl} без инвалидации при reject): разовый сетевой сбой getAveragePrice залипал в модалке Open Position/Average Buy на 2.5 минуты без ретрая; то же во всех ~17 fetchData view-хуков (45с) и explorer/status кэшах. Фикс: обёртка src/utils/ttl.ts — при reject сбрасывает ключ (clear(key) / clear() без ключа — семантика memoize.clear проверена по бандлу), rejected-промис доходит до текущих ожидающих. Импорты переключены скриптом в 33 файлах; висячий неиспользуемый импорт в OperationLabel удалён.
+
+- [x] **P2: downloadHtml не генерировал PDF при наличии Sanitizer API** — ранний `return element.innerHTML` вместо продолжения к html2pdf (ветка сегодня мёртвая — Sanitizer нигде не включён по умолчанию — но логика перепутана). Фикс: санитизация → общий стайлинг → PDF.
+
+- [x] **P2: фантомная зависимость markdown-it** — импортировался в toPlainString, но отсутствовал в package.json/node_modules фронтенда (резолвился из родительского packages/front). Фикс: `npm install markdown-it@14.1.0` (версия как у родителя).
+
+- [x] **P2: ExplorerViewService.clear() не чистил getFolderMap** — после clear карта отдавала устаревшие данные до 45с. Фикс: добавлен getFolderMap.clear().
+
+- [x] **P3: маркеры списков терялись в toPlainString** — transformTags не вставляет текст (`li: () => "• "` молча терял маркер; тот же паттерн, что чинили в cli/signals/ollama). Фикс: инъекция "• " в HTML до санитизации. Проверено: "- first" → "• first".
+
+- [x] **P3: trailing-take StockChart разошёлся с 14 копиями** — сырое `!==` вместо toFixed(6)-сравнения → фантомная пунктирная «Original SL» из float-шума. Выровнен.
+
+- [x] **P3: ноль-как-falsy** — StatusInfo fmt/fmtMin («—» для PNL 0.00), 11 мест `!!item.pnlPercentage ? ... : "N/A"` (NotificationView + 2 копии NotificationCard), MarkdownHelperService `if (value)` (0/false выпадали из PDF/MD-отчётов), str() фильтровал числовой 0. Везде заменено на null-проверки с сохранением отбрасывания false/null/"" (паттерн `cond && "text"`).
+
+- [x] **P3: wordForm неправильно склонял 111, 211…** — проверка 11..19 без %100. Фикс: %100 ∈ 11..14 → many; проверено на 0..211 (121 → «сигнал», 111 → «сигналов»).
+
+- [x] **P3: CC_ENABLE_MOCK/CC_FORCE_BROWSER_HISTORY** — `!!process.env.X`: строка "0"/"false" включала флаг. Фикс: parseBool с "0"/"false"/"off"/"no".
+
+- [x] **P3: мёртвая ветка navigator.copyToClipboard** (API не существует) удалена; **вечный while(!window.Translate)** заменён ограниченным ожиданием (20×500мс, затем рендер с console.error — t() умеет работать без Translate); **VertLine** больше не лезет в приватный _container lightweight-charts и не хватает первый график на странице через querySelector — контейнер передаётся явно (исправлено скриптом во всех 14 копиях, включая SimpleStockChart).
+
+Сборка: vite build прошёл (23.9s), маркеры фиксов найдены в бандле; фронт раздаётся напрямую из modules/frontend/build (getPublicPath), копирование не требуется. Юнит-проверки: wordForm (0..211), str (0 сохраняется), toPlainString (буллеты), семантика memoize.clear.
+
+Проверено и корректно (не трогалось): проводка 20 subject→hook в LayoutModalProvider; диспетчеризация типов в NotificationView; type-guard'ы 20 view-хуков; SubmitView торговых модалок; ревок blob-URL через route-listen; отсутствие таймер-утечек.

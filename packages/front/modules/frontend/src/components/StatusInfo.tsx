@@ -41,10 +41,10 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const fmt = (v: number | null, suffix = "%") =>
-    !v ? "—" : `${v.toFixed(2)}${suffix}`;
+    v == null || Number.isNaN(v) ? "—" : `${v.toFixed(2)}${suffix}`;
 
 const fmtMin = (v: number | null) =>
-    !v ? "—" : `${v.toFixed(1)} min`;
+    v == null || Number.isNaN(v) ? "—" : `${v.toFixed(1)} min`;
 
 const t = (key: string) =>
     window.Translate ? window.Translate.translateText(key) : key;
