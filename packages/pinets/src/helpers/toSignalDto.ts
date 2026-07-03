@@ -1,5 +1,4 @@
 import { ISignalDto } from "backtest-kit";
-import { randomString } from "functools-kit";
 
 type ResultId = string | number;
 
@@ -15,6 +14,9 @@ interface Signal extends ISignalDto {
   id: string;
 }
 
+const IS_VALID_PRICE_OPEN_FN = (value: number | null | undefined): value is number =>
+  typeof value === "number" && isFinite(value) && value > 0;
+
 export function toSignalDto(
   id: ResultId,
   data: SignalData,
@@ -28,7 +30,7 @@ export function toSignalDto(
       priceStopLoss: data.priceStopLoss,
       minuteEstimatedTime: data.minuteEstimatedTime,
     };
-    if (priceOpen) {
+    if (IS_VALID_PRICE_OPEN_FN(priceOpen)) {
       Object.assign(result, { priceOpen });
     }
     return result;
@@ -42,7 +44,7 @@ export function toSignalDto(
       priceStopLoss: data.priceStopLoss,
       minuteEstimatedTime: data.minuteEstimatedTime,
     };
-    if (priceOpen) {
+    if (IS_VALID_PRICE_OPEN_FN(priceOpen)) {
       Object.assign(result, { priceOpen });
     }
     return result;

@@ -142,3 +142,27 @@ Breaking changes (кандидаты на major bump):
 - [x] **P3: мелочи** — guard деления на 0 в calculatePriceChanges (Micro); проверка `middle !== 0` в bollingerWidth (Short, выравнено с Micro/Swing); доки: Bollinger Position может выходить за 0–100%, фиб-окно Short ограничено 144 свечами (а не 288), комментарий WARMUP про StochRSI(14); убран бессмысленный `await` на строке в other.function.ts.
 
 Проверено и признано корректным (без изменений): `getResult()` trading-signals v6 возвращает null (не бросает) — обвязка isUnsafe корректна; масштабы pdi/mdi (×100), StochRSI (×100), Stochastic K/D (как есть) — проверены эмпирически; TTL `Cache.fn` идёт по виртуальному времени executionContext (backtest-safe); trycatch-обёртки commit-функций глотают ошибку и чистят кэш — осознанный дизайн.
+
+---
+
+## Аудит packages/pinets (исправлено)
+
+- [x] **P1: PineJobService требовал класс Indicator даже без inputs** — `indicatorConnectionService.getInstance` вызывался безусловно, а использовался только при непустых `inputs`. В usePine-only окружениях (peer `pinets` не установлен, `useIndicator` не вызван) падал каждый `run()`/`getSignal()`/`markdown()`. Фикс: Indicator создаётся только в ветке с inputs. Проверено: run без inputs проходит с бросающим Indicator-ctor, с inputs — конструирует.
+
+- [x] **P1: extract() молча подставлял 0 вместо отсутствующих плотов** — опечатка в имени плота давала либо «стратегия молча никогда не торгует» (position=0 → null DTO без диагностики), либо DTO с TP/SL=0, который отбивался валидацией backtest-kit с маскирующей ошибкой «must be positive, got 0». Фикс: `GET_VALUE_FN` бросает понятную ошибку (имя плота + список доступных); для легитимно опциональных плотов добавлен `PlotExtractConfig.defaultValue` (extract и extractRows). SIGNAL_SCHEMA: `Close`/`EstimatedTime` помечены defaultValue (поведение сохранено: нет Close → DTO без priceOpen; нет EstimatedTime → 240), `Signal`/`TakeProfit`/`StopLoss` — обязательные, отсутствие бросает. ⚠️ поведенческое изменение: код, полагавшийся на тихий 0 для обязательных плотов, теперь получает ошибку.
+
+- [x] **P2: ~120 строк copy-paste** между run.function.ts и markdown.function.ts (+третья копия GET_SOURCE_FN в strategy.function.ts) — вынесены в `helpers/inference.ts` (`getSourceCode`, `runInference` с VALIDATE_NO_TRADING_FN).
+
+- [x] **P2: toSignalDto** — убран мёртвый импорт randomString; `if (priceOpen)` заменён на проверку конечного положительного числа (Infinity/NaN больше не попадают в DTO).
+
+- [x] **P3: extractRows timestamp** брался только из плота первого ключа маппинга — теперь из первого плота, имеющего точку на данном индексе.
+
+- [x] **P3: PineMarkdownService.getData** — ключ маппинга `"time"` конфликтовал со служебным полем времени строки (колонка показывала timestamp вместо значения плота) — теперь зарезервирован, бросает понятную ошибку.
+
+- [x] **P3: getSymbolInfo эвристика** — пары не на USDT/BUSD/USD (ETHBTC) получали base=весь символ, currency="USDT". Список квот расширен (USDT/USDC/BUSD/TUSD/FDUSD/USD/BTC/ETH/BNB/EUR): ETHBTC → ETH/BTC.
+
+- [x] **P3: CandleProviderService** — неизвестный таймфрейм слепо кастовался в CandleInterval; теперь валидация против INTERVAL_MINUTES (экспортирован из AxisProviderService) с перечислением допустимых значений.
+
+- [x] **P3: dual-package hazard Code/File** — брендинг `Symbol("...")` заменён на `Symbol.for("backtest-kit.pinets.*")`: экземпляры из CJS-копии проходят isCode/isFile ESM-копии и наоборот (проверено на build/index.mjs + build/index.cjs в одном процессе).
+
+Проверено и признано корректным (без изменений): PineCacheService — memoize functools-kit сбрасывает кэш при reject (залипания ошибок чтения нет, проверено); отсутствие closeTime в провайдерах — PineTS достраивает openTime+barDuration (проверено реальным прогоном PineTS); AxisProviderService — все 5 комбинаций sDate/eDate/limit и look-ahead-защита корректны; look-ahead clamp eDate→context.when в CandleProviderService корректен.

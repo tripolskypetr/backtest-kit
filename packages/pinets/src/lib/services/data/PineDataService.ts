@@ -6,6 +6,12 @@ import { TYPES } from "../../core/types";
 export type PlotExtractConfig<T = number> = {
   plot: string;
   barsBack?: number;
+  /**
+   * Fallback used when the plot is missing, empty or has no value at the
+   * requested position. Without it `extract` throws to surface plot-name
+   * mismatches instead of silently substituting zeros.
+   */
+  defaultValue?: number;
   transform?: (value: number) => T;
 };
 
@@ -35,11 +41,37 @@ const GET_VALUE_FN = (
   plots: PlotModel,
   name: string,
   barsBack: number = 0,
+  defaultValue?: number,
 ): number => {
   const data = plots[name]?.data;
-  if (!data || data.length === 0) return 0;
+  if (!data || data.length === 0) {
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+    throw new Error(
+      `pinets extract: plot "${name}" is missing or empty. ` +
+        `Available plots: ${Object.keys(plots).join(", ") || "<none>"}`,
+    );
+  }
   const idx = data.length - 1 - barsBack;
-  return idx >= 0 ? (data[idx]?.value ?? 0) : 0;
+  if (idx < 0) {
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+    throw new Error(
+      `pinets extract: plot "${name}" has only ${data.length} points, cannot read barsBack=${barsBack}`,
+    );
+  }
+  const point = data[idx];
+  if (point == null || point.value == null) {
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+    throw new Error(
+      `pinets extract: plot "${name}" has no value at barsBack=${barsBack}`,
+    );
+  }
+  return point.value;
 };
 
 const GET_VALUE_AT_FN = (
@@ -92,15 +124,21 @@ export class PineDataService {
             i,
             config.barsBack ?? 0,
           );
+          const value = raw ?? config.defaultValue ?? null;
           row[key] = (
-            raw !== null && config.transform ? config.transform(raw) : raw
+            value !== null && config.transform ? config.transform(value) : value
           ) as ExtractedDataRow<M>[typeof key];
         }
       }
-      const firstPlot = plots[plotNames[0]]?.data?.[i];
-      row.timestamp = firstPlot?.time
-        ? new Date(firstPlot.time).toISOString()
-        : "";
+      let timestamp = "";
+      for (const name of plotNames) {
+        const point = plots[name]?.data?.[i];
+        if (point?.time) {
+          timestamp = new Date(point.time).toISOString();
+          break;
+        }
+      }
+      row.timestamp = timestamp;
       rows.push(row);
     }
     return rows;
@@ -123,7 +161,12 @@ export class PineDataService {
       if (typeof config === "string") {
         Object.assign(result, { [key]: GET_VALUE_FN(plots, config) });
       } else {
-        const value = GET_VALUE_FN(plots, config.plot, config.barsBack ?? 0);
+        const value = GET_VALUE_FN(
+          plots,
+          config.plot,
+          config.barsBack ?? 0,
+          config.defaultValue,
+        );
         Object.assign(result, {
           [key]: config.transform ? config.transform(value) : value,
         });

@@ -3,22 +3,12 @@ import { Code } from "../classes/Code";
 import { File } from "../classes/File";
 import lib from "../lib";
 import toSignalDto from "../helpers/toSignalDto";
+import { getSourceCode } from "../helpers/inference";
 import { randomString } from "functools-kit";
 
 const METHOD_NAME_RUN = "strategy.getSignal";
 
 const DEFAULT_ESTIMATED_TIME = 240;
-
-const GET_SOURCE_FN = async (source: File | Code) => {
-  if (File.isFile(source)) {
-    const code = await lib.pineCacheService.readFile(source.path, source.baseDir);
-    return Code.fromString(code);
-  }
-  if (Code.isCode(source)) {
-    return source;
-  }
-  throw new Error("Source must be a File or Code instance");
-};
 
 interface IParams {
   symbol: string;
@@ -29,11 +19,16 @@ interface IParams {
 
 const SIGNAL_SCHEMA = {
   position: "Signal",
-  priceOpen: "Close",
+  priceOpen: {
+    plot: "Close",
+    defaultValue: 0,
+    transform: (v: number) => v,
+  },
   priceTakeProfit: "TakeProfit",
   priceStopLoss: "StopLoss",
   minuteEstimatedTime: {
     plot: "EstimatedTime",
+    defaultValue: 0,
     transform: (v: number) => v || DEFAULT_ESTIMATED_TIME,
   },
 } as const;
@@ -50,7 +45,7 @@ export async function getSignal(
   });
 
   const { plots } = await lib.pineJobService.run(
-    await GET_SOURCE_FN(source),
+    await getSourceCode(source),
     symbol,
     timeframe,
     limit,

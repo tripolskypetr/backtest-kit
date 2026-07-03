@@ -8,7 +8,7 @@ import { TYPES } from "../../core/types";
 
 const MS_PER_MINUTE = 60_000;
 
-const INTERVAL_MINUTES: Record<CandleInterval, number> = {
+export const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
   "3m": 3,
   "5m": 5,

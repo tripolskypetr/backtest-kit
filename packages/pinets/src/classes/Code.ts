@@ -1,4 +1,6 @@
-const CODE_TYPE_SYMBOL = Symbol("code-type");
+// Symbol.for keeps the brand check working when CJS and ESM copies of the
+// package end up in the same process (dual-package hazard).
+const CODE_TYPE_SYMBOL = Symbol.for("backtest-kit.pinets.code-type");
 
 export class Code {
   private readonly __type__ = CODE_TYPE_SYMBOL;

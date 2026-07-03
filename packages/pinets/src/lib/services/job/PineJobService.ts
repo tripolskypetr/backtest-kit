@@ -90,9 +90,15 @@ export class PineJobService {
     });
 
     const runner = await CREATE_RUNNER_FN(this, tickerId, timeframe, limit);
-    const indicator = await this.indicatorConnectionService.getInstance(code.source, inputs);
 
-    const result = await runner.run(Object.keys(inputs).length ? indicator : code.source);
+    // The Indicator class is only required to pass custom inputs. Do not load
+    // it otherwise: usePine-only setups (no pinets package, no useIndicator)
+    // must keep working for plain script runs.
+    const payload = Object.keys(inputs).length
+      ? await this.indicatorConnectionService.getInstance(code.source, inputs)
+      : code.source;
+
+    const result = await runner.run(payload);
 
     const plots = Object.entries(result.plots).reduce<PlotModel>((acm, [key, value]) => {
       if (key === "undefined") {

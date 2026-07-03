@@ -66,6 +66,12 @@ declare function run(source: File | Code, { symbol, timeframe, limit, inputs }: 
 type PlotExtractConfig<T = number> = {
     plot: string;
     barsBack?: number;
+    /**
+     * Fallback used when the plot is missing, empty or has no value at the
+     * requested position. Without it `extract` throws to surface plot-name
+     * mismatches instead of silently substituting zeros.
+     */
+    defaultValue?: number;
     transform?: (value: number) => T;
 };
 type PlotMapping = {
