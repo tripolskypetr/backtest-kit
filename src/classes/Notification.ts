@@ -203,7 +203,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
   }
   if (data.action === "closed") {
     const durationMs = data.closeTimestamp - data.signal.pendingAt;
-    const durationMin = Math.round(durationMs / 60000);
+    const durationMin = durationMs / 60000;
 
     return {
       type: "signal.closed",
@@ -296,7 +296,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
   }
   if (data.action === "cancelled") {
     const durationMs = data.closeTimestamp - data.signal.scheduledAt;
-    const durationMin = Math.round(durationMs / 60000);
+    const durationMin = durationMs / 60000;
 
     return {
       type: "signal.cancelled",

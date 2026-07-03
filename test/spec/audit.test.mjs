@@ -11,6 +11,13 @@ import {
   toPlainString,
   PositionSize,
   addSizingSchema,
+  MemoryBacktest,
+  Backtest,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
+  getAggregatedTrades,
+  Exchange,
 } from "../../build/index.mjs";
 
 const approx = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
@@ -226,4 +233,181 @@ test("AUDIT sizing: minPositionSize cannot exceed maxPositionPercentage cap", as
   }
 
   pass("maxPositionPercentage cap has the final word over minPositionSize");
+});
+
+/**
+ * AUDIT: BM25-нормализация должна сохранять цифры.
+ * Раньше [^\p{L}\s] выбрасывал \p{N} — числовые токены (цены, id, "4h")
+ * не индексировались и не находились поиском.
+ */
+test("AUDIT memory search: numeric tokens are indexed and searchable", async ({ pass, fail }) => {
+  const signalId = "audit-bm25-digits";
+  const bucketName = "audit-bucket";
+  const when = new Date();
+
+  await MemoryBacktest.writeMemory({
+    memoryId: "entry-1",
+    value: { note: "breakout" },
+    signalId,
+    bucketName,
+    description: "price 42000 breakout",
+    when,
+  });
+
+  const hits = await MemoryBacktest.searchMemory({
+    query: "42000",
+    signalId,
+    bucketName,
+    when,
+    settings: { BM25_K1: 1.5, BM25_B: 0.75, BM25_SCORE: 0.01 },
+  });
+
+  if (hits.length === 1 && hits[0].memoryId === "entry-1") {
+    pass("numeric token found by BM25 search");
+    return;
+  }
+
+  fail(`expected 1 hit for numeric query, got ${hits.length}`);
+});
+
+/**
+ * AUDIT: пустой диапазон таймфреймов должен давать понятную ошибку.
+ * Раньше timeframes[-1].getTime() кидал TypeError, который уходил в
+ * process.exit(-1) с невнятным сообщением.
+ */
+test("AUDIT frame: future startDate throws a clear empty-range error", async ({ pass, fail }) => {
+  addExchangeSchema({
+    exchangeName: "binance-mock-audit-empty-frame",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-strategy-audit-empty-frame",
+    interval: "1m",
+    getSignal: async () => null,
+  });
+
+  addFrameSchema({
+    frameName: "audit-empty-frame",
+    interval: "1m",
+    startDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    endDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
+  });
+
+  try {
+    for await (const _ of Backtest.run("BTCUSDT", {
+      strategyName: "test-strategy-audit-empty-frame",
+      exchangeName: "binance-mock-audit-empty-frame",
+      frameName: "audit-empty-frame",
+    })) {
+      // Just consume
+    }
+  } catch (error) {
+    if (String(error?.message).includes("empty timeframe range")) {
+      pass("empty timeframe range produces a clear error");
+      return;
+    }
+    fail(`unexpected error: ${error?.message}`);
+    return;
+  }
+
+  fail("Backtest.run on a future-dated frame did not throw");
+});
+
+/**
+ * AUDIT: getAggregatedTrades с limit не должен зацикливаться, когда у
+ * символа нет истории. Раньше пагинация назад шла до эпохи и дальше,
+ * бесконечно опрашивая адаптер пустыми окнами.
+ */
+test("AUDIT getAggregatedTrades: empty history terminates with partial result", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+
+  let tradesResult = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-mock-audit-aggtrades",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = Math.floor(since.getTime() / intervalMs) * intervalMs;
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return result;
+    },
+    getAggregatedTrades: async () => [],
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-strategy-audit-aggtrades",
+    interval: "1m",
+    getSignal: async () => {
+      if (tradesResult === null) {
+        tradesResult = await getAggregatedTrades("BTCUSDT", 100);
+      }
+      return null;
+    },
+  });
+
+  addFrameSchema({
+    frameName: "audit-aggtrades-frame",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:01:00Z"),
+  });
+
+  for await (const _ of Backtest.run("BTCUSDT", {
+    strategyName: "test-strategy-audit-aggtrades",
+    exchangeName: "binance-mock-audit-aggtrades",
+    frameName: "audit-aggtrades-frame",
+  })) {
+    // Just consume
+  }
+
+  if (Array.isArray(tradesResult) && tradesResult.length === 0) {
+    pass("getAggregatedTrades terminated on empty history");
+    return;
+  }
+
+  fail(`expected empty array, got ${JSON.stringify(tradesResult)}`);
+});
+
+/**
+ * AUDIT: тот же бесконечный цикл жил в дубликате кода — ExchangeInstance
+ * (classes/Exchange.ts, GUI-путь без execution-контекста). Проверяем
+ * терминацию через публичный Exchange-утил.
+ */
+test("AUDIT Exchange.getAggregatedTrades: empty history terminates outside execution context", async ({ pass, fail }) => {
+  addExchangeSchema({
+    exchangeName: "binance-mock-audit-aggtrades-utils",
+    getCandles: async () => [],
+    getAggregatedTrades: async () => [],
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  const trades = await Exchange.getAggregatedTrades(
+    "BTCUSDT",
+    { exchangeName: "binance-mock-audit-aggtrades-utils" },
+    100,
+  );
+
+  if (Array.isArray(trades) && trades.length === 0) {
+    pass("Exchange.getAggregatedTrades terminated on empty history");
+    return;
+  }
+
+  fail(`expected empty array, got ${JSON.stringify(trades)}`);
 });

@@ -35,11 +35,13 @@ const DEFAULT_SETTINGS: SearchSettings = {
   BM25_SCORE: DEFAULT_BM25_SCORE,
 }
 
+// Keep letters AND digits: dropping \p{N} would make numeric tokens
+// (prices, ids, "4h") unsearchable and split alphanumerics like "btc15".
 const normalize = (s: string): string =>
   s
     .normalize("NFC")
     .toLowerCase()
-    .replace(/[^\p{L}\s]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -150,7 +152,9 @@ export const createSearchIndex = () => {
     if (!terms.length || !docs.size) return [];
 
     const N = docs.size;
-    const avgLen = [...docs.values()].reduce((s, d) => s + d.len, 0) / N;
+    // Fall back to 1 when every document has zero tokens: 0/0 would make the
+    // BM25 length normalization NaN and silently empty the result set.
+    const avgLen = Array.from(docs.values()).reduce((s, d) => s + d.len, 0) / N || 1;
 
     return [...docs.entries()]
       .filter(([, doc]) => doc.when <= when)

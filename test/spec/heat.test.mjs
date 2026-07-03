@@ -113,11 +113,13 @@ test("Heat.getData returns heatmap statistics for strategy", async ({ pass, fail
     frameName: "1d-backtest-heat-1",
   }, true);
 
+  // 2 daily frames (Jan 1 and Jan 2) each open a signal that expires after
+  // 60 minutes, so every symbol produces 2 trades.
   if (
     stats &&
     stats.totalSymbols === 2 &&
     stats.symbols.length === 2 &&
-    stats.portfolioTotalTrades === 2
+    stats.portfolioTotalTrades === 4
   ) {
     pass("Heat.getData returned valid heatmap statistics");
     return;
@@ -228,11 +230,13 @@ test("Heat heatmap includes per-symbol statistics", async ({ pass, fail }) => {
   const btcRow = stats.symbols.find(s => s.symbol === "BTCUSDT");
   const ethRow = stats.symbols.find(s => s.symbol === "ETHUSDT");
 
+  // 2 daily frames (Jan 1 and Jan 2) each open a signal that expires after
+  // 60 minutes, so every symbol produces 2 trades.
   if (
     btcRow &&
     ethRow &&
-    btcRow.totalTrades === 1 &&
-    ethRow.totalTrades === 1 &&
+    btcRow.totalTrades === 2 &&
+    ethRow.totalTrades === 2 &&
     btcRow.totalPnl !== null &&
     ethRow.totalPnl !== null
   ) {
@@ -465,11 +469,11 @@ test("Heat calculates portfolio-wide metrics", async ({ pass, fail }) => {
     frameName: "1d-backtest-heat-4",
   }, true);
 
-  // Note: portfolioSharpeRatio will be null because each symbol only has 1 trade,
-  // which is insufficient to calculate stdDev (requires > 1 trade per symbol)
+  // 2 daily frames (Jan 1 and Jan 2) each open a signal that expires after
+  // 60 minutes, so every symbol produces 2 trades.
   if (
     stats.totalSymbols === 3 &&
-    stats.portfolioTotalTrades === 3 &&
+    stats.portfolioTotalTrades === 6 &&
     stats.portfolioTotalPnl !== null
   ) {
     pass("Heat calculates portfolio-wide metrics correctly");

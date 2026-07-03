@@ -688,16 +688,37 @@ export class ExchangeInstance {
       return await this._methods.getAggregatedTrades(symbol, from, to, isBacktest);
     }
 
-    // With limit: paginate backwards until we have enough trades
+    // With limit: paginate backwards until we have enough trades.
+    // Consecutive empty windows bound the scan: before the symbol's listing
+    // date (or across a long data gap) every window returns [], so without
+    // this guard the loop would walk back to the epoch and never terminate.
+    const MAX_CONSECUTIVE_EMPTY_WINDOWS = 10;
     const result: IAggregatedTradeData[] = [];
     let windowEnd = alignedTo;
+    let emptyWindows = 0;
 
     while (result.length < limit) {
       const windowStart = windowEnd - windowMs;
+      if (windowStart <= 0) {
+        break;
+      }
       const to = new Date(windowEnd);
       const from = new Date(windowStart);
 
       const chunk = await this._methods.getAggregatedTrades(symbol, from, to, isBacktest);
+
+      if (chunk.length === 0) {
+        emptyWindows += 1;
+        if (emptyWindows >= MAX_CONSECUTIVE_EMPTY_WINDOWS) {
+          backtest.loggerService.warn(
+            `ExchangeInstance getAggregatedTrades: stopped after ${MAX_CONSECUTIVE_EMPTY_WINDOWS} consecutive empty windows, returning ${result.length}/${limit} trades`,
+            { exchangeName: this.exchangeName, symbol, limit, windowEnd },
+          );
+          break;
+        }
+      } else {
+        emptyWindows = 0;
+      }
 
       // Prepend chunk (older data goes first)
       result.unshift(...chunk);
@@ -713,14 +734,16 @@ export class ExchangeInstance {
   /**
    * Fetches raw candles with flexible date/limit parameters.
    *
-   * Uses Date.now() instead of execution context when for look-ahead bias protection.
+   * Look-ahead bias protection: the reference "now" is execution context `when`
+   * when a context is active (backtest), otherwise the current wall-clock time
+   * aligned to the minute (non-trading GUI / warm-up scripts).
    *
    * Parameter combinations:
    * 1. sDate + eDate + limit: fetches with explicit parameters, validates eDate <= now
    * 2. sDate + eDate: calculates limit from date range, validates eDate <= now
    * 3. eDate + limit: calculates sDate backward, validates eDate <= now
    * 4. sDate + limit: fetches forward, validates calculated endTimestamp <= now
-   * 5. Only limit: uses Date.now() as reference (backward)
+   * 5. Only limit: uses the reference "now" (backward)
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param interval - Candle interval (e.g., "1m", "1h")
@@ -1146,7 +1169,8 @@ export class ExchangeUtils {
   /**
    * Fetches raw candles with flexible date/limit parameters.
    *
-   * Uses Date.now() instead of execution context when for look-ahead bias protection.
+   * Look-ahead bias protection: the reference "now" is execution context `when`
+   * when a context is active (backtest), otherwise the current wall-clock time.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param interval - Candle interval (e.g., "1m", "1h")

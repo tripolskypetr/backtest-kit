@@ -137,7 +137,7 @@ export class BacktestReportService {
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "closed") {
       const durationMs = data.closeTimestamp - data.signal?.pendingAt;
-      const durationMin = Math.round(durationMs / 60000);
+      const durationMin = durationMs / 60000;
 
       await ReportWriter.writeData("backtest", {
         ...baseEvent,

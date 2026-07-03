@@ -16684,6 +16684,8 @@ declare class PersistMemoryInstance implements IPersistMemoryInstance {
     writeMemoryData(data: MemoryData, memoryId: string, _when: Date): Promise<void>;
     /**
      * Soft-deletes a memory entry by writing `removed: true` flag.
+     * No-op when the entry does not exist (readValue throws on a missing
+     * entity, so existence must be checked first to keep removal idempotent).
      *
      * @param memoryId - Memory entry identifier
      * @returns Promise that resolves when removal is complete
@@ -27118,7 +27120,8 @@ declare class ExchangeUtils {
     /**
      * Fetches raw candles with flexible date/limit parameters.
      *
-     * Uses Date.now() instead of execution context when for look-ahead bias protection.
+     * Look-ahead bias protection: the reference "now" is execution context `when`
+     * when a context is active (backtest), otherwise the current wall-clock time.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param interval - Candle interval (e.g., "1m", "1h")
@@ -34552,6 +34555,19 @@ declare class FrameConnectionService implements IFrame {
      * @returns Configured ClientFrame instance
      */
     getFrame: ((frameName: FrameName) => ClientFrame) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientFrame>;
+    /**
+     * Disposes cached ClientFrame instance(s) so the next getTimeframe call
+     * regenerates timeframes. Without this, ClientFrame's singleshot would keep
+     * the endDate-to-now clamp frozen at the moment of the first run: a
+     * long-running process re-running the same frame would silently backtest
+     * against stale timeframes and never see newly available candles.
+     *
+     * When called without arguments, clears all memoized frames.
+     * Called by Backtest/Walker at strategy start.
+     *
+     * @param frameName - Frame to clear; omit to clear all frames
+     */
+    clear: (frameName?: FrameName) => void;
     /**
      * Retrieves backtest timeframe boundaries for symbol.
      *

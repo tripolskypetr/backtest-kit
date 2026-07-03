@@ -4416,11 +4416,16 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
 
   /**
    * Soft-deletes a memory entry by writing `removed: true` flag.
+   * No-op when the entry does not exist (readValue throws on a missing
+   * entity, so existence must be checked first to keep removal idempotent).
    *
    * @param memoryId - Memory entry identifier
    * @returns Promise that resolves when removal is complete
    */
   async removeMemoryData(memoryId: string): Promise<void> {
+    if (await not(this._storage.hasValue(memoryId))) {
+      return;
+    }
     const data = await this._storage.readValue(memoryId);
     if (data) {
       await this._storage.writeValue(memoryId, Object.assign({}, data, { removed: true }));

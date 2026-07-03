@@ -79,6 +79,66 @@
 
 ---
 
+## Аудит корневого ./src, второй проход (2026-07-03): исправлено
+
+Зоны, не покрытые первым проходом: logic-сервисы (Backtest/Live/Walker private), connection/core-сервисы, ClientExchange, ClientFrame, Persist, Memory, report-сервисы, utils, classes/Exchange. Тесты: 4 новых в `test/spec/audit.test.mjs`, обновлены 3 heat-теста (кодировали баговое поведение off-by-one). Полный набор: 794 ok / 0 fail.
+
+### P1
+
+- [x] **`getAggregatedTrades` с `limit` — бесконечный цикл на пустой истории** — `src/client/ClientExchange.ts`
+  Пагинация назад не имела guard'а: до листинга символа адаптер вечно возвращает `[]`, окно уходило к эпохе и в отрицательные timestamps. Фикс: стоп после 10 подряд пустых окон (warn + частичный результат) и при `windowStart <= 0`.
+  Тест: «getAggregatedTrades: empty history terminates with partial result».
+
+- [x] **Infinity-сигнал у края данных ронял процесс через `process.exit(-1)`** — `src/lib/services/logic/private/BacktestLogicPrivateService.ts`
+  Первый чанк RUN_OPENED_CHUNK_LOOP_FN запрашивает CC_MAX_CANDLES_PER_REQUEST (1000) минут вперёд; `getNextCandles` даёт `[]`, если конец окна за `Date.now()`. Сигнал с `minuteEstimatedTime: Infinity`, открытый в последние ~16.6 ч фрейма «до сейчас», давал фатальную ошибку. Фикс: `null` → `{type: "skip"}` (симметрично конечным сигналам и scheduled-Infinity). Бонус: RUN_INFINITY_CHUNK_LOOP_FN теперь получает initialCandles от вызывающего — CLOSE_PENDING_FN больше не может получить пустой массив на первой итерации.
+
+- [x] **Таймфреймы фрейма замораживались навсегда** — `src/lib/services/connection/FrameConnectionService.ts` + `src/classes/{Backtest,Walker}.ts`
+  `getFrame` мемоизирован без инвалидации, `ClientFrame.getTimeframe` — singleshot: клампинг `endDate → now` фиксировался при первом запуске; повторные бектесты в долгоживущем процессе молча не видели новые данные. Фикс: `FrameConnectionService.clear(frameName?)`, вызывается в per-run блоках Backtest.run и Walker.run.
+
+### P2
+
+- [x] **Off-by-one: после закрытия сигнала терялся лишний таймфрейм** — `src/lib/services/logic/private/BacktestLogicPrivateService.ts`
+  Skip-цикл `< closeTimestamp` + безусловный `i++` съедали первый фрейм ≥ closeTimestamp: при внесеточном закрытии (:07 при 15m-фреймах) ре-энтри задерживался на целый интервал против live. Фикс: `<= closeTimestamp` + `continue` (perf-эмит сохранён). Heat-тесты обновлены: 2 дневных фрейма теперь дают 2 трейда на символ, а не 1.
+
+- [x] **Пустой timeframe → TypeError → `process.exit(-1)`** — `src/client/ClientFrame.ts`
+  `startDate` в будущем или `startDate > endDate` давали невнятный краш. Фикс: явный throw с описанием диапазона (бросается до try в `run()`, уходит вызывающему, а не в exit).
+  Тест: «frame: future startDate throws a clear empty-range error».
+
+- [x] **`MemoryPersistInstance.waitForInit` пересканировал диск на каждую операцию** — `src/classes/Memory.ts`
+  Local-вариант был singleshot, Persist — нет: каждый read/write/search перечитывал все файлы бакета с ребилдом BM25 (O(N) fs-чтений на операцию) + гонка могла воскресить в индексе удалённую запись. Фикс: singleshot.
+
+- [x] **`removeMemoryData` несуществующего id бросал вместо no-op** — `src/classes/Persist.ts`
+  `readValue` бросает «Entity not found», а код проверял `if (data)` в расчёте на null. Фикс: `hasValue`-гард (идемпотентно, как Local/Dummy).
+
+### P3
+
+- [x] **Округление длительности до целых минут** — `BacktestReportService`, `LiveReportService`, `ScheduleReportService` (×2), `classes/Notification.ts` (×2) — выровнено с фиксом LiveMarkdownService: дробные минуты.
+
+- [x] **BM25-нормализация вырезала цифры** — `src/utils/createSearchIndex.ts`: `[^\p{L}\s]` → `[^\p{L}\p{N}\s]` (числовые токены снова индексируются и ищутся); guard `avgLen || 1` от NaN при пустых индекс-строках.
+  Тест: «memory search: numeric tokens are indexed and searchable».
+
+- [x] **`disposeSignal` — коллизия префиксов** — `src/classes/Memory.ts`: сепаратор ключа `_` → `\u0000` (id `sig` больше не диспозит бакеты `sig_2`).
+
+- [x] **Копипаст-метки логов** — `ExchangeConnectionService.formatPrice/formatQuantity` («getAveragePrice») и `ClientExchange.formatPrice/formatQuantity` («binanceService») исправлены.
+
+- [x] **Retry-цикл `GET_CANDLES_FN`** — `i !== COUNT` → `i < COUNT` (нет бесконечного цикла на невалидном конфиге); `throw lastError ?? new Error(...)` вместо `throw undefined` при `RETRY_COUNT = 0`.
+
+### Дополнение: classes/Exchange.ts (2026-07-03)
+
+- [x] **P1: `ExchangeInstance.getAggregatedTrades` — та же бесконечная пагинация, что в ClientExchange** — `src/classes/Exchange.ts`
+  Файл — почти полный дубликат ClientExchange для вызовов вне execution-контекста (GUI, warm-скрипты); копия цикла без guard'а осталась незакрытой. Фикс зеркальный: стоп после 10 подряд пустых окон + `windowStart <= 0`.
+  Тест: «Exchange.getAggregatedTrades: empty history terminates outside execution context».
+
+- [x] **P3: докстринги `getRawCandles` лгали про Date.now()** — заявляли «Uses Date.now() instead of execution context when», код использует `GET_TIMESTAMP_FN` (context.when при активном контексте, иначе wall-clock). Исправлены оба (ExchangeInstance + ExchangeUtils).
+
+Замечания без изменений: `ExchangeInstance.getCandles` не ретраит (ClientExchange ретраит CC_GET_CANDLES_RETRY_COUNT раз) — для warm-пайплайна ретрай даёт внешний `retry(2)` в cacheCandles; ~700 строк дублирования ClientExchange ↔ ExchangeInstance (чанкинг, дедуп, валидация, кэш-обвязка) — кандидат на вынос в общий хелпер при следующей правке.
+
+Проверено и признано корректным (без изменений): LiveLogicPrivateService, WalkerLogicPrivateService (стоп-семантика «гасит весь walker» консистентна с `Walker.stop`), MergeRisk (rollback-контракт задокументирован), validateCandles, Candle-мьютекс/spinLock, PersistCandleInstance/PersistBase, чанк-математика `getCandles`/`getRawCandles` (все 5 комбинаций параметров + look-ahead-защита, проверено в обеих копиях — ClientExchange и ExchangeInstance), выравнивание ClientFrame к минутной сетке, cache.ts (warm/check-пайплайн), PriceMetaService/TimeMetaService.
+
+Не покрыто вторым проходом (кандидаты на следующий): StrategyCoreService, крупные `classes/` (Broker ~2.8k, Recent ~1k, Session, Storage, Sync), `function/` кроме cache/strategy, ActionConnectionService/ClientAction.
+
+---
+
 ## Аудит markdown-сервисов (2026-07-02): ошибки в математике
 
 Полное чтение 13 сервисов `src/lib/services/markdown/*` + хелпера `getPriceProfile`. Ядро статистики (Sharpe/Sortino/Calmar/Recovery, mark-to-market equity drawdown, геометрическая аннуализация, стрики, медианы, перцентили, OLS-тренд) — корректно и согласовано между Backtest/Live/Heat. Найдено:

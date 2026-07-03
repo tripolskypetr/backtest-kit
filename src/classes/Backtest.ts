@@ -367,6 +367,7 @@ export class BacktestInstance {
         frameName: context.frameName,
         backtest: true,
       });
+      backtest.frameConnectionService.clear(context.frameName);
     }
 
     {

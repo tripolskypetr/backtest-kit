@@ -104,6 +104,15 @@ const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
     currentDate = new Date(currentDate.getTime() + intervalMinutes * 60 * 1000);
   }
 
+  if (!timeframes.length) {
+    throw new Error(
+      `ClientFrame ${self.params.frameName}: empty timeframe range. ` +
+      `startDate=${startDate.toISOString()} must not exceed effective endDate=${effectiveEndDate.toISOString()} ` +
+      `(endDate=${endDate.toISOString()} clamped to now). ` +
+      `Check the frame schema: startDate in the future or startDate > endDate produces no timeframes.`,
+    );
+  }
+
   await CALL_TIMEFRAME_CALLBACKS_FN(self, timeframes, startDate, effectiveEndDate, interval);
 
   return timeframes;
