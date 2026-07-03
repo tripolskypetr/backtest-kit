@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -19,6 +19,7 @@ import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { not, queued } from "functools-kit";
 import OrderSyncContract from "../contract/OrderSync.contract";
+import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
@@ -68,6 +69,8 @@ const LISTEN_STRATEGY_COMMIT_METHOD_NAME = "event.listenStrategyCommit";
 const LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME = "event.listenStrategyCommitOnce";
 const LISTEN_SYNC_METHOD_NAME = "event.listenSync";
 const LISTEN_SYNC_ONCE_METHOD_NAME = "event.listenSyncOnce";
+const LISTEN_CHECK_METHOD_NAME = "event.listenCheck";
+const LISTEN_CHECK_ONCE_METHOD_NAME = "event.listenCheckOnce";
 const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
@@ -1767,6 +1770,68 @@ export function listenSyncOnce(
   };
 
   return disposeFn = listenSync(wrappedFn, true);
+}
+
+/**
+ * Subscribes to order-check ping events with queued async processing.
+ * If throws, the order behind the monitored signal is treated as no longer open on the
+ * exchange until the async function completes. Useful for synchronizing with external systems.
+ *
+ * Emits on every live tick while a signal is monitored, BEFORE completion evaluation,
+ * discriminated by `event.type`: "active" — pending signal (open position), "schedule" —
+ * scheduled signal (resting entry order). Backtest never emits this event.
+ *
+ * @param fn - Callback function to handle check events. If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenCheck(fn: (event: OrderCheckContract) => void, warned = false) {
+  backtest.loggerService.log(LISTEN_CHECK_METHOD_NAME);
+
+  if (!warned) {
+    console.error("listenCheck is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+    console.error("If listenCheck throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
+    console.error("");
+    console.error("You have been warned!");
+  }
+
+  return syncPendingSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered order-check ping events with one-time execution.
+ * If throws, the order behind the monitored signal is treated as no longer open on the
+ * exchange until the async function completes. Useful for synchronizing with external systems.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenCheckOnce(
+  filterFn: (event: OrderCheckContract) => boolean,
+  fn: (event: OrderCheckContract) => void,
+  warned = false
+) {
+  backtest.loggerService.log(LISTEN_CHECK_ONCE_METHOD_NAME);
+
+  if (!warned) {
+    console.error("listenCheckOnce is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+    console.error("If listenCheckOnce throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
+    console.error("");
+    console.error("You have been warned!");
+  }
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: OrderCheckContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenCheck(wrappedFn, true);
 }
 
 /**

@@ -2439,3 +2439,100 @@ test("AUDIT: scheduled placement sync-reject rolls back and retries on next tick
     unsubscribeSync();
   }
 });
+
+/**
+ * AUDIT E2E: публичный listenCheck подписывается на order-check ping
+ * (syncPendingSubject); throw в слушателе для type "schedule" отменяет
+ * scheduled-сигнал — та же семантика, что у Broker.onOrderCheck.
+ */
+test("AUDIT: listenCheck receives order pings and gates scheduled signal", async ({ pass, fail }) => {
+  const { listenCheck } = await import("../../build/index.mjs");
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-listen-check-strategy",
+    exchangeName: "binance-audit-listen-check",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  const checkEvents = [];
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * 60000,
+          open: basePrice,
+          high: basePrice,
+          low: basePrice,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "audit listen check",
+        priceOpen,
+        priceTakeProfit: priceOpen + 4000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const unsubscribe = listenCheck((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    checkEvents.push({ type: event.type, signalId: event.signalId, action: event.action });
+    if (event.type === "schedule") {
+      throw new Error("audit: resting order not found via listenCheck");
+    }
+  }, true);
+
+  try {
+    const runTick = (when) =>
+      MethodContextService.runInContext(
+        async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+        context,
+      );
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const scheduledId = tick1.signal.id;
+
+    const tick2 = await runTick(new Date(t0 + 60000));
+    if (tick2.action !== "cancelled" || tick2.reason !== "user") {
+      fail(`REGRESSION: tick #2 expected "cancelled"/"user" (listenCheck rejected schedule ping), got "${tick2.action}"/"${tick2.reason}"`);
+      return;
+    }
+
+    if (checkEvents.length !== 1 || checkEvents[0].type !== "schedule" || checkEvents[0].signalId !== scheduledId || checkEvents[0].action !== "signal-ping") {
+      fail(`expected exactly 1 schedule-type check event for ${scheduledId}, got ${JSON.stringify(checkEvents)}`);
+      return;
+    }
+
+    pass(`listenCheck received schedule-type ping and its throw cancelled the scheduled signal`);
+  } finally {
+    unsubscribe();
+  }
+});

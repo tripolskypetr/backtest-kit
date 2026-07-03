@@ -199,6 +199,10 @@ Order-ping для scheduled + переименование (2026-07-03, 804 ok /
   В `OrderSyncBase` добавлен дискриминатор `type`: все существующие эмиссии (немедленное открытие, филл активации, все закрытия) — `"active"`; новая — `"schedule"`: `OPEN_NEW_SCHEDULED_SIGNAL_FN` теперь вызывает `CALL_ORDER_SYNC_SCHEDULE_OPEN_FN` (onOrderSync, action "signal-open", type "schedule") ДО `setScheduledSignal` — scheduled регистрируется/персистится только после подтверждения брокером размещения лимитника (тот же контракт, что у `OPEN_NEW_PENDING_SIGNAL_FN`). Отказ (false/throw): релиз риск-резервации + откат `_lastSignalTimestamp` → ретрай размещения на следующем tick (по аналогии с "active"). Backtest гейт не эмитит (short-circuit в `CREATE_SYNC_FN`). `BrokerSignalOpenPayload.type` прокинут через подписку `syncSubject`; доки `IBroker.onSignalOpenCommit`/`commitSignalOpen` описывают оба типа. Wire-литерал action не менялся.
   Тест: e2e «scheduled placement sync-reject rolls back and retries on next tick» (interval "1h": tick #1 отказ → idle, ничего не зарегистрировано; tick #2 через минуту → "scheduled"). Существующие listenSync-тесты переведены на фильтр `type === "active"`.
 
+- [x] **Публичные `listenCheck`/`listenCheckOnce`** (806 ok / 0 fail) — `src/function/event.ts`, экспорт в `src/index.ts`
+  Слушатели `syncPendingSubject` (`OrderCheckContract`) — пара к `listenSync`/`listenSyncOnce` (syncSubject), тот же паттерн: queued-обёртка, discouraged-предупреждения с редиректом в `Broker.useBrokerAdapter#onOrderCheck` (подавляются `warned=true`), гейт-семантика — throw закрывает позицию ("active") или отменяет scheduled ("schedule").
+  Тест: e2e «listenCheck receives order pings and gates scheduled signal».
+
 - [x] **P4 (вскрыто тестами): валидатор ActionSchema для discouraged-методов (`signalSync`/`orderCheck`) бросал generic-ошибку с противоречащей подсказкой** — `ActionSchemaService.ts`
   Dedicated-сообщение «перенеси в Broker.useBrokerAdapter» только логировалось (console.log), после чего срабатывал generic-throw с советом «переименуй в _orderCheck» — прямо противоречащим замыслу. Теперь discouraged-ветка бросает своё сообщение.
 

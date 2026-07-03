@@ -159,6 +159,8 @@ export {
   listenStrategyCommitOnce,
   listenSync,
   listenSyncOnce,
+  listenCheck,
+  listenCheckOnce,
   listenHighestProfit,
   listenHighestProfitOnce,
   listenMaxDrawdown,
