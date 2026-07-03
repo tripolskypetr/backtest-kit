@@ -70,10 +70,13 @@ export const BaseCRUD = factory(
       this.loggerService.info(`BaseCRUD findAll modelName=${this.TargetModel.modelName}`, {
         filterData,
       });
-      // All schemas rename mongoose timestamps to createDate/updatedDate;
-      // sorting keeps the newest documents inside the FIND_ALL_LIMIT window.
+      // All schemas rename mongoose timestamps to createDate/updatedDate.
+      // Sorting by updatedDate keeps the records the CURRENT backtest/live
+      // session is actively writing inside the FIND_ALL_LIMIT window: live
+      // rows are upserted constantly and always carry the freshest
+      // updatedDate, while rows from finished runs age out of the window.
       const documents = await this.TargetModel.find(filterData)
-        .sort({ createDate: -1 })
+        .sort({ updatedDate: -1 })
         .limit(limit);
       return documents.map((doc) => readTransform(doc.toJSON()));
     }
