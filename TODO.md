@@ -21,7 +21,7 @@
   - sync-отказ: OPEN_NEW_PENDING_SIGNAL_FN, ACTIVATE_SCHEDULED_SIGNAL_FN, ACTIVATE_..._IN_BACKTEST_FN, tick/_activatedSignal, PROCESS_SCHEDULED_...(user-activated)
   - validate-throw после risk-check в GET_SIGNAL_FN: релиз в trycatch-fallback
   - **сверх плана**: релиз на всех путях отмены scheduled-сигнала (timeout / price_reject / user cancel, live и backtest) и на risk/stopped-отказах активации — раньше отменённый scheduled навсегда оставлял placeholder в riskMap.
-  Известное исключение: `stopStrategy()` очищает scheduled без релиза (graceful shutdown, обычно процесс завершается) — при желании добить отдельно.
+  ~~Известное исключение: `stopStrategy()` очищает scheduled без релиза (graceful shutdown, обычно процесс завершается) — при желании добить отдельно.~~ **Закрыто в четвёртом проходе** (см. «stopStrategy: scheduled-сигнал через cancel-пайплайн»).
 
 - [x] **WAIT_FOR_INIT_FN: ранний return убивает restore + onInit** — `src/client/ClientStrategy.ts`
   Ранние `return` заменены на скоуп-скип соответствующего блока + warn-лог. Mismatch у pending не срывает restore scheduled и `onInit`.
@@ -155,6 +155,14 @@
 
 - [x] **P3: `removeMeasureData` / `removeIntervalData` — throw на несуществующем ключе** — `src/classes/Persist.ts`
   То же семейство, что `removeMemoryData` из третьего прохода: `readValue` бросает «Entity not found», код ждал null. Добавлен `hasValue`-гард в обе копии (идемпотентный no-op).
+
+- [x] **P1: stopStrategy — scheduled-сигнал через cancel-пайплайн (брокер + risk-релиз)** — `src/client/ClientStrategy.ts`
+  Закрывает «известное исключение» первого прохода. `stopStrategy` зануляла `_scheduledSignal` мимо пайплайна отмены: брокер не уведомлялся — **реальный resting order оставался на бирже** (и мог исполниться без мониторинга), risk-резервация утекала. Вдобавок стирались отложенные `_cancelledSignal`/`_closedSignal` (терялся user-cancel/close, выданный перед стопом) и `_activatedSignal` (ордер за ним тоже осиротевал). Фикс:
+  1. scheduled (или отложенная активация) конвертируется в `_cancelledSignal` (`cancelNote: "stop_strategy"`) — следующий tick дренирует штатно: commit `cancel-scheduled` + `onScheduleEvent("cancelled","user")` → `scheduleEventSubject` → `Broker.commitScheduleCancelled` (адаптер снимает ордер) + `CALL_RISK_REMOVE_SIGNAL_FN`; отложенная отмена персистится (крэш до следующего тика — restore и дренаж после рестарта);
+  2. отложенные `_cancelledSignal`/`_closedSignal` больше не стираются (та же логика, что у сохраняемых `_takeProfitSignal`/`_stopLossSignal`);
+  3. stopped-ветки активации (live tick + backtest) теперь эмитят cancel-событие вместо тихого дропа (зеркально risk-reject веткам).
+  Live-цикл после стопа делает как минимум ещё один tick (результат «cancelled» ≠ idle), так что дренаж успевает до выхода из цикла. В backtest цикл рвётся до следующего tick — отмена может не заэмититься, но там нет реального ордера, а risk-map пер-ран.
+  Тест: e2e «stopStrategy routes scheduled signal through cancel pipeline» (tick #1 = scheduled → stop → tick #2 = cancelled/user + событие на брокерском канале). Полный набор: 797 ok / 0 fail.
 
 Проверено и признано корректным (без изменений): Backtest.ts/Live.ts остальное (task/run/background/stop, overlap-ladder математика, commitBreakeven/commitAverageBuy/commitCreate*, Cost-варианты trailing, getData/getReport), StrategyConnectionService целиком (CREATE_SYNC_FN/SYNC_PENDING_FN gate-семантика, фабрики callbacks, GET_RISK_FN merge, memoize+clear/dispose), Cron.ts целиком (watermark со строгим `>`, generation-изоляция, rollback при fail, watchdog), State.ts (singleshot + look-ahead-гарды), Dump.ts (структура адаптеров), остальные Persist-Utils (Signal/Risk/Schedule/Strategy/Partial/Breakeven/Storage/Notification/Log/Recent/State — hasValue-гарды на месте), assets/*.columns.ts (pnl-колонки с честными null/undefined-гардами; truthiness на ценах допустима — 0-цена невалидна по validateCandles), RuntimeMetaService (_getRange/_getInfo мемоизированы по схеме, не по сгенерированным таймфреймам), TimeMetaService (зеркало PriceMetaService), logic/public и command (тонкие обёртки).
 

@@ -19,6 +19,9 @@ import {
   StorageBacktest,
   StorageLive,
   Heat,
+  lib,
+  listenScheduleEvent,
+  MethodContextService,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -1463,4 +1466,117 @@ test("AUDIT MATH: Live.getData statistics match independent reference values", a
   }
 
   pass(`All ${Object.keys(expected).length + 3} Live statistics match the independent reference (symmetric with Backtest)`);
+});
+
+/**
+ * AUDIT 4-й проход: stopStrategy не должен молча ронять scheduled-сигнал —
+ * на бирже за ним стоит реальный resting order. Ожидание: следующий tick
+ * дренирует отложенную отмену — эмитит onScheduleEvent("cancelled")
+ * (канал Broker.commitScheduleCancelled → адаптер снимает ордер) и релизит
+ * risk-резервацию. Регрессия: scheduled занулялся мимо пайплайна, брокер
+ * не уведомлялся, ордер оставался висеть.
+ */
+test("AUDIT: stopStrategy routes scheduled signal through cancel pipeline (broker notified)", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const intervalMs = 60000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-stop-scheduled-strategy",
+    exchangeName: "binance-audit-stop-scheduled",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  const cancelledEvents = [];
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      // priceOpen сильно ниже рынка → сигнал становится scheduled (ждёт цену)
+      return {
+        position: "long",
+        note: "audit stop scheduled",
+        priceOpen: basePrice - 10000,
+        priceTakeProfit: basePrice - 6000,
+        priceStopLoss: basePrice - 12000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const unsubscribe = listenScheduleEvent((event) => {
+    if (event.action === "cancelled" && event.strategyName === context.strategyName) {
+      cancelledEvents.push(event);
+    }
+  });
+
+  try {
+    // strategyCoreService.tick требует method context (в проде его ставит
+    // LiveLogicPublicService) — оборачиваем как command-слой
+    const runTick = (when) =>
+      MethodContextService.runInContext(
+        async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+        context,
+      );
+
+    // tick #1: создаёт scheduled-сигнал
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const scheduledId = tick1.signal.id;
+
+    // graceful shutdown: раньше scheduled занулялся молча
+    await MethodContextService.runInContext(
+      async () => await lib.strategyCoreService.stopStrategy(false, "BTCUSDT", context),
+      context,
+    );
+
+    // tick #2: должен дренировать отложенную отмену
+    const tick2 = await runTick(new Date(t0 + intervalMs));
+    if (tick2.action !== "cancelled") {
+      fail(`REGRESSION: tick #2 expected "cancelled", got "${tick2.action}" — broker never notified, resting order orphaned`);
+      return;
+    }
+    if (tick2.reason !== "user") {
+      fail(`tick #2 cancel reason expected "user", got "${tick2.reason}"`);
+      return;
+    }
+
+    // Брокерский канал: scheduleEventSubject должен получить "cancelled"
+    if (cancelledEvents.length !== 1 || cancelledEvents[0].data.id !== scheduledId) {
+      fail(`REGRESSION: scheduleEventSubject "cancelled" not emitted for ${scheduledId} (got ${cancelledEvents.length} events)`);
+      return;
+    }
+
+    pass("stopStrategy cancels scheduled via pipeline: tick #2 = cancelled/user, broker channel notified");
+  } finally {
+    unsubscribe();
+  }
 });

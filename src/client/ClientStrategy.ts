@@ -4359,6 +4359,30 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           candle.timestamp,
           self.params.execution.context.backtest
         );
+        // The signal is dropped for good — emit the cancellation so subscribers
+        // (commit + schedule event) see it instead of the signal silently vanishing
+        {
+          const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
+          await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candle.timestamp, "user");
+          await CALL_COMMIT_FN(self, {
+            action: "cancel-scheduled",
+            symbol: self.params.execution.context.symbol,
+            strategyName: self.params.strategyName,
+            exchangeName: self.params.exchangeName,
+            frameName: self.params.frameName,
+            signalId: activatedSignal.id,
+            backtest: self.params.execution.context.backtest,
+            timestamp: candle.timestamp,
+            totalEntries: activatedSignal._entry?.length ?? 1,
+            totalPartials: activatedSignal._partial?.length ?? 0,
+            originalPriceOpen: activatedSignal.priceOpen,
+            pnl: publicSignal.pnl,
+            maxDrawdown: publicSignal.maxDrawdown,
+            peakProfit: publicSignal.peakProfit,
+            signal: publicSignal,
+            note: activatedSignal.activateNote ?? activatedSignal.note,
+          });
+        }
         return { outcome: "pending" };
       }
 
@@ -6347,6 +6371,31 @@ export class ClientStrategy implements IStrategy {
           currentTime,
           this.params.execution.context.backtest
         );
+        // The signal is dropped for good — emit the cancellation so the broker
+        // adapter cancels the real resting order and subscribers (commit +
+        // schedule event) see the drop instead of the signal silently vanishing
+        {
+          const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, currentPrice);
+          await CALL_SCHEDULE_EVENT_FN(this, "cancelled", activatedSignal, currentPrice, currentTime, "user");
+          await CALL_COMMIT_FN(this, {
+            action: "cancel-scheduled",
+            symbol: this.params.execution.context.symbol,
+            strategyName: this.params.strategyName,
+            exchangeName: this.params.exchangeName,
+            frameName: this.params.frameName,
+            signalId: activatedSignal.id,
+            backtest: this.params.execution.context.backtest,
+            timestamp: currentTime,
+            totalEntries: activatedSignal._entry?.length ?? 1,
+            totalPartials: activatedSignal._partial?.length ?? 0,
+            originalPriceOpen: activatedSignal.priceOpen,
+            pnl: publicSignal.pnl,
+            maxDrawdown: publicSignal.maxDrawdown,
+            peakProfit: publicSignal.peakProfit,
+            signal: publicSignal,
+            note: activatedSignal.activateNote ?? activatedSignal.note,
+          });
+        }
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
@@ -7084,7 +7133,12 @@ export class ClientStrategy implements IStrategy {
    * Stops the strategy from generating new signals.
    *
    * Sets internal flag to prevent getSignal from being called.
-   * Clears any scheduled signals (not yet activated).
+   * A scheduled signal (not yet activated) is routed through the deferred-cancel
+   * pipeline instead of being silently dropped: the next tick emits the
+   * cancel-scheduled commit and onScheduleEvent("cancelled"), which reaches the
+   * broker adapter (so the real resting order on the exchange is cancelled) and
+   * releases the risk reservation. The deferred cancel is persisted, so a crash
+   * before the next tick restores and drains it after restart.
    * Does NOT close active pending signals - they continue monitoring until TP/SL/time_expired.
    *
    * Use case: Graceful shutdown in live trading without forcing position closure.
@@ -7095,7 +7149,8 @@ export class ClientStrategy implements IStrategy {
    * ```typescript
    * // In Live.background() cancellation
    * await strategy.stopStrategy();
-   * // Existing signal will continue until natural close
+   * // Existing signal will continue until natural close;
+   * // a scheduled signal is cancelled on the next tick (broker notified)
    * ```
    */
   public async stopStrategy(symbol: string, backtest: boolean): Promise<void> {
@@ -7112,25 +7167,44 @@ export class ClientStrategy implements IStrategy {
 
     this._isStopped = true;
 
-    // Clear pending flags to start from clean state
-    // NOTE: _isStopped blocks NEW position opening, but allows:
-    // - cancelScheduled() / closePending() for graceful shutdown
-    // - Monitoring existing _pendingSignal until TP/SL/timeout
-    // NOTE: _takeProfitSignal / _stopLossSignal are NOT cleared — a broker-confirmed fill
-    // reflects a real exchange close that must still drain to emit the closed event, the
-    // same way an existing _pendingSignal keeps being monitored until its natural close.
-    this._activatedSignal = null;
-    this._cancelledSignal = null;
-    this._closedSignal = null;
+    // NOTE: _isStopped blocks NEW position opening, but deferred user commands
+    // and broker-confirmed fills must still drain on subsequent ticks:
+    // - _cancelledSignal / _closedSignal are KEPT — their drain emits the
+    //   cancel/close event, notifies the broker adapter and releases risk;
+    //   wiping them here would lose a user-requested cancel/close issued just
+    //   before the stop and desync the framework from the exchange.
+    // - _takeProfitSignal / _stopLossSignal are KEPT — a broker-confirmed fill
+    //   reflects a real exchange close that must still drain to emit the closed
+    //   event, the same way an existing _pendingSignal keeps being monitored
+    //   until its natural close.
+    // - _activatedSignal is converted into a cancellation below — activation is
+    //   blocked while stopped, and the resting order behind it must be
+    //   cancelled on the exchange rather than silently dropped.
 
-    // Clear scheduled signal if exists
-    if (!this._scheduledSignal) {
+    // Route the scheduled signal (or a deferred activation of it) through the
+    // deferred-cancel pipeline instead of dropping it silently. The next tick's
+    // _cancelledSignal drain emits the cancel-scheduled commit and
+    // onScheduleEvent("cancelled") — reaching the broker adapter via
+    // scheduleEventSubject so the real resting order is cancelled — and
+    // releases the risk reservation taken at scheduled-signal creation.
+    const signalToCancel = this._scheduledSignal ?? this._activatedSignal;
+    this._activatedSignal = null;
+    this._scheduledSignal = null;
+
+    if (!signalToCancel) {
       return;
     }
 
-    this._scheduledSignal = null;
+    if (!this._cancelledSignal) {
+      this._cancelledSignal = Object.assign({}, signalToCancel, {
+        cancelId: undefined as string | undefined,
+        cancelNote: "stop_strategy",
+      });
+    }
 
     if (backtest) {
+      // Commit will be emitted in backtest() with correct candle timestamp
+      // (if the backtest loop performs another tick before terminating)
       return;
     }
 
@@ -7140,6 +7214,9 @@ export class ClientStrategy implements IStrategy {
       this.params.strategyName,
       this.params.exchangeName,
     );
+
+    // Persist deferred _cancelledSignal so a crash before the next tick does not lose it
+    await PERSIST_STRATEGY_FN(this);
   }
 
   /**
