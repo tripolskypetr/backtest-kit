@@ -5,6 +5,7 @@ import {
   addFrameSchema,
   addStrategySchema,
   addRiskSchema,
+  addActionSchema,
   Backtest,
   Live,
   listenDoneBacktest,
@@ -1821,7 +1822,7 @@ test("AUDIT: live price-activation risk-reject emits cancelled schedule event (b
 });
 
 /**
- * AUDIT E2E: sync-отказ (onSignalSync / syncSubject бросил) на price-активации
+ * AUDIT E2E: sync-отказ (onOrderSync / syncSubject бросил) на price-активации
  * scheduled-сигнала в LIVE должен эмитить «cancelled» в scheduleEventSubject.
  *
  * Регрессия: ветка sync-reject эмитила только commit — мимо
@@ -2119,4 +2120,223 @@ test("AUDIT: risk-rejected open retries on next tick, not next interval", async 
   }
 
   pass(`risk-rejected open retried on next tick within the same 1h interval (riskAttempts=${riskAttempts})`);
+});
+
+/**
+ * AUDIT E2E: onSignalPing теперь пингует и scheduled-сигнал (type: "schedule").
+ *
+ * Отказ order-check по resting-ордеру (throw в Action.orderCheck) должен отменить
+ * scheduled-сигнал (reason "user") и уведомить брокерский канал.
+ */
+test("AUDIT: order ping fires for scheduled signal (type schedule) and cancels on failure", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-schedule-ping-strategy",
+    exchangeName: "binance-audit-schedule-ping",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  const pingEvents = [];
+  const cancelledEvents = [];
+
+  // orderCheck как метод хендлера запрещён валидатором схемы (discouraged,
+  // exchange-интеграция должна жить в Broker-адаптере) — используем callback
+  class ScheduleOrderCheckAction {}
+
+  addActionSchema({
+    actionName: "audit-schedule-ping-action",
+    handler: ScheduleOrderCheckAction,
+    callbacks: {
+      onOrderCheck: (event) => {
+        pingEvents.push({ type: event.type, signalId: event.signalId, action: event.action });
+        if (event.type === "schedule") {
+          throw new Error("audit: resting order not found on exchange");
+        }
+      },
+    },
+  });
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * 60000,
+          open: basePrice,
+          high: basePrice,
+          low: basePrice,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    actions: ["audit-schedule-ping-action"],
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "audit schedule ping",
+        priceOpen,
+        priceTakeProfit: priceOpen + 4000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const unsubscribe = listenScheduleEvent((event) => {
+    if (event.action === "cancelled" && event.strategyName === context.strategyName) {
+      cancelledEvents.push(event);
+    }
+  });
+
+  try {
+    const runTick = (when) =>
+      MethodContextService.runInContext(
+        async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+        context,
+      );
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const scheduledId = tick1.signal.id;
+
+    // tick #2: монитор scheduled → ping type "schedule" → action бросает → отмена
+    const tick2 = await runTick(new Date(t0 + 60000));
+    if (tick2.action !== "cancelled") {
+      fail(`REGRESSION: tick #2 expected "cancelled" (schedule ping failed), got "${tick2.action}"`);
+      return;
+    }
+    if (tick2.reason !== "user") {
+      fail(`tick #2 cancel reason expected "user", got "${tick2.reason}"`);
+      return;
+    }
+
+    const schedulePings = pingEvents.filter((e) => e.type === "schedule");
+    if (schedulePings.length !== 1 || schedulePings[0].signalId !== scheduledId) {
+      fail(`expected exactly 1 schedule-type ping for ${scheduledId}, got ${JSON.stringify(pingEvents)}`);
+      return;
+    }
+
+    if (cancelledEvents.length !== 1 || cancelledEvents[0].data.id !== scheduledId) {
+      fail(`scheduleEventSubject "cancelled" not emitted for ${scheduledId} (got ${cancelledEvents.length} events)`);
+      return;
+    }
+
+    pass(`schedule-type order ping fired and failure cancelled the scheduled signal (pings=${pingEvents.length})`);
+  } finally {
+    unsubscribe();
+  }
+});
+
+/**
+ * AUDIT E2E: order ping для pending-позиции несёт type: "active" и при успехе
+ * не мешает мониторингу.
+ */
+test("AUDIT: order ping carries type active for pending position", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-active-ping-type-strategy",
+    exchangeName: "binance-audit-active-ping-type",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  const pingEvents = [];
+
+  class ActiveOrderCheckAction {}
+
+  addActionSchema({
+    actionName: "audit-active-ping-type-action",
+    handler: ActiveOrderCheckAction,
+    callbacks: {
+      onOrderCheck: (event) => {
+        pingEvents.push({ type: event.type, signalId: event.signalId });
+      },
+    },
+  });
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * 60000,
+          open: basePrice,
+          high: basePrice,
+          low: basePrice,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    actions: ["audit-active-ping-type-action"],
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      // Без priceOpen — немедленное открытие по текущей цене
+      return {
+        position: "long",
+        note: "audit active ping type",
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const runTick = (when) =>
+    MethodContextService.runInContext(
+      async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+      context,
+    );
+
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "opened") {
+    fail(`tick #1 expected "opened", got "${tick1.action}"`);
+    return;
+  }
+
+  const tick2 = await runTick(new Date(t0 + 60000));
+  if (tick2.action !== "active") {
+    fail(`tick #2 expected "active", got "${tick2.action}"`);
+    return;
+  }
+
+  if (pingEvents.length !== 1 || pingEvents[0].type !== "active") {
+    fail(`expected exactly 1 active-type ping, got ${JSON.stringify(pingEvents)}`);
+    return;
+  }
+
+  pass(`pending-position order ping carries type "active" and monitoring continues`);
 });

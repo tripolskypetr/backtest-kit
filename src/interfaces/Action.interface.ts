@@ -11,8 +11,8 @@ import { RiskContract } from "../contract/Risk.contract";
 import { FrameName } from "./Frame.interface";
 import { ILogger } from "./Logger.interface";
 import { ExchangeName } from "./Exchange.interface";
-import { SignalSyncContract } from "../contract/SignalSync.contract";
-import { SignalPingContract } from "../contract/SignalPing.contract";
+import { OrderSyncContract } from "../contract/OrderSync.contract";
+import { OrderCheckContract } from "../contract/OrderCheck.contract";
 
 /**
  * Constructor type for action handlers with strategy context.
@@ -432,21 +432,25 @@ export interface IActionCallbacks {
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onSignalSync(event: SignalSyncContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+  onOrderSync(event: OrderSyncContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
    * to confirm the order is still pending (open) on the exchange.
    *
+   * Fires for both monitored states, discriminated by `event.type`: "active" — pending signal
+   * (open position); "schedule" — scheduled signal (resting entry order awaiting activation).
+   *
    * Query the exchange by `event.signalId` and THROW ONLY when the order is NOT FOUND by that id
    * (filled, cancelled, or liquidated externally) — the framework then closes the position with
-   * closeReason "closed".
+   * closeReason "closed" (type "active") or cancels the scheduled signal with reason "user"
+   * (type "schedule").
    *
    * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
    * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
    * position. Throw exclusively on a confirmed "order not found by id" result.
    *
-   * NOTE: Like onSignalSync, exceptions from this method are NOT swallowed. They propagate up to
+   * NOTE: Like onOrderSync, exceptions from this method are NOT swallowed. They propagate up to
    * CREATE_SYNC_PENDING_FN which catches them and returns false.
    *
    * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker `onOrderCheck`.
@@ -463,7 +467,7 @@ export interface IActionCallbacks {
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onOrderCheck(event: SignalPingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+  onOrderCheck(event: OrderCheckContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 }
 
 /**
@@ -776,14 +780,14 @@ export interface IAction {
    * `onSignalOpenCommit` / `onSignalCloseCommit`. Throw on "signal-open" → open rolls back to idle
    * (scheduled activation cancelled); throw on "signal-close" → close skipped, position stays open;
    * retried next tick. Same `syncSubject` emission as the Broker commit hooks (collapsed to false by
-   * CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onSignalSync} callback.
+   * CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
    *
    * @deprecated This method is not recommended for use. Implement custom logic in signal(), signalLive(), or signalBacktest() instead.
    * If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() instead.
-   * If Action::signalSync throws the exchange will not execute the order!
+   * If Action::orderSync throws the exchange will not execute the order!
    * @param event - Sync event with action "signal-open" or "signal-close"
    */
-  signalSync(event: SignalSyncContract): void | Promise<void>;
+  orderSync(event: OrderSyncContract): void | Promise<void>;
 
   /**
    * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
@@ -807,10 +811,11 @@ export interface IAction {
    *
    * @deprecated This method is not recommended for use. Exchange integration should be implemented
    * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
-   * If Action::orderCheck throws the framework will close the position with closeReason "closed"!
-   * @param event - Pending-ping event with action "signal-ping"
+   * If Action::orderCheck throws the framework will close the position with closeReason "closed"
+   * (event.type "active") or cancel the scheduled signal (event.type "schedule")!
+   * @param event - Order-ping event with action "signal-ping" and type "schedule" | "active"
    */
-  orderCheck(event: SignalPingContract): void | Promise<void>;
+  orderCheck(event: OrderCheckContract): void | Promise<void>;
 
   /**
    * Cleans up resources and subscriptions when action handler is no longer needed.

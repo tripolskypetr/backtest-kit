@@ -45,7 +45,7 @@ import { GLOBAL_CONFIG } from "../config/params";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { SignalPingContract } from "../contract/SignalPing.contract";
+import { OrderCheckContract } from "../contract/OrderCheck.contract";
 import validatePendingSignal from "../validation/validatePendingSignal";
 import validateScheduledSignal from "../validation/validateScheduledSignal";
 import validateSignal from "../validation/validateSignal";
@@ -102,7 +102,7 @@ const TIMEOUT_SYMBOL = Symbol('timeout');
 const PARTIAL_CAP_TOLERANCE_FACTOR = 1 + 1e-9;
 
 /**
- * Calls onSignalSync callback for signal-open event.
+ * Calls onOrderSync callback for signal-open event.
  *
  * Invoked BEFORE setPendingSignal to give the external system a chance to confirm
  * that the limit order was filled on the exchange. If the callback returns false
@@ -111,7 +111,7 @@ const PARTIAL_CAP_TOLERANCE_FACTOR = 1 + 1e-9;
  * interval throttle (_lastSignalTimestamp) consumed in GET_SIGNAL_FN, so getSignal
  * runs again immediately instead of waiting for the next interval boundary.
  */
-const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
+const CALL_ORDER_SYNC_OPEN_FN = trycatch(
   async (
     timestamp: number,
     currentPrice: number,
@@ -119,7 +119,7 @@ const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
     self: ClientStrategy
   ): Promise<boolean> => {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice);
-    return await self.params.onSignalSync({
+    return await self.params.onOrderSync({
       action: "signal-open",
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
@@ -150,7 +150,7 @@ const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
   {
     defaultValue: false,
     fallback: (error, timestamp, currentPrice, pendingSignal, self) => {
-      const message = "ClientStrategy CALL_SIGNAL_SYNC_OPEN_FN thrown";
+      const message = "ClientStrategy CALL_ORDER_SYNC_OPEN_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -168,14 +168,14 @@ const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
 );
 
 /**
- * Calls onSignalSync callback for signal-close event.
+ * Calls onOrderSync callback for signal-close event.
  *
  * Invoked BEFORE setPendingSignal(null) to give the external system a chance to confirm
  * that the position was closed on the exchange (e.g. market order filled, OCO cancelled).
  * If the callback returns false (or throws), the position close is skipped and the
  * strategy state is NOT mutated. The framework will retry on the next tick.
  */
-const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
+const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
   async (
     timestamp: number,
     currentPrice: number,
@@ -184,7 +184,7 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
     self: ClientStrategy
   ): Promise<boolean> => {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-    return await self.params.onSignalSync({
+    return await self.params.onOrderSync({
       action: "signal-close",
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
@@ -215,7 +215,7 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
   {
     defaultValue: false,
     fallback: (error, timestamp, currentPrice, closeReason, signal, self) => {  
-      const message = "ClientStrategy CALL_SIGNAL_SYNC_CLOSE_FN thrown";
+      const message = "ClientStrategy CALL_ORDER_SYNC_CLOSE_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -234,7 +234,7 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
 );
 
 /**
- * Calls onSignalPing callback for the pending-order synchronization event.
+ * Calls onOrderCheck callback for the pending-order synchronization event (type "active").
  *
  * Invoked at the start of the pending-signal monitoring block on every LIVE tick, BEFORE the
  * framework evaluates TP/SL/time completion. It asks the external order management system
@@ -245,7 +245,7 @@ const CALL_SIGNAL_SYNC_CLOSE_FN = trycatch(
  * result means the order is no longer open on the exchange and the caller closes the position with
  * closeReason "closed". A missing/true result keeps the position under normal TP/SL monitoring.
  */
-const CALL_SIGNAL_PING_FN = trycatch(
+const CALL_ORDER_CHECK_FN = trycatch(
   async (
     timestamp: number,
     currentPrice: number,
@@ -253,8 +253,9 @@ const CALL_SIGNAL_PING_FN = trycatch(
     self: ClientStrategy
   ): Promise<boolean> => {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-    return await self.params.onSignalPing({
+    return await self.params.onOrderCheck({
       action: "signal-ping",
+      type: "active",
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -283,7 +284,7 @@ const CALL_SIGNAL_PING_FN = trycatch(
   {
     defaultValue: false,
     fallback: (error, timestamp, currentPrice, signal, self) => {
-      const message = "ClientStrategy CALL_SIGNAL_PING_FN thrown";
+      const message = "ClientStrategy CALL_ORDER_CHECK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -291,6 +292,75 @@ const CALL_SIGNAL_PING_FN = trycatch(
           timestamp,
           currentPrice,
           signalId: signal.id,
+        }
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    }
+  }
+);
+
+/**
+ * Calls onOrderCheck callback for the scheduled-order synchronization event (type "schedule").
+ *
+ * Invoked at the start of the scheduled-signal monitoring block on every LIVE tick, BEFORE the
+ * framework evaluates timeout/price activation. It asks the external order management system
+ * whether the resting entry order backing this scheduled signal is STILL open on the exchange.
+ *
+ * Same gate semantics as the pending-order ping (type "active"): the trycatch wrapper collapses
+ * a thrown listener and an explicit `false` into `false` (defaultValue). A `false` result means
+ * the resting order is no longer open on the exchange — the caller cancels the scheduled signal
+ * (reason "user"). If the order actually FILLED, the adapter must confirm the fill via
+ * activateScheduled instead of failing this ping: a failed ping is a terminal cancel.
+ */
+const CALL_SCHEDULED_ORDER_CHECK_FN = trycatch(
+  async (
+    timestamp: number,
+    currentPrice: number,
+    scheduled: IScheduledSignalRow,
+    self: ClientStrategy
+  ): Promise<boolean> => {
+    const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice);
+    return await self.params.onOrderCheck({
+      action: "signal-ping",
+      type: "schedule",
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      exchangeName: self.params.exchangeName,
+      frameName: self.params.frameName,
+      backtest: self.params.execution.context.backtest,
+      signalId: scheduled.id,
+      timestamp,
+      signal: publicSignal,
+      currentPrice,
+      pnl: publicSignal.pnl,
+      peakProfit: publicSignal.peakProfit,
+      maxDrawdown: publicSignal.maxDrawdown,
+      position: publicSignal.position,
+      priceOpen: publicSignal.priceOpen,
+      priceTakeProfit: publicSignal.priceTakeProfit,
+      priceStopLoss: publicSignal.priceStopLoss,
+      originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+      originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+      originalPriceOpen: publicSignal.originalPriceOpen,
+      scheduledAt: publicSignal.scheduledAt,
+      pendingAt: publicSignal.pendingAt,
+      totalEntries: publicSignal.totalEntries,
+      totalPartials: publicSignal.totalPartials,
+    });
+  },
+  {
+    defaultValue: false,
+    fallback: (error, timestamp, currentPrice, scheduled, self) => {
+      const message = "ClientStrategy CALL_SCHEDULED_ORDER_CHECK_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+        data: {
+          timestamp,
+          currentPrice,
+          signalId: scheduled.id,
         }
       };
       self.params.logger.warn(message, payload);
@@ -684,7 +754,7 @@ const GET_SIGNAL_FN = trycatch(
     // PRIORITY: a user-queued createPending/createScheduled DTO (set out of async-hooks
     // context) takes precedence over params.getSignal. When present it is consumed once
     // here — the slot is cleared and the snapshot rewritten — and then flows through the
-    // exact same pipeline (risk check, priceOpen branching, onSignalSync on open) as a
+    // exact same pipeline (risk check, priceOpen branching, onOrderSync on open) as a
     // signal returned by getSignal would.
     let signal: ISignalDto | null | symbol;
 
@@ -1876,6 +1946,77 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
   return result;
 };
 
+/**
+ * Cancels the scheduled signal after the scheduled-order ping reported the resting entry
+ * order is no longer open on the exchange (CALL_SCHEDULED_ORDER_CHECK_FN returned false / threw).
+ *
+ * Mirrors CLOSE_PENDING_SIGNAL_AS_CLOSED_FN for the scheduled state: the ping already
+ * established the order is gone, so this does NOT re-confirm anything — it runs the standard
+ * cancel teardown (risk release, schedule event "cancelled" reason "user", cancel callbacks,
+ * cancelled tick result). The schedule event still reaches Broker.commitScheduleCancelled;
+ * cancelling an already-gone order is a no-op on the adapter side. Live-only path.
+ */
+const CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN = async (
+  self: ClientStrategy,
+  scheduled: IScheduledSignalRow,
+  currentPrice: number
+): Promise<IStrategyTickResultCancelled> => {
+  self.params.logger.info("ClientStrategy scheduled signal cancelled by scheduled-order ping (order no longer open on exchange)", {
+    symbol: self.params.execution.context.symbol,
+    signalId: scheduled.id,
+    position: scheduled.position,
+    averagePrice: currentPrice,
+    priceOpen: scheduled.priceOpen,
+  });
+
+  await self.setScheduledSignal(null);
+
+  const currentTime = self.params.execution.context.when.getTime();
+
+  // Release the slot reserved at scheduled-signal creation
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, currentPrice, currentTime, "user");
+
+  await CALL_CANCEL_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    scheduled,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  const result: IStrategyTickResultCancelled = {
+    action: "cancelled",
+    signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice),
+    currentPrice: currentPrice,
+    closeTimestamp: currentTime,
+    strategyName: self.params.method.context.strategyName,
+    exchangeName: self.params.method.context.exchangeName,
+    frameName: self.params.method.context.frameName,
+    symbol: self.params.execution.context.symbol,
+    backtest: self.params.execution.context.backtest,
+    reason: "user",
+    createdAt: currentTime,
+  };
+
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
+  return result;
+};
+
 const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -2008,7 +2149,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
-  const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
+  const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
     activationTime,
     activatedSignal.priceOpen,
     activatedSignal,
@@ -3100,7 +3241,7 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
 
   // Sync open: if external system rejects — skip open, retry on the next tick
   // (the interval throttle is rolled back below).
-  const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
+  const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
     currentTime,
     signal.priceOpen,
     signal,
@@ -3253,7 +3394,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
   const currentTime = self.params.execution.context.when.getTime();
 
   // Sync close: if external system rejects — skip close, retry on next tick
-  const syncCloseAllowed = await CALL_SIGNAL_SYNC_CLOSE_FN(
+  const syncCloseAllowed = await CALL_ORDER_SYNC_CLOSE_FN(
     currentTime,
     currentPrice,
     closeReason,
@@ -3348,9 +3489,9 @@ const CLOSE_PENDING_SIGNAL_FN = async (
 
 /**
  * Closes the pending signal with closeReason "closed" after the pending-order ping reported the
- * order is no longer open on the exchange (CALL_SIGNAL_PING_FN returned false / threw).
+ * order is no longer open on the exchange (CALL_ORDER_CHECK_FN returned false / threw).
  *
- * Unlike CLOSE_PENDING_SIGNAL_FN this does NOT re-confirm via onSignalSync — the ping already
+ * Unlike CLOSE_PENDING_SIGNAL_FN this does NOT re-confirm via onOrderSync — the ping already
  * established the order is gone, so re-asking the broker would be redundant. Runs the same teardown
  * (close callback, partial/breakeven clear, risk remove, setPendingSignal(null)). Live-only path.
  */
@@ -3990,7 +4131,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   }
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
-  const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
+  const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
     activationTime,
     activatedSignal.priceOpen,
     activatedSignal,
@@ -4080,7 +4221,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   closeTimestamp: number
 ): Promise<IStrategyTickResultClosed | null> => {
   // Sync close: if external system rejects — skip close, retry on next candle
-  const syncCloseAllowed = await CALL_SIGNAL_SYNC_CLOSE_FN(
+  const syncCloseAllowed = await CALL_ORDER_SYNC_CLOSE_FN(
     closeTimestamp,
     averagePrice,
     closeReason,
@@ -4196,7 +4337,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   averagePrice: number,
   closeTimestamp: number
 ): Promise<IStrategyTickResultClosed | null> => {
-  const syncCloseAllowed = await CALL_SIGNAL_SYNC_CLOSE_FN(
+  const syncCloseAllowed = await CALL_ORDER_SYNC_CLOSE_FN(
     closeTimestamp,
     averagePrice,
     "closed",
@@ -4317,7 +4458,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
  * (commit action "close-pending", carrying closeId/note) but with closeReason take_profit / stop_loss.
  *
  * Like the deferred close, the fill snapshot is already established by the broker, so it does NOT
- * re-confirm via onSignalSync. _takeProfitSignal / _stopLossSignal is cleared and re-persisted by
+ * re-confirm via onOrderSync. _takeProfitSignal / _stopLossSignal is cleared and re-persisted by
  * the caller after draining.
  */
 const CLOSE_PENDING_SIGNAL_AS_FILL_FN = async (
@@ -4644,7 +4785,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       }
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
-      const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
+      const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
         candle.timestamp,
         pendingSignal.priceOpen,
         pendingSignal,
@@ -5335,7 +5476,7 @@ export class ClientStrategy implements IStrategy {
   /**
    * User-supplied signal DTO to be consumed by the next GET_SIGNAL_FN tick instead of
    * params.getSignal. Set via createSignal. When non-null, params.getSignal is NOT called
-   * and the existing pipeline (priceOpen decides pending vs scheduled, onSignalSync on open)
+   * and the existing pipeline (priceOpen decides pending vs scheduled, onOrderSync on open)
    * is reused.
    */
   _userSignal: ISignalDto | null = null;
@@ -6446,7 +6587,7 @@ export class ClientStrategy implements IStrategy {
       const closedSignal = this._closedSignal;
 
       // Sync close: if external system rejects — keep _closedSignal, retry on next tick
-      const syncCloseAllowed = await CALL_SIGNAL_SYNC_CLOSE_FN(
+      const syncCloseAllowed = await CALL_ORDER_SYNC_CLOSE_FN(
         currentTime,
         currentPrice,
         "closed",
@@ -6719,7 +6860,7 @@ export class ClientStrategy implements IStrategy {
         pendingSignal._fall = { price: pendingSignal.priceOpen, timestamp: currentTime, pnlPercentage, pnlCost, priceClose, pnlEntries, priceOpen };
       }
 
-      const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);
+      const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);
       if (!syncOpenAllowed) {
         this.params.logger.info("ClientStrategy tick: user-activated signal rejected by sync", {
           symbol: this.params.execution.context.symbol,
@@ -6843,6 +6984,28 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.symbol
       );
 
+      // Scheduled-order ping (type "schedule"): before evaluating timeout/price
+      // activation, confirm the resting entry order is STILL open on the exchange.
+      // Mirrors the pending-order ping: false/throw means the order is gone
+      // (cancelled or liquidated externally) — cancel the scheduled signal. If the
+      // order actually filled, the adapter must call activateScheduled instead of
+      // failing the ping. Skipped in backtest: there is no live exchange to query.
+      if (!this.params.execution.context.backtest) {
+        const stillScheduled = await CALL_SCHEDULED_ORDER_CHECK_FN(
+          currentTime,
+          currentPrice,
+          this._scheduledSignal,
+          this
+        );
+        if (!stillScheduled) {
+          return await CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN(
+            this,
+            this._scheduledSignal,
+            currentPrice
+          );
+        }
+      }
+
       // Check timeout
       const timeoutResult = await CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN(
         this,
@@ -6927,11 +7090,11 @@ export class ClientStrategy implements IStrategy {
     );
 
     // Pending-order ping: before evaluating TP/SL/time, confirm the order is STILL open on the
-    // exchange. CALL_SIGNAL_PING_FN returns false when the listener returns false OR throws
+    // exchange. CALL_ORDER_CHECK_FN returns false when the listener returns false OR throws
     // (Subject .next passthrough), meaning the order is no longer pending — close with "closed".
     // Skipped in backtest: there is no live exchange to query.
     if (!this.params.execution.context.backtest) {
-      const stillPending = await CALL_SIGNAL_PING_FN(
+      const stillPending = await CALL_ORDER_CHECK_FN(
         currentTime,
         averagePrice,
         this._pendingSignal,
@@ -7103,7 +7266,7 @@ export class ClientStrategy implements IStrategy {
       // it inside the candle loop below (PROCESS_PENDING_SIGNAL_CANDLES_FN handles
       // _closedSignal per candle). Mirrors live tick, which keeps _closedSignal and
       // retries on the next tick instead of failing.
-      const syncCloseAllowed = await CALL_SIGNAL_SYNC_CLOSE_FN(
+      const syncCloseAllowed = await CALL_ORDER_SYNC_CLOSE_FN(
         closeTimestamp,
         currentPrice,
         "closed",
@@ -7673,7 +7836,7 @@ export class ClientStrategy implements IStrategy {
    * priceOpen decides the outcome in the existing pipeline: when omitted the position opens
    * immediately at currentPrice; when provided the pipeline opens immediately if priceOpen is
    * already reached, otherwise registers a scheduled (priceOpen-awaiting) signal. On the next
-   * tick GET_SIGNAL_FN consumes _userSignal and runs the normal pipeline, so onSignalSync
+   * tick GET_SIGNAL_FN consumes _userSignal and runs the normal pipeline, so onOrderSync
    * delivery is checked by OPEN_NEW_PENDING_SIGNAL_FN exactly as for a getSignal-produced signal.
    *
    * Validation (BEFORE any state mutation — a rejected call stores nothing):

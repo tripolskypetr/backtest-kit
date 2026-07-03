@@ -50,8 +50,8 @@ import { TMethodContextService } from "../context/MethodContextService";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import beginTime from "../../../utils/beginTime";
-import SignalSyncContract from "../../../contract/SignalSync.contract";
-import SignalPingContract from "../../../contract/SignalPing.contract";
+import OrderSyncContract from "../../../contract/OrderSync.contract";
+import OrderCheckContract from "../../../contract/OrderCheck.contract";
 import ScheduleEventContract from "../../../contract/ScheduleEvent.contract";
 import SignalEventContract from "../../../contract/SignalEvent.contract";
 import TimeMetaService from "../meta/TimeMetaService";
@@ -75,12 +75,12 @@ const CREATE_SYNC_FN = (
   frameName: FrameName,
   backtest: boolean
 ) => trycatch(
-  async (event: SignalSyncContract) => {
+  async (event: OrderSyncContract) => {
     if (event.backtest) {
       return true;
     }
     await syncSubject.next(event);
-    await self.actionCoreService.signalSync(backtest, event, { strategyName, exchangeName, frameName });
+    await self.actionCoreService.orderSync(backtest, event, { strategyName, exchangeName, frameName });
     return true;
   }, {
     fallback: (error) => {
@@ -98,10 +98,13 @@ const CREATE_SYNC_FN = (
 );
 
 /**
- * If the syncPendingSubject listener or any registered action throws, it means the order backing the
- * open position is no longer pending on the exchange (filled/cancelled/liquidated externally).
- * The trycatch wrapper collapses a throw OR an explicit false into false, and ClientStrategy closes
- * the pending signal with closeReason "closed". Skipped in backtest — there is no live exchange.
+ * If the syncPendingSubject listener or any registered action throws, it means the order behind the
+ * monitored signal is no longer open on the exchange (filled/cancelled/liquidated externally).
+ * Fires for both monitored states, discriminated by event.type: "active" — the order backing the
+ * open position (ClientStrategy closes the pending signal with closeReason "closed"); "schedule" —
+ * the resting entry order of a scheduled signal (ClientStrategy cancels it with reason "user").
+ * The trycatch wrapper collapses a throw OR an explicit false into false.
+ * Skipped in backtest — there is no live exchange.
  */
 const CREATE_SYNC_PENDING_FN = (
   self: StrategyConnectionService,
@@ -110,7 +113,7 @@ const CREATE_SYNC_PENDING_FN = (
   frameName: FrameName,
   backtest: boolean
 ) => trycatch(
-  async (event: SignalPingContract) => {
+  async (event: OrderCheckContract) => {
     if (event.backtest) {
       return true;
     }
@@ -816,8 +819,8 @@ export class StrategyConnectionService implements TStrategy {
         onIdlePing: CREATE_COMMIT_IDLE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
         onCommit: CREATE_COMMIT_FN(this),
-        onSignalSync: CREATE_SYNC_FN(this, strategyName, exchangeName, frameName, backtest),
-        onSignalPing: CREATE_SYNC_PENDING_FN(this, strategyName, exchangeName, frameName, backtest),
+        onOrderSync: CREATE_SYNC_FN(this, strategyName, exchangeName, frameName, backtest),
+        onOrderCheck: CREATE_SYNC_PENDING_FN(this, strategyName, exchangeName, frameName, backtest),
         onHighestProfit: CREATE_HIGHEST_PROFIT_FN(this, strategyName, exchangeName, frameName, backtest),
         onMaxDrawdown: CREATE_MAX_DRAWDOWN_FN(this, strategyName, exchangeName, frameName, backtest),
       });

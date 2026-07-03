@@ -7,8 +7,8 @@ import SignalEventContract from "../contract/SignalEvent.contract";
 import ActivePingContract from "../contract/ActivePing.contract";
 import IdlePingContract from "../contract/IdlePing.contract";
 import RiskContract from "../contract/Risk.contract";
-import { SignalSyncContract } from "../contract/SignalSync.contract";
-import { SignalPingContract } from "../contract/SignalPing.contract";
+import { OrderSyncContract } from "../contract/OrderSync.contract";
+import { OrderCheckContract } from "../contract/OrderCheck.contract";
 import LoggerService from "../lib/services/base/LoggerService";
 import {
   IStrategyTickResult,
@@ -700,28 +700,30 @@ export class ActionProxy implements IPublicAction {
    *
    * @param event - Sync event with action "signal-open" or "signal-close"
    */
-  public async signalSync(event: SignalSyncContract): Promise<void> {
-    if (this._target.signalSync) {
-      console.error("Action::signalSync is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+  public async orderSync(event: OrderSyncContract): Promise<void> {
+    if (this._target.orderSync) {
+      console.error("Action::orderSync is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
       console.error("If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive()");
-      console.error("If Action::signalSync throws the exchange will not execute the order!");
+      console.error("If Action::orderSync throws the exchange will not execute the order!");
       console.error("");
       console.error("You have been warned!");
-      await this._target.signalSync(event);
+      await this._target.orderSync(event);
     }
   }
 
   /**
-   * Gate for the pending-order ping (order still open on exchange?).
+   * Gate for the order ping (order still open on exchange?). Fires for both
+   * monitored states: event.type "active" (open position order) and "schedule"
+   * (resting entry order of a scheduled signal).
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
    *
-   * @param event - Pending-ping event with action "signal-ping"
+   * @param event - Order-ping event with action "signal-ping" and type "schedule" | "active"
    */
-  public async orderCheck(event: SignalPingContract): Promise<void> {
+  public async orderCheck(event: OrderCheckContract): Promise<void> {
     if (this._target.orderCheck) {
       console.error("Action::orderCheck is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
       console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
-      console.error("If Action::orderCheck throws the framework will close the position with closeReason \"closed\"!");
+      console.error("If Action::orderCheck throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
       console.error("");
       console.error("You have been warned!");
       await this._target.orderCheck(event);

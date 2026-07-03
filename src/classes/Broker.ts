@@ -164,16 +164,24 @@ export type BrokerSignalClosePayload = {
 };
 
 /**
- * Payload for the pending-order synchronization broker event.
+ * Payload for the order synchronization broker event.
  *
- * Emitted automatically via syncPendingSubject on every live tick while a pending signal is
- * monitored, BEFORE the framework evaluates TP/SL/time. Forwarded to the registered IBroker
- * adapter via `onOrderCheck`.
+ * Emitted automatically via syncPendingSubject on every live tick while a signal is monitored,
+ * BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter via
+ * `onOrderCheck`. Fires for BOTH monitored states, discriminated by `type`:
+ * - `type: "active"` — pending signal (open position), before TP/SL/time evaluation;
+ * - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
+ *   (the order in question is the resting entry order).
  *
  * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
  * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
  * propagates to CREATE_SYNC_PENDING_FN, which makes the framework close the pending signal with
- * closeReason "closed". Returning normally keeps the position under normal TP/SL monitoring.
+ * closeReason "closed" (type "active") or cancel the scheduled signal with reason "user"
+ * (type "schedule"). Returning normally keeps the signal under normal monitoring.
+ *
+ * NOTE for type "schedule": if the resting entry order actually FILLED, confirm the fill via
+ * `commitActivateScheduled` instead of throwing — a throw here is a terminal cancel, not an
+ * activation.
  *
  * CRITICAL: transient/network errors (timeout, 5xx, rate limit, disconnect) must be SWALLOWED —
  * return normally instead of throwing. A thrown network error would wrongly close an open
@@ -194,6 +202,8 @@ export type BrokerSignalClosePayload = {
  * ```
  */
 export type BrokerSignalPendingPayload = {
+  /** Monitored state: "active" — open position order, "schedule" — resting entry order */
+  type: "schedule" | "active";
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
   /** Unique signal identifier (UUID v4) the order belongs to */
@@ -846,7 +856,7 @@ export interface IBroker {
    * syncSubject BEFORE the framework mutates strategy state, so it is also the close **gate**.
    *
    * MANUAL WIRING — EXCEPTION-BASED: place the real exit order here (tag/look up by `payload.signalId`)
-   * and record final PnL. This is the confirmed-close commit; like `onSignalSync` (signal-close) it
+   * and record final PnL. This is the confirmed-close commit; like `onOrderSync` (signal-close) it
    * shares the gate semantics — a THROW means "the exchange did not close the position" and the
    * framework SKIPS the close, leaving the position open and retrying on the next tick. Return
    * normally to let the close proceed. Backtest short-circuits this (no live exchange), so the gate is
@@ -862,7 +872,7 @@ export interface IBroker {
    * framework mutates strategy state, so it is also the open **gate**.
    *
    * MANUAL WIRING — EXCEPTION-BASED: place the real entry order here (tag the exchange order with
-   * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onSignalSync`
+   * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
    * (signal-open) it shares the gate semantics — a THROW means "the exchange did not fill the entry"
    * (e.g. limit order rejected) and the framework ROLLS BACK the open: the pending signal returns to
    * idle (a scheduled activation is cancelled) and is retried on the next tick. Return normally to let
@@ -875,10 +885,16 @@ export interface IBroker {
   onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
 
   /**
-   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+   * Called on every live tick while a signal is monitored, BEFORE completion evaluation.
+   * Fires for both monitored states, discriminated by `payload.type`:
+   * - "active" — pending signal (open position), before TP/SL/time evaluation;
+   * - "schedule" — scheduled signal (resting entry order), before timeout/price-activation.
+   *
    * Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
-   * — the framework will then close the position with closeReason "closed". Return normally to keep
-   * monitoring.
+   * — the framework will then close the position with closeReason "closed" (type "active") or
+   * cancel the scheduled signal with reason "user" (type "schedule"). Return normally to keep
+   * monitoring. For type "schedule": a filled resting order must be confirmed via
+   * `commitActivateScheduled`, not by throwing here (a throw is a terminal cancel).
    *
    * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
    * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
@@ -1046,7 +1062,7 @@ export interface IBroker {
    *
    * Fires ONCE at open — place the real entry confirmation and protective TP/SL orders (tag them with
    * `payload.signalId`). Drive the rest per-tick from `onSignalActivePing`. This hook does not gate
-   * the position; for a true entry gate use `onSignalSync` (signal-open).
+   * the position; for a true entry gate use `onOrderSync` (signal-open).
    */
   onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
 
@@ -1596,14 +1612,16 @@ export class BrokerAdapter {
   };
 
   /**
-   * Forwards a pending-order ping to the registered broker adapter.
+   * Forwards an order ping to the registered broker adapter.
    *
    * Called automatically via syncPendingSubject when `enable()` is active, on every live tick
-   * while a pending signal is monitored. Skipped silently in backtest mode or when no adapter is
+   * while a pending signal (payload.type "active") or a scheduled signal (payload.type
+   * "schedule") is monitored. Skipped silently in backtest mode or when no adapter is
    * registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
-   * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed".
+   * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
+   * (type "active") or cancels the scheduled signal with reason "user" (type "schedule").
    *
-   * @param payload - Pending ping details: symbol, position, prices, pnl, context, backtest flag
+   * @param payload - Order ping details: type, symbol, position, prices, pnl, context, backtest flag
    */
   public commitSignalPending = async (payload: BrokerSignalPendingPayload) => {
     bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SIGNAL_PENDING, {
@@ -2162,6 +2180,7 @@ export class BrokerAdapter {
 
     const unSignalPending = syncPendingSubject.subscribe(async (event) => {
       await this.commitSignalPending({
+        type: event.type,
         position: event.position,
         currentPrice: event.currentPrice,
         symbol: event.symbol,

@@ -5,7 +5,7 @@ import { FrameName } from "../interfaces/Frame.interface";
 /**
  * Base fields shared by all signal sync events.
  */
-interface SignalSyncBase {
+interface OrderSyncBase {
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Strategy name that generated this signal */
@@ -40,7 +40,7 @@ interface SignalSyncBase {
  * - External order sync services
  * - Audit/logging pipelines
  */
-export interface SignalOpenContract extends SignalSyncBase {
+export interface OrderOpenContract extends OrderSyncBase {
   /** Discriminator for signal-open action */
   action: "signal-open";
   /** Market price at the moment of activation (VWAP or candle average) */
@@ -96,7 +96,7 @@ export interface SignalOpenContract extends SignalSyncBase {
  * - External order sync services
  * - Audit/logging pipelines
  */
-export interface SignalCloseContract extends SignalSyncBase {
+export interface OrderCloseContract extends OrderSyncBase {
   /** Discriminator for signal-close action */
   action: "signal-close";
   /** Market price at the moment of close */
@@ -146,8 +146,8 @@ export interface SignalCloseContract extends SignalSyncBase {
  * limit order lifecycle: open (limit filled) and close (position exited).
  *
  * Note: Only covers the scheduled → pending → closed lifecycle.
- * Signals that were never activated (cancelled scheduled signals) do NOT emit SignalOpenContract.
+ * Signals that were never activated (cancelled scheduled signals) do NOT emit OrderOpenContract.
  */
-export type SignalSyncContract = SignalOpenContract | SignalCloseContract;
+export type OrderSyncContract = OrderOpenContract | OrderCloseContract;
 
-export default SignalSyncContract;
+export default OrderSyncContract;

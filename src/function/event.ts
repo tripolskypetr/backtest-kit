@@ -18,7 +18,7 @@ import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { not, queued } from "functools-kit";
-import SignalSyncContract from "../contract/SignalSync.contract";
+import OrderSyncContract from "../contract/OrderSync.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
@@ -1720,7 +1720,7 @@ export function listenStrategyCommitOnce(
  * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to stop listening
  */
-export function listenSync(fn: (event: SignalSyncContract) => void, warned = false) {
+export function listenSync(fn: (event: OrderSyncContract) => void, warned = false) {
   backtest.loggerService.log(LISTEN_SYNC_METHOD_NAME);
 
   if (!warned) {
@@ -1743,8 +1743,8 @@ export function listenSync(fn: (event: SignalSyncContract) => void, warned = fal
  * @returns Unsubscribe function to cancel the listener before it fires
  */
 export function listenSyncOnce(
-  filterFn: (event: SignalSyncContract) => boolean,
-  fn: (event: SignalSyncContract) => void,
+  filterFn: (event: OrderSyncContract) => boolean,
+  fn: (event: OrderSyncContract) => void,
   warned = false
 ) {
   backtest.loggerService.log(LISTEN_SYNC_ONCE_METHOD_NAME);
@@ -1759,7 +1759,7 @@ export function listenSyncOnce(
 
   let disposeFn: Function;
 
-  const wrappedFn = async (event: SignalSyncContract) => {
+  const wrappedFn = async (event: OrderSyncContract) => {
     if (filterFn(event)) {
       await fn(event);
       disposeFn && disposeFn();

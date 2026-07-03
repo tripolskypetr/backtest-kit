@@ -20,7 +20,7 @@ import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { SignalSyncContract } from "../contract/SignalSync.contract";
+import { OrderSyncContract } from "../contract/OrderSync.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import backtest from "../lib";
 import { PersistNotificationAdapter } from "./Persist";
@@ -84,7 +84,7 @@ export interface INotificationTarget {
    * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
    * Fired when a limit order is confirmed filled (`signal-open`) or when an open
    * position is confirmed exited (`signal-close`) by the exchange sync layer.
-   * Source: `syncSubject` (SignalSyncContract).
+   * Source: `syncSubject` (OrderSyncContract).
    */
   signal_sync: boolean;
 
@@ -878,7 +878,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
  * @param data - The signal sync contract data
  * @returns NotificationModel for signal sync event
  */
-const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: SignalSyncContract): NotificationModel => {
+const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): NotificationModel => {
   if (data.action === "signal-open") {
     return {
       type: "signal_sync.open",
@@ -1199,7 +1199,7 @@ export interface INotificationUtils {
    * Handles signal sync event (signal-open, signal-close).
    * @param data - The signal sync contract data
    */
-  handleSync(data: SignalSyncContract): Promise<void>;
+  handleSync(data: OrderSyncContract): Promise<void>;
   /**
    * Handles risk rejection event.
    * @param data - The risk contract data
@@ -1342,7 +1342,7 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
    * Handles signal sync events (signal-open, signal-close).
    * @param data - The signal sync contract data
    */
-  public handleSync = trycatch(async (data: SignalSyncContract): Promise<void> => {
+  public handleSync = trycatch(async (data: OrderSyncContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SYNC, {
       signalId: data.signalId,
       action: data.action,
@@ -1679,7 +1679,7 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
    * Handles signal sync events (signal-open, signal-close).
    * @param data - The signal sync contract data
    */
-  public handleSync = trycatch(async (data: SignalSyncContract): Promise<void> => {
+  public handleSync = trycatch(async (data: OrderSyncContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SYNC, {
       signalId: data.signalId,
       action: data.action,
@@ -1870,7 +1870,7 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
    * Handles signal sync events (signal-open, signal-close).
    * @param data - The signal sync contract data
    */
-  public handleSync = trycatch(async (data: SignalSyncContract): Promise<void> => {
+  public handleSync = trycatch(async (data: OrderSyncContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SYNC, {
       signalId: data.signalId,
       action: data.action,
@@ -2210,7 +2210,7 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
    * Handles signal sync events (signal-open, signal-close).
    * @param data - The signal sync contract data
    */
-  public handleSync = trycatch(async (data: SignalSyncContract): Promise<void> => {
+  public handleSync = trycatch(async (data: OrderSyncContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SYNC, {
       signalId: data.signalId,
       action: data.action,
@@ -2372,7 +2372,7 @@ export class NotificationBacktestAdapter implements INotificationUtils {
    * Proxies call to the underlying notification adapter.
    * @param data - The signal sync contract data
    */
-  handleSync = trycatch(async (data: SignalSyncContract): Promise<void> => {
+  handleSync = trycatch(async (data: OrderSyncContract): Promise<void> => {
     return await this.getInstance().handleSync(data);
   }, {
     defaultValue: null,
@@ -2560,7 +2560,7 @@ export class NotificationLiveAdapter implements INotificationUtils {
    * Proxies call to the underlying notification adapter.
    * @param data - The signal sync contract data
    */
-  handleSync = trycatch(async (data: SignalSyncContract): Promise<void> => {
+  handleSync = trycatch(async (data: OrderSyncContract): Promise<void> => {
     return await this.getInstance().handleSync(data);
   }, {
     defaultValue: null,
@@ -2746,7 +2746,7 @@ export class NotificationAdapter {
 
       const unBacktestSync = syncSubject
         .filter(({ backtest }) => backtest)
-        .connect(async (data: SignalSyncContract) => {
+        .connect(async (data: OrderSyncContract) => {
           if (signal_sync) {
             await NotificationBacktest.handleSync(data);
           }
@@ -2842,7 +2842,7 @@ export class NotificationAdapter {
 
       const unLiveSync = syncSubject
         .filter(({ backtest }) => !backtest)
-        .connect(async (data: SignalSyncContract) => {
+        .connect(async (data: OrderSyncContract) => {
           if (signal_sync) {
             await NotificationLive.handleSync(data);
           }

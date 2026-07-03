@@ -4,7 +4,7 @@ import TYPES from "../../../lib/core/types";
 import { singleshot, trycatch } from "functools-kit";
 import { syncSubject } from "../../../config/emitters";
 import { ReportWriter } from "../../../classes/Writer";
-import SignalSyncContract from "../../../contract/SignalSync.contract";
+import OrderSyncContract from "../../../contract/OrderSync.contract";
 
 const SYNC_REPORT_METHOD_NAME_SUBSCRIBE = "SyncReportService.subscribe";
 const SYNC_REPORT_METHOD_NAME_UNSUBSCRIBE = "SyncReportService.unsubscribe";
@@ -52,7 +52,7 @@ export class SyncReportService {
    *
    * @internal
    */
-  private tick = async (data: SignalSyncContract) => {
+  private tick = async (data: OrderSyncContract) => {
     this.loggerService.log(SYNC_REPORT_METHOD_NAME_TICK, { data });
 
     const baseEvent = {

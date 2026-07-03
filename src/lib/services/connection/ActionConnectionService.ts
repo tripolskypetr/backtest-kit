@@ -18,8 +18,8 @@ import { SignalEventContract } from "../../../contract/SignalEvent.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
-import { SignalSyncContract } from "../../../contract/SignalSync.contract";
-import { SignalPingContract } from "../../../contract/SignalPing.contract";
+import { OrderSyncContract } from "../../../contract/OrderSync.contract";
+import { OrderCheckContract } from "../../../contract/OrderCheck.contract";
 import StrategyCoreService from "../core/StrategyCoreService";
 
 /**
@@ -382,7 +382,7 @@ export class ActionConnectionService implements TAction {
   };
 
   /**
-   * Routes signalSync event to appropriate ClientAction instance.
+   * Routes orderSync event to appropriate ClientAction instance.
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
    *
    * @param event - Sync event with action "signal-open" or "signal-close"
@@ -390,17 +390,17 @@ export class ActionConnectionService implements TAction {
    * @param context - Execution context
    * @returns true to allow, false to reject
    */
-  public signalSync = async (
-    event: SignalSyncContract,
+  public orderSync = async (
+    event: OrderSyncContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
-    this.loggerService.log("actionConnectionService signalSync", {
+    this.loggerService.log("actionConnectionService orderSync", {
       backtest,
       context,
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await action.signalSync(event);
+    await action.orderSync(event);
   };
 
   /**
@@ -412,7 +412,7 @@ export class ActionConnectionService implements TAction {
    * @param context - Execution context
    */
   public orderCheck = async (
-    event: SignalPingContract,
+    event: OrderCheckContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {

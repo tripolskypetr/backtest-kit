@@ -43,7 +43,7 @@ const VALID_METHOD_NAMES: Key[] = [
  * method one of these produces a dedicated error redirecting to the Broker adapter instead of the
  * generic "invalid method" suggestion.
  */
-const DISCOURAGED_METHOD_NAMES: Key[] = ["signalSync", "orderCheck"];
+const DISCOURAGED_METHOD_NAMES: Key[] = ["orderSync", "orderCheck"];
 
 /**
  * Builds the dedicated error message for a discouraged exchange-integration handler method.
@@ -197,11 +197,14 @@ const VALIDATE_CLASS_METHODS = (
     const isMethod = descriptor && typeof descriptor.value === "function";
 
     if (isMethod && DISCOURAGED_METHOD_NAMES.includes(<Key>methodName)) {
+      // Throw the dedicated redirect message: falling through to the generic
+      // branch below produced a contradictory suggestion (keep as _orderCheck)
+      // while the real guidance is "move it to Broker.useBrokerAdapter".
       const msg = DISCOURAGED_METHOD_MESSAGE(actionName, methodName);
       self.loggerService.log(`actionValidationService exception thrown`, {
         msg,
       });
-      console.log(msg);
+      throw new Error(msg);
     }
 
     if (isMethod && !VALID_METHOD_NAMES.includes(<Key>methodName)) {

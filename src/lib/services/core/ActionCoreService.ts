@@ -20,8 +20,8 @@ import { SignalEventContract } from "../../../contract/SignalEvent.contract";
 import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { IdlePingContract } from "../../../contract/IdlePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
-import { SignalSyncContract } from "../../../contract/SignalSync.contract";
-import { SignalPingContract } from "../../../contract/SignalPing.contract";
+import { OrderSyncContract } from "../../../contract/OrderSync.contract";
+import { OrderCheckContract } from "../../../contract/OrderCheck.contract";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import StrategyValidationService from "../validation/StrategyValidationService";
 import RiskValidationService from "../validation/RiskValidationService";
@@ -506,12 +506,12 @@ export class ActionCoreService implements TAction {
    * @param event - Sync event with action "signal-open" or "signal-close"
    * @param context - Strategy execution context
    */
-  public signalSync = async (
+  public orderSync = async (
     backtest: boolean,
-    event: SignalSyncContract,
+    event: OrderSyncContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
-    this.loggerService.log("actionCoreService signalSync", {
+    this.loggerService.log("actionCoreService orderSync", {
       context,
     });
 
@@ -520,7 +520,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.signalSync(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.orderSync(event, backtest, { actionName, ...context });
     }
   };
 
@@ -534,7 +534,7 @@ export class ActionCoreService implements TAction {
    */
   public orderCheck = async (
     backtest: boolean,
-    event: SignalPingContract,
+    event: OrderCheckContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
     this.loggerService.log("actionCoreService orderCheck", {

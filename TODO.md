@@ -180,6 +180,24 @@
 
 Оставлено как есть (решение продукта): onWrite получает то raw `ISignalRow`, то `TO_PUBLIC_SIGNAL` — по контракту (`Strategy.interface.ts`) допустимо, унификация не требуется.
 
+Order-ping для scheduled + переименование (2026-07-03, 804 ok / 0 fail):
+
+- [x] **onSignalPing теперь пингует и scheduled-сигнал; в `SignalPingContract` добавлено поле `type: "schedule" | "active"`**
+  Раньше order-ping (`syncPendingSubject` → `Broker.onOrderCheck` / `Action.onOrderCheck`) шёл только для pending-позиции — resting-ордер scheduled-сигнала никто не сверял с биржей. Теперь в live-tick перед проверкой timeout/price-активации выполняется `CALL_SCHEDULED_SIGNAL_PING_FN` (type "schedule"); отказ (false/throw) — терминальная отмена scheduled через новый `CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN` (reason "user", schedule event до брокера, релиз риска, cancel/tick callbacks) — зеркало `CLOSE_PENDING_SIGNAL_AS_CLOSED_FN` для pending. Pending-пинг помечен type "active". Если resting-ордер ИСПОЛНИЛСЯ — адаптер обязан подтвердить филл через `activateScheduled`/`commitActivateScheduled`, а не валить пинг (задокументировано в контракте, Broker и Action). Backtest пинг не эмитит (live-only, как и раньше).
+  Изменения: `SignalPing.contract.ts` (+type, доки), `ClientStrategy.ts` (новые FN + врезка в tick), `Broker.ts` (`BrokerSignalPendingPayload.type`, подписка, доки `onOrderCheck`/`commitSignalPending`), `Action.interface.ts` + `ActionProxy.ts` + `StrategyConnectionService.ts` (доки; сам type течёт по цепочке Action без изменений сигнатур).
+  Тесты: e2e «order ping fires for scheduled signal (type schedule) and cancels on failure» (throw в `callbacks.onOrderCheck` → tick #2 cancelled/user + событие на брокерском канале), «order ping carries type active for pending position».
+
+- [x] **Номенклатура «order*» вместо «signal*» для биржевой синхронизации** (breaking renames по решению продукта, литералы wire-формата `"signal-open"`/`"signal-close"`/`"signal-ping"` НЕ менялись):
+  - коллбеки: `onSignalSync` → `onOrderSync` (`IStrategyParams`, `IActionCallbacks`); `onSignalPing` → `onOrderCheck` (`IStrategyParams`, wiring в StrategyConnectionService);
+  - Action-метод: `signalSync` → `orderSync` по всей цепочке (`IAction`, `ActionProxy`, `ClientAction`, `ActionConnectionService`/`ActionCoreService`, вызов из `CREATE_SYNC_FN`, discouraged-список валидатора);
+  - контракты: `SignalSyncContract` → `OrderSyncContract` (+ `SignalSyncBase` → `OrderSyncBase`, `SignalOpenContract`/`SignalCloseContract` → `OrderOpenContract`/`OrderCloseContract`), `SignalPingContract` → `OrderCheckContract`; файлы `SignalSync.contract.ts` → `OrderSync.contract.ts`, `SignalPing.contract.ts` → `OrderCheck.contract.ts` (git mv);
+  - модели: `SignalSyncOpenNotification`/`SignalSyncCloseNotification` → `OrderSyncOpenNotification`/`OrderSyncCloseNotification`;
+  - внутренние FN ClientStrategy: `CALL_SIGNAL_SYNC_OPEN/CLOSE_FN` → `CALL_ORDER_SYNC_OPEN/CLOSE_FN`, `CALL_SIGNAL_PING_FN` → `CALL_ORDER_CHECK_FN`, `CALL_SCHEDULED_SIGNAL_PING_FN` → `CALL_SCHEDULED_ORDER_CHECK_FN`.
+  Имена сабжектов (`syncSubject`/`syncPendingSubject`) и публичных слушателей (`listenSync`) не менялись. packages/ и тесты старые имена типов не использовали. Сгенерированные docs/*.md и CHANGELOG не трогались (перегенерируются при релизе).
+
+- [x] **P4 (вскрыто тестами): валидатор ActionSchema для discouraged-методов (`signalSync`/`orderCheck`) бросал generic-ошибку с противоречащей подсказкой** — `ActionSchemaService.ts`
+  Dedicated-сообщение «перенеси в Broker.useBrokerAdapter» только логировалось (console.log), после чего срабатывал generic-throw с советом «переименуй в _orderCheck» — прямо противоречащим замыслу. Теперь discouraged-ветка бросает своё сообщение.
+
 Проверено и признано корректным (без изменений): `Promise.race` с TIMEOUT_SYMBOL в GET_SIGNAL_FN, whipsaw-защита с fallback-релизом риска, TO_PUBLIC_SIGNAL, PARTIAL_*_FN (долларовый кап), TRAILING_*_FN (расчёт от оригинала, absorption), BREAKEVEN_FN, AVERAGE_BUY_FN + getEffectivePriceOpen, PROCESS_COMMIT_QUEUE_FN (at-most-once), WAIT_FOR_INIT_FN (Infinity-restore, commitQueue по id), CHECK_PENDING_SIGNAL_COMPLETION_FN (приоритет time→TP→SL), PROCESS_PENDING_SIGNAL_CANDLES_FN (VWAP-окно, frameEndTime), все deferred-дренажи tick/backtest, createSignal/createTakeProfit/createStopLoss, wick-активация в backtest vs VWAP в live (осознанное моделирование лимитника).
 
 ---
