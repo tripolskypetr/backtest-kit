@@ -93,17 +93,44 @@ export const PartialWidget = ({
             );
         }
 
-        const partialData = data.positionPartials.map((partial) => {
-            const entriesAtClose = data.positionEntries.slice(0, partial.entryCountAtClose);
-            const totalCost = entriesAtClose.reduce((s, e) => s + e.cost, 0);
-            const totalCoins = entriesAtClose.reduce((s, e) => s + e.cost / e.price, 0);
-            const effectiveEntry = totalCoins === 0 ? data.originalPriceOpen : totalCost / totalCoins;
+        // Порт computeEffectivePriceAtPartial из бэкенда (getEffectivePriceOpen.ts):
+        // эффективная цена входа на момент partials[targetIndex] считается
+        // итеративно — остаточный basis предыдущей частички по её effPrice
+        // плюс DCA-входы, добавленные между частичками
+        const computeEffectiveEntry = (targetIndex: number): number => {
+            const entries = data.positionEntries;
+            const partials = data.positionPartials;
+            const p0 = partials[0];
+            const coinsAtP0 = entries
+                .slice(0, p0.entryCountAtClose)
+                .reduce((s, e) => s + e.cost / e.price, 0);
+            let effPrice =
+                coinsAtP0 === 0
+                    ? data.originalPriceOpen
+                    : p0.costBasisAtClose / coinsAtP0;
+            for (let j = 1; j <= targetIndex; j++) {
+                const prev = partials[j - 1];
+                const curr = partials[j];
+                const remainingCB = prev.costBasisAtClose * (1 - prev.percent / 100);
+                const oldCoins = effPrice === 0 ? 0 : remainingCB / effPrice;
+                const newEntries = entries.slice(prev.entryCountAtClose, curr.entryCountAtClose);
+                const newCoins = newEntries.reduce((s, e) => s + e.cost / e.price, 0);
+                const newCost = newEntries.reduce((s, e) => s + e.cost, 0);
+                const totalCoins = oldCoins + newCoins;
+                effPrice = totalCoins === 0 ? effPrice : (remainingCB + newCost) / totalCoins;
+            }
+            return effPrice;
+        };
+
+        const partialData = data.positionPartials.map((partial, idx) => {
+            const effectiveEntry = computeEffectiveEntry(idx);
             const pnlPct =
                 data.position === "long"
                     ? ((partial.currentPrice - effectiveEntry) / effectiveEntry) * 100
                     : ((effectiveEntry - partial.currentPrice) / effectiveEntry) * 100;
             const closedDollar = (partial.percent / 100) * partial.costBasisAtClose;
-            const pnlDollar = (pnlPct / 100) * partial.costBasisAtClose;
+            // PnL в долларах — от проданной части (closedDollar), не от всего basis
+            const pnlDollar = (pnlPct / 100) * closedDollar;
             return { partial, effectiveEntry, pnlPct, pnlDollar, closedDollar };
         });
 

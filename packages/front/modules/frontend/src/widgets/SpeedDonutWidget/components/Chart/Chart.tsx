@@ -73,19 +73,20 @@ export const Chart = ({ className, height, width }: IChartProps) => {
   );
 
   const chartColor = useMemo(() => {
+    if (!chunks.length) {
+      return "#ccc";
+    }
     const chunk = chunks.find(
       ({ minValue, maxValue }) => value >= minValue && value <= maxValue
     );
     if (chunk) {
       return chunk.color;
     }
-    const maxChunk = chunks.reduce((acm, cur) => {
-      if (cur.minValue >= acm.minValue) {
-        return cur;
-      }
-      return acm;
-    });
-    return maxChunk.color;
+    // Значение вне шкалы: выше максимума — цвет верхней зоны,
+    // ниже минимума — нижней (chunks отсортированы по maxValue убыванию)
+    const top = chunks[0];
+    const bottom = chunks[chunks.length - 1];
+    return value > top.maxValue ? top.color : bottom.color;
   }, [chunks, value]);
 
   const minValue = useMemo(

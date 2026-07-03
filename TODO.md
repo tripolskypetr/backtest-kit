@@ -270,3 +270,15 @@ Breaking changes (кандидаты на major bump):
 Сборка: vite build прошёл (23.9s), маркеры фиксов найдены в бандле; фронт раздаётся напрямую из modules/frontend/build (getPublicPath), копирование не требуется. Юнит-проверки: wordForm (0..211), str (0 сохраняется), toPlainString (буллеты), семантика memoize.clear.
 
 Проверено и корректно (не трогалось): проводка 20 subject→hook в LayoutModalProvider; диспетчеризация типов в NotificationView; type-guard'ы 20 view-хуков; SubmitView торговых модалок; ревок blob-URL через route-listen; отсутствие таймер-утечек.
+
+### Дополнительный проход (виджеты, DashboardPage/api.ts)
+
+- [x] **P2: PartialWidget завышал долларовый PnL частичек** — `pnlDollar = pnlPct% × costBasisAtClose` (весь basis) вместо pnlPct% × проданной части (closedDollar): частичка на 25% завышала PnL в тултипе и totalPnlDollar в 4 раза. Сверено с toProfitLossDto бэкенда.
+
+- [x] **P2: PartialWidget считал effectiveEntry не по алгоритму бэкенда** — Σcost/Σcoins по всем входам вместо итеративного computeEffectivePriceAtPartial (остаточный basis предыдущей частички по её effPrice + DCA-входы между частичками). Портирован алгоритм целиком; численно сверен с бэкенд-реализацией через tsx на сценарии 3 входа/3 частички с DCA между ними — MATCH по всем индексам.
+
+- [x] **P3: SpeedDonutWidget красил значение ниже шкалы цветом верхней зоны** — fallback выбирал чанк с max minValue. Теперь: выше максимума → верхняя зона, ниже минимума → нижняя; пустой список зон → нейтральный #ccc (раньше reduce без initial бросал исключение).
+
+Проверено и чисто: **DashboardPage/api.ts** (по запросу) — updatedAt = tick.createdAt = время свечи в бектесте (Storage.ts:220,249), т.е. дневные корзины и окна выручки корректно работают в симулированном времени; несортированный dailyTrades сортируется потребителем (ChartWidget); clearSignalCache() чистит обе моды (семантика memoize.clear проверена); DST-сдвиг окон на ±1ч неактуален для UTC/RU. Также чисто: AveragingWidget, ListView, AppHeader, IconPhoto, useIndicatorStream, все 52 useOnce (подписки только через обёртку, cleanup при unmount подтверждён по реализации в бандле).
+
+Замечание: IDE-ошибка TS2739 (onPointerEnterCapture/placeholder на PaperView) — преждесуществующее несоответствие @types/react и react-declarative по всему проекту, к правкам отношения не имеет (проект не типчекается, vite+swc).
