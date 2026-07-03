@@ -809,6 +809,17 @@ clearTimeout(watchdog);
 - **BACKTEST #5**: манки-патч `onOrderSync` — order-гейты наблюдаемы и гейтят в backtest (полный цикл signal-open/schedule ×2 → active → close)
 - **LIVE #6**: check закрывает позицию на ПЯТОЙ проверке после активации (scheduled → opened → active×4 с успешными check'ами → closed/"closed"; счёт schedule/active check'ов точный)
 
+### test/e2e/coverage.test.mjs
+Тесты на изменения `git diff master -- src/client/ClientStrategy.ts`, не покрытые остальными файлами (каждый тест привязан к ханку дифа):
+- **Epsilon партиалов** (`PARTIAL_CAP_TOLERANCE_FACTOR`): 30% → 50% → 100%-от-остатка проходят все, остаток ровно 0
+- **Risk-release при timeout-отмене scheduled** (`CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN`): патч `strategy.params.risk.removeSignal` — ровно 1 вызов
+- **Risk-release при SL-отмене до активации** (`CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN`): то же для price_reject
+- **Release утёкшей резервации при validate-throw** (fallback `GET_SIGNAL_FN`): невалидный DTO после успешного reserve → remove ×1
+- **`GET_PROGRESS_PERCENT_FN`**: breakeven ставит SL = entry, отвергнутое sync-закрытие проваливается в мониторинг → percentSl = 100 (не Infinity/NaN)
+- **Drop очереди коммитов без pending** (`PROCESS_COMMIT_QUEUE_FN`): partial-commit в очереди + TP-филл занулил pending → commit дропнут (не эмитится), close-pending доставлен
+- **Cost-fallback** (`signal.cost ?? CC_POSITION_ENTRY_COST`): сигнал с cost=250 и пустым `_entry` (патч state) → invested/entries отдают 250, не $100
+- **Crash-recovery deferred close** (`WAIT_FOR_INIT_FN` + `PERSIST_STRATEGY_FN` + `getStatus`): closePending → dispose инстанса (clear в двух контекстах) → restore → дренаж closed/"closed" с closeId; useJson-адаптеры локально в скоупе теста
+
 ## Отладка тестов
 
 ### Добавление console.log
