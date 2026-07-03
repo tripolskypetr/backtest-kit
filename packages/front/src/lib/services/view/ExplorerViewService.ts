@@ -74,7 +74,13 @@ export class ExplorerViewService {
     if (!absPath.startsWith(dir + path.sep) && !absPath.startsWith(dir + "/") && absPath !== dir) {
       throw new Error(`Path is outside of dump dir: ${nodePath}`);
     }
-    return await fs.readFile(absPath, "utf-8");
+    // Симлинк внутри dump может указывать наружу — сверяем реальный путь
+    const realDir = await fs.realpath(dir);
+    const realPath = await fs.realpath(absPath);
+    if (!realPath.startsWith(realDir + path.sep) && !realPath.startsWith(realDir + "/") && realPath !== realDir) {
+      throw new Error(`Path is outside of dump dir: ${nodePath}`);
+    }
+    return await fs.readFile(realPath, "utf-8");
   };
 
   public getTree = async (): Promise<ExplorerNode[]> => {

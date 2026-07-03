@@ -226,3 +226,17 @@ Breaking changes (кандидаты на major bump):
 - [x] **P3: NodeType не экспортировался из index** — добавлен экспорт. Неиспользуемые dependencies (di-kit, di-scoped, get-moment-stamp) удалены из package.json (используется только functools-kit).
 
 Проверено и признано корректным: deepFlat (дедупликация ромба, устойчивость к циклам, топологический порядок), типовыведение InferValues/InferNodeValue, fail-fast проверки контекстов в resolve.
+
+---
+
+## Аудит packages/front/src (исправлено)
+
+- [x] **P1: symlink-escape в ExplorerViewService.getNode** — buildTree резолвил симлинки через realpath+visited, а getNode нет: guard проверял только resolve-путь, readFile следовал симлинку наружу dump (симлинк внутри dump на /etc/... проходил проверку и читался). Не удалённый вектор (создать симлинк по HTTP нельзя), но защита была асимметричной. Фикс: realpath(absPath) + повторная проверка префикса против realpath(dir). Проверено на built: обычный файл и внутренний симлинк читаются, симлинк наружу и `../`-traversal блокируются; корректно при cwd за симлинком (/tmp→/private/tmp).
+
+- [x] **P2: omit не рекурсировал в массивы** — isObject([])===false, поэтому `omit(result, "data")` в логировании роутов не вырезал data из объектов внутри массивов: тяжёлые payload'ы утекали бы в лог. На текущих вызовах data верхнеуровневый (латентно), но хрупко. Фикс: хелпер omitValue — рекурсия в объекты и массивы любой вложенности. Проверено: data вырезается в массиве, во вложенном объекте внутри массива и во вложенном массиве; скаляры не тронуты.
+
+- [x] **P2: serve не восстанавливался после EADDRINUSE** — singleshot serveInternal «выстреливал» до listening; при занятом порте error-callback вызывался, но повторный serve() возвращал мёртвый сервер (clear() был только в teardown, который никто не получал). Фикс: `serveInternal.clear()` в error-листенере при `!server.listening` (ошибки уже слушающего сервера singleshot не сбрасывают). Проверено на built: attempt1 → EADDRINUSE, освобождение порта, attempt2 → listening.
+
+Осознанный дизайн (по решению, не флагуется): REPL `/api/v1/repl/eval` («все кнопки не предусмотришь») и сопутствующий открытый CORS `*`; getSetupData отдаёт весь getConfig() в браузер (self-admin).
+
+Не исправлялось (не баги): StatusViewService — два идентичных ~45-строчных блока маппинга symbols (backtest/live) — кандидат на дедуп при следующей правке; icon-кэши без eviction (ограничены числом файлов иконок), негативного кэша для 404-иконок нет (каждый промах — existsSync+readFile). Проверено и корректно: traversal-guard getNode, единый try/catch-конверт роутов, SymbolConnectionService (дедуп+стабильная сортировка), omit не мутирует вход.

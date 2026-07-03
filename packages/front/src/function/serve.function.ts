@@ -27,6 +27,11 @@ const serveInternal = singleshot(
 
     server.addListener("error", (err) => {
       console.error("Server error:", err);
+      // Сервер не поднялся — сбрасываем singleshot, иначе повторный serve()
+      // вернёт мёртвый инстанс и слушать порт больше никто не попробует
+      if (!server.listening) {
+        serveInternal.clear();
+      }
       callback && callback(err);
     });
 
