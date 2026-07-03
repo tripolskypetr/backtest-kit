@@ -131,11 +131,32 @@
 
 - [x] **P3: докстринги `getRawCandles` лгали про Date.now()** — заявляли «Uses Date.now() instead of execution context when», код использует `GET_TIMESTAMP_FN` (context.when при активном контексте, иначе wall-clock). Исправлены оба (ExchangeInstance + ExchangeUtils).
 
-Замечания без изменений: `ExchangeInstance.getCandles` не ретраит (ClientExchange ретраит CC_GET_CANDLES_RETRY_COUNT раз) — для warm-пайплайна ретрай даёт внешний `retry(2)` в cacheCandles; ~700 строк дублирования ClientExchange ↔ ExchangeInstance (чанкинг, дедуп, валидация, кэш-обвязка) — кандидат на вынос в общий хелпер при следующей правке.
+Замечания без изменений: `ExchangeInstance.getCandles` не ретраит (ClientExchange ретраит CC_GET_CANDLES_RETRY_COUNT раз) — для warm-пайплайна ретрай даёт внешний `retry(2)` в cacheCandles. Дублирование ClientExchange ↔ ExchangeInstance — осознанный дизайн (SRP, линейное чтение модулей); правки багов применять в обе копии.
 
 Проверено и признано корректным (без изменений): LiveLogicPrivateService, WalkerLogicPrivateService (стоп-семантика «гасит весь walker» консистентна с `Walker.stop`), MergeRisk (rollback-контракт задокументирован), validateCandles, Candle-мьютекс/spinLock, PersistCandleInstance/PersistBase, чанк-математика `getCandles`/`getRawCandles` (все 5 комбинаций параметров + look-ahead-защита, проверено в обеих копиях — ClientExchange и ExchangeInstance), выравнивание ClientFrame к минутной сетке, cache.ts (warm/check-пайплайн), PriceMetaService/TimeMetaService.
 
 Не покрыто вторым проходом (кандидаты на следующий): StrategyCoreService, крупные `classes/` (Broker ~2.8k, Recent ~1k, Session, Storage, Sync), `function/` кроме cache/strategy, ActionConnectionService/ClientAction.
+
+---
+
+## Аудит корневого ./src, четвёртый проход (2026-07-03): исправлено
+
+Зоны — последняя слепая зона проекта: classes/Live.ts (5.4k) и classes/Backtest.ts (5.4k) целиком, StrategyConnectionService (2.6k), Cron, Interval, State, Dump, остальные Persist-Utils блоки, assets/*.columns.ts, meta (Time/Runtime/Context), logic/public, command. Тест: +1 e2e-регрессионный. Полный набор: 796 ok / 0 fail.
+
+- [x] **P1: копии partial-close в Backtest.ts и Live.ts не выровнены с фиксом первого прохода** — `src/classes/Backtest.ts`, `src/classes/Live.ts` (8 мест)
+  Фикс «commitPartialProfitCost/commitPartialLossCost: недозакрытие» из первого прохода был применён только к канону `src/function/strategy.ts` — обе копии остались на старой математике: долларовые варианты конвертировали `dollarAmount` через **total invested** (`getPositionInvestedCost`) вместо **remaining cost basis** (`getTotalCostClosed`) → после первого partial $75 закрывали $37.50; percent-варианты слали брокеру `cost` тоже от total invested. Выровнено с каноном во всех 8 местах (по принципу «баг чинится во всех копиях»).
+  Тест: e2e «Backtest.commitPartialProfitCost copy closes exact dollars after prior partial» ($300 − $150 − $75 → ровно $75).
+
+- [x] **P2: trailing percent-варианты — брокеру уходила цена от эффективного уровня вместо оригинального** — `src/function/strategy.ts` + обе копии (6 мест)
+  Первый проход перевёл на `originalPriceStopLoss ?? ...` только Cost-варианты (`*PriceToPercentShift`); в percent-вариантах информационный `newStopLossPrice`/`newTakeProfitPrice` для `Broker.commitTrailingStop/Take` считался через `*PercentShiftToPrice` от `signal.priceStopLoss`/`priceTakeProfit` — эффективного (возможно уже подтянутого) уровня, тогда как ядро применяет shift от ОРИГИНАЛЬНОГО. После первого trailing брокер-адаптер получал неверную цену для обновления биржевого ордера (live-only: в бектесте commit скипается). Исправлено во всех трёх копиях.
+
+- [x] **P2: `IntervalFnInstance.run` — async-функция, вернувшая null, блокировалась на весь интервал** — `src/classes/Interval.ts`
+  Контракт (докстринг, sync-ветка, IntervalFileInstance): «null → отсчёт не стартует, следующий вызов ретраит». Для async-fn state ставился при вызове (Promise всегда non-null) и снимался только при reject — резолв в null оставлял интервал «выстрелившим». Фикс: `.then` снимает state при резолве в null (с guard'ом на актуальность интервала, чтобы не стереть state более нового boundary); оптимистичная установка сохранена — конкурентные вызовы в полёте по-прежнему не дублируют fire.
+
+- [x] **P3: `removeMeasureData` / `removeIntervalData` — throw на несуществующем ключе** — `src/classes/Persist.ts`
+  То же семейство, что `removeMemoryData` из третьего прохода: `readValue` бросает «Entity not found», код ждал null. Добавлен `hasValue`-гард в обе копии (идемпотентный no-op).
+
+Проверено и признано корректным (без изменений): Backtest.ts/Live.ts остальное (task/run/background/stop, overlap-ladder математика, commitBreakeven/commitAverageBuy/commitCreate*, Cost-варианты trailing, getData/getReport), StrategyConnectionService целиком (CREATE_SYNC_FN/SYNC_PENDING_FN gate-семантика, фабрики callbacks, GET_RISK_FN merge, memoize+clear/dispose), Cron.ts целиком (watermark со строгим `>`, generation-изоляция, rollback при fail, watchdog), State.ts (singleshot + look-ahead-гарды), Dump.ts (структура адаптеров), остальные Persist-Utils (Signal/Risk/Schedule/Strategy/Partial/Breakeven/Storage/Notification/Log/Recent/State — hasValue-гарды на месте), assets/*.columns.ts (pnl-колонки с честными null/undefined-гардами; truthiness на ценах допустима — 0-цена невалидна по validateCandles), RuntimeMetaService (_getRange/_getInfo мемоизированы по схеме, не по сгенерированным таймфреймам), TimeMetaService (зеркало PriceMetaService), logic/public и command (тонкие обёртки).
 
 ---
 
@@ -328,7 +349,7 @@ Breaking changes (кандидаты на major bump):
 
 Осознанный дизайн (по решению, не флагуется): REPL `/api/v1/repl/eval` («все кнопки не предусмотришь») и сопутствующий открытый CORS `*`; getSetupData отдаёт весь getConfig() в браузер (self-admin).
 
-Не исправлялось (не баги): StatusViewService — два идентичных ~45-строчных блока маппинга symbols (backtest/live) — кандидат на дедуп при следующей правке; icon-кэши без eviction (ограничены числом файлов иконок), негативного кэша для 404-иконок нет (каждый промах — existsSync+readFile). Проверено и корректно: traversal-guard getNode, единый try/catch-конверт роутов, SymbolConnectionService (дедуп+стабильная сортировка), omit не мутирует вход.
+Не исправлялось (не баги): StatusViewService — два идентичных ~45-строчных блока маппинга symbols (backtest/live) — осознанная копипаста (SRP), правки применять в оба блока; icon-кэши без eviction (ограничены числом файлов иконок), негативного кэша для 404-иконок нет (каждый промах — existsSync+readFile). Проверено и корректно: traversal-guard getNode, единый try/catch-конверт роутов, SymbolConnectionService (дедуп+стабильная сортировка), omit не мутирует вход.
 
 ---
 

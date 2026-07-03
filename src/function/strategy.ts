@@ -469,9 +469,12 @@ export async function commitTrailingStop(
     signalId: signal.id,
     percentShift,
     currentPrice,
+    // ClientStrategy applies percentShift relative to the ORIGINAL stop-loss,
+    // so the broker-facing price must be derived from it too
+    // (signal.priceStopLoss is the effective, possibly trailing, level)
     newStopLossPrice: slPercentShiftToPrice(
       percentShift,
-      signal.priceStopLoss,
+      signal.originalPriceStopLoss ?? signal.priceStopLoss,
       effectivePriceOpen,
       signal.position,
     ),
@@ -587,9 +590,12 @@ export async function commitTrailingTake(
     signalId: signal.id,
     percentShift,
     currentPrice,
+    // ClientStrategy applies percentShift relative to the ORIGINAL take-profit,
+    // so the broker-facing price must be derived from it too
+    // (signal.priceTakeProfit is the effective, possibly trailing, level)
     newTakeProfitPrice: tpPercentShiftToPrice(
       percentShift,
-      signal.priceTakeProfit,
+      signal.originalPriceTakeProfit ?? signal.priceTakeProfit,
       effectivePriceOpen,
       signal.position,
     ),

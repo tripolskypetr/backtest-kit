@@ -3705,6 +3705,9 @@ export class PersistMeasureInstance implements IPersistMeasureInstance {
    * @returns Promise that resolves when removal is complete
    */
   async removeMeasureData(key: string): Promise<void> {
+    if (await not(this._storage.hasValue(key))) {
+      return;
+    }
     const data = await this._storage.readValue(key);
     if (data) {
       await this._storage.writeValue(key, Object.assign({}, data, { removed: true }));
@@ -4045,6 +4048,9 @@ export class PersistIntervalInstance implements IPersistIntervalInstance {
    * @returns Promise that resolves when removal is complete
    */
   async removeIntervalData(key: string): Promise<void> {
+    if (await not(this._storage.hasValue(key))) {
+      return;
+    }
     const data = await this._storage.readValue(key);
     if (data) {
       await this._storage.writeValue(key, Object.assign({}, data, { removed: true }));

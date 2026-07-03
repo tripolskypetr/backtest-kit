@@ -522,6 +522,166 @@ test("AUDIT: commitPartialProfitCost closes exact dollar amounts after prior par
 });
 
 /**
+ * AUDIT 4-й проход: та же семантика в КОПИИ Backtest.commitPartialProfitCost
+ * (classes/Backtest.ts). Регрессия: копия конвертировала доллары через total
+ * invested вместо remaining cost basis — $75 после закрытых $150 закрывали
+ * только 25% от remaining $150 = $37.50 (недозакрытие).
+ */
+test("AUDIT: Backtest.commitPartialProfitCost copy closes exact dollars after prior partial", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  let firstDone = false;
+  let secondDone = false;
+  let firstResult = null;
+  let secondResult = null;
+  let remainingAfter = null;
+
+  const context = {
+    strategyName: "audit-partial-cost-copy-strategy",
+    exchangeName: "binance-audit-partial-cost-copy",
+    frameName: "40m-audit-partial-cost-copy",
+  };
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 40; i++) {
+        const timestamp = startTime + i * intervalMs;
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else {
+          const progress = Math.min((i - 5) / 20, 1);
+          const price = basePrice + 60000 * progress * 0.4;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        note: "audit partial cost copy",
+        cost: 300,
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 60000,
+        priceStopLoss: basePrice - 50000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  addFrameSchema({
+    frameName: context.frameName,
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:40:00Z"),
+  });
+
+  const unsubscribeListener = listenPartialProfitAvailable(async ({ symbol, level, currentPrice }) => {
+    if (!firstDone && level >= 5) {
+      firstDone = true;
+      // Позиция $300: закрываем $150 через КОПИЮ в classes/Backtest.ts
+      firstResult = await Backtest.commitPartialProfitCost(symbol, 150, currentPrice, context);
+      return;
+    }
+    if (firstDone && !secondDone && level >= 10) {
+      secondDone = true;
+      // Осталось $150: закрываем ещё $75
+      secondResult = await Backtest.commitPartialProfitCost(symbol, 75, currentPrice, context);
+      remainingAfter = await getTotalCostClosed(symbol);
+    }
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", context);
+
+  await awaitSubject.toPromise();
+  unsubscribeListener();
+
+  if (!firstDone || !secondDone) {
+    fail(`Partial closes were not attempted (first=${firstDone}, second=${secondDone})`);
+    return;
+  }
+
+  if (firstResult !== true || secondResult !== true) {
+    fail(`Partial closes were rejected: first=${firstResult}, second=${secondResult}`);
+    return;
+  }
+
+  if (remainingAfter === null || Math.abs(remainingAfter - 75) > 1e-6) {
+    fail(`REGRESSION: Backtest copy under-closed — remaining = $${remainingAfter}, expected $75 (old bug: $112.50)`);
+    return;
+  }
+
+  pass(`Backtest.commitPartialProfitCost copy is exact: $300 - $150 - $75 → remaining $${remainingAfter}`);
+});
+
+/**
  * AUDIT MD #1: waitForInit в BacktestMarkdownService должен сливать
  * персистированную историю newest-first.
  *
