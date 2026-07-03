@@ -1052,11 +1052,14 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
     : sumPriceVolume / totalVolume;
 };
 
-// Context-free by design (like WAIT_FOR_DISPOSE_FN): reads only static ctor
-// params — symbol/strategyName/exchangeName/frameName/backtest are the same
-// values the instance is memoized by, so no method/execution context is
-// required to initialize. Timestamps for restore callbacks use Date.now():
-// this path is live-only, where execution.when IS the wall clock anyway.
+// Static reads (like WAIT_FOR_DISPOSE_FN): symbol/strategyName/exchangeName/
+// frameName/backtest come from ctor params — the same values the instance is
+// memoized by — so those no longer touch method/execution contexts. The RESTORE
+// branches (persisted pending/scheduled found) still require the execution
+// context: they read execution.context.when for callback timestamps and call
+// exchange.getAveragePrice, which reads it internally for the candle window.
+// Time is genuinely contextual (simulated in tests/replay) — the wall clock is
+// NOT a substitute. The empty-restore path is context-free.
 const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   self.params.logger.debug("ClientStrategy waitForInit");
   if (self.params.backtest) {
@@ -1141,11 +1144,14 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       self._commitQueue = strategyData.commitQueue ?? [];
     }
 
-    // Call onActive callback for restored signal
+    // Call onActive callback for restored signal.
+    // NOTE: the restore branch reads execution.context.when — time is genuinely
+    // contextual (simulated in tests/replay), the wall clock is NOT a substitute.
+    // ClientExchange also reads it internally for the candle window.
     const currentPrice = await self.params.exchange.getAveragePrice(
       self.params.symbol
     );
-    const currentTime = Date.now();
+    const currentTime = self.params.execution.context.when.getTime();
     await CALL_ACTIVE_CALLBACKS_FN(
       self,
       self.params.symbol,
@@ -1183,11 +1189,12 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     }
     self._scheduledSignal = scheduledSignal;
 
-    // Call onSchedule callback for restored scheduled signal
+    // Call onSchedule callback for restored scheduled signal.
+    // Same as the pending restore above: execution.context.when is required here.
     const currentPrice = await self.params.exchange.getAveragePrice(
       self.params.symbol
     );
-    const currentTime = Date.now();
+    const currentTime = self.params.execution.context.when.getTime();
     await CALL_SCHEDULE_CALLBACKS_FN(
       self,
       self.params.symbol,

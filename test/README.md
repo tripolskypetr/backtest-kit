@@ -641,10 +641,13 @@ method (strategyName/exchangeName/frameName) и execution (symbol/when/backtest)
 `MethodContextService.runInContext`. Если спускаться НИЖЕ core-слоя
 (`strategyConnectionService.tick`, `strategy.tick()` на инстансе) — оборачивайте
 в оба контекста вручную. Остальные методы ClientStrategy (deferred-команды,
-getters, partial/trailing/breakeven, waitForInit/dispose) контекстов НЕ требуют —
-они читают только статические ctor-params; единственное исключение —
-`setPendingSignal` лениво читает `execution.context.when` для метки времени
-onWrite (вызывается только из tick/backtest-пайплайнов).
+getters, partial/trailing/breakeven, dispose) контекстов НЕ требуют — identity
+(symbol/backtest/strategy-triple) читается из статических ctor-params. Два
+исключения, где нужен execution-контекст, — это ВРЕМЯ (`when` симулируется,
+wall clock не замена): restore-ветки `waitForInit` (метки коллбеков +
+`getAveragePrice` читает `when` внутри ClientExchange; пустой restore
+контекст-фри) и ленивый `when` в `setPendingSignal` для метки onWrite
+(вызывается только из tick/backtest-пайплайнов).
 
 ### Гейты order-sync / order-check (live-only)
 
