@@ -663,3 +663,184 @@ test("DIFF: deferred user close survives a crash and drains after restore", asyn
     PersistRecentAdapter.useDummy();
   }
 });
+
+/**
+ * DIFF: контекстно-независимая поверхность ClientStrategy.
+ *
+ * ФИКСИРУЕТ инвариант рефактора: все геттеры, validate*, позиционные команды,
+ * deferred-команды, setScheduledSignal, waitForInit (пустой restore), stopStrategy
+ * и dispose работают БЕЗ MethodContext и ExecutionContext — голыми вызовами на
+ * инстансе. Если кто-то вернёт чтение execution.context/method.context в любой
+ * из них — тест назовёт метод по имени (ScopeContextError).
+ *
+ * Вне инварианта (законно требуют контекстов): tick, backtest, setPendingSignal
+ * (ленивый `when` для onWrite), restore-ветки waitForInit (время симулируемо).
+ */
+test("DIFF: every getter and command on ClientStrategy runs bare, without contexts", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const NOW = t0 + 60_000;
+
+  const context = {
+    strategyName: "coverage-bare-strategy",
+    exchangeName: "binance-coverage-bare",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  makeExchange(context.exchangeName, () => basePrice);
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "coverage bare",
+        priceTakeProfit: basePrice + 20000,
+        priceStopLoss: basePrice - 10000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  // Вторая стратегия — для голых waitForInit/createSignal/stopStrategy/dispose
+  const context2 = {
+    strategyName: "coverage-bare2-strategy",
+    exchangeName: "binance-coverage-bare",
+    frameName: "",
+  };
+  addStrategySchema({
+    strategyName: context2.strategyName,
+    interval: "1m",
+    getSignal: async () => null,
+  });
+
+  // Открываем позицию штатным пайплайном (tick законно требует контексты)
+  const runTick = makeRunTick(context);
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "opened") {
+    fail(`tick #1 expected "opened", got "${tick1.action}"`);
+    return;
+  }
+
+  // ГОЛЫЙ доступ к инстансу — с этой точки НИ ОДНОЙ обёртки контекста
+  const conn = realConnectionService();
+  const s = conn.getStrategy("BTCUSDT", context.strategyName, context.exchangeName, context.frameName, false);
+
+  const failures = [];
+  const results = {};
+  const bare = async (name, fn) => {
+    try {
+      results[name] = await fn();
+    } catch (e) {
+      failures.push(`${name}: ${e.message}`);
+    }
+  };
+
+  // --- геттеры состояния ---
+  await bare("hasPendingSignal", () => s.hasPendingSignal("BTCUSDT"));
+  await bare("hasScheduledSignal", () => s.hasScheduledSignal("BTCUSDT"));
+  await bare("getPendingSignal", () => s.getPendingSignal("BTCUSDT", basePrice));
+  await bare("getScheduledSignal", () => s.getScheduledSignal("BTCUSDT", basePrice));
+  await bare("getStopped", () => s.getStopped("BTCUSDT"));
+  await bare("getBreakeven", () => s.getBreakeven("BTCUSDT", basePrice + 1000));
+  await bare("getStatus", () => s.getStatus("BTCUSDT"));
+  // --- позиционные геттеры ---
+  await bare("getTotalPercentClosed", () => s.getTotalPercentClosed("BTCUSDT"));
+  await bare("getTotalCostClosed", () => s.getTotalCostClosed("BTCUSDT"));
+  await bare("getPositionEffectivePrice", () => s.getPositionEffectivePrice("BTCUSDT"));
+  await bare("getPositionInvestedCount", () => s.getPositionInvestedCount("BTCUSDT"));
+  await bare("getPositionInvestedCost", () => s.getPositionInvestedCost("BTCUSDT"));
+  await bare("getPositionPnlPercent", () => s.getPositionPnlPercent("BTCUSDT", basePrice + 500));
+  await bare("getPositionPnlCost", () => s.getPositionPnlCost("BTCUSDT", basePrice + 500));
+  await bare("getPositionLevels", () => s.getPositionLevels("BTCUSDT"));
+  await bare("getPositionPartials", () => s.getPositionPartials("BTCUSDT"));
+  await bare("getPositionEntries", () => s.getPositionEntries("BTCUSDT", NOW));
+  await bare("getPositionEstimateMinutes", () => s.getPositionEstimateMinutes("BTCUSDT"));
+  await bare("getPositionCountdownMinutes", () => s.getPositionCountdownMinutes("BTCUSDT", NOW));
+  await bare("getPositionActiveMinutes", () => s.getPositionActiveMinutes("BTCUSDT", NOW));
+  await bare("getPositionWaitingMinutes", () => s.getPositionWaitingMinutes("BTCUSDT", NOW));
+  // --- peak/fall геттеры ---
+  await bare("getPositionHighestProfitPrice", () => s.getPositionHighestProfitPrice("BTCUSDT"));
+  await bare("getPositionHighestProfitTimestamp", () => s.getPositionHighestProfitTimestamp("BTCUSDT"));
+  await bare("getPositionHighestPnlPercentage", () => s.getPositionHighestPnlPercentage("BTCUSDT"));
+  await bare("getPositionHighestPnlCost", () => s.getPositionHighestPnlCost("BTCUSDT"));
+  await bare("getPositionHighestProfitBreakeven", () => s.getPositionHighestProfitBreakeven("BTCUSDT"));
+  await bare("getPositionHighestProfitMinutes", () => s.getPositionHighestProfitMinutes("BTCUSDT", NOW));
+  await bare("getPositionDrawdownMinutes", () => s.getPositionDrawdownMinutes("BTCUSDT", NOW));
+  await bare("getPositionMaxDrawdownMinutes", () => s.getPositionMaxDrawdownMinutes("BTCUSDT", NOW));
+  await bare("getPositionMaxDrawdownPrice", () => s.getPositionMaxDrawdownPrice("BTCUSDT"));
+  await bare("getPositionMaxDrawdownTimestamp", () => s.getPositionMaxDrawdownTimestamp("BTCUSDT"));
+  await bare("getPositionMaxDrawdownPnlPercentage", () => s.getPositionMaxDrawdownPnlPercentage("BTCUSDT"));
+  await bare("getPositionMaxDrawdownPnlCost", () => s.getPositionMaxDrawdownPnlCost("BTCUSDT"));
+  await bare("getPositionHighestProfitDistancePnlPercentage", () => s.getPositionHighestProfitDistancePnlPercentage("BTCUSDT", basePrice));
+  await bare("getPositionHighestProfitDistancePnlCost", () => s.getPositionHighestProfitDistancePnlCost("BTCUSDT", basePrice));
+  await bare("getPositionHighestMaxDrawdownPnlPercentage", () => s.getPositionHighestMaxDrawdownPnlPercentage("BTCUSDT", basePrice));
+  await bare("getPositionHighestMaxDrawdownPnlCost", () => s.getPositionHighestMaxDrawdownPnlCost("BTCUSDT", basePrice));
+  await bare("getMaxDrawdownDistancePnlPercentage", () => s.getMaxDrawdownDistancePnlPercentage("BTCUSDT", basePrice));
+  await bare("getMaxDrawdownDistancePnlCost", () => s.getMaxDrawdownDistancePnlCost("BTCUSDT", basePrice));
+  // --- validate* ---
+  await bare("validatePartialProfit", () => s.validatePartialProfit("BTCUSDT", 10, basePrice + 2000));
+  await bare("validatePartialLoss", () => s.validatePartialLoss("BTCUSDT", 10, basePrice - 2000));
+  await bare("validateBreakeven", () => s.validateBreakeven("BTCUSDT", basePrice + 2000));
+  await bare("validateTrailingStop", () => s.validateTrailingStop("BTCUSDT", -5, basePrice + 2000));
+  await bare("validateTrailingTake", () => s.validateTrailingTake("BTCUSDT", -10, basePrice + 2000));
+  await bare("validateAverageBuy", () => s.validateAverageBuy("BTCUSDT", basePrice - 2000));
+  // --- позиционные команды (мутирующие) ---
+  await bare("partialProfit", () => s.partialProfit("BTCUSDT", 10, basePrice + 2000, false, NOW));
+  await bare("partialLoss", () => s.partialLoss("BTCUSDT", 10, basePrice - 2000, false, NOW));
+  await bare("trailingStop", () => s.trailingStop("BTCUSDT", -5, basePrice + 2000, false, NOW));
+  await bare("trailingTake", () => s.trailingTake("BTCUSDT", -10, basePrice + 2000, false, NOW));
+  await bare("breakeven", () => s.breakeven("BTCUSDT", basePrice + 2000, false, NOW));
+  await bare("averageBuy", () => s.averageBuy("BTCUSDT", basePrice - 2000, false, NOW, 100));
+  // --- deferred-команды ---
+  await bare("createTakeProfit", () => s.createTakeProfit("BTCUSDT", false, { id: "bare-tp" }));
+  await bare("getStatus#afterTp", () => s.getStatus("BTCUSDT"));
+  await bare("setScheduledSignal(null)", () => s.setScheduledSignal(null));
+  await bare("stopStrategy", () => s.stopStrategy("BTCUSDT", false));
+
+  // --- вторая стратегия: голые waitForInit / createSignal / closePending / cancelScheduled / dispose ---
+  const s2 = conn.getStrategy("BTCUSDT", context2.strategyName, context2.exchangeName, context2.frameName, false);
+  await bare("waitForInit#fresh", () => s2.waitForInit());
+  await bare("createSignal", () => s2.createSignal("BTCUSDT", basePrice, {
+    position: "long",
+    note: "bare created",
+    priceTakeProfit: basePrice + 20000,
+    priceStopLoss: basePrice - 10000,
+    minuteEstimatedTime: 300,
+  }));
+  await bare("getStatus#created", () => s2.getStatus("BTCUSDT"));
+  await bare("closePending#noop", () => s2.closePending("BTCUSDT", false, { id: "bare-close" }));
+  await bare("cancelScheduled#noop", () => s2.cancelScheduled("BTCUSDT", false, { id: "bare-cancel" }));
+  await bare("activateScheduled#noop", () => s2.activateScheduled("BTCUSDT", false, { id: "bare-activate" }));
+  await bare("dispose#fresh", () => s2.dispose());
+
+  if (failures.length > 0) {
+    fail(`REGRESSION: ${failures.length} method(s) required a context:\n  ${failures.join("\n  ")}`);
+    return;
+  }
+
+  // Выборочные смысловые проверки (не только «не бросило»)
+  if (results["hasPendingSignal"] !== true || results["getPositionInvestedCount"] !== 1) {
+    fail(`sanity: expected open position with 1 entry, got hasPending=${results["hasPendingSignal"]} count=${results["getPositionInvestedCount"]}`);
+    return;
+  }
+  if (results["partialProfit"] !== true || results["averageBuy"] !== true || results["trailingStop"] !== true) {
+    fail(`sanity: mutating commands expected true, got pp=${results["partialProfit"]} dca=${results["averageBuy"]} ts=${results["trailingStop"]}`);
+    return;
+  }
+  if (!results["getStatus#afterTp"].takeProfitSignal) {
+    fail(`sanity: createTakeProfit must snapshot into takeProfitSignal`);
+    return;
+  }
+  if (!results["getStatus#created"].createdSignal) {
+    fail(`sanity: createSignal must queue createdSignal on the fresh instance`);
+    return;
+  }
+
+  const total = Object.keys(results).length;
+  pass(`${total} bare calls succeeded without method/execution contexts`);
+});

@@ -847,7 +847,8 @@ clearTimeout(watchdog);
 - **`GET_PROGRESS_PERCENT_FN`**: breakeven ставит SL = entry, отвергнутое sync-закрытие проваливается в мониторинг → percentSl = 100 (не Infinity/NaN)
 - **Drop очереди коммитов без pending** (`PROCESS_COMMIT_QUEUE_FN`): partial-commit в очереди + TP-филл занулил pending → commit дропнут (не эмитится), close-pending доставлен
 - **Cost-fallback** (`signal.cost ?? CC_POSITION_ENTRY_COST`): сигнал с cost=250 и пустым `_entry` (патч state) → invested/entries отдают 250, не $100
-- **Crash-recovery deferred close** (`WAIT_FOR_INIT_FN` + `PERSIST_STRATEGY_FN` + `getStatus`): closePending → dispose инстанса (clear в двух контекстах) → restore → дренаж closed/"closed" с closeId; useJson-адаптеры локально в скоупе теста
+- **Crash-recovery deferred close** (`WAIT_FOR_INIT_FN` + `PERSIST_STRATEGY_FN` + `getStatus`): closePending → dispose инстанса ГОЛЫМ clear() → restore → дренаж closed/"closed" с closeId; useJson-адаптеры локально в скоупе теста
+- **Контекстно-независимая поверхность**: 62 ГОЛЫХ вызова (без method/execution контекстов) по всей поверхности инстанса — все геттеры, validate*, позиционные команды (partial/trailing/breakeven/DCA), deferred-команды, setScheduledSignal, waitForInit (пустой restore), stopStrategy, dispose; упавший метод называется по имени. Вне инварианта (законно контекстные): tick, backtest, setPendingSignal (`when` для onWrite), restore-ветки waitForInit
 
 ## Отладка тестов
 
