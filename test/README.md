@@ -755,6 +755,18 @@ clearTimeout(watchdog);
 - **#3**: Backtest-тишина: 0 вызовов адаптера за полный прогон (`for await Backtest.run`)
 - **#4**: `enable()` без адаптера бросает; после `disable()` роутинг отключён, фреймворк работает
 
+### test/e2e/strategy.test.mjs
+Матрица deferred-команд ClientStrategy: Live (манки-паттерн `runTick` + Broker) × Backtest (команды из коллбеков стратегии, `for await Backtest.run`):
+- **LIVE #1**: `createSignal` — DTO из очереди потребляется вместо getSignal (broker openCommit "active" + pendingOpen); busy-guard бросает при живой позиции
+- **LIVE #2**: `closePending` — sync-close гейт отвергает первую попытку, `_closedSignal` сохраняется и закрытие ретраится на следующем tick (closeId в результате)
+- **LIVE #3**: `activateScheduled` — вход по `priceOpen` (цена филла лимитника), commit "activate-scheduled" с activateId, broker уведомлён
+- **LIVE #4**: `cancelScheduled` — cancelled/user с cancelId, commit с note, broker `onSignalScheduleCancelled`
+- **LIVE #5**: `createTakeProfit`/`createStopLoss` — закрытие ПО ЭФФЕКТИВНОМУ уровню TP/SL минуя VWAP (рынок не двигался)
+- **BACKTEST #1**: `cancelScheduled` из `onSchedulePing` — свечной цикл дренит отмену mid-frame (cancelId)
+- **BACKTEST #2**: `activateScheduled` из `onSchedulePing` — inline-открытие без касания priceOpen, базис = priceOpen, доживает до time_expired
+- **BACKTEST #3**: `createTakeProfit` из `onActivePing` — закрытие по эффективному TP при VWAP на месте (closeId)
+- **BACKTEST #4**: `closePending` из `onActivePing` — closed/"closed" mid-frame (closeId)
+
 ## Отладка тестов
 
 ### Добавление console.log

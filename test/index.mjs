@@ -31,6 +31,7 @@ import "./e2e/candle_cache.test.mjs";
 import "./e2e/audit.test.mjs";
 import "./e2e/gauntlet.test.mjs";
 import "./e2e/broker.test.mjs";
+import "./e2e/strategy.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
