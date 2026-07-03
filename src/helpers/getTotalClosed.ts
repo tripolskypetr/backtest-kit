@@ -29,9 +29,12 @@ export const getTotalClosed = (
 ): { totalClosedPercent: number; remainingCostBasis: number } => {
   const entries = signal._entry ?? [];
   const partials = signal._partial ?? [];
+  // Fallback for signals without _entry (loaded from old persistence): use the
+  // signal's own cost — the constant would corrupt the dollar basis of a
+  // position opened with a custom cost.
   const totalInvested = entries.length > 0
     ? entries.reduce((s, e) => s + e.cost, 0)
-    : GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+    : signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
 
   if (partials.length === 0) {
     return {

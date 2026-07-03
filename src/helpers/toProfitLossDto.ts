@@ -31,9 +31,12 @@ export const toProfitLossDto = (
   priceClose: number
 ): IStrategyPnL => {
   const entries = signal._entry ?? [];
+  // Fallback for signals without _entry (loaded from old persistence): use the
+  // signal's own cost — the constant would corrupt the dollar basis of a
+  // position opened with a custom cost.
   const totalInvested = entries.length > 0
     ? entries.reduce((s, e) => s + e.cost, 0)
-    : GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+    : signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
 
   const priceOpen = getEffectivePriceOpen(signal);
 

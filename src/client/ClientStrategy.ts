@@ -1101,7 +1101,7 @@ const PARTIAL_PROFIT_FN = (
 
   // Check if would exceed 100% total closed (dollar-basis, DCA-aware)
   const { totalClosedPercent, remainingCostBasis } = getTotalClosed(signal);
-  const totalInvested = (signal._entry ?? []).reduce((s, e) => s + e.cost, 0) || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+  const totalInvested = (signal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
   const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
   const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
 
@@ -1155,7 +1155,7 @@ const PARTIAL_LOSS_FN = (
 
   // Check if would exceed 100% total closed (dollar-basis, DCA-aware)
   const { totalClosedPercent, remainingCostBasis } = getTotalClosed(signal);
-  const totalInvested = (signal._entry ?? []).reduce((s, e) => s + e.cost, 0) || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+  const totalInvested = (signal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
   const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
   const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
 
@@ -5633,7 +5633,7 @@ export class ClientStrategy implements IStrategy {
    * Example: 1 entry $100, partialProfit(30%) → returns 70
    * Example: 2 entries $200, partialProfit(50%) → returns 50
    *
-   * Returns 100 if no pending signal or no partial closes.
+   * Returns null if no pending signal exists; 100 if no partial closes yet.
    *
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to held percentage (0–100)
@@ -5658,7 +5658,7 @@ export class ClientStrategy implements IStrategy {
    * Example: 1 entry $100, partialProfit(30%) → returns 70
    * Example: 2 entries $200, partialProfit(50%) → returns 100
    *
-   * Returns totalInvested if no pending signal or no partial closes.
+   * Returns null if no pending signal exists; totalInvested if no partial closes yet.
    *
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to held cost basis in dollars
@@ -5727,7 +5727,7 @@ export class ClientStrategy implements IStrategy {
     if (!this._pendingSignal) {
       return null;
     }
-    return (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+    return (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
   }
 
   /**
@@ -5845,7 +5845,9 @@ export class ClientStrategy implements IStrategy {
     }
     const entries = this._pendingSignal._entry;
     if (!entries || entries.length === 0) {
-      return [{ price: this._pendingSignal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp }];
+      // Use the signal's own cost — the constant would misreport a position
+      // opened with a custom cost (keep in sync with AVERAGE_BUY_FN fallback)
+      return [{ price: this._pendingSignal.priceOpen, cost: this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp }];
     }
     return entries.map(({ price, cost, timestamp }) => ({ price, cost, timestamp }));
   }
@@ -5973,17 +5975,17 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
-   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   * Returns whether the highest profit price recorded for this position has ever
+   * covered the breakeven threshold (slippage + fees on both transactions plus
+   * CC_BREAKEVEN_THRESHOLD margin) relative to the effective entry price.
    *
-   * Measures how long the position has been pulling back from its peak profit level.
-   * Zero when called at the exact moment the peak was set.
-   * Grows continuously as price moves away from the peak without setting a new record.
+   * True means the peak was deep enough in profit that a breakeven SL could have
+   * been set at that moment — regardless of where the price is now.
    *
    * Returns null if no pending signal exists.
    *
    * @param symbol - Trading pair symbol
-   * @param timestamp - Current Unix timestamp in milliseconds
-   * @returns Promise resolving to drawdown duration in minutes or null
+   * @returns Promise resolving to boolean or null
    */
   public async getPositionHighestProfitBreakeven(symbol: string): Promise<boolean | null> {
     this.params.logger.debug("ClientStrategy getPositionHighestProfitBreakeven", { symbol });
@@ -6937,7 +6939,7 @@ export class ClientStrategy implements IStrategy {
       this,
       this._pendingSignal,
       averagePrice,
-      false
+      this.params.execution.context.backtest
     );
   }
 
@@ -7516,7 +7518,11 @@ export class ClientStrategy implements IStrategy {
   /**
    * Activates the scheduled signal without waiting for price to reach priceOpen.
    *
-   * Forces immediate activation of the scheduled signal at the current price.
+   * Forces immediate activation of the scheduled signal. NOTE: the position's
+   * entry basis stays at the scheduled priceOpen (the limit-order price), NOT at
+   * the current market price — the risk check runs against the current price,
+   * but PnL/TP/SL distances remain anchored to priceOpen. If the adapter fills
+   * the activation as a market order, the fill price may differ from this basis.
    * Does NOT affect active pending signals or strategy operation.
    * Does NOT set stop flag - strategy can continue generating new signals.
    *
@@ -7877,7 +7883,7 @@ export class ClientStrategy implements IStrategy {
     if (this._pendingSignal.position === "short" && currentPrice <= effectiveTakeProfit) return false;
 
     const { totalClosedPercent, remainingCostBasis } = getTotalClosed(this._pendingSignal);
-    const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+    const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
     const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
     const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
     if (newTotalClosedDollar > totalInvested) return false;
@@ -8110,7 +8116,7 @@ export class ClientStrategy implements IStrategy {
     if (this._pendingSignal.position === "short" && currentPrice >= effectiveStopLoss) return false;
 
     const { totalClosedPercent, remainingCostBasis } = getTotalClosed(this._pendingSignal);
-    const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+    const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
     const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
     const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
     if (newTotalClosedDollar > totalInvested) return false;

@@ -158,6 +158,17 @@
 
 Отложено до решения продукта (PLAN.md §5, поведение НЕ менялось): retry-семантика sync-отказа открытия (откат `_lastSignalTimestamp` для честного next-tick retry — поведенческое изменение); risk-reject на price-активации при уже исполненном лимитнике (cancel-события мало — на бирже уже позиция; решается на стороне адаптера через `onOrderCheck`/`onSignalActivePing`).
 
+Дочистка после повторного полного чтения (2026-07-03, 800 ok / 0 fail):
+
+- [x] **P4: fallback `cost` игнорировал `signal.cost` (8 копий)** — `src/helpers/getTotalClosed.ts`, `src/helpers/toProfitLossDto.ts`, `src/client/ClientStrategy.ts` (PARTIAL_PROFIT_FN, PARTIAL_LOSS_FN, validatePartialProfit, validatePartialLoss, getPositionInvestedCost, getPositionEntries)
+  При отсутствующем/пустом `_entry` (сигнал из старой персистенции) totalInvested падал на константу `CC_POSITION_ENTRY_COST`, игнорируя кастомный `signal.cost` — портил долларовый базис PnL/партиалов. `AVERAGE_BUY_FN`/`validateAverageBuy` были исправлены ранее; выровнены все оставшиеся копии на `signal.cost ?? CC_POSITION_ENTRY_COST`.
+
+- [x] **P4: жёстко зашитый `backtest=false` в pending-мониторе tick()** — `RETURN_PENDING_SIGNAL_ACTIVE_FN(..., false)` → `execution.context.backtest`. В штатном backtest-потоке ветка недостижима (Infinity-холды идут чанками через `backtest()`), но прямой вызов `tick` с pending в backtest-режиме записал бы `_peak`/`_fall` в live-персист.
+
+- [x] **P4 доки**: `getTotalPercentClosed`/`getTotalCostClosed` («Returns 100/totalInvested if no pending» → фактический `null`); `getPositionHighestProfitBreakeven` (докстринг был скопирован от minutes-метода — теперь описывает возвращаемый boolean «пик покрыл breakeven-порог»); `activateScheduled` («at the current price» → зафиксировано фактическое поведение: базис входа остаётся scheduled `priceOpen`, риск-проверка — по текущей цене).
+
+Требует решения продукта (НЕ трогалось): семантика `activateScheduled` — вход по `priceOpen`, которого рынок не касался, завышает PnL относительно реального маркет-филла (adapter-side); асимметрия цены в `opened`-событии (live — currentPrice, backtest-inline — priceOpen); onWrite получает то raw `ISignalRow`, то `TO_PUBLIC_SIGNAL` (по контракту допустимо); строгий `>` в капе партиалов (fp-дрейф на ровно 100%).
+
 Проверено и признано корректным (без изменений): `Promise.race` с TIMEOUT_SYMBOL в GET_SIGNAL_FN, whipsaw-защита с fallback-релизом риска, TO_PUBLIC_SIGNAL, PARTIAL_*_FN (долларовый кап), TRAILING_*_FN (расчёт от оригинала, absorption), BREAKEVEN_FN, AVERAGE_BUY_FN + getEffectivePriceOpen, PROCESS_COMMIT_QUEUE_FN (at-most-once), WAIT_FOR_INIT_FN (Infinity-restore, commitQueue по id), CHECK_PENDING_SIGNAL_COMPLETION_FN (приоритет time→TP→SL), PROCESS_PENDING_SIGNAL_CANDLES_FN (VWAP-окно, frameEndTime), все deferred-дренажи tick/backtest, createSignal/createTakeProfit/createStopLoss, wick-активация в backtest vs VWAP в live (осознанное моделирование лимитника).
 
 ---
