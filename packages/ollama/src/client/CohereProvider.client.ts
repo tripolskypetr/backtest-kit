@@ -153,7 +153,7 @@ export class CohereProvider implements IProvider {
     } = result;
 
     const finalResult = {
-      content: content!,
+      content: content ?? "",
       mode,
       agentName,
       role,

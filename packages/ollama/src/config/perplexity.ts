@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import engine from "../lib";
 
 /**
@@ -29,14 +29,19 @@ import engine from "../lib";
  * });
  * ```
  */
-export const getPerplexity = singleshot(() => {
+const GET_CLIENT_FN = memoize(
+    ([apiKey]) => `${apiKey}`,
+    (apiKey: string | undefined) =>
+        new OpenAI({
+            baseURL: "https://api.perplexity.ai",
+            apiKey,
+        }),
+);
+
+export const getPerplexity = () => {
     const apiKey = engine.contextService.context.apiKey;
     if (Array.isArray(apiKey)) {
-        getPerplexity.clear();
         throw new Error("Perplexity provider does not support token rotation");
     }
-    return new OpenAI({
-        baseURL: "https://api.perplexity.ai",
-        apiKey: apiKey,
-    })
-});
+    return GET_CLIENT_FN(apiKey);
+};

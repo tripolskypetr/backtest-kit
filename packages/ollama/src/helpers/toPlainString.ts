@@ -40,6 +40,14 @@ export const toPlainString = async (content: string): Promise<string> => {
 
     let telegramHtml = md.render(markdown);
 
+    // sanitize-html transformTags cannot insert text content, so list markers
+    // are injected into the HTML as text before sanitizing.
+    telegramHtml = telegramHtml.replace(/<ol[^>]*>[\s\S]*?<\/ol>/g, (block) => {
+        let counter = 0;
+        return block.replace(/<li>/g, () => `<li>${++counter}. `);
+    });
+    telegramHtml = telegramHtml.replace(/<li>(?!\d+\. )/g, "<li>• ");
+
     telegramHtml = sanitizeHtml(telegramHtml, {
         allowedTags: [
             "b",
@@ -68,7 +76,7 @@ export const toPlainString = async (content: string): Promise<string> => {
             em: "",
             p: () => "",
             ul: () => "",
-            li: () => "• ",
+            li: () => "",
             ol: () => "",
             hr: () => "\n",
             br: () => "\n",

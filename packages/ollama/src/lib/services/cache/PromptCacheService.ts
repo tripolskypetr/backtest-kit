@@ -11,7 +11,7 @@ import { Prompt } from "../../../classes/Prompt";
 const require = createRequire(import.meta.url);
 
 const REQUIRE_MODULE_FN = memoize(
-  ([module]) => module,
+  ([module]) => join(module.baseDir, module.path),
   (module: Module): PromptModel => {
     const modulePath = require.resolve(join(module.baseDir, module.path));
     return require(modulePath);
@@ -35,7 +35,8 @@ export class PromptCacheService {
       module,
     });
     if (module) {
-      REQUIRE_MODULE_FN.clear(module);
+      REQUIRE_MODULE_FN.clear(join(module.baseDir, module.path));
+      return;
     }
     REQUIRE_MODULE_FN.clear();
   };

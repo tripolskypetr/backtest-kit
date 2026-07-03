@@ -1,6 +1,8 @@
 import { PromptModel } from "../model/Prompt.model";
 
-const PROMPT_TYPE_SYMBOL = Symbol("prompt-type");
+// Symbol.for keeps the brand check working when CJS and ESM copies of the
+// package end up in the same process (dual-package hazard).
+const PROMPT_TYPE_SYMBOL = Symbol.for("backtest-kit.ollama.prompt-type");
 
 export class Prompt {
   private readonly __type__ = PROMPT_TYPE_SYMBOL;

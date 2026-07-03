@@ -1,6 +1,15 @@
 import OpenAI from "openai";
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import engine from "../lib";
+
+const GET_CLIENT_FN = memoize(
+    ([apiKey]) => `${apiKey}`,
+    (apiKey: string | undefined) =>
+        new OpenAI({
+            baseURL: "https://api.anthropic.com/v1/",
+            apiKey,
+        }),
+);
 
 /**
  * Creates and caches an OpenAI-compatible client for Claude (Anthropic) API.
@@ -29,14 +38,10 @@ import engine from "../lib";
  * });
  * ```
  */
-export const getClaude = singleshot(() => {
+export const getClaude = () => {
     const apiKey = engine.contextService.context.apiKey;
     if (Array.isArray(apiKey)) {
-        getClaude.clear();
         throw new Error("Claude provider does not support token rotation");
     }
-    return new OpenAI({
-        baseURL: "https://api.anthropic.com/v1/",
-        apiKey,
-    })
-});
+    return GET_CLIENT_FN(apiKey);
+};

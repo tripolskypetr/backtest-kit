@@ -87,6 +87,7 @@
   "peerDependencies": {
     "@huggingface/inference": "^4.7.1",
     "@langchain/core": "^0.3.57",
+    "@langchain/openai": "^0.4.9",
     "@langchain/xai": "^0.0.2",
     "backtest-kit": "^14.1.0",
     "groq-sdk": "^0.37.0",
@@ -96,6 +97,7 @@
   },
   "dependencies": {
     "agent-swarm-kit": "^3.2.0",
+    "lodash-es": "^4.17.21",
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
     "functools-kit": "^3.0.0",

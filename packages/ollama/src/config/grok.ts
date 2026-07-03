@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import engine from "../lib";
 
 /**
@@ -29,14 +29,19 @@ import engine from "../lib";
  * });
  * ```
  */
-export const getGrok = singleshot(() => {
+const GET_CLIENT_FN = memoize(
+    ([apiKey]) => `${apiKey}`,
+    (apiKey: string | undefined) =>
+        new OpenAI({
+            baseURL: "https://api.x.ai/v1",
+            apiKey,
+        }),
+);
+
+export const getGrok = () => {
     const apiKey = engine.contextService.context.apiKey;
     if (Array.isArray(apiKey)) {
-        getGrok.clear();
         throw new Error("Grok provider does not support token rotation");
     }
-    return new OpenAI({
-        baseURL: "https://api.x.ai/v1",
-        apiKey: apiKey,
-    })
-});
+    return GET_CLIENT_FN(apiKey);
+};

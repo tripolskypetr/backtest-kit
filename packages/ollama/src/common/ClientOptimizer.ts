@@ -16,7 +16,7 @@ import {
 } from "../interface/Optimizer.interface";
 import { MessageModel } from "../model/Message.model";
 import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { isAbsolute, join } from "path";
 import ProgressOptimizerContract from "../contract/ProgressOptimizer.contract";
 import engine from "../lib";
 import { errorEmitter } from "../config/emitters";
@@ -221,8 +221,9 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
   const totalSources = self.params.rangeTrain.length * self.params.source.length;
   let processedSources = 0;
 
-  for (const { startDate, endDate } of self.params.rangeTrain) {
+  for (const { note, startDate, endDate } of self.params.rangeTrain) {
     const messageList: MessageModel[] = [];
+    const sourceNames: string[] = [];
     for (const source of self.params.source) {
       // Emit progress event at the start of processing each source
       await self.onProgress({
@@ -262,6 +263,7 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
             content: assistantContent,
           }
         );
+        sourceNames.push(DEFAULT_SOURCE_NAME);
 
         processedSources++;
       } else {
@@ -300,20 +302,21 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
             content: assistantContent,
           }
         );
+        sourceNames.push(name || DEFAULT_SOURCE_NAME);
 
         processedSources++;
       }
-      const name =
-        "name" in source
-          ? source.name || DEFAULT_SOURCE_NAME
-          : DEFAULT_SOURCE_NAME;
-      strategyList.push({
-        symbol,
-        name,
-        messages: messageList,
-        strategy: await self.params.getPrompt(symbol, messageList),
-      });
     }
+
+    // One strategy per training range: getPrompt receives the complete
+    // conversation history with all sources (see IOptimizerSchema.getPrompt).
+    // Messages are snapshotted so later ranges cannot mutate this strategy.
+    strategyList.push({
+      symbol,
+      name: note || sourceNames.join("+") || DEFAULT_SOURCE_NAME,
+      messages: [...messageList],
+      strategy: await self.params.getPrompt(symbol, messageList),
+    });
   }
 
   // Emit final progress event (100%)
@@ -479,7 +482,7 @@ const GET_STRATEGY_DUMP_FN = async (
   const report = await self.getCode(symbol);
 
   try {
-    const dir = join(process.cwd(), path);
+    const dir = isAbsolute(path) ? path : join(process.cwd(), path);
     await mkdir(dir, { recursive: true });
 
     const filename = `${self.params.optimizerName}_${symbol}.mjs`;

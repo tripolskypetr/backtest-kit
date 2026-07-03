@@ -1,4 +1,4 @@
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import { ChatRequest, ChatResponse, Config, Ollama } from "ollama";
 import { RoundRobin } from "agent-swarm-kit";
 import engine from "../lib";
@@ -19,30 +19,33 @@ import engine from "../lib";
  * @throws Error if no API keys are provided in context
  */
 class OllamaWrapper {
-  constructor(readonly _config: Partial<Config>) {
-    if (!engine.contextService.context.apiKey) {
+  /** Round-robin chat function */
+  readonly _chatFn: (
+    request: ChatRequest
+  ) => Promise<ChatResponse | AsyncIterable<ChatResponse>>;
+
+  constructor(readonly _config: Partial<Config>, apiKeys: string[]) {
+    if (!apiKeys?.length) {
       throw new Error("OllamaRotate required apiKey[] to process token rotation");
     }
-  }
-
-  /** Round-robin chat function factory */
-  _chatFn = RoundRobin.create(<string[]>engine.contextService.context.apiKey, (token) => {
-    const ollama = new Ollama({
-      ...this._config,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    this._chatFn = RoundRobin.create(apiKeys, (token) => {
+      const ollama = new Ollama({
+        ...this._config,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return async (
+        request: ChatRequest
+      ): Promise<ChatResponse | AsyncIterable<ChatResponse>> => {
+        if (request.stream === true) {
+          return await ollama.chat(request as ChatRequest & { stream: true });
+        } else {
+          return await ollama.chat(request as ChatRequest & { stream?: false });
+        }
+      };
     });
-    return async (
-      request: ChatRequest
-    ): Promise<ChatResponse | AsyncIterable<ChatResponse>> => {
-      if (request.stream === true) {
-        return await ollama.chat(request as ChatRequest & { stream: true });
-      } else {
-        return await ollama.chat(request as ChatRequest & { stream?: false });
-      }
-    };
-  });
+  }
 
   /** Non-streaming chat method overload */
   async chat(request: ChatRequest & { stream?: false }): Promise<ChatResponse>;
@@ -84,9 +87,21 @@ class OllamaWrapper {
  * // Next request will use a different API key
  * ```
  */
-export const getOllamaRotate = singleshot(
-  () =>
-    new OllamaWrapper({
-      host: "https://ollama.com",
-    })
+const GET_WRAPPER_FN = memoize(
+  ([apiKeys]) => apiKeys.join(","),
+  (apiKeys: string[]) =>
+    new OllamaWrapper(
+      {
+        host: "https://ollama.com",
+      },
+      apiKeys,
+    ),
 );
+
+export const getOllamaRotate = () => {
+  const apiKey = engine.contextService.context.apiKey;
+  if (!Array.isArray(apiKey)) {
+    throw new Error("OllamaRotate required apiKey[] to process token rotation");
+  }
+  return GET_WRAPPER_FN(apiKey);
+};

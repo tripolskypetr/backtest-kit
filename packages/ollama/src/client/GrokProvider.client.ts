@@ -135,7 +135,7 @@ export class GrokProvider implements IProvider {
     });
 
     const result = {
-      content: content!,
+      content: content ?? "",
       mode,
       agentName,
       role,
@@ -343,8 +343,8 @@ export class GrokProvider implements IProvider {
         Authorization: `Bearer ${this.contextService.context.apiKey}`,
       },
       body: JSON.stringify({
+        model: this.contextService.context.model,
         messages,
-        context: this.contextService.context,
         max_tokens: 5_000,
         response_format: format,
       }),

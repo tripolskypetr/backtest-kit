@@ -154,7 +154,7 @@ export class PerplexityProvider implements IProvider {
     } = result;
 
     const finalResult = {
-      content: content!,
+      content: content ?? "",
       mode,
       agentName,
       role,

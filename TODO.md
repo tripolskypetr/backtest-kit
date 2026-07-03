@@ -166,3 +166,29 @@ Breaking changes (кандидаты на major bump):
 - [x] **P3: dual-package hazard Code/File** — брендинг `Symbol("...")` заменён на `Symbol.for("backtest-kit.pinets.*")`: экземпляры из CJS-копии проходят isCode/isFile ESM-копии и наоборот (проверено на build/index.mjs + build/index.cjs в одном процессе).
 
 Проверено и признано корректным (без изменений): PineCacheService — memoize functools-kit сбрасывает кэш при reject (залипания ошибок чтения нет, проверено); отсутствие closeTime в провайдерах — PineTS достраивает openTime+barDuration (проверено реальным прогоном PineTS); AxisProviderService — все 5 комбинаций sDate/eDate/limit и look-ahead-защита корректны; look-ahead clamp eDate→context.when в CandleProviderService корректен.
+
+---
+
+## Аудит packages/ollama/src (исправлено)
+
+- [x] **P0: все 12 обёрток signal.function.ts теряли аргументы** — `async (args: Parameters<T>)` без rest-оператора: `wrapped("BTCUSDT", 42)` спредил строку в символы → функция получала `("B","T")`. Фикс: `(...args: Parameters<T>)` во всех обёртках. Проверено на built: аргументы доходят без искажений.
+
+- [x] **P0: apiKey утекал в outline-результаты и дампы** — 7 tool-based провайдеров записывали `_context = contextService.context` (с ключом) в JSON результата, который дампится в ./dump markdown и уходит потребителям. Фикс: `_context = { inference, model }` (без apiKey) во всех семи. В бандле не осталось ни одной сырой инъекции. GrokProvider дополнительно слал весь context (с ключом) в теле HTTP-запроса — убрано.
+
+- [x] **P0: singleshot замораживал первый apiKey навсегда** — все `config/*.ts` (ollama, claude, openai, zai, cohere, deepseek, mistral, perplexity, grok, groq, ollama.rotate): клиент кэшировался с ключом первого контекста; смена ключа/режима между контекстами молча игнорировалась. Фикс: `memoize` по apiKey (по списку ключей для ротации), OllamaWrapper принимает ключи параметром конструктора. HfProvider уже создавал клиентов per-call — не тронут.
+
+- [x] **P1: Grok outline-запрос без `model`** — единственный из 12 провайдеров не передавал модель (вместо неё в body лежал мусорный `context`). Добавлен `model`, `context` удалён.
+
+- [x] **P1: ClientOptimizer собирал стратегии вопреки контракту** — push был внутри цикла по источникам: N×M стратегий с кумулятивными промптами и ОБЩИМ мутируемым messageList (messages ранних стратегий менялись задним числом); `"name" in source` для функций давало имя JS-функции. Фикс: одна стратегия на диапазон (getPrompt получает полную историю, как в доке IOptimizerSchema.getPrompt), `messages: [...messageList]` снапшот, имя = range.note || join имён источников. Проверено: 2 диапазона × 2 источника → 2 стратегии, getPrompt видит [4,4] сообщений, снапшоты изолированы, имена "bull" / "news+unknown". Док IOptimizerStrategy.name обновлён. ⚠️ поведенческое изменение: было ranges×sources стратегий, стало ranges.
+
+- [x] **P1: сгенерированный код возвращал `position: "wait"` как сигнал** — каждый wait отбивался валидацией backtest-kit с ошибкой. В getStrategyTemplate добавлен `if (result.position === "wait") return null;` (после dumpJson — дамп сохраняется).
+
+- [x] **P1: toPlainString терял маркеры списков** — тот же дефект sanitize-html, что чинили в cli: маркеры теперь вставляются текстом до санитизации (`• ` для ul, `1. 2. …` для ol). Проверено: "• Item 1\n• Item 2\n1. First\n2. Second".
+
+- [x] **P1: фантомные зависимости** — `lodash-es@^4.17.21` добавлен в dependencies (8 файлов импортируют), `@langchain/openai@^0.4.9` в peerDependencies (используется HfProvider). Из ClaudeProvider удалены мёртвые импорты (@langchain/core messages, ChatOpenAI, IToolCall, errorData, getErrorMessage, randomString, fetchApi).
+
+- [x] **P2: PromptCacheService** — memoize ключевался по объекту Module (кэш никогда не срабатывал между fromPath-вызовами) → ключ по join(baseDir, path); в clear(module) отсутствовал return → точечная очистка стирала весь кэш.
+
+- [x] **P3: мелочи** — сообщение таймаута RunnerStreamCompletion (было RunnerCompletion); Claude stream-debug пишет в debug_claude_provider_stream.txt (было gpt5); `content!` → `content ?? ""` во всех провайдерах (tool-calls-only ответы давали null-content); `dump()` принимает абсолютные пути (isAbsolute); Prompt/Module брендинг через Symbol.for (dual-package hazard, проверено mjs↔cjs); JSDoc glm4 перенесён к glm4.
+
+Не тронуто осознанно: INFERENCE_TIMEOUT 35s (дизайн-параметр); контекст в logger-вызовах (opt-in логгер пользователя).

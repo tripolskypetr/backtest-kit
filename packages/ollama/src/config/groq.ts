@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import engine from "../lib";
 
 /**
@@ -23,13 +23,18 @@ import engine from "../lib";
  * });
  * ```
  */
-export const getGroq = singleshot(() => {
+const GET_CLIENT_FN = memoize(
+    ([apiKey]) => `${apiKey}`,
+    (apiKey: string | undefined) =>
+        new Groq({
+            apiKey,
+        }),
+);
+
+export const getGroq = () => {
     const apiKey = engine.contextService.context.apiKey;
     if (Array.isArray(apiKey)) {
-        getGroq.clear();
         throw new Error("Groq provider does not support token rotation");
     }
-    return new Groq({
-        apiKey: apiKey,
-    });
-});
+    return GET_CLIENT_FN(apiKey);
+};

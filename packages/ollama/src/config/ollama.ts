@@ -1,7 +1,22 @@
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import { Ollama } from "ollama";
 import engine from "../lib";
 import { getOllamaRotate } from "./ollama.rotate";
+
+const GET_CLIENT_FN = memoize(
+  ([apiKey]) => `${apiKey ?? ""}`,
+  (apiKey: string | undefined) => {
+    if (!apiKey) {
+      return new Ollama();
+    }
+    return new Ollama({
+      host: "https://ollama.com",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+  },
+);
 
 /**
  * Creates and caches an Ollama client with flexible configuration.
@@ -48,18 +63,10 @@ import { getOllamaRotate } from "./ollama.rotate";
  * });
  * ```
  */
-export const getOllama = singleshot(() => {
+export const getOllama = () => {
   const apiKey = engine.contextService.context.apiKey;
   if (Array.isArray(apiKey)) {
     return getOllamaRotate();
   }
-  if (!apiKey) {
-    return new Ollama();
-  }
-  return new Ollama({
-    host: "https://ollama.com",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  })
-});
+  return GET_CLIENT_FN(apiKey);
+};
