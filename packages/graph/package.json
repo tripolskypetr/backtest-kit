@@ -75,10 +75,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "di-kit": "^1.1.1",
-    "di-scoped": "^1.0.21",
-    "functools-kit": "^3.0.0",
-    "get-moment-stamp": "^2.0.0"
+    "functools-kit": "^3.0.0"
   },
   "publishConfig": {
     "access": "public"
