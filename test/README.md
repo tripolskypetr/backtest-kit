@@ -825,6 +825,18 @@ clearTimeout(watchdog);
 - **BACKTEST #5**: манки-патч `onOrderSync` — order-гейты наблюдаемы и гейтят в backtest (полный цикл signal-open/schedule ×2 → active → close)
 - **LIVE #6**: check закрывает позицию на ПЯТОЙ проверке после активации (scheduled → opened → active×4 с успешными check'ами → closed/"closed"; счёт schedule/active check'ов точный)
 
+### test/e2e/manage.test.mjs
+Позиционные команды из `listenActivePing` (продакшн-паттерн императивного менеджмента по live-тику; схема всех тестов: tick #1 открывает → ping тика #2 подаёт команду → tick #3 показывает эффект):
+- **trailingStop**: shift −5пп (SL 10% → 5%) — закрытие stop_loss ровно по подтянутому 47500, оригинальный 45000 не тронут ценой; commit "trailing-stop"
+- **trailingTake**: shift −10пп (TP 20% → 10%) — take_profit по 55000 при рынке 56000 (< оригинального 60000); ассерт с fp-допуском
+- **breakeven**: SL → эффективный вход, закрытие ровно по 50000 (zero-risk exit); commit "breakeven"
+- **averageBuy**: DCA $100 на 48000 — эффективная цена = cost-weighted harmonic 200/(100/50000+100/48000), invested $200; commit "average-buy"
+- **partialProfit(40%)**: остаток $60, `_partial` типа "profit", commit дренится следующим tick
+- **partialLoss(30%)**: остаток $70, тип "loss", commit "partial-loss"
+
+ВАЖНО: `percentShift` у trailing-команд — сдвиг дистанции в процентных ПУНКТАХ
+(SL 10% + shift −5 → 5%), а не доля от дистанции.
+
 ### test/e2e/coverage.test.mjs
 Тесты на изменения `git diff master -- src/client/ClientStrategy.ts`, не покрытые остальными файлами (каждый тест привязан к ханку дифа):
 - **Epsilon партиалов** (`PARTIAL_CAP_TOLERANCE_FACTOR`): 30% → 50% → 100%-от-остатка проходят все, остаток ровно 0
