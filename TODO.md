@@ -192,3 +192,17 @@ Breaking changes (кандидаты на major bump):
 - [x] **P3: мелочи** — сообщение таймаута RunnerStreamCompletion (было RunnerCompletion); Claude stream-debug пишет в debug_claude_provider_stream.txt (было gpt5); `content!` → `content ?? ""` во всех провайдерах (tool-calls-only ответы давали null-content); `dump()` принимает абсолютные пути (isAbsolute); Prompt/Module брендинг через Symbol.for (dual-package hazard, проверено mjs↔cjs); JSDoc glm4 перенесён к glm4.
 
 Не тронуто осознанно: INFERENCE_TIMEOUT 35s (дизайн-параметр); контекст в logger-вызовах (opt-in логгер пользователя).
+
+---
+
+## Аудит packages/mongo/src (исправлено по решениям)
+
+- [x] **P0: eager-подключение на import → lazy через singleshot waitForInit.** di-kit `init()` вызывал `protected init()` Mongo/Redis сервисов при импорте пакета: соединения открывались с env/localhost-конфигом до `setup(config)`, и пользовательский конфиг игнорировался (singleshot-клиенты уже созданы). Фикс: `protected init` удалён у обоих сервисов; листнеры соединения Mongo (включая throw в глобальный скоуп при ошибке — оставлен по решению) перенесены в `waitForInit` через singleshot `LISTEN_EVENTS_FN` (без дублей при retry после таймаута). Проверено на built: импорт без setup — 0 попыток соединения за 2с; `setConfig({CC_REDIS_PORT: 51234})` после импорта — redis реально набирает 51234.
+
+- [x] **P0: BaseCRUD.findAll сортировал по несуществующему полю `date`** — ни одна из 16 схем его не имеет (все используют `createDate` через timestamps rename; Log/Notification-сервисы в собственных запросах уже сортировали по `createDate`). Natural order + limit 1000 давал произвольное подмножество при >1000 документов (Storage restore, Memory listEntries). Фикс: `.sort({ createDate: -1 })` — новейшие документы гарантированно внутри окна лимита.
+
+- [x] **P1: redis ping-интервал** — стал lazy автоматически (живёт внутри `getRedis`, который теперь вызывается только при первом waitForInit). Отсутствие catch у ping оставлено по решению («исключения в глобальный скоуп — нормально»).
+
+Оставлено как есть по решениям: throw внутри mongoose error-хендлера (fail-fast в глобальный скоуп); write-адаптеры Storage/Log/Notification не удаляют старые записи («хочу держать всегда, это информация» — с фиксом сортировки limit-окно стало детерминированным: новейшие 1000); глобальный monkey-patch `mongoose.Schema.Types.String.checkRequired` (осознанный дизайн).
+
+Не подтвердилось при аудите: singleshot не кэширует rejected promise (utils/waitForInit не «залипает»); несортированность readStorageData сама по себе безвредна (backtest-kit сортирует по priority и применяет CAP на чтении); Log/Notification `.reverse()` корректен; уникальные индексы есть во всех 16 схемах.

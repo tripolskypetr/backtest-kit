@@ -70,8 +70,10 @@ export const BaseCRUD = factory(
       this.loggerService.info(`BaseCRUD findAll modelName=${this.TargetModel.modelName}`, {
         filterData,
       });
+      // All schemas rename mongoose timestamps to createDate/updatedDate;
+      // sorting keeps the newest documents inside the FIND_ALL_LIMIT window.
       const documents = await this.TargetModel.find(filterData)
-        .sort({ date: -1 })
+        .sort({ createDate: -1 })
         .limit(limit);
       return documents.map((doc) => readTransform(doc.toJSON()));
     }
