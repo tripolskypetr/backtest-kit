@@ -605,3 +605,133 @@ test("MANAGE: partialLoss from listenActivePing sheds 30% on drawdown and drains
     unsubscribeCommit();
   }
 });
+
+/**
+ * MANAGE: переплетение DCA и частичных выходов — стресс cost-basis математики.
+ *
+ * @50000 open $100 → DCA $100 @48000 → partialProfit 50% (от базиса $200,
+ * снапшот) → DCA $100 @47000 (вход ПОСЛЕ партиала добавляется к остатку) →
+ * partialLoss 25% (от базиса $200 = остаток $100 + новый вход $100) →
+ * partialProfit 100% остатка ($150; работает epsilon-кап после дрейфа
+ * percent↔dollar цепочек).
+ *
+ * Итог: invested $300 / 3 входа, остаток $0, held 0%, снапшоты
+ * costBasisAtClose = [200, 200, 150] с entryCountAtClose = [2, 3, 3].
+ */
+test("MANAGE: interleaved DCA and partial exits keep the dollar cost basis exact", async ({ pass, fail }) => {
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "manage-mix-strategy",
+    exchangeName: "binance-manage-mix",
+    frameName: "",
+  };
+
+  let market = 50000;
+  let signalGenerated = false;
+  let pings = 0;
+  const ops = [];
+  const commits = [];
+
+  makeExchange(context.exchangeName, () => market);
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "manage mix",
+        priceTakeProfit: 70000,
+        priceStopLoss: 40000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    commits.push(event.action);
+  });
+
+  const unsubscribePing = listenActivePing(async (event) => {
+    if (event.strategyName !== context.strategyName) return;
+    pings += 1;
+    const S = lib.strategyCoreService;
+    if (pings === 1) ops.push(["dca@48000", await inCtx(context, () => S.averageBuy(false, "BTCUSDT", event.currentPrice, context, 100))]);
+    if (pings === 2) ops.push(["profit50", await inCtx(context, () => S.partialProfit(false, "BTCUSDT", 50, event.currentPrice, context))]);
+    if (pings === 3) ops.push(["dca@47000", await inCtx(context, () => S.averageBuy(false, "BTCUSDT", event.currentPrice, context, 100))]);
+    if (pings === 4) ops.push(["loss25", await inCtx(context, () => S.partialLoss(false, "BTCUSDT", 25, event.currentPrice, context))]);
+    if (pings === 5) ops.push(["profit100", await inCtx(context, () => S.partialProfit(false, "BTCUSDT", 100, event.currentPrice, context))]);
+  });
+
+  try {
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    market = 48000; await runTick(new Date(t0 + 1 * MIN)); // ping1: DCA (просадка)
+    market = 52000; await runTick(new Date(t0 + 2 * MIN)); // ping2: profit 50%
+    market = 47000; await runTick(new Date(t0 + 3 * MIN)); // ping3: DCA (ниже min entry 48000)
+    market = 46000; await runTick(new Date(t0 + 4 * MIN)); // ping4: loss 25%
+    market = 53000; await runTick(new Date(t0 + 5 * MIN)); // ping5: profit 100% остатка
+    const tick7 = await runTick(new Date(t0 + 6 * MIN));   // дренаж последнего коммита
+
+    const failedOp = ops.find(([, r]) => r !== true);
+    if (ops.length !== 5 || failedOp) {
+      fail(`all 5 ops must succeed, got ${JSON.stringify(ops)}`);
+      return;
+    }
+
+    const S = lib.strategyCoreService;
+    const invested = await inCtx(context, () => S.getPositionInvestedCost(false, "BTCUSDT", context));
+    const count = await inCtx(context, () => S.getPositionInvestedCount(false, "BTCUSDT", context));
+    const remaining = await inCtx(context, () => S.getTotalCostClosed(false, "BTCUSDT", context));
+    const heldPercent = await inCtx(context, () => S.getTotalPercentClosed(false, "BTCUSDT", context));
+    const partials = await inCtx(context, () => S.getPositionPartials(false, "BTCUSDT", context));
+
+    if (invested !== 300 || count !== 3) {
+      fail(`invested/count expected 300/3, got ${invested}/${count}`);
+      return;
+    }
+    if (Math.abs(remaining) > 1e-9 || Math.abs(heldPercent) > 1e-9) {
+      fail(`REGRESSION: after closing 100% of remaining expected 0 basis / 0% held, got ${remaining} / ${heldPercent}%`);
+      return;
+    }
+
+    // Снапшоты: партиал #2 берёт базис $200 = остаток $100 (после 50%) + DCA $100,
+    // добавленный ПОСЛЕ партиала; #3 — остаток $150
+    const snapshot = partials.map((p) => ({ t: p.type, pct: p.percent, basis: p.costBasisAtClose, entries: p.entryCountAtClose }));
+    const expected = [
+      { t: "profit", pct: 50, basis: 200, entries: 2 },
+      { t: "loss", pct: 25, basis: 200, entries: 3 },
+      { t: "profit", pct: 100, basis: 150, entries: 3 },
+    ];
+    if (JSON.stringify(snapshot) !== JSON.stringify(expected)) {
+      fail(`partial snapshots mismatch: expected ${JSON.stringify(expected)}, got ${JSON.stringify(snapshot)}`);
+      return;
+    }
+
+    // Позиция с нулевым остатком продолжает мониториться (закрытие — забота стратегии)
+    if (tick7.action !== "active") {
+      fail(`tick #7 expected "active", got "${tick7.action}"`);
+      return;
+    }
+
+    const byAction = commits.reduce((acc, a) => ((acc[a] = (acc[a] ?? 0) + 1), acc), {});
+    if (byAction["average-buy"] !== 2 || byAction["partial-profit"] !== 2 || byAction["partial-loss"] !== 1) {
+      fail(`commit counts expected average-buy×2/partial-profit×2/partial-loss×1, got ${JSON.stringify(byAction)}`);
+      return;
+    }
+
+    pass(`interleaved DCA+partials exact: $300/3 entries, basis snapshots [200,200,150], remaining $0, commits ${JSON.stringify(byAction)}`);
+  } finally {
+    unsubscribePing();
+    unsubscribeCommit();
+  }
+});
