@@ -667,6 +667,46 @@ try { /* тики */ } finally { Broker.disable(); }
 `commit*`-методы скипают `payload.backtest` — адаптер обязан получить ровно 0
 вызовов за бектест-прогон (см. broker.test.mjs #3).
 
+### Манки-патч order-коллбеков в backtest (di-kit)
+
+Штатно order-события в backtest НЕ эмитятся: `CREATE_SYNC_FN` short-circuit'ит
+`event.backtest` ДО `syncSubject.next()` (см. probe: scheduled-цикл в backtest
+даёт `SCHEDULE scheduled → SIGNAL opened → SIGNAL closed` и ноль order-событий).
+Если тесту нужно наблюдать/гейтить ордера в backtest — манки-патч:
+
+```javascript
+// 1. di-kit: lib.someService — InstanceAccessor, реальный сервис — его ПРОТОТИП.
+//    Внутренние вызовы this.getStrategy идут по реальному инстансу (arrow-поля),
+//    присваивание на аксессор НЕ сработает.
+const realService = Object.getPrototypeOf(lib.strategyConnectionService);
+
+// 2. Backtest.run() fire-and-forget чистит мемоизацию стратегий — патчить
+//    конкретный инстанс бесполезно. Оборачиваем САМ getStrategy:
+const originalGetStrategy = realService.getStrategy;
+const wrapped = (...args) => {
+  const strategy = originalGetStrategy(...args);
+  if (!strategy.__patched) {
+    strategy.__patched = true;
+    const original = strategy.params.onOrderSync;
+    strategy.params.onOrderSync = async (event) => {
+      record(event);                  // наблюдение
+      if (shouldReject(event)) return false; // гейт работает и в backtest
+      return await original(event);
+    };
+  }
+  return strategy;
+};
+// 3. Сохранить memoize-API, которым пользуется connection-сервис:
+wrapped.clear = originalGetStrategy.clear;
+wrapped.has = originalGetStrategy.has;
+wrapped.values = originalGetStrategy.values;
+realService.getStrategy = wrapped;
+```
+
+Порядок событий полного цикла через патч: `signal-open/schedule` (размещение) →
+`signal-open/active` (филл активации) → `signal-close/active` (закрытие).
+Рабочий пример — «monkey-patched onOrderSync» в strategy.test.mjs.
+
 ### Проверка гипотез отдельным скриптом
 
 Прежде чем ставить в сьют тест с риском зависания (новый API, `for await` по

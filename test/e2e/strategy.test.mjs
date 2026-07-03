@@ -849,3 +849,134 @@ test("STRATEGY BACKTEST: closePending from onActivePing closes mid-frame with cl
 
   pass(`onActivePing user close drained by candle loop: closed/"closed" with closeId (pings=${pings})`);
 });
+
+/**
+ * STRATEGY BACKTEST #5: манкипатч onOrderSync — order-гейты становятся
+ * наблюдаемыми И гейтящими в backtest.
+ *
+ * Штатно order-события в backtest НЕ эмитятся (short-circuit `event.backtest`
+ * в CREATE_SYNC_FN до syncSubject). Рецепт обхода для тестов:
+ * 1. di-kit: `lib.strategyConnectionService` — InstanceAccessor, реальный сервис
+ *    лежит в его прототипе (внутренние вызовы this.getStrategy идут по нему);
+ * 2. Backtest.run() fire-and-forget чистит мемоизацию стратегий — патчить
+ *    конкретный инстанс бесполезно, оборачиваем САМ getStrategy (с сохранением
+ *    memoize-API clear/has/values);
+ * 3. обёртка подменяет params.onOrderSync на каждом выдаваемом инстансе.
+ */
+test("STRATEGY BACKTEST: monkey-patched onOrderSync observes and gates orders in backtest", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const MIN = 60_000;
+
+  const context = {
+    strategyName: "strategy-bt-patch-strategy",
+    exchangeName: "binance-strategy-bt-patch",
+    frameName: "30m-strategy-bt-patch",
+  };
+
+  let issues = 0;
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * MIN;
+        const dip = timestamp >= t0 + 10 * MIN;
+        candles.push({
+          timestamp,
+          open: basePrice,
+          high: basePrice + 100,
+          low: dip ? priceOpen - 50 : basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      // Два выпуска: первое размещение отвергнет патченный гейт, второе — ретрай
+      if (issues >= 2) return null;
+      issues += 1;
+      return {
+        position: "long",
+        note: "strategy bt patch",
+        priceOpen,
+        priceTakeProfit: priceOpen + 15000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 5,
+      };
+    },
+  });
+
+  addFrameSchema({
+    frameName: context.frameName,
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  // === МАНКИПАТЧ (см. докстринг теста) ===
+  const orderEvents = [];
+  let placementRejected = false;
+  {
+    const realService = Object.getPrototypeOf(lib.strategyConnectionService);
+    const originalGetStrategy = realService.getStrategy;
+    const wrapped = (...args) => {
+      const strategy = originalGetStrategy(...args);
+      if (!strategy.__orderPatched) {
+        strategy.__orderPatched = true;
+        const original = strategy.params.onOrderSync;
+        strategy.params.onOrderSync = async (event) => {
+          orderEvents.push(`${event.action}/${event.type}`);
+          if (event.action === "signal-open" && event.type === "schedule" && !placementRejected) {
+            placementRejected = true;
+            return false; // гейт: первое размещение отвергнуто
+          }
+          return await original(event);
+        };
+      }
+      return strategy;
+    };
+    wrapped.clear = originalGetStrategy.clear;
+    wrapped.has = originalGetStrategy.has;
+    wrapped.values = originalGetStrategy.values;
+    realService.getStrategy = wrapped;
+  }
+
+  const results = [];
+  for await (const result of Backtest.run("BTCUSDT", context)) {
+    results.push(`${result.action}${result.closeReason ? `/${result.closeReason}` : ""}`);
+  }
+
+  if (!results.includes("closed/time_expired")) {
+    fail(`expected closed/time_expired in results, got ${JSON.stringify(results)}`);
+    return;
+  }
+
+  const expected = [
+    "signal-open/schedule", // размещение #1 — отвергнуто патчем
+    "signal-open/schedule", // размещение #2 — ретрай, принято
+    "signal-open/active",   // филл wick-активации
+    "signal-close/active",  // закрытие time_expired
+  ];
+  if (JSON.stringify(orderEvents) !== JSON.stringify(expected)) {
+    fail(`order events mismatch: expected ${JSON.stringify(expected)}, got ${JSON.stringify(orderEvents)}`);
+    return;
+  }
+  if (issues !== 2) {
+    fail(`expected 2 signal issues (reject + retry), got ${issues}`);
+    return;
+  }
+
+  pass(`patched onOrderSync observed full order lifecycle in backtest and gated the first placement: ${orderEvents.join(" → ")}`);
+});
