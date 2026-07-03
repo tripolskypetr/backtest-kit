@@ -21,6 +21,7 @@ import {
   Heat,
   lib,
   listenScheduleEvent,
+  listenSync,
   MethodContextService,
 } from "../../build/index.mjs";
 
@@ -1578,5 +1579,358 @@ test("AUDIT: stopStrategy routes scheduled signal through cancel pipeline (broke
     pass("stopStrategy cancels scheduled via pipeline: tick #2 = cancelled/user, broker channel notified");
   } finally {
     unsubscribe();
+  }
+});
+
+/**
+ * AUDIT E2E: risk-отказ на price-активации scheduled-сигнала в BACKTEST должен
+ * эмитить «cancelled» в scheduleEventSubject (канал брокера + статистика отмен).
+ *
+ * Регрессия: ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN при отказе риска молча
+ * занулял scheduled (setScheduledSignal(null) + релиз риска) — ни commit, ни
+ * schedule event не эмитились, сигнал исчезал бесследно.
+ */
+test("AUDIT: backtest price-activation risk-reject emits cancelled schedule event", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const intervalMs = 60000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-bt-activation-risk-strategy",
+    exchangeName: "binance-audit-bt-activation-risk",
+    frameName: "30m-audit-bt-activation-risk",
+  };
+
+  let riskAttempts = 0;
+  let signalGenerated = false;
+  const cancelledEvents = [];
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        // С 10-й минуты фрейма свеча опускает low до priceOpen (wick-активация),
+        // но НЕ до priceStopLoss (38000) — активация, не price_reject
+        const dip = timestamp >= t0 + 10 * intervalMs;
+        candles.push({
+          timestamp,
+          open: basePrice,
+          high: basePrice + 100,
+          low: dip ? priceOpen - 50 : basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRiskSchema({
+    riskName: "audit-bt-activation-risk",
+    validations: [
+      () => {
+        riskAttempts += 1;
+        // Вызов #1 — резервация при создании scheduled (проходит),
+        // вызов #2 — проверка при price-активации (отказ)
+        if (riskAttempts >= 2) {
+          throw new Error("audit: risk rejects at activation");
+        }
+      },
+    ],
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    riskName: "audit-bt-activation-risk",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "audit bt activation risk",
+        priceOpen,
+        priceTakeProfit: priceOpen + 4000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  addFrameSchema({
+    frameName: context.frameName,
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const unsubscribe = listenScheduleEvent((event) => {
+    if (event.action === "cancelled" && event.strategyName === context.strategyName) {
+      cancelledEvents.push(event);
+    }
+  });
+
+  try {
+    const awaitSubject = new Subject();
+    listenDoneBacktest(() => awaitSubject.next());
+
+    Backtest.background("BTCUSDT", context);
+
+    await awaitSubject.toPromise();
+
+    if (riskAttempts !== 2) {
+      fail(`expected 2 risk validation calls (reserve + activation reject), got ${riskAttempts}`);
+      return;
+    }
+
+    if (cancelledEvents.length !== 1) {
+      fail(`REGRESSION: risk-rejected activation dropped scheduled silently — expected 1 "cancelled" schedule event, got ${cancelledEvents.length}`);
+      return;
+    }
+
+    pass(`backtest activation risk-reject emitted cancelled schedule event (riskAttempts=${riskAttempts})`);
+  } finally {
+    unsubscribe();
+  }
+});
+
+/**
+ * AUDIT E2E: risk-отказ на price-активации scheduled-сигнала в LIVE должен
+ * эмитить «cancelled» в scheduleEventSubject — иначе Broker.commitScheduleCancelled
+ * не вызывается и реальный resting order осиротевает на бирже.
+ *
+ * Регрессия: ACTIVATE_SCHEDULED_SIGNAL_FN при отказе риска молча занулял scheduled.
+ */
+test("AUDIT: live price-activation risk-reject emits cancelled schedule event (broker notified)", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const intervalMs = 60000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-live-activation-risk-strategy",
+    exchangeName: "binance-audit-live-activation-risk",
+    frameName: "",
+  };
+
+  let marketPrice = basePrice;
+  let riskAttempts = 0;
+  let signalGenerated = false;
+  const cancelledEvents = [];
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: marketPrice,
+          high: marketPrice,
+          low: marketPrice,
+          close: marketPrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRiskSchema({
+    riskName: "audit-live-activation-risk",
+    validations: [
+      () => {
+        riskAttempts += 1;
+        if (riskAttempts >= 2) {
+          throw new Error("audit: risk rejects at live activation");
+        }
+      },
+    ],
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    riskName: "audit-live-activation-risk",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "audit live activation risk",
+        priceOpen,
+        priceTakeProfit: priceOpen + 4000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const unsubscribe = listenScheduleEvent((event) => {
+    if (event.action === "cancelled" && event.strategyName === context.strategyName) {
+      cancelledEvents.push(event);
+    }
+  });
+
+  try {
+    const runTick = (when) =>
+      MethodContextService.runInContext(
+        async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+        context,
+      );
+
+    // tick #1: создаёт scheduled (цена рынка выше priceOpen)
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const scheduledId = tick1.signal.id;
+
+    // Цена падает до priceOpen → tick #2 активирует, риск отвергает
+    marketPrice = priceOpen;
+    const tick2 = await runTick(new Date(t0 + intervalMs));
+    if (tick2.action === "opened") {
+      fail(`tick #2 must not open: risk rejects at activation, got "${tick2.action}"`);
+      return;
+    }
+
+    if (riskAttempts !== 2) {
+      fail(`expected 2 risk validation calls (reserve + activation reject), got ${riskAttempts}`);
+      return;
+    }
+
+    if (cancelledEvents.length !== 1 || cancelledEvents[0].data.id !== scheduledId) {
+      fail(`REGRESSION: scheduleEventSubject "cancelled" not emitted for ${scheduledId} — broker never notified, resting order orphaned (got ${cancelledEvents.length} events)`);
+      return;
+    }
+
+    pass(`live activation risk-reject notified broker channel: tick #2 = ${tick2.action}, cancelled event received`);
+  } finally {
+    unsubscribe();
+  }
+});
+
+/**
+ * AUDIT E2E: sync-отказ (onSignalSync / syncSubject бросил) на price-активации
+ * scheduled-сигнала в LIVE должен эмитить «cancelled» в scheduleEventSubject.
+ *
+ * Регрессия: ветка sync-reject эмитила только commit — мимо
+ * Broker.commitScheduleCancelled, реальный resting order оставался на бирже.
+ */
+test("AUDIT: live price-activation sync-reject notifies broker channel", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const intervalMs = 60000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-live-activation-sync-strategy",
+    exchangeName: "binance-audit-live-activation-sync",
+    frameName: "",
+  };
+
+  let marketPrice = basePrice;
+  let signalGenerated = false;
+  let syncRejects = 0;
+  const cancelledEvents = [];
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: marketPrice,
+          high: marketPrice,
+          low: marketPrice,
+          close: marketPrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "audit live activation sync",
+        priceOpen,
+        priceTakeProfit: priceOpen + 4000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const unsubscribeSchedule = listenScheduleEvent((event) => {
+    if (event.action === "cancelled" && event.strategyName === context.strategyName) {
+      cancelledEvents.push(event);
+    }
+  });
+
+  // Брокер отвергает открытие: throw в syncSubject → CREATE_SYNC_FN → false
+  const unsubscribeSync = listenSync((event) => {
+    if (event.strategyName === context.strategyName && event.action === "signal-open") {
+      syncRejects += 1;
+      throw new Error("audit: broker rejected order at activation");
+    }
+  }, true);
+
+  try {
+    const runTick = (when) =>
+      MethodContextService.runInContext(
+        async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+        context,
+      );
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const scheduledId = tick1.signal.id;
+
+    // Цена падает до priceOpen → tick #2 активирует, брокер отвергает sync
+    marketPrice = priceOpen;
+    const tick2 = await runTick(new Date(t0 + intervalMs));
+    if (tick2.action === "opened") {
+      fail(`tick #2 must not open: broker rejected sync, got "${tick2.action}"`);
+      return;
+    }
+
+    if (syncRejects !== 1) {
+      fail(`expected exactly 1 sync reject at activation, got ${syncRejects}`);
+      return;
+    }
+
+    if (cancelledEvents.length !== 1 || cancelledEvents[0].data.id !== scheduledId) {
+      fail(`REGRESSION: sync-reject emitted commit only — scheduleEventSubject "cancelled" missing for ${scheduledId} (got ${cancelledEvents.length} events)`);
+      return;
+    }
+
+    pass(`live activation sync-reject notified broker channel: tick #2 = ${tick2.action}, cancelled event received`);
+  } finally {
+    unsubscribeSchedule();
+    unsubscribeSync();
   }
 });

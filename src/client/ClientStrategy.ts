@@ -93,7 +93,10 @@ const TIMEOUT_SYMBOL = Symbol('timeout');
  * Invoked BEFORE setPendingSignal to give the external system a chance to confirm
  * that the limit order was filled on the exchange. If the callback returns false
  * (or throws), the position open is skipped and the strategy state is NOT mutated.
- * The framework will retry on the next tick.
+ * The framework will retry — but note that for a fresh open the retry happens on
+ * the next interval boundary of the strategy, not literally the next tick:
+ * _lastSignalTimestamp is consumed in GET_SIGNAL_FN before getSignal runs, so the
+ * interval throttle gates the next getSignal call (for "1h" that is up to an hour).
  */
 const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
   async (
@@ -916,6 +919,10 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   // confirmed-but-not-yet-forwarded broker operation survives a live crash and is
   // re-drained on the next tick. Read here, before the pending restore which may
   // early-return on exchange/strategy mismatch.
+  // No context-match check here (unlike the pending restore below): the default
+  // adapter keys this snapshot by the same symbol/strategy/exchange triple, and the
+  // snapshot itself carries no context fields to verify against, so a check is
+  // impossible for custom adapters anyway.
   const strategyData = await PersistStrategyAdapter.readStrategyData(
     self.params.execution.context.symbol,
     self.params.strategyName,
@@ -1870,6 +1877,34 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       activationTimestamp,
       self.params.execution.context.backtest
     );
+    // The signal is dropped for good — emit the cancellation so the broker
+    // adapter cancels the real resting order and subscribers (commit +
+    // schedule event) see the drop instead of the signal silently vanishing.
+    // Emitted synchronously in this branch on purpose: setScheduledSignal(null)
+    // above wipes a _cancelledSignal deferred by a concurrent stopStrategy, so
+    // this is the single emission point in that race (the wipe acts as dedup).
+    {
+      const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
+      await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, scheduled.priceOpen, activationTimestamp, "user");
+      await CALL_COMMIT_FN(self, {
+        action: "cancel-scheduled",
+        symbol: self.params.execution.context.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        signalId: scheduled.id,
+        backtest: self.params.execution.context.backtest,
+        timestamp: activationTimestamp,
+        totalEntries: scheduled._entry?.length ?? 1,
+        totalPartials: scheduled._partial?.length ?? 0,
+        originalPriceOpen: scheduled.priceOpen,
+        pnl: publicSignal.pnl,
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
+        note: scheduled.note,
+      });
+    }
     return null;
   }
 
@@ -1913,6 +1948,31 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       activationTime,
       self.params.execution.context.backtest
     );
+    // The signal is dropped for good — emit the cancellation so the broker
+    // adapter cancels the real resting order and subscribers (commit +
+    // schedule event) see the drop instead of the signal silently vanishing
+    {
+      const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
+      await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, scheduled.priceOpen, activationTime, "user");
+      await CALL_COMMIT_FN(self, {
+        action: "cancel-scheduled",
+        symbol: self.params.execution.context.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        signalId: scheduled.id,
+        backtest: self.params.execution.context.backtest,
+        timestamp: activationTime,
+        totalEntries: scheduled._entry?.length ?? 1,
+        totalPartials: scheduled._partial?.length ?? 0,
+        originalPriceOpen: scheduled.priceOpen,
+        pnl: publicSignal.pnl,
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
+        note: scheduled.note,
+      });
+    }
     return null;
   }
 
@@ -1951,6 +2011,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       self.params.execution.context.backtest
     );
     const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
+    // Notify the broker channel too — commit alone bypasses Broker.commitScheduleCancelled,
+    // leaving the real resting order alive on the exchange
+    await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, scheduled.priceOpen, activationTime, "user");
     await CALL_COMMIT_FN(self, {
       action: "cancel-scheduled",
       symbol: self.params.execution.context.symbol,
@@ -3017,7 +3080,9 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   // this signal within the same tick. Re-checking here would run user risk
   // validations twice per open.
 
-  // Sync open: if external system rejects — skip open, retry on next tick
+  // Sync open: if external system rejects — skip open. The retry happens on the
+  // next interval boundary of the strategy (not the next tick): _lastSignalTimestamp
+  // was already consumed in GET_SIGNAL_FN, so getSignal is throttled until then.
   const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
     currentTime,
     signal.priceOpen,
@@ -3047,7 +3112,8 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   await self.setPendingSignal(signal, signal.priceOpen);
 
   // Whipsaw protection: record the id only after a successful open so a
-  // rejected open can retry the same deterministic id on the next tick.
+  // rejected open can retry the same deterministic id on the next getSignal
+  // attempt (the next interval boundary — see the sync-open note above).
   self._lastPendingId = signal.id;
 
   await CALL_RISK_ADD_SIGNAL_FN(
@@ -3790,6 +3856,34 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       activationTimestamp,
       self.params.execution.context.backtest
     );
+    // The signal is dropped for good — emit the cancellation so subscribers
+    // (commit + schedule event) see the drop instead of the signal silently
+    // vanishing (ScheduleMarkdownService cancellation stats included).
+    // Emitted synchronously in this branch on purpose: setScheduledSignal(null)
+    // above wipes a _cancelledSignal deferred by a concurrent stopStrategy, so
+    // this is the single emission point in that race (the wipe acts as dedup).
+    {
+      const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
+      await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, scheduled.priceOpen, activationTimestamp, "user");
+      await CALL_COMMIT_FN(self, {
+        action: "cancel-scheduled",
+        symbol: self.params.execution.context.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        signalId: scheduled.id,
+        backtest: self.params.execution.context.backtest,
+        timestamp: activationTimestamp,
+        totalEntries: scheduled._entry?.length ?? 1,
+        totalPartials: scheduled._partial?.length ?? 0,
+        originalPriceOpen: scheduled.priceOpen,
+        pnl: publicSignal.pnl,
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
+        note: scheduled.note,
+      });
+    }
     return false;
   }
 
@@ -3834,6 +3928,30 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       activationTime,
       self.params.execution.context.backtest
     );
+    // The signal is dropped for good — emit the cancellation so subscribers
+    // (commit + schedule event) see the drop instead of the signal silently vanishing
+    {
+      const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
+      await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, scheduled.priceOpen, activationTime, "user");
+      await CALL_COMMIT_FN(self, {
+        action: "cancel-scheduled",
+        symbol: self.params.execution.context.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        signalId: scheduled.id,
+        backtest: self.params.execution.context.backtest,
+        timestamp: activationTime,
+        totalEntries: scheduled._entry?.length ?? 1,
+        totalPartials: scheduled._partial?.length ?? 0,
+        originalPriceOpen: scheduled.priceOpen,
+        pnl: publicSignal.pnl,
+        maxDrawdown: publicSignal.maxDrawdown,
+        peakProfit: publicSignal.peakProfit,
+        signal: publicSignal,
+        note: scheduled.note,
+      });
+    }
     return false;
   }
 
@@ -3872,6 +3990,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       self.params.execution.context.backtest
     );
     const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, scheduled.priceOpen);
+    // Notify the broker channel too — commit alone bypasses Broker.commitScheduleCancelled,
+    // leaving the real resting order alive on the exchange
+    await CALL_SCHEDULE_EVENT_FN(self, "cancelled", scheduled, scheduled.priceOpen, activationTime, "user");
     await CALL_COMMIT_FN(self, {
       action: "cancel-scheduled",
       symbol: self.params.execution.context.symbol,
@@ -4383,7 +4504,32 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             note: activatedSignal.activateNote ?? activatedSignal.note,
           });
         }
-        return { outcome: "pending" };
+        // The scheduled signal is gone for good — return a cancelled outcome so
+        // BACKTEST_FN does not expect a pending signal (fatal "no pending signal
+        // after scheduled activation" used to break the whole backtest here)
+        {
+          const result: IStrategyTickResultCancelled = {
+            action: "cancelled",
+            signal: TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice),
+            currentPrice: averagePrice,
+            closeTimestamp: candle.timestamp,
+            strategyName: self.params.method.context.strategyName,
+            exchangeName: self.params.method.context.exchangeName,
+            frameName: self.params.method.context.frameName,
+            symbol: self.params.execution.context.symbol,
+            backtest: self.params.execution.context.backtest,
+            reason: "user",
+            createdAt: candle.timestamp,
+          };
+          await CALL_TICK_CALLBACKS_FN(
+            self,
+            self.params.execution.context.symbol,
+            result,
+            candle.timestamp,
+            self.params.execution.context.backtest
+          );
+          return { outcome: "cancelled", result };
+        }
       }
 
       // Риск-проверка по averagePrice (симметрия с LIVE tick())
@@ -4436,7 +4582,32 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
             note: activatedSignal.activateNote ?? activatedSignal.note,
           });
         }
-        return { outcome: "pending" };
+        // The scheduled signal is gone for good — return a cancelled outcome so
+        // BACKTEST_FN does not expect a pending signal (fatal "no pending signal
+        // after scheduled activation" used to break the whole backtest here)
+        {
+          const result: IStrategyTickResultCancelled = {
+            action: "cancelled",
+            signal: TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice),
+            currentPrice: averagePrice,
+            closeTimestamp: candle.timestamp,
+            strategyName: self.params.method.context.strategyName,
+            exchangeName: self.params.method.context.exchangeName,
+            frameName: self.params.method.context.frameName,
+            symbol: self.params.execution.context.symbol,
+            backtest: self.params.execution.context.backtest,
+            reason: "user",
+            createdAt: candle.timestamp,
+          };
+          await CALL_TICK_CALLBACKS_FN(
+            self,
+            self.params.execution.context.symbol,
+            result,
+            candle.timestamp,
+            self.params.execution.context.backtest
+          );
+          return { outcome: "cancelled", result };
+        }
       }
 
       const pendingSignal: ISignalRow = {
@@ -4473,6 +4644,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           self.params.execution.context.backtest
         );
         const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, averagePrice);
+        // Notify the broker channel too — commit alone bypasses Broker.commitScheduleCancelled,
+        // leaving the real resting order alive on the exchange
+        await CALL_SCHEDULE_EVENT_FN(self, "cancelled", activatedSignal, averagePrice, candle.timestamp, "user");
         await CALL_COMMIT_FN(self, {
           action: "cancel-scheduled",
           symbol: self.params.execution.context.symbol,
@@ -4491,7 +4665,32 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
           signal: publicSignal,
           note: activatedSignal.activateNote ?? activatedSignal.note,
         });
-        return { outcome: "pending" };
+        // The scheduled signal is gone for good — return a cancelled outcome so
+        // BACKTEST_FN does not expect a pending signal (fatal "no pending signal
+        // after scheduled activation" used to break the whole backtest here)
+        {
+          const result: IStrategyTickResultCancelled = {
+            action: "cancelled",
+            signal: publicSignal,
+            currentPrice: averagePrice,
+            closeTimestamp: candle.timestamp,
+            strategyName: self.params.method.context.strategyName,
+            exchangeName: self.params.method.context.exchangeName,
+            frameName: self.params.method.context.frameName,
+            symbol: self.params.execution.context.symbol,
+            backtest: self.params.execution.context.backtest,
+            reason: "user",
+            createdAt: candle.timestamp,
+          };
+          await CALL_TICK_CALLBACKS_FN(
+            self,
+            self.params.execution.context.symbol,
+            result,
+            candle.timestamp,
+            self.params.execution.context.backtest
+          );
+          return { outcome: "cancelled", result };
+        }
       }
 
       await self.setScheduledSignal(null);
@@ -4624,7 +4823,35 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     }
 
     if (shouldActivate) {
-      await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
+      const activated = await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
+      if (!activated) {
+        // Activation was rejected (stopped/risk/sync) — ACTIVATE_... already
+        // released the reservation and emitted the cancel commit + schedule
+        // event. Return a cancelled outcome so BACKTEST_FN does not expect a
+        // pending signal (fatal "no pending signal after scheduled activation"
+        // used to break the whole backtest here).
+        const result: IStrategyTickResultCancelled = {
+          action: "cancelled",
+          signal: TO_PUBLIC_SIGNAL("scheduled", scheduled, averagePrice),
+          currentPrice: averagePrice,
+          closeTimestamp: candle.timestamp,
+          strategyName: self.params.method.context.strategyName,
+          exchangeName: self.params.method.context.exchangeName,
+          frameName: self.params.method.context.frameName,
+          symbol: self.params.execution.context.symbol,
+          backtest: self.params.execution.context.backtest,
+          reason: "user",
+          createdAt: candle.timestamp,
+        };
+        await CALL_TICK_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          result,
+          candle.timestamp,
+          self.params.execution.context.backtest
+        );
+        return { outcome: "cancelled", result };
+      }
       return { outcome: "activated", activationIndex: i };
     }
 
@@ -5210,6 +5437,11 @@ export class ClientStrategy implements IStrategy {
     // КРИТИЧНО: Очищаем флаги отмены и активации при любом изменении scheduled signal
     // - при null: сигнал отменен/активирован по timeout/SL/user, флаги больше не нужны
     // - при новом сигнале: флаги от предыдущего сигнала не должны влиять на новый
+    // Это же затирание работает дедупликацией в гонке со stopStrategy: если tick
+    // держал ссылку на scheduled и на await-точке stopStrategy успел конвертировать
+    // его в _cancelledSignal, терминальная ветка (stopped/risk/sync-reject) сама
+    // синхронно эмитит cancel-события ПОСЛЕ вызова setScheduledSignal(null) —
+    // отложенная отмена стирается здесь, и дренаж не эмитит дубль.
     this._cancelledSignal = null;
     this._activatedSignal = null;
 
@@ -6479,6 +6711,9 @@ export class ClientStrategy implements IStrategy {
           this.params.execution.context.backtest
         );
         const publicSignal = TO_PUBLIC_SIGNAL("scheduled", activatedSignal, currentPrice);
+        // Notify the broker channel too — commit alone bypasses Broker.commitScheduleCancelled,
+        // leaving the real resting order alive on the exchange
+        await CALL_SCHEDULE_EVENT_FN(this, "cancelled", activatedSignal, currentPrice, currentTime, "user");
         await CALL_COMMIT_FN(this, {
           action: "cancel-scheduled",
           symbol: this.params.execution.context.symbol,
@@ -8927,7 +9162,9 @@ export class ClientStrategy implements IStrategy {
    * Adds a new averaging entry to an open position (DCA — Dollar Cost Averaging).
    *
    * Appends currentPrice to the _entry array. The effective entry price used in all
-   * distance and PNL calculations becomes the simple arithmetic mean of all _entry prices.
+   * distance and PNL calculations becomes the cost-weighted harmonic mean of all
+   * _entry prices (getEffectivePriceOpen: Σcost / Σ(cost/price), replaying partial
+   * closes against the remaining cost basis).
    * Original priceOpen is preserved unchanged for identity/audit purposes.
    *
    * Rejection rules (returns false without throwing):

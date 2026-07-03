@@ -139,6 +139,29 @@
 
 ---
 
+## Аудит корневого ./src, пятый проход (2026-07-03): ClientStrategy.ts целиком — исправлено
+
+Зона — полное чтение `src/client/ClientStrategy.ts` (9k строк): state-машина tick/backtest, все FN-хелперы, deferred-дренажи, персист. План фиксов — `./PLAN.md`. Тесты: +3 e2e-регрессионных. Полный набор: 800 ok / 0 fail.
+
+- [x] **P2: терминальные дропы scheduled на activation-путях — молча, мимо брокера (8 мест)** — `src/client/ClientStrategy.ts`
+  Канал брокера — `scheduleEventSubject` → `Broker.commitScheduleCancelled` → адаптер снимает реальный resting order. На price-активации (`ACTIVATE_SCHEDULED_SIGNAL_FN` live + `ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN`) ветки stopped/risk-reject не эмитили НИЧЕГО, ветки sync-reject — только commit (мимо брокера). Плюс два sync-reject в user-активации (tick + backtest inline) — тоже только commit. Итог в live: ордер осиротевал на бирже; в backtest статистика отмен (ScheduleMarkdownService) не видела событие. Все 8 мест выровнены на донор-паттерн risk-reject ветки user-активации: пара `CALL_SCHEDULE_EVENT_FN("cancelled", ..., "user")` + commit `cancel-scheduled` после релиза risk-резервации. Reason остаётся `"user"` (расширение `StrategyCancelReason` — breaking change без необходимости; различение через `note`).
+
+- [x] **P2: отказ активации в backtest ронял весь прогон фаталом «no pending signal after scheduled activation»** — `src/client/ClientStrategy.ts` (4 ветки, вскрыто новым регрессионным тестом)
+  `PROCESS_SCHEDULED_SIGNAL_CANDLES_FN` игнорировал `false` от `ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN` и возвращал `outcome: "activated"` без pending-сигнала; ветки stopped/risk/sync-reject user-активации возвращали `"pending"` при уже занулённом scheduled. В обоих случаях `BACKTEST_FN` бросал фатал — **BacktestLogicPrivateService прерывал весь backtest** («Fatal error — backtest sequence broken»). Теперь все четыре ветки возвращают корректный `cancelled`-результат (`reason: "user"`) с tick-callbacks — backtest продолжается штатно.
+
+- [x] **P2: гонка stopStrategy × setScheduledSignal — затирание отложенной отмены** — комментарии, код не менялся
+  Окно: tick держит ссылку на scheduled, на await-точке `stopStrategy` конвертирует его в `_cancelledSignal`, терминальная ветка активации доходит до `setScheduledSignal(null)` — инвариант-очистка стирает отложенную отмену. После фикса эмиссий выше каждая такая ветка эмитит cancel-события синхронно и сама — затирание из бага превратилось в дедупликацию против двойной эмиссии (ветка + дренаж). Связка зафиксирована комментариями в `setScheduledSignal` и в ветках.
+
+- [x] **P4: доки** — `averageBuy` докстринг обещал «simple arithmetic mean», фактическая формула — cost-weighted harmonic mean (`getEffectivePriceOpen`: Σcost / Σ(cost/price) с реплеем partial-закрытий); комментарии «retry on next tick» у sync-reject открытия получили оговорку про границу interval (`_lastSignalTimestamp` уже потреблён в `GET_SIGNAL_FN` — для "1h" ретрай через час); `WAIT_FOR_INIT_FN` — комментарий, почему у restore `strategyData` нет context-сверки (в снапшоте нет полей контекста, дефолтный адаптер ключуется тем же triple).
+
+Тесты: e2e «backtest price-activation risk-reject emits cancelled schedule event» (риск-отказ на wick-активации → событие + backtest не падает), «live price-activation risk-reject emits cancelled schedule event» (tick #1 scheduled → цена касается priceOpen → риск-отказ → событие на брокерском канале), «live price-activation sync-reject notifies broker channel» (throw в `listenSync` → отказ брокера → событие). Существующий «stopStrategy routes scheduled signal through cancel pipeline» — зелёный (страховка дедупликации).
+
+Отложено до решения продукта (PLAN.md §5, поведение НЕ менялось): retry-семантика sync-отказа открытия (откат `_lastSignalTimestamp` для честного next-tick retry — поведенческое изменение); risk-reject на price-активации при уже исполненном лимитнике (cancel-события мало — на бирже уже позиция; решается на стороне адаптера через `onOrderCheck`/`onSignalActivePing`).
+
+Проверено и признано корректным (без изменений): `Promise.race` с TIMEOUT_SYMBOL в GET_SIGNAL_FN, whipsaw-защита с fallback-релизом риска, TO_PUBLIC_SIGNAL, PARTIAL_*_FN (долларовый кап), TRAILING_*_FN (расчёт от оригинала, absorption), BREAKEVEN_FN, AVERAGE_BUY_FN + getEffectivePriceOpen, PROCESS_COMMIT_QUEUE_FN (at-most-once), WAIT_FOR_INIT_FN (Infinity-restore, commitQueue по id), CHECK_PENDING_SIGNAL_COMPLETION_FN (приоритет time→TP→SL), PROCESS_PENDING_SIGNAL_CANDLES_FN (VWAP-окно, frameEndTime), все deferred-дренажи tick/backtest, createSignal/createTakeProfit/createStopLoss, wick-активация в backtest vs VWAP в live (осознанное моделирование лимитника).
+
+---
+
 ## Аудит корневого ./src, четвёртый проход (2026-07-03): исправлено
 
 Зоны — последняя слепая зона проекта: classes/Live.ts (5.4k) и classes/Backtest.ts (5.4k) целиком, StrategyConnectionService (2.6k), Cron, Interval, State, Dump, остальные Persist-Utils блоки, assets/*.columns.ts, meta (Time/Runtime/Context), logic/public, command. Тест: +1 e2e-регрессионный. Полный набор: 796 ok / 0 fail.
