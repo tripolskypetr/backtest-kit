@@ -34,6 +34,10 @@ import "./e2e/broker.test.mjs";
 import "./e2e/strategy.test.mjs";
 import "./e2e/coverage.test.mjs";
 import "./e2e/manage.test.mjs";
+import "./e2e/recovery.test.mjs";
+import "./e2e/short.test.mjs";
+import "./e2e/commit.test.mjs";
+import "./e2e/hardening.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";

@@ -838,6 +838,33 @@ clearTimeout(watchdog);
 ВАЖНО: `percentShift` у trailing-команд — сдвиг дистанции в процентных ПУНКТАХ
 (SL 10% + shift −5 → 5%), а не доля от дистанции.
 
+### test/e2e/recovery.test.mjs
+Матрица crash-recovery deferred-состояния (useJson-адаптеры локально, «крэш» = голый dispose через clear, сброс остатков прошлых прогонов null-записями):
+- **stopStrategy-отмена** переживает крэш: cancelled/user + `onSignalScheduleCancelled` в Broker-адаптер ПОСЛЕ рестарта
+- **activateScheduled**: рестарт → opened по priceOpen с commit activate-scheduled (activateId)
+- **createTakeProfit**: рестарт → closed take_profit по эффективному TP с closeId
+- **createSignal**: DTO из очереди переживает крэш и открывается (ВАЖНО: createSignal требует посеянной цены — сначала один tick)
+- **commit-очередь по pendingSignalId**: застрявший partial-profit commit дренится после рестарта, состояние партиала восстановлено
+- **Осиротевшая очередь НЕ реплеится** (at-most-once через рестарт): partial-commit + TP-филл занулил pending → после крэша commit дропнут, филл закрыл позицию
+
+### test/e2e/short.test.mjs
+SHORT-зеркало новой логики (вся сессия писалась на long):
+- **Гейты жизненного цикла**: placement reject/retry, активация на РОСТЕ цены, opened по priceOpen (fp-допуск: effective через 100/(100/60000))
+- **trailingStop**: SL ВЫШЕ входа подтягивается ВНИЗ (10% → 5% = 52500), закрытие на росте по подтянутому уровню
+- **DCA-вверх × партиалы × breakeven**: усреднение при росте (52000 > max entry), harmonic effective ≈50980.39, снапшоты [200, 120], breakeven вниз → выход ровно по effective
+
+### test/e2e/commit.test.mjs
+Императивный commit*-слой (function/strategy.ts → Broker-адаптер напрямую, НЕ подписки):
+- **Роутинг**: commitTrailingStop/commitAverageBuy/commitPartialProfit/commitBreakeven из listenActivePing (контексты наследуются от tick) → свои методы адаптера, один signalId, операции применяются (remaining $160). ВАЖНО: `commitTrailingStop(symbol, shift, currentPrice)` — третий аргумент обязателен
+- **Тишина без enable()**: commit* исполняются молча (skip, не throw), адаптер не вызывается
+
+### test/e2e/hardening.test.mjs
+Дозакрытие пробелов:
+- **`callbacks.onOrderSync` в Action** — второй санкционированный гейт-канал: throw → откат троттла → next-tick retry в "1h"
+- **Таймаут getSignal** (`CC_MAX_SIGNAL_GENERATION_SECONDS` через частичный setConfig): зависший getSignal обрывается за ~1с → idle
+- **Одноразовость listenSyncOnce/listenCheckOnce**: ровно 1 срабатывание на два цикла событий
+- **Infinity-холд через крэш**: JSON null → Infinity restore, позиция active сутки спустя, estimate === Infinity (нужен `CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity`)
+
 ### test/e2e/coverage.test.mjs
 Тесты на изменения `git diff master -- src/client/ClientStrategy.ts`, не покрытые остальными файлами (каждый тест привязан к ханку дифа):
 - **Epsilon партиалов** (`PARTIAL_CAP_TOLERANCE_FACTOR`): 30% → 50% → 100%-от-остатка проходят все, остаток ровно 0
