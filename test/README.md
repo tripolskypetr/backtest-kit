@@ -806,6 +806,8 @@ clearTimeout(watchdog);
 - **BACKTEST #2**: `activateScheduled` из `onSchedulePing` — inline-открытие без касания priceOpen, базис = priceOpen, доживает до time_expired
 - **BACKTEST #3**: `createTakeProfit` из `onActivePing` — закрытие по эффективному TP при VWAP на месте (closeId)
 - **BACKTEST #4**: `closePending` из `onActivePing` — closed/"closed" mid-frame (closeId)
+- **BACKTEST #5**: манки-патч `onOrderSync` — order-гейты наблюдаемы и гейтят в backtest (полный цикл signal-open/schedule ×2 → active → close)
+- **LIVE #6**: check закрывает позицию на ПЯТОЙ проверке после активации (scheduled → opened → active×4 с успешными check'ами → closed/"closed"; счёт schedule/active check'ов точный)
 
 ## Отладка тестов
 

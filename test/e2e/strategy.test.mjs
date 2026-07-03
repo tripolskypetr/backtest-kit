@@ -980,3 +980,115 @@ test("STRATEGY BACKTEST: monkey-patched onOrderSync observes and gates orders in
 
   pass(`patched onOrderSync observed full order lifecycle in backtest and gated the first placement: ${orderEvents.join(" → ")}`);
 });
+
+/**
+ * STRATEGY LIVE #6: check закрывает позицию на ПЯТОЙ проверке после активации.
+ *
+ * Scheduled → активация по цене → 4 тика мониторинга с успешным order-check
+ * (type "active") → на 5-й проверке listenCheck бросает («ордер исчез с биржи»)
+ * → закрытие closed/"closed" тем же tick'ом. Проверяет, что успешные check'и
+ * НЕ мешают мониторингу (позиция живёт), а счёт проверок точный.
+ */
+test("STRATEGY LIVE: active order-check closes the position on the fifth check after activation", async ({ pass, fail }) => {
+  const { listenCheck } = await import("../../build/index.mjs");
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const MIN = 60_000;
+
+  const context = {
+    strategyName: "strategy-check-fifth-strategy",
+    exchangeName: "binance-strategy-check-fifth",
+    frameName: "",
+  };
+
+  let marketPrice = basePrice;
+  let signalGenerated = false;
+  let scheduleChecks = 0;
+  let activeChecks = 0;
+
+  makeExchange(context.exchangeName, () => marketPrice);
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "strategy check fifth",
+        priceOpen,
+        // TP выше рынка, SL ниже активации — мониторинг сам не закроет
+        priceTakeProfit: priceOpen + 15000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const unsubscribeCheck = listenCheck((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    if (event.type === "schedule") {
+      scheduleChecks += 1;
+      return; // resting-ордер на месте
+    }
+    activeChecks += 1;
+    if (activeChecks === 5) {
+      throw new Error("strategy: order vanished on the fifth check");
+    }
+  }, true);
+
+  try {
+    const runTick = makeRunTick(context);
+
+    // tick #1: создание scheduled (рынок выше priceOpen)
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const signalId = tick1.signal.id;
+
+    // tick #2: цена коснулась priceOpen → schedule-check прошёл → активация
+    marketPrice = priceOpen;
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "opened") {
+      fail(`tick #2 expected "opened" (activation), got "${tick2.action}"`);
+      return;
+    }
+
+    // tick #3..#6: мониторинг, check'и #1..#4 успешны — позиция живёт
+    for (let i = 1; i <= 4; i++) {
+      const tick = await runTick(new Date(t0 + (1 + i) * MIN));
+      if (tick.action !== "active") {
+        fail(`tick #${2 + i} expected "active" (check #${i} passed), got "${tick.action}"`);
+        return;
+      }
+      if (activeChecks !== i) {
+        fail(`after tick #${2 + i} expected ${i} active checks, got ${activeChecks}`);
+        return;
+      }
+    }
+
+    // tick #7: check #5 бросает → закрытие closed/"closed" этим же tick'ом
+    const tick7 = await runTick(new Date(t0 + 6 * MIN));
+    if (tick7.action !== "closed" || tick7.closeReason !== "closed") {
+      fail(`tick #7 expected closed/"closed" (fifth check failed), got "${tick7.action}"/"${tick7.closeReason}"`);
+      return;
+    }
+    if (tick7.signal.id !== signalId) {
+      fail(`closed signal id mismatch: expected ${signalId}, got ${tick7.signal.id}`);
+      return;
+    }
+
+    if (activeChecks !== 5 || scheduleChecks !== 1) {
+      fail(`check counts mismatch: active=${activeChecks} (expected 5), schedule=${scheduleChecks} (expected 1)`);
+      return;
+    }
+
+    pass(`position survived 4 checks and was closed by the 5th: scheduled → opened → active×4 → closed/"closed"`);
+  } finally {
+    unsubscribeCheck();
+  }
+});
