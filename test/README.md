@@ -833,6 +833,7 @@ clearTimeout(watchdog);
 - **averageBuy**: DCA $100 на 48000 — эффективная цена = cost-weighted harmonic 200/(100/50000+100/48000), invested $200; commit "average-buy"
 - **partialProfit(40%)**: остаток $60, `_partial` типа "profit", commit дренится следующим tick
 - **partialLoss(30%)**: остаток $70, тип "loss", commit "partial-loss"
+- **Переплетение DCA × партиалы**: open $100 → DCA $100 → profit 50% → DCA $100 → loss 25% → profit 100% остатка; строгие снапшоты `costBasisAtClose` [200, 200, 150] / `entryCountAtClose` [2, 3, 3], invested $300, остаток ровно $0 (партиал #2 берёт базис «остаток после 50% + вход, добавленный ПОСЛЕ партиала»; финальный 100% проходит через epsilon-кап)
 
 ВАЖНО: `percentShift` у trailing-команд — сдвиг дистанции в процентных ПУНКТАХ
 (SL 10% + shift −5 → 5%), а не доля от дистанции.
