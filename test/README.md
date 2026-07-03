@@ -583,6 +583,105 @@ if (signalsResults.opened.length < 2) {
 }
 ```
 
+## Изоляция worker-testbed, live-тики и гейты
+
+### Каждый test() — свежий инстанс backtest-kit
+
+worker-testbed запускает каждый `test()` в отдельном воркере и заново загружает
+`build/index.mjs`. У каждого теста — свои синглтоны (`Broker`, `lib`-сервисы,
+сабжекты, `Persist*Adapter`). Следствия:
+
+- **Мокать можно прямым присваиванием** (`lib.someService.method = ...`, патч
+  синглтонов, `Broker.useBrokerAdapter(...)`) — восстанавливать не обязательно,
+  воркер умирает после теста. Глобальные слушатели (`listenDoneBacktest`,
+  `listenScheduleEvent`) не пересекаются между тестами.
+- Глобальный `test/config/setup.mjs` ставит все `Persist*Adapter.useDummy()`.
+  Тесту, которому нужна реальная персистенция, — локально `useJson()` в скоупе
+  `test()` (восстановление в `finally` — хорошая гигиена, но не обязательная).
+
+### Backtest.run vs Backtest.background
+
+- **`for await (const r of Backtest.run(symbol, context))`** — async-генератор,
+  детерминированное завершение без done-слушателя. Предпочтителен, когда нужны
+  только терминальные результаты (`opened`/`closed`/`cancelled`).
+- **`Backtest.background()` + `listenDoneBacktest(() => awaitSubject.next())`** —
+  конвенция для тестов, которым нужны промежуточные события через `listen*`
+  (schedule events, partial-коллбеки и т.д.); генератор их не отдаёт.
+
+### Live-тики напрямую через ядро
+
+`strategyCoreService` di-scoped — вызовы вне command-слоя оборачиваются в
+method-контекст:
+
+```javascript
+const context = { strategyName, exchangeName, frameName: "" };
+const runTick = (when) =>
+  MethodContextService.runInContext(
+    async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+    context,
+  );
+
+const tick1 = await runTick(new Date(t0));            // "scheduled"
+await MethodContextService.runInContext(
+  async () => await lib.strategyCoreService.stopStrategy(false, "BTCUSDT", context),
+  context,
+);
+const tick2 = await runTick(new Date(t0 + 60_000));   // "cancelled"
+```
+
+Троттл `getSignal` привязан к `interval` стратегии: чтобы доказать next-tick
+retry после risk/sync-отказа, берите `interval: "1h"` и тикайте с шагом в минуту —
+без отката троттла второй tick не вызвал бы `getSignal` вовсе.
+
+### Гейты order-sync / order-check (live-only)
+
+Оба контракта несут `type: "schedule" | "active"`:
+
+- **`listenSync(fn, true)`** — `OrderSyncContract` (syncSubject). `action:
+  "signal-open"` с `type: "schedule"` — РАЗМЕЩЕНИЕ resting-ордера при создании
+  scheduled (throw → scheduled не регистрируется, ретрай next tick); с `type:
+  "active"` — открытие позиции/филл активации (throw при активации —
+  ТЕРМИНАЛЬНАЯ отмена, при свежем открытии — ретрай next tick). Фильтруйте по
+  `event.type`: слушатель «на все signal-open» поймает и placement-события.
+- **`listenCheck(fn, true)`** — `OrderCheckContract` (syncPendingSubject),
+  пинг «ордер ещё жив?». Throw при `"active"` → закрытие `closed`, при
+  `"schedule"` → отмена scheduled `user`. Backtest эти события не эмитит.
+- Второй аргумент `true` подавляет discouraged-предупреждения в консоли.
+- В Action-хендлере методы `orderSync`/`orderCheck` ЗАПРЕЩЕНЫ валидатором схемы —
+  используйте `callbacks: { onOrderSync, onOrderCheck }` в `addActionSchema`
+  или Broker-адаптер.
+
+### Тестирование Broker
+
+```javascript
+Broker.useBrokerAdapter({            // Partial<IBroker> — только нужные методы
+  onSignalOpenCommit: async (p) => { /* p.type: "schedule" | "active" */ },
+  onOrderCheck: async (p) => { /* throw = ордер не найден */ },
+  onSignalScheduleCancelled: async (p) => { /* p.reason */ },
+});
+Broker.enable();                     // без адаптера — throw
+try { /* тики */ } finally { Broker.disable(); }
+```
+
+Брокер live-only: в backtest sync-гейты short-circuit'ятся до сабжектов, а все
+`commit*`-методы скипают `payload.backtest` — адаптер обязан получить ровно 0
+вызовов за бектест-прогон (см. broker.test.mjs #3).
+
+### Проверка гипотез отдельным скриптом
+
+Прежде чем ставить в сьют тест с риском зависания (новый API, `for await` по
+генератору, незнакомый паттерн ожидания) — прогоните гипотезу standalone-скриптом
+с вотчдогом:
+
+```javascript
+// probe.mjs: import setup.mjs и build/index.mjs по АБСОЛЮТНЫМ путям
+const watchdog = setTimeout(() => { console.error("HUNG"); process.exit(2); }, 60_000);
+// ... сценарий ...
+clearTimeout(watchdog);
+```
+
+Полный сьют идёт минуты — зависший тест стоит дороже, чем минутная проба.
+
 ## Основные тестовые файлы
 
 ### test/e2e/sanitize.test.mjs
@@ -632,6 +731,29 @@ if (signalsResults.opened.length < 2) {
 - Используют паттерн предгенерации всех свечей в первом `getSignal`
 - Проверяют что система корректно обрабатывает серии сигналов с разными исходами
 - Используют минимальные ожидания (at least N) вместо точных значений
+
+### test/e2e/audit.test.mjs
+Регрессионные тесты по находкам аудитов (каждый тест закрывает конкретный баг):
+- Молчаливые дропы scheduled на activation-путях (risk/sync-reject → «cancelled» до брокера)
+- stopStrategy через deferred-cancel пайплайн (tick #2 = cancelled/user)
+- Next-tick retry отвергнутого открытия/размещения (откат `_lastSignalTimestamp`, interval "1h")
+- Order-check ping для scheduled (`type: "schedule"`), `listenCheck` как гейт
+- Partial-close математика (remaining cost basis, точные доллары)
+
+### test/e2e/gauntlet.test.mjs
+Сложные интеграционные тесты ClientStrategy — несколько механизмов через общее состояние:
+- **#1**: Полный цикл scheduled с отказом на каждом гейте (placement-reject → retry → sync-reject активации → ТЕРМИНАЛЬНАЯ отмена → новый час → повторный цикл до opened); строгая последовательность из 7 tick-действий
+- **#2**: Гонка stopStrategy ВНУТРИ активационного гейта → ровно одно «cancelled» на обоих каналах (дедуп через затирание `_cancelledSignal` в setScheduledSignal)
+- **#3**: Backtest переживает risk-reject на wick-активации (cancelled/user без фатала) и доводит следующий сигнал до time_expired
+- **#4**: Отказ active order-check закрывает «closed» и полностью освобождает состояние (следующий tick открывает свежий сигнал)
+- **#5**: Каскад risk-reject → sync-reject → успех на трёх соседних tick внутри одного "1h"-интервала
+
+### test/e2e/broker.test.mjs
+Тесты Broker-адаптера (роутинг сабжектов → IBroker):
+- **#1**: Все 8 этапов жизненного цикла scheduled→активация→TP доходят до СВОИХ методов адаптера в строгом порядке, один signalId
+- **#2**: Адаптер как гейт: throw в `onSignalOpenCommit`/`onOrderCheck` (размещение отвергнуто + отмена с уведомлением `onSignalScheduleCancelled`)
+- **#3**: Backtest-тишина: 0 вызовов адаптера за полный прогон (`for await Backtest.run`)
+- **#4**: `enable()` без адаптера бросает; после `disable()` роутинг отключён, фреймворк работает
 
 ## Отладка тестов
 
