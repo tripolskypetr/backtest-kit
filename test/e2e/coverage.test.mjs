@@ -11,7 +11,6 @@ import {
   listenStrategyCommit,
   lib,
   MethodContextService,
-  ExecutionContextService,
 } from "../../build/index.mjs";
 
 // Тесты на изменения `git diff master -- src/client/ClientStrategy.ts`,
@@ -634,17 +633,16 @@ test("DIFF: deferred user close survives a crash and drains after restore", asyn
       return;
     }
 
-    // «Крэш»: dispose инстанса (dispose читает method- И execution-контексты)
-    await inCtx(context, () => ExecutionContextService.runInContext(
-      async () => await lib.strategyConnectionService.clear({
-        symbol: "BTCUSDT",
-        strategyName: context.strategyName,
-        exchangeName: context.exchangeName,
-        frameName: context.frameName,
-        backtest: false,
-      }),
-      { when: new Date(t0), symbol: "BTCUSDT", backtest: false },
-    ));
+    // «Крэш»: dispose инстанса ГОЛЫМ вызовом — без method/execution контекстов.
+    // Фиксирует контекстно-независимый dispose (WAIT_FOR_DISPOSE_FN читает
+    // только статические params); упадёт, если вернуть контекстные чтения.
+    await lib.strategyConnectionService.clear({
+      symbol: "BTCUSDT",
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest: false,
+    });
 
     // Рестарт: новый инстанс восстанавливает deferred close и дренит его
     const tick2 = await runTick(new Date(t0 + 1 * MIN));

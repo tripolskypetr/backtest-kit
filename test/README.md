@@ -633,6 +633,19 @@ const tick2 = await runTick(new Date(t0 + 60_000));   // "cancelled"
 retry после risk/sync-отказа, берите `interval: "1h"` и тикайте с шагом в минуту —
 без отката троттла второй tick не вызвал бы `getSignal` вовсе.
 
+**Два контекста — кто какой создаёт.** tick/backtest требуют ОБА контекста:
+method (strategyName/exchangeName/frameName) и execution (symbol/when/backtest).
+`lib.strategyCoreService.tick(...)` сам оборачивает вызов в
+`ExecutionContextService.runInContext({symbol, when, backtest})` из своих
+аргументов — поэтому в паттерне выше снаружи хватает одного
+`MethodContextService.runInContext`. Если спускаться НИЖЕ core-слоя
+(`strategyConnectionService.tick`, `strategy.tick()` на инстансе) — оборачивайте
+в оба контекста вручную. Остальные методы ClientStrategy (deferred-команды,
+getters, partial/trailing/breakeven, waitForInit/dispose) контекстов НЕ требуют —
+они читают только статические ctor-params; единственное исключение —
+`setPendingSignal` лениво читает `execution.context.when` для метки времени
+onWrite (вызывается только из tick/backtest-пайплайнов).
+
 ### Гейты order-sync / order-check (live-only)
 
 Оба контракта несут `type: "schedule" | "active"`:
