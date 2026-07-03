@@ -139,6 +139,35 @@
 
 ---
 
+## Аудит корневого ./src, третий проход (2026-07-03): исправлено
+
+Зоны: StrategyCoreService, classes/Broker (2.8k), Recent, Session, Storage, Sync, function/* (event, dump, signal, list и мелкие), ActionConnectionService/ActionCoreService/ClientAction, PersistSession-слой. Тесты: +1 регрессионный в `test/spec/audit.test.mjs`. Полный набор: 795 ok / 0 fail.
+
+- [x] **P1: персистентная сессия текла между символами** — `src/classes/Session.ts` + `src/classes/Persist.ts`
+  `SessionPersistInstance` скоупится по (symbol, strategy, exchange, frame, backtest), но дисковая запись ключевалась только `./dump/session/<strategy>/<exchange>/<frame>/<frame>.json` — ни символа, ни backtest-флага, а `data.id` при restore не проверялся. Два live-символа одной стратегии клобберили одну запись, после рестарта один символ восстанавливал session-состояние другого. Фикс: (1) entity id = `<symbol>_<backtest|live>` — per-symbol файлы; (2) `PersistSessionInstance`/`TPersistSessionInstanceCtor`/`PersistSessionUtils` получили обязательные параметры `symbol`, `backtest` (⚠️ breaking change для кастомных session-адаптеров); (3) belt-and-braces: restore валидирует `data.id` против ожидаемого ключа — запись чужого контекста игнорируется с warn (защищает и кастомные адаптеры, которые всё ещё ключуются без символа).
+  Старые персистентные сессии (ключ = frameName) после апгрейда игнорируются — одноразовый сброс session-состояния.
+  Тест: «session persist: symbols do not share persisted session state» (JSON-адаптер включается локально в скоупе теста — глобальный test-setup ставит dummy).
+  Хвост закрыт: `packages/mongo` переведён на новый ключ (PersistSessionInstance, SessionDbService, SessionCacheService, Session.schema) — `symbol`/`backtest` добавлены в ctor, фильтры upsert/findByContext, redis-ключ кэша и уникальный индекс схемы.
+  ⚠️ Миграция mongo: на существующих базах вручную удалить легаси-индекс `(strategyName, exchangeName, frameName)` у `session-items`, иначе upsert второго символа того же контекста упадёт с E11000; старые записи без `symbol`/`backtest` не находятся новым фильтром (одноразовый сброс сессий).
+
+- [x] **P2: BrokerProxy бросал на нереализованных commit-методах** — `src/classes/Broker.ts`
+  `TBrokerCtor` документирует «все методы IBroker опциональны», но 8 commit-методов (`onSignalOpenCommit`, `onSignalCloseCommit`, partial/trailing/breakeven/averageBuy) бросали «not implemented». Из-за gate-семантики throw трактуется как «биржа не исполнила»: адаптер только с информационными хуками (нотификации) при `enable()` молча блокировал ВСЕ открытия/закрытия позиций с вечным retry. Фикс: skip с warn-логом (= «allow»), как у ping-хендлеров; докстринги выровнены.
+
+- [x] **P2: Storage._enforceLimit выселял по insertion-order вместо priority** — `src/classes/Storage.ts` (4 копии: Persist/Memory × Backtest/Live)
+  JS Map сохраняет позицию ключа при обновлении значения: активный сигнал (самая свежая priority, но старая позиция вставки) вылетал из списка первым при переполнении CC_MAX_SIGNALS. Фикс: эвикция минимальной `priority`.
+
+- [x] **P3: докстринг StorageBacktestAdapter** — заявлял Persist по умолчанию, фабрика создаёт Memory. Приведён к коду.
+
+- [x] **P3: копипаст-метки логов Recent** — `getMinutesSinceLatestSignalCreated` в обоих адаптерах логировался как `getLatestSignal`; добавлены отдельные метки.
+
+- [x] **P3: докстринги getSignalState/setSignalState** — обещали «warning + initialValue» при отсутствии сигнала, код бросает. Приведены к коду.
+
+Проверено и признано корректным (без изменений): StrategyCoreService (чистая делегация validate+proxy, ~50 методов), Broker payload-типы и enable/disable-проводка, BrokerBase, Recent (look-ahead-гарды, минутная математика), Sync (фасад), Session Local/Dummy-варианты, Storage stale-гарды (`updatedAt`), function/event.ts (60+ listen*-обёрток, listenSync-варнинг — дизайн), dump.ts, signal.ts, list.ts, ClientAction (trycatch-обвязка callbacks, sync/orderCheck без trycatch — осознанно), ActionConnectionService/ActionCoreService (memoize-ключи полные; ClientAction без символа в ключе — дизайн, события несут symbol), мелкие function/* (get, state, meta, setup, context, session, init, shutdown, control, timeframe, validate, override, add, memory, exchange).
+
+Не покрыто третьим проходом: lib/services/schema/* и validation/* (декларативные), lib/services/helpers/NotificationHelperService, command/* (тонкие фасады над logic-сервисами — беглый осмотр без полного чтения), classes/{Interval,Cron,Lock,Lookup,Writer,Dump,Report,Markdown,Heat,Performance,Constant,System,Position,Partial,Breakeven,Schedule,HighestProfit,MaxDrawdown,ActionProxy,ActionBase,Reflect,State,Log,Lookup}.
+
+---
+
 ## Аудит markdown-сервисов (2026-07-02): ошибки в математике
 
 Полное чтение 13 сервисов `src/lib/services/markdown/*` + хелпера `getPriceProfile`. Ядро статистики (Sharpe/Sortino/Calmar/Recovery, mark-to-market equity drawdown, геометрическая аннуализация, стрики, медианы, перцентили, OLS-тренд) — корректно и согласовано между Backtest/Live/Heat. Найдено:

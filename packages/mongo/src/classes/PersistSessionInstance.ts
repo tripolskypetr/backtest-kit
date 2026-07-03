@@ -7,6 +7,8 @@ export class PersistSessionInstance implements IPersistSessionInstance {
     readonly strategyName: string,
     readonly exchangeName: string,
     readonly frameName: string,
+    readonly symbol: string,
+    readonly backtest: boolean,
   ) {}
   async waitForInit(initial: boolean) {
     if (!initial) {
@@ -15,11 +17,11 @@ export class PersistSessionInstance implements IPersistSessionInstance {
     await waitForInit();
   }
   async readSessionData(): Promise<SessionData | null> {
-    const row = await ioc.sessionDbService.findByContext(this.strategyName, this.exchangeName, this.frameName);
+    const row = await ioc.sessionDbService.findByContext(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest);
     return row ? row.payload : null;
   }
   async writeSessionData(data: SessionData, when: Date): Promise<void> {
-    await ioc.sessionDbService.upsert(this.strategyName, this.exchangeName, this.frameName, data, when);
+    await ioc.sessionDbService.upsert(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest, data, when);
   }
   dispose(): void { void 0; }
 }
