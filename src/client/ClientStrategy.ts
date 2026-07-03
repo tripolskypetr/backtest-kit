@@ -121,6 +121,7 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
     const publicSignal = TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice);
     return await self.params.onOrderSync({
       action: "signal-open",
+      type: "active",
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -168,6 +169,73 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
 );
 
 /**
+ * Calls onOrderSync callback for the scheduled-order placement event
+ * (action "signal-open", type "schedule").
+ *
+ * Invoked BEFORE setScheduledSignal to give the external system a chance to confirm
+ * that the resting entry (limit) order was actually PLACED on the exchange. If the
+ * callback returns false (or throws), the scheduled signal is NOT registered, the
+ * risk reservation is released and the interval throttle is rolled back — the
+ * placement retries on the next tick (mirrors the type "active" open gate).
+ */
+const CALL_ORDER_SYNC_SCHEDULE_OPEN_FN = trycatch(
+  async (
+    timestamp: number,
+    currentPrice: number,
+    scheduledSignal: IScheduledSignalRow,
+    self: ClientStrategy
+  ): Promise<boolean> => {
+    const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduledSignal, currentPrice);
+    return await self.params.onOrderSync({
+      action: "signal-open",
+      type: "schedule",
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      exchangeName: self.params.exchangeName,
+      frameName: self.params.frameName,
+      backtest: self.params.execution.context.backtest,
+      signalId: scheduledSignal.id,
+      timestamp,
+      signal: publicSignal,
+      maxDrawdown: publicSignal.maxDrawdown,
+      peakProfit: publicSignal.peakProfit,
+      cost: scheduledSignal.cost,
+      currentPrice,
+      position: publicSignal.position,
+      pnl: publicSignal.pnl,
+      priceOpen: publicSignal.priceOpen,
+      priceTakeProfit: publicSignal.priceTakeProfit,
+      priceStopLoss: publicSignal.priceStopLoss,
+      originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+      originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+      originalPriceOpen: publicSignal.originalPriceOpen,
+      scheduledAt: publicSignal.scheduledAt,
+      pendingAt: publicSignal.pendingAt,
+      totalEntries: publicSignal.totalEntries,
+      totalPartials: publicSignal.totalPartials,
+    });
+  },
+  {
+    defaultValue: false,
+    fallback: (error, timestamp, currentPrice, scheduledSignal, self) => {
+      const message = "ClientStrategy CALL_ORDER_SYNC_SCHEDULE_OPEN_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+        data: {
+          timestamp,
+          currentPrice,
+          signalId: scheduledSignal.id,
+        }
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    }
+  }
+);
+
+/**
  * Calls onOrderSync callback for signal-close event.
  *
  * Invoked BEFORE setPendingSignal(null) to give the external system a chance to confirm
@@ -186,6 +254,7 @@ const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
     return await self.params.onOrderSync({
       action: "signal-close",
+      type: "active",
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -3180,12 +3249,47 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
 const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
   self: ClientStrategy,
   signal: IScheduledSignalRow
-): Promise<IStrategyTickResultScheduled> => {
+): Promise<IStrategyTickResultScheduled | null> => {
   const currentPrice = await self.params.exchange.getAveragePrice(
     self.params.execution.context.symbol
   );
 
   const currentTime = self.params.execution.context.when.getTime();
+
+  // Order sync (type "schedule"): confirm the resting entry order was PLACED on
+  // the exchange BEFORE registering the scheduled signal — mirrors the type
+  // "active" open gate in OPEN_NEW_PENDING_SIGNAL_FN (register/persist only
+  // after broker confirmation).
+  const syncOpenAllowed = await CALL_ORDER_SYNC_SCHEDULE_OPEN_FN(
+    currentTime,
+    currentPrice,
+    signal,
+    self
+  );
+
+  if (!syncOpenAllowed) {
+    self.params.logger.info("ClientStrategy OPEN_NEW_SCHEDULED_SIGNAL_FN rejected by sync", {
+      symbol: self.params.execution.context.symbol,
+      signalId: signal.id,
+    });
+    // Release the slot reserved by checkSignalAndReserve in GET_SIGNAL_FN —
+    // otherwise the rejected placement leaks a phantom reservation in the shared risk map.
+    await CALL_RISK_REMOVE_SIGNAL_FN(
+      self,
+      self.params.execution.context.symbol,
+      currentTime,
+      self.params.execution.context.backtest
+    );
+    // Roll back the interval throttle consumed in GET_SIGNAL_FN so the rejected
+    // placement retries on the NEXT TICK, not on the next interval boundary.
+    self._lastSignalTimestamp = null;
+    return null;
+  }
+
+  // Register/persist the scheduled signal only AFTER the broker confirmed the
+  // resting order placement — registering earlier left a phantom scheduled
+  // signal (and a persisted resting order that does not exist on the exchange).
+  await self.setScheduledSignal(signal);
 
   self.params.logger.info("ClientStrategy scheduled signal created", {
     symbol: self.params.execution.context.symbol,
@@ -7059,22 +7163,28 @@ export class ClientStrategy implements IStrategy {
 
       if (signal) {
         if (signal._isScheduled === true) {
-          await this.setScheduledSignal(signal as IScheduledSignalRow);
-          return await OPEN_NEW_SCHEDULED_SIGNAL_FN(
+          // The scheduled signal is set/persisted INSIDE OPEN_NEW_SCHEDULED_SIGNAL_FN,
+          // strictly after the sync confirmation of the resting-order placement
+          // (type "schedule") — same contract as OPEN_NEW_PENDING_SIGNAL_FN below.
+          const scheduledResult = await OPEN_NEW_SCHEDULED_SIGNAL_FN(
             this,
-            this._scheduledSignal!
+            signal as IScheduledSignalRow
           );
+          if (scheduledResult) {
+            return scheduledResult;
+          }
+          // Sync rejected — nothing was registered, fall through to idle
+        } else {
+          // The pending signal is set/persisted INSIDE OPEN_NEW_PENDING_SIGNAL_FN,
+          // strictly after the sync-open confirmation. Setting it here first left a
+          // phantom position on disk when the process crashed before the broker
+          // confirmed (or rejected) the open.
+          const openResult = await OPEN_NEW_PENDING_SIGNAL_FN(this, signal as ISignalRow);
+          if (openResult) {
+            return openResult;
+          }
+          // Sync rejected — nothing was persisted, fall through to idle
         }
-
-        // The pending signal is set/persisted INSIDE OPEN_NEW_PENDING_SIGNAL_FN,
-        // strictly after the sync-open confirmation. Setting it here first left a
-        // phantom position on disk when the process crashed before the broker
-        // confirmed (or rejected) the open.
-        const openResult = await OPEN_NEW_PENDING_SIGNAL_FN(this, signal as ISignalRow);
-        if (openResult) {
-          return openResult;
-        }
-        // Sync rejected — nothing was persisted, fall through to idle
       }
 
       const currentPrice = await this.params.exchange.getAveragePrice(

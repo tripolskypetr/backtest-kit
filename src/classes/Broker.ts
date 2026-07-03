@@ -55,8 +55,14 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
 /**
  * Payload for the signal-open broker event.
  *
- * Emitted automatically via syncSubject when a new pending signal is activated.
- * Forwarded to the registered IBroker adapter via `onSignalOpenCommit`.
+ * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
+ * `onSignalOpenCommit`. Discriminated by `type`:
+ * - "active" — a pending signal is being opened (immediate entry or activation fill of the
+ *   resting order); throw = the exchange did not fill the entry, the framework rolls back the
+ *   open and retries on the next tick;
+ * - "schedule" — the resting entry order is being PLACED (scheduled signal creation); throw =
+ *   the exchange did not accept the resting order, the scheduled signal is NOT registered and
+ *   the placement retries on the next tick.
  *
  * @example
  * ```typescript
@@ -73,6 +79,8 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
  * ```
  */
 export type BrokerSignalOpenPayload = {
+  /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
+  type: "schedule" | "active";
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
   /** Unique signal identifier (UUID v4) the order belongs to */
@@ -868,16 +876,18 @@ export interface IBroker {
   onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
 
   /**
-   * Called when a signal is being opened (position entry). Emitted via syncSubject BEFORE the
-   * framework mutates strategy state, so it is also the open **gate**.
+   * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
+   * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
+   * - "active" — position entry (immediate open or activation fill of the resting order);
+   * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
    *
-   * MANUAL WIRING — EXCEPTION-BASED: place the real entry order here (tag the exchange order with
+   * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
    * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
-   * (signal-open) it shares the gate semantics — a THROW means "the exchange did not fill the entry"
-   * (e.g. limit order rejected) and the framework ROLLS BACK the open: the pending signal returns to
-   * idle (a scheduled activation is cancelled) and is retried on the next tick. Return normally to let
-   * the open proceed. Also the point where a scheduled signal's activation surfaces. Backtest
-   * short-circuits this, so the gate is live-only.
+   * (signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
+   * order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
+   * scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
+   * and the risk reservation is released. Both retry on the next tick. Return normally to let the
+   * open proceed. Backtest short-circuits this, so the gate is live-only.
    *
    * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
    * AFTER the open is committed (and cannot veto it).
@@ -2132,6 +2142,7 @@ export class BrokerAdapter {
         return;
       }
       await this.commitSignalOpen({
+        type: event.type,
         position: event.signal.position,
         cost: event.signal.cost,
         symbol: event.symbol,

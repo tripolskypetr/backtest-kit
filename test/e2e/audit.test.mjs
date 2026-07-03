@@ -1891,7 +1891,7 @@ test("AUDIT: live price-activation sync-reject notifies broker channel", async (
 
   // Брокер отвергает открытие: throw в syncSubject → CREATE_SYNC_FN → false
   const unsubscribeSync = listenSync((event) => {
-    if (event.strategyName === context.strategyName && event.action === "signal-open") {
+    if (event.strategyName === context.strategyName && event.action === "signal-open" && event.type === "active") {
       syncRejects += 1;
       throw new Error("audit: broker rejected order at activation");
     }
@@ -1994,7 +1994,7 @@ test("AUDIT: sync-rejected open retries on next tick, not next interval", async 
 
   // Брокер отвергает первый signal-open, второй пропускает
   const unsubscribeSync = listenSync((event) => {
-    if (event.strategyName === context.strategyName && event.action === "signal-open") {
+    if (event.strategyName === context.strategyName && event.action === "signal-open" && event.type === "active") {
       syncCalls += 1;
       if (syncCalls === 1) {
         throw new Error("audit: broker rejected first open");
@@ -2339,4 +2339,103 @@ test("AUDIT: order ping carries type active for pending position", async ({ pass
   }
 
   pass(`pending-position order ping carries type "active" and monitoring continues`);
+});
+
+/**
+ * AUDIT E2E: onOrderSync теперь гейтит и РАЗМЕЩЕНИЕ resting-ордера при создании
+ * scheduled-сигнала (action "signal-open", type "schedule").
+ *
+ * Отказ брокера (throw в listenSync) → scheduled НЕ регистрируется, риск-резервация
+ * снимается, троттл откатывается — размещение ретраится на следующем tick
+ * (по аналогии с type "active").
+ */
+test("AUDIT: scheduled placement sync-reject rolls back and retries on next tick", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-schedule-place-sync-strategy",
+    exchangeName: "binance-audit-schedule-place-sync",
+    frameName: "",
+  };
+
+  let placementCalls = 0;
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * 60000,
+          open: basePrice,
+          high: basePrice,
+          low: basePrice,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    // КЛЮЧЕВОЕ: interval "1h" — без отката троттла tick #2 (+1 минута)
+    // не вызвал бы getSignal и размещение не ретраилось бы до следующего часа
+    interval: "1h",
+    getSignal: async () => ({
+      id: "audit-schedule-place-sync-id",
+      position: "long",
+      note: "audit schedule placement sync",
+      priceOpen,
+      priceTakeProfit: priceOpen + 4000,
+      priceStopLoss: priceOpen - 2000,
+      minuteEstimatedTime: 120,
+    }),
+  });
+
+  // Брокер отвергает первое размещение resting-ордера, второе пропускает
+  const unsubscribeSync = listenSync((event) => {
+    if (event.strategyName === context.strategyName && event.action === "signal-open" && event.type === "schedule") {
+      placementCalls += 1;
+      if (placementCalls === 1) {
+        throw new Error("audit: exchange rejected resting order placement");
+      }
+    }
+  }, true);
+
+  try {
+    const runTick = (when) =>
+      MethodContextService.runInContext(
+        async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+        context,
+      );
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "idle") {
+      fail(`tick #1 expected "idle" (placement rejected, scheduled NOT registered), got "${tick1.action}"`);
+      return;
+    }
+
+    // +1 минута — та же граница "1h"
+    const tick2 = await runTick(new Date(t0 + 60000));
+    if (tick2.action !== "scheduled") {
+      fail(`REGRESSION: tick #2 expected "scheduled" (next-tick placement retry), got "${tick2.action}"`);
+      return;
+    }
+
+    if (placementCalls !== 2) {
+      fail(`expected 2 schedule-type placement syncs (reject + accept), got ${placementCalls}`);
+      return;
+    }
+
+    pass(`scheduled placement gated by onOrderSync (type "schedule"): reject → idle, next-tick retry → scheduled (placementCalls=${placementCalls})`);
+  } finally {
+    unsubscribeSync();
+  }
 });

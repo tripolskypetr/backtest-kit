@@ -1537,9 +1537,20 @@ interface RiskContract {
 }
 
 /**
- * Base fields shared by all signal sync events.
+ * Base fields shared by all order sync events.
  */
 interface OrderSyncBase {
+    /**
+     * Which order the sync gate is about:
+     * - "active" — the position order: immediate open, activation fill of a resting
+     *   order, and every close. Reject (false/throw) skips the open/close; a rejected
+     *   fresh open rolls back the interval throttle and retries on the next tick.
+     * - "schedule" — the resting entry order being PLACED when a scheduled signal is
+     *   created (action "signal-open" only). Reject means the exchange did not accept
+     *   the resting order: the scheduled signal is NOT registered, the risk
+     *   reservation is released and the placement retries on the next tick.
+     */
+    type: "schedule" | "active";
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Strategy name that generated this signal */
@@ -1671,13 +1682,15 @@ interface OrderCloseContract extends OrderSyncBase {
     totalPartials: number;
 }
 /**
- * Discriminated union for signal sync events.
+ * Discriminated union for order sync events.
  *
  * Emitted to allow external systems to synchronize with the framework's
- * limit order lifecycle: open (limit filled) and close (position exited).
+ * order lifecycle: open (type "active" — immediate/activation fill; type
+ * "schedule" — placement of the resting entry order at scheduled-signal
+ * creation) and close (position exited, always type "active").
  *
- * Note: Only covers the scheduled → pending → closed lifecycle.
- * Signals that were never activated (cancelled scheduled signals) do NOT emit OrderOpenContract.
+ * Note: cancelled scheduled signals do NOT emit OrderOpenContract — their
+ * teardown goes through the schedule-event channel (Broker.commitScheduleCancelled).
  */
 type OrderSyncContract = OrderOpenContract | OrderCloseContract;
 
@@ -29385,8 +29398,14 @@ declare class ActionBase implements IPublicAction {
 /**
  * Payload for the signal-open broker event.
  *
- * Emitted automatically via syncSubject when a new pending signal is activated.
- * Forwarded to the registered IBroker adapter via `onSignalOpenCommit`.
+ * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
+ * `onSignalOpenCommit`. Discriminated by `type`:
+ * - "active" — a pending signal is being opened (immediate entry or activation fill of the
+ *   resting order); throw = the exchange did not fill the entry, the framework rolls back the
+ *   open and retries on the next tick;
+ * - "schedule" — the resting entry order is being PLACED (scheduled signal creation); throw =
+ *   the exchange did not accept the resting order, the scheduled signal is NOT registered and
+ *   the placement retries on the next tick.
  *
  * @example
  * ```typescript
@@ -29403,6 +29422,8 @@ declare class ActionBase implements IPublicAction {
  * ```
  */
 type BrokerSignalOpenPayload = {
+    /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
+    type: "schedule" | "active";
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
     /** Unique signal identifier (UUID v4) the order belongs to */
@@ -30180,16 +30201,18 @@ interface IBroker {
      */
     onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
     /**
-     * Called when a signal is being opened (position entry). Emitted via syncSubject BEFORE the
-     * framework mutates strategy state, so it is also the open **gate**.
+     * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
+     * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
+     * - "active" — position entry (immediate open or activation fill of the resting order);
+     * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
      *
-     * MANUAL WIRING — EXCEPTION-BASED: place the real entry order here (tag the exchange order with
+     * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
      * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
-     * (signal-open) it shares the gate semantics — a THROW means "the exchange did not fill the entry"
-     * (e.g. limit order rejected) and the framework ROLLS BACK the open: the pending signal returns to
-     * idle (a scheduled activation is cancelled) and is retried on the next tick. Return normally to let
-     * the open proceed. Also the point where a scheduled signal's activation surfaces. Backtest
-     * short-circuits this, so the gate is live-only.
+     * (signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
+     * order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
+     * scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
+     * and the risk reservation is released. Both retry on the next tick. Return normally to let the
+     * open proceed. Backtest short-circuits this, so the gate is live-only.
      *
      * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
      * AFTER the open is committed (and cannot veto it).
