@@ -30537,6 +30537,14 @@ declare class BrokerAdapter {
      * Called automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
      * removed before activation. Skipped silently in backtest mode or when no adapter is registered.
      *
+     * IMPORTANT (adapter responsibility): the cancel may race the real fill. The framework decides
+     * to drop the scheduled signal from ITS view (risk reject at activation, sync reject, stop,
+     * timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
+     * arrives. The adapter MUST check the actual order status before cancelling: if the order is
+     * filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
+     * (close it or reconcile via onOrderCheck / onSignalActivePing). The framework cannot model
+     * this case — from its side the signal is terminally cancelled.
+     *
      * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
      */
     commitScheduleCancelled: (payload: BrokerScheduleCancelledPayload) => Promise<void>;

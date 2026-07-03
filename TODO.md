@@ -156,7 +156,7 @@
 
 Тесты: e2e «backtest price-activation risk-reject emits cancelled schedule event» (риск-отказ на wick-активации → событие + backtest не падает), «live price-activation risk-reject emits cancelled schedule event» (tick #1 scheduled → цена касается priceOpen → риск-отказ → событие на брокерском канале), «live price-activation sync-reject notifies broker channel» (throw в `listenSync` → отказ брокера → событие). Существующий «stopStrategy routes scheduled signal through cancel pipeline» — зелёный (страховка дедупликации).
 
-Отложено до решения продукта (PLAN.md §5, поведение НЕ менялось): retry-семантика sync-отказа открытия (откат `_lastSignalTimestamp` для честного next-tick retry — поведенческое изменение); risk-reject на price-активации при уже исполненном лимитнике (cancel-события мало — на бирже уже позиция; решается на стороне адаптера через `onOrderCheck`/`onSignalActivePing`).
+~~Отложено до решения продукта (PLAN.md §5)~~ — закрыто решениями продукта (2026-07-03), см. блок «Решения продукта» ниже.
 
 Дочистка после повторного полного чтения (2026-07-03, 800 ok / 0 fail):
 
@@ -167,7 +167,18 @@
 
 - [x] **P4 доки**: `getTotalPercentClosed`/`getTotalCostClosed` («Returns 100/totalInvested if no pending» → фактический `null`); `getPositionHighestProfitBreakeven` (докстринг был скопирован от minutes-метода — теперь описывает возвращаемый boolean «пик покрыл breakeven-порог»); `activateScheduled` («at the current price» → зафиксировано фактическое поведение: базис входа остаётся scheduled `priceOpen`, риск-проверка — по текущей цене).
 
-Требует решения продукта (НЕ трогалось): семантика `activateScheduled` — вход по `priceOpen`, которого рынок не касался, завышает PnL относительно реального маркет-филла (adapter-side); асимметрия цены в `opened`-событии (live — currentPrice, backtest-inline — priceOpen); onWrite получает то raw `ISignalRow`, то `TO_PUBLIC_SIGNAL` (по контракту допустимо); строгий `>` в капе партиалов (fp-дрейф на ровно 100%).
+Решения продукта (2026-07-03), исполнено (802 ok / 0 fail):
+
+- [x] **Retry sync/risk-отказа открытия → честный next-tick** (решение: откатывать троттл). Ветки risk-reject в `GET_SIGNAL_FN` и sync-reject в `OPEN_NEW_PENDING_SIGNAL_FN` сбрасывают `_lastSignalTimestamp = null` — отклонённый вход ретраится на следующем tick, а не на следующей границе interval (для "1h" — до часа молчания). Риск-валидации при этом гоняются на каждом retry-tick до успеха — осознанный трейд-офф. Комментарии/докстринг `CALL_SIGNAL_SYNC_OPEN_FN` приведены к новой семантике.
+  Тесты: e2e «sync-rejected open retries on next tick» и «risk-rejected open retries on next tick» (interval "1h", tick #1 отказ → tick #2 через минуту открывает; без отката второй tick был бы idle).
+
+- [x] **`activateScheduled` — семантика подтверждена**: вызов означает «биржа исполнила НАШ resting order» (филл подтверждён адаптером out-of-band, например по вику, которого VWAP не показал) — базис входа `priceOpen` и есть реальная цена филла, PnL честный. Докстринг переписан под эту семантику; код не менялся. Асимметрия цены в `opened`-событии (live — currentPrice, backtest-inline — priceOpen) при этой семантике остаётся косметической — payload сигнала несёт priceOpen в обоих случаях.
+
+- [x] **Risk-reject при уже исполненном лимитнике — adapter-side, задокументировано**: в докстринг `Broker.commitScheduleCancelled` добавлен параграф об обязанности адаптера проверять фактический статус ордера перед снятием (cancel может гоняться с реальным филлом; исполненный ордер — позиция на стороне адаптера, reconcile через `onOrderCheck`/`onSignalActivePing`). Ядро этот кейс не моделирует — с его стороны сигнал терминально отменён.
+
+- [x] **Epsilon в капе партиалов**: строгий `>` → `> totalInvested * (1 + 1e-9)` во всех 4 копиях (`PARTIAL_PROFIT_FN`, `PARTIAL_LOSS_FN`, `validatePartialProfit`, `validatePartialLoss`) — закрытие ровно оставшихся 100% больше не отклоняется fp-дрейфом.
+
+Оставлено как есть (решение продукта): onWrite получает то raw `ISignalRow`, то `TO_PUBLIC_SIGNAL` — по контракту (`Strategy.interface.ts`) допустимо, унификация не требуется.
 
 Проверено и признано корректным (без изменений): `Promise.race` с TIMEOUT_SYMBOL в GET_SIGNAL_FN, whipsaw-защита с fallback-релизом риска, TO_PUBLIC_SIGNAL, PARTIAL_*_FN (долларовый кап), TRAILING_*_FN (расчёт от оригинала, absorption), BREAKEVEN_FN, AVERAGE_BUY_FN + getEffectivePriceOpen, PROCESS_COMMIT_QUEUE_FN (at-most-once), WAIT_FOR_INIT_FN (Infinity-restore, commitQueue по id), CHECK_PENDING_SIGNAL_COMPLETION_FN (приоритет time→TP→SL), PROCESS_PENDING_SIGNAL_CANDLES_FN (VWAP-окно, frameEndTime), все deferred-дренажи tick/backtest, createSignal/createTakeProfit/createStopLoss, wick-активация в backtest vs VWAP в live (осознанное моделирование лимитника).
 

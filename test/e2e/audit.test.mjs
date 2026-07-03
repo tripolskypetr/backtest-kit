@@ -1934,3 +1934,189 @@ test("AUDIT: live price-activation sync-reject notifies broker channel", async (
     unsubscribeSync();
   }
 });
+
+/**
+ * AUDIT E2E: sync-отказ открытия НОВОЙ позиции ретраится на следующем tick,
+ * а не на следующей границе interval стратегии.
+ *
+ * Регрессия: _lastSignalTimestamp потреблялся в GET_SIGNAL_FN до getSignal —
+ * отказ брокера для "1h"-стратегии означал до часа молчания. Теперь ветка
+ * sync-reject откатывает троттл (наравне с risk-reject).
+ */
+test("AUDIT: sync-rejected open retries on next tick, not next interval", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-retry-tick-sync-strategy",
+    exchangeName: "binance-audit-retry-tick-sync",
+    frameName: "",
+  };
+
+  let syncCalls = 0;
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * 60000,
+          open: basePrice,
+          high: basePrice,
+          low: basePrice,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    // КЛЮЧЕВОЕ: interval "1h" — без отката троттла второй tick (+1 минута)
+    // не вызвал бы getSignal вовсе
+    interval: "1h",
+    getSignal: async () => ({
+      id: "audit-retry-tick-sync-id",
+      position: "long",
+      note: "audit retry tick sync",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 120,
+    }),
+  });
+
+  // Брокер отвергает первый signal-open, второй пропускает
+  const unsubscribeSync = listenSync((event) => {
+    if (event.strategyName === context.strategyName && event.action === "signal-open") {
+      syncCalls += 1;
+      if (syncCalls === 1) {
+        throw new Error("audit: broker rejected first open");
+      }
+    }
+  }, true);
+
+  try {
+    const runTick = (when) =>
+      MethodContextService.runInContext(
+        async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+        context,
+      );
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "idle") {
+      fail(`tick #1 expected "idle" (sync-rejected open), got "${tick1.action}"`);
+      return;
+    }
+
+    // +1 минута — та же граница "1h"
+    const tick2 = await runTick(new Date(t0 + 60000));
+    if (tick2.action !== "opened") {
+      fail(`REGRESSION: tick #2 expected "opened" (next-tick retry), got "${tick2.action}" — rejected open silenced until next interval boundary`);
+      return;
+    }
+
+    if (syncCalls !== 2) {
+      fail(`expected 2 sync-open calls (reject + accept), got ${syncCalls}`);
+      return;
+    }
+
+    pass(`sync-rejected open retried on next tick within the same 1h interval (syncCalls=${syncCalls})`);
+  } finally {
+    unsubscribeSync();
+  }
+});
+
+/**
+ * AUDIT E2E: risk-отказ кандидата в GET_SIGNAL_FN ретраится на следующем tick
+ * (откат _lastSignalTimestamp), а не на следующей границе interval.
+ */
+test("AUDIT: risk-rejected open retries on next tick, not next interval", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const context = {
+    strategyName: "audit-retry-tick-risk-strategy",
+    exchangeName: "binance-audit-retry-tick-risk",
+    frameName: "",
+  };
+
+  let riskAttempts = 0;
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * 60000,
+          open: basePrice,
+          high: basePrice,
+          low: basePrice,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRiskSchema({
+    riskName: "audit-retry-tick-risk",
+    validations: [
+      () => {
+        riskAttempts += 1;
+        if (riskAttempts === 1) {
+          throw new Error("audit: first attempt rejected by risk");
+        }
+      },
+    ],
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1h",
+    riskName: "audit-retry-tick-risk",
+    getSignal: async () => ({
+      id: "audit-retry-tick-risk-id",
+      position: "long",
+      note: "audit retry tick risk",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 120,
+    }),
+  });
+
+  const runTick = (when) =>
+    MethodContextService.runInContext(
+      async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+      context,
+    );
+
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "idle") {
+    fail(`tick #1 expected "idle" (risk-rejected candidate), got "${tick1.action}"`);
+    return;
+  }
+
+  const tick2 = await runTick(new Date(t0 + 60000));
+  if (tick2.action !== "opened") {
+    fail(`REGRESSION: tick #2 expected "opened" (next-tick retry), got "${tick2.action}" — risk-rejected candidate silenced until next interval boundary`);
+    return;
+  }
+
+  if (riskAttempts !== 2) {
+    fail(`expected 2 risk validation calls (reject + pass), got ${riskAttempts}`);
+    return;
+  }
+
+  pass(`risk-rejected open retried on next tick within the same 1h interval (riskAttempts=${riskAttempts})`);
+});

@@ -88,15 +88,28 @@ const SCHEDULED_SIGNAL_PENDING_MOCK = 0;
 const TIMEOUT_SYMBOL = Symbol('timeout');
 
 /**
+ * Relative tolerance for the partial-close 100% cap.
+ *
+ * «Закрыть ровно остаток позиции» проходит через цепочки конверсий
+ * percent↔dollar (percent/100 × costBasisAtClose × реплей партиалов), где
+ * накапливается floating-point дрейф в несколько ULP. Строгое сравнение
+ * `newTotalClosedDollar > totalInvested` из-за этого может отклонить легитимное
+ * закрытие оставшихся 100%. Сравнение с totalInvested × этот множитель
+ * поглощает дрейф, но по-прежнему режет любой реальный перебор (1e-9
+ * относительных — на порядки больше ULP-шума double и на порядки меньше
+ * минимально осмысленной доли позиции).
+ */
+const PARTIAL_CAP_TOLERANCE_FACTOR = 1 + 1e-9;
+
+/**
  * Calls onSignalSync callback for signal-open event.
  *
  * Invoked BEFORE setPendingSignal to give the external system a chance to confirm
  * that the limit order was filled on the exchange. If the callback returns false
  * (or throws), the position open is skipped and the strategy state is NOT mutated.
- * The framework will retry — but note that for a fresh open the retry happens on
- * the next interval boundary of the strategy, not literally the next tick:
- * _lastSignalTimestamp is consumed in GET_SIGNAL_FN before getSignal runs, so the
- * interval throttle gates the next getSignal call (for "1h" that is up to an hour).
+ * The framework will retry on the next tick: the rejecting branch rolls back the
+ * interval throttle (_lastSignalTimestamp) consumed in GET_SIGNAL_FN, so getSignal
+ * runs again immediately instead of waiting for the next interval boundary.
  */
 const CALL_SIGNAL_SYNC_OPEN_FN = trycatch(
   async (
@@ -729,6 +742,11 @@ const GET_SIGNAL_FN = trycatch(
         )
       )
     ) {
+      // Roll back the interval throttle consumed at the top of this function so
+      // the rejected open retries on the NEXT TICK, not on the next interval
+      // boundary (for "1h" that would be up to an hour of silence). Risk
+      // validations will run again on every retry tick until they pass.
+      self._lastSignalTimestamp = null;
       return null;
     }
     // Если priceOpen указан - проверяем нужно ли ждать активации или открыть сразу
@@ -1105,7 +1123,7 @@ const PARTIAL_PROFIT_FN = (
   const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
   const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
 
-  if (newTotalClosedDollar > totalInvested) {
+  if (newTotalClosedDollar > totalInvested * PARTIAL_CAP_TOLERANCE_FACTOR) {
     self.params.logger.warn(
       "PARTIAL_PROFIT_FN: would exceed 100% closed (dollar basis), skipping",
       {
@@ -1159,7 +1177,7 @@ const PARTIAL_LOSS_FN = (
   const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
   const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
 
-  if (newTotalClosedDollar > totalInvested) {
+  if (newTotalClosedDollar > totalInvested * PARTIAL_CAP_TOLERANCE_FACTOR) {
     self.params.logger.warn(
       "PARTIAL_LOSS_FN: would exceed 100% closed (dollar basis), skipping",
       {
@@ -3080,9 +3098,8 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   // this signal within the same tick. Re-checking here would run user risk
   // validations twice per open.
 
-  // Sync open: if external system rejects — skip open. The retry happens on the
-  // next interval boundary of the strategy (not the next tick): _lastSignalTimestamp
-  // was already consumed in GET_SIGNAL_FN, so getSignal is throttled until then.
+  // Sync open: if external system rejects — skip open, retry on the next tick
+  // (the interval throttle is rolled back below).
   const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(
     currentTime,
     signal.priceOpen,
@@ -3103,6 +3120,10 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
       currentTime,
       self.params.execution.context.backtest
     );
+    // Roll back the interval throttle consumed in GET_SIGNAL_FN so the rejected
+    // open retries on the NEXT TICK, not on the next interval boundary (for "1h"
+    // that would be up to an hour of silence while the broker recovers).
+    self._lastSignalTimestamp = null;
     return null;
   }
 
@@ -3112,8 +3133,8 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   await self.setPendingSignal(signal, signal.priceOpen);
 
   // Whipsaw protection: record the id only after a successful open so a
-  // rejected open can retry the same deterministic id on the next getSignal
-  // attempt (the next interval boundary — see the sync-open note above).
+  // rejected open can retry the same deterministic id on the next tick
+  // (the interval throttle is rolled back on rejection — see above).
   self._lastPendingId = signal.id;
 
   await CALL_RISK_ADD_SIGNAL_FN(
@@ -7516,13 +7537,15 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
-   * Activates the scheduled signal without waiting for price to reach priceOpen.
+   * Activates the scheduled signal without waiting for the framework's VWAP to
+   * reach priceOpen.
    *
-   * Forces immediate activation of the scheduled signal. NOTE: the position's
-   * entry basis stays at the scheduled priceOpen (the limit-order price), NOT at
-   * the current market price — the risk check runs against the current price,
-   * but PnL/TP/SL distances remain anchored to priceOpen. If the adapter fills
-   * the activation as a market order, the fill price may differ from this basis.
+   * SEMANTICS: calling this means the exchange actually filled OUR resting order
+   * (the broker adapter confirms the fill out of band — e.g. the order filled on
+   * a wick the VWAP never showed). The entry basis therefore stays at the
+   * scheduled priceOpen: that IS the real fill price of the limit order. The
+   * risk check runs against the current price, but PnL/TP/SL distances remain
+   * anchored to priceOpen.
    * Does NOT affect active pending signals or strategy operation.
    * Does NOT set stop flag - strategy can continue generating new signals.
    *
@@ -7886,7 +7909,7 @@ export class ClientStrategy implements IStrategy {
     const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
     const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
     const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
-    if (newTotalClosedDollar > totalInvested) return false;
+    if (newTotalClosedDollar > totalInvested * PARTIAL_CAP_TOLERANCE_FACTOR) return false;
 
     return true;
   }
@@ -8119,7 +8142,7 @@ export class ClientStrategy implements IStrategy {
     const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
     const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
     const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
-    if (newTotalClosedDollar > totalInvested) return false;
+    if (newTotalClosedDollar > totalInvested * PARTIAL_CAP_TOLERANCE_FACTOR) return false;
 
     return true;
   }
