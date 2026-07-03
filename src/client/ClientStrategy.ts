@@ -1052,19 +1052,24 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
     : sumPriceVolume / totalVolume;
 };
 
+// Context-free by design (like WAIT_FOR_DISPOSE_FN): reads only static ctor
+// params — symbol/strategyName/exchangeName/frameName/backtest are the same
+// values the instance is memoized by, so no method/execution context is
+// required to initialize. Timestamps for restore callbacks use Date.now():
+// this path is live-only, where execution.when IS the wall clock anyway.
 const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   self.params.logger.debug("ClientStrategy waitForInit");
-  if (self.params.execution.context.backtest) {
+  if (self.params.backtest) {
     return;
   }
 
   // Restore last pending signal id for whipsaw protection in GET_SIGNAL_FN
   {
     const recentSignal = await PersistRecentAdapter.readRecentData(
-      self.params.execution.context.symbol,
+      self.params.symbol,
       self.params.strategyName,
       self.params.exchangeName,
-      self.params.method.context.frameName,
+      self.params.frameName,
       false,
     );
     if (recentSignal?.id) {
@@ -1081,7 +1086,7 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   // snapshot itself carries no context fields to verify against, so a check is
   // impossible for custom adapters anyway.
   const strategyData = await PersistStrategyAdapter.readStrategyData(
-    self.params.execution.context.symbol,
+    self.params.symbol,
     self.params.strategyName,
     self.params.exchangeName,
   );
@@ -1103,16 +1108,16 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   // Restore pending signal. A context mismatch skips ONLY this block (not an
   // early return): the scheduled restore below and the onInit call must still run.
   const pendingSignal = await PersistSignalAdapter.readSignalData(
-    self.params.execution.context.symbol,
+    self.params.symbol,
     self.params.strategyName,
     self.params.exchangeName,
   );
   const pendingMatches = pendingSignal
-    && pendingSignal.exchangeName === self.params.method.context.exchangeName
-    && pendingSignal.strategyName === self.params.method.context.strategyName;
+    && pendingSignal.exchangeName === self.params.exchangeName
+    && pendingSignal.strategyName === self.params.strategyName;
   if (pendingSignal && !pendingMatches) {
     self.params.logger.warn("ClientStrategy waitForInit: persisted pending signal context mismatch, skipping restore", {
-      symbol: self.params.execution.context.symbol,
+      symbol: self.params.symbol,
       signalId: pendingSignal.id,
       persistedExchangeName: pendingSignal.exchangeName,
       persistedStrategyName: pendingSignal.strategyName,
@@ -1138,32 +1143,32 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
 
     // Call onActive callback for restored signal
     const currentPrice = await self.params.exchange.getAveragePrice(
-      self.params.execution.context.symbol
+      self.params.symbol
     );
-    const currentTime = self.params.execution.context.when.getTime();
+    const currentTime = Date.now();
     await CALL_ACTIVE_CALLBACKS_FN(
       self,
-      self.params.execution.context.symbol,
+      self.params.symbol,
       pendingSignal,
       currentPrice,
       currentTime,
-      self.params.execution.context.backtest
+      self.params.backtest
     );
   }
 
   // Restore scheduled signal. Same rule: a mismatch skips only this block so
   // the onInit call below always runs.
   const scheduledSignal = await PersistScheduleAdapter.readScheduleData(
-    self.params.execution.context.symbol,
+    self.params.symbol,
     self.params.strategyName,
     self.params.exchangeName,
   );
   const scheduledMatches = scheduledSignal
-    && scheduledSignal.exchangeName === self.params.method.context.exchangeName
-    && scheduledSignal.strategyName === self.params.method.context.strategyName;
+    && scheduledSignal.exchangeName === self.params.exchangeName
+    && scheduledSignal.strategyName === self.params.strategyName;
   if (scheduledSignal && !scheduledMatches) {
     self.params.logger.warn("ClientStrategy waitForInit: persisted scheduled signal context mismatch, skipping restore", {
-      symbol: self.params.execution.context.symbol,
+      symbol: self.params.symbol,
       signalId: scheduledSignal.id,
       persistedExchangeName: scheduledSignal.exchangeName,
       persistedStrategyName: scheduledSignal.strategyName,
@@ -1180,37 +1185,37 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
 
     // Call onSchedule callback for restored scheduled signal
     const currentPrice = await self.params.exchange.getAveragePrice(
-      self.params.execution.context.symbol
+      self.params.symbol
     );
-    const currentTime = self.params.execution.context.when.getTime();
+    const currentTime = Date.now();
     await CALL_SCHEDULE_CALLBACKS_FN(
       self,
-      self.params.execution.context.symbol,
+      self.params.symbol,
       scheduledSignal,
       currentPrice,
       currentTime,
-      self.params.execution.context.backtest
+      self.params.backtest
     );
   }
 
   // Call onInit callback
   await self.params.onInit(
-    self.params.execution.context.symbol,
+    self.params.symbol,
     self.params.strategyName,
     self.params.exchangeName,
-    self.params.method.context.frameName,
-    self.params.execution.context.backtest
+    self.params.frameName,
+    self.params.backtest
   );
 };
 
 const WAIT_FOR_DISPOSE_FN = async (self: ClientStrategy) => {
   self.params.logger.debug("ClientStrategy dispose");
   await self.params.onDispose(
-    self.params.execution.context.symbol,
+    self.params.symbol,
     self.params.strategyName,
     self.params.exchangeName,
-    self.params.method.context.frameName,
-    self.params.execution.context.backtest
+    self.params.frameName,
+    self.params.backtest
   );
 };
 
@@ -5666,21 +5671,25 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       const publicSignal = this._pendingSignal ? this._pendingSignal : null;
       this.params.callbacks.onWrite(
-        this.params.execution.context.symbol,
+        this.params.symbol,
         publicSignal,
         currentPrice,
+        // ЕДИНСТВЕННОЕ контекстное чтение вне tick/backtest: метка времени для
+        // onWrite (в backtest — время свечи, wall clock его не заменит).
+        // Читается лениво и только при настроенном onWrite; сам метод
+        // вызывается исключительно из tick/backtest-пайплайнов.
         this.params.execution.context.when,
-        this.params.execution.context.backtest
+        this.params.backtest
       );
     }
 
-    if (this.params.execution.context.backtest) {
+    if (this.params.backtest) {
       return;
     }
 
     await PersistSignalAdapter.writeSignalData(
       this._pendingSignal,
-      this.params.execution.context.symbol,
+      this.params.symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
@@ -5713,13 +5722,13 @@ export class ClientStrategy implements IStrategy {
 
     this._scheduledSignal = scheduledSignal;
 
-    if (this.params.execution.context.backtest) {
+    if (this.params.backtest) {
       return;
     }
 
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
-      this.params.execution.context.symbol,
+      this.params.symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
