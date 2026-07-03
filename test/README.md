@@ -864,6 +864,13 @@ SHORT-зеркало новой логики (вся сессия писалас
 - **Таймаут getSignal** (`CC_MAX_SIGNAL_GENERATION_SECONDS` через частичный setConfig): зависший getSignal обрывается за ~1с → idle
 - **Одноразовость listenSyncOnce/listenCheckOnce**: ровно 1 срабатывание на два цикла событий
 - **Infinity-холд через крэш**: JSON null → Infinity restore, позиция active сутки спустя, estimate === Infinity (нужен `CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity`)
+- **Whipsaw через рестарт**: `_lastPendingId` восстановлен из PersistRecentAdapter (Recent записан напрямую адаптером — канал Recent-класса в тестах не активен), детерминированный id заблокирован ПОСЛЕ вызова getSignal
+- **Конкуренция за общую риск-мапу**: shared riskName + validation по `activePositionCount` — A занимает слот → B idle → A закрылась → B opened (release-точки реально возвращают слот)
+- **stopStrategy на PLACEMENT-гейте**: отказ размещения при стопе не оставляет фантомов — ни schedule-событий (ордер не размещался), reserve/remove ровно по 1, getSignal замолкает
+- **Статистика отмен по новому пути** (BACKTEST): risk-reject wick-активации попадает в cancellationRate (50/50 на 2 сигналах) благодаря cancelled-outcome фиксу. НЮАНС: активация должна быть ПОЗЖЕ свечи создания scheduled, иначе pendingAt === scheduledAt и сервис (signalEmitter-based) не матчит; в LIVE отказ активации даёт idle-тик и в rate не попадает — задокументированное ограничение
+
+### test/e2e/short.test.mjs (дополнение)
+- **Backtest wick-активация short**: вик ВВЕРХ пробивает priceOpen, risk-reject первой активации → cancelled/user без фатала, второй short доживает до time_expired
 
 ### test/e2e/coverage.test.mjs
 Тесты на изменения `git diff master -- src/client/ClientStrategy.ts`, не покрытые остальными файлами (каждый тест привязан к ханку дифа):

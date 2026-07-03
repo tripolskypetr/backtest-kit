@@ -351,3 +351,108 @@ test("SHORT: DCA-up with partials and breakeven mirrors the dollar math", async 
     unsubscribePing();
   }
 });
+
+/**
+ * SHORT: backtest wick-активация (high пробивает priceOpen ВВЕРХ) + risk-reject
+ * первой активации — зеркало нового cancelled-outcome пути для короткой позиции.
+ * Сигнал #1 отменяется (cancelled/user, без фатала), #2 активируется на вике
+ * и доживает до time_expired.
+ */
+test("SHORT: backtest wick activation risk-reject cancels and the next short completes", async ({ pass, fail }) => {
+  const { addFrameSchema, addRiskSchema, Backtest } = await import("../../build/index.mjs");
+  const priceOpen = 60000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "short-bt-wick-strategy",
+    exchangeName: "binance-short-bt-wick",
+    frameName: "30m-short-bt-wick",
+  };
+
+  let issues = 0;
+  let riskCalls = 0;
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * MIN;
+        // Вик-окна ВВЕРХ разнесены: s1 активируется на 00:10 (reject), s2 — на 00:15
+        const spike = (timestamp >= t0 + 10 * MIN && timestamp < t0 + 11 * MIN) || timestamp >= t0 + 15 * MIN;
+        candles.push({
+          timestamp,
+          open: 50000,
+          high: spike ? priceOpen + 50 : 50100,
+          low: 49900,
+          close: 50000,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRiskSchema({
+    riskName: "short-bt-wick-risk",
+    validations: [
+      () => {
+        riskCalls += 1;
+        if (riskCalls === 2) throw new Error("short: reject first activation");
+      },
+    ],
+  });
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    riskName: "short-bt-wick-risk",
+    getSignal: async () => {
+      if (issues >= 2) return null;
+      issues += 1;
+      return {
+        position: "short",
+        note: `short bt wick #${issues}`,
+        priceOpen,
+        // TP ниже рынка на недостижимом уровне, SL выше вика
+        priceTakeProfit: 35000,
+        priceStopLoss: 62000,
+        minuteEstimatedTime: 5,
+      };
+    },
+  });
+
+  addFrameSchema({
+    frameName: context.frameName,
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const results = [];
+  for await (const result of Backtest.run("BTCUSDT", context)) {
+    results.push({ action: result.action, reason: result.reason, closeReason: result.closeReason, position: result.signal?.position });
+  }
+
+  const terminal = results.filter((r) => r.action === "cancelled" || r.action === "closed");
+  if (terminal.length !== 2) {
+    fail(`expected 2 terminal results, got ${JSON.stringify(results)}`);
+    return;
+  }
+  if (terminal[0].action !== "cancelled" || terminal[0].reason !== "user") {
+    fail(`first short terminal expected cancelled/user (risk-rejected wick activation), got ${JSON.stringify(terminal[0])}`);
+    return;
+  }
+  if (terminal[1].action !== "closed" || terminal[1].closeReason !== "time_expired" || terminal[1].position !== "short") {
+    fail(`second short terminal expected closed/time_expired short, got ${JSON.stringify(terminal[1])}`);
+    return;
+  }
+  if (riskCalls !== 4) {
+    fail(`expected 4 risk calls (reserve+reject+reserve+pass), got ${riskCalls}`);
+    return;
+  }
+
+  pass(`short wick activation mirrored: cancelled/user → closed/time_expired (riskCalls=${riskCalls})`);
+});
