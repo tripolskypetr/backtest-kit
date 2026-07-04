@@ -792,7 +792,22 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 ## ✅ Tested
 
-850+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
+860+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
+
+<details>
+<summary>Core test axes</summary>
+| Axis | Files |
+|------|-------|
+| ✅ State machine under rejections (gates, throttle rollbacks, terminal drops, stopStrategy race) | gauntlet, audit |
+| ✅ Deferred commands, Live × Backtest | strategy |
+| ✅ Broker: 8-stage lifecycle routing, gates, backtest silence, enable/disable, commit\* layer | broker, commit |
+| ✅ Position commands + interleaved DCA × partial exits | manage |
+| ✅ Diff hunks vs master + context-free surface (62 bare calls) | coverage |
+| ✅ Crash recovery of every deferred flag + commit queue | recovery |
+| ✅ SHORT mirror of the key paths | short |
+| ✅ Timeouts, Once-listeners, action gate, Infinity holds, whipsaw restore, shared-risk contention, cancellation stats | hardening |
+| ✅ Order events: types, emission/silence per mode | audit, strategy |
+</details>
 
 ## 🤖 Reading this as a model?
 
