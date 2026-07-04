@@ -3,6 +3,7 @@
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/15.0.0)
 
 
+
 > 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
 
 This is a hardening major. The whole monorepo went through a **line-by-line audit** — six passes over the core `./src` (including the full 9k-line `ClientStrategy.ts` state machine) and one to three passes over every package — with ~90 documented fixes ranging from silent signal loss and risk-reservation leaks to an API-key leak in LLM dumps. The headline product change: **scheduled signals are now first-class exchange citizens**. The resting entry order behind a scheduled signal is gated at placement, pinged against the exchange on every live tick, and routed through the broker cancel pipeline on *every* terminal drop — no code path can orphan a live order on the exchange anymore. The exchange-synchronization surface was renamed from `signal*` to `order*` to reflect what it actually synchronizes, and both sync contracts gained a `type: "schedule" | "active"` discriminator. Test count crossed **910+** (was 775+): sixteen new e2e suites cover the broker lifecycle, crash recovery, unexpected-stop races, SHORT mirrors, and live-tick semantics
@@ -15,8 +16,8 @@ The full lifecycle of the resting order is now visible to (and gated by) the inf
 import {
   Broker,
   IBroker,
-  BrokerSignalOpenPayload,
-  BrokerSignalPendingPayload,
+  BrokerOrderOpenPayload,
+  BrokerOrderCheckPayload,
   BrokerScheduleCancelledPayload,
 } from "backtest-kit";
 
@@ -32,7 +33,7 @@ class MyBroker implements Partial<IBroker> {
   // "active"  — position entry (immediate open or activation fill).
   // Throw → the exchange did not accept the order: the framework rolls back,
   // releases the risk reservation and retries on the next tick.
-  async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+  async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
     if (payload.type === "schedule") {
       await exchange.placeLimitOrder(payload.signalId, payload);
     } else {
@@ -40,14 +41,26 @@ class MyBroker implements Partial<IBroker> {
     }
   }
 
-  // Order check. Fires on every live tick for BOTH monitored states:
-  // "active" — the order backing the open position; "schedule" — the resting
-  // entry order awaiting activation. THROW ONLY on a confirmed "order not
-  // found by id": "active" closes the position (closeReason "closed"),
-  // "schedule" cancels the scheduled signal. Swallow transient/network errors —
-  // a thrown timeout would wrongly close a live position. A FILLED resting
-  // order must be confirmed via commitActivateScheduled, not by throwing here.
-  async onOrderCheck(payload: BrokerSignalPendingPayload) {
+  // Order checks. Fire on every live tick, one per monitored state. THROW ONLY
+  // on a confirmed "order not found by id". Swallow transient/network errors —
+  // a thrown timeout would wrongly close a live position.
+
+  // The order backing the open position; a throw closes the position
+  // (closeReason "closed").
+  async onOrderActiveCheck(payload: BrokerOrderCheckPayload) {
+    let order: Order | null;
+    try {
+      order = await exchange.getOrderById(payload.signalId);
+    } catch {
+      return; // transient — keep monitoring, retry next tick
+    }
+    if (!order) throw new Error(`Order ${payload.signalId} not found`);
+  }
+
+  // The resting entry order awaiting activation; a throw cancels the scheduled
+  // signal (reason "user"). A FILLED resting order must be confirmed via
+  // commitActivateScheduled, not by throwing here.
+  async onOrderScheduleCheck(payload: BrokerOrderCheckPayload) {
     let order: Order | null;
     try {
       order = await exchange.getOrderById(payload.signalId);
@@ -83,8 +96,12 @@ The exchange-sync surface said "signal" but always meant "order". Renamed, with 
 | `SignalSyncContract` / `SignalOpenContract` / `SignalCloseContract` | `OrderSyncContract` / `OrderOpenContract` / `OrderCloseContract` |
 | `SignalPingContract` | `OrderCheckContract` |
 | `SignalSyncOpenNotification` / `SignalSyncCloseNotification` | `OrderSyncOpenNotification` / `OrderSyncCloseNotification` |
+| `IBroker::onSignalOpenCommit` / `onSignalCloseCommit` | `onOrderOpenCommit` / `onOrderCloseCommit` |
+| `IBroker::onOrderPing` | `onOrderActiveCheck` / `onOrderScheduleCheck` (split by monitored state) |
+| `Broker.commitSignalOpen` / `commitSignalClose` / `commitSignalPending` | `commitOrderOpen` / `commitOrderClose` / `commitOrderCheck` |
+| `BrokerSignalOpenPayload` / `BrokerSignalClosePayload` / `BrokerSignalPendingPayload` | `BrokerOrderOpenPayload` / `BrokerOrderClosePayload` / `BrokerOrderCheckPayload` |
 
-Both contracts (and the corresponding `BrokerSignalOpenPayload` / `BrokerSignalPendingPayload`) now carry `type: "schedule" | "active"`. **Migration:** existing `listenSync` / `onOrderSync` consumers that treat every event as a position event must filter `type === "active"` — placement events for resting orders now flow through the same channel.
+Both contracts (and the corresponding `BrokerOrderOpenPayload` / `BrokerOrderCheckPayload`) now carry `type: "schedule" | "active"`. **Migration:** existing `listenSync` / `onOrderSync` consumers that treat every event as a position event must filter `type === "active"` — placement events for resting orders now flow through the same channel.
 
 **Next-tick retry for rejected opens**
 
