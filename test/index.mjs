@@ -194,5 +194,7 @@ import "./measure/backtest_100.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");
-    process.exit(-1);
+    // Give tape a beat to finalize the LAST test record: an immediate exit
+    // races its onEnd tick and reports "test exited without ending"
+    setTimeout(() => process.exit(-1), 250);
 });

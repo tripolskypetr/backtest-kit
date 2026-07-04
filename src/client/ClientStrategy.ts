@@ -3303,6 +3303,37 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
   // signal (and a persisted resting order that does not exist on the exchange).
   await self.setScheduledSignal(signal);
 
+  // Stop raced INTO the placement gate (flag raised after the pre-open checks
+  // but before the broker confirmed). The resting order is REAL on the exchange
+  // now, so it cannot be dropped silently: route it through the deferred-cancel
+  // pipeline exactly like stopStrategy does — the next tick's _cancelledSignal
+  // drain emits the cancel-scheduled commit + onScheduleEvent("cancelled") and
+  // releases the risk reservation taken above.
+  if (self._isStopped) {
+    self.params.logger.info("ClientStrategy scheduled placement raced with stop, deferring cancel", {
+      symbol: self.params.execution.context.symbol,
+      signalId: signal.id,
+    });
+    self._scheduledSignal = null;
+    if (!self._cancelledSignal) {
+      self._cancelledSignal = Object.assign({}, signal, {
+        cancelId: "stop_strategy",
+        cancelNote: "stop_strategy",
+      });
+    }
+    if (!self.params.execution.context.backtest) {
+      await PersistScheduleAdapter.writeScheduleData(
+        self._scheduledSignal,
+        self.params.execution.context.symbol,
+        self.params.strategyName,
+        self.params.exchangeName,
+      );
+      // Persist deferred _cancelledSignal so a crash before the next tick does not lose it
+      await PERSIST_STRATEGY_FN(self);
+    }
+    return null;
+  }
+
   self.params.logger.info("ClientStrategy scheduled signal created", {
     symbol: self.params.execution.context.symbol,
     signalId: signal.id,
