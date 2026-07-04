@@ -687,3 +687,517 @@ test("RECOVERY: stale scheduled snapshot left by a crash mid-cancelScheduled is 
     useDummy();
   }
 });
+
+/**
+ * RECOVERY: крэш-окно activateScheduled — вторая ветка scheduled-сверки
+ * (_activatedSignal). Исход дренажа противоположен отмене: устаревший scheduled
+ * на диске + deferred активация → сверка стирает scheduled, tick дренит
+ * активацию (риск-чек + sync-гейт) → opened по priceOpen с activateId. Без
+ * сверки восстановленный scheduled затёр бы _activatedSignal через
+ * setScheduledSignal и активация молча потерялась бы.
+ */
+test("RECOVERY: stale scheduled snapshot left by a crash mid-activateScheduled is superseded, activation opens", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-walact-strategy",
+    exchangeName: "binance-recovery-walact",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  const commits = [];
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal activate",
+        priceOpen,
+        priceTakeProfit: priceOpen + 25000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    commits.push({ action: event.action, activateId: event.activateId });
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+
+    const staleScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!staleScheduled || staleScheduled.id !== tick1.signal.id) {
+      fail(`scheduled snapshot expected on disk, got ${JSON.stringify(staleScheduled)}`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.activateScheduled(false, "BTCUSDT", context, { id: "recovery-wal-act-1" }));
+
+    // Крэш между записями: deferred _activatedSignal записан, scheduled не стёрт
+    await PersistScheduleAdapter.writeScheduleData(staleScheduled, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "opened" || tick2.signal.priceOpen !== priceOpen) {
+      fail(`REGRESSION: post-restart tick expected opened@${priceOpen} (deferred activation drained), got "${tick2.action}"@${tick2.signal?.priceOpen}`);
+      return;
+    }
+    const activateCommit = commits.find((c) => c.action === "activate-scheduled");
+    if (!activateCommit || activateCommit.activateId !== "recovery-wal-act-1") {
+      fail(`activate-scheduled commit with activateId expected, got ${JSON.stringify(commits)}`);
+      return;
+    }
+
+    const diskScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskScheduled !== null) {
+      fail(`REGRESSION: stale scheduled must be wiped by reconciliation, got ${JSON.stringify(diskScheduled)}`);
+      return;
+    }
+
+    pass(`mid-activateScheduled crash reconciled: activation drained → opened@${priceOpen} (activateId), stale scheduled wiped`);
+  } finally {
+    unsubscribeCommit();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: крэш-окно createTakeProfit — ветка _takeProfitSignal pending-сверки.
+ * Дренаж идёт через CLOSE_PENDING_SIGNAL_AS_FILL_FN: закрытие по ЭФФЕКТИВНОМУ
+ * уровню TP минуя VWAP, без пере-подтверждения sync (филл уже подтверждён
+ * брокером). Устаревший pending стёрт, зомби нет.
+ */
+test("RECOVERY: stale pending snapshot left by a crash mid-createTakeProfit is superseded, fill closes at TP", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const TP = basePrice + 5000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-waltp-strategy",
+    exchangeName: "binance-recovery-waltp",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal tp",
+        priceTakeProfit: TP,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    const stalePending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!stalePending || stalePending.id !== tick1.signal.id) {
+      fail(`pending snapshot expected on disk, got ${JSON.stringify(stalePending)}`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.createTakeProfit(false, "BTCUSDT", context, { id: "recovery-wal-tp-1" }));
+
+    await PersistSignalAdapter.writeSignalData(stalePending, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeReason !== "take_profit" || tick2.closeId !== "recovery-wal-tp-1") {
+      fail(`REGRESSION: expected closed/take_profit (deferred fill drained), got "${tick2.action}"/"${tick2.closeReason}"/closeId=${tick2.closeId}`);
+      return;
+    }
+    if (tick2.currentPrice !== TP) {
+      fail(`fill must close at the effective TP level ${TP}, got ${tick2.currentPrice}`);
+      return;
+    }
+
+    const diskPending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskPending !== null) {
+      fail(`REGRESSION: stale pending must be wiped by reconciliation, got ${JSON.stringify(diskPending)}`);
+      return;
+    }
+
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "idle") {
+      fail(`tick #3 expected "idle" (no zombie position), got "${tick3.action}"`);
+      return;
+    }
+
+    pass(`mid-createTakeProfit crash reconciled: fill closed at TP=${TP} (closeId), stale pending wiped, no zombie`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: крэш-окно createStopLoss — зеркало TP-филла: ветка _stopLossSignal
+ * pending-сверки, закрытие stop_loss по эффективному уровню SL.
+ */
+test("RECOVERY: stale pending snapshot left by a crash mid-createStopLoss is superseded, fill closes at SL", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const SL = basePrice - 5000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-walsl-strategy",
+    exchangeName: "binance-recovery-walsl",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal sl",
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: SL,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    const stalePending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!stalePending || stalePending.id !== tick1.signal.id) {
+      fail(`pending snapshot expected on disk, got ${JSON.stringify(stalePending)}`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.createStopLoss(false, "BTCUSDT", context, { id: "recovery-wal-sl-1" }));
+
+    await PersistSignalAdapter.writeSignalData(stalePending, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeReason !== "stop_loss" || tick2.closeId !== "recovery-wal-sl-1") {
+      fail(`REGRESSION: expected closed/stop_loss (deferred fill drained), got "${tick2.action}"/"${tick2.closeReason}"/closeId=${tick2.closeId}`);
+      return;
+    }
+    if (tick2.currentPrice !== SL) {
+      fail(`fill must close at the effective SL level ${SL}, got ${tick2.currentPrice}`);
+      return;
+    }
+
+    const diskPending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskPending !== null) {
+      fail(`REGRESSION: stale pending must be wiped by reconciliation, got ${JSON.stringify(diskPending)}`);
+      return;
+    }
+
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "idle") {
+      fail(`tick #3 expected "idle" (no zombie position), got "${tick3.action}"`);
+      return;
+    }
+
+    pass(`mid-createStopLoss crash reconciled: fill closed at SL=${SL} (closeId), stale pending wiped, no zombie`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY (негатив): сверка строго id-гейтится — pending с ДРУГИМ id, чем у
+ * deferred close, восстанавливается нормально и НЕ стирается. Защита от
+ * обратной регрессии: слишком агрессивная сверка стирала бы легитимные позиции
+ * (самый дорогой из возможных багов в этом коде).
+ */
+test("RECOVERY: reconciliation is id-gated — a pending with a different id is restored, not wiped", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-walmm-strategy",
+    exchangeName: "binance-recovery-walmm",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal mismatch",
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    const stalePending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    await inCtx(context, () => lib.strategyCoreService.closePending(false, "BTCUSDT", context, { id: "recovery-wal-mm-1" }));
+
+    // На диск кладём pending с ЧУЖИМ id — сверка сработать НЕ должна
+    const mismatchedId = `${stalePending.id}-mismatch`;
+    await PersistSignalAdapter.writeSignalData(
+      { ...stalePending, id: mismatchedId },
+      "BTCUSDT", context.strategyName, context.exchangeName,
+    );
+    await crash(context);
+
+    // Deferred close дренится (свой id), НЕ трогая чужой pending
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeId !== "recovery-wal-mm-1") {
+      fail(`deferred close expected to drain regardless, got "${tick2.action}"/closeId=${tick2.closeId}`);
+      return;
+    }
+
+    // Чужой pending восстановлен и продолжает мониториться
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "active" || tick3.signal.id !== mismatchedId) {
+      fail(`REGRESSION: mismatched pending must be restored and monitored, got "${tick3.action}"/id=${tick3.signal?.id}`);
+      return;
+    }
+
+    const diskPending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!diskPending || diskPending.id !== mismatchedId) {
+      fail(`REGRESSION: mismatched pending must NOT be wiped from disk, got ${JSON.stringify(diskPending)}`);
+      return;
+    }
+
+    pass(`reconciliation id-gated: foreign pending restored + monitored (active), deferred close drained independently`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: крэш-окно stopStrategy — deferred отмена с cancelNote
+ * "stop_strategy" и БЕЗ cancelId суперсидит устаревший scheduled. После
+ * рестарта _isStopped НЕ восстановлен (in-memory флаг) — getSignal снова жив:
+ * это осознанная семантика stopStrategy, фиксируем её тестом.
+ */
+test("RECOVERY: stale scheduled snapshot left by a crash mid-stopStrategy is superseded, cancel drains", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-walstop-strategy",
+    exchangeName: "binance-recovery-walstop",
+    frameName: "",
+  };
+
+  let getSignalCalls = 0;
+  const commits = [];
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      getSignalCalls++;
+      if (getSignalCalls > 1) return null;
+      return {
+        position: "long",
+        note: "recovery wal stop",
+        priceOpen: basePrice - 10000,
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 12000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    commits.push({ action: event.action, cancelId: event.cancelId, note: event.note });
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+
+    const staleScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+    await inCtx(context, () => lib.strategyCoreService.stopStrategy(false, "BTCUSDT", context));
+
+    // Крэш между записями stopStrategy
+    await PersistScheduleAdapter.writeScheduleData(staleScheduled, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "cancelled" || tick2.reason !== "user" || tick2.cancelId !== undefined) {
+      fail(`REGRESSION: expected cancelled/user without cancelId (stop_strategy drain), got "${tick2.action}"/"${tick2.reason}"/cancelId=${tick2.cancelId}`);
+      return;
+    }
+    const cancelCommit = commits.find((c) => c.action === "cancel-scheduled");
+    if (!cancelCommit || cancelCommit.note !== "stop_strategy") {
+      fail(`cancel-scheduled commit with note "stop_strategy" expected, got ${JSON.stringify(commits)}`);
+      return;
+    }
+
+    const diskScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskScheduled !== null) {
+      fail(`REGRESSION: stale scheduled must be wiped by reconciliation, got ${JSON.stringify(diskScheduled)}`);
+      return;
+    }
+
+    // _isStopped in-memory: после рестарта генерация снова жива (осознанная семантика)
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "idle" || getSignalCalls !== 2) {
+      fail(`tick #3 expected "idle" with getSignal alive after restart (2 calls), got "${tick3.action}"/calls=${getSignalCalls}`);
+      return;
+    }
+
+    pass(`mid-stopStrategy crash reconciled: cancel drained (note=stop_strategy, no cancelId), scheduled wiped, getSignal alive post-restart`);
+  } finally {
+    unsubscribeCommit();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: двойной крэш — идемпотентность сверки. Крэш в окне → рестарт #1
+ * (waitForInit сверяет и ДОСТИРАЕТ pending, дренирующий tick НЕ успевает) →
+ * крэш снова → рестарт #2: deferred всё ещё в strategyData (очищается только
+ * при дренаже), pending уже стёрт — дренаж обязан отработать штатно. Заодно
+ * фиксирует, что стирание происходит именно в waitForInit, а не в tick.
+ */
+test("RECOVERY: double crash — reconciliation wipe happens in waitForInit and the deferred close survives both restarts", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-waldouble-strategy",
+    exchangeName: "binance-recovery-waldouble",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal double",
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    const stalePending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    await inCtx(context, () => lib.strategyCoreService.closePending(false, "BTCUSDT", context, { id: "recovery-wal-double-1" }));
+
+    await PersistSignalAdapter.writeSignalData(stalePending, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    // Рестарт #1: ТОЛЬКО waitForInit (голый инстанс, superseded-ветка
+    // контекст-фри) — дренирующий tick «не успевает»
+    const conn = Object.getPrototypeOf(lib.strategyConnectionService);
+    const s1 = conn.getStrategy("BTCUSDT", context.strategyName, context.exchangeName, context.frameName, false);
+    await s1.waitForInit();
+
+    // Стирание обязано случиться уже в waitForInit (не в tick)
+    const diskAfterInit = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskAfterInit !== null) {
+      fail(`REGRESSION: reconciliation must wipe stale pending during waitForInit, got ${JSON.stringify(diskAfterInit)}`);
+      return;
+    }
+
+    // Крэш #2 до дренажа
+    await crash(context);
+
+    // Рестарт #2: deferred close всё ещё в strategyData → дренаж штатный
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeReason !== "closed" || tick2.closeId !== "recovery-wal-double-1") {
+      fail(`REGRESSION: deferred close must survive BOTH restarts, got "${tick2.action}"/"${tick2.closeReason}"/closeId=${tick2.closeId}`);
+      return;
+    }
+
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "idle") {
+      fail(`tick #3 expected "idle" (no zombie after double crash), got "${tick3.action}"`);
+      return;
+    }
+
+    pass(`double crash survived: wipe in waitForInit, deferred close drained on restart #2 (closeId), no zombie`);
+  } finally {
+    useDummy();
+  }
+});
