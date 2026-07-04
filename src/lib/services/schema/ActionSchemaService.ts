@@ -60,7 +60,7 @@ const DISCOURAGED_METHOD_MESSAGE = (
     `ActionSchema ${actionName} contains discouraged method "${methodName}". `,
     `Exchange integration must be implemented in Broker.useBrokerAdapter as the infrastructure domain layer, not in an action handler.`,
     typo.nbsp,
-    `Use Broker.useBrokerAdapter with onOrderCheck (order still open?) and onOrderOpenCommit / onOrderCloseCommit (order fill) instead.`,
+    `Use Broker.useBrokerAdapter with onOrderActiveCheck / onOrderScheduleCheck (order still open?) and onOrderOpenCommit / onOrderCloseCommit (order fill) instead.`,
     typo.nbsp,
     `If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`,
   ]);

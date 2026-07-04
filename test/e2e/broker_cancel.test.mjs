@@ -17,8 +17,9 @@ import {
 } from "../../build/index.mjs";
 
 // Отмена ордера в live через БРОКЕРСКИЕ хуки (useBrokerAdapter + enable):
-// onOrderCheck как пинг-гейт (throw = ордера больше нет на бирже) и
-// onOrderOpenCommit как sync-гейт (throw = биржа отвергла размещение/филл).
+// onOrderScheduleCheck/onOrderActiveCheck как пинг-гейты (throw = ордера больше
+// нет на бирже) и onOrderOpenCommit как sync-гейт (throw = биржа отвергла
+// размещение/филл).
 // Харнес герметичный: in-memory адаптеры в скоупе test(), live-тики в
 // MethodContextService.runInContext, VWAP всегда от текущей цены.
 
@@ -76,9 +77,9 @@ const liveTick = (symbol, whenMs, CTX) =>
 const SCHEDULED_DTO = { position: "long", priceOpen: 49000, priceTakeProfit: 52000, priceStopLoss: 46000, minuteEstimatedTime: 240 };
 const MARKET_DTO = { position: "long", priceTakeProfit: 52000, priceStopLoss: 46000, minuteEstimatedTime: 240 };
 
-// 1. Broker.onOrderCheck (type=schedule) бросает: resting-ордер снят биржей ->
+// 1. Broker.onOrderScheduleCheck бросает: resting-ордер снят биржей ->
 //    scheduled отменяется, адаптер получает onSignalScheduleCancelled
-test("broker onOrderCheck throw (schedule) cancels resting order and notifies adapter", async (t) => {
+test("broker onOrderScheduleCheck throw cancels resting order and notifies adapter", async (t) => {
   useMemoryPersist();
   setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
   makePriceExchange("bc1-ex", () => 50000);
@@ -88,9 +89,10 @@ test("broker onOrderCheck throw (schedule) cancels resting order and notifies ad
   const calls = [];
   Broker.useBrokerAdapter(class {
     async onSignalScheduleOpen(p) { calls.push({ m: "scheduleOpen", id: p.signalId }); }
-    async onOrderCheck(p) {
+    async onOrderActiveCheck(p) { calls.push({ m: "orderCheck", type: p.type }); }
+    async onOrderScheduleCheck(p) {
       calls.push({ m: "orderCheck", type: p.type });
-      if (p.type === "schedule" && rejectPing) {
+      if (rejectPing) {
         throw new Error("exchange reports the resting order is gone");
       }
     }
@@ -129,9 +131,9 @@ test("broker onOrderCheck throw (schedule) cancels resting order and notifies ad
   t.pass("broker check-throw cancels the scheduled order and notifies onSignalScheduleCancelled");
 });
 
-// 2. Broker.onOrderCheck (type=active) бросает: позиция закрыта извне ->
+// 2. Broker.onOrderActiveCheck бросает: позиция закрыта извне ->
 //    close "closed", адаптер получает onOrderCloseCommit
-test("broker onOrderCheck throw (active) closes the position as externally closed", async (t) => {
+test("broker onOrderActiveCheck throw closes the position as externally closed", async (t) => {
   useMemoryPersist();
   setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
   makePriceExchange("bc2-ex", () => 50000);
@@ -141,9 +143,10 @@ test("broker onOrderCheck throw (active) closes the position as externally close
   const calls = [];
   Broker.useBrokerAdapter(class {
     async onOrderOpenCommit(p) { calls.push({ m: "openCommit", type: p.type }); }
-    async onOrderCheck(p) {
+    async onOrderScheduleCheck(p) { calls.push({ m: "orderCheck", type: p.type }); }
+    async onOrderActiveCheck(p) {
       calls.push({ m: "orderCheck", type: p.type });
-      if (p.type === "active" && rejectPing) {
+      if (rejectPing) {
         throw new Error("position no longer exists on the exchange");
       }
     }

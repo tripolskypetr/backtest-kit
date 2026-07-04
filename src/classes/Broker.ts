@@ -13,9 +13,9 @@ import {
 } from "../config/emitters";
 import bt from "../lib";
 
-const BROKER_METHOD_NAME_COMMIT_SIGNAL_OPEN = "BrokerAdapter.commitSignalOpen";
-const BROKER_METHOD_NAME_COMMIT_SIGNAL_CLOSE = "BrokerAdapter.commitSignalClose";
-const BROKER_METHOD_NAME_COMMIT_SIGNAL_PENDING = "BrokerAdapter.commitSignalPending";
+const BROKER_METHOD_NAME_COMMIT_ORDER_OPEN = "BrokerAdapter.commitOrderOpen";
+const BROKER_METHOD_NAME_COMMIT_ORDER_CLOSE = "BrokerAdapter.commitOrderClose";
+const BROKER_METHOD_NAME_COMMIT_ORDER_CHECK = "BrokerAdapter.commitOrderCheck";
 const BROKER_METHOD_NAME_COMMIT_ACTIVE_PING = "BrokerAdapter.commitActivePing";
 const BROKER_METHOD_NAME_COMMIT_SCHEDULE_PING = "BrokerAdapter.commitSchedulePing";
 const BROKER_METHOD_NAME_COMMIT_IDLE_PING = "BrokerAdapter.commitIdlePing";
@@ -35,9 +35,10 @@ const BROKER_METHOD_NAME_DISABLE = "BrokerAdapter.disable";
 const BROKER_METHOD_NAME_CLEAR = "BrokerAdapter.clear";
 
 const BROKER_BASE_METHOD_NAME_WAIT_FOR_INIT = "BrokerBase.waitForInit";
-const BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN = "BrokerBase.onOrderOpenCommit";
-const BROKER_BASE_METHOD_NAME_ON_SIGNAL_CLOSE = "BrokerBase.onOrderCloseCommit";
-const BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING = "BrokerBase.onOrderCheck";
+const BROKER_BASE_METHOD_NAME_ON_ORDER_OPEN_COMMIT = "BrokerBase.onOrderOpenCommit";
+const BROKER_BASE_METHOD_NAME_ON_ORDER_CLOSE_COMMIT = "BrokerBase.onOrderCloseCommit";
+const BROKER_BASE_METHOD_NAME_ON_ORDER_ACTIVE_CHECK = "BrokerBase.onOrderActiveCheck";
+const BROKER_BASE_METHOD_NAME_ON_ORDER_SCHEDULE_CHECK = "BrokerBase.onOrderScheduleCheck";
 const BROKER_BASE_METHOD_NAME_ON_ACTIVE_PING = "BrokerBase.onSignalActivePing";
 const BROKER_BASE_METHOD_NAME_ON_SCHEDULE_PING = "BrokerBase.onSignalSchedulePing";
 const BROKER_BASE_METHOD_NAME_ON_IDLE_PING = "BrokerBase.onSignalIdlePing";
@@ -66,7 +67,7 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
  *
  * @example
  * ```typescript
- * const payload: BrokerSignalOpenPayload = {
+ * const payload: BrokerOrderOpenPayload = {
  *   symbol: "BTCUSDT",
  *   cost: 100,
  *   position: "long",
@@ -78,7 +79,7 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
  * };
  * ```
  */
-export type BrokerSignalOpenPayload = {
+export type BrokerOrderOpenPayload = {
   /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
   type: "schedule" | "active";
   /** Trading pair symbol, e.g. "BTCUSDT" */
@@ -119,7 +120,7 @@ export type BrokerSignalOpenPayload = {
  *
  * @example
  * ```typescript
- * const payload: BrokerSignalClosePayload = {
+ * const payload: BrokerOrderClosePayload = {
  *   symbol: "BTCUSDT",
  *   cost: 100,
  *   position: "long",
@@ -134,7 +135,7 @@ export type BrokerSignalOpenPayload = {
  * };
  * ```
  */
-export type BrokerSignalClosePayload = {
+export type BrokerOrderClosePayload = {
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
   /** Unique signal identifier (UUID v4) the order belongs to */
@@ -175,11 +176,12 @@ export type BrokerSignalClosePayload = {
  * Payload for the order synchronization broker event.
  *
  * Emitted automatically via syncPendingSubject on every live tick while a signal is monitored,
- * BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter via
- * `onOrderCheck`. Fires for BOTH monitored states, discriminated by `type`:
- * - `type: "active"` — pending signal (open position), before TP/SL/time evaluation;
+ * BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter,
+ * routed by `type` to the matching callback:
+ * - `type: "active"` — pending signal (open position), before TP/SL/time evaluation —
+ *   delivered to `onOrderActiveCheck`;
  * - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
- *   (the order in question is the resting entry order).
+ *   (the order in question is the resting entry order) — delivered to `onOrderScheduleCheck`.
  *
  * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
  * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
@@ -197,7 +199,7 @@ export type BrokerSignalClosePayload = {
  *
  * @example
  * ```typescript
- * const payload: BrokerSignalPendingPayload = {
+ * const payload: BrokerOrderCheckPayload = {
  *   symbol: "BTCUSDT",
  *   position: "long",
  *   currentPrice: 50500,
@@ -209,7 +211,7 @@ export type BrokerSignalClosePayload = {
  * };
  * ```
  */
-export type BrokerSignalPendingPayload = {
+export type BrokerOrderCheckPayload = {
   /** Monitored state: "active" — open position order, "schedule" — resting entry order */
   type: "schedule" | "active";
   /** Trading pair symbol, e.g. "BTCUSDT" */
@@ -251,7 +253,7 @@ export type BrokerSignalPendingPayload = {
  *
  * Emitted automatically via activePingSubject on every live tick while a pending (open) signal is
  * monitored. Forwarded to the registered IBroker adapter via `onSignalActivePing`. Purely
- * informational — unlike `onOrderCheck` a throw here does NOT close the position.
+ * informational — unlike `onOrderActiveCheck` a throw here does NOT close the position.
  *
  * @example
  * ```typescript
@@ -873,7 +875,7 @@ export interface IBroker {
    * This differs from `onSignalPendingClose`, which is the informational lifecycle hook that fires
    * AFTER the close is committed (and cannot veto it).
    */
-  onOrderCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
+  onOrderCloseCommit(payload: BrokerOrderClosePayload): Promise<void>;
 
   /**
    * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
@@ -882,7 +884,7 @@ export interface IBroker {
    * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
    *
    * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
-   * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
+   * `payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
    * (signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
    * order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
    * scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
@@ -892,19 +894,15 @@ export interface IBroker {
    * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
    * AFTER the open is committed (and cannot veto it).
    */
-  onOrderOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
+  onOrderOpenCommit(payload: BrokerOrderOpenPayload): Promise<void>;
 
   /**
-   * Called on every live tick while a signal is monitored, BEFORE completion evaluation.
-   * Fires for both monitored states, discriminated by `payload.type`:
-   * - "active" — pending signal (open position), before TP/SL/time evaluation;
-   * - "schedule" — scheduled signal (resting entry order), before timeout/price-activation.
+   * Called on every live tick while a pending signal (open position) is monitored,
+   * BEFORE TP/SL/time evaluation (`payload.type` is always "active").
    *
    * Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
-   * — the framework will then close the position with closeReason "closed" (type "active") or
-   * cancel the scheduled signal with reason "user" (type "schedule"). Return normally to keep
-   * monitoring. For type "schedule": a filled resting order must be confirmed via
-   * `commitActivateScheduled`, not by throwing here (a throw is a terminal cancel).
+   * — the framework will then close the position with closeReason "closed". Return normally to
+   * keep monitoring.
    *
    * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
    * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
@@ -925,7 +923,7 @@ export interface IBroker {
    *
    * @example
    * ```typescript
-   * async onOrderCheck(payload: BrokerSignalPendingPayload) {
+   * async onOrderActiveCheck(payload: BrokerOrderCheckPayload) {
    *   let order: Order | null;
    *   try {
    *     order = await this.exchange.getOrderById(payload.signalId);
@@ -938,12 +936,47 @@ export interface IBroker {
    * }
    * ```
    */
-  onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void>;
+  onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void>;
+
+  /**
+   * Called on every live tick while a scheduled signal (resting entry order) is monitored,
+   * BEFORE timeout/price-activation evaluation (`payload.type` is always "schedule").
+   *
+   * Query the exchange by `payload.signalId` and THROW ONLY when the resting order is NOT FOUND
+   * by that id — the framework will then cancel the scheduled signal with reason "user". Return
+   * normally to keep monitoring. A FILLED resting order must be confirmed via
+   * `commitActivateScheduled`, not by throwing here (a throw is a terminal cancel, not an
+   * activation).
+   *
+   * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+   * normally instead of throwing, otherwise a connectivity blip would wrongly cancel the resting
+   * order. Throw exclusively on a confirmed "order not found by id" result.
+   *
+   * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
+   * commit-function wiring in `onSignalSchedulePing` (`commitActivateScheduled` /
+   * `commitCancelScheduled`). Pick ONE per condition.
+   *
+   * @example
+   * ```typescript
+   * async onOrderScheduleCheck(payload: BrokerOrderCheckPayload) {
+   *   let order: Order | null;
+   *   try {
+   *     order = await this.exchange.getOrderById(payload.signalId);
+   *   } catch (networkError) {
+   *     return; // transient — keep the resting order monitored, retry next tick
+   *   }
+   *   if (!order) {
+   *     throw new Error(`Order ${payload.signalId} not found`); // confirmed gone -> cancel "user"
+   *   }
+   * }
+   * ```
+   */
+  onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void>;
 
   /**
    * Called on every live tick while a pending (open) signal is monitored.
    * Purely informational mirror of the active-ping lifecycle — a throw here does NOT close the
-   * position (unlike `onOrderCheck`).
+   * position (unlike `onOrderActiveCheck`).
    *
    * Manual wiring — EVENT-BASED (driving an open position from real exchange state)
    *
@@ -1125,7 +1158,7 @@ export interface IBroker {
  * @example
  * ```typescript
  * class MyBroker implements Partial<IBroker> {
- *   async onOrderOpenCommit(payload: BrokerSignalOpenPayload) { ... }
+ *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) { ... }
  * }
  *
  * Broker.useBrokerAdapter(MyBroker); // MyBroker satisfies TBrokerCtor
@@ -1167,7 +1200,7 @@ export class BrokerProxy implements IBroker {
    * @param payload - Signal open details: symbol, cost, position, prices, context, backtest flag.
    */
   public async onOrderOpenCommit(
-    payload: BrokerSignalOpenPayload,
+    payload: BrokerOrderOpenPayload,
   ): Promise<void> {
     if (this._instance.onOrderOpenCommit) {
       await this.waitForInit();
@@ -1186,9 +1219,9 @@ export class BrokerProxy implements IBroker {
   }
 
   /**
-   * Forwards a pending-order ping to the underlying adapter.
+   * Forwards an active-order ping (pending signal, open position) to the underlying adapter.
    *
-   * If the adapter does not implement `onOrderCheck`, the call is silently skipped
+   * If the adapter does not implement `onOrderActiveCheck`, the call is silently skipped
    * (the order is assumed still open). When implemented, exceptions propagate — a throw means
    * the order was NOT FOUND by `payload.signalId` and the framework closes the position with
    * closeReason "closed". The adapter must throw ONLY on a confirmed "order not found by id"
@@ -1197,12 +1230,34 @@ export class BrokerProxy implements IBroker {
    *
    * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest flag.
    */
-  public async onOrderCheck(
-    payload: BrokerSignalPendingPayload,
+  public async onOrderActiveCheck(
+    payload: BrokerOrderCheckPayload,
   ): Promise<void> {
-    if (this._instance.onOrderCheck) {
+    if (this._instance.onOrderActiveCheck) {
       await this.waitForInit();
-      await this._instance.onOrderCheck(payload);
+      await this._instance.onOrderActiveCheck(payload);
+      return;
+    }
+  }
+
+  /**
+   * Forwards a schedule-order ping (scheduled signal, resting entry order) to the underlying
+   * adapter.
+   *
+   * If the adapter does not implement `onOrderScheduleCheck`, the call is silently skipped
+   * (the resting order is assumed still open). When implemented, exceptions propagate — a throw
+   * means the order was NOT FOUND by `payload.signalId` and the framework cancels the scheduled
+   * signal with reason "user". The adapter must throw ONLY on a confirmed "order not found by id"
+   * result and SWALLOW transient/network errors (return normally).
+   *
+   * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest flag.
+   */
+  public async onOrderScheduleCheck(
+    payload: BrokerOrderCheckPayload,
+  ): Promise<void> {
+    if (this._instance.onOrderScheduleCheck) {
+      await this.waitForInit();
+      await this._instance.onOrderScheduleCheck(payload);
       return;
     }
   }
@@ -1326,7 +1381,7 @@ export class BrokerProxy implements IBroker {
    * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, context, backtest flag.
    */
   public async onOrderCloseCommit(
-    payload: BrokerSignalClosePayload,
+    payload: BrokerOrderClosePayload,
   ): Promise<void> {
     if (this._instance.onOrderCloseCommit) {
       await this.waitForInit();
@@ -1550,7 +1605,7 @@ export class BrokerAdapter {
    *
    * @example
    * ```typescript
-   * await Broker.commitSignalOpen({
+   * await Broker.commitOrderOpen({
    *   symbol: "BTCUSDT",
    *   cost: 100,
    *   position: "long",
@@ -1562,8 +1617,8 @@ export class BrokerAdapter {
    * });
    * ```
    */
-  public commitSignalOpen = async (payload: BrokerSignalOpenPayload) => {
-    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SIGNAL_OPEN, {
+  public commitOrderOpen = async (payload: BrokerOrderOpenPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_ORDER_OPEN, {
       symbol: payload.symbol,
       context: payload.context,
     });
@@ -1589,7 +1644,7 @@ export class BrokerAdapter {
    *
    * @example
    * ```typescript
-   * await Broker.commitSignalClose({
+   * await Broker.commitOrderClose({
    *   symbol: "BTCUSDT",
    *   cost: 100,
    *   position: "long",
@@ -1604,8 +1659,8 @@ export class BrokerAdapter {
    * });
    * ```
    */
-  public commitSignalClose = async (payload: BrokerSignalClosePayload) => {
-    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SIGNAL_CLOSE, {
+  public commitOrderClose = async (payload: BrokerOrderClosePayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_ORDER_CLOSE, {
       symbol: payload.symbol,
       context: payload.context,
     });
@@ -1626,15 +1681,16 @@ export class BrokerAdapter {
    *
    * Called automatically via syncPendingSubject when `enable()` is active, on every live tick
    * while a pending signal (payload.type "active") or a scheduled signal (payload.type
-   * "schedule") is monitored. Skipped silently in backtest mode or when no adapter is
-   * registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
+   * "schedule") is monitored — routed to `onOrderActiveCheck` / `onOrderScheduleCheck`
+   * respectively. Skipped silently in backtest mode or when no adapter is registered.
+   * Exceptions are NOT swallowed: a throw from the adapter propagates up to
    * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
    * (type "active") or cancels the scheduled signal with reason "user" (type "schedule").
    *
    * @param payload - Order ping details: type, symbol, position, prices, pnl, context, backtest flag
    */
-  public commitSignalPending = async (payload: BrokerSignalPendingPayload) => {
-    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SIGNAL_PENDING, {
+  public commitOrderCheck = async (payload: BrokerOrderCheckPayload) => {
+    bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_ORDER_CHECK, {
       symbol: payload.symbol,
       context: payload.context,
     });
@@ -1646,7 +1702,11 @@ export class BrokerAdapter {
     }
     const instance = this.getInstance();
     if (instance) {
-      await instance.onOrderCheck(payload);
+      if (payload.type === "schedule") {
+        await instance.onOrderScheduleCheck(payload);
+      } else {
+        await instance.onOrderActiveCheck(payload);
+      }
     }
   };
 
@@ -1764,7 +1824,7 @@ export class BrokerAdapter {
    * timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
    * arrives. The adapter MUST check the actual order status before cancelling: if the order is
    * filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
-   * (close it or reconcile via onOrderCheck / onSignalActivePing). The framework cannot model
+   * (close it or reconcile via onOrderActiveCheck / onSignalActivePing). The framework cannot model
    * this case — from its side the signal is terminally cancelled.
    *
    * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
@@ -2137,11 +2197,11 @@ export class BrokerAdapter {
       throw new Error("No broker instance provided. Call Broker.useBrokerAdapter first.");
     }
 
-    const unSignalOpen = syncSubject.subscribe(async (event) => {
+    const unOrderOpen = syncSubject.subscribe(async (event) => {
       if (event.action !== "signal-open") {
         return;
       }
-      await this.commitSignalOpen({
+      await this.commitOrderOpen({
         type: event.type,
         position: event.signal.position,
         cost: event.signal.cost,
@@ -2162,11 +2222,11 @@ export class BrokerAdapter {
       });
     });
 
-    const unSignalClose = syncSubject.subscribe(async (event) => {
+    const unOrderClose = syncSubject.subscribe(async (event) => {
       if (event.action !== "signal-close") {
         return;
       }
-      await this.commitSignalClose({
+      await this.commitOrderClose({
         position: event.signal.position,
         currentPrice: event.currentPrice,
         cost: event.signal.cost,
@@ -2189,8 +2249,8 @@ export class BrokerAdapter {
       });
     });
 
-    const unSignalPending = syncPendingSubject.subscribe(async (event) => {
-      await this.commitSignalPending({
+    const unOrderCheck = syncPendingSubject.subscribe(async (event) => {
+      await this.commitOrderCheck({
         type: event.type,
         position: event.position,
         currentPrice: event.currentPrice,
@@ -2310,9 +2370,9 @@ export class BrokerAdapter {
     });
 
     const disposeFn = compose(
-      () => unSignalOpen(),
-      () => unSignalClose(),
-      () => unSignalPending(),
+      () => unOrderOpen(),
+      () => unOrderClose(),
+      () => unOrderCheck(),
       () => unActivePing(),
       () => unSchedulePing(),
       () => unIdlePing(),
@@ -2410,7 +2470,7 @@ export class BrokerAdapter {
  *     await this.client.connect();
  *   }
  *
- *   async onOrderOpenCommit(payload: BrokerSignalOpenPayload) {
+ *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
  *     super.onOrderOpenCommit(payload); // Call parent for logging
  *     await this.client!.placeOrder({
  *       symbol: payload.symbol,
@@ -2419,7 +2479,7 @@ export class BrokerAdapter {
  *     });
  *   }
  *
- *   async onOrderCloseCommit(payload: BrokerSignalClosePayload) {
+ *   async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
  *     super.onOrderCloseCommit(payload); // Call parent for logging
  *     await this.client!.closePosition(payload.symbol);
  *   }
@@ -2434,11 +2494,11 @@ export class BrokerAdapter {
  * ```typescript
  * // Minimal implementation — only handle opens and closes
  * class NotifyBroker extends BrokerBase {
- *   async onOrderOpenCommit(payload: BrokerSignalOpenPayload) {
+ *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
  *     await sendTelegram(`Opened ${payload.position} on ${payload.symbol}`);
  *   }
  *
- *   async onOrderCloseCommit(payload: BrokerSignalClosePayload) {
+ *   async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
  *     const pnl = payload.pnl.profit - payload.pnl.loss;
  *     await sendTelegram(`Closed ${payload.symbol}: PnL $${pnl.toFixed(2)}`);
  *   }
@@ -2484,7 +2544,7 @@ class BrokerBase implements IBroker {
    *
    * @example
    * ```typescript
-   * async onOrderOpenCommit(payload: BrokerSignalOpenPayload) {
+   * async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
    *   super.onOrderOpenCommit(payload); // Keep parent logging
    *   const order = await this.exchange.placeMarketOrder({
    *     symbol: payload.symbol,
@@ -2497,15 +2557,16 @@ class BrokerBase implements IBroker {
    * }
    * ```
    */
-  public async onOrderOpenCommit(payload: BrokerSignalOpenPayload): Promise<void> {
-    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN, {
+  public async onOrderOpenCommit(payload: BrokerOrderOpenPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_ORDER_OPEN_COMMIT, {
       symbol: payload.symbol,
       context: payload.context,
     });
   }
 
   /**
-   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+   * Called on every live tick while a pending signal (open position) is monitored, BEFORE
+   * TP/SL/time evaluation.
    *
    * Override to query the exchange for the order by `payload.signalId` and THROW ONLY when it is
    * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally) — the framework
@@ -2517,13 +2578,39 @@ class BrokerBase implements IBroker {
    * a confirmed "order not found by id" response is a valid reason to throw.
    *
    * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
-   * commit-function wiring in `onSignalActivePing`. See {@link IBroker.onOrderCheck} for the full
-   * comparison and example.
+   * commit-function wiring in `onSignalActivePing`. See {@link IBroker.onOrderActiveCheck} for the
+   * full comparison and example.
    *
    * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest
    */
-  public async onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void> {
-    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_PENDING, {
+  public async onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_ORDER_ACTIVE_CHECK, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called on every live tick while a scheduled signal (resting entry order) is monitored, BEFORE
+   * timeout/price-activation evaluation.
+   *
+   * Override to query the exchange for the resting order by `payload.signalId` and THROW ONLY when
+   * it is definitively NOT FOUND by that id — the framework then cancels the scheduled signal with
+   * reason "user". The default implementation logs and returns normally. A FILLED resting order
+   * must be confirmed via `commitActivateScheduled`, not by throwing here.
+   *
+   * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+   * normally instead of throwing; only a confirmed "order not found by id" response is a valid
+   * reason to throw.
+   *
+   * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
+   * commit-function wiring in `onSignalSchedulePing`. See {@link IBroker.onOrderScheduleCheck} for
+   * the full comparison and example.
+   *
+   * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest
+   */
+  public async onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_ORDER_SCHEDULE_CHECK, {
       symbol: payload.symbol,
       context: payload.context,
     });
@@ -2532,7 +2619,7 @@ class BrokerBase implements IBroker {
   /**
    * Called on every live tick while a pending (open) signal is monitored.
    *
-   * Purely informational mirror of the active-ping lifecycle — unlike `onOrderCheck`, a throw here
+   * Purely informational mirror of the active-ping lifecycle — unlike `onOrderActiveCheck`, a throw here
    * does NOT close the position. Override to mirror live monitoring state into your own systems.
    * The default implementation logs.
    *
@@ -2670,7 +2757,7 @@ class BrokerBase implements IBroker {
    *
    * @example
    * ```typescript
-   * async onOrderCloseCommit(payload: BrokerSignalClosePayload) {
+   * async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
    *   super.onOrderCloseCommit(payload); // Keep parent logging
    *   const ok = await this.exchange.closePosition(payload.symbol);
    *   if (!ok) {
@@ -2680,8 +2767,8 @@ class BrokerBase implements IBroker {
    * }
    * ```
    */
-  public async onOrderCloseCommit(payload: BrokerSignalClosePayload): Promise<void> {
-    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_CLOSE, {
+  public async onOrderCloseCommit(payload: BrokerOrderClosePayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_ORDER_CLOSE_COMMIT, {
       symbol: payload.symbol,
       context: payload.context,
     });

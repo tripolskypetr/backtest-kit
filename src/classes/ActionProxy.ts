@@ -722,7 +722,7 @@ export class ActionProxy implements IPublicAction {
   public async orderCheck(event: OrderCheckContract): Promise<void> {
     if (this._target.orderCheck) {
       console.error("Action::orderCheck is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
-      console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+      console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderActiveCheck / onOrderScheduleCheck");
       console.error("If Action::orderCheck throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
       console.error("");
       console.error("You have been warned!");

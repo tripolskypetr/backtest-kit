@@ -45,10 +45,10 @@ const makeExchange = (exchangeName, getPrice) => {
  * Проверяет, что каждый этап доходит до СВОЕГО метода IBroker в правильном порядке:
  * onOrderOpenCommit(type "schedule") [размещение лимитника, гейт] →
  * onSignalScheduleOpen [scheduled зарегистрирован] →
- * onOrderCheck(type "schedule") [пинг resting-ордера] →
+ * onOrderScheduleCheck [пинг resting-ордера] →
  * onOrderOpenCommit(type "active") [филл активации, гейт] →
  * onSignalPendingOpen [позиция открыта] →
- * onOrderCheck(type "active") [пинг позиции] →
+ * onOrderActiveCheck [пинг позиции] →
  * onOrderCloseCommit [гейт закрытия TP] →
  * onSignalPendingClose(closeReason "take_profit").
  */
@@ -92,7 +92,8 @@ test("BROKER: full scheduled lifecycle routes every stage to the adapter in orde
   Broker.useBrokerAdapter({
     onOrderOpenCommit: async (p) => record("openCommit", { type: p.type, signalId: p.signalId }),
     onOrderCloseCommit: async (p) => record("closeCommit", { signalId: p.signalId }),
-    onOrderCheck: async (p) => record("orderCheck", { type: p.type, signalId: p.signalId }),
+    onOrderActiveCheck: async (p) => record("orderCheck", { type: p.type, signalId: p.signalId }),
+    onOrderScheduleCheck: async (p) => record("orderCheck", { type: p.type, signalId: p.signalId }),
     onSignalScheduleOpen: async (p) => record("scheduleOpen", { signalId: p.signalId }),
     onSignalScheduleCancelled: async (p) => record("scheduleCancelled", { reason: p.reason }),
     onSignalPendingOpen: async (p) => record("pendingOpen", { signalId: p.signalId }),
@@ -167,7 +168,7 @@ test("BROKER: full scheduled lifecycle routes every stage to the adapter in orde
 /**
  * BROKER #2: адаптер как ГЕЙТ — throw в onOrderOpenCommit отвергает размещение
  * (scheduled не регистрируется, onSignalScheduleOpen НЕ вызывается, ретрай на
- * следующем tick), а throw в onOrderCheck (type "schedule") отменяет scheduled,
+ * следующем tick), а throw в onOrderScheduleCheck отменяет scheduled,
  * и сам адаптер получает onSignalScheduleCancelled (reason "user").
  */
 test("BROKER: adapter throw gates placement and order-check cancels back into the adapter", async ({ pass, fail }) => {
@@ -211,8 +212,7 @@ test("BROKER: adapter throw gates placement and order-check cancels back into th
         throw new Error("broker: exchange rejected resting order");
       }
     },
-    onOrderCheck: async (p) => {
-      if (p.type !== "schedule") return;
+    onOrderScheduleCheck: async () => {
       scheduleChecks += 1;
       throw new Error("broker: resting order not found");
     },
@@ -254,7 +254,7 @@ test("BROKER: adapter throw gates placement and order-check cancels back into th
       return;
     }
 
-    // tick #3: onOrderCheck(schedule) бросает → отмена, адаптер уведомлён
+    // tick #3: onOrderScheduleCheck бросает → отмена, адаптер уведомлён
     const tick3 = await runTick(new Date(t0 + 2 * MIN));
     if (tick3.action !== "cancelled" || tick3.reason !== "user") {
       fail(`tick #3 expected cancelled/user (adapter order-check failed), got "${tick3.action}"/"${tick3.reason}"`);
@@ -325,7 +325,8 @@ test("BROKER: enabled adapter stays completely silent during backtest", async ({
   Broker.useBrokerAdapter({
     onOrderOpenCommit: count,
     onOrderCloseCommit: count,
-    onOrderCheck: count,
+    onOrderActiveCheck: count,
+    onOrderScheduleCheck: count,
     onSignalActivePing: count,
     onSignalSchedulePing: count,
     onSignalIdlePing: count,

@@ -2443,7 +2443,7 @@ test("AUDIT: scheduled placement sync-reject rolls back and retries on next tick
 /**
  * AUDIT E2E: публичный listenCheck подписывается на order-check ping
  * (syncPendingSubject); throw в слушателе для type "schedule" отменяет
- * scheduled-сигнал — та же семантика, что у Broker.onOrderCheck.
+ * scheduled-сигнал — та же семантика, что у Broker.onOrderScheduleCheck.
  */
 test("AUDIT: listenCheck receives order pings and gates scheduled signal", async ({ pass, fail }) => {
   const { listenCheck } = await import("../../build/index.mjs");

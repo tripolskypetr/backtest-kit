@@ -1789,7 +1789,7 @@ export function listenCheck(fn: (event: OrderCheckContract) => void, warned = fa
 
   if (!warned) {
     console.error("listenCheck is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
-    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderActiveCheck / onOrderScheduleCheck");
     console.error("If listenCheck throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
     console.error("");
     console.error("You have been warned!");
@@ -1816,7 +1816,7 @@ export function listenCheckOnce(
 
   if (!warned) {
     console.error("listenCheckOnce is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
-    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderActiveCheck / onOrderScheduleCheck");
     console.error("If listenCheckOnce throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
     console.error("");
     console.error("You have been warned!");
