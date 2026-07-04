@@ -43,13 +43,13 @@ const makeExchange = (exchangeName, getPrice) => {
  * BROKER #1: полный роутинг жизненного цикла scheduled→активация→TP через адаптер.
  *
  * Проверяет, что каждый этап доходит до СВОЕГО метода IBroker в правильном порядке:
- * onSignalOpenCommit(type "schedule") [размещение лимитника, гейт] →
+ * onOrderOpenCommit(type "schedule") [размещение лимитника, гейт] →
  * onSignalScheduleOpen [scheduled зарегистрирован] →
  * onOrderCheck(type "schedule") [пинг resting-ордера] →
- * onSignalOpenCommit(type "active") [филл активации, гейт] →
+ * onOrderOpenCommit(type "active") [филл активации, гейт] →
  * onSignalPendingOpen [позиция открыта] →
  * onOrderCheck(type "active") [пинг позиции] →
- * onSignalCloseCommit [гейт закрытия TP] →
+ * onOrderCloseCommit [гейт закрытия TP] →
  * onSignalPendingClose(closeReason "take_profit").
  */
 test("BROKER: full scheduled lifecycle routes every stage to the adapter in order", async ({ pass, fail }) => {
@@ -90,8 +90,8 @@ test("BROKER: full scheduled lifecycle routes every stage to the adapter in orde
   const record = (m, extra = {}) => calls.push({ m, ...extra });
 
   Broker.useBrokerAdapter({
-    onSignalOpenCommit: async (p) => record("openCommit", { type: p.type, signalId: p.signalId }),
-    onSignalCloseCommit: async (p) => record("closeCommit", { signalId: p.signalId }),
+    onOrderOpenCommit: async (p) => record("openCommit", { type: p.type, signalId: p.signalId }),
+    onOrderCloseCommit: async (p) => record("closeCommit", { signalId: p.signalId }),
     onOrderCheck: async (p) => record("orderCheck", { type: p.type, signalId: p.signalId }),
     onSignalScheduleOpen: async (p) => record("scheduleOpen", { signalId: p.signalId }),
     onSignalScheduleCancelled: async (p) => record("scheduleCancelled", { reason: p.reason }),
@@ -165,7 +165,7 @@ test("BROKER: full scheduled lifecycle routes every stage to the adapter in orde
 });
 
 /**
- * BROKER #2: адаптер как ГЕЙТ — throw в onSignalOpenCommit отвергает размещение
+ * BROKER #2: адаптер как ГЕЙТ — throw в onOrderOpenCommit отвергает размещение
  * (scheduled не регистрируется, onSignalScheduleOpen НЕ вызывается, ретрай на
  * следующем tick), а throw в onOrderCheck (type "schedule") отменяет scheduled,
  * и сам адаптер получает onSignalScheduleCancelled (reason "user").
@@ -204,7 +204,7 @@ test("BROKER: adapter throw gates placement and order-check cancels back into th
   });
 
   Broker.useBrokerAdapter({
-    onSignalOpenCommit: async (p) => {
+    onOrderOpenCommit: async (p) => {
       if (p.type !== "schedule") return;
       placements += 1;
       if (placements === 1) {
@@ -323,8 +323,8 @@ test("BROKER: enabled adapter stays completely silent during backtest", async ({
 
   const count = async () => { adapterCalls += 1; };
   Broker.useBrokerAdapter({
-    onSignalOpenCommit: count,
-    onSignalCloseCommit: count,
+    onOrderOpenCommit: count,
+    onOrderCloseCommit: count,
     onOrderCheck: count,
     onSignalActivePing: count,
     onSignalSchedulePing: count,
@@ -417,7 +417,7 @@ test("BROKER: enable throws without adapter, disable detaches routing but framew
   }
 
   Broker.useBrokerAdapter({
-    onSignalOpenCommit: async (p) => {
+    onOrderOpenCommit: async (p) => {
       if (p.type !== "schedule") return;
       placementsByStrategy[p.context.strategyName] =
         (placementsByStrategy[p.context.strategyName] ?? 0) + 1;

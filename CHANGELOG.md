@@ -12,36 +12,61 @@ This is a hardening major. The whole monorepo went through a **line-by-line audi
 The full lifecycle of the resting order is now visible to (and gated by) the infrastructure layer:
 
 ```typescript
-import { Broker, OrderSyncContract, OrderCheckContract } from "backtest-kit";
+import {
+  Broker,
+  IBroker,
+  BrokerSignalOpenPayload,
+  BrokerSignalPendingPayload,
+  BrokerScheduleCancelledPayload,
+} from "backtest-kit";
 
-Broker.useBrokerAdapter({
-  // Placement gate. Fires with type: "schedule" when a scheduled signal is being
-  // created — the signal is registered and persisted ONLY after this resolves.
-  // Throw → the resting order was not accepted: risk reservation is released and
-  // placement retries on the next tick.
-  async onSignalOpenCommit(payload) {
-    if (payload.type === "schedule") await exchange.placeLimitOrder(payload);
-  },
+// All IBroker methods are optional — implement only what the adapter needs.
+// Every hook fires BEFORE the corresponding core state mutation (transaction
+// semantics), and the adapter never receives backtest traffic.
+class MyBroker implements Partial<IBroker> {
+  async waitForInit() { /* connect, load credentials — runs once */ }
+
+  // Open gate, discriminated by payload.type:
+  // "schedule" — PLACEMENT of the resting entry order at scheduled-signal
+  //   creation; the signal is registered and persisted ONLY after this resolves.
+  // "active"  — position entry (immediate open or activation fill).
+  // Throw → the exchange did not accept the order: the framework rolls back,
+  // releases the risk reservation and retries on the next tick.
+  async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+    if (payload.type === "schedule") {
+      await exchange.placeLimitOrder(payload.signalId, payload);
+    } else {
+      await exchange.placeMarketOrder(payload.signalId, payload);
+    }
+  }
 
   // Order check. Fires on every live tick for BOTH monitored states:
-  // type "active"  — the order backing the open position;
-  // type "schedule" — the resting entry order awaiting activation.
-  // Throw ONLY when the order is gone from the exchange: "active" closes the
-  // position (closeReason "closed"), "schedule" cancels the scheduled signal.
-  // If the resting order actually FILLED — confirm it via commitActivateScheduled
-  // instead of failing the check.
-  async onOrderCheck(payload: OrderCheckContract) {
-    const order = await exchange.getOrderById(payload.signalId);
-    if (!order) throw new Error("order not found");
-  },
+  // "active" — the order backing the open position; "schedule" — the resting
+  // entry order awaiting activation. THROW ONLY on a confirmed "order not
+  // found by id": "active" closes the position (closeReason "closed"),
+  // "schedule" cancels the scheduled signal. Swallow transient/network errors —
+  // a thrown timeout would wrongly close a live position. A FILLED resting
+  // order must be confirmed via commitActivateScheduled, not by throwing here.
+  async onOrderCheck(payload: BrokerSignalPendingPayload) {
+    let order: Order | null;
+    try {
+      order = await exchange.getOrderById(payload.signalId);
+    } catch {
+      return; // transient — keep monitoring, retry next tick
+    }
+    if (!order) throw new Error(`Order ${payload.signalId} not found`);
+  }
 
-  // Guaranteed to fire on EVERY terminal drop of a scheduled signal — user cancel,
-  // timeout, frame end, risk reject, sync reject, stopStrategy — so the adapter
-  // can remove the real resting order from the exchange.
-  async onSignalScheduleCancelled(payload) {
-    await exchange.cancelOrder(payload.signalId);
-  },
-});
+  // Guaranteed to fire on EVERY terminal drop of a scheduled signal — user
+  // cancel, timeout, frame end, risk reject, sync reject, stopStrategy — so
+  // the real resting order never orphans on the exchange.
+  async onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload) {
+    await exchange.cancelOrderById(payload.signalId); // payload.reason says why
+  }
+}
+
+Broker.useBrokerAdapter(MyBroker); // pass the class, not an instance
+Broker.enable(); // start routing live events into the adapter
 ```
 
 Before v15, an activation-time rejection (risk / sync / stop) dropped the scheduled signal silently: no event, no broker commit, a live resting order orphaned on the exchange, and — in backtest — a fatal `"no pending signal after scheduled activation"` that aborted the whole run. All eight silent-drop sites now emit the `cancelled` schedule event + `cancel-scheduled` commit, backtest continues through rejections as a normal `cancelled` outcome, and `stopStrategy()` converts a live scheduled signal into a deferred cancellation that survives a crash (persisted, drained through the broker channel after restart).

@@ -271,7 +271,7 @@ A hook wires it to position open. Signal open/close are routed automatically by 
 Broker.useBrokerAdapter(class implements IBroker {
   async waitForInit() { await getExchange(); }
 
-  async onSignalOpenCommit({ symbol, cost, priceOpen, priceTakeProfit, priceStopLoss }) {
+  async onOrderOpenCommit({ symbol, cost, priceOpen, priceTakeProfit, priceStopLoss }) {
     const ex = await getExchange();
     const qty = truncateQty(ex, symbol, cost / priceOpen);
     await createLimitOrderAndWait(ex, symbol, 'buy', qty, priceOpen);   // entry
@@ -280,7 +280,7 @@ Broker.useBrokerAdapter(class implements IBroker {
       await createStopLossOrder(ex, symbol, qty, priceStopLoss);
     } catch (err) { await ex.createOrder(symbol, 'market', 'sell', qty); throw err; }
   }
-  // onSignalCloseCommit · onPartialProfitCommit · onPartialLossCommit
+  // onOrderCloseCommit · onPartialProfitCommit · onPartialLossCommit
   // onTrailingStopCommit · onTrailingTakeCommit · onBreakevenCommit · onAverageBuyCommit
 });
 Broker.enable();
@@ -830,7 +830,7 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
  - ✅ Parallel execution: multi-backtest interleaving without cross-contamination
  - ✅ Graceful shutdown: `Backtest.stop()`/`Live.stop()` mid-run, no new signals after stop, stopStrategy draining through the cancel pipeline
  - ✅ Live-tick semantics: schedule-ping rejection cancelling the resting order, time_expired and schedule-await timeouts, VWAP TP/SL crossings between ticks, pre-activation SL break never opening, getSignal throttled to one call per aligned interval, live/backtest channel routing with typed sync open/close pair, out-of-context Price/TimeMeta reads by identifiers
- - ✅ Broker-driven order cancellation in live: onOrderCheck throw cancelling the resting order or closing the position as externally closed, onSignalOpenCommit throw rejecting placement with same-interval retry, and terminally cancelling a rejected activation fill
+ - ✅ Broker-driven order cancellation in live: onOrderCheck throw cancelling the resting order or closing the position as externally closed, onOrderOpenCommit throw rejecting placement with same-interval retry, and terminally cancelling a rejected activation fill
  - ✅ Full commit/getter canon of function/strategy.ts: absolute-price trailing, dollar-exact partial loss off the remaining basis, confirmed SL fill bypassing VWAP, user-created signals, ladder overlap corridors, phase-tracking helpers, deferred-ops status snapshot, signal notifications, remaining-basis alias getters
  - ✅ Edge contracts: SHORT mirrors of absolute-price trailing and dollar partials, deferred-command races, 100%-partial leaving a zero-basis position that TP still closes, invalid percent/dollar/alien-symbol rejections, and schema-change restarts
  - ✅ Unexpected-stop family: mid-tick stop races, deferred user activation under stop, post-stop activateScheduled rejected, pre-stop deferred close/cancel and broker-confirmed TP fills still draining, stop flag being process-local across restarts

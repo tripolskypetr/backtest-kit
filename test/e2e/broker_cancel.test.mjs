@@ -18,7 +18,7 @@ import {
 
 // Отмена ордера в live через БРОКЕРСКИЕ хуки (useBrokerAdapter + enable):
 // onOrderCheck как пинг-гейт (throw = ордера больше нет на бирже) и
-// onSignalOpenCommit как sync-гейт (throw = биржа отвергла размещение/филл).
+// onOrderOpenCommit как sync-гейт (throw = биржа отвергла размещение/филл).
 // Харнес герметичный: in-memory адаптеры в скоупе test(), live-тики в
 // MethodContextService.runInContext, VWAP всегда от текущей цены.
 
@@ -130,7 +130,7 @@ test("broker onOrderCheck throw (schedule) cancels resting order and notifies ad
 });
 
 // 2. Broker.onOrderCheck (type=active) бросает: позиция закрыта извне ->
-//    close "closed", адаптер получает onSignalCloseCommit
+//    close "closed", адаптер получает onOrderCloseCommit
 test("broker onOrderCheck throw (active) closes the position as externally closed", async (t) => {
   useMemoryPersist();
   setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
@@ -140,14 +140,14 @@ test("broker onOrderCheck throw (active) closes the position as externally close
   let rejectPing = false;
   const calls = [];
   Broker.useBrokerAdapter(class {
-    async onSignalOpenCommit(p) { calls.push({ m: "openCommit", type: p.type }); }
+    async onOrderOpenCommit(p) { calls.push({ m: "openCommit", type: p.type }); }
     async onOrderCheck(p) {
       calls.push({ m: "orderCheck", type: p.type });
       if (p.type === "active" && rejectPing) {
         throw new Error("position no longer exists on the exchange");
       }
     }
-    async onSignalCloseCommit(p) { calls.push({ m: "closeCommit", id: p.signalId }); }
+    async onOrderCloseCommit(p) { calls.push({ m: "closeCommit", id: p.signalId }); }
   });
   Broker.enable();
 
@@ -186,7 +186,7 @@ test("broker onOrderCheck throw (active) closes the position as externally close
   t.pass("broker check-throw on active position closes it with reason=closed without redundant close commit");
 });
 
-// 3. Broker.onSignalOpenCommit (type=schedule) бросает: биржа отвергла
+// 3. Broker.onOrderOpenCommit (type=schedule) бросает: биржа отвергла
 //    РАЗМЕЩЕНИЕ resting-ордера -> scheduled не регистрируется, ретрай на
 //    следующем тике проходит после снятия отказа
 test("broker openCommit throw (schedule) rejects placement and retries next tick", async (t) => {
@@ -198,7 +198,7 @@ test("broker openCommit throw (schedule) rejects placement and retries next tick
   let rejectPlacement = true;
   let placementAttempts = 0;
   Broker.useBrokerAdapter(class {
-    async onSignalOpenCommit(p) {
+    async onOrderOpenCommit(p) {
       if (p.type === "schedule") {
         placementAttempts += 1;
         if (rejectPlacement) {
@@ -233,7 +233,7 @@ test("broker openCommit throw (schedule) rejects placement and retries next tick
   t.pass("rejected placement is not registered, throttle rolls back, next tick retries and succeeds");
 });
 
-// 4. Broker.onSignalOpenCommit (type=active) бросает при АКТИВАЦИИ scheduled:
+// 4. Broker.onOrderOpenCommit (type=active) бросает при АКТИВАЦИИ scheduled:
 //    терминальная отмена (não ретрай) — resting снят, адаптер уведомлён
 test("broker openCommit throw (active) at scheduled activation terminally cancels", async (t) => {
   useMemoryPersist();
@@ -244,7 +244,7 @@ test("broker openCommit throw (active) at scheduled activation terminally cancel
   const CTX = { strategyName: "bc4-strat", exchangeName: "bc4-ex", frameName: "" };
   const calls = [];
   Broker.useBrokerAdapter(class {
-    async onSignalOpenCommit(p) {
+    async onOrderOpenCommit(p) {
       calls.push({ m: "openCommit", type: p.type });
       if (p.type === "active") {
         throw new Error("exchange reports our resting order was NOT filled");

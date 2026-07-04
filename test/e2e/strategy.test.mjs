@@ -76,7 +76,7 @@ test("STRATEGY LIVE: createSignal drains through the full open pipeline, busy-gu
   });
 
   Broker.useBrokerAdapter({
-    onSignalOpenCommit: async (p) => brokerCalls.push({ m: "openCommit", type: p.type }),
+    onOrderOpenCommit: async (p) => brokerCalls.push({ m: "openCommit", type: p.type }),
     onSignalPendingOpen: async (p) => brokerCalls.push({ m: "pendingOpen", signalId: p.signalId }),
   });
   Broker.enable();
@@ -288,7 +288,7 @@ test("STRATEGY LIVE: activateScheduled opens at priceOpen with activate-schedule
   });
 
   Broker.useBrokerAdapter({
-    onSignalOpenCommit: async (p) => brokerCalls.push({ m: "openCommit", type: p.type }),
+    onOrderOpenCommit: async (p) => brokerCalls.push({ m: "openCommit", type: p.type }),
     onSignalPendingOpen: async (p) => brokerCalls.push({ m: "pendingOpen" }),
   });
   Broker.enable();

@@ -671,7 +671,7 @@ wall clock не замена): restore-ветки `waitForInit` (метки ко
 
 ```javascript
 Broker.useBrokerAdapter({            // Partial<IBroker> — только нужные методы
-  onSignalOpenCommit: async (p) => { /* p.type: "schedule" | "active" */ },
+  onOrderOpenCommit: async (p) => { /* p.type: "schedule" | "active" */ },
   onOrderCheck: async (p) => { /* throw = ордер не найден */ },
   onSignalScheduleCancelled: async (p) => { /* p.reason */ },
 });
@@ -807,7 +807,7 @@ clearTimeout(watchdog);
 ### test/e2e/broker.test.mjs
 Тесты Broker-адаптера (роутинг сабжектов → IBroker):
 - **#1**: Все 8 этапов жизненного цикла scheduled→активация→TP доходят до СВОИХ методов адаптера в строгом порядке, один signalId
-- **#2**: Адаптер как гейт: throw в `onSignalOpenCommit`/`onOrderCheck` (размещение отвергнуто + отмена с уведомлением `onSignalScheduleCancelled`)
+- **#2**: Адаптер как гейт: throw в `onOrderOpenCommit`/`onOrderCheck` (размещение отвергнуто + отмена с уведомлением `onSignalScheduleCancelled`)
 - **#3**: Backtest-тишина: 0 вызовов адаптера за полный прогон (`for await Backtest.run`)
 - **#4**: `enable()` без адаптера бросает; после `disable()` роутинг отключён, фреймворк работает
 

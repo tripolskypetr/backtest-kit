@@ -420,7 +420,7 @@ export interface IActionCallbacks {
    * Throw to reject the operation — framework will retry on next tick.
    *
    * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
-   * `onSignalOpenCommit` / `onSignalCloseCommit` gate. Throwing (or returning false) on
+   * `onOrderOpenCommit` / `onOrderCloseCommit` gate. Throwing (or returning false) on
    * `event.action === "signal-open"` rolls the open back to idle (a scheduled activation is
    * cancelled); on `"signal-close"` it skips the close and leaves the position open — retried next
    * tick. Rides the same `syncSubject` emission as the Broker commit hooks, so a throw from either is
@@ -777,7 +777,7 @@ export interface IAction {
    * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_FN.
    *
    * MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
-   * `onSignalOpenCommit` / `onSignalCloseCommit`. Throw on "signal-open" → open rolls back to idle
+   * `onOrderOpenCommit` / `onOrderCloseCommit`. Throw on "signal-open" → open rolls back to idle
    * (scheduled activation cancelled); throw on "signal-close" → close skipped, position stays open;
    * retried next tick. Same `syncSubject` emission as the Broker commit hooks (collapsed to false by
    * CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.

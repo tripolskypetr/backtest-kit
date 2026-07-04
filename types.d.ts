@@ -2169,7 +2169,7 @@ interface IActionCallbacks {
      * Throw to reject the operation — framework will retry on next tick.
      *
      * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
-     * `onSignalOpenCommit` / `onSignalCloseCommit` gate. Throwing (or returning false) on
+     * `onOrderOpenCommit` / `onOrderCloseCommit` gate. Throwing (or returning false) on
      * `event.action === "signal-open"` rolls the open back to idle (a scheduled activation is
      * cancelled); on `"signal-close"` it skips the close and leaves the position open — retried next
      * tick. Rides the same `syncSubject` emission as the Broker commit hooks, so a throw from either is
@@ -2512,7 +2512,7 @@ interface IAction {
      * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_FN.
      *
      * MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
-     * `onSignalOpenCommit` / `onSignalCloseCommit`. Throw on "signal-open" → open rolls back to idle
+     * `onOrderOpenCommit` / `onOrderCloseCommit`. Throw on "signal-open" → open rolls back to idle
      * (scheduled activation cancelled); throw on "signal-close" → close skipped, position stays open;
      * retried next tick. Same `syncSubject` emission as the Broker commit hooks (collapsed to false by
      * CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
@@ -29421,7 +29421,7 @@ declare class ActionBase implements IPublicAction {
  * Payload for the signal-open broker event.
  *
  * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
- * `onSignalOpenCommit`. Discriminated by `type`:
+ * `onOrderOpenCommit`. Discriminated by `type`:
  * - "active" — a pending signal is being opened (immediate entry or activation fill of the
  *   resting order); throw = the exchange did not fill the entry, the framework rolls back the
  *   open and retries on the next tick;
@@ -29479,7 +29479,7 @@ type BrokerSignalOpenPayload = {
  * Payload for the signal-close broker event.
  *
  * Emitted automatically via syncSubject when a pending signal is closed (SL/TP hit or manual close).
- * Forwarded to the registered IBroker adapter via `onSignalCloseCommit`.
+ * Forwarded to the registered IBroker adapter via `onOrderCloseCommit`.
  *
  * @example
  * ```typescript
@@ -29737,7 +29737,7 @@ type BrokerIdlePingPayload = {
  * Emitted automatically via scheduleEventSubject (action "scheduled") when a new scheduled signal is
  * created and starts waiting for priceOpen activation. Forwarded to the registered IBroker adapter
  * via `onSignalScheduleOpen`. The scheduled -> active transition is NOT reported here — activation
- * arrives through `onSignalOpenCommit`.
+ * arrives through `onOrderOpenCommit`.
  *
  * @example
  * ```typescript
@@ -30195,7 +30195,7 @@ type BrokerAverageBuyPayload = {
  *   async waitForInit() {
  *     await this.exchange.connect();
  *   }
- *   async onSignalOpenCommit(payload) {
+ *   async onOrderOpenCommit(payload) {
  *     await this.exchange.placeOrder({ symbol: payload.symbol, side: payload.position });
  *   }
  *   // ... other methods
@@ -30221,7 +30221,7 @@ interface IBroker {
      * This differs from `onSignalPendingClose`, which is the informational lifecycle hook that fires
      * AFTER the close is committed (and cannot veto it).
      */
-    onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
+    onOrderCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
     /**
      * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
      * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
@@ -30239,7 +30239,7 @@ interface IBroker {
      * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
      * AFTER the open is committed (and cannot veto it).
      */
-    onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
+    onOrderOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
     /**
      * Called on every live tick while a signal is monitored, BEFORE completion evaluation.
      * Fires for both monitored states, discriminated by `payload.type`:
@@ -30332,7 +30332,7 @@ interface IBroker {
      * Poll your real resting/limit order and translate it via the commit-functions from
      * `src/function/strategy.ts` (deferred to the next tick):
      * - `commitActivateScheduled(symbol, { id })` — resting order filled/resolved → activate now,
-     *   without waiting for VWAP to reach priceOpen (surfaces as `onSignalOpenCommit` next tick).
+     *   without waiting for VWAP to reach priceOpen (surfaces as `onOrderOpenCommit` next tick).
      * - `commitCancelScheduled(symbol, { id })` — resting order cancelled/rejected externally → drop it.
      *
      * @example
@@ -30360,7 +30360,7 @@ interface IBroker {
     onSignalIdlePing(payload: BrokerIdlePingPayload): Promise<void>;
     /**
      * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
-     * The scheduled -> active transition is reported via `onSignalOpenCommit`, not here.
+     * The scheduled -> active transition is reported via `onOrderOpenCommit`, not here.
      *
      * Manual wiring — EVENT-BASED (placing the resting order)
      *
@@ -30457,7 +30457,7 @@ interface IBroker {
  * @example
  * ```typescript
  * class MyBroker implements Partial<IBroker> {
- *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) { ... }
+ *   async onOrderOpenCommit(payload: BrokerSignalOpenPayload) { ... }
  * }
  *
  * Broker.useBrokerAdapter(MyBroker); // MyBroker satisfies TBrokerCtor
@@ -30881,8 +30881,8 @@ declare class BrokerAdapter {
  * 4. No explicit dispose — clean up in `waitForInit` teardown or externally
  *
  * Event flow (called only in live mode, skipped in backtest):
- * - `onSignalOpenCommit` — new position opened
- * - `onSignalCloseCommit` — position closed (SL/TP hit or manual close)
+ * - `onOrderOpenCommit` — new position opened
+ * - `onOrderCloseCommit` — position closed (SL/TP hit or manual close)
  * - `onPartialProfitCommit` — partial close at profit executed
  * - `onPartialLossCommit` — partial close at loss executed
  * - `onTrailingStopCommit` — trailing stop-loss updated
@@ -30904,8 +30904,8 @@ declare class BrokerAdapter {
  *     await this.client.connect();
  *   }
  *
- *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
- *     super.onSignalOpenCommit(payload); // Call parent for logging
+ *   async onOrderOpenCommit(payload: BrokerSignalOpenPayload) {
+ *     super.onOrderOpenCommit(payload); // Call parent for logging
  *     await this.client!.placeOrder({
  *       symbol: payload.symbol,
  *       side: payload.position === "long" ? "BUY" : "SELL",
@@ -30913,8 +30913,8 @@ declare class BrokerAdapter {
  *     });
  *   }
  *
- *   async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
- *     super.onSignalCloseCommit(payload); // Call parent for logging
+ *   async onOrderCloseCommit(payload: BrokerSignalClosePayload) {
+ *     super.onOrderCloseCommit(payload); // Call parent for logging
  *     await this.client!.closePosition(payload.symbol);
  *   }
  * }
@@ -30928,11 +30928,11 @@ declare class BrokerAdapter {
  * ```typescript
  * // Minimal implementation — only handle opens and closes
  * class NotifyBroker extends BrokerBase {
- *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+ *   async onOrderOpenCommit(payload: BrokerSignalOpenPayload) {
  *     await sendTelegram(`Opened ${payload.position} on ${payload.symbol}`);
  *   }
  *
- *   async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+ *   async onOrderCloseCommit(payload: BrokerSignalClosePayload) {
  *     const pnl = payload.pnl.profit - payload.pnl.loss;
  *     await sendTelegram(`Closed ${payload.symbol}: PnL $${pnl.toFixed(2)}`);
  *   }
@@ -30969,14 +30969,14 @@ declare class BrokerBase implements IBroker {
      * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
      * (e.g. limit order rejected) rolls back the open — the pending signal returns to idle and retries
      * next tick; return normally to let it open. Live-only (backtest short-circuits). See
-     * {@link IBroker.onSignalOpenCommit} for the full semantics.
+     * {@link IBroker.onOrderOpenCommit} for the full semantics.
      *
      * @param payload - Signal open details: symbol, cost, position, priceOpen, priceTakeProfit, priceStopLoss, context, backtest
      *
      * @example
      * ```typescript
-     * async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
-     *   super.onSignalOpenCommit(payload); // Keep parent logging
+     * async onOrderOpenCommit(payload: BrokerSignalOpenPayload) {
+     *   super.onOrderOpenCommit(payload); // Keep parent logging
      *   const order = await this.exchange.placeMarketOrder({
      *     symbol: payload.symbol,
      *     side: payload.position === "long" ? "BUY" : "SELL",
@@ -30988,7 +30988,7 @@ declare class BrokerBase implements IBroker {
      * }
      * ```
      */
-    onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
+    onOrderOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
     /**
      * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
      *
@@ -31045,7 +31045,7 @@ declare class BrokerBase implements IBroker {
     /**
      * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
      *
-     * The scheduled -> active transition is reported via `onSignalOpenCommit`, not here. Override to
+     * The scheduled -> active transition is reported via `onOrderOpenCommit`, not here. Override to
      * place a resting/limit order on the exchange. The default logs.
      *
      * Manual wiring — EVENT-BASED: fires ONCE at creation — place the real resting order (tag it with
@@ -31101,14 +31101,14 @@ declare class BrokerBase implements IBroker {
      * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
      * (e.g. exit order failed) SKIPS the close — the position stays open and the close retries next
      * tick; return normally to let it close. Live-only (backtest short-circuits). See
-     * {@link IBroker.onSignalCloseCommit} for the full semantics.
+     * {@link IBroker.onOrderCloseCommit} for the full semantics.
      *
      * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, totalEntries, totalPartials, context, backtest
      *
      * @example
      * ```typescript
-     * async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
-     *   super.onSignalCloseCommit(payload); // Keep parent logging
+     * async onOrderCloseCommit(payload: BrokerSignalClosePayload) {
+     *   super.onOrderCloseCommit(payload); // Keep parent logging
      *   const ok = await this.exchange.closePosition(payload.symbol);
      *   if (!ok) {
      *     throw new Error(`Exit not filled for ${payload.symbol}`); // -> keep position open, retry next tick
@@ -31117,7 +31117,7 @@ declare class BrokerBase implements IBroker {
      * }
      * ```
      */
-    onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
+    onOrderCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
     /**
      * Called when a partial close at profit is executed.
      *

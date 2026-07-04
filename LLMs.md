@@ -1491,8 +1491,8 @@ Signal **open/close** events are routed automatically via an internal event bus 
 ```typescript
 interface IBroker {
   waitForInit(): Promise<void>;
-  onSignalOpenCommit(p: BrokerSignalOpenPayload): Promise<void>;
-  onSignalCloseCommit(p: BrokerSignalClosePayload): Promise<void>;
+  onOrderOpenCommit(p: BrokerSignalOpenPayload): Promise<void>;
+  onOrderCloseCommit(p: BrokerSignalClosePayload): Promise<void>;
   onOrderPing(p: BrokerSignalPendingPayload): Promise<void>;        // confirm order still open; throw if gone
   onPartialProfitCommit(p: BrokerPartialProfitPayload): Promise<void>;
   onPartialLossCommit(p: BrokerPartialLossPayload): Promise<void>;
@@ -1588,7 +1588,7 @@ async function createLimitOrderAndWait(ex, symbol, side, qty, price, restore) {
 Broker.useBrokerAdapter(class implements IBroker {
   async waitForInit() { await getSpotExchange(); }
 
-  async onSignalOpenCommit({ symbol, cost, priceOpen, priceTakeProfit, priceStopLoss, position }: BrokerSignalOpenPayload) {
+  async onOrderOpenCommit({ symbol, cost, priceOpen, priceTakeProfit, priceStopLoss, position }: BrokerSignalOpenPayload) {
     if (position === "short") throw new Error(`Spot has no short selling (${symbol})`);
     const ex = await getSpotExchange();
     const qty = truncateQty(ex, symbol, cost / priceOpen);
@@ -1603,7 +1603,7 @@ Broker.useBrokerAdapter(class implements IBroker {
     } catch (err) { await ex.createOrder(symbol, "market", "sell", qty); throw err; } // unprotected → market close
   }
 
-  async onSignalCloseCommit({ symbol, currentPrice, priceTakeProfit, priceStopLoss }: BrokerSignalClosePayload) {
+  async onOrderCloseCommit({ symbol, currentPrice, priceTakeProfit, priceStopLoss }: BrokerSignalClosePayload) {
     const ex = await getSpotExchange();
     await cancelAllOrders(ex, await ex.fetchOpenOrders(symbol), symbol);
     await sleep(CANCEL_SETTLE_MS);
@@ -1744,7 +1744,7 @@ async function createLimitOrderAndWait(ex, symbol, side, qty, price, params = {}
 Broker.useBrokerAdapter(class implements IBroker {
   async waitForInit() { await getFuturesExchange(); }
 
-  async onSignalOpenCommit({ symbol, cost, priceOpen, priceTakeProfit, priceStopLoss, position }: BrokerSignalOpenPayload) {
+  async onOrderOpenCommit({ symbol, cost, priceOpen, priceTakeProfit, priceStopLoss, position }: BrokerSignalOpenPayload) {
     const ex = await getFuturesExchange();
     await ex.setLeverage(FUTURES_LEVERAGE, symbol);
     const qty = truncateQty(ex, symbol, cost / priceOpen);
@@ -1765,7 +1765,7 @@ Broker.useBrokerAdapter(class implements IBroker {
     }
   }
 
-  async onSignalCloseCommit({ symbol, position, currentPrice, priceTakeProfit, priceStopLoss }: BrokerSignalClosePayload) {
+  async onOrderCloseCommit({ symbol, position, currentPrice, priceTakeProfit, priceStopLoss }: BrokerSignalClosePayload) {
     const ex = await getFuturesExchange();
     await cancelAllOrders(ex, await ex.fetchOpenOrders(symbol), symbol);
     await sleep(CANCEL_SETTLE_MS);
@@ -3723,7 +3723,7 @@ Every wiring hook is one of two kinds. This is the primary distinction to get ri
 | How you act | return normally vs throw | call a `commit*` function (or place/cancel a real order) |
 | Fires | as the framework *attempts* a transition (BEFORE it mutates state) | per-tick while monitoring, or once at a lifecycle point |
 | Mode | **live only** (backtest short-circuits the gate to "allowed") | live + backtest (per attachment point) |
-| Hooks | `onSignalOpenCommit`, `onSignalCloseCommit`, `onOrderCheck`, `onSignalSync` (+ action `signalSync` / `orderCheck`) | `onSignalActivePing`, `onSignalSchedulePing`, `onSignalIdlePing`, `onSignalScheduleOpen/Cancelled`, `onSignalPendingOpen/Close` (+ action `onPingActive/Scheduled/Idle`, `onScheduleEvent`, `onPendingEvent`) |
+| Hooks | `onOrderOpenCommit`, `onOrderCloseCommit`, `onOrderCheck`, `onSignalSync` (+ action `signalSync` / `orderCheck`) | `onSignalActivePing`, `onSignalSchedulePing`, `onSignalIdlePing`, `onSignalScheduleOpen/Cancelled`, `onSignalPendingOpen/Close` (+ action `onPingActive/Scheduled/Idle`, `onScheduleEvent`, `onPendingEvent`) |
 
 ### 41.3 EXCEPTION-BASED hooks (a throw drives the framework)
 
@@ -3731,19 +3731,19 @@ These are emitted via `syncSubject` / `syncPendingSubject` **before** the framew
 
 | Hook | A throw / `false` means | Framework reaction |
 | --- | --- | --- |
-| `onSignalOpenCommit(payload)` | real entry not filled (limit rejected) | **roll back the open** → back to idle (a scheduled activation is cancelled), retry next tick |
-| `onSignalCloseCommit(payload)` | real exit order failed | **skip the close** → position stays open, retry next tick |
+| `onOrderOpenCommit(payload)` | real entry not filled (limit rejected) | **roll back the open** → back to idle (a scheduled activation is cancelled), retry next tick |
+| `onOrderCloseCommit(payload)` | real exit order failed | **skip the close** → position stays open, retry next tick |
 | `onOrderCheck(payload)` | order **not found by id** (filled/cancelled/liquidated) | **close** the position, `closeReason: "closed"` |
 | `onSignalSync(event)` *(strategy `IStrategyParams`)* | sync to exchange failed (open or close) | same as the two `*Commit` gates above — rides the **same** `syncSubject` emission |
 
-- `onSignalOpenCommit` / `onSignalCloseCommit` and `onSignalSync` share one `syncSubject` emission: a throw from any of them is collapsed to `false` by `CREATE_SYNC_FN`, so they are interchangeable gates for the same open/close transition — don't gate the same transition in two of them.
+- `onOrderOpenCommit` / `onOrderCloseCommit` and `onSignalSync` share one `syncSubject` emission: a throw from any of them is collapsed to `false` by `CREATE_SYNC_FN`, so they are interchangeable gates for the same open/close transition — don't gate the same transition in two of them.
 - `onOrderCheck` is the throw-driven equivalent of the EVENT-BASED `commitClosePending` for the "order gone" case — **pick one, not both**.
 - **CRITICAL for `onOrderCheck`:** swallow transient/network errors (timeout, 5xx, rate limit, disconnect) by returning — only a *confirmed* "order not found by id" is a valid reason to throw, or a connectivity blip wrongly closes an open position.
 - The action-side methods `signalSync` / `orderCheck` (and callbacks `onSignalSync` / `onOrderCheck`) are the action-attachment equivalents of the same gates; they are `@deprecated` in favour of the Broker adapter.
 
 ```typescript
 class MyBroker {
-  async onSignalOpenCommit(payload) {                          // entry gate
+  async onOrderOpenCommit(payload) {                          // entry gate
     const order = await exchange.placeMarketOrder(payload.symbol, payload.position, payload.cost);
     if (!order.filled) throw new Error("entry not filled");    // -> roll back open, retry next tick
   }
@@ -3806,7 +3806,7 @@ Broker.enable();
 ### 41.5 Choosing
 
 - Need to distinguish **TP vs SL vs no-counterparty**, or detect a **gapped SL / early TP**, or activate/cancel scheduled orders → **EVENT-BASED** per-tick hooks + `commit*`.
-- Only need a binary **open?/gone?** decision and want the least code → **EXCEPTION-BASED** gate (`onOrderCheck`, or `onSignalOpenCommit`/`onSignalCloseCommit`).
+- Only need a binary **open?/gone?** decision and want the least code → **EXCEPTION-BASED** gate (`onOrderCheck`, or `onOrderOpenCommit`/`onOrderCloseCommit`).
 - Want a **separate infrastructure layer** → Broker adapter (`IBroker`). Want it **alongside a strategy** or working in **backtest** too → action via `addActionSchema` (`IActionCallbacks`).
 - **Never double-handle** one condition with both styles — e.g. throwing in `onOrderCheck` *and* calling `commitClosePending` in `onSignalActivePing` for the same "order gone" event.
 
