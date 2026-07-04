@@ -9,6 +9,7 @@ import {
   PersistScheduleAdapter,
   PersistRecentAdapter,
   listenStrategyCommit,
+  listenSync,
   lib,
   MethodContextService,
 } from "../../build/index.mjs";
@@ -1198,6 +1199,536 @@ test("RECOVERY: double crash — reconciliation wipe happens in waitForInit and 
 
     pass(`double crash survived: wipe in waitForInit, deferred close drained on restart #2 (closeId), no zombie`);
   } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY (фикс сироты): крэш МЕЖДУ записями УСПЕШНОЙ активации scheduled.
+ * Write-ahead порядок активации: pending записан ПЕРВЫМ, стирание scheduled —
+ * вторым. Крэш между ними оставляет на диске ОБА снапшота с одним id; сверка
+ * waitForInit обязана предпочесть pending (позиция реально открыта на бирже,
+ * sync-open подтверждён) и достереть scheduled. Обратный порядок терял
+ * подтверждённое открытие целиком — позиция-сирота на бирже.
+ */
+test("RECOVERY: crash between activation writes keeps the opened position, stale scheduled superseded", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-walorphan-strategy",
+    exchangeName: "binance-recovery-walorphan",
+    frameName: "",
+  };
+
+  let px = basePrice;
+  let signalGenerated = false;
+
+  makeExchange(context.exchangeName, () => px);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal orphan",
+        priceOpen,
+        priceTakeProfit: priceOpen + 15000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const staleScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+
+    // Цена падает до priceOpen — price-активация в live tick (sync-open подтверждён)
+    px = priceOpen;
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "opened" || tick2.signal.priceOpen !== priceOpen) {
+      fail(`tick #2 expected opened@${priceOpen} via price activation, got "${tick2.action}"@${tick2.signal?.priceOpen}`);
+      return;
+    }
+
+    // Крэш МЕЖДУ записями активации: pending уже на диске, стирание scheduled
+    // не успело — возвращаем устаревший scheduled-снапшот
+    await PersistScheduleAdapter.writeScheduleData(staleScheduled, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "active" || tick3.signal.id !== staleScheduled.id) {
+      fail(`REGRESSION: post-restart tick expected "active" for the opened position (id=${staleScheduled.id}), got "${tick3.action}"/id=${tick3.signal?.id} — broker-confirmed open must NOT be lost`);
+      return;
+    }
+
+    const diskScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskScheduled !== null) {
+      fail(`REGRESSION: stale scheduled must be wiped (superseded by same-id pending), got ${JSON.stringify(diskScheduled)}`);
+      return;
+    }
+    const diskPending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!diskPending || diskPending.id !== staleScheduled.id) {
+      fail(`pending snapshot must remain intact on disk, got ${JSON.stringify(diskPending)}`);
+      return;
+    }
+
+    pass(`activation crash window reconciled: position kept (active), stale scheduled wiped, pending intact`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: trailing SL переживает крэш — после рестарта позиция закрывается
+ * по ПОДТЯНУТОМУ уровню (эффективный SL из _trailingPriceStopLoss), а не по
+ * оригинальному. Прямого теста restore-полноты trailing-состояния не было.
+ */
+test("RECOVERY: trailing stop survives a crash and the position closes at the tightened level", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const originalSL = 45000; // 10% дистанция
+  const trailedSL = 47500;  // shift −5пп → 5% дистанция
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-trailing-strategy",
+    exchangeName: "binance-recovery-trailing",
+    frameName: "",
+  };
+
+  let px = basePrice;
+  let signalGenerated = false;
+
+  makeExchange(context.exchangeName, () => px);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery trailing",
+        priceTakeProfit: basePrice + 10000,
+        priceStopLoss: originalSL,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    const trailed = await inCtx(context, () =>
+      lib.strategyCoreService.trailingStop(false, "BTCUSDT", -5, basePrice, context));
+    if (!trailed) {
+      fail(`trailingStop(-5) expected to apply`);
+      return;
+    }
+
+    await crash(context);
+
+    // Цена падает ровно до подтянутого SL (оригинальный 45000 НЕ достигнут)
+    px = trailedSL;
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeReason !== "stop_loss" || tick2.currentPrice !== trailedSL) {
+      fail(`REGRESSION: expected closed/stop_loss@${trailedSL} by RESTORED trailing SL, got "${tick2.action}"/"${tick2.closeReason}"@${tick2.currentPrice}`);
+      return;
+    }
+    if (tick2.signal.originalPriceStopLoss !== originalSL || tick2.signal.priceStopLoss !== trailedSL) {
+      fail(`original/effective SL expected ${originalSL}/${trailedSL}, got ${tick2.signal.originalPriceStopLoss}/${tick2.signal.priceStopLoss}`);
+      return;
+    }
+
+    pass(`trailing SL survived crash: closed at tightened ${trailedSL}, original ${originalSL} preserved`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: DCA-входы и _peak/_fall переживают крэш — после рестарта effective
+ * price (cost-weighted harmonic), invested cost, уровни входов и метрики
+ * peak/drawdown отдают доперезапусковые значения (голые геттеры инстанса).
+ */
+test("RECOVERY: DCA entries and peak/fall metrics survive a crash", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const dcaPrice = 48000;
+  const peakPrice = 52000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-dcapeak-strategy",
+    exchangeName: "binance-recovery-dcapeak",
+    frameName: "",
+  };
+
+  let px = basePrice;
+  let signalGenerated = false;
+
+  makeExchange(context.exchangeName, () => px);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery dca peak",
+        priceTakeProfit: basePrice + 10000,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    // Пик вверх, затем просадка вниз — оба персистятся при обновлении
+    px = peakPrice;
+    await runTick(new Date(t0 + 1 * MIN));
+    px = dcaPrice;
+    await runTick(new Date(t0 + 2 * MIN));
+
+    // DCA на просадке (строго ниже min entry 50000)
+    const bought = await inCtx(context, () =>
+      lib.strategyCoreService.averageBuy(false, "BTCUSDT", dcaPrice, context, 100));
+    if (!bought) {
+      fail(`averageBuy@${dcaPrice} expected to apply`);
+      return;
+    }
+
+    await crash(context);
+
+    px = 49000;
+    const tick4 = await runTick(new Date(t0 + 3 * MIN));
+    if (tick4.action !== "active") {
+      fail(`tick #4 expected "active" after restart, got "${tick4.action}"`);
+      return;
+    }
+
+    // Голые геттеры инстанса (context-free) — состояние после рестарта
+    const conn = Object.getPrototypeOf(lib.strategyConnectionService);
+    const s = conn.getStrategy("BTCUSDT", context.strategyName, context.exchangeName, context.frameName, false);
+
+    const expectedEffective = 200 / (100 / basePrice + 100 / dcaPrice);
+    const effective = await s.getPositionEffectivePrice("BTCUSDT");
+    if (Math.abs(effective - expectedEffective) > 1e-6) {
+      fail(`REGRESSION: effective price expected ~${expectedEffective}, got ${effective}`);
+      return;
+    }
+    const invested = await s.getPositionInvestedCost("BTCUSDT");
+    if (invested !== 200) {
+      fail(`REGRESSION: invested cost expected 200, got ${invested}`);
+      return;
+    }
+    const levels = await s.getPositionLevels("BTCUSDT");
+    if (!levels || levels.length !== 2 || levels[0] !== basePrice || levels[1] !== dcaPrice) {
+      fail(`REGRESSION: entry levels expected [${basePrice}, ${dcaPrice}], got ${JSON.stringify(levels)}`);
+      return;
+    }
+    const peak = await s.getPositionHighestProfitPrice("BTCUSDT");
+    if (peak !== peakPrice) {
+      fail(`REGRESSION: peak price expected ${peakPrice}, got ${peak}`);
+      return;
+    }
+    const fall = await s.getPositionMaxDrawdownPrice("BTCUSDT");
+    if (fall !== dcaPrice) {
+      fail(`REGRESSION: max drawdown price expected ${dcaPrice}, got ${fall}`);
+      return;
+    }
+
+    pass(`DCA + peak/fall survived crash: effective~${expectedEffective.toFixed(2)}, invested 200, levels [${levels}], peak ${peak}, fall ${fall}`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY (документация семантики): createSignal — at-most-once. DTO
+ * потребляется и слот персистится пустым ДО подтверждения открытия
+ * (GET_SIGNAL_FN). Sync-reject открытия оставляет на диске ровно то же
+ * состояние, что и крэш сразу после потребления: createdSignal=null. После
+ * рестарта DTO НЕ повторяется — команда испаряется. Осознанная семантика
+ * (at-least-once дал бы риск дубля позиции), тест фиксирует её.
+ */
+test("RECOVERY: consumed createSignal DTO is at-most-once — not replayed after sync reject + crash", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-atmost-strategy",
+    exchangeName: "binance-recovery-atmost",
+    frameName: "",
+  };
+
+  let syncRejects = 0;
+  const openedActions = [];
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => null, // сигнал только из очереди createSignal
+  });
+
+  // Брокер отвергает открытие ровно один раз — моделирует крэш сразу после
+  // потребления DTO (персист-состояние побайтово идентично)
+  const unsubscribeSync = listenSync((event) => {
+    if (event.strategyName === context.strategyName && event.action === "signal-open" && event.type === "active") {
+      syncRejects += 1;
+      throw new Error("recovery: broker rejected the queued open");
+    }
+  }, true);
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    // Сеем цену
+    const tick0 = await runTick(new Date(t0));
+    if (tick0.action !== "idle") {
+      fail(`tick #0 expected "idle", got "${tick0.action}"`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.createSignal(false, "BTCUSDT", {
+      position: "long",
+      note: "recovery at-most-once",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+    }, context));
+
+    const queuedBefore = await PersistStrategyAdapter.readStrategyData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!queuedBefore?.createdSignal) {
+      fail(`createdSignal expected persisted after createSignal, got ${JSON.stringify(queuedBefore)}`);
+      return;
+    }
+
+    // Потребление DTO + sync-reject: слот очищен и персистнут ДО открытия
+    const tick1 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick1.action !== "idle" || syncRejects !== 1) {
+      fail(`tick #1 expected idle with 1 sync reject, got "${tick1.action}"/rejects=${syncRejects}`);
+      return;
+    }
+
+    await crash(context);
+
+    const tick2 = await runTick(new Date(t0 + 2 * MIN));
+    openedActions.push(tick2.action);
+    const tick3 = await runTick(new Date(t0 + 3 * MIN));
+    openedActions.push(tick3.action);
+
+    if (openedActions.some((a) => a !== "idle")) {
+      fail(`at-most-once semantics: consumed DTO must NOT replay after restart, got ${JSON.stringify(openedActions)}`);
+      return;
+    }
+    const dataAfter = await PersistStrategyAdapter.readStrategyData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (dataAfter?.createdSignal !== null) {
+      fail(`createdSignal slot expected null after consumption, got ${JSON.stringify(dataAfter?.createdSignal)}`);
+      return;
+    }
+
+    pass(`createSignal is at-most-once: consumed DTO not replayed after reject+crash (documented semantics)`);
+  } finally {
+    unsubscribeSync();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: контекст-мисматч снапшота (крэш-артефакт чужого/битого файла) —
+ * pending с ЧУЖИМ strategyName в снапшоте НЕ восстанавливается (skip + warn),
+ * но и НЕ стирается (skip-only ветка, в отличие от superseded). Стратегия
+ * стартует чистой (idle), мусор не становится позицией.
+ */
+test("RECOVERY: foreign-context pending snapshot is skipped on restore, not resurrected and not wiped", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-foreign-strategy",
+    exchangeName: "binance-recovery-foreign",
+    frameName: "",
+  };
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => null,
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    // Кладём на диск снапшот с чужим strategyName (артефакт чужого прогона/битой миграции)
+    const foreignSignal = {
+      id: "foreign-signal-1",
+      position: "long",
+      note: "foreign snapshot",
+      cost: 100,
+      priceOpen: basePrice,
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+      symbol: "BTCUSDT",
+      exchangeName: context.exchangeName,
+      strategyName: "some-other-strategy",
+      frameName: "",
+      scheduledAt: t0,
+      pendingAt: t0,
+      timestamp: t0,
+      _isScheduled: false,
+    };
+    await PersistSignalAdapter.writeSignalData(foreignSignal, "BTCUSDT", context.strategyName, context.exchangeName);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "idle") {
+      fail(`REGRESSION: foreign-context snapshot must be skipped on restore (idle), got "${tick1.action}"`);
+      return;
+    }
+
+    // Skip-only: снапшот не восстановлен, но и не стёрт (осознанно — чужие данные не трогаем)
+    const diskPending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!diskPending || diskPending.id !== "foreign-signal-1") {
+      fail(`foreign snapshot expected untouched on disk, got ${JSON.stringify(diskPending)}`);
+      return;
+    }
+
+    pass(`foreign-context snapshot skipped: strategy starts clean (idle), snapshot left untouched`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY (граница принятого at-most-once): крэш МЕЖДУ записями partialProfit
+ * (сигнал с _partial уже на диске, commit-очередь персистнуть не успели).
+ * Событие потеряно — но ДЕНЬГИ консистентны: партиал учтён в remaining cost
+ * basis после рестарта. Теряется только уведомление, не состояние позиции.
+ */
+test("RECOVERY: crash between partialProfit writes loses only the commit event, money state stays consistent", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-partialwal-strategy",
+    exchangeName: "binance-recovery-partialwal",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  let afterRestart = false;
+  const commitsAfterRestart = [];
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery partial wal",
+        priceTakeProfit: basePrice + 10000,
+        priceStopLoss: basePrice - 10000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    if (afterRestart) commitsAfterRestart.push(event.action);
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+    const signalId = tick1.signal.id;
+
+    const executed = await inCtx(context, () =>
+      lib.strategyCoreService.partialProfit(false, "BTCUSDT", 40, basePrice + 1000, context));
+    if (!executed) {
+      fail(`partialProfit(40%) expected to execute`);
+      return;
+    }
+
+    // Крэш МЕЖДУ записями: сигнал с _partial уже на диске, а персист очереди
+    // «не успел» — затираем strategyData пустой очередью
+    await PersistStrategyAdapter.writeStrategyData(
+      { pendingSignalId: signalId, createdSignal: null, commitQueue: [], closedSignal: null, cancelledSignal: null, activatedSignal: null, takeProfitSignal: null, stopLossSignal: null },
+      "BTCUSDT", context.strategyName, context.exchangeName,
+    );
+    await crash(context);
+    afterRestart = true;
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "active") {
+      fail(`tick #2 expected "active" after restart, got "${tick2.action}"`);
+      return;
+    }
+
+    // Событие потеряно (принятый at-most-once)...
+    if (commitsAfterRestart.includes("partial-profit")) {
+      fail(`commit event was expected LOST in this crash window, got ${JSON.stringify(commitsAfterRestart)}`);
+      return;
+    }
+
+    // ...но деньги консистентны: партиал учтён в remaining basis
+    const conn = Object.getPrototypeOf(lib.strategyConnectionService);
+    const s = conn.getStrategy("BTCUSDT", context.strategyName, context.exchangeName, context.frameName, false);
+    const remainingPercent = await s.getTotalPercentClosed("BTCUSDT");
+    if (remainingPercent !== 60) {
+      fail(`REGRESSION: remaining position expected 60% after restored 40% partial, got ${remainingPercent}`);
+      return;
+    }
+    const partials = await s.getPositionPartials("BTCUSDT");
+    if (!partials || partials.length !== 1 || partials[0].type !== "profit" || partials[0].percent !== 40) {
+      fail(`REGRESSION: restored _partial expected [profit 40%], got ${JSON.stringify(partials)}`);
+      return;
+    }
+
+    pass(`partial crash window: commit event lost (accepted at-most-once), money consistent (remaining 60%, partial restored)`);
+  } finally {
+    unsubscribeCommit();
     useDummy();
   }
 });

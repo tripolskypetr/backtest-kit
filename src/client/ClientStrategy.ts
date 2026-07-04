@@ -1205,12 +1205,16 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   }
   // Same write-ahead reconciliation for the scheduled snapshot: a deferred
   // cancel/activate (persisted FIRST) supersedes a stale on-disk scheduled
-  // snapshot left by a crash between the two writes.
+  // snapshot left by a crash between the two writes. An already-restored
+  // pending with the same id supersedes it too: activation persists the
+  // pending BEFORE wiping the scheduled, so a crash in that window leaves
+  // both snapshots — the position is live, the scheduled row is stale.
   if (scheduledMatches && (
     self._cancelledSignal?.id === scheduledSignal.id
     || self._activatedSignal?.id === scheduledSignal.id
+    || self._pendingSignal?.id === scheduledSignal.id
   )) {
-    self.params.logger.warn("ClientStrategy waitForInit: persisted scheduled signal superseded by deferred cancel/activate, skipping restore", {
+    self.params.logger.warn("ClientStrategy waitForInit: persisted scheduled signal superseded by deferred cancel/activate or activated pending, skipping restore", {
       symbol: self.params.symbol,
       signalId: scheduledSignal.id,
     });
@@ -2315,9 +2319,14 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     return null;
   }
 
-  await self.setScheduledSignal(null);
-
+  // Write-ahead order: persist the activated pending FIRST, wipe the scheduled
+  // snapshot second — a crash between the writes leaves both on disk and
+  // waitForInit reconciles by id (the pending supersedes the same-id scheduled).
+  // The reverse order lost a broker-confirmed open: neither snapshot survived,
+  // leaving an orphaned live position on the exchange.
   await self.setPendingSignal(activatedSignal, activatedSignal.priceOpen);
+
+  await self.setScheduledSignal(null);
 
   // Whipsaw protection: record the id only after a successful open
   self._lastPendingId = activatedSignal.id;
@@ -4365,9 +4374,14 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     return false;
   }
 
-  await self.setScheduledSignal(null);
-
+  // Write-ahead order: persist the activated pending FIRST, wipe the scheduled
+  // snapshot second — a crash between the writes leaves both on disk and
+  // waitForInit reconciles by id (the pending supersedes the same-id scheduled).
+  // The reverse order lost a broker-confirmed open: neither snapshot survived,
+  // leaving an orphaned live position on the exchange.
   await self.setPendingSignal(activatedSignal, activatedSignal.priceOpen);
+
+  await self.setScheduledSignal(null);
 
   // Whipsaw protection: record the id only after a successful open
   self._lastPendingId = activatedSignal.id;
@@ -5044,9 +5058,12 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         }
       }
 
-      await self.setScheduledSignal(null);
-
+      // Write-ahead order: pending first, scheduled wipe second (см. комментарий
+      // в ACTIVATE_SCHEDULED_SIGNAL_FN — крэш между записями реконсилируется
+      // в waitForInit по совпадению id)
       await self.setPendingSignal(pendingSignal, averagePrice);
+
+      await self.setScheduledSignal(null);
 
       // Whipsaw protection: record the id only after a successful open
       self._lastPendingId = pendingSignal.id;
