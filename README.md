@@ -796,6 +796,7 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 <details>
 <summary>Core test axes</summary>
+
  - ✅ State machine under rejections (gates, throttle rollbacks, terminal drops, stopStrategy race)
  - ✅ Deferred commands, Live × Backtest
  - ✅ Broker: 8-stage lifecycle routing, gates, backtest silence, enable/disable, commit\* layer
@@ -805,6 +806,7 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
  - ✅ SHORT mirror of the key paths 
  - ✅ Timeouts, Once-listeners, action gate, Infinity holds, whipsaw restore, shared-risk contention, cancellation stats
  - ✅ Order events: types, emission/silence per mode
+
 </details>
 
 ## 🤖 Reading this as a model?
