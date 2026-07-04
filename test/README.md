@@ -833,7 +833,7 @@ clearTimeout(watchdog);
 - **averageBuy**: DCA $100 на 48000 — эффективная цена = cost-weighted harmonic 200/(100/50000+100/48000), invested $200; commit "average-buy"
 - **partialProfit(40%)**: остаток $60, `_partial` типа "profit", commit дренится следующим tick
 - **partialLoss(30%)**: остаток $70, тип "loss", commit "partial-loss"
-- **Переплетение DCA × партиалы**: open $100 → DCA $100 → profit 50% → DCA $100 → loss 25% → profit 100% остатка; строгие снапшоты `costBasisAtClose` [200, 200, 150] / `entryCountAtClose` [2, 3, 3], invested $300, остаток ровно $0 (партиал #2 берёт базис «остаток после 50% + вход, добавленный ПОСЛЕ партиала»; финальный 100% проходит через epsilon-кап)
+- **Переплетение DCA × партиалы**: open $100 → DCA $100 → profit 50% → DCA $100 → loss 25% → profit 100% остатка; строгие снапшоты `costBasisAtClose` [200, 200, 150] / `entryCountAtClose` [2, 3, 3], invested $300 (партиал #2 берёт базис «остаток после 50% + вход, добавленный ПОСЛЕ партиала»; финальный 100% проходит epsilon-кап и АВТО-ЗАКРЫВАЕТ позицию: следующий tick = closed/"closed" + close-pending коммит; финансовые снапшоты читаются из закрытого сигнала, финальный partial-profit коммит доставляется через _closedSignal-атрибуцию)
 
 ВАЖНО: `percentShift` у trailing-команд — сдвиг дистанции в процентных ПУНКТАХ
 (SL 10% + shift −5 → 5%), а не доля от дистанции.
@@ -853,6 +853,15 @@ clearTimeout(watchdog);
 - **Сверка строго id-гейтится (негатив)**: pending с чужим id НЕ стирается — восстановлен и мониторится (active), deferred close дренится независимо; защита от слишком агрессивной сверки
 - **Крэш МЕЖДУ записями stopStrategy**: cancelled/user без cancelId, commit note "stop_strategy"; _isStopped in-memory — после рестарта getSignal снова жив (осознанная семантика)
 - **Двойной крэш (идемпотентность)**: рестарт #1 = голый waitForInit (стирание происходит именно там, не в tick) → крэш #2 до дренажа → рестарт #2 дренит deferred close штатно; голый waitForInit законен — superseded-ветка контекст-фри
+- **Крэш МЕЖДУ записями УСПЕШНОЙ активации** (write-ahead: pending записан ПЕРВЫМ, стирание scheduled вторым): оба снапшота с одним id на диске → сверка предпочитает pending (позиция реально открыта, sync подтверждён), scheduled достёрт; обратный порядок терял подтверждённое открытие → позиция-сирота на бирже
+- **trailing SL переживает крэш**: после рестарта закрытие по ПОДТЯНУТОМУ уровню (47500), оригинальный SL (45000) сохранён в originalPriceStopLoss
+- **DCA + _peak/_fall переживают крэш**: effective (harmonic), invested, уровни входов, peak/drawdown-цены через голые геттеры после рестарта
+- **createSignal at-most-once (документация семантики)**: DTO потребляется и слот персистится пустым ДО открытия — sync-reject (побайтово = крэш после потребления) + рестарт → DTO НЕ повторяется; осознанно (at-least-once рисковал бы дублем позиции)
+- **Контекст-мисматч снапшота**: pending с чужим strategyName skip-only — не восстановлен (idle), но и не стёрт (чужие данные не трогаем)
+- **Крэш МЕЖДУ записями partialProfit (граница at-most-once)**: commit-событие потеряно, но деньги консистентны — restored _partial учтён в remaining basis (60%)
+- **Кросс-хранилищное окно риск↔сигнал**: restore pending РЕ-АССЕРТИТ риск-слот (addSignal идемпотентен по ключу strategy:exchange:symbol) — лимит-1 снова держит для второй стратегии; крэш = clear стратегии + lib.riskConnectionService.clear()
+- **Чистка протухших риск-слотов**: слот с истёкшим lifetime (openTimestamp + minuteEstimatedTime) — крэш-артефакт, prune при restore ClientRisk; живые чужие слоты сохраняются; Infinity не истекает
+- **Громкая смерть createSignal при перевалидации**: DTO, ставший невалидным к потреблению (цена ушла за SL), гибнет с выделенным listenError-событием («consumption re-validation»), слот очищен, троттл откатывается (getSignal перезапускается в том же интервале)
 
 ### test/e2e/short.test.mjs
 SHORT-зеркало новой логики (вся сессия писалась на long):
@@ -881,7 +890,7 @@ SHORT-зеркало новой логики (вся сессия писалас
 
 ### test/e2e/coverage.test.mjs
 Тесты на изменения `git diff master -- src/client/ClientStrategy.ts`, не покрытые остальными файлами (каждый тест привязан к ханку дифа):
-- **Epsilon партиалов** (`PARTIAL_CAP_TOLERANCE_FACTOR`): 30% → 50% → 100%-от-остатка проходят все, остаток ровно 0
+- **Epsilon партиалов** (`PARTIAL_CAP_TOLERANCE_FACTOR` + `PARTIAL_FULL_CLOSE_EPSILON`): 30% → 50% → 100%-от-остатка проходят все; нулевой остаток АВТО-ЗАКРЫВАЕТ позицию (deferred-close → closed/"closed", геттеры null)
 - **Risk-release при timeout-отмене scheduled** (`CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN`): патч `strategy.params.risk.removeSignal` — ровно 1 вызов
 - **Risk-release при SL-отмене до активации** (`CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN`): то же для price_reject
 - **Release утёкшей резервации при validate-throw** (fallback `GET_SIGNAL_FN`): невалидный DTO после успешного reserve → remove ×1
@@ -889,6 +898,7 @@ SHORT-зеркало новой логики (вся сессия писалас
 - **Drop очереди коммитов без pending** (`PROCESS_COMMIT_QUEUE_FN`): partial-commit в очереди + TP-филл занулил pending → commit дропнут (не эмитится), close-pending доставлен
 - **Cost-fallback** (`signal.cost ?? CC_POSITION_ENTRY_COST`): сигнал с cost=250 и пустым `_entry` (патч state) → invested/entries отдают 250, не $100
 - **Crash-recovery deferred close** (`WAIT_FOR_INIT_FN` + `PERSIST_STRATEGY_FN` + `getStatus`): closePending → dispose инстанса ГОЛЫМ clear() → restore → дренаж closed/"closed" с closeId; useJson-адаптеры локально в скоупе теста
+- **DTO-поля в priceOpen-ветках**: кастомные поля пользовательского DTO переживают конверсию в scheduled И immediate-с-priceOpen ветках GET_SIGNAL_FN (spread structuredClone)
 - **Контекстно-независимая поверхность**: 62 ГОЛЫХ вызова (без method/execution контекстов) по всей поверхности инстанса — все геттеры, validate*, позиционные команды (partial/trailing/breakeven/DCA), deferred-команды, setScheduledSignal, waitForInit (пустой restore), stopStrategy, dispose; упавший метод называется по имени. Вне инварианта (законно контекстные): tick, backtest, setPendingSignal (`when` для onWrite), restore-ветки waitForInit
 
 ## Отладка тестов

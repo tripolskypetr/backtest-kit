@@ -1660,6 +1660,26 @@ export function listenStrategyCommit(fn: (event: StrategyCommitContract) => void
       )
     ) {
       await fn(event);
+      return;
+    }
+    // The pending signal may already be routed into a deferred user close
+    // (closePending or the full-partial auto-close): the position is closing,
+    // not gone — queued partial/trailing commits attributed to that snapshot
+    // (same signal id) must still reach the subscriber. Without this check the
+    // FINAL 100%-partial commit was silently filtered out here.
+    {
+      const status = await backtest.strategyCoreService.getStatus(
+        event.backtest,
+        event.symbol,
+        {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+      );
+      if (status.closedSignal && status.closedSignal.id === event.signalId) {
+        await fn(event);
+      }
     }
   };
 

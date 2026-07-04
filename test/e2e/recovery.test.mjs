@@ -3,7 +3,10 @@ import { test } from "worker-testbed";
 import {
   addExchangeSchema,
   addStrategySchema,
+  addRiskSchema,
   Broker,
+  PersistRiskAdapter,
+  listenError,
   PersistSignalAdapter,
   PersistStrategyAdapter,
   PersistScheduleAdapter,
@@ -1729,6 +1732,271 @@ test("RECOVERY: crash between partialProfit writes loses only the commit event, 
     pass(`partial crash window: commit event lost (accepted at-most-once), money consistent (remaining 60%, partial restored)`);
   } finally {
     unsubscribeCommit();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: кросс-хранилищное окно риск-стор ↔ сигнал-стор. Риск-мапа и
+ * pending-снапшот живут в РАЗНЫХ адаптерах: крэш между их записями может
+ * оставить позицию живой без риск-слота (undercount → превышение лимита).
+ * waitForInit при restore pending обязан ре-ассертить слот (addSignal
+ * идемпотентен по ключу strategy:exchange:symbol).
+ */
+test("RECOVERY: restored pending re-asserts its risk slot lost in a cross-store crash window", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const riskName = "recovery-reassert-risk";
+  const exchangeName = "binance-recovery-reassert";
+  const contextA = { strategyName: "recovery-reassert-a-strategy", exchangeName, frameName: "" };
+  const contextB = { strategyName: "recovery-reassert-b-strategy", exchangeName, frameName: "" };
+
+  makeExchange(exchangeName, () => basePrice);
+  addRiskSchema({
+    riskName,
+    validations: [
+      ({ activePositionCount }) => {
+        if (activePositionCount >= 1) {
+          throw new Error("recovery: risk limit is 1 concurrent position");
+        }
+      },
+    ],
+  });
+  const makeStrategy = (strategyName) => addStrategySchema({
+    strategyName,
+    interval: "1m",
+    riskName,
+    getSignal: async () => ({
+      id: `${strategyName}-id`,
+      position: "long",
+      note: strategyName,
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+    }),
+  });
+  makeStrategy(contextA.strategyName);
+  makeStrategy(contextB.strategyName);
+
+  usePersist();
+  PersistRiskAdapter.useJson();
+
+  try {
+    await resetPersist(contextA);
+    await resetPersist(contextB);
+    await PersistRiskAdapter.writePositionData([], riskName, exchangeName, new Date(t0));
+
+    const runTickA = makeRunTick(contextA);
+    const runTickB = makeRunTick(contextB);
+
+    const tick1 = await runTickA(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick A#1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    // Кросс-хранилищное окно: риск-слот «не пережил крэш» (стор пуст), а
+    // pending-снапшот пережил. Крэшим и стратегию, и риск-инстанс (иначе
+    // in-memory мапа маскирует потерю).
+    await PersistRiskAdapter.writePositionData([], riskName, exchangeName, new Date(t0 + 1 * MIN));
+    await crash(contextA);
+    await lib.riskConnectionService.clear();
+
+    const tick2 = await runTickA(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "active") {
+      fail(`tick A#2 expected "active" (restored position), got "${tick2.action}"`);
+      return;
+    }
+
+    // Ре-ассерт: слот снова в риск-сторе
+    const riskData = await PersistRiskAdapter.readPositionData(riskName, exchangeName, new Date(t0 + 1 * MIN));
+    if (riskData.length !== 1) {
+      fail(`REGRESSION: restored position must re-assert its risk slot, store has ${riskData.length} entries`);
+      return;
+    }
+
+    // Функциональное следствие: лимит 1 снова держит — стратегия B не открывается
+    const tickB = await runTickB(new Date(t0 + 2 * MIN));
+    if (tickB.action !== "idle") {
+      fail(`REGRESSION: concurrency limit must hold after restore, strategy B got "${tickB.action}"`);
+      return;
+    }
+
+    pass(`cross-store window healed: restored pending re-asserted its risk slot, limit-1 holds for strategy B`);
+  } finally {
+    PersistRiskAdapter.useDummy();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: протухшие риск-слоты (крэш-артефакты) чистятся при restore.
+ * removeSignal — единственный delete в риск-мапе: слот, чей lifetime истёк,
+ * принадлежит позиции, чья removeSignal-запись не пережила крэш — без чистки
+ * он навсегда блокировал бы общий лимит.
+ */
+test("RECOVERY: expired risk slots (crash artifacts) are pruned on restore and do not block the limit", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-06-01T00:00:00Z").getTime();
+  const riskName = "recovery-prune-risk";
+  const exchangeName = "binance-recovery-prune";
+  const context = { strategyName: "recovery-prune-strategy", exchangeName, frameName: "" };
+
+  makeExchange(exchangeName, () => basePrice);
+  addRiskSchema({
+    riskName,
+    validations: [
+      ({ activePositionCount }) => {
+        if (activePositionCount >= 2) {
+          throw new Error("recovery: risk limit is 2 concurrent positions");
+        }
+      },
+    ],
+  });
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    riskName,
+    getSignal: async () => ({
+      position: "long",
+      note: "recovery prune",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+    }),
+  });
+
+  usePersist();
+  PersistRiskAdapter.useJson();
+
+  try {
+    await resetPersist(context);
+
+    // Сеем риск-стор ДО первого обращения: один протухший слот (lifetime истёк
+    // 100 минут назад — крэш-артефакт) и один живой (чужая живая позиция)
+    const expiredSlot = ["ghost-strategy:other-exchange:ETHUSDT", {
+      position: "long", priceOpen: 40000, priceStopLoss: 38000, priceTakeProfit: 45000,
+      minuteEstimatedTime: 300, openTimestamp: t0 - 400 * MIN,
+    }];
+    const aliveSlot = ["live-strategy:other-exchange:SOLUSDT", {
+      position: "long", priceOpen: 100, priceStopLoss: 90, priceTakeProfit: 120,
+      minuteEstimatedTime: 300, openTimestamp: t0 - 10 * MIN,
+    }];
+    await PersistRiskAdapter.writePositionData([expiredSlot, aliveSlot], riskName, exchangeName, new Date(t0));
+    await lib.riskConnectionService.clear();
+
+    const runTick = makeRunTick(context);
+    // Без чистки протухший слот давал бы count=2 → лимит-2 отверг бы сигнал (idle).
+    // С чисткой: count=1 (живой) → открытие проходит.
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`REGRESSION: expired slot must be pruned on restore (limit-2 with 1 alive + 1 expired), got "${tick1.action}"`);
+      return;
+    }
+
+    const riskData = await PersistRiskAdapter.readPositionData(riskName, exchangeName, new Date(t0));
+    const keys = riskData.map(([key]) => key);
+    if (keys.includes("ghost-strategy:other-exchange:ETHUSDT")) {
+      fail(`REGRESSION: expired slot must not survive the restore persist, got keys=${JSON.stringify(keys)}`);
+      return;
+    }
+    if (!keys.includes("live-strategy:other-exchange:SOLUSDT")) {
+      fail(`alive foreign slot must survive pruning, got keys=${JSON.stringify(keys)}`);
+      return;
+    }
+
+    pass(`expired risk slot pruned on restore: limit-2 admitted the open (1 alive + 1 pruned), alive slot preserved`);
+  } finally {
+    PersistRiskAdapter.useDummy();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY (громкая смерть createSignal): DTO, ставший невалидным к моменту
+ * потребления (цена ушла), гибнет at-most-once — но теперь ГРОМКО: выделенный
+ * warn + errorEmitter (ловится listenError), троттл откатывается, слот
+ * createdSignal очищен. Раньше DTO умирал в общем GET_SIGNAL_FN-fallback.
+ */
+test("RECOVERY: createSignal DTO invalidated by price move dies loudly (listenError) at consumption", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-louddeath-strategy",
+    exchangeName: "binance-recovery-louddeath",
+    frameName: "",
+  };
+
+  let px = basePrice;
+  let getSignalCalls = 0;
+  const errors = [];
+
+  makeExchange(context.exchangeName, () => px);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      getSignalCalls++;
+      return null; // сигнал только из очереди createSignal
+    },
+  });
+
+  const unsubscribeError = listenError((error) => {
+    errors.push(String(error?.message ?? error));
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    // Сеем цену
+    const tick0 = await runTick(new Date(t0));
+    if (tick0.action !== "idle") {
+      fail(`tick #0 expected "idle", got "${tick0.action}"`);
+      return;
+    }
+
+    // DTO валиден при 50000 (SL 49000 ниже цены)
+    await inCtx(context, () => lib.strategyCoreService.createSignal(false, "BTCUSDT", {
+      position: "long",
+      note: "recovery loud death",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 1000,
+      minuteEstimatedTime: 300,
+    }, context));
+
+    // Цена падает НИЖЕ SL из DTO — при потреблении перевалидация провалится
+    px = basePrice - 1500;
+    const tick1 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick1.action !== "idle") {
+      fail(`tick #1 expected "idle" (DTO dropped), got "${tick1.action}"`);
+      return;
+    }
+
+    const loudDeath = errors.find((m) => m.includes("consumption re-validation"));
+    if (!loudDeath) {
+      fail(`REGRESSION: dedicated re-validation error expected via listenError, got ${JSON.stringify(errors)}`);
+      return;
+    }
+
+    const dataAfter = await PersistStrategyAdapter.readStrategyData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (dataAfter?.createdSignal !== null) {
+      fail(`createdSignal slot expected cleared after the drop, got ${JSON.stringify(dataAfter?.createdSignal)}`);
+      return;
+    }
+
+    // Откат троттла: собственная генерация возобновляется следующим tick
+    const callsBefore = getSignalCalls;
+    const tick2 = await runTick(new Date(t0 + 1 * MIN + 5000)); // тот же интервал
+    if (tick2.action !== "idle" || getSignalCalls !== callsBefore + 1) {
+      fail(`throttle rollback expected (getSignal re-runs within the interval), got "${tick2.action}"/calls=${getSignalCalls} (was ${callsBefore})`);
+      return;
+    }
+
+    pass(`invalidated createSignal DTO died loudly: listenError fired, slot cleared, throttle rolled back`);
+  } finally {
+    unsubscribeError();
     useDummy();
   }
 });

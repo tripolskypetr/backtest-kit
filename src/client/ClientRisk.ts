@@ -210,7 +210,22 @@ export const WAIT_FOR_INIT_FN = async (when: Date, self: ClientRisk): Promise<vo
       position.minuteEstimatedTime = Infinity;
     }
   }
-  self._activePositions = new Map(persistedPositions);
+  // Prune expired slots (crash artifacts). removeSignal is the ONLY delete in
+  // this map: a slot whose lifetime has fully elapsed belongs to a position that
+  // either already closed (its removeSignal write did not survive a crash) or is
+  // about to time-expire on the very next tick — keeping it would block the
+  // shared concurrency limit forever. Infinity-hold slots never expire here.
+  const nowMs = when.getTime();
+  const alivePositions = persistedPositions.filter(([, position]) =>
+    position && nowMs < position.openTimestamp + position.minuteEstimatedTime * 60_000
+  );
+  if (alivePositions.length !== persistedPositions.length) {
+    self.params.logger.warn("ClientRisk waitForInit: pruned expired position slots (stale crash artifacts)", {
+      riskName: self.params.riskName,
+      prunedCount: persistedPositions.length - alivePositions.length,
+    });
+  }
+  self._activePositions = new Map(alivePositions);
 };
 
 /**

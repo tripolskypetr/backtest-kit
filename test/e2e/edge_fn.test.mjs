@@ -372,25 +372,26 @@ test("100% partial profit empties the basis; position fate is pinned", async (t)
   const ok = await inMock(() => commitPartialProfit("BTCUSDT", 100), BASE + 2 * MIN + 5000, CTX);
   if (!ok) { t.fail("partialProfit(100) rejected"); return; }
   const remaining = await inMock(() => getTotalCostClosed("BTCUSDT"), BASE + 2 * MIN + 6000, CTX);
-  if (!near(remaining, 0)) { t.fail(`remaining after 100% must be 0, got ${remaining}`); return; }
+  if (remaining !== null) { t.fail(`position must be auto-closed after 100% partial (getter null), got ${remaining}`); return; }
 
   const r2 = await liveTick("BTCUSDT", BASE + 3 * MIN, CTX);
   await new Promise((r) => setTimeout(r, 100));
-  // Пиннинг фактического контракта: позиция ЖИВЁТ с нулевым базисом (active),
-  // партиал не закрывает pending — финальное закрытие остаётся за TP/SL/expiry.
-  // (Продуктовый вопрос «должен ли 100%-партиал закрывать позицию» — открыт.)
-  if (r2.action !== "active") {
-    t.fail(`pinned contract: position stays active on zero basis, got ${r2.action}`);
+  // Пиннинг НОВОГО контракта: 100%-партиал закрывает позицию — нулевой остаток
+  // маршрутизируется в deferred-close (note "full_partial_close"), следующий
+  // tick дренит closed/"closed"; зомби с нулевым базисом больше не доживает до
+  // TP и не попадает в статистику полноценной сделкой.
+  if (r2.action !== "closed" || r2.closeReason !== "closed") {
+    t.fail(`pinned contract: zero-basis position auto-closes (closed/"closed"), got ${r2.action}/${r2.closeReason}`);
     return;
   }
-  if (closes.length !== 0) { t.fail(`no close expected yet: ${closes.join(",")}`); return; }
-  px = 55500; // TP добивает зомби-позицию штатно
+  if (closes.length !== 1 || closes[0] !== "closed") { t.fail(`exactly one closed/"closed" expected, got: ${closes.join(",")}`); return; }
+  px = 55500; // рынок уходит к бывшему TP — дублей закрытия быть не должно
   const r3 = await liveTick("BTCUSDT", BASE + 4 * MIN, CTX);
-  if (r3.action !== "closed" || r3.closeReason !== "take_profit") {
-    t.fail(`zero-basis position must still close by TP: ${r3.action}/${r3.closeReason}`);
+  if (r3.action === "closed") {
+    t.fail(`duplicate close after auto-close: ${r3.action}/${r3.closeReason}`);
     return;
   }
-  t.pass("100% partial leaves an active zero-basis position; TP still closes it normally");
+  t.pass("100% partial auto-closes the zero-basis position; no ghost, no duplicate close");
 });
 
 // ===== №6: негативные аргументы =====

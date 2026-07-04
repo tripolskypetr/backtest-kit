@@ -118,13 +118,19 @@ test("DIFF: partial cap epsilon lets the final 100%-of-remaining close through f
     return;
   }
 
+  // Авто-закрытие: остаток $0 -> позиция ушла в deferred-close, геттеры пусты
   const remaining = await inCtx(context, () => lib.strategyCoreService.getTotalCostClosed(false, "BTCUSDT", context));
-  if (remaining !== 0) {
-    fail(`remaining cost basis after 100%-of-remaining close expected 0, got ${remaining}`);
+  if (remaining !== null) {
+    fail(`position must be auto-closed after 100%-of-remaining (getters null), got ${remaining}`);
+    return;
+  }
+  const tick2 = await runTick(new Date(t0 + 1 * MIN));
+  if (tick2.action !== "closed" || tick2.closeReason !== "closed" || tick2.signal.totalPartials !== 3) {
+    fail(`auto-close drain expected closed/"closed" with 3 partials, got "${tick2.action}"/"${tick2.closeReason}"/partials=${tick2.signal?.totalPartials}`);
     return;
   }
 
-  pass(`partials 30/50/100-of-remaining all executed, remaining cost basis = 0`);
+  pass(`partials 30/50/100-of-remaining all executed, zero-basis position auto-closed with 3 partials`);
 });
 
 /**
@@ -843,4 +849,71 @@ test("DIFF: every getter and command on ClientStrategy runs bare, without contex
 
   const total = Object.keys(results).length;
   pass(`${total} bare calls succeeded without method/execution contexts`);
+});
+
+/**
+ * DIFF: spread `...structuredClone(signal)` в ОБЕИХ priceOpen-ветках
+ * GET_SIGNAL_FN — кастомные поля пользовательского DTO переживают конверсию
+ * в signalRow/scheduledSignalRow (раньше доезжали только в ветке без priceOpen).
+ */
+test("DIFF: custom DTO fields survive into both priceOpen branches (scheduled and immediate)", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+
+  const contextSched = {
+    strategyName: "coverage-dtofields-sched-strategy",
+    exchangeName: "binance-coverage-dtofields",
+    frameName: "",
+  };
+  const contextImm = {
+    strategyName: "coverage-dtofields-imm-strategy",
+    exchangeName: "binance-coverage-dtofields",
+    frameName: "",
+  };
+
+  makeExchange(contextSched.exchangeName, () => basePrice);
+
+  // Ветка scheduled: priceOpen ниже рынка (long ждёт падения)
+  addStrategySchema({
+    strategyName: contextSched.strategyName,
+    interval: "1m",
+    getSignal: async () => ({
+      position: "long",
+      note: "dto fields scheduled",
+      userMeta: "scheduled-tag",
+      priceOpen: basePrice - 5000,
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 7000,
+      minuteEstimatedTime: 300,
+    }),
+  });
+
+  // Ветка immediate-с-priceOpen: long, цена УЖЕ ниже priceOpen → мгновенное открытие
+  addStrategySchema({
+    strategyName: contextImm.strategyName,
+    interval: "1m",
+    getSignal: async () => ({
+      position: "long",
+      note: "dto fields immediate",
+      userMeta: "immediate-tag",
+      priceOpen: basePrice + 1000,
+      priceTakeProfit: basePrice + 10000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+    }),
+  });
+
+  const tickSched = await makeRunTick(contextSched)(new Date(t0));
+  if (tickSched.action !== "scheduled" || tickSched.signal.userMeta !== "scheduled-tag") {
+    fail(`REGRESSION: scheduled branch must carry custom DTO fields, got "${tickSched.action}"/userMeta=${tickSched.signal?.userMeta}`);
+    return;
+  }
+
+  const tickImm = await makeRunTick(contextImm)(new Date(t0));
+  if (tickImm.action !== "opened" || tickImm.signal.userMeta !== "immediate-tag") {
+    fail(`REGRESSION: immediate-priceOpen branch must carry custom DTO fields, got "${tickImm.action}"/userMeta=${tickImm.signal?.userMeta}`);
+    return;
+  }
+
+  pass(`custom DTO fields survive: scheduled userMeta="${tickSched.signal.userMeta}", immediate userMeta="${tickImm.signal.userMeta}"`);
 });

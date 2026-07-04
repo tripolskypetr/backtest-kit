@@ -688,25 +688,35 @@ test("MANAGE: interleaved DCA and partial exits keep the dollar cost basis exact
       return;
     }
 
-    const S = lib.strategyCoreService;
-    const invested = await inCtx(context, () => S.getPositionInvestedCost(false, "BTCUSDT", context));
-    const count = await inCtx(context, () => S.getPositionInvestedCount(false, "BTCUSDT", context));
-    const remaining = await inCtx(context, () => S.getTotalCostClosed(false, "BTCUSDT", context));
-    const heldPercent = await inCtx(context, () => S.getTotalPercentClosed(false, "BTCUSDT", context));
-    const partials = await inCtx(context, () => S.getPositionPartials(false, "BTCUSDT", context));
-
+    // Авто-закрытие: profit100 (ping5) занулил остаток и маршрутизировал позицию
+    // в deferred-close — tick7 дренит закрытие closed/"closed"; финансовые
+    // снапшоты едут в самом закрытом сигнале (геттеры позиции уже пусты)
+    if (tick7.action !== "closed" || tick7.closeReason !== "closed") {
+      fail(`tick #7 expected closed/"closed" (auto-close after 100% partial), got "${tick7.action}"/"${tick7.closeReason}"`);
+      return;
+    }
+    const closedSignal = tick7.signal;
+    const invested = (closedSignal._entry ?? []).reduce((sum, e) => sum + e.cost, 0);
+    const count = closedSignal.totalEntries;
     if (invested !== 300 || count !== 3) {
       fail(`invested/count expected 300/3, got ${invested}/${count}`);
       return;
     }
-    if (Math.abs(remaining) > 1e-9 || Math.abs(heldPercent) > 1e-9) {
-      fail(`REGRESSION: after closing 100% of remaining expected 0 basis / 0% held, got ${remaining} / ${heldPercent}%`);
+    if (Math.abs(closedSignal.partialExecuted - 100) > 1e-6) {
+      fail(`REGRESSION: closed signal expected ~100% executed by partials, got ${closedSignal.partialExecuted}%`);
+      return;
+    }
+
+    const S = lib.strategyCoreService;
+    const remaining = await inCtx(context, () => S.getTotalCostClosed(false, "BTCUSDT", context));
+    if (remaining !== null) {
+      fail(`position getters must be empty after auto-close, got remaining=${remaining}`);
       return;
     }
 
     // Снапшоты: партиал #2 берёт базис $200 = остаток $100 (после 50%) + DCA $100,
     // добавленный ПОСЛЕ партиала; #3 — остаток $150
-    const snapshot = partials.map((p) => ({ t: p.type, pct: p.percent, basis: p.costBasisAtClose, entries: p.entryCountAtClose }));
+    const snapshot = (closedSignal._partial ?? []).map((p) => ({ t: p.type, pct: p.percent, basis: p.costBasisAtClose, entries: p.entryCountAtClose }));
     const expected = [
       { t: "profit", pct: 50, basis: 200, entries: 2 },
       { t: "loss", pct: 25, basis: 200, entries: 3 },
@@ -717,19 +727,15 @@ test("MANAGE: interleaved DCA and partial exits keep the dollar cost basis exact
       return;
     }
 
-    // Позиция с нулевым остатком продолжает мониториться (закрытие — забота стратегии)
-    if (tick7.action !== "active") {
-      fail(`tick #7 expected "active", got "${tick7.action}"`);
-      return;
-    }
-
+    // Финальный partial-profit коммит НЕ теряется: очередь атрибуцируется
+    // снапшоту _closedSignal; плюс само закрытие даёт close-pending
     const byAction = commits.reduce((acc, a) => ((acc[a] = (acc[a] ?? 0) + 1), acc), {});
-    if (byAction["average-buy"] !== 2 || byAction["partial-profit"] !== 2 || byAction["partial-loss"] !== 1) {
-      fail(`commit counts expected average-buy×2/partial-profit×2/partial-loss×1, got ${JSON.stringify(byAction)}`);
+    if (byAction["average-buy"] !== 2 || byAction["partial-profit"] !== 2 || byAction["partial-loss"] !== 1 || byAction["close-pending"] !== 1) {
+      fail(`commit counts expected average-buy×2/partial-profit×2/partial-loss×1/close-pending×1, got ${JSON.stringify(byAction)}`);
       return;
     }
 
-    pass(`interleaved DCA+partials exact: $300/3 entries, basis snapshots [200,200,150], remaining $0, commits ${JSON.stringify(byAction)}`);
+    pass(`interleaved DCA+partials exact: $300/3 entries, basis snapshots [200,200,150], auto-closed (closed/"closed"), commits ${JSON.stringify(byAction)}`);
   } finally {
     unsubscribePing();
     unsubscribeCommit();

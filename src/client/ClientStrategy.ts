@@ -102,6 +102,15 @@ const TIMEOUT_SYMBOL = Symbol('timeout');
 const PARTIAL_CAP_TOLERANCE_FACTOR = 1 + 1e-9;
 
 /**
+ * Относительный порог «позиция полностью закрыта партиалами»: остаток базиса
+ * меньше totalInvested × 1e-9 неотличим от нуля (тот же порядок допуска, что и
+ * PARTIAL_CAP_TOLERANCE_FACTOR). Достигнув его, partialProfit/partialLoss
+ * маршрутизируют позицию в штатный deferred-close: мониторить нечего, а
+ * TP/SL-«закрытие» нулевого остатка засоряло бы статистику полноценной сделкой.
+ */
+const PARTIAL_FULL_CLOSE_EPSILON = 1e-9;
+
+/**
  * Calls onOrderSync callback for signal-open event.
  *
  * Invoked BEFORE setPendingSignal to give the external system a chance to confirm
@@ -498,7 +507,16 @@ const PROCESS_COMMIT_QUEUE_FN = async (
   // that were already forwarded to the broker on the next restart.
   await PERSIST_STRATEGY_FN(self);
 
-  if (!self._pendingSignal) {
+  // Attribution: prefer the live pending signal; fall back to a deferred USER
+  // close snapshot (closePending / full-partial auto-close cleared the pending,
+  // but the queued partial/trailing commits belong to exactly that position and
+  // its snapshot carries the final state). Broker-confirmed TP/SL fills
+  // (_takeProfitSignal/_stopLossSignal) intentionally do NOT attribute: the
+  // whole order closed on the exchange, so queued partials are void (see the
+  // orphaned-queue recovery test).
+  const attributionSignal = self._pendingSignal ?? self._closedSignal;
+
+  if (!attributionSignal) {
     // Delivery is at-most-once: the queue was already persisted as empty above.
     // Never drop broker-confirmed operations silently — make the loss visible.
     const message = "ClientStrategy PROCESS_COMMIT_QUEUE_FN: dropping queued commits — no pending signal to attribute them to";
@@ -515,7 +533,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
 
   for (const commit of queue) {
     if (commit.action === "partial-profit") {
-      const publicSignal = TO_PUBLIC_SIGNAL("pending", self._pendingSignal, commit.currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
       await CALL_COMMIT_FN(self, {
         action: "partial-profit",
         symbol: commit.symbol,
@@ -547,7 +565,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
       continue
     }
     if (commit.action === "partial-loss") {
-      const publicSignal = TO_PUBLIC_SIGNAL("pending", self._pendingSignal, commit.currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
       await CALL_COMMIT_FN(self, {
         action: "partial-loss",
         symbol: commit.symbol,
@@ -579,7 +597,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
       continue
     }
     if (commit.action === "breakeven") {
-      const publicSignal = TO_PUBLIC_SIGNAL("pending", self._pendingSignal, commit.currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
       await CALL_COMMIT_FN(self, {
         action: "breakeven",
         symbol: commit.symbol,
@@ -610,7 +628,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
       continue
     }
     if (commit.action === "trailing-stop") {
-      const publicSignal = TO_PUBLIC_SIGNAL("pending", self._pendingSignal, commit.currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
       await CALL_COMMIT_FN(self, {
         action: "trailing-stop",
         symbol: commit.symbol,
@@ -642,7 +660,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
       continue;
     }
     if (commit.action === "trailing-take") {
-      const publicSignal = TO_PUBLIC_SIGNAL("pending", self._pendingSignal, commit.currentPrice);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
       await CALL_COMMIT_FN(self, {
         action: "trailing-take",
         symbol: commit.symbol,
@@ -674,8 +692,8 @@ const PROCESS_COMMIT_QUEUE_FN = async (
       continue;
     }
     if (commit.action === "average-buy") {
-      const publicSignal = TO_PUBLIC_SIGNAL("pending", self._pendingSignal, commit.currentPrice);
-      const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(self._pendingSignal);
+      const publicSignal = TO_PUBLIC_SIGNAL("pending", attributionSignal, commit.currentPrice);
+      const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(attributionSignal);
       await CALL_COMMIT_FN(self, {
         action: "average-buy",
         symbol: commit.symbol,
@@ -840,9 +858,39 @@ const GET_SIGNAL_FN = trycatch(
         ]);
       }
       if (self._userSignal) {
-        signal = self._userSignal;
+        const userDto = self._userSignal;
         self._userSignal = null;
         await PERSIST_STRATEGY_FN(self);
+        // Consumption re-validation against the CURRENT price: the DTO was
+        // validated in createSignal against a price that may have moved since.
+        // A now-invalid DTO dies here (at-most-once) — make that death loud and
+        // distinct (dedicated warn + errorEmitter) instead of the generic
+        // GET_SIGNAL_FN fallback, and roll back the interval throttle so the
+        // strategy's own generation resumes on the next tick (consistent with
+        // the risk/sync rejection paths).
+        if (!validateSignal(
+          {
+            ...userDto,
+            priceOpen: userDto.priceOpen ?? currentPrice,
+            minuteEstimatedTime: userDto.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
+          },
+          currentPrice,
+        )) {
+          const message = "ClientStrategy GET_SIGNAL_FN: queued createSignal DTO failed consumption re-validation (price moved since createSignal), dropped at-most-once";
+          const payload = {
+            symbol: self.params.execution.context.symbol,
+            strategyName: self.params.strategyName,
+            dtoId: userDto.id,
+            note: userDto.note,
+            currentPrice,
+          };
+          self.params.logger.warn(message, payload);
+          console.warn(message, payload);
+          errorEmitter.next(new Error(message));
+          self._lastSignalTimestamp = null;
+          return null;
+        }
+        signal = userDto;
       }
       self._userSignal = null;
     }
@@ -900,7 +948,11 @@ const GET_SIGNAL_FN = trycatch(
       if (shouldActivateImmediately) {
         // НЕМЕДЛЕННАЯ АКТИВАЦИЯ: priceOpen уже достигнут
         // Создаем активный сигнал напрямую (БЕЗ scheduled фазы)
+        // The spread comes FIRST (mirrors the no-priceOpen branch below): custom
+        // user DTO fields must survive into the row; every known key is
+        // overridden by the explicit values that follow.
         const signalRow: ISignalRow = {
+          ...structuredClone(signal),
           id: signal.id || randomString(),
           cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
           priceOpen: signal.priceOpen, // Используем priceOpen из сигнала
@@ -937,7 +989,11 @@ const GET_SIGNAL_FN = trycatch(
       }
 
       // ОЖИДАНИЕ АКТИВАЦИИ: создаем scheduled signal (risk check при активации)
+      // The spread comes FIRST (mirrors the no-priceOpen branch below): custom
+      // user DTO fields must survive into the row; every known key is
+      // overridden by the explicit values that follow.
       const scheduledSignalRow: IScheduledSignalRow = {
+        ...structuredClone(signal),
         id: signal.id || randomString(),
         cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
         priceOpen: signal.priceOpen,
@@ -1175,6 +1231,23 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       self.params.symbol
     );
     const currentTime = self.params.execution.context.when.getTime();
+
+    // Re-assert the risk slot for the restored position. The risk map and the
+    // signal snapshot live in SEPARATE persist adapters, so a crash can land
+    // between a risk write and a signal write — leaving the position alive
+    // without its slot (concurrency-limit undercount). addSignal keys by
+    // strategy:exchange:symbol, so re-adding is an idempotent overwrite; the
+    // original pendingAt anchors the slot's lifetime to the real open, not the
+    // restart. (A lost SCHEDULED reservation needs no such re-assert: activation
+    // re-runs checkSignalAndReserve, which restores it naturally.)
+    await CALL_RISK_ADD_SIGNAL_FN(
+      self,
+      self.params.symbol,
+      pendingSignal,
+      pendingSignal.pendingAt,
+      self.params.backtest
+    );
+
     await CALL_ACTIVE_CALLBACKS_FN(
       self,
       self.params.symbol,
@@ -4780,6 +4853,12 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   candles: ICandleData[],
   frameEndTime: number
 ): Promise<ScheduledProcessResult> => {
+  if (candles.length === 0) {
+    throw new Error(
+      `ClientStrategy backtest: empty candles array for scheduled signal processing (signalId=${scheduled.id}). ` +
+      `Provide at least ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles (VWAP buffer included).`
+    );
+  }
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const bufferCandlesCount = candlesCount - 1;
@@ -5238,6 +5317,12 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   candles: ICandleData[],
   frameEndTime: number
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultActive> => {
+  if (candles.length === 0) {
+    throw new Error(
+      `ClientStrategy backtest: empty candles array for pending signal processing (signalId=${signal.id}). ` +
+      `Provide at least ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles (VWAP buffer included).`
+    );
+  }
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
 
@@ -5998,6 +6083,10 @@ export class ClientStrategy implements IStrategy {
 
   /**
    * Returns how much of the position is still held, as a percentage of totalInvested.
+   *
+   * NOTE: despite the name, this returns the REMAINING (still held) percent,
+   * i.e. 100 - totalClosedPercent — the name is kept for public-API backward
+   * compatibility.
    *
    * Uses dollar-basis cost-basis replay (DCA-aware).
    * 100% means nothing was closed yet. Decreases with each partial close.
@@ -7353,10 +7442,11 @@ export class ClientStrategy implements IStrategy {
    * 4. If cancelled: returns closed result with closeReason "cancelled"
    *
    * For pending signals:
-   * 1. Iterates through ALL candles starting from the first one
-   * 2. Checks TP/SL using candle.high/low (immediate detection)
-   * 3. VWAP calculated with dynamic window (1 to CC_AVG_PRICE_CANDLES_COUNT candles)
-   * 4. Returns closed result (either TP/SL or time_expired)
+   * 1. Skips the first CC_AVG_PRICE_CANDLES_COUNT - 1 buffer candles (VWAP window)
+   * 2. Checks TP/SL against the VWAP of the last CC_AVG_PRICE_CANDLES_COUNT candles
+   *    (NOT candle high/low — only scheduled activation/cancellation uses low/high;
+   *    pending TP/SL uses VWAP, mirroring live monitoring)
+   * 3. Closes at the exact effective TP/SL level (trailing-aware) or by time_expired
    *
    * @param candles - Array of candles to process
    * @returns Promise resolving to closed signal result with PNL
@@ -8486,8 +8576,39 @@ export class ClientStrategy implements IStrategy {
       currentPrice,
     });
 
+    // Полное закрытие партиалами: остаток базиса неотличим от нуля — позиция
+    // экономически закрыта. Маршрутизируем через штатный deferred-close (как
+    // closePending): следующий tick/свеча эмитит close-pending + closed/"closed",
+    // риск-слот освобождается, а очередь коммитов атрибуцируется снапшоту
+    // _closedSignal (см. PROCESS_COMMIT_QUEUE_FN) — сам финальный партиал-коммит
+    // не теряется.
+    let fullyClosed = false;
+    {
+      const { remainingCostBasis } = getTotalClosed(this._pendingSignal);
+      const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
+      if (remainingCostBasis <= totalInvested * PARTIAL_FULL_CLOSE_EPSILON) {
+        fullyClosed = true;
+        this._closedSignal = Object.assign({}, this._pendingSignal, {
+          closeId: undefined as string | undefined,
+          closeNote: "full_partial_close",
+        });
+        this._pendingSignal = null;
+      }
+    }
+
     // Persist the queued commit so a crash before the next tick does not lose it
+    // (write-ahead: deferred close, если он есть, попадает в этот же снапшот
+    // ДО стирания pending ниже)
     await PERSIST_STRATEGY_FN(this);
+
+    if (fullyClosed && !backtest) {
+      await PersistSignalAdapter.writeSignalData(
+        null,
+        this.params.symbol,
+        this.params.strategyName,
+        this.params.exchangeName,
+      );
+    }
 
     return true;
   }
@@ -8720,8 +8841,39 @@ export class ClientStrategy implements IStrategy {
       currentPrice,
     });
 
+    // Полное закрытие партиалами: остаток базиса неотличим от нуля — позиция
+    // экономически закрыта. Маршрутизируем через штатный deferred-close (как
+    // closePending): следующий tick/свеча эмитит close-pending + closed/"closed",
+    // риск-слот освобождается, а очередь коммитов атрибуцируется снапшоту
+    // _closedSignal (см. PROCESS_COMMIT_QUEUE_FN) — сам финальный партиал-коммит
+    // не теряется.
+    let fullyClosed = false;
+    {
+      const { remainingCostBasis } = getTotalClosed(this._pendingSignal);
+      const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || (this._pendingSignal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST);
+      if (remainingCostBasis <= totalInvested * PARTIAL_FULL_CLOSE_EPSILON) {
+        fullyClosed = true;
+        this._closedSignal = Object.assign({}, this._pendingSignal, {
+          closeId: undefined as string | undefined,
+          closeNote: "full_partial_close",
+        });
+        this._pendingSignal = null;
+      }
+    }
+
     // Persist the queued commit so a crash before the next tick does not lose it
+    // (write-ahead: deferred close, если он есть, попадает в этот же снапшот
+    // ДО стирания pending ниже)
     await PERSIST_STRATEGY_FN(this);
+
+    if (fullyClosed && !backtest) {
+      await PersistSignalAdapter.writeSignalData(
+        null,
+        this.params.symbol,
+        this.params.strategyName,
+        this.params.exchangeName,
+      );
+    }
 
     return true;
   }

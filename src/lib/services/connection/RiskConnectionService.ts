@@ -11,7 +11,6 @@ import { FrameName } from "../../../interfaces/Frame.interface";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import backtest from "../../../lib";
-import { TExecutionContextService } from "../context/ExecutionContextService";
 import TimeMetaService from "../meta/TimeMetaService";
 
 /**
