@@ -542,3 +542,15 @@ Breaking changes (кандидаты на major bump):
 Проверено и признано корректным (не трогалось): ClientLoader (двухфазная загрузка require→Babel/eval с сохранением причин ошибок, циркулярный guard через seen-set, alias/overrideModule-подмены, di-kit прототипная память); порядок cwd-манипуляций в entry.ts/main.ts (cwd захватывается до chdir, flush/attachEntry резолвят от исходного); getEnv с самоочисткой до появления entrySubject.data; TelegramApiService (flood-retry с персистентным isImagesPublished, watchdog TIMEOUT_COUNTER, queued-сериализация); toTelegramHtml (балансировка тегов при обрезке, инъекция маркеров списков до санитизации); treeKill (вендоренный tree-kill); Setup.enable/clear/update; CacheLogicService (retry(2): check→warm→re-check); walker-снапшоты System.createSnapshot с восстановлением per-strategy. Копипаста между main-режимами (backtest/paper/live/walker/entry: dotenv→setup.config→loader.config→waitForInit→Setup.enable→провайдеры) — осознанная (SRP), правки применять во все копии.
 
 Замечание: `--entry` (режим для docker-compose) отсутствует в help — вероятно намеренно (внутренний флаг), не трогал.
+
+---
+
+## Аудит packages/mongo/src — второй проход (после ренеймов core)
+
+Перечитаны все 63 файла: config, BaseCRUD/BaseMap, 16 db-сервисов, 16 cache-сервисов, 16 Persist*Instance, 16 схем, utils. Дрейфа после ренеймов этой сессии нет: mongo не касается Order*-контрактов, `tsc --noEmit` против свежего types.d.ts (13:14) чистый, rollup-сборка проходит.
+
+- [x] **P2: BaseCRUD.update — omit со строкой вместо массива** — `omit(dto, <any>"id")`: сигнатура `omit(obj, keys: K[])`, а `new Set("id")` итерирует строку посимвольно → исключались поля с именами `i`/`d`, а само `id` оставалось в dto. Латентно: strict-режим mongoose молча отбрасывает неизвестный путь `id`, но поле буквально с именем `i` или `d` тихо выпадало бы из апдейта. Фикс: `omit(dto, ["id"])` (единственный вызов omit в пакете).
+
+Замечено, оставлено как есть (консистентный дизайн, не трогалось): все 16 db-сервисов пишут через `findOneAndUpdate` без `runValidators` — mongoose по умолчанию НЕ гоняет валидаторы на update-пути, поэтому `required: true`/enum на payload фактически не проверяются при upsert (и именно поэтому `writeSignalData(null)` → `$set {payload: null}` проходит мимо `required: true` — рабочая семантика очистки); `runValidators: true` есть только в BaseCRUD.update. PersistCandleInstance.readCandlesData — по одному findOne на свечу (N запросов на чтение диапазона), корректно, перф-компромисс. Redis ping-интервал без catch/unref — по ранее принятому решению.
+
+Проверено и корректно: единый паттерн id-кэша (redis id → findByFilter({_id}) → фолбэк на составной фильтр с ре-кэшированием) во всех 16 парах db+cache; ключи redis-кэшей включают все поля уникальных индексов соответствующих схем (session/recent — с symbol/backtest после миграции); уникальные составные индексы во всех 16 схемах совпадают с фильтрами upsert; `minimize: false` там, где payload может быть `{}`; soft-remove (removed + payload.removed) консистентен в Memory/Interval/Measure; candle create через `$setOnInsert` (иммутабельные свечи не перезаписываются).

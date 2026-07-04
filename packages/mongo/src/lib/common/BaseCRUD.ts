@@ -29,7 +29,7 @@ export const BaseCRUD = factory(
       });
       const updatedDocument = await this.TargetModel.findByIdAndUpdate(
         id,
-        omit(dto, <any>"id"),
+        omit(dto, <any>["id"]),
         {
           new: true,
           runValidators: true,
