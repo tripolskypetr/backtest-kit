@@ -610,3 +610,23 @@ Runtime-проб (standalone с вотчдогом, single-instance core из pa
 Перечитаны функции (math/history/other, 682 строки), контракты, tools, история 1m полностью; math-сервисы и BookData сверены структурно (первый проход был построчным, файлы с тех пор не менялись). Новых багов нет; все 11 фиксов первого прохода на месте (await formatPrice/formatQuantity в history-сервисах; date из candle.timestamp во всех 4 math; колонки Volume Trend Ratio; метки «(downside)» у фибо; VOLATILITY_WINDOW=20 в Swing; null вместо 0/1-заглушек в BookData и MicroTerm volume). Дрейфа после ренеймов нет: импортируются только Cache/getCandles/formatPrice/formatQuantity/getDate/getMode/getAveragePrice — `tsc --noEmit` против свежего types.d.ts чистый, rollup-сборка проходит.
 
 Отдельно проверено по построению: генерация таблиц колонко-ориентированная (единый массив columns → header/separator/cells из одного источника — рассинхрон невозможен); формат-функции всех колонок с null-гардом → «N/A»; TTL-каденции Cache.fn согласованы с доками функций (1m/5m/15m/30m — намеренно чаще периода анализа); trycatch-фолбэки чистят соответствующий кэш (паттерн единый по всем 9 commit-функциям).
+
+---
+
+## Аудит packages/sidekick (первый проход: src + content + template + scripts)
+
+Прочитаны все ~2700 строк: шаблонный src (.mjs), pine-исходники, cache/run-скрипты, init.mjs, все mustache-шаблоны, symbol.config.cjs. Главная верификация — «зная типы, проверить шаблонный код»: собран tsc-харнес (checkJs, paths-алиасы на свежие types.d.ts core/pinets/ui + стабы pinolog/dotenv) — **0 ошибок**: сигнатуры addExchange/Strategy/Risk/Frame/ActionSchema, хендлеры ActionBase (signalBacktest/partialProfitAvailable/breakevenAvailable), commitPartialProfit/commitTrailingStop(3 арг), parseArgs, overrideStrategySchema, поля событий IStrategyTickResult — всё соответствует актуальному API. Отдельно сверено вручную: payload риск-валидаций содержит currentSignal (IRiskValidationPayload extends IRiskCheckArgs — деструктуризация шаблона валидна); все имена плотов SIGNAL_SCHEMA обоих math-модулей 1:1 существуют в .pine и не бывают na (sl/tp статические, var-инициализация) — с ужесточённым extract() pinets не бросит.
+
+- [x] **P1: .env никогда не загружался** — dotenv в dependencies, README/init учат «configure your API keys in .env», но ни один файл не импортировал dotenv и start-скрипт без preload: CC_OLLAMA_API_KEY всегда пустой. Фикс: `import "dotenv/config"` первой строкой src/index.mjs.
+
+- [x] **P1: README/CLAUDE учили несуществующим CLI-флагам** — `--strategyName/--frameName/--exchangeName`, тогда как core parseArgs принимает `--strategy/--frame/--exchange`; со strict:false неверный флаг молча игнорировался (пользователь думает, что сменил фрейм — бектест идёт по дефолтному). Исправлены пример и таблица README + 2 места CLAUDE.
+
+- [x] **P2: сообщения риск-валидаций врали о пороге** — SLIPPAGE_THRESHOLD=0.2, а throw/note говорили «1%». Теперь throw параметрический (${SLIPPAGE_THRESHOLD}%), note «at least 0.2%» (обе копии sl/tp).
+
+- [x] **P2: formatPrice/formatQuantity — предпочтение limits.min вместо precision** — тот же дефект, что чинили в cli ExchangeSchemaService: у ccxt binance (TICK_SIZE mode) тик-сайз — это precision.price, а limits.price.min лишь совпадает с ним на большинстве рынков; limits.amount.min (minQty) может превышать шаг лота → пере-огрубление количества. Выровнено с cli-копией (precision-first + find по конечному положительному числу).
+
+- [x] **P2: dumpPlot без await** — dumpPlotData (async) не ожидался ни внутри dumpPlot обоих math-модулей, ни в вызовах из getSignal стратегии: ошибка записи дампа = unhandled rejection. Добавлены await (4 места).
+
+- [x] **P3: jsconfig.json.mustache включал types несуществующей зависимости** — @backtest-kit/signals в include (не ставится package.mustache), а реально используемый @backtest-kit/pinets отсутствовал. Заменено signals → pinets.
+
+Проверено и корректно: логика 4h-фильтра в getSignal (allowLong блокирует шорты, allowShort — лонги, allowBoth пропускает оба, noTrades — ничего); File.fromPath резолвится от cwd/config/source — init копирует content/config/source в корень проекта ✓; symbol.config.cjs (32 символа, полная форма SymbolModel, explicit priority) лежит там, где его ищет front (cwd/config/symbol.config.cjs); TP/SL ±3%/2% в pine > порога 0.2% рисков; cache/validate/run-скрипты используют актуальные API (warmCandles/checkCandles/run с exchangeName+when); init.mjs (isDirEmpty, mustache-рендер, npm install) корректен. Замечание: content-скрипты в checkJs-харнес не включались (простые, сверены чтением).

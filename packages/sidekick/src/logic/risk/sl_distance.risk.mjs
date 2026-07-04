@@ -23,10 +23,10 @@ addRiskSchema({
             : ((priceStopLoss - priceOpen) / priceOpen) * 100;
 
         if (slDistance < SLIPPAGE_THRESHOLD) {
-          throw new Error(`SL distance ${slDistance.toFixed(2)}% < 1%`);
+          throw new Error(`SL distance ${slDistance.toFixed(2)}% < ${SLIPPAGE_THRESHOLD}%`);
         }
       },
-      note: "SL distance must be at least 1%",
+      note: "SL distance must be at least 0.2%",
     },
   ],
 });

@@ -35,8 +35,8 @@ addStrategySchema({
     }
 
     {
-      math_15m.dumpPlot(signalId, symbol);
-      math_4h.dumpPlot(signalId, symbol);
+      await math_15m.dumpPlot(signalId, symbol);
+      await math_4h.dumpPlot(signalId, symbol);
     }
 
     return await math_15m.getSignal(signalId, symbol);
