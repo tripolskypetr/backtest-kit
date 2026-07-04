@@ -594,3 +594,19 @@ Runtime-проб (standalone с вотчдогом, single-instance core из pa
 - [x] **P3: JSDoc-примеры импортировали из чужого пакета** — dump.ts показывал `import { dumpSignal } from "backtest-kit"`, list.function.ts — `import { listOptimizers, addOptimizer } from "backtest-kit"`; это экспорты самого @backtest-kit/ollama. Примеры исправлены.
 
 Проверено и корректно (не трогалось): INFERENCE_TIMEOUT-обёртки трёх completion с симв. таймаутом; ClientOptimizer после рефакторинга (одна стратегия на диапазон, снапшот messages, прогресс 0→1); генерация кода (префиксные имена, train-фреймы генерируются но walker гоняет только test — осознанно, для ручных прогонов); PromptCacheService ключ по join(baseDir,path) + точечный clear (фиксы на месте); Symbol.for-брендинг Prompt/Module; setConfig с откатом на исключении.
+
+---
+
+## Аудит packages/pinets/src — второй проход (после ренеймов core)
+
+Перечитаны все 34 файла (1751 строка) целиком. Новых багов нет; фиксы первого прохода на месте (ленивый Indicator только при inputs; GET_VALUE_FN бросает на отсутствующий плот с перечислением доступных, defaultValue для опциональных; общий helpers/inference вместо трёх копий; toSignalDto с проверкой конечного положительного priceOpen; timestamp из первого плота с точкой; зарезервированный ключ "time"; расширенные QUOTE_ASSETS; валидация таймфрейма против INTERVAL_MINUTES; Symbol.for-брендинг Code/File). Дрейфа после ренеймов нет — pinets импортирует только CandleInterval/Exchange/getRawCandles/getDate/MarkdownWriter/контекст-сервисы; `tsc --noEmit` против свежего types.d.ts чистый, rollup-сборка проходит.
+
+Проверено и корректно: пять комбинаций sDate/eDate/limit в AxisProvider с look-ahead-защитой и break по untilTimestamp; клампинг eDate→context.when в CandleProvider (только при активном ExecutionContext — вне торгового контекста ограничения нет, осознанно); анкеры `^` у каждой альтернативы в regex префиксов бирж; согласованность колонок markdown-таблицы (1+keys separator vs keys+1 header); идемпотентная гонка getInstance через singleshot-фабрику; getSignal сознательно без exchangeName/when (работает только внутри торговых контекстов, в отличие от run/markdown).
+
+---
+
+## Аудит packages/signals/src — второй проход (после ренеймов core)
+
+Перечитаны функции (math/history/other, 682 строки), контракты, tools, история 1m полностью; math-сервисы и BookData сверены структурно (первый проход был построчным, файлы с тех пор не менялись). Новых багов нет; все 11 фиксов первого прохода на месте (await formatPrice/formatQuantity в history-сервисах; date из candle.timestamp во всех 4 math; колонки Volume Trend Ratio; метки «(downside)» у фибо; VOLATILITY_WINDOW=20 в Swing; null вместо 0/1-заглушек в BookData и MicroTerm volume). Дрейфа после ренеймов нет: импортируются только Cache/getCandles/formatPrice/formatQuantity/getDate/getMode/getAveragePrice — `tsc --noEmit` против свежего types.d.ts чистый, rollup-сборка проходит.
+
+Отдельно проверено по построению: генерация таблиц колонко-ориентированная (единый массив columns → header/separator/cells из одного источника — рассинхрон невозможен); формат-функции всех колонок с null-гардом → «N/A»; TTL-каденции Cache.fn согласованы с доками функций (1m/5m/15m/30m — намеренно чаще периода анализа); trycatch-фолбэки чистят соответствующий кэш (паттерн единый по всем 9 commit-функциям).
