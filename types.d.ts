@@ -7151,16 +7151,15 @@ declare function getStrategyStatus(symbol: string): Promise<StrategyStatus>;
  *
  * Automatically detects backtest/live mode from execution context.
  *
- * @param symbol - Trading pair symbol
- * @param strategyName - Strategy name to stop
+ * @param symbol - Trading pair symbol; the strategy is resolved from the active method context
  * @returns Promise that resolves when stop flag is set
  *
  * @example
  * ```typescript
- * import { stop } from "backtest-kit";
+ * import { stopStrategy } from "backtest-kit";
  *
- * // Stop strategy after some condition
- * await stop("BTCUSDT", "my-strategy");
+ * // Stop strategy after some condition (inside a strategy/action callback)
+ * await stopStrategy("BTCUSDT");
  * ```
  */
 declare function stopStrategy(symbol: string): Promise<void>;
