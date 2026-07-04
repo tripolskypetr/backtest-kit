@@ -93,14 +93,17 @@ Broker.useBrokerAdapter({
   onAverageBuyCommit: async (payload) => {
     console.log("AVERAGE_BUY", { payload });
   },
-  onSignalOpenCommit: async (payload) => {
-    console.log("SIGNAL_OPEN", { payload });
+  onOrderOpenCommit: async (payload) => {
+    console.log("ORDER_OPEN", { payload });
   },
-  onSignalCloseCommit: async (payload) => {
-    console.log("SIGNAL_CLOSE", { payload });
+  onOrderCloseCommit: async (payload) => {
+    console.log("ORDER_CLOSE", { payload });
   },
-  onOrderCheck: async (payload) => {
-    console.log("ORDER_CHECK", { payload });
+  onOrderActiveCheck: async (payload) => {
+    console.log("ORDER_ACTIVE_CHECK", { payload });
+  },
+  onOrderScheduleCheck: async (payload) => {
+    console.log("ORDER_SCHEDULE_CHECK", { payload });
   },
 })
 

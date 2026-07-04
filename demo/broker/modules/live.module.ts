@@ -94,17 +94,21 @@ Broker.useBrokerAdapter({
     console.log("AVERAGE_BUY", { payload });
     throw new Error("AVERAGE_BUY NOT ALLOWED!");
   },
-  onSignalOpenCommit: async (payload) => {
-    console.log("SIGNAL_OPEN", { payload });
-    throw new Error("SIGNAL_OPEN NOT ALLOWED!");
+  onOrderOpenCommit: async (payload) => {
+    console.log("ORDER_OPEN", { payload });
+    throw new Error("ORDER_OPEN NOT ALLOWED!");
   },
-  onSignalCloseCommit: async (payload) => {
-    console.log("SIGNAL_CLOSE", { payload });
-    throw new Error("SIGNAL_CLOSE NOT ALLOWED!");
+  onOrderCloseCommit: async (payload) => {
+    console.log("ORDER_CLOSE", { payload });
+    throw new Error("ORDER_CLOSE NOT ALLOWED!");
   },
-  onOrderCheck: async (payload) => {
-    console.log("ORDER_CHECK", { payload });
-    throw new Error("ORDER_CHECK rollback");
+  onOrderActiveCheck: async (payload) => {
+    console.log("ORDER_ACTIVE_CHECK", { payload });
+    throw new Error("ORDER_ACTIVE_CHECK rollback");
+  },
+  onOrderScheduleCheck: async (payload) => {
+    console.log("ORDER_SCHEDULE_CHECK", { payload });
+    throw new Error("ORDER_SCHEDULE_CHECK rollback");
   },
 })
 

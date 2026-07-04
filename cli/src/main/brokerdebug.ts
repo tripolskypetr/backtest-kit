@@ -4,8 +4,8 @@ import {
   BrokerBreakevenPayload,
   BrokerPartialLossPayload,
   BrokerPartialProfitPayload,
-  BrokerSignalClosePayload,
-  BrokerSignalOpenPayload,
+  BrokerOrderClosePayload,
+  BrokerOrderOpenPayload,
   BrokerTrailingStopPayload,
   BrokerTrailingTakePayload,
   Exchange,
@@ -34,10 +34,10 @@ const getBroker = singleshot(() => {
 });
 
 /** Called when a new signal is opened (position entry confirmed). */
-const commitSignalOpen = trycatch(
-  async (payload: BrokerSignalOpenPayload) => {
+const commitOrderOpen = trycatch(
+  async (payload: BrokerOrderOpenPayload) => {
     const broker = getBroker();
-    return await broker.onSignalOpenCommit(payload);
+    return await broker.onOrderOpenCommit(payload);
   },
   {
     fallback: (error) => {
@@ -48,10 +48,10 @@ const commitSignalOpen = trycatch(
 );
 
 /** Called when a new signal is closed (take-profit, stop-loss, or manual close). */
-const commitSignalClose = trycatch(
-  async (payload: BrokerSignalClosePayload) => {
+const commitOrderClose = trycatch(
+  async (payload: BrokerOrderClosePayload) => {
     const broker = getBroker();
-    return await broker.onSignalCloseCommit(payload);
+    return await broker.onOrderCloseCommit(payload);
   },
   {
     fallback: (error) => {
@@ -240,7 +240,7 @@ export const main = async () => {
 
   const run = async () => {
     if (commit === "signal-open") {
-      await commitSignalOpen({
+      await commitOrderOpen({
         type: "active",
         symbol,
         signalId,
@@ -258,7 +258,7 @@ export const main = async () => {
     }
 
     if (commit === "signal-close") {
-      await commitSignalClose({
+      await commitOrderClose({
         symbol,
         signalId,
         cost: 100,
