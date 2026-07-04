@@ -50,7 +50,12 @@ export class SymbolConnectionService {
         symbol,
         icon,
         logo: logo ?? icon,
-        priority: priority ?? idx,
+        // -idx (not idx): with the sort's ascending-index tiebreak this keeps
+        // symbols WITHOUT an explicit priority in their original list order.
+        // Must match cli FrontendProviderService.MAP_SYMBOL_CONFIG_FN, which
+        // feeds the same UI dropdown when it injects the symbol list itself;
+        // plain `idx` reversed the fallback order relative to that path.
+        priority: priority ?? -idx,
         displayName: displayName ?? symbol,
         index: idx,
         ...other,
