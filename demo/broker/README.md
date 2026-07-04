@@ -31,7 +31,7 @@ A broker adapter is usually written in isolation — a module that *looks* like 
 
 ### 5. End-to-end test of the strategy
 
-This demo collapses that loop into a full end-to-end test. The strategy runs inside the real framework — same commit pipeline, same exchange wiring, same transactional path as production — but you fire each hook **on demand** by clicking a button instead of waiting for a signal. Open a position and you immediately know whether `onSignalOpenCommit` succeeded or threw; no waiting for the market, no synthetic test double that drifts from reality. You exercise the whole path — strategy, framework, broker, exchange — in the environment it will actually run in, and get the pass/fail answer in seconds instead of hours.
+This demo collapses that loop into a full end-to-end test. The strategy runs inside the real framework — same commit pipeline, same exchange wiring, same transactional path as production — but you fire each hook **on demand** by clicking a button instead of waiting for a signal. Open a position and you immediately know whether `onOrderOpenCommit` succeeded or threw; no waiting for the market, no synthetic test double that drifts from reality. You exercise the whole path — strategy, framework, broker, exchange — in the environment it will actually run in, and get the pass/fail answer in seconds instead of hours.
 
 ## Project Structure
 
@@ -81,11 +81,11 @@ Broker.useBrokerAdapter({
   onAverageBuyCommit: async (payload) => {
     console.log("AVERAGE_BUY", { payload });
   },
-  onSignalOpenCommit: async (payload) => {
-    console.log("SIGNAL_OPEN", { payload });
+  onOrderOpenCommit: async (payload) => {
+    console.log("ORDER_OPEN", { payload });
   },
-  onSignalCloseCommit: async (payload) => {
-    console.log("SIGNAL_CLOSE", { payload });
+  onOrderCloseCommit: async (payload) => {
+    console.log("ORDER_CLOSE", { payload });
   },
 });
 
@@ -102,20 +102,20 @@ Broker.useBrokerAdapter({
     console.log("AVERAGE_BUY", { payload });
     throw new Error("AVERAGE_BUY NOT ALLOWED!");
   },
-  onSignalOpenCommit: async (payload) => {
-    console.log("SIGNAL_OPEN", { payload });
-    throw new Error("SIGNAL_OPEN NOT ALLOWED!");
+  onOrderOpenCommit: async (payload) => {
+    console.log("ORDER_OPEN", { payload });
+    throw new Error("ORDER_OPEN NOT ALLOWED!");
   },
-  onSignalCloseCommit: async (payload) => {
-    console.log("SIGNAL_CLOSE", { payload });
-    throw new Error("SIGNAL_CLOSE NOT ALLOWED!");
+  onOrderCloseCommit: async (payload) => {
+    console.log("ORDER_CLOSE", { payload });
+    throw new Error("ORDER_CLOSE NOT ALLOWED!");
   },
 });
 
 Broker.enable();
 ```
 
-When a hook throws, the framework logs the payload, skips the mutation (internal state is untouched), and retries on the next tick. The UI surfaces the thrown message back to the operator — the same text the broker raised, e.g. `SIGNAL_OPEN NOT ALLOWED!`.
+When a hook throws, the framework logs the payload, skips the mutation (internal state is untouched), and retries on the next tick. The UI surfaces the thrown message back to the operator — the same text the broker raised, e.g. `ORDER_OPEN NOT ALLOWED!`.
 
 ## Reaching Manual Control from `/`
 
@@ -136,9 +136,9 @@ Each button on the Manual Control page opens a short confirmation form; submitti
 
 | Button            | Broker hook           |
 |-------------------|-----------------------|
-| Open Position     | `onSignalOpenCommit`  |
+| Open Position     | `onOrderOpenCommit`  |
 | Commit Averaging  | `onAverageBuyCommit`  |
-| Close Position    | `onSignalCloseCommit` |
+| Close Position    | `onOrderCloseCommit` |
 | Commit Breakeven  | stop-loss adjustment  |
 
 In **paper** mode the hook logs and the action lands; in **live** mode the hook throws and the action is rolled back. Same buttons, same commands — only the loaded module differs.
