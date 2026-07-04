@@ -16,6 +16,10 @@ export const toPlainString = (content: string): string => {
 
     let telegramHtml = md.render(content);
 
+    // transformTags не умеет вставлять текст (li: () => "• " молча теряет
+    // маркер), поэтому маркеры списков инъектируются в HTML до санитизации
+    telegramHtml = telegramHtml.replace(/<li>/g, "<li>• ");
+
     telegramHtml = sanitizeHtml(telegramHtml, {
         allowedTags: [
             "b",

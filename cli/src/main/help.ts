@@ -32,7 +32,7 @@ Backtest flags:
   --strategy    <string>   Strategy name from addStrategySchema (default: first registered)
   --exchange    <string>   Exchange name from addExchangeSchema (default: first registered)
   --frame       <string>   Frame name from addFrameSchema (default: first registered)
-  --cacheInterval <string> Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 4h")
+  --cacheInterval <string> Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 1h, 4h")
   --noCache                Skip candle cache warming before the run
   --noFlush                Skip removing report/log/markdown/agent folders before backtest run
   --verbose                Log every candle fetch to stdout
@@ -42,7 +42,7 @@ Backtest flags:
 Walker flags (--walker):
 
   --symbol        <string>   Trading pair (default: BTCUSDT)
-  --cacheInterval <string>   Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 4h")
+  --cacheInterval <string>   Comma-separated intervals to pre-cache (default: "1m, 15m, 30m, 1h, 4h")
   --noCache                  Skip candle cache warming before the run
   --noFlush                  Skip removing report/log/markdown/agent folders before walker run
   --verbose                  Log every candle fetch to stdout
@@ -50,8 +50,10 @@ Walker flags (--walker):
   --json                     Save results as JSON to ./dump/<output>.json
   --markdown                 Save report as Markdown to ./dump/<output>.md
 
-  Each positional argument is a strategy entry point. All strategy files are loaded without
-  changing process.cwd() — .env is read from the working directory only.
+  Each positional argument is a strategy entry point. While an entry point is loaded
+  (and again before its strategy runs) process.cwd() is switched to its directory and
+  restored afterwards; .env is read from the launch directory first, then from the
+  entry point directory (the latter wins).
   addWalkerSchema is called automatically using the registered exchange and frame.
   After comparison completes the report is printed to stdout (or saved if --json/--markdown).
 
@@ -109,6 +111,7 @@ Candle dump flags (--dump):
   --output      <string>   Output file base name (default: {SYMBOL}_{LIMIT}_{TIMEFRAME}_{TIMESTAMP})
   --json                   Save as JSON array to ./dump/<output>.json
   --jsonl                  Save as JSONL to ./dump/<output>.jsonl
+  --markdown               Save as Markdown table to ./dump/<output>.md
 
   Module file ./modules/dump.module is loaded automatically if it exists.
 

@@ -182,7 +182,13 @@ const CALCULATE_FN = async (
     );
   }
 
-  // Apply max position percentage constraint
+  // Apply the minimum size FIRST: the risk caps below have the final word,
+  // so a configured floor can never push the quantity above a risk limit
+  if (schema.minPositionSize !== undefined) {
+    quantity = Math.max(quantity, schema.minPositionSize);
+  }
+
+  // Apply max position percentage constraint (risk cap)
   if (schema.maxPositionPercentage !== undefined) {
     const maxByPercentage =
       (params.accountBalance * schema.maxPositionPercentage) /
@@ -191,11 +197,7 @@ const CALCULATE_FN = async (
     quantity = Math.min(quantity, maxByPercentage);
   }
 
-  // Apply min/max absolute constraints
-  if (schema.minPositionSize !== undefined) {
-    quantity = Math.max(quantity, schema.minPositionSize);
-  }
-
+  // Apply max absolute constraint (risk cap)
   if (schema.maxPositionSize !== undefined) {
     quantity = Math.min(quantity, schema.maxPositionSize);
   }

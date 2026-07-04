@@ -1,4 +1,4 @@
-import { connect, ConnectionStates } from "mongoose";
+import { ConnectionStates } from "mongoose";
 
 import { errorData, singleshot, sleep } from "functools-kit";
 import { inject } from "../../core/di";
@@ -22,6 +22,44 @@ const waitForConnect = (mongoose: Mongoose, self: MongooseService) =>
     });
   });
 
+/**
+ * Attaches connection lifecycle listeners exactly once.
+ * Wrapped in singleshot so waitForInit retries (after a timeout self-clear)
+ * do not stack duplicate listeners.
+ */
+const LISTEN_EVENTS_FN = singleshot(
+  (mongoose: Mongoose, self: MongooseService) => {
+    mongoose.connection.on("error", (err) => {
+      self.loggerService.log("mongooseService Mongo error", {
+        error: errorData(err),
+      });
+      throw new (class extends Error {
+        constructor() {
+          super("mongooseService Mongo error");
+        }
+        originalError = errorData(err);
+      })();
+    });
+
+    mongoose.connection.on("disconnected", () => {
+      self.loggerService.log("mongooseService disconnected from the database.");
+    });
+
+    mongoose.connection.on("reconnected", () => {
+      self.loggerService.log("mongooseService reconnected to the database.");
+    });
+
+    process.on("SIGINT", async () => {
+      await mongoose.connection.close();
+    });
+  }
+);
+
+/**
+ * Lazy Mongo bootstrap: nothing connects at package import time.
+ * The connection is dialed on the first `waitForInit()` call, which happens
+ * when a persistence adapter is actually used (see utils/waitForInit).
+ */
 export class MongooseService {
 
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -29,6 +67,7 @@ export class MongooseService {
   public waitForInit = singleshot(async () => {
     this.loggerService.log("mongooseService waitForInit");
     const mongoose = await getMongo();
+    LISTEN_EVENTS_FN(mongoose, this);
     if (mongoose.connection.readyState === CONNECTED_STATE) {
       return mongoose;
     }
@@ -42,40 +81,6 @@ export class MongooseService {
     }
     return mongoose;
   });
-
-  protected init = async () => {
-    this.loggerService.log("mongooseService init");
-
-    const mongoose = await this.waitForInit();
-
-    mongoose.connection.on("connected", () => {
-      this.loggerService.log("mongooseService Mongo connected to the database");
-    });
-
-    mongoose.connection.on("error", (err) => {
-      this.loggerService.log("mongooseService Mongo error", {
-        error: errorData(err),
-      });
-      throw new (class extends Error {
-        constructor() {
-          super("mongooseService Mongo error");
-        }
-        originalError = errorData(err);
-      })();
-    });
-
-    mongoose.connection.on("disconnected", () => {
-      this.loggerService.log("mongooseService disconnected from the database.");
-    });
-
-    mongoose.connection.on("reconnected", () => {
-      this.loggerService.log("mongooseService reconnected to the database.");
-    });
-
-    process.on("SIGINT", async () => {
-      await mongoose.connection.close();
-    });
-  };
 }
 
 export default MongooseService;

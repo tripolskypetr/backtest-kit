@@ -34,7 +34,7 @@ const TRANSPILE_FN = memoize(
     const module = { exports: {} as Record<string, unknown> };
     const exports = module.exports;
     try {
-      eval(self.params.babel.transpile(code));
+      eval(self.params.babel.transpile(code, path));
     } catch (error) {
       console.log(
         `Error during transpilation error=\`${getErrorMessage(error)}\` path=\`${path}\` __filename=\`${__filename}\` __dirname=\`${__dirname}\``,
@@ -52,31 +52,62 @@ const TRANSPILE_FN = memoize(
   }
 );
 
-const REQUIRE_ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<string>) => {
+/**
+ * Wrapper distinguishing "module loaded" from "loader failed": a module whose
+ * exports are falsy (module.exports = null / "" / false) is still a successful
+ * load. Checking the raw exports for truthiness executed such modules TWICE
+ * (native require, then Babel/eval) and rejected them anyway.
+ */
+type EntryResult = { exports: any } | null;
+
+const REQUIRE_ENTRY_FACTORY = (
+  filePath: string,
+  self: ClientLoader,
+  seen: Set<string>,
+  errors: unknown[],
+): EntryResult => {
   if (__IS_ESM__) {
     return null;
   }
   const baseRequire = CREATE_BASE_REQUIRE_FN(self, seen);
   try {
-    return baseRequire(filePath);
-  } catch {
+    return { exports: baseRequire(filePath) };
+  } catch (error) {
+    // Expected for TS/TSX sources (native require can't parse them) — the Babel
+    // path below handles those. Keep the error so a total failure reports why.
+    errors.push(error);
     return null;
   }
 };
 
-const BABEL_ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<string>) => {
+const BABEL_ENTRY_FACTORY = (
+  filePath: string,
+  self: ClientLoader,
+  seen: Set<string>,
+  errors: unknown[],
+): EntryResult => {
   try {
     const resolvedPath = path.resolve(self.__dirname, filePath);
     const code = fs.readFileSync(resolvedPath, "utf-8");
     const child = self.fork(path.dirname(resolvedPath));
-    const { module } = TRANSPILE_FN(resolvedPath, code, child, CREATE_BASE_REQUIRE_FN(child, seen));
-    if (!USE_ESMODULE_DEFAULT) {
-      return module.exports;
+    const transpiled = TRANSPILE_FN(resolvedPath, code, child, CREATE_BASE_REQUIRE_FN(child, seen));
+    if (!transpiled) {
+      // TRANSPILE_FN already reported the error and scheduled kill(-1)
+      return null;
     }
-    return "default" in module.exports
-      ? module.exports.default
-      : module.exports;
-  } catch {
+    const { module } = transpiled;
+    if (!USE_ESMODULE_DEFAULT) {
+      return { exports: module.exports };
+    }
+    return {
+      exports: "default" in module.exports
+        ? module.exports.default
+        : module.exports,
+    };
+  } catch (error) {
+    // Never swallow the cause: a nested "Circular dependency detected" (or any
+    // real load error) must surface instead of a generic "Failed to load module".
+    errors.push(error);
     return null;
   }
 };
@@ -128,17 +159,19 @@ const GET_RESOLVED_EXT_FN = (filePath: string) => {
 };
 
 const ENTRY_FACTORY = (filePath: string, self: ClientLoader, seen: Set<string>) => {
+  const errors: unknown[] = [];
   {
-    let result: any = null;
-    if ((result = REQUIRE_ENTRY_FACTORY(filePath, self, seen))) {
-      return result;
+    let result: EntryResult = null;
+    if ((result = REQUIRE_ENTRY_FACTORY(filePath, self, seen, errors))) {
+      return result.exports;
     }
-    if ((result = BABEL_ENTRY_FACTORY(filePath, self, seen))) {
-      return result;
+    if ((result = BABEL_ENTRY_FACTORY(filePath, self, seen, errors))) {
+      return result.exports;
     }
   }
+  const causes = errors.map(getErrorMessage).filter(Boolean).join("; ");
   throw new Error(
-    `Failed to load module at ${filePath} (basepath: ${self.params.path})`,
+    `Failed to load module at ${filePath} (basepath: ${self.params.path})${causes ? ` caused by: ${causes}` : ""}`,
   );
 };
 

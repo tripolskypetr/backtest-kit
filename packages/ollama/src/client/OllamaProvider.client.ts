@@ -404,7 +404,12 @@ export class OllamaProvider implements IProvider {
             continue;
           }
 
-          set(validation.data, "_context", this.contextService.context);
+          {
+            // apiKey must never reach the outline result: it gets dumped to
+            // markdown files and forwarded to downstream consumers.
+            const { inference, model } = this.contextService.context;
+            set(validation.data, "_context", { inference, model });
+          }
 
           const result = {
             role: "assistant" as const,

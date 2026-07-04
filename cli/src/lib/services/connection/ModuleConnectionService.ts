@@ -41,8 +41,8 @@ const LOAD_MODULE_MODULE_FN = async (
         await self.loaderService.import(filePath, baseDir);
         return true;
       }
-    } catch {
-      console.warn(`Module module import failed filePath=${filePath} baseDir=${baseDir}`);
+    } catch (error) {
+      console.warn(`Module import failed filePath=${filePath} baseDir=${baseDir}`, error);
       kill(-1);
       return false;
     }

@@ -41,8 +41,8 @@ const LOAD_CONFIG_CONFIG_FN = async (
       if (await self.loaderService.check(filePath, baseDir)) {
         return await self.loaderService.import(filePath, baseDir);
       }
-    } catch {
-      console.warn(`Module module import failed filePath=${filePath} baseDir=${baseDir}`);
+    } catch (error) {
+      console.warn(`Config import failed filePath=${filePath} baseDir=${baseDir}`, error);
       kill(-1);
       return;
     }

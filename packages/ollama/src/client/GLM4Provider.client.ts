@@ -156,7 +156,7 @@ export class GLM4Provider implements IProvider {
     });
 
     const result = {
-      content: content!,
+      content: content ?? "",
       mode,
       agentName,
       role,

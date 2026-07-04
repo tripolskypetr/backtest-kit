@@ -5,9 +5,9 @@ import {
   History,
   useActualRef,
   ActionIcon,
-  ttl,
   Async,
 } from "react-declarative";
+import { ttl } from "../../utils/ttl";
 import { ArrowBack, Close, Print, Search } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";

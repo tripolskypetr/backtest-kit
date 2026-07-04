@@ -1537,9 +1537,20 @@ interface RiskContract {
 }
 
 /**
- * Base fields shared by all signal sync events.
+ * Base fields shared by all order sync events.
  */
-interface SignalSyncBase {
+interface OrderSyncBase {
+    /**
+     * Which order the sync gate is about:
+     * - "active" — the position order: immediate open, activation fill of a resting
+     *   order, and every close. Reject (false/throw) skips the open/close; a rejected
+     *   fresh open rolls back the interval throttle and retries on the next tick.
+     * - "schedule" — the resting entry order being PLACED when a scheduled signal is
+     *   created (action "signal-open" only). Reject means the exchange did not accept
+     *   the resting order: the scheduled signal is NOT registered, the risk
+     *   reservation is released and the placement retries on the next tick.
+     */
+    type: "schedule" | "active";
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Strategy name that generated this signal */
@@ -1573,7 +1584,7 @@ interface SignalSyncBase {
  * - External order sync services
  * - Audit/logging pipelines
  */
-interface SignalOpenContract extends SignalSyncBase {
+interface OrderOpenContract extends OrderSyncBase {
     /** Discriminator for signal-open action */
     action: "signal-open";
     /** Market price at the moment of activation (VWAP or candle average) */
@@ -1628,7 +1639,7 @@ interface SignalOpenContract extends SignalSyncBase {
  * - External order sync services
  * - Audit/logging pipelines
  */
-interface SignalCloseContract extends SignalSyncBase {
+interface OrderCloseContract extends OrderSyncBase {
     /** Discriminator for signal-close action */
     action: "signal-close";
     /** Market price at the moment of close */
@@ -1671,27 +1682,36 @@ interface SignalCloseContract extends SignalSyncBase {
     totalPartials: number;
 }
 /**
- * Discriminated union for signal sync events.
+ * Discriminated union for order sync events.
  *
  * Emitted to allow external systems to synchronize with the framework's
- * limit order lifecycle: open (limit filled) and close (position exited).
+ * order lifecycle: open (type "active" — immediate/activation fill; type
+ * "schedule" — placement of the resting entry order at scheduled-signal
+ * creation) and close (position exited, always type "active").
  *
- * Note: Only covers the scheduled → pending → closed lifecycle.
- * Signals that were never activated (cancelled scheduled signals) do NOT emit SignalOpenContract.
+ * Note: cancelled scheduled signals do NOT emit OrderOpenContract — their
+ * teardown goes through the schedule-event channel (Broker.commitScheduleCancelled).
  */
-type SignalSyncContract = SignalOpenContract | SignalCloseContract;
+type OrderSyncContract = OrderOpenContract | OrderCloseContract;
 
 /**
- * Signal pending-ping sync event.
+ * Signal order-ping sync event.
  *
- * Emitted on every live tick while a pending signal (open position) is being monitored,
- * BEFORE the framework evaluates TP/SL/time completion. It asks the external order
- * management system whether the corresponding order is STILL pending (open) on the exchange.
+ * Emitted on every live tick while a signal is being monitored, BEFORE the framework
+ * evaluates completion. It asks the external order management system whether the
+ * corresponding order is STILL open on the exchange. Fires for BOTH monitored states,
+ * discriminated by `type`:
+ * - `type: "active"` — a pending signal (open position); the order backing the position.
+ * - `type: "schedule"` — a scheduled signal; the resting entry order awaiting activation.
  *
  * Listener contract (mirrors syncSubject semantics):
  * - Return true (or do nothing) — the order is still open on the exchange, keep monitoring.
  * - Return false OR throw — the order is no longer open on the exchange (filled, cancelled,
- *   liquidated externally). The framework closes the pending signal with closeReason "closed".
+ *   liquidated externally). For "active" the framework closes the pending signal with
+ *   closeReason "closed"; for "schedule" it cancels the scheduled signal (reason "user").
+ *   NOTE for "schedule": if the resting order actually FILLED, confirm it via
+ *   activateScheduled/commitActivateScheduled instead of failing the ping — a failed ping
+ *   is a terminal cancel, not an activation.
  *
  * Backtest never emits this event — there is no live exchange to query.
  *
@@ -1699,9 +1719,11 @@ type SignalSyncContract = SignalOpenContract | SignalCloseContract;
  * - Broker adapter via `onOrderCheck` (syncPendingSubject subscription)
  * - Registered actions via `orderCheck` / `onOrderCheck`
  */
-interface SignalPingContract {
+interface OrderCheckContract {
     /** Discriminator for pending-ping action */
     action: "signal-ping";
+    /** Monitored state: "active" — open position order, "schedule" — resting entry order */
+    type: "schedule" | "active";
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Strategy name that generated this signal */
@@ -2159,20 +2181,24 @@ interface IActionCallbacks {
      * @param frameName - Timeframe identifier
      * @param backtest - True for backtest mode, false for live trading
      */
-    onSignalSync(event: SignalSyncContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    onOrderSync(event: OrderSyncContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
     /**
      * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
      * to confirm the order is still pending (open) on the exchange.
      *
+     * Fires for both monitored states, discriminated by `event.type`: "active" — pending signal
+     * (open position); "schedule" — scheduled signal (resting entry order awaiting activation).
+     *
      * Query the exchange by `event.signalId` and THROW ONLY when the order is NOT FOUND by that id
      * (filled, cancelled, or liquidated externally) — the framework then closes the position with
-     * closeReason "closed".
+     * closeReason "closed" (type "active") or cancels the scheduled signal with reason "user"
+     * (type "schedule").
      *
      * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
      * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
      * position. Throw exclusively on a confirmed "order not found by id" result.
      *
-     * NOTE: Like onSignalSync, exceptions from this method are NOT swallowed. They propagate up to
+     * NOTE: Like onOrderSync, exceptions from this method are NOT swallowed. They propagate up to
      * CREATE_SYNC_PENDING_FN which catches them and returns false.
      *
      * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker `onOrderCheck`.
@@ -2189,7 +2215,7 @@ interface IActionCallbacks {
      * @param frameName - Timeframe identifier
      * @param backtest - True for backtest mode, false for live trading
      */
-    onOrderCheck(event: SignalPingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    onOrderCheck(event: OrderCheckContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 }
 /**
  * Action schema registered via addActionSchema().
@@ -2489,14 +2515,14 @@ interface IAction {
      * `onSignalOpenCommit` / `onSignalCloseCommit`. Throw on "signal-open" → open rolls back to idle
      * (scheduled activation cancelled); throw on "signal-close" → close skipped, position stays open;
      * retried next tick. Same `syncSubject` emission as the Broker commit hooks (collapsed to false by
-     * CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onSignalSync} callback.
+     * CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
      *
      * @deprecated This method is not recommended for use. Implement custom logic in signal(), signalLive(), or signalBacktest() instead.
      * If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() instead.
-     * If Action::signalSync throws the exchange will not execute the order!
+     * If Action::orderSync throws the exchange will not execute the order!
      * @param event - Sync event with action "signal-open" or "signal-close"
      */
-    signalSync(event: SignalSyncContract): void | Promise<void>;
+    orderSync(event: OrderSyncContract): void | Promise<void>;
     /**
      * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
      * to confirm the order is still pending (open) on the exchange.
@@ -2519,10 +2545,11 @@ interface IAction {
      *
      * @deprecated This method is not recommended for use. Exchange integration should be implemented
      * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
-     * If Action::orderCheck throws the framework will close the position with closeReason "closed"!
-     * @param event - Pending-ping event with action "signal-ping"
+     * If Action::orderCheck throws the framework will close the position with closeReason "closed"
+     * (event.type "active") or cancel the scheduled signal (event.type "schedule")!
+     * @param event - Order-ping event with action "signal-ping" and type "schedule" | "active"
      */
-    orderCheck(event: SignalPingContract): void | Promise<void>;
+    orderCheck(event: OrderCheckContract): void | Promise<void>;
     /**
      * Cleans up resources and subscriptions when action handler is no longer needed.
      *
@@ -6093,6 +6120,9 @@ declare function commitAverageBuy(symbol: string, cost?: number): Promise<boolea
  *
  * Automatically detects backtest/live mode from execution context.
  *
+ * @deprecated The name is misleading — the function returns the HELD share,
+ * not the closed one. Use {@link getTotalPercentHeld} instead.
+ *
  * @param symbol - Trading pair symbol
  * @returns Promise<number> - held percentage (0–100)
  *
@@ -6111,6 +6141,9 @@ declare function getTotalPercentClosed(symbol: string): Promise<number>;
  *
  * Automatically detects backtest/live mode from execution context.
  *
+ * @deprecated The name is misleading — the function returns the REMAINING
+ * cost basis, not the closed one. Use {@link getRemainingCostBasis} instead.
+ *
  * @param symbol - Trading pair symbol
  * @returns Promise<number> - held cost basis in dollars
  *
@@ -6123,6 +6156,44 @@ declare function getTotalPercentClosed(symbol: string): Promise<number>;
  * ```
  */
 declare function getTotalCostClosed(symbol: string): Promise<number>;
+/**
+ * Returns the percentage of the position currently held (not yet closed by partials).
+ * 100 = nothing has been closed (full position), 0 = fully closed.
+ * Correctly accounts for DCA entries between partial closes.
+ *
+ * Correctly-named alias for {@link getTotalPercentClosed}.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise<number> - held percentage (0–100)
+ *
+ * @example
+ * ```typescript
+ * import { getTotalPercentHeld } from "backtest-kit";
+ *
+ * const heldPct = await getTotalPercentHeld("BTCUSDT");
+ * console.log(`Holding ${heldPct}% of position`);
+ * ```
+ */
+declare function getTotalPercentHeld(symbol: string): Promise<number>;
+/**
+ * Returns the remaining cost basis in dollars — how much of the position is
+ * still held (not yet closed by partials). Correctly accounts for DCA entries
+ * between partial closes.
+ *
+ * Correctly-named alias for {@link getTotalCostClosed}.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise<number> - remaining cost basis in dollars
+ *
+ * @example
+ * ```typescript
+ * import { getRemainingCostBasis } from "backtest-kit";
+ *
+ * const remaining = await getRemainingCostBasis("BTCUSDT");
+ * console.log(`Holding $${remaining} of position`);
+ * ```
+ */
+declare function getRemainingCostBasis(symbol: string): Promise<number>;
 /**
  * Returns the currently active pending signal for the strategy.
  * If no active signal exists, returns null.
@@ -7080,16 +7151,15 @@ declare function getStrategyStatus(symbol: string): Promise<StrategyStatus>;
  *
  * Automatically detects backtest/live mode from execution context.
  *
- * @param symbol - Trading pair symbol
- * @param strategyName - Strategy name to stop
+ * @param symbol - Trading pair symbol; the strategy is resolved from the active method context
  * @returns Promise that resolves when stop flag is set
  *
  * @example
  * ```typescript
- * import { stop } from "backtest-kit";
+ * import { stopStrategy } from "backtest-kit";
  *
- * // Stop strategy after some condition
- * await stop("BTCUSDT", "my-strategy");
+ * // Stop strategy after some condition (inside a strategy/action callback)
+ * await stopStrategy("BTCUSDT");
  * ```
  */
 declare function stopStrategy(symbol: string): Promise<void>;
@@ -9665,9 +9735,9 @@ declare function listenValidation(fn: (error: Error) => void): () => void;
  *
  * @example
  * ```typescript
- * import { listenPartialProfit } from "./function/event";
+ * import { listenPartialProfitAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialProfit((event) => {
+ * const unsubscribe = listenPartialProfitAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% profit`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -9721,9 +9791,9 @@ declare function listenPartialProfitAvailableOnce(filterFn: (event: PartialProfi
  *
  * @example
  * ```typescript
- * import { listenPartialLoss } from "./function/event";
+ * import { listenPartialLossAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialLoss((event) => {
+ * const unsubscribe = listenPartialLossAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% loss`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -9778,9 +9848,9 @@ declare function listenPartialLossAvailableOnce(filterFn: (event: PartialLossCon
  *
  * @example
  * ```typescript
- * import { listenBreakeven } from "./function/event";
+ * import { listenBreakevenAvailable } from "./function/event";
  *
- * const unsubscribe = listenBreakeven((event) => {
+ * const unsubscribe = listenBreakevenAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached breakeven`);
  *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
  *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);
@@ -10197,7 +10267,7 @@ declare function listenStrategyCommitOnce(filterFn: (event: StrategyCommitContra
  * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to stop listening
  */
-declare function listenSync(fn: (event: SignalSyncContract) => void, warned?: boolean): () => void;
+declare function listenSync(fn: (event: OrderSyncContract) => void, warned?: boolean): () => void;
 /**
  * Subscribes to filtered signal synchronization events with one-time execution.
  * If throws position is not being opened/closed until the async function completes. Useful for synchronizing with external systems.
@@ -10206,7 +10276,30 @@ declare function listenSync(fn: (event: SignalSyncContract) => void, warned?: bo
  * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to cancel the listener before it fires
  */
-declare function listenSyncOnce(filterFn: (event: SignalSyncContract) => boolean, fn: (event: SignalSyncContract) => void, warned?: boolean): () => void;
+declare function listenSyncOnce(filterFn: (event: OrderSyncContract) => boolean, fn: (event: OrderSyncContract) => void, warned?: boolean): () => void;
+/**
+ * Subscribes to order-check ping events with queued async processing.
+ * If throws, the order behind the monitored signal is treated as no longer open on the
+ * exchange until the async function completes. Useful for synchronizing with external systems.
+ *
+ * Emits on every live tick while a signal is monitored, BEFORE completion evaluation,
+ * discriminated by `event.type`: "active" — pending signal (open position), "schedule" —
+ * scheduled signal (resting entry order). Backtest never emits this event.
+ *
+ * @param fn - Callback function to handle check events. If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenCheck(fn: (event: OrderCheckContract) => void, warned?: boolean): () => void;
+/**
+ * Subscribes to filtered order-check ping events with one-time execution.
+ * If throws, the order behind the monitored signal is treated as no longer open on the
+ * exchange until the async function completes. Useful for synchronizing with external systems.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenCheckOnce(filterFn: (event: OrderCheckContract) => boolean, fn: (event: OrderCheckContract) => void, warned?: boolean): () => void;
 /**
  * Subscribes to highest profit events with queued async processing.
  * Emits when a signal reaches a new highest profit level during its lifecycle.
@@ -10688,8 +10781,8 @@ declare function getMinutesSinceLatestSignalCreated(symbol: string): Promise<num
 /**
  * Reads the state value scoped to the current active signal.
  *
- * Resolves the active pending signal automatically from execution context.
- * If no pending signal exists, logs a warning and returns the initialValue.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Throws if neither a pending nor a scheduled signal exists.
  *
  * Automatically detects backtest/live mode from execution context.
  *
@@ -10726,8 +10819,8 @@ declare function getSignalState<Value extends object = object>(symbol: string, d
 /**
  * Updates the state value scoped to the current active signal.
  *
- * Resolves the active pending signal automatically from execution context.
- * If no pending signal exists, logs a warning and returns without writing.
+ * Resolves the active pending or scheduled signal automatically from execution context.
+ * Throws if neither a pending nor a scheduled signal exists.
  *
  * Automatically detects backtest/live mode from execution context.
  *
@@ -12742,7 +12835,7 @@ interface TrailingTakeCommitNotification {
  * Signal sync open notification.
  * Emitted when a scheduled (limit order) signal is activated and the position is opened.
  */
-interface SignalSyncOpenNotification {
+interface OrderSyncOpenNotification {
     /** Discriminator for type-safe union */
     type: "signal_sync.open";
     /** Unique notification identifier */
@@ -12830,7 +12923,7 @@ interface SignalSyncOpenNotification {
  * Signal sync close notification.
  * Emitted when an active pending signal is closed (TP/SL hit, time expired, or user-initiated).
  */
-interface SignalSyncCloseNotification {
+interface OrderSyncCloseNotification {
     /** Discriminator for type-safe union */
     type: "signal_sync.close";
     /** Unique notification identifier */
@@ -13400,7 +13493,7 @@ interface SignalInfoNotification {
  * }
  * ```
  */
-type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | SignalSyncOpenNotification | SignalSyncCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | SignalInfoNotification;
+type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | OrderSyncOpenNotification | OrderSyncCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | SignalInfoNotification;
 
 /**
  * Unified tick event data for report generation.
@@ -16640,6 +16733,8 @@ declare class PersistMemoryInstance implements IPersistMemoryInstance {
     writeMemoryData(data: MemoryData, memoryId: string, _when: Date): Promise<void>;
     /**
      * Soft-deletes a memory entry by writing `removed: true` flag.
+     * No-op when the entry does not exist (readValue throws on a missing
+     * entity, so existence must be checked first to keep removal idempotent).
      *
      * @param memoryId - Memory entry identifier
      * @returns Promise that resolves when removal is complete
@@ -17236,16 +17331,27 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
     readonly strategyName: string;
     readonly exchangeName: string;
     readonly frameName: string;
+    readonly symbol: string;
+    readonly backtest: boolean;
     /** Underlying file-based storage scoped to this context */
     private readonly _storage;
+    /**
+     * Entity key inside the per-strategy/exchange/frame storage directory.
+     * Includes the symbol and backtest flag: without them two symbols running
+     * the same strategy would clobber one shared record and restore each
+     * other's session state after a restart.
+     */
+    private readonly _entityId;
     /**
      * Creates new session persistence instance.
      *
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
-     * @param frameName - Frame identifier (also used as entity ID)
+     * @param frameName - Frame identifier (storage subdirectory)
+     * @param symbol - Trading pair symbol (part of the entity key)
+     * @param backtest - Whether the session belongs to a backtest run (part of the entity key)
      */
-    constructor(strategyName: string, exchangeName: string, frameName: string);
+    constructor(strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean);
     /**
      * Initializes the underlying PersistBase storage.
      *
@@ -17254,13 +17360,13 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
      */
     waitForInit(initial: boolean): Promise<void>;
     /**
-     * Reads the persisted session data using `frameName` as the entity key.
+     * Reads the persisted session data using the per-symbol entity key.
      *
      * @returns Promise resolving to session data or null if not found
      */
     readSessionData(): Promise<SessionData | null>;
     /**
-     * Writes the session data using `frameName` as the entity key.
+     * Writes the session data using the per-symbol entity key.
      *
      * @param data - Session data to persist
      * @returns Promise that resolves when write is complete
@@ -17276,7 +17382,7 @@ declare class PersistSessionInstance implements IPersistSessionInstance {
  * Constructor type for IPersistSessionInstance.
  * Used by PersistSessionUtils.usePersistSessionAdapter() to register custom adapters.
  */
-type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: string, frameName: string) => IPersistSessionInstance;
+type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => IPersistSessionInstance;
 /**
  * Utility class for managing session persistence.
  *
@@ -17297,9 +17403,14 @@ declare class PersistSessionUtils {
     private PersistSessionInstanceCtor;
     /**
      * Memoized factory creating one IPersistSessionInstance per
-     * (strategyName, exchangeName, frameName) triple.
+     * (strategyName, exchangeName, frameName, symbol, backtest) tuple.
      */
     private getSessionStorage;
+    /**
+     * Builds the memoization key for the given context.
+     * Kept in sync with the getSessionStorage key function.
+     */
+    private static GET_KEY_FN;
     /**
      * Registers a custom IPersistSessionInstance constructor.
      * Clears the memoization cache so subsequent calls use the new adapter.
@@ -17317,7 +17428,7 @@ declare class PersistSessionUtils {
      * @param initial - Whether this is the first initialization
      * @returns Promise that resolves when initialization is complete
      */
-    waitForInit: (strategyName: string, exchangeName: string, frameName: string, initial: boolean) => Promise<void>;
+    waitForInit: (strategyName: string, exchangeName: string, frameName: string, initial: boolean, symbol: string, backtest: boolean) => Promise<void>;
     /**
      * Reads persisted session data for the given context.
      * Lazily initializes the instance on first access.
@@ -17327,7 +17438,7 @@ declare class PersistSessionUtils {
      * @param frameName - Frame identifier
      * @returns Promise resolving to session data or null if none persisted
      */
-    readSessionData: (strategyName: string, exchangeName: string, frameName: string) => Promise<SessionData | null>;
+    readSessionData: (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => Promise<SessionData | null>;
     /**
      * Writes session data for the given context.
      * Lazily initializes the instance on first access.
@@ -17339,7 +17450,7 @@ declare class PersistSessionUtils {
      * @param when - Logical timestamp this value belongs to (duplicates `data.when` for API consistency)
      * @returns Promise that resolves when write is complete
      */
-    writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date) => Promise<void>;
+    writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date, symbol: string, backtest: boolean) => Promise<void>;
     /**
      * Switches to PersistSessionDummyInstance (all operations are no-ops).
      */
@@ -17361,7 +17472,7 @@ declare class PersistSessionUtils {
      * @param exchangeName - Exchange identifier
      * @param frameName - Frame identifier
      */
-    dispose: (strategyName: string, exchangeName: string, frameName: string) => void;
+    dispose: (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => void;
 }
 /**
  * Global singleton instance of PersistSessionUtils.
@@ -25022,7 +25133,7 @@ declare class SyncMarkdownService {
     private readonly loggerService;
     private getStorage;
     /**
-     * Subscribes to `syncSubject` to start receiving `SignalSyncContract` events.
+     * Subscribes to `syncSubject` to start receiving `OrderSyncContract` events.
      * Protected against multiple subscriptions via `singleshot` — subsequent calls
      * return the same unsubscribe function without re-subscribing.
      *
@@ -25057,7 +25168,7 @@ declare class SyncMarkdownService {
      */
     unsubscribe: () => Promise<void>;
     /**
-     * Handles a single `SignalSyncContract` event emitted by `syncSubject`.
+     * Handles a single `OrderSyncContract` event emitted by `syncSubject`.
      *
      * Maps the contract fields to a `SyncEvent`, enriching it with a
      * `createdAt` ISO timestamp from `getContextTimestamp()` (backtest clock
@@ -25068,8 +25179,8 @@ declare class SyncMarkdownService {
      * Routes the constructed event to the appropriate `ReportStorage` bucket
      * via `getStorage(symbol, strategyName, exchangeName, frameName, backtest)`.
      *
-     * @param data - Discriminated union `SignalSyncContract`
-     *   (`SignalOpenContract | SignalCloseContract`)
+     * @param data - Discriminated union `OrderSyncContract`
+     *   (`OrderOpenContract | OrderCloseContract`)
      */
     private tick;
     /**
@@ -25350,8 +25461,8 @@ type TStorageUtilsCtor = new () => IStorageUtils;
  *
  * Features:
  * - Adapter pattern for swappable storage implementations
- * - Default adapter: StoragePersistBacktestUtils (persistent storage)
- * - Alternative adapters: StorageMemoryBacktestUtils, StorageDummyBacktestUtils
+ * - Default adapter: StorageMemoryBacktestUtils (in-memory storage)
+ * - Alternative adapters: StoragePersistBacktestUtils, StorageDummyBacktestUtils
  * - Convenience methods: usePersist(), useMemory(), useDummy()
  */
 declare class StorageBacktestAdapter implements IStorageUtils {
@@ -25898,7 +26009,7 @@ interface INotificationTarget {
      * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
      * Fired when a limit order is confirmed filled (`signal-open`) or when an open
      * position is confirmed exited (`signal-close`) by the exchange sync layer.
-     * Source: `syncSubject` (SignalSyncContract).
+     * Source: `syncSubject` (OrderSyncContract).
      */
     signal_sync: boolean;
     /**
@@ -25969,7 +26080,7 @@ interface INotificationUtils {
      * Handles signal sync event (signal-open, signal-close).
      * @param data - The signal sync contract data
      */
-    handleSync(data: SignalSyncContract): Promise<void>;
+    handleSync(data: OrderSyncContract): Promise<void>;
     /**
      * Handles risk rejection event.
      * @param data - The risk contract data
@@ -26061,7 +26172,7 @@ declare class NotificationBacktestAdapter implements INotificationUtils {
      * Proxies call to the underlying notification adapter.
      * @param data - The signal sync contract data
      */
-    handleSync: (data: SignalSyncContract) => any;
+    handleSync: (data: OrderSyncContract) => any;
     /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.
@@ -26182,7 +26293,7 @@ declare class NotificationLiveAdapter implements INotificationUtils {
      * Proxies call to the underlying notification adapter.
      * @param data - The signal sync contract data
      */
-    handleSync: (data: SignalSyncContract) => any;
+    handleSync: (data: OrderSyncContract) => any;
     /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.
@@ -27074,7 +27185,8 @@ declare class ExchangeUtils {
     /**
      * Fetches raw candles with flexible date/limit parameters.
      *
-     * Uses Date.now() instead of execution context when for look-ahead bias protection.
+     * Look-ahead bias protection: the reference "now" is execution context `when`
+     * when a context is active (backtest), otherwise the current wall-clock time.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param interval - Candle interval (e.g., "1m", "1h")
@@ -29308,8 +29420,14 @@ declare class ActionBase implements IPublicAction {
 /**
  * Payload for the signal-open broker event.
  *
- * Emitted automatically via syncSubject when a new pending signal is activated.
- * Forwarded to the registered IBroker adapter via `onSignalOpenCommit`.
+ * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
+ * `onSignalOpenCommit`. Discriminated by `type`:
+ * - "active" — a pending signal is being opened (immediate entry or activation fill of the
+ *   resting order); throw = the exchange did not fill the entry, the framework rolls back the
+ *   open and retries on the next tick;
+ * - "schedule" — the resting entry order is being PLACED (scheduled signal creation); throw =
+ *   the exchange did not accept the resting order, the scheduled signal is NOT registered and
+ *   the placement retries on the next tick.
  *
  * @example
  * ```typescript
@@ -29326,6 +29444,8 @@ declare class ActionBase implements IPublicAction {
  * ```
  */
 type BrokerSignalOpenPayload = {
+    /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
+    type: "schedule" | "active";
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
     /** Unique signal identifier (UUID v4) the order belongs to */
@@ -29415,16 +29535,24 @@ type BrokerSignalClosePayload = {
     backtest: boolean;
 };
 /**
- * Payload for the pending-order synchronization broker event.
+ * Payload for the order synchronization broker event.
  *
- * Emitted automatically via syncPendingSubject on every live tick while a pending signal is
- * monitored, BEFORE the framework evaluates TP/SL/time. Forwarded to the registered IBroker
- * adapter via `onOrderCheck`.
+ * Emitted automatically via syncPendingSubject on every live tick while a signal is monitored,
+ * BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter via
+ * `onOrderCheck`. Fires for BOTH monitored states, discriminated by `type`:
+ * - `type: "active"` — pending signal (open position), before TP/SL/time evaluation;
+ * - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
+ *   (the order in question is the resting entry order).
  *
  * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
  * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
  * propagates to CREATE_SYNC_PENDING_FN, which makes the framework close the pending signal with
- * closeReason "closed". Returning normally keeps the position under normal TP/SL monitoring.
+ * closeReason "closed" (type "active") or cancel the scheduled signal with reason "user"
+ * (type "schedule"). Returning normally keeps the signal under normal monitoring.
+ *
+ * NOTE for type "schedule": if the resting entry order actually FILLED, confirm the fill via
+ * `commitActivateScheduled` instead of throwing — a throw here is a terminal cancel, not an
+ * activation.
  *
  * CRITICAL: transient/network errors (timeout, 5xx, rate limit, disconnect) must be SWALLOWED —
  * return normally instead of throwing. A thrown network error would wrongly close an open
@@ -29445,6 +29573,8 @@ type BrokerSignalClosePayload = {
  * ```
  */
 type BrokerSignalPendingPayload = {
+    /** Monitored state: "active" — open position order, "schedule" — resting entry order */
+    type: "schedule" | "active";
     /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
     /** Unique signal identifier (UUID v4) the order belongs to */
@@ -30082,7 +30212,7 @@ interface IBroker {
      * syncSubject BEFORE the framework mutates strategy state, so it is also the close **gate**.
      *
      * MANUAL WIRING — EXCEPTION-BASED: place the real exit order here (tag/look up by `payload.signalId`)
-     * and record final PnL. This is the confirmed-close commit; like `onSignalSync` (signal-close) it
+     * and record final PnL. This is the confirmed-close commit; like `onOrderSync` (signal-close) it
      * shares the gate semantics — a THROW means "the exchange did not close the position" and the
      * framework SKIPS the close, leaving the position open and retrying on the next tick. Return
      * normally to let the close proceed. Backtest short-circuits this (no live exchange), so the gate is
@@ -30093,26 +30223,34 @@ interface IBroker {
      */
     onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
     /**
-     * Called when a signal is being opened (position entry). Emitted via syncSubject BEFORE the
-     * framework mutates strategy state, so it is also the open **gate**.
+     * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
+     * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
+     * - "active" — position entry (immediate open or activation fill of the resting order);
+     * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
      *
-     * MANUAL WIRING — EXCEPTION-BASED: place the real entry order here (tag the exchange order with
-     * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onSignalSync`
-     * (signal-open) it shares the gate semantics — a THROW means "the exchange did not fill the entry"
-     * (e.g. limit order rejected) and the framework ROLLS BACK the open: the pending signal returns to
-     * idle (a scheduled activation is cancelled) and is retried on the next tick. Return normally to let
-     * the open proceed. Also the point where a scheduled signal's activation surfaces. Backtest
-     * short-circuits this, so the gate is live-only.
+     * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
+     * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
+     * (signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
+     * order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
+     * scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
+     * and the risk reservation is released. Both retry on the next tick. Return normally to let the
+     * open proceed. Backtest short-circuits this, so the gate is live-only.
      *
      * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
      * AFTER the open is committed (and cannot veto it).
      */
     onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
     /**
-     * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+     * Called on every live tick while a signal is monitored, BEFORE completion evaluation.
+     * Fires for both monitored states, discriminated by `payload.type`:
+     * - "active" — pending signal (open position), before TP/SL/time evaluation;
+     * - "schedule" — scheduled signal (resting entry order), before timeout/price-activation.
+     *
      * Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
-     * — the framework will then close the position with closeReason "closed". Return normally to keep
-     * monitoring.
+     * — the framework will then close the position with closeReason "closed" (type "active") or
+     * cancel the scheduled signal with reason "user" (type "schedule"). Return normally to keep
+     * monitoring. For type "schedule": a filled resting order must be confirmed via
+     * `commitActivateScheduled`, not by throwing here (a throw is a terminal cancel).
      *
      * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
      * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
@@ -30274,7 +30412,7 @@ interface IBroker {
      *
      * Fires ONCE at open — place the real entry confirmation and protective TP/SL orders (tag them with
      * `payload.signalId`). Drive the rest per-tick from `onSignalActivePing`. This hook does not gate
-     * the position; for a true entry gate use `onSignalSync` (signal-open).
+     * the position; for a true entry gate use `onOrderSync` (signal-open).
      */
     onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
     /**
@@ -30419,14 +30557,16 @@ declare class BrokerAdapter {
      */
     commitSignalClose: (payload: BrokerSignalClosePayload) => Promise<void>;
     /**
-     * Forwards a pending-order ping to the registered broker adapter.
+     * Forwards an order ping to the registered broker adapter.
      *
      * Called automatically via syncPendingSubject when `enable()` is active, on every live tick
-     * while a pending signal is monitored. Skipped silently in backtest mode or when no adapter is
+     * while a pending signal (payload.type "active") or a scheduled signal (payload.type
+     * "schedule") is monitored. Skipped silently in backtest mode or when no adapter is
      * registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
-     * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed".
+     * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
+     * (type "active") or cancels the scheduled signal with reason "user" (type "schedule").
      *
-     * @param payload - Pending ping details: symbol, position, prices, pnl, context, backtest flag
+     * @param payload - Order ping details: type, symbol, position, prices, pnl, context, backtest flag
      */
     commitSignalPending: (payload: BrokerSignalPendingPayload) => Promise<void>;
     /**
@@ -30473,6 +30613,14 @@ declare class BrokerAdapter {
      *
      * Called automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
      * removed before activation. Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * IMPORTANT (adapter responsibility): the cancel may race the real fill. The framework decides
+     * to drop the scheduled signal from ITS view (risk reject at activation, sync reject, stop,
+     * timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
+     * arrives. The adapter MUST check the actual order status before cancelling: if the order is
+     * filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
+     * (close it or reconcile via onOrderCheck / onSignalActivePing). The framework cannot model
+     * this case — from its side the signal is terminally cancelled.
      *
      * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
      */
@@ -31162,7 +31310,7 @@ interface WalkerStopContract {
  * This ensures that the framework's internal state remains consistent with the exchange's state.
  * Consumers should implement retry logic in their listeners to handle transient synchronization failures.
  */
-declare const syncSubject: Subject<SignalSyncContract>;
+declare const syncSubject: Subject<OrderSyncContract>;
 /**
  * Pending-order synchronization emitter.
  * Emitted on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
@@ -31171,7 +31319,7 @@ declare const syncSubject: Subject<SignalSyncContract>;
  * If a listener returns false OR throws, the order is treated as no longer open on the exchange
  * and the framework closes the pending signal with closeReason "closed". Never emitted in backtest.
  */
-declare const syncPendingSubject: Subject<SignalPingContract>;
+declare const syncPendingSubject: Subject<OrderCheckContract>;
 /**
  * Global signal emitter for all trading events (live + backtest).
  * Emits all signal events regardless of execution mode.
@@ -31446,10 +31594,13 @@ declare const waitForCandle: (interval: CandleInterval) => Promise<number>;
  * @param {string | number} price - The price to round, can be a string or number
  * @param {number} tickSize - The tick size that determines the precision (e.g., 0.01 for 2 decimal places)
  * @returns {string} The price rounded to the precision specified by the tick size
+ * @throws {Error} If tickSize is not a positive finite number
  *
  * @example
  * roundTicks(123.456789, 0.01) // returns "123.46"
  * roundTicks("100.12345", 0.001) // returns "100.123"
+ * roundTicks(123.456789, 1) // returns "123"
+ * roundTicks(123.456789, 1e-9) // returns "123.456789000"
  */
 declare const roundTicks: (price: string | number, tickSize: number) => string;
 
@@ -31607,69 +31758,113 @@ declare const set: (object: any, path: any, value: any) => boolean;
 
 /**
  * Calculate the percentage difference between two numbers.
+ *
+ * The result is how many percent the larger value exceeds the smaller one:
+ * percentDiff(100, 150) === 50, percentDiff(150, 100) === 50.
+ *
+ * Edge cases are reported honestly instead of a sentinel value:
+ * - Both values equal (including 0, 0) — returns 0.
+ * - One value is 0 and the other is not — returns Infinity
+ *   (the difference is unbounded; no finite percent can express it).
+ *
  * @param {number} a - The first number.
  * @param {number} b - The second number.
  * @returns {number} The percentage difference between the two numbers.
  */
-declare const percentDiff: (a?: number, b?: number) => number;
+declare const percentDiff: (a: number, b: number) => number;
 
 /**
  * Calculate the percentage change from yesterday's value to today's value.
- * @param {number} yesterdayValue - The value from yesterday.
+ *
+ * Formula: ((todayValue - yesterdayValue) / yesterdayValue) * 100
+ *
+ * Positive result — value grew, negative — value dropped.
+ *
+ * @param {number} yesterdayValue - The value from yesterday (base of comparison).
  * @param {number} todayValue - The value from today.
- * @returns {number} The percentage change from yesterday to today.
+ * @returns {number} The percentage change from yesterday to today (e.g. 5 for +5%).
+ *
+ * @example
+ * percentValue(100, 105); // 5
+ * percentValue(100, 95);  // -5
  */
 declare const percentValue: (yesterdayValue: number, todayValue: number) => number;
 
 /**
- * Convert an absolute dollar amount to a percentage of the invested position cost.
+ * Convert an absolute dollar amount to a percentage of a cost basis.
  * Use the result as the `percent` argument to `commitPartialProfit` / `commitPartialLoss`.
  *
+ * IMPORTANT: `percentToClose` in partial closes is applied to the REMAINING
+ * cost basis (what is still held after prior partials), not to the total
+ * invested amount. To close an exact dollar amount, pass the remaining cost
+ * basis from `getTotalCostClosed` as `costBasis` — not `getPositionInvestedCost`.
+ *
  * @param dollarAmount - Dollar value to close (e.g. 150)
- * @param investedCost - Total invested cost from `getPositionInvestedCost` (e.g. 300)
- * @returns Percentage of the position to close (0–100)
+ * @param costBasis - Remaining cost basis from `getTotalCostClosed` (e.g. 300)
+ * @returns Percentage of the remaining position to close (0–100)
  *
  * @example
- * const percent = investedCostToPercent(150, 300); // 50
+ * const remaining = await getTotalCostClosed("BTCUSDT"); // e.g. 300
+ * const percent = investedCostToPercent(150, remaining); // 50
  * await commitPartialProfit("BTCUSDT", percent);
  */
-declare const investedCostToPercent: (dollarAmount: number, investedCost: number) => number;
+declare const investedCostToPercent: (dollarAmount: number, costBasis: number) => number;
 
 /**
  * Convert an absolute stop-loss price to a percentShift for `commitTrailingStop`.
  *
  * percentShift = newSlDistancePercent - originalSlDistancePercent
- * where distance = Math.abs((effectivePriceOpen - slPrice) / effectivePriceOpen * 100)
+ *
+ * The new distance is SIGNED by position direction (mirrors how ClientStrategy
+ * applies the shift): a stop-loss moved past the entry into the profit zone
+ * produces a negative distance, so any target price is expressible —
+ * `slPercentShiftToPrice(slPriceToPercentShift(x, ...), ...) === x` holds for
+ * targets on both sides of the entry.
+ *
+ * LONG:  newSlDistancePercent = (effectivePriceOpen - newStopLossPrice) / effectivePriceOpen * 100
+ * SHORT: newSlDistancePercent = (newStopLossPrice - effectivePriceOpen) / effectivePriceOpen * 100
  *
  * @param newStopLossPrice - Desired absolute stop-loss price
  * @param originalStopLossPrice - Original stop-loss price from the pending signal
  * @param effectivePriceOpen - Effective entry price (from `getPositionEffectivePrice`)
+ * @param position - Position direction: "long" or "short"
  * @returns percentShift to pass to `commitTrailingStop`
  *
  * @example
  * // LONG: entry=100, originalSL=90, desired newSL=95
- * const shift = slPriceToPercentShift(95, 90, 100); // -5
+ * const shift = slPriceToPercentShift(95, 90, 100, "long"); // -5
+ * // LONG: entry=100, originalSL=90, desired newSL=105 (profit zone)
+ * const shiftProfit = slPriceToPercentShift(105, 90, 100, "long"); // -15
  * await commitTrailingStop("BTCUSDT", shift, currentPrice);
  */
-declare const slPriceToPercentShift: (newStopLossPrice: number, originalStopLossPrice: number, effectivePriceOpen: number) => number;
+declare const slPriceToPercentShift: (newStopLossPrice: number, originalStopLossPrice: number, effectivePriceOpen: number, position: "long" | "short") => number;
 
 /**
  * Convert an absolute take-profit price to a percentShift for `commitTrailingTake`.
  *
  * percentShift = newTpDistancePercent - originalTpDistancePercent
- * where distance = Math.abs((tpPrice - effectivePriceOpen) / effectivePriceOpen * 100)
+ *
+ * The new distance is SIGNED by position direction (mirrors how ClientStrategy
+ * applies the shift): a take-profit moved past the entry produces a negative
+ * distance, so any target price is expressible —
+ * `tpPercentShiftToPrice(tpPriceToPercentShift(x, ...), ...) === x` holds for
+ * targets on both sides of the entry.
+ *
+ * LONG:  newTpDistancePercent = (newTakeProfitPrice - effectivePriceOpen) / effectivePriceOpen * 100
+ * SHORT: newTpDistancePercent = (effectivePriceOpen - newTakeProfitPrice) / effectivePriceOpen * 100
  *
  * @param newTakeProfitPrice - Desired absolute take-profit price
  * @param originalTakeProfitPrice - Original take-profit price from the pending signal
  * @param effectivePriceOpen - Effective entry price (from `getPositionEffectivePrice`)
+ * @param position - Position direction: "long" or "short"
  * @returns percentShift to pass to `commitTrailingTake`
  *
  * @example
  * // LONG: entry=100, originalTP=110, desired newTP=107
- * const shift = tpPriceToPercentShift(107, 110, 100); // -3
+ * const shift = tpPriceToPercentShift(107, 110, 100, "long"); // -3
  * await commitTrailingTake("BTCUSDT", shift, currentPrice);
  */
-declare const tpPriceToPercentShift: (newTakeProfitPrice: number, originalTakeProfitPrice: number, effectivePriceOpen: number) => number;
+declare const tpPriceToPercentShift: (newTakeProfitPrice: number, originalTakeProfitPrice: number, effectivePriceOpen: number, position: "long" | "short") => number;
 
 /**
  * Convert a percentShift for `commitTrailingStop` back to an absolute stop-loss price.
@@ -32624,7 +32819,7 @@ declare class ActionCoreService implements TAction$1 {
      * @param event - Sync event with action "signal-open" or "signal-close"
      * @param context - Strategy execution context
      */
-    signalSync: (backtest: boolean, event: SignalSyncContract, context: {
+    orderSync: (backtest: boolean, event: OrderSyncContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -32637,7 +32832,7 @@ declare class ActionCoreService implements TAction$1 {
      * @param event - Pending-ping event with action "signal-ping"
      * @param context - Strategy execution context
      */
-    orderCheck: (backtest: boolean, event: SignalPingContract, context: {
+    orderCheck: (backtest: boolean, event: OrderCheckContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -34462,6 +34657,19 @@ declare class FrameConnectionService implements IFrame {
      */
     getFrame: ((frameName: FrameName) => ClientFrame) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientFrame>;
     /**
+     * Disposes cached ClientFrame instance(s) so the next getTimeframe call
+     * regenerates timeframes. Without this, ClientFrame's singleshot would keep
+     * the endDate-to-now clamp frozen at the moment of the first run: a
+     * long-running process re-running the same frame would silently backtest
+     * against stale timeframes and never see newly available candles.
+     *
+     * When called without arguments, clears all memoized frames.
+     * Called by Backtest/Walker at strategy start.
+     *
+     * @param frameName - Frame to clear; omit to clear all frames
+     */
+    clear: (frameName?: FrameName) => void;
+    /**
      * Retrieves backtest timeframe boundaries for symbol.
      *
      * Returns startDate and endDate from frame configuration.
@@ -34760,14 +34968,16 @@ declare class ActionProxy implements IPublicAction {
      *
      * @param event - Sync event with action "signal-open" or "signal-close"
      */
-    signalSync(event: SignalSyncContract): Promise<void>;
+    orderSync(event: OrderSyncContract): Promise<void>;
     /**
-     * Gate for the pending-order ping (order still open on exchange?).
+     * Gate for the order ping (order still open on exchange?). Fires for both
+     * monitored states: event.type "active" (open position order) and "schedule"
+     * (resting entry order of a scheduled signal).
      * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
      *
-     * @param event - Pending-ping event with action "signal-ping"
+     * @param event - Order-ping event with action "signal-ping" and type "schedule" | "active"
      */
-    orderCheck(event: SignalPingContract): Promise<void>;
+    orderCheck(event: OrderCheckContract): Promise<void>;
     /**
      * Cleans up resources with error capture.
      *
@@ -34934,12 +35144,12 @@ declare class ClientAction implements IAction {
      * Gate for position open/close via limit order.
      * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
      */
-    signalSync(event: SignalSyncContract): Promise<void>;
+    orderSync(event: OrderSyncContract): Promise<void>;
     /**
      * Gate for the pending-order ping (order still open on exchange?).
      * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
      */
-    orderCheck(event: SignalPingContract): Promise<void>;
+    orderCheck(event: OrderCheckContract): Promise<void>;
     /**
      * Cleans up resources and subscriptions when action handler is no longer needed.
      * Uses singleshot pattern to ensure cleanup happens exactly once.
@@ -35171,7 +35381,7 @@ declare class ActionConnectionService implements TAction {
         frameName: FrameName;
     }) => Promise<void>;
     /**
-     * Routes signalSync event to appropriate ClientAction instance.
+     * Routes orderSync event to appropriate ClientAction instance.
      * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
      *
      * @param event - Sync event with action "signal-open" or "signal-close"
@@ -35179,7 +35389,7 @@ declare class ActionConnectionService implements TAction {
      * @param context - Execution context
      * @returns true to allow, false to reject
      */
-    signalSync: (event: SignalSyncContract, backtest: boolean, context: {
+    orderSync: (event: OrderSyncContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -35193,7 +35403,7 @@ declare class ActionConnectionService implements TAction {
      * @param backtest - Whether running in backtest mode
      * @param context - Execution context
      */
-    orderCheck: (event: SignalPingContract, backtest: boolean, context: {
+    orderCheck: (event: OrderCheckContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -39576,4 +39786,4 @@ declare const getTotalClosed: (signal: Signal) => {
  */
 declare const getPriceScale: (value: number) => number;
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerSignalPendingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalPingContract, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerSignalPendingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderOpenContract, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

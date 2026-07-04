@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -18,7 +18,8 @@ import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { not, queued } from "functools-kit";
-import SignalSyncContract from "../contract/SignalSync.contract";
+import OrderSyncContract from "../contract/OrderSync.contract";
+import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
@@ -46,12 +47,12 @@ const LISTEN_WALKER_METHOD_NAME = "event.listenWalker";
 const LISTEN_WALKER_ONCE_METHOD_NAME = "event.listenWalkerOnce";
 const LISTEN_WALKER_COMPLETE_METHOD_NAME = "event.listenWalkerComplete";
 const LISTEN_VALIDATION_METHOD_NAME = "event.listenValidation";
-const LISTEN_PARTIAL_PROFIT_METHOD_NAME = "event.listenPartialProfit";
-const LISTEN_PARTIAL_PROFIT_ONCE_METHOD_NAME = "event.listenPartialProfitOnce";
-const LISTEN_PARTIAL_LOSS_METHOD_NAME = "event.listenPartialLoss";
-const LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME = "event.listenPartialLossOnce";
-const LISTEN_BREAKEVEN_METHOD_NAME = "event.listenBreakeven";
-const LISTEN_BREAKEVEN_ONCE_METHOD_NAME = "event.listenBreakevenOnce";
+const LISTEN_PARTIAL_PROFIT_METHOD_NAME = "event.listenPartialProfitAvailable";
+const LISTEN_PARTIAL_PROFIT_ONCE_METHOD_NAME = "event.listenPartialProfitAvailableOnce";
+const LISTEN_PARTIAL_LOSS_METHOD_NAME = "event.listenPartialLossAvailable";
+const LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME = "event.listenPartialLossAvailableOnce";
+const LISTEN_BREAKEVEN_METHOD_NAME = "event.listenBreakevenAvailable";
+const LISTEN_BREAKEVEN_ONCE_METHOD_NAME = "event.listenBreakevenAvailableOnce";
 const LISTEN_RISK_METHOD_NAME = "event.listenRisk";
 const LISTEN_RISK_ONCE_METHOD_NAME = "event.listenRiskOnce";
 const LISTEN_SCHEDULE_PING_METHOD_NAME = "event.listenSchedulePing";
@@ -68,6 +69,8 @@ const LISTEN_STRATEGY_COMMIT_METHOD_NAME = "event.listenStrategyCommit";
 const LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME = "event.listenStrategyCommitOnce";
 const LISTEN_SYNC_METHOD_NAME = "event.listenSync";
 const LISTEN_SYNC_ONCE_METHOD_NAME = "event.listenSyncOnce";
+const LISTEN_CHECK_METHOD_NAME = "event.listenCheck";
+const LISTEN_CHECK_ONCE_METHOD_NAME = "event.listenCheckOnce";
 const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
@@ -849,9 +852,9 @@ export function listenValidation(fn: (error: Error) => void) {
  *
  * @example
  * ```typescript
- * import { listenPartialProfit } from "./function/event";
+ * import { listenPartialProfitAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialProfit((event) => {
+ * const unsubscribe = listenPartialProfitAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% profit`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -943,9 +946,9 @@ export function listenPartialProfitAvailableOnce(
  *
  * @example
  * ```typescript
- * import { listenPartialLoss } from "./function/event";
+ * import { listenPartialLossAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialLoss((event) => {
+ * const unsubscribe = listenPartialLossAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% loss`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -1038,9 +1041,9 @@ export function listenPartialLossAvailableOnce(
  *
  * @example
  * ```typescript
- * import { listenBreakeven } from "./function/event";
+ * import { listenBreakevenAvailable } from "./function/event";
  *
- * const unsubscribe = listenBreakeven((event) => {
+ * const unsubscribe = listenBreakevenAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached breakeven`);
  *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
  *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);
@@ -1720,7 +1723,7 @@ export function listenStrategyCommitOnce(
  * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to stop listening
  */
-export function listenSync(fn: (event: SignalSyncContract) => void, warned = false) {
+export function listenSync(fn: (event: OrderSyncContract) => void, warned = false) {
   backtest.loggerService.log(LISTEN_SYNC_METHOD_NAME);
 
   if (!warned) {
@@ -1743,8 +1746,8 @@ export function listenSync(fn: (event: SignalSyncContract) => void, warned = fal
  * @returns Unsubscribe function to cancel the listener before it fires
  */
 export function listenSyncOnce(
-  filterFn: (event: SignalSyncContract) => boolean,
-  fn: (event: SignalSyncContract) => void,
+  filterFn: (event: OrderSyncContract) => boolean,
+  fn: (event: OrderSyncContract) => void,
   warned = false
 ) {
   backtest.loggerService.log(LISTEN_SYNC_ONCE_METHOD_NAME);
@@ -1759,7 +1762,7 @@ export function listenSyncOnce(
 
   let disposeFn: Function;
 
-  const wrappedFn = async (event: SignalSyncContract) => {
+  const wrappedFn = async (event: OrderSyncContract) => {
     if (filterFn(event)) {
       await fn(event);
       disposeFn && disposeFn();
@@ -1767,6 +1770,68 @@ export function listenSyncOnce(
   };
 
   return disposeFn = listenSync(wrappedFn, true);
+}
+
+/**
+ * Subscribes to order-check ping events with queued async processing.
+ * If throws, the order behind the monitored signal is treated as no longer open on the
+ * exchange until the async function completes. Useful for synchronizing with external systems.
+ *
+ * Emits on every live tick while a signal is monitored, BEFORE completion evaluation,
+ * discriminated by `event.type`: "active" — pending signal (open position), "schedule" —
+ * scheduled signal (resting entry order). Backtest never emits this event.
+ *
+ * @param fn - Callback function to handle check events. If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenCheck(fn: (event: OrderCheckContract) => void, warned = false) {
+  backtest.loggerService.log(LISTEN_CHECK_METHOD_NAME);
+
+  if (!warned) {
+    console.error("listenCheck is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+    console.error("If listenCheck throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
+    console.error("");
+    console.error("You have been warned!");
+  }
+
+  return syncPendingSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered order-check ping events with one-time execution.
+ * If throws, the order behind the monitored signal is treated as no longer open on the
+ * exchange until the async function completes. Useful for synchronizing with external systems.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenCheckOnce(
+  filterFn: (event: OrderCheckContract) => boolean,
+  fn: (event: OrderCheckContract) => void,
+  warned = false
+) {
+  backtest.loggerService.log(LISTEN_CHECK_ONCE_METHOD_NAME);
+
+  if (!warned) {
+    console.error("listenCheckOnce is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+    console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderCheck");
+    console.error("If listenCheckOnce throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
+    console.error("");
+    console.error("You have been warned!");
+  }
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: OrderCheckContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenCheck(wrappedFn, true);
 }
 
 /**

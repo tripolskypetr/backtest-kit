@@ -87,6 +87,12 @@ export class PineMarkdownService {
       return [];
     }
 
+    if ("time" in mapping) {
+      throw new Error(
+        'pineMarkdownService getData: mapping key "time" is reserved for the row timestamp, rename the mapping key',
+      );
+    }
+
     const plotNames = entries.map(([key, config]) => ({ key, plotName: getPlotName(config) }));
     const dataLength = Math.max(...plotNames.map(({ plotName }) => plots[plotName]?.data?.length ?? 0));
 

@@ -192,6 +192,7 @@ export class WalkerInstance {
     }
 
     backtest.walkerMarkdownService.clear(context.walkerName);
+    backtest.frameConnectionService.clear(walkerSchema.frameName);
 
     // Clear backtest data for all strategies
     for (const strategyName of walkerSchema.strategies) {

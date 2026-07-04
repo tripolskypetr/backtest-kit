@@ -66,6 +66,29 @@ export class FrameConnectionService implements IFrame {
   );
 
   /**
+   * Disposes cached ClientFrame instance(s) so the next getTimeframe call
+   * regenerates timeframes. Without this, ClientFrame's singleshot would keep
+   * the endDate-to-now clamp frozen at the moment of the first run: a
+   * long-running process re-running the same frame would silently backtest
+   * against stale timeframes and never see newly available candles.
+   *
+   * When called without arguments, clears all memoized frames.
+   * Called by Backtest/Walker at strategy start.
+   *
+   * @param frameName - Frame to clear; omit to clear all frames
+   */
+  public clear = (frameName?: FrameName) => {
+    this.loggerService.log("frameConnectionService clear", {
+      frameName,
+    });
+    if (frameName === undefined) {
+      this.getFrame.clear();
+      return;
+    }
+    this.getFrame.clear(`${frameName}`);
+  };
+
+  /**
    * Retrieves backtest timeframe boundaries for symbol.
    *
    * Returns startDate and endDate from frame configuration.

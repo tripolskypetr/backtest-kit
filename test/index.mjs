@@ -28,7 +28,23 @@ import "./e2e/scheduled.test.mjs";
 import "./e2e/config.test.mjs";
 import "./e2e/columns.test.mjs";
 import "./e2e/candle_cache.test.mjs";
+import "./e2e/audit.test.mjs";
+import "./e2e/gauntlet.test.mjs";
+import "./e2e/broker.test.mjs";
+import "./e2e/strategy.test.mjs";
+import "./e2e/coverage.test.mjs";
+import "./e2e/manage.test.mjs";
+import "./e2e/recovery.test.mjs";
+import "./e2e/short.test.mjs";
+import "./e2e/commit.test.mjs";
+import "./e2e/hardening.test.mjs";
+import "./e2e/stopped.test.mjs";
+import "./e2e/live.test.mjs";
+import "./e2e/broker_cancel.test.mjs";
+import "./e2e/strategy_fn.test.mjs";
+import "./e2e/edge_fn.test.mjs";
 
+import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
 import "./spec/scheduled.test.mjs";
 import "./spec/exchange.test.mjs";
@@ -182,5 +198,7 @@ import "./measure/backtest_100.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");
-    process.exit(-1);
+    // Give tape a beat to finalize the LAST test record: an immediate exit
+    // races its onEnd tick and reports "test exited without ending"
+    setTimeout(() => process.exit(-1), 250);
 });

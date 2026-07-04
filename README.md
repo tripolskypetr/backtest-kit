@@ -790,9 +790,54 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 ---
 
-## ✅ Tested
+## 💯 Tested
 
-775+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
+910+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
+
+<details>
+<summary>Core test axes</summary>
+
+ - ✅ State machine under rejections (gates, throttle rollbacks, terminal drops, stopStrategy race)
+ - ✅ Deferred commands, Live × Backtest
+ - ✅ Broker: 8-stage lifecycle routing, gates, backtest silence, enable/disable, commit\* layer
+ - ✅ Position commands + interleaved DCA × partial exits
+ - ✅ Context-free surface (62 bare calls)
+ - ✅ Crash recovery of every deferred flag + commit queue
+ - ✅ SHORT mirror of the key paths 
+ - ✅ Timeouts, Once-listeners, action gate, Infinity holds, whipsaw restore, shared-risk contention, cancellation stats
+ - ✅ Order events: types, emission/silence per mode
+ - ✅ Look-ahead bias protection: candle alignment, pending-candle exclusion, `getNextCandles` throwing in live
+ - ✅ Signal validation: inverted TP/SL, negative/NaN/Infinity prices, future timestamps, micro-profit eaten by fees, excessive lifetime
+ - ✅ Full lifecycle and every close reason: take_profit, stop_loss, time_expired, user close, external "closed"
+ - ✅ Scheduled signals: price/wick activation, pre-activation SL cancellation, timeout, frame-end, immediate activation
+ - ✅ Money-safety edges: SL-before-activation, TP-vs-SL priority on a single candle, extreme volatility, exchange errors surfaced not swallowed
+ - ✅ Signal queues: sequences of mixed outcomes, winning/losing streaks, deterministic-id retry vs whipsaw block
+ - ✅ Infinity holds: chunked candle processing across frame boundaries, close-at-boundary edge cases
+ - ✅ PnL math: 0.1% fees + 0.1% slippage, cost-basis snapshots, partial-close weighting, DCA harmonic effective price
+ - ✅ Partial profit/loss: dollar-exact closes on the remaining cost basis, 100%-of-remaining epsilon cap
+ - ✅ Trailing stop/take: percentage-point shifts from ORIGINAL levels, absorption, intrusion protection
+ - ✅ Breakeven: threshold math over fees+slippage, trailing upgrade paths, zero-risk exits landing exactly on entry
+ - ✅ Risk schemas: reservation/release accounting, rejection callbacks, shared risk maps across strategies
+ - ✅ Position sizing: fixed/percent/Kelly calculators, min/max caps ordering
+ - ✅ Persistence: atomic writes, JSON adapters, restore after restart (pending, scheduled, deferred flags, commit queue), context-mismatch skips, Infinity round-trip
+ - ✅ Candle cache: hit/miss keys, interval separation, adapter call counting
+ - ✅ Event-listener system: every `listen*`/`listen*Once` channel, queued async processing, unsubscribe
+ - ✅ Actions: schema validation (discouraged-method redirects), handler/callback routing, risk rejection hooks
+ - ✅ Reports and markdown: column renderers, null-vs-zero semantics, closed-history merging, schedule activation/cancellation rates
+ - ✅ Heat: per-symbol and portfolio statistics against independently computed references
+ - ✅ Walker: strategy comparison sweeps, unbounded measures
+ - ✅ Performance metrics: emission ordering, duration accounting
+ - ✅ Parallel execution: multi-backtest interleaving without cross-contamination
+ - ✅ Graceful shutdown: `Backtest.stop()`/`Live.stop()` mid-run, no new signals after stop, stopStrategy draining through the cancel pipeline
+ - ✅ Live-tick semantics: schedule-ping rejection cancelling the resting order, time_expired and schedule-await timeouts, VWAP TP/SL crossings between ticks, pre-activation SL break never opening, getSignal throttled to one call per aligned interval, live/backtest channel routing with typed sync open/close pair, out-of-context Price/TimeMeta reads by identifiers
+ - ✅ Broker-driven order cancellation in live: onOrderCheck throw cancelling the resting order or closing the position as externally closed, onSignalOpenCommit throw rejecting placement with same-interval retry, and terminally cancelling a rejected activation fill
+ - ✅ Full commit/getter canon of function/strategy.ts: absolute-price trailing, dollar-exact partial loss off the remaining basis, confirmed SL fill bypassing VWAP, user-created signals, ladder overlap corridors, phase-tracking helpers, deferred-ops status snapshot, signal notifications, remaining-basis alias getters
+ - ✅ Edge contracts: SHORT mirrors of absolute-price trailing and dollar partials, deferred-command races, 100%-partial leaving a zero-basis position that TP still closes, invalid percent/dollar/alien-symbol rejections, and schema-change restarts
+ - ✅ Unexpected-stop family: mid-tick stop races, deferred user activation under stop, post-stop activateScheduled rejected, pre-stop deferred close/cancel and broker-confirmed TP fills still draining, stop flag being process-local across restarts
+ - ✅ Statistics engine: 100 golden backtest datasets — expectancy, Sharpe, drawdown, corrupted-row filtering
+ - ✅ Config: global overrides, validation toggles, partial `setConfig` merges
+
+</details>
 
 ## 🤖 Reading this as a model?
 

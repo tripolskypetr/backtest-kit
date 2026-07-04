@@ -10,7 +10,7 @@ import {
   errorData,
 } from "functools-kit";
 import { join } from "path";
-import { writeFileAtomic } from "../utils/writeFileAtomic";
+import { writeFileAtomic, TMP_FILE_PREFIX } from "../utils/writeFileAtomic";
 import {
   ISignalRow,
   ISignalDto,
@@ -266,6 +266,13 @@ const PERSIST_RECENT_UTILS_METHOD_NAME_CLEAR = "PersistRecentUtils.clear";
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
 const BASE_UNLINK_RETRY_COUNT = 5;
+
+/**
+ * Minimum age (ms) of a `${TMP_FILE_PREFIX}...` file before the init sweep
+ * reaps it: younger tmp files may belong to an in-flight atomic write of a
+ * concurrent process sharing the same persistence directory.
+ */
+const BASE_STALE_TMP_FILE_AGE = 120_000;
 const BASE_UNLINK_RETRY_DELAY = 1_000;
 
 /**
@@ -381,6 +388,33 @@ const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
     directory: self._directory,
   });
   await fs.mkdir(self._directory, { recursive: true });
+  // Sweep tmp leftovers from writeFileAtomic: a crash between the tmp write
+  // and the rename leaves a `${TMP_FILE_PREFIX}...` file that KEEPS the .json
+  // extension. keys() excludes the prefix (so it can never resurrect as a
+  // phantom entity). An in-flight atomic write from a CONCURRENT process
+  // sharing this directory also produces a tmp file here — only reap ones
+  // old enough (BASE_STALE_TMP_FILE_AGE) to be true crash leftovers.
+  try {
+    for await (const entry of await fs.opendir(self._directory)) {
+      if (entry.isFile() && entry.name.startsWith(TMP_FILE_PREFIX)) {
+        const tmpPath = join(self._directory, entry.name);
+        const stat = await fs.stat(tmpPath).catch(() => null);
+        if (!stat || Date.now() - stat.mtimeMs < BASE_STALE_TMP_FILE_AGE) {
+          continue;
+        }
+        console.error(
+          `backtest-kit PersistBase sweeping stale atomic-write tmp file filePath=${tmpPath} entityName=${self.entityName}`
+        );
+        if (await not(BASE_WAIT_FOR_INIT_UNLINK_FN(tmpPath))) {
+          console.error(
+            `backtest-kit PersistBase failed to remove stale tmp file filePath=${tmpPath} entityName=${self.entityName}`
+          );
+        }
+      }
+    }
+  } catch {
+    // best-effort sweep: never block init on cleanup errors
+  }
   for await (const key of self.keys()) {
     try {
       await self.readValue(key);
@@ -398,29 +432,33 @@ const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
   }
 };
 
-const BASE_WAIT_FOR_INIT_UNLINK_FN = async (filePath: string) =>
-  trycatch(
-    retry(
-      async () => {
-        try {
-          await fs.unlink(filePath);
-          return true;
-        } catch (error) {
-          console.error(
-            `backtest-kit PersistBase unlink failed for filePath=${filePath} error=${getErrorMessage(
-              error
-            )}`
-          );
-          throw error;
-        }
-      },
-      BASE_UNLINK_RETRY_COUNT,
-      BASE_UNLINK_RETRY_DELAY
-    ),
-    {
-      defaultValue: false,
-    }
-  );
+// NB: this must BE the wrapped function, not a factory returning one — the
+// previous `async (filePath) => trycatch(retry(...))` shape returned the
+// wrapper without invoking it, so `not(...)` saw a function (falsy-negated)
+// and the unlink never ran: invalid documents survived every init while the
+// log claimed success.
+const BASE_WAIT_FOR_INIT_UNLINK_FN = trycatch(
+  retry(
+    async (filePath: string) => {
+      try {
+        await fs.unlink(filePath);
+        return true;
+      } catch (error) {
+        console.error(
+          `backtest-kit PersistBase unlink failed for filePath=${filePath} error=${getErrorMessage(
+            error
+          )}`
+        );
+        throw error;
+      }
+    },
+    BASE_UNLINK_RETRY_COUNT,
+    BASE_UNLINK_RETRY_DELAY
+  ),
+  {
+    defaultValue: false,
+  }
+);
 
 /**
  * Base class for file-based persistence with atomic writes.
@@ -560,6 +598,12 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
     try {
       const entityIds: string[] = [];
       for await (const entry of await fs.opendir(this._directory)) {
+        // Skip writeFileAtomic tmp files: their names keep the .json extension
+        // (`.tmp-<hex>-<id>.json`), so a crash between write and rename would
+        // otherwise resurrect one as a phantom `.tmp-<hex>-<id>` entity here.
+        if (entry.name.startsWith(TMP_FILE_PREFIX)) {
+          continue;
+        }
         if (entry.isFile() && entry.name.endsWith(".json")) {
           entityIds.push(entry.name.slice(0, -5));
         }
@@ -3705,6 +3749,9 @@ export class PersistMeasureInstance implements IPersistMeasureInstance {
    * @returns Promise that resolves when removal is complete
    */
   async removeMeasureData(key: string): Promise<void> {
+    if (await not(this._storage.hasValue(key))) {
+      return;
+    }
     const data = await this._storage.readValue(key);
     if (data) {
       await this._storage.writeValue(key, Object.assign({}, data, { removed: true }));
@@ -4045,6 +4092,9 @@ export class PersistIntervalInstance implements IPersistIntervalInstance {
    * @returns Promise that resolves when removal is complete
    */
   async removeIntervalData(key: string): Promise<void> {
+    if (await not(this._storage.hasValue(key))) {
+      return;
+    }
     const data = await this._storage.readValue(key);
     if (data) {
       await this._storage.writeValue(key, Object.assign({}, data, { removed: true }));
@@ -4416,11 +4466,16 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
 
   /**
    * Soft-deletes a memory entry by writing `removed: true` flag.
+   * No-op when the entry does not exist (readValue throws on a missing
+   * entity, so existence must be checked first to keep removal idempotent).
    *
    * @param memoryId - Memory entry identifier
    * @returns Promise that resolves when removal is complete
    */
   async removeMemoryData(memoryId: string): Promise<void> {
+    if (await not(this._storage.hasValue(memoryId))) {
+      return;
+    }
     const data = await this._storage.readValue(memoryId);
     if (data) {
       await this._storage.writeValue(memoryId, Object.assign({}, data, { removed: true }));
@@ -5442,21 +5497,34 @@ export class PersistSessionInstance implements IPersistSessionInstance {
   private readonly _storage: IPersistBase<SessionData>;
 
   /**
+   * Entity key inside the per-strategy/exchange/frame storage directory.
+   * Includes the symbol and backtest flag: without them two symbols running
+   * the same strategy would clobber one shared record and restore each
+   * other's session state after a restart.
+   */
+  private readonly _entityId: string;
+
+  /**
    * Creates new session persistence instance.
    *
    * @param strategyName - Strategy identifier
    * @param exchangeName - Exchange identifier
-   * @param frameName - Frame identifier (also used as entity ID)
+   * @param frameName - Frame identifier (storage subdirectory)
+   * @param symbol - Trading pair symbol (part of the entity key)
+   * @param backtest - Whether the session belongs to a backtest run (part of the entity key)
    */
   constructor(
     readonly strategyName: string,
     readonly exchangeName: string,
     readonly frameName: string,
+    readonly symbol: string,
+    readonly backtest: boolean,
   ) {
     this._storage = new PersistBase(
       frameName,
       `./dump/session/${strategyName}/${exchangeName}/`
     );
+    this._entityId = `${symbol}_${backtest ? "backtest" : "live"}`;
   }
 
   /**
@@ -5470,25 +5538,25 @@ export class PersistSessionInstance implements IPersistSessionInstance {
   }
 
   /**
-   * Reads the persisted session data using `frameName` as the entity key.
+   * Reads the persisted session data using the per-symbol entity key.
    *
    * @returns Promise resolving to session data or null if not found
    */
   async readSessionData(): Promise<SessionData | null> {
-    if (await this._storage.hasValue(this.frameName)) {
-      return await this._storage.readValue(this.frameName);
+    if (await this._storage.hasValue(this._entityId)) {
+      return await this._storage.readValue(this._entityId);
     }
     return null;
   }
 
   /**
-   * Writes the session data using `frameName` as the entity key.
+   * Writes the session data using the per-symbol entity key.
    *
    * @param data - Session data to persist
    * @returns Promise that resolves when write is complete
    */
   async writeSessionData(data: SessionData, _when: Date): Promise<void> {
-    await this._storage.writeValue(this.frameName, data);
+    await this._storage.writeValue(this._entityId, data);
   }
 
   /**
@@ -5537,6 +5605,8 @@ export type TPersistSessionInstanceCtor = new (
   strategyName: string,
   exchangeName: string,
   frameName: string,
+  symbol: string,
+  backtest: boolean,
 ) => IPersistSessionInstance;
 
 /**
@@ -5560,14 +5630,26 @@ export class PersistSessionUtils {
 
   /**
    * Memoized factory creating one IPersistSessionInstance per
-   * (strategyName, exchangeName, frameName) triple.
+   * (strategyName, exchangeName, frameName, symbol, backtest) tuple.
    */
   private getSessionStorage = memoize(
-    ([strategyName, exchangeName, frameName]: [string, string, string]): string =>
-      `${strategyName}:${exchangeName}:${frameName}`,
-    (strategyName: string, exchangeName: string, frameName: string): IPersistSessionInstance =>
-      Reflect.construct(this.PersistSessionInstanceCtor, [strategyName, exchangeName, frameName])
+    ([strategyName, exchangeName, frameName, symbol, backtest]: [string, string, string, string, boolean]): string =>
+      PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest),
+    (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean): IPersistSessionInstance =>
+      Reflect.construct(this.PersistSessionInstanceCtor, [strategyName, exchangeName, frameName, symbol, backtest])
   );
+
+  /**
+   * Builds the memoization key for the given context.
+   * Kept in sync with the getSessionStorage key function.
+   */
+  private static GET_KEY_FN = (
+    strategyName: string,
+    exchangeName: string,
+    frameName: string,
+    symbol: string,
+    backtest: boolean,
+  ): string => `${strategyName}:${exchangeName}:${frameName}:${symbol}:${backtest ? "backtest" : "live"}`;
 
   /**
    * Registers a custom IPersistSessionInstance constructor.
@@ -5595,12 +5677,14 @@ export class PersistSessionUtils {
     strategyName: string,
     exchangeName: string,
     frameName: string,
-    initial: boolean
+    initial: boolean,
+    symbol: string,
+    backtest: boolean,
   ): Promise<void> => {
-    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WAIT_FOR_INIT, { strategyName, exchangeName, frameName, initial });
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WAIT_FOR_INIT, { strategyName, exchangeName, frameName, initial, symbol, backtest });
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     const isInitial = initial && !this.getSessionStorage.has(key);
-    const instance = this.getSessionStorage(strategyName, exchangeName, frameName);
+    const instance = this.getSessionStorage(strategyName, exchangeName, frameName, symbol, backtest);
     await instance.waitForInit(isInitial);
   };
 
@@ -5616,12 +5700,14 @@ export class PersistSessionUtils {
   public readSessionData = async (
     strategyName: string,
     exchangeName: string,
-    frameName: string
+    frameName: string,
+    symbol: string,
+    backtest: boolean,
   ): Promise<SessionData | null> => {
-    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_READ_DATA, { strategyName, exchangeName, frameName });
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_READ_DATA, { strategyName, exchangeName, frameName, symbol, backtest });
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     const isInitial = !this.getSessionStorage.has(key);
-    const instance = this.getSessionStorage(strategyName, exchangeName, frameName);
+    const instance = this.getSessionStorage(strategyName, exchangeName, frameName, symbol, backtest);
     await instance.waitForInit(isInitial);
     return instance.readSessionData();
   };
@@ -5643,11 +5729,13 @@ export class PersistSessionUtils {
     exchangeName: string,
     frameName: string,
     when: Date,
+    symbol: string,
+    backtest: boolean,
   ): Promise<void> => {
-    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WRITE_DATA, { strategyName, exchangeName, frameName });
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_WRITE_DATA, { strategyName, exchangeName, frameName, symbol, backtest });
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     const isInitial = !this.getSessionStorage.has(key);
-    const instance = this.getSessionStorage(strategyName, exchangeName, frameName);
+    const instance = this.getSessionStorage(strategyName, exchangeName, frameName, symbol, backtest);
     await instance.waitForInit(isInitial);
     return instance.writeSessionData(data, when);
   };
@@ -5685,9 +5773,9 @@ export class PersistSessionUtils {
    * @param exchangeName - Exchange identifier
    * @param frameName - Frame identifier
    */
-  public dispose = (strategyName: string, exchangeName: string, frameName: string) => {
+  public dispose = (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => {
     LOGGER_SERVICE.info(PERSIST_SESSION_UTILS_METHOD_NAME_DISPOSE);
-    const key = `${strategyName}:${exchangeName}:${frameName}`;
+    const key = PersistSessionUtils.GET_KEY_FN(strategyName, exchangeName, frameName, symbol, backtest);
     this.getSessionStorage.clear(key);
   };
 }

@@ -3,9 +3,20 @@ import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 
 /**
- * Base fields shared by all signal sync events.
+ * Base fields shared by all order sync events.
  */
-interface SignalSyncBase {
+interface OrderSyncBase {
+  /**
+   * Which order the sync gate is about:
+   * - "active" — the position order: immediate open, activation fill of a resting
+   *   order, and every close. Reject (false/throw) skips the open/close; a rejected
+   *   fresh open rolls back the interval throttle and retries on the next tick.
+   * - "schedule" — the resting entry order being PLACED when a scheduled signal is
+   *   created (action "signal-open" only). Reject means the exchange did not accept
+   *   the resting order: the scheduled signal is NOT registered, the risk
+   *   reservation is released and the placement retries on the next tick.
+   */
+  type: "schedule" | "active";
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Strategy name that generated this signal */
@@ -40,7 +51,7 @@ interface SignalSyncBase {
  * - External order sync services
  * - Audit/logging pipelines
  */
-export interface SignalOpenContract extends SignalSyncBase {
+export interface OrderOpenContract extends OrderSyncBase {
   /** Discriminator for signal-open action */
   action: "signal-open";
   /** Market price at the moment of activation (VWAP or candle average) */
@@ -96,7 +107,7 @@ export interface SignalOpenContract extends SignalSyncBase {
  * - External order sync services
  * - Audit/logging pipelines
  */
-export interface SignalCloseContract extends SignalSyncBase {
+export interface OrderCloseContract extends OrderSyncBase {
   /** Discriminator for signal-close action */
   action: "signal-close";
   /** Market price at the moment of close */
@@ -140,14 +151,16 @@ export interface SignalCloseContract extends SignalSyncBase {
 }
 
 /**
- * Discriminated union for signal sync events.
+ * Discriminated union for order sync events.
  *
  * Emitted to allow external systems to synchronize with the framework's
- * limit order lifecycle: open (limit filled) and close (position exited).
+ * order lifecycle: open (type "active" — immediate/activation fill; type
+ * "schedule" — placement of the resting entry order at scheduled-signal
+ * creation) and close (position exited, always type "active").
  *
- * Note: Only covers the scheduled → pending → closed lifecycle.
- * Signals that were never activated (cancelled scheduled signals) do NOT emit SignalOpenContract.
+ * Note: cancelled scheduled signals do NOT emit OrderOpenContract — their
+ * teardown goes through the schedule-event channel (Broker.commitScheduleCancelled).
  */
-export type SignalSyncContract = SignalOpenContract | SignalCloseContract;
+export type OrderSyncContract = OrderOpenContract | OrderCloseContract;
 
-export default SignalSyncContract;
+export default OrderSyncContract;

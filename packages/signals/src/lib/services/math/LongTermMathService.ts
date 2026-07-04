@@ -53,7 +53,6 @@ interface ILongTermRow {
   pdi14: number | null;
   ndi14: number | null;
   atr14: number | null;
-  atr14_raw: number | null;
   atr20: number | null;
   cci20: number | null;
   bollinger20_2_upper: number | null;
@@ -134,14 +133,6 @@ const columns: Column[] = [
         : "N/A",
   },
   {
-    key: "atr14_raw",
-    label: "ATR(14) Raw",
-    format: async (v, symbol) =>
-      v !== null
-        ? `${await formatPrice(symbol, Number(v))} USD`
-        : "N/A",
-  },
-  {
     key: "atr20",
     label: "ATR(20)",
     format: async (v, symbol) =>
@@ -208,6 +199,11 @@ const columns: Column[] = [
       v !== null
         ? `${await formatPrice(symbol, Number(v))} USD`
         : "N/A",
+  },
+  {
+    key: "volumeTrendRatio",
+    label: "Volume Trend Ratio",
+    format: (v) => (v !== null ? `${Number(v).toFixed(2)}x` : "N/A"),
   },
   {
     key: "currentPrice",
@@ -360,8 +356,8 @@ function calculateFibonacciLevels(
     "61.8%": high - range * 0.618,
     "78.6%": high - range * 0.786,
     "100.0%": low,
-    "127.2%": high - range * 1.272,
-    "161.8%": high - range * 1.618,
+    "127.2% (downside)": high - range * 1.272,
+    "161.8% (downside)": high - range * 1.618,
   };
 
   const currentPrice = Number(candles[endIndex].close);
@@ -468,10 +464,7 @@ function generateAnalysis(
       return;
     }
 
-    // Volume trend calculation
-    const volumeSma6 = new SMA(6);
-    const volumeSma6Prev = new SMA(6);
-
+    // Volume trend calculation: average of last 6 candles vs previous 6
     const volumeStart = Math.max(0, i + 1 - 12);
     const prevVolumeData = volumes.slice(
       volumeStart,
@@ -479,15 +472,16 @@ function generateAnalysis(
     );
     const recentVolumeData = volumes.slice(Math.max(0, i + 1 - 6), i + 1);
 
-    if (prevVolumeData.length > 0) {
-      prevVolumeData.forEach((vol) => volumeSma6Prev.update(vol, false));
-    }
-    if (recentVolumeData.length > 0) {
-      recentVolumeData.forEach((vol) => volumeSma6.update(vol, false));
-    }
+    const averageOf = (values: number[]): number | null => {
+      const safe = values.filter((value) => !isUnsafe(value));
+      if (safe.length === 0) {
+        return null;
+      }
+      return safe.reduce((sum, value) => sum + value, 0) / safe.length;
+    };
 
-    const recentVolumeRaw = volumeSma6.getResult();
-    const prevVolumeRaw = volumeSma6Prev.getResult();
+    const recentVolumeRaw = averageOf(recentVolumeData);
+    const prevVolumeRaw = averageOf(prevVolumeData);
     const recentVolume = !isUnsafe(recentVolumeRaw)
       ? recentVolumeRaw
       : volumes[i];
@@ -550,10 +544,6 @@ function generateAnalysis(
           ? bollingerResult.lower
           : null,
       atr14:
-        atr14.getResult() != null && !isUnsafe(atr14.getResult())
-          ? atr14.getResult()
-          : null,
-      atr14_raw:
         atr14.getResult() != null && !isUnsafe(atr14.getResult())
           ? atr14.getResult()
           : null,
@@ -620,12 +610,13 @@ function generateAnalysis(
       fibonacciDistance: fibonacciNearest.distance,
       bodySize,
       closePrice: close,
-      date: new Date(),
+      date: new Date(_candle.timestamp),
       lookbackPeriod: "48 candles (48 hours) with SMA(50) from 100 hours",
     });
   });
 
-  return results;
+  // Return only the last TABLE_ROWS_LIMIT rows
+  return results.slice(-TABLE_ROWS_LIMIT);
 }
 
 /**
@@ -700,9 +691,7 @@ async function generateHistoryTable(
   markdown +=
     "- **ATR(14)**: over previous 14 candles (14 hours on 1h timeframe) before row timestamp (Min: 0 USD, Max: +∞)\n";
   markdown +=
-    "- **ATR(14) Raw**: raw value over previous 14 candles before row timestamp (Min: 0 USD, Max: +∞)\n";
-  markdown +=
-    "- **ATR(20) Raw**: raw value over previous 20 candles (20 hours on 1h timeframe) before row timestamp (Min: 0 USD, Max: +∞)\n";
+    "- **ATR(20)**: over previous 20 candles (20 hours on 1h timeframe) before row timestamp (Min: 0 USD, Max: +∞)\n";
   markdown +=
     "- **CCI(20)**: over previous 20 candles (20 hours on 1h timeframe) before row timestamp (Min: -∞, Max: +∞)\n";
   markdown +=
@@ -728,11 +717,13 @@ async function generateHistoryTable(
   markdown +=
     "- **Momentum(10)**: over previous 10 candles (10 hours on 1h timeframe) before row timestamp (Min: -∞ USD, Max: +∞ USD)\n";
   markdown +=
+    "- **Volume Trend Ratio**: average volume of last 6 candles relative to previous 6 candles before row timestamp (Min: 0x, Max: +∞x; above 1x = volume increasing)\n";
+  markdown +=
     "- **Support**: over previous 4 candles (4 hours on 1h timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=
     "- **Resistance**: over previous 4 candles (4 hours on 1h timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=
-    "- **Fibonacci Nearest Level**: nearest level name before row timestamp\n";
+    "- **Fibonacci Nearest Level**: nearest level name before row timestamp; levels marked (downside) lie below the range low\n";
   markdown +=
     "- **Fibonacci Nearest Price**: nearest price level before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=
@@ -854,9 +845,7 @@ export class LongTermHistoryService {
   public getReport = async (symbol: string): Promise<string> => {
     this.loggerService.log("longTermHistoryService getReport", { symbol });
     const fullCandles: ICandleData[] = await getCandles(symbol, "1h", 100);
-    // Use all candles for indicator warm-up, then filter to last TABLE_ROWS_LIMIT rows
-    const allRows = await this.getData(symbol, fullCandles);
-    const rows = allRows.slice(-TABLE_ROWS_LIMIT);
+    const rows = await this.getData(symbol, fullCandles);
     return generateHistoryTable(rows, symbol);
   };
 

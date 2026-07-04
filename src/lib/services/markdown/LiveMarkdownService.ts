@@ -382,7 +382,9 @@ class ReportStorage {
    */
   public addClosedEvent(data: IStrategyTickResultClosed) {
     const durationMs = data.closeTimestamp - data.signal.pendingAt;
-    const durationMin = Math.round(durationMs / 60000);
+    // Keep fractional minutes — rounding to whole minutes zeroed out sub-30s
+    // durations (same fix as ScheduleMarkdownService).
+    const durationMin = durationMs / 60000;
 
     const newEvent: TickEvent = {
       timestamp: data.closeTimestamp,
@@ -589,6 +591,50 @@ class ReportStorage {
         typeof (e.pendingAt ?? e.timestamp) === "number"
     );
     const totalClosed = validClosed.length;
+
+    // No usable closed events (e.g. a live session that has only ticked idle so far,
+    // or every closed row was corrupted). Report N/A (null) rather than 0%: a zero
+    // win rate / zero avgPnl would read as a real (terrible) result instead of
+    // "no closed trades yet". The raw eventList is still returned for the table.
+    if (totalClosed === 0) {
+      return {
+        eventList: this._eventList,
+        totalEvents: this._eventList.length,
+        totalClosed: 0,
+        winCount: 0,
+        lossCount: 0,
+        winRate: null,
+        avgPnl: null,
+        totalPnl: null,
+        stdDev: null,
+        sharpeRatio: null,
+        annualizedSharpeRatio: null,
+        certaintyRatio: null,
+        expectedYearlyReturns: null,
+        avgPeakPnl: null,
+        avgFallPnl: null,
+        sortinoRatio: null,
+        calmarRatio: null,
+        recoveryFactor: null,
+        expectancy: null,
+        avgDuration: null,
+        medianPnl: null,
+        avgConsecutiveWinPnl: null,
+        avgConsecutiveLossPnl: null,
+        avgWinDuration: null,
+        avgLossDuration: null,
+        medianStepSize: null,
+        buyerPressure: null,
+        sellerPressure: null,
+        buyerStrength: null,
+        sellerStrength: null,
+        pressureImbalance: null,
+        trend: null,
+        trendStrength: null,
+        trendConfidence: null,
+      };
+    }
+
     const winCount = validClosed.filter((e) => (e.pnl as number) > 0).length;
     const lossCount = validClosed.filter((e) => (e.pnl as number) < 0).length;
     const returns = validClosed.map((e) => e.pnl as number);

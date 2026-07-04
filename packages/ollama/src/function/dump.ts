@@ -23,7 +23,8 @@ const DUMP_SIGNAL_METHOD_NAME = "dump.dumpSignal";
  *
  * @example
  * ```typescript
- * import { dumpSignal, getCandles } from "backtest-kit";
+ * import { getCandles } from "backtest-kit";
+ * import { dumpSignal } from "@backtest-kit/ollama";
  * import { v4 as uuid } from "uuid";
  *
  * addStrategy({

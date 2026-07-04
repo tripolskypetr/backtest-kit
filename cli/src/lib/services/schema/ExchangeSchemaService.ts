@@ -38,7 +38,13 @@ const ADD_EXCHANGE_FN = (self: ExchangeSchemaService) => {
     formatPrice: async (symbol, price) => {
       const exchange = await getExchange();
       const market = exchange.market(symbol);
-      const tickSize = market.limits?.price?.min || market.precision?.price;
+      // ccxt binance uses TICK_SIZE precision mode, so precision.price IS the
+      // tick size. limits.price.min (PRICE_FILTER minPrice) is only a fallback:
+      // it merely coincides with the tick on most Binance markets and is NOT
+      // the tick size by contract.
+      const tickSize = [market.precision?.price, market.limits?.price?.min].find(
+        (value) => typeof value === "number" && isFinite(value) && value > 0,
+      );
       if (tickSize !== undefined) {
         return roundTicks(price, tickSize);
       }
@@ -47,7 +53,12 @@ const ADD_EXCHANGE_FN = (self: ExchangeSchemaService) => {
     formatQuantity: async (symbol, quantity) => {
       const exchange = await getExchange();
       const market = exchange.market(symbol);
-      const stepSize = market.limits?.amount?.min || market.precision?.amount;
+      // Same rule as formatPrice: precision.amount is the LOT_SIZE step;
+      // limits.amount.min is minQty, which can exceed the step on some markets
+      // and would over-truncate quantities if preferred.
+      const stepSize = [market.precision?.amount, market.limits?.amount?.min].find(
+        (value) => typeof value === "number" && isFinite(value) && value > 0,
+      );
       if (stepSize !== undefined) {
         return roundTicks(quantity, stepSize);
       }

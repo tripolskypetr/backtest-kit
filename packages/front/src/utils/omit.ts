@@ -1,5 +1,15 @@
 import { isObject } from "functools-kit";
 
+const omitValue = (value: unknown, keys: string[]): unknown => {
+  if (isObject(value)) {
+    return omit(value as Record<string, unknown>, ...keys);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => omitValue(item, keys));
+  }
+  return value;
+};
+
 export function omit<T extends object, K extends string>(
   obj: T,
   ...keys: K[]
@@ -14,14 +24,7 @@ export function omit<T extends object, K extends string>(
 
       const value = (obj as Record<string, unknown>)[key];
 
-      if (isObject(value)) {
-        (acc as Record<string, unknown>)[key] = omit(
-          value as Record<string, unknown>,
-          ...keys,
-        );
-      } else {
-        (acc as Record<string, unknown>)[key] = value;
-      }
+      (acc as Record<string, unknown>)[key] = omitValue(value, keys);
 
       return acc;
     },

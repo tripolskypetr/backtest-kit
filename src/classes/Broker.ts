@@ -55,8 +55,14 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
 /**
  * Payload for the signal-open broker event.
  *
- * Emitted automatically via syncSubject when a new pending signal is activated.
- * Forwarded to the registered IBroker adapter via `onSignalOpenCommit`.
+ * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
+ * `onSignalOpenCommit`. Discriminated by `type`:
+ * - "active" — a pending signal is being opened (immediate entry or activation fill of the
+ *   resting order); throw = the exchange did not fill the entry, the framework rolls back the
+ *   open and retries on the next tick;
+ * - "schedule" — the resting entry order is being PLACED (scheduled signal creation); throw =
+ *   the exchange did not accept the resting order, the scheduled signal is NOT registered and
+ *   the placement retries on the next tick.
  *
  * @example
  * ```typescript
@@ -73,6 +79,8 @@ const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
  * ```
  */
 export type BrokerSignalOpenPayload = {
+  /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
+  type: "schedule" | "active";
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
   /** Unique signal identifier (UUID v4) the order belongs to */
@@ -164,16 +172,24 @@ export type BrokerSignalClosePayload = {
 };
 
 /**
- * Payload for the pending-order synchronization broker event.
+ * Payload for the order synchronization broker event.
  *
- * Emitted automatically via syncPendingSubject on every live tick while a pending signal is
- * monitored, BEFORE the framework evaluates TP/SL/time. Forwarded to the registered IBroker
- * adapter via `onOrderCheck`.
+ * Emitted automatically via syncPendingSubject on every live tick while a signal is monitored,
+ * BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter via
+ * `onOrderCheck`. Fires for BOTH monitored states, discriminated by `type`:
+ * - `type: "active"` — pending signal (open position), before TP/SL/time evaluation;
+ * - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
+ *   (the order in question is the resting entry order).
  *
  * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
  * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
  * propagates to CREATE_SYNC_PENDING_FN, which makes the framework close the pending signal with
- * closeReason "closed". Returning normally keeps the position under normal TP/SL monitoring.
+ * closeReason "closed" (type "active") or cancel the scheduled signal with reason "user"
+ * (type "schedule"). Returning normally keeps the signal under normal monitoring.
+ *
+ * NOTE for type "schedule": if the resting entry order actually FILLED, confirm the fill via
+ * `commitActivateScheduled` instead of throwing — a throw here is a terminal cancel, not an
+ * activation.
  *
  * CRITICAL: transient/network errors (timeout, 5xx, rate limit, disconnect) must be SWALLOWED —
  * return normally instead of throwing. A thrown network error would wrongly close an open
@@ -194,6 +210,8 @@ export type BrokerSignalClosePayload = {
  * ```
  */
 export type BrokerSignalPendingPayload = {
+  /** Monitored state: "active" — open position order, "schedule" — resting entry order */
+  type: "schedule" | "active";
   /** Trading pair symbol, e.g. "BTCUSDT" */
   symbol: string;
   /** Unique signal identifier (UUID v4) the order belongs to */
@@ -846,7 +864,7 @@ export interface IBroker {
    * syncSubject BEFORE the framework mutates strategy state, so it is also the close **gate**.
    *
    * MANUAL WIRING — EXCEPTION-BASED: place the real exit order here (tag/look up by `payload.signalId`)
-   * and record final PnL. This is the confirmed-close commit; like `onSignalSync` (signal-close) it
+   * and record final PnL. This is the confirmed-close commit; like `onOrderSync` (signal-close) it
    * shares the gate semantics — a THROW means "the exchange did not close the position" and the
    * framework SKIPS the close, leaving the position open and retrying on the next tick. Return
    * normally to let the close proceed. Backtest short-circuits this (no live exchange), so the gate is
@@ -858,16 +876,18 @@ export interface IBroker {
   onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
 
   /**
-   * Called when a signal is being opened (position entry). Emitted via syncSubject BEFORE the
-   * framework mutates strategy state, so it is also the open **gate**.
+   * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
+   * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
+   * - "active" — position entry (immediate open or activation fill of the resting order);
+   * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
    *
-   * MANUAL WIRING — EXCEPTION-BASED: place the real entry order here (tag the exchange order with
-   * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onSignalSync`
-   * (signal-open) it shares the gate semantics — a THROW means "the exchange did not fill the entry"
-   * (e.g. limit order rejected) and the framework ROLLS BACK the open: the pending signal returns to
-   * idle (a scheduled activation is cancelled) and is retried on the next tick. Return normally to let
-   * the open proceed. Also the point where a scheduled signal's activation surfaces. Backtest
-   * short-circuits this, so the gate is live-only.
+   * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
+   * `payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
+   * (signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
+   * order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
+   * scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
+   * and the risk reservation is released. Both retry on the next tick. Return normally to let the
+   * open proceed. Backtest short-circuits this, so the gate is live-only.
    *
    * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
    * AFTER the open is committed (and cannot veto it).
@@ -875,10 +895,16 @@ export interface IBroker {
   onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
 
   /**
-   * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+   * Called on every live tick while a signal is monitored, BEFORE completion evaluation.
+   * Fires for both monitored states, discriminated by `payload.type`:
+   * - "active" — pending signal (open position), before TP/SL/time evaluation;
+   * - "schedule" — scheduled signal (resting entry order), before timeout/price-activation.
+   *
    * Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
-   * — the framework will then close the position with closeReason "closed". Return normally to keep
-   * monitoring.
+   * — the framework will then close the position with closeReason "closed" (type "active") or
+   * cancel the scheduled signal with reason "user" (type "schedule"). Return normally to keep
+   * monitoring. For type "schedule": a filled resting order must be confirmed via
+   * `commitActivateScheduled`, not by throwing here (a throw is a terminal cancel).
    *
    * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
    * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
@@ -1046,7 +1072,7 @@ export interface IBroker {
    *
    * Fires ONCE at open — place the real entry confirmation and protective TP/SL orders (tag them with
    * `payload.signalId`). Drive the rest per-tick from `onSignalActivePing`. This hook does not gate
-   * the position; for a true entry gate use `onSignalSync` (signal-open).
+   * the position; for a true entry gate use `onOrderSync` (signal-open).
    */
   onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
 
@@ -1111,12 +1137,12 @@ export type TBrokerCtor = new () => Partial<IBroker>;
  * Wrapper around a `Partial<IBroker>` adapter instance.
  *
  * Implements the full `IBroker` interface but guards every method call —
- * if the underlying adapter does not implement a given method, an error is thrown.
- * `waitForInit` is the only exception: it is silently skipped when not implemented.
+ * if the underlying adapter does not implement a given method, the call is
+ * skipped with a warning log (`waitForInit` is skipped silently).
  *
- * Created internally by `BrokerAdapter.useBrokerAdapter` and stored as
- * `_brokerInstance`. All `BrokerAdapter.commit*` methods delegate here
- * after backtest-mode and enable-state checks pass.
+ * Created internally by `BrokerAdapter.useBrokerAdapter` (via the
+ * `_brokerFactory` -> memoized `getInstance()` pair). All `BrokerAdapter.commit*`
+ * methods delegate here after backtest-mode and enable-state checks pass.
  */
 export class BrokerProxy implements IBroker {
   constructor(readonly _instance: Partial<IBroker>) {}
@@ -1136,10 +1162,9 @@ export class BrokerProxy implements IBroker {
 
   /**
    * Forwards a signal-open event to the underlying adapter.
-   * Throws if the adapter does not implement `onSignalOpenCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onSignalOpenCommit`.
    *
    * @param payload - Signal open details: symbol, cost, position, prices, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onSignalOpenCommit`.
    */
   public async onSignalOpenCommit(
     payload: BrokerSignalOpenPayload,
@@ -1149,7 +1174,15 @@ export class BrokerProxy implements IBroker {
       await this._instance.onSignalOpenCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onSignalOpenCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onSignalOpenCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
@@ -1288,10 +1321,9 @@ export class BrokerProxy implements IBroker {
 
   /**
    * Forwards a signal-close event to the underlying adapter.
-   * Throws if the adapter does not implement `onSignalCloseCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onSignalCloseCommit`.
    *
    * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onSignalCloseCommit`.
    */
   public async onSignalCloseCommit(
     payload: BrokerSignalClosePayload,
@@ -1301,15 +1333,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onSignalCloseCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onSignalCloseCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onSignalCloseCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a partial-profit close event to the underlying adapter.
-   * Throws if the adapter does not implement `onPartialProfitCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onPartialProfitCommit`.
    *
    * @param payload - Partial profit details: symbol, percentToClose, cost, currentPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onPartialProfitCommit`.
    */
   public async onPartialProfitCommit(
     payload: BrokerPartialProfitPayload,
@@ -1319,15 +1358,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onPartialProfitCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onPartialProfitCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onPartialProfitCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a partial-loss close event to the underlying adapter.
-   * Throws if the adapter does not implement `onPartialLossCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onPartialLossCommit`.
    *
    * @param payload - Partial loss details: symbol, percentToClose, cost, currentPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onPartialLossCommit`.
    */
   public async onPartialLossCommit(
     payload: BrokerPartialLossPayload,
@@ -1337,15 +1383,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onPartialLossCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onPartialLossCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onPartialLossCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a trailing stop-loss update event to the underlying adapter.
-   * Throws if the adapter does not implement `onTrailingStopCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onTrailingStopCommit`.
    *
    * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onTrailingStopCommit`.
    */
   public async onTrailingStopCommit(
     payload: BrokerTrailingStopPayload,
@@ -1355,15 +1408,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onTrailingStopCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onTrailingStopCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onTrailingStopCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a trailing take-profit update event to the underlying adapter.
-   * Throws if the adapter does not implement `onTrailingTakeCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onTrailingTakeCommit`.
    *
    * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onTrailingTakeCommit`.
    */
   public async onTrailingTakeCommit(
     payload: BrokerTrailingTakePayload,
@@ -1373,15 +1433,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onTrailingTakeCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onTrailingTakeCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onTrailingTakeCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a breakeven event to the underlying adapter.
-   * Throws if the adapter does not implement `onBreakevenCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onBreakevenCommit`.
    *
    * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice (= effectivePriceOpen), newTakeProfitPrice, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onBreakevenCommit`.
    */
   public async onBreakevenCommit(
     payload: BrokerBreakevenPayload,
@@ -1391,15 +1458,22 @@ export class BrokerProxy implements IBroker {
       await this._instance.onBreakevenCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onBreakevenCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onBreakevenCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 
   /**
    * Forwards a DCA average-buy entry event to the underlying adapter.
-   * Throws if the adapter does not implement `onAverageBuyCommit`.
+   * Silently skipped (with a warning log) when the adapter does not implement `onAverageBuyCommit`.
    *
    * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest flag.
-   * @throws {Error} If the adapter does not implement `onAverageBuyCommit`.
    */
   public async onAverageBuyCommit(
     payload: BrokerAverageBuyPayload,
@@ -1409,7 +1483,15 @@ export class BrokerProxy implements IBroker {
       await this._instance.onAverageBuyCommit(payload);
       return;
     }
-    throw new Error("BrokerProxy onAverageBuyCommit is not implemented")
+    // TBrokerCtor documents every IBroker method as optional. Returning
+    // normally means "allow" under the gate semantics: an adapter that
+    // implements only informational hooks must not veto opens/closes
+    // (a throw here would be treated as a broker rejection and retried
+    // forever, silently blocking all trading).
+    bt.loggerService.warn(
+      "BrokerProxy onAverageBuyCommit is not implemented by the adapter, skipping",
+      { symbol: payload.symbol, context: payload.context },
+    );
   }
 }
 
@@ -1540,14 +1622,16 @@ export class BrokerAdapter {
   };
 
   /**
-   * Forwards a pending-order ping to the registered broker adapter.
+   * Forwards an order ping to the registered broker adapter.
    *
    * Called automatically via syncPendingSubject when `enable()` is active, on every live tick
-   * while a pending signal is monitored. Skipped silently in backtest mode or when no adapter is
+   * while a pending signal (payload.type "active") or a scheduled signal (payload.type
+   * "schedule") is monitored. Skipped silently in backtest mode or when no adapter is
    * registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
-   * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed".
+   * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
+   * (type "active") or cancels the scheduled signal with reason "user" (type "schedule").
    *
-   * @param payload - Pending ping details: symbol, position, prices, pnl, context, backtest flag
+   * @param payload - Order ping details: type, symbol, position, prices, pnl, context, backtest flag
    */
   public commitSignalPending = async (payload: BrokerSignalPendingPayload) => {
     bt.loggerService.info(BROKER_METHOD_NAME_COMMIT_SIGNAL_PENDING, {
@@ -1674,6 +1758,14 @@ export class BrokerAdapter {
    *
    * Called automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
    * removed before activation. Skipped silently in backtest mode or when no adapter is registered.
+   *
+   * IMPORTANT (adapter responsibility): the cancel may race the real fill. The framework decides
+   * to drop the scheduled signal from ITS view (risk reject at activation, sync reject, stop,
+   * timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
+   * arrives. The adapter MUST check the actual order status before cancelling: if the order is
+   * filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
+   * (close it or reconcile via onOrderCheck / onSignalActivePing). The framework cannot model
+   * this case — from its side the signal is terminally cancelled.
    *
    * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
    */
@@ -2050,6 +2142,7 @@ export class BrokerAdapter {
         return;
       }
       await this.commitSignalOpen({
+        type: event.type,
         position: event.signal.position,
         cost: event.signal.cost,
         symbol: event.symbol,
@@ -2098,6 +2191,7 @@ export class BrokerAdapter {
 
     const unSignalPending = syncPendingSubject.subscribe(async (event) => {
       await this.commitSignalPending({
+        type: event.type,
         position: event.position,
         currentPrice: event.currentPrice,
         symbol: event.symbol,

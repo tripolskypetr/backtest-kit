@@ -6,6 +6,13 @@ import os from "os";
 const IS_WINDOWS = os.platform() === "win32";
 
 /**
+ * Default prefix for temporary files created during atomic writes.
+ * Exposed so directory scanners (e.g. PersistBase) can exclude in-flight
+ * or leftover temporary files from entity listings.
+*/
+export const TMP_FILE_PREFIX = ".tmp-";
+
+/**
  * Options for configuring the atomic file write operation.
 */
 interface Options {
@@ -45,20 +52,22 @@ interface Options {
  *
  * @remarks
  * This function ensures atomicity to prevent partial writes:
- * - On POSIX systems (non-Windows, unless `GLOBAL_CONFIG.CC_SKIP_POSIX_RENAME` is true):
+ * - On POSIX systems (non-Windows):
  *   - Writes data to a temporary file (e.g., `.tmp-<random>-filename`) in the same directory.
  *   - Uses `crypto.randomBytes` to generate a unique temporary name, reducing collision risk.
  *   - Syncs the data to disk and renames the temporary file to the target file atomically with `fs.rename`.
  *   - Cleans up the temporary file on failure, swallowing cleanup errors to prioritize throwing the original error.
- * - On Windows (or when POSIX rename is skipped):
+ * - On Windows:
  *   - Writes directly to the target file, syncing data to disk to minimize corruption risk (though not fully atomic).
  *   - Closes the file handle on failure without additional cleanup.
- * - Accepts `options` as an object or a string (interpreted as `encoding`), defaulting to `{ encoding: "utf8", mode: 0o666, tmpPrefix: ".tmp-" }`.
- * Useful in the agent swarm system for safely writing configuration files, logs, or state data where partial writes could cause corruption.
+ * - Accepts `options` as an object or a string (interpreted as `encoding`), defaulting to `{ encoding: "utf8", mode: 0o666, tmpPrefix: TMP_FILE_PREFIX }`.
+ * Used by the persistence layer (PersistBase.writeValue) so state files are never observed half-written.
+ * A crash between the tmp write and the rename can leave a `${tmpPrefix}...` file behind; because the
+ * tmp name KEEPS the original extension, directory scanners must exclude TMP_FILE_PREFIX explicitly
+ * (PersistBase.keys does) and init should sweep such leftovers.
  *
  * @see {@link https://nodejs.org/api/fs.html#fspromiseswritefilefile-data-options|fs.promises.writeFile} for file writing details.
  * @see {@link https://nodejs.org/api/crypto.html#cryptorandombytessize-callback|crypto.randomBytes} for temporary file naming.
- * @see {@link ../config/params|GLOBAL_CONFIG} for configuration impacting POSIX behavior.
 */
 export async function writeFileAtomic(
   file: string,
@@ -71,22 +80,22 @@ export async function writeFileAtomic(
     options = {};
   }
 
-  const { encoding = "utf8", mode = 0o666, tmpPrefix = ".tmp-" } = options;
+  const { encoding = "utf8", mode = 0o666, tmpPrefix = TMP_FILE_PREFIX } = options;
 
   let fileHandle: fs.FileHandle = null;
 
   if (IS_WINDOWS) {
     try {
-      // Create and write to temporary file
+      // Windows: write directly to the target file (no temp+rename here, so the
+      // write is best-effort, NOT atomic — fsync minimizes the corruption window)
       fileHandle = await fs.open(file, "w", mode);
 
-      // Write data to the temp file
+      // Write data to the target file
       await fileHandle.writeFile(data, { encoding });
 
       // Ensure data is flushed to disk
       await fileHandle.sync();
 
-      // Close the file before rename
       await fileHandle.close();
     } catch (error) {
       // Clean up if something went wrong

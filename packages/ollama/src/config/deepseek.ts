@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import engine from "../lib";
 
 /**
@@ -29,14 +29,19 @@ import engine from "../lib";
  * });
  * ```
  */
-export const getDeepseek = singleshot(() => {
+const GET_CLIENT_FN = memoize(
+    ([apiKey]) => `${apiKey}`,
+    (apiKey: string | undefined) =>
+        new OpenAI({
+            baseURL: "https://api.deepseek.com",
+            apiKey,
+        }),
+);
+
+export const getDeepseek = () => {
     const apiKey = engine.contextService.context.apiKey;
     if (Array.isArray(apiKey)) {
-        getDeepseek.clear();
         throw new Error("Deepseek provider does not support token rotation");
     }
-    return new OpenAI({
-        baseURL: "https://api.deepseek.com",
-        apiKey: apiKey,
-    })
-});
+    return GET_CLIENT_FN(apiKey);
+};

@@ -50,7 +50,7 @@ addCompletion({
   ): Promise<ISwarmMessage> => {
     const result = await LOCAL_RUNNER_FN(params);
     if (typeof result === "symbol") {
-      throw new Error(`${CompletionName.RunnerCompletion} inference timeout`);
+      throw new Error(`${CompletionName.RunnerStreamCompletion} inference timeout`);
     }
     return result;
   },

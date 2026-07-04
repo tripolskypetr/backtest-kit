@@ -2,7 +2,6 @@ import {
   ISwarmMessage,
   IOutlineMessage,
   event,
-  IToolCall,
   validateToolArguments,
   ISwarmCompletionArgs,
   IOutlineCompletionArgs,
@@ -10,22 +9,8 @@ import {
 
 import IProvider from "../interface/Provider.interface";
 import { getClaude } from "../config/claude";
-import {
-  AIMessage,
-  HumanMessage,
-  SystemMessage,
-  ToolMessage,
-  type MessageContentText,
-} from "@langchain/core/messages";
-import {
-  errorData,
-  getErrorMessage,
-  randomString,
-  singleshot,
-  fetchApi,
-} from "functools-kit";
+import { singleshot } from "functools-kit";
 import { get, set } from "lodash-es";
-import { ChatOpenAI } from "@langchain/openai";
 import { GLOBAL_CONFIG } from "../config/params";
 import { jsonrepair } from "jsonrepair";
 import fs from "fs/promises";
@@ -148,7 +133,7 @@ export class ClaudeProvider implements IProvider {
     } = await claude.chat.completions.create(requestOptions);
 
     const result = {
-      content: content!,
+      content: content ?? "",
       mode,
       agentName,
       role,
@@ -256,7 +241,7 @@ export class ClaudeProvider implements IProvider {
     // Debug logging
     if (GLOBAL_CONFIG.CC_ENABLE_DEBUG) {
       await fs.appendFile(
-        "./debug_gpt5_provider_stream.txt",
+        "./debug_claude_provider_stream.txt",
         JSON.stringify({ params, answer: result }, null, 2) + "\n\n"
       );
     }
@@ -389,7 +374,12 @@ export class ClaudeProvider implements IProvider {
             continue;
           }
 
-          set(validation.data, "_context", this.contextService.context);
+          {
+            // apiKey must never reach the outline result: it gets dumped to
+            // markdown files and forwarded to downstream consumers.
+            const { inference, model } = this.contextService.context;
+            set(validation.data, "_context", { inference, model });
+          }
 
           const result = {
             role: "assistant" as const,

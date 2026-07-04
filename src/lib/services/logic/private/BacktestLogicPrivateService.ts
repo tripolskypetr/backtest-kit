@@ -201,11 +201,15 @@ const RUN_INFINITY_CHUNK_LOOP_FN = async (
   initialResult: IStrategyTickResultActive,
   bufferMs: number,
   signalId: string,
-  frameEndTime: number
+  frameEndTime: number,
+  initialCandles: ICandleData[]
 ): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError> => {
   let backtestResult: IStrategyTickResultClosed | IStrategyTickResultCancelled | IStrategyTickResultActive = initialResult;
   const CHUNK = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
-  let lastChunkCandles: ICandleData[] = [];
+  // Seed with the candles already replayed by the caller so CLOSE_PENDING_FN
+  // never receives an empty array when the very first chunk fetch comes back
+  // empty (frame ending near the present moment).
+  let lastChunkCandles: ICandleData[] = initialCandles;
   let chunkStart = new Date(initialResult._backtestLastTimestamp + 60_000 - bufferMs);
 
   while (backtestResult.action === "active") {
@@ -404,7 +408,7 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
 
   if (backtestResult.action === "active" && signal.minuteEstimatedTime === Infinity) {
     const bufferMs = bufferMinutes * 60_000;
-    const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, backtestResult, bufferMs, signal.id, frameEndTime);
+    const chunkResult = await RUN_INFINITY_CHUNK_LOOP_FN(self, symbol, when, context, backtestResult, bufferMs, signal.id, frameEndTime, candles);
     if ("__error__" in chunkResult) {
       console.error(`backtestLogicPrivateService scheduled signal: infinity chunk loop failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${chunkResult.reason} message=${chunkResult.message}`);
       return chunkResult;
@@ -441,6 +445,15 @@ const PROCESS_SCHEDULED_SIGNAL_FN = async function*(
   return { type: "closed", previousEventTimestamp: newTimestamp, closeTimestamp: backtestResult.closeTimestamp, shouldStop };
 };
 
+/**
+ * Runs the chunked candle replay for an opened signal with `minuteEstimatedTime === Infinity`.
+ *
+ * @returns The resolved (closed/cancelled) result, a {@link TFnError} on sub-operation
+ *   failure, or `null` when no candles are available at all for the first chunk —
+ *   the fetch window extends past the present moment (frame ending near "now"),
+ *   so the signal cannot be evaluated yet. The caller treats `null` as "skip",
+ *   mirroring the finite-signal path where an empty fetch also yields "skip".
+ */
 const RUN_OPENED_CHUNK_LOOP_FN = async (
   self: BacktestLogicPrivateService,
   symbol: string,
@@ -450,7 +463,7 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
   bufferMs: number,
   signalId: string,
   frameEndTime: number
-): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError> => {
+): Promise<IStrategyTickResultClosed | IStrategyTickResultCancelled | TFnError | null> => {
   const CHUNK = GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST;
   let chunkStart = bufferStartTime;
   let lastChunkCandles: ICandleData[] = [];
@@ -463,15 +476,12 @@ const RUN_OPENED_CHUNK_LOOP_FN = async (
 
     if (!chunkCandles.length) {
       if (!lastChunkCandles.length) {
-        const message = `no candles fetched on first chunk for signal ${signalId}`;
-        console.error(`backtestLogicPrivateService RUN_OPENED_CHUNK_LOOP_FN: ${message} symbol=${symbol}`);
-        self.loggerService.warn("backtestLogicPrivateService opened infinity: no candles fetched on first chunk", {
+        self.loggerService.info("backtestLogicPrivateService opened infinity: no candles available for first chunk, skipping", {
           symbol,
           signalId,
           bufferStartTime,
         });
-        await errorEmitter.next(new Error(message));
-        return { type: "error", __error__: SYMBOL_FN_ERROR, reason: "RUN_OPENED_CHUNK_LOOP_FN", message };
+        return null;
       }
       return await CLOSE_PENDING_FN(self, symbol, context, lastChunkCandles, frameEndTime, when, signalId);
     }
@@ -559,6 +569,9 @@ const PROCESS_OPENED_SIGNAL_FN = async function*(
   } else {
     const bufferMs = bufferMinutes * 60_000;
     const chunkResult = await RUN_OPENED_CHUNK_LOOP_FN(self, symbol, when, context, bufferStartTime, bufferMs, signal.id, frameEndTime);
+    if (chunkResult === null) {
+      return { type: "skip" };
+    }
     if ("__error__" in chunkResult) {
       console.error(`backtestLogicPrivateService opened signal: chunk loop failed, stopping backtest symbol=${symbol} signalId=${signal.id} reason=${chunkResult.reason} message=${chunkResult.message}`);
       return chunkResult;
@@ -712,12 +725,17 @@ export class BacktestLogicPrivateService {
 
           if (r.type === "closed") {
             previousEventTimestamp = r.previousEventTimestamp;
-            while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
+            // Skip frames up to and including closeTimestamp (the close minute is
+            // already consumed); the first frame after it must stay tickable, so
+            // continue past the loop-bottom i++.
+            while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
               i++;
             }
             if (r.shouldStop) {
               break;
             }
+            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp);
+            continue;
           }
         }
 
@@ -733,12 +751,15 @@ export class BacktestLogicPrivateService {
 
           if (r.type === "closed") {
             previousEventTimestamp = r.previousEventTimestamp;
-            while (i < timeframes.length && timeframes[i].getTime() < r.closeTimestamp) {
+            // Same off-by-one guard as in the scheduled branch above.
+            while (i < timeframes.length && timeframes[i].getTime() <= r.closeTimestamp) {
               i++;
             }
             if (r.shouldStop) {
               break;
             }
+            previousEventTimestamp = await EMIT_TIMEFRAME_PERFORMANCE_FN(this, symbol, timeframeStartTime, previousEventTimestamp);
+            continue;
           }
         }
 

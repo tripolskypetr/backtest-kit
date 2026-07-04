@@ -15,12 +15,12 @@ registerPlugin("plugin-transform-modules-umd", pluginUMD);
 export class BabelService implements IBabel {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
-  public transpile = (code: string) => {
-    this.loggerService.log("babelService transpile", { codeLen: code.length });
+  public transpile = (code: string, filename: string) => {
+    this.loggerService.log("babelService transpile", { codeLen: code.length, filename });
     const { values } = getArgs();
     const result = transform(code, {
-      filename: "index.ts",
-      presets: ["env", "typescript"],
+      filename,
+      presets: filename.endsWith(".tsx") ? ["env", "react", "typescript"] : ["env", "typescript"],
       plugins: [
         [
           "plugin-transform-modules-umd",

@@ -1,12 +1,12 @@
 import {
-    useActualState,
-    useModalManager,
-    useTabsModal,
-    History,
-    useActualRef,
-    ActionIcon,
-    ttl,
+  useActualState,
+  useModalManager,
+  useTabsModal,
+  History,
+  useActualRef,
+  ActionIcon,
 } from "react-declarative";
+import { ttl } from "../../utils/ttl";
 import { ArrowBack, Close, Print } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";

@@ -19,6 +19,15 @@ export interface INode {
     type: NodeType;
 
     /**
+     * Стабильный идентификатор узла. Хелперы sourceNode/outputNode
+     * проставляют его при создании; для рукописных INode он будет
+     * доштампован при первом serialize. Задавайте свой id, если после
+     * JSON round-trip нужно повторно привязать fetch/compute к узлам
+     * (случайный id не переживает перезапуск процесса).
+     */
+    id?: string;
+
+    /**
      * Человеко-читаемое описание узла, не влияет на исполнение графа.
      */
     description?: string;    
@@ -44,3 +53,12 @@ export interface INode {
 }
 
 export default INode;
+
+/**
+ * Внутренний тип: узел с гарантированно проставленным идентификатором.
+ * В таком виде узлы существуют после входа в пайплайн (хелперы
+ * sourceNode/outputNode, serialize, deserialize).
+ */
+export interface INodeInternal extends INode {
+    id: string;
+};

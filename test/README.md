@@ -583,6 +583,161 @@ if (signalsResults.opened.length < 2) {
 }
 ```
 
+## Изоляция worker-testbed, live-тики и гейты
+
+### Каждый test() — свежий инстанс backtest-kit
+
+worker-testbed запускает каждый `test()` в отдельном воркере и заново загружает
+`build/index.mjs`. У каждого теста — свои синглтоны (`Broker`, `lib`-сервисы,
+сабжекты, `Persist*Adapter`). Следствия:
+
+- **Мокать можно прямым присваиванием** (`lib.someService.method = ...`, патч
+  синглтонов, `Broker.useBrokerAdapter(...)`) — восстанавливать не обязательно,
+  воркер умирает после теста. Глобальные слушатели (`listenDoneBacktest`,
+  `listenScheduleEvent`) не пересекаются между тестами.
+- Глобальный `test/config/setup.mjs` ставит все `Persist*Adapter.useDummy()`.
+  Тесту, которому нужна реальная персистенция, — локально `useJson()` в скоупе
+  `test()` (восстановление в `finally` — хорошая гигиена, но не обязательная).
+
+### Backtest.run vs Backtest.background
+
+- **`for await (const r of Backtest.run(symbol, context))`** — async-генератор,
+  детерминированное завершение без done-слушателя. Предпочтителен, когда нужны
+  только терминальные результаты (`opened`/`closed`/`cancelled`).
+- **`Backtest.background()` + `listenDoneBacktest(() => awaitSubject.next())`** —
+  конвенция для тестов, которым нужны промежуточные события через `listen*`
+  (schedule events, partial-коллбеки и т.д.); генератор их не отдаёт.
+
+### Live-тики напрямую через ядро
+
+`strategyCoreService` di-scoped — вызовы вне command-слоя оборачиваются в
+method-контекст:
+
+```javascript
+const context = { strategyName, exchangeName, frameName: "" };
+const runTick = (when) =>
+  MethodContextService.runInContext(
+    async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+    context,
+  );
+
+const tick1 = await runTick(new Date(t0));            // "scheduled"
+await MethodContextService.runInContext(
+  async () => await lib.strategyCoreService.stopStrategy(false, "BTCUSDT", context),
+  context,
+);
+const tick2 = await runTick(new Date(t0 + 60_000));   // "cancelled"
+```
+
+Троттл `getSignal` привязан к `interval` стратегии: чтобы доказать next-tick
+retry после risk/sync-отказа, берите `interval: "1h"` и тикайте с шагом в минуту —
+без отката троттла второй tick не вызвал бы `getSignal` вовсе.
+
+**Два контекста — кто какой создаёт.** tick/backtest требуют ОБА контекста:
+method (strategyName/exchangeName/frameName) и execution (symbol/when/backtest).
+`lib.strategyCoreService.tick(...)` сам оборачивает вызов в
+`ExecutionContextService.runInContext({symbol, when, backtest})` из своих
+аргументов — поэтому в паттерне выше снаружи хватает одного
+`MethodContextService.runInContext`. Если спускаться НИЖЕ core-слоя
+(`strategyConnectionService.tick`, `strategy.tick()` на инстансе) — оборачивайте
+в оба контекста вручную. Остальные методы ClientStrategy (deferred-команды,
+getters, partial/trailing/breakeven, dispose) контекстов НЕ требуют — identity
+(symbol/backtest/strategy-triple) читается из статических ctor-params. Два
+исключения, где нужен execution-контекст, — это ВРЕМЯ (`when` симулируется,
+wall clock не замена): restore-ветки `waitForInit` (метки коллбеков +
+`getAveragePrice` читает `when` внутри ClientExchange; пустой restore
+контекст-фри) и ленивый `when` в `setPendingSignal` для метки onWrite
+(вызывается только из tick/backtest-пайплайнов).
+
+### Гейты order-sync / order-check (live-only)
+
+Оба контракта несут `type: "schedule" | "active"`:
+
+- **`listenSync(fn, true)`** — `OrderSyncContract` (syncSubject). `action:
+  "signal-open"` с `type: "schedule"` — РАЗМЕЩЕНИЕ resting-ордера при создании
+  scheduled (throw → scheduled не регистрируется, ретрай next tick); с `type:
+  "active"` — открытие позиции/филл активации (throw при активации —
+  ТЕРМИНАЛЬНАЯ отмена, при свежем открытии — ретрай next tick). Фильтруйте по
+  `event.type`: слушатель «на все signal-open» поймает и placement-события.
+- **`listenCheck(fn, true)`** — `OrderCheckContract` (syncPendingSubject),
+  пинг «ордер ещё жив?». Throw при `"active"` → закрытие `closed`, при
+  `"schedule"` → отмена scheduled `user`. Backtest эти события не эмитит.
+- Второй аргумент `true` подавляет discouraged-предупреждения в консоли.
+- В Action-хендлере методы `orderSync`/`orderCheck` ЗАПРЕЩЕНЫ валидатором схемы —
+  используйте `callbacks: { onOrderSync, onOrderCheck }` в `addActionSchema`
+  или Broker-адаптер.
+
+### Тестирование Broker
+
+```javascript
+Broker.useBrokerAdapter({            // Partial<IBroker> — только нужные методы
+  onSignalOpenCommit: async (p) => { /* p.type: "schedule" | "active" */ },
+  onOrderCheck: async (p) => { /* throw = ордер не найден */ },
+  onSignalScheduleCancelled: async (p) => { /* p.reason */ },
+});
+Broker.enable();                     // без адаптера — throw
+try { /* тики */ } finally { Broker.disable(); }
+```
+
+Брокер live-only: в backtest sync-гейты short-circuit'ятся до сабжектов, а все
+`commit*`-методы скипают `payload.backtest` — адаптер обязан получить ровно 0
+вызовов за бектест-прогон (см. broker.test.mjs #3).
+
+### Манки-патч order-коллбеков в backtest (di-kit)
+
+Штатно order-события в backtest НЕ эмитятся: `CREATE_SYNC_FN` short-circuit'ит
+`event.backtest` ДО `syncSubject.next()` (см. probe: scheduled-цикл в backtest
+даёт `SCHEDULE scheduled → SIGNAL opened → SIGNAL closed` и ноль order-событий).
+Если тесту нужно наблюдать/гейтить ордера в backtest — манки-патч:
+
+```javascript
+// 1. di-kit: lib.someService — InstanceAccessor, реальный сервис — его ПРОТОТИП.
+//    Внутренние вызовы this.getStrategy идут по реальному инстансу (arrow-поля),
+//    присваивание на аксессор НЕ сработает.
+const realService = Object.getPrototypeOf(lib.strategyConnectionService);
+
+// 2. Backtest.run() fire-and-forget чистит мемоизацию стратегий — патчить
+//    конкретный инстанс бесполезно. Оборачиваем САМ getStrategy:
+const originalGetStrategy = realService.getStrategy;
+const wrapped = (...args) => {
+  const strategy = originalGetStrategy(...args);
+  if (!strategy.__patched) {
+    strategy.__patched = true;
+    const original = strategy.params.onOrderSync;
+    strategy.params.onOrderSync = async (event) => {
+      record(event);                  // наблюдение
+      if (shouldReject(event)) return false; // гейт работает и в backtest
+      return await original(event);
+    };
+  }
+  return strategy;
+};
+// 3. Сохранить memoize-API, которым пользуется connection-сервис:
+wrapped.clear = originalGetStrategy.clear;
+wrapped.has = originalGetStrategy.has;
+wrapped.values = originalGetStrategy.values;
+realService.getStrategy = wrapped;
+```
+
+Порядок событий полного цикла через патч: `signal-open/schedule` (размещение) →
+`signal-open/active` (филл активации) → `signal-close/active` (закрытие).
+Рабочий пример — «monkey-patched onOrderSync» в strategy.test.mjs.
+
+### Проверка гипотез отдельным скриптом
+
+Прежде чем ставить в сьют тест с риском зависания (новый API, `for await` по
+генератору, незнакомый паттерн ожидания) — прогоните гипотезу standalone-скриптом
+с вотчдогом:
+
+```javascript
+// probe.mjs: import setup.mjs и build/index.mjs по АБСОЛЮТНЫМ путям
+const watchdog = setTimeout(() => { console.error("HUNG"); process.exit(2); }, 60_000);
+// ... сценарий ...
+clearTimeout(watchdog);
+```
+
+Полный сьют идёт минуты — зависший тест стоит дороже, чем минутная проба.
+
 ## Основные тестовые файлы
 
 ### test/e2e/sanitize.test.mjs
@@ -632,6 +787,102 @@ if (signalsResults.opened.length < 2) {
 - Используют паттерн предгенерации всех свечей в первом `getSignal`
 - Проверяют что система корректно обрабатывает серии сигналов с разными исходами
 - Используют минимальные ожидания (at least N) вместо точных значений
+
+### test/e2e/audit.test.mjs
+Регрессионные тесты по находкам аудитов (каждый тест закрывает конкретный баг):
+- Молчаливые дропы scheduled на activation-путях (risk/sync-reject → «cancelled» до брокера)
+- stopStrategy через deferred-cancel пайплайн (tick #2 = cancelled/user)
+- Next-tick retry отвергнутого открытия/размещения (откат `_lastSignalTimestamp`, interval "1h")
+- Order-check ping для scheduled (`type: "schedule"`), `listenCheck` как гейт
+- Partial-close математика (remaining cost basis, точные доллары)
+
+### test/e2e/gauntlet.test.mjs
+Сложные интеграционные тесты ClientStrategy — несколько механизмов через общее состояние:
+- **#1**: Полный цикл scheduled с отказом на каждом гейте (placement-reject → retry → sync-reject активации → ТЕРМИНАЛЬНАЯ отмена → новый час → повторный цикл до opened); строгая последовательность из 7 tick-действий
+- **#2**: Гонка stopStrategy ВНУТРИ активационного гейта → ровно одно «cancelled» на обоих каналах (дедуп через затирание `_cancelledSignal` в setScheduledSignal)
+- **#3**: Backtest переживает risk-reject на wick-активации (cancelled/user без фатала) и доводит следующий сигнал до time_expired
+- **#4**: Отказ active order-check закрывает «closed» и полностью освобождает состояние (следующий tick открывает свежий сигнал)
+- **#5**: Каскад risk-reject → sync-reject → успех на трёх соседних tick внутри одного "1h"-интервала
+
+### test/e2e/broker.test.mjs
+Тесты Broker-адаптера (роутинг сабжектов → IBroker):
+- **#1**: Все 8 этапов жизненного цикла scheduled→активация→TP доходят до СВОИХ методов адаптера в строгом порядке, один signalId
+- **#2**: Адаптер как гейт: throw в `onSignalOpenCommit`/`onOrderCheck` (размещение отвергнуто + отмена с уведомлением `onSignalScheduleCancelled`)
+- **#3**: Backtest-тишина: 0 вызовов адаптера за полный прогон (`for await Backtest.run`)
+- **#4**: `enable()` без адаптера бросает; после `disable()` роутинг отключён, фреймворк работает
+
+### test/e2e/strategy.test.mjs
+Матрица deferred-команд ClientStrategy: Live (манки-паттерн `runTick` + Broker) × Backtest (команды из коллбеков стратегии, `for await Backtest.run`):
+- **LIVE #1**: `createSignal` — DTO из очереди потребляется вместо getSignal (broker openCommit "active" + pendingOpen); busy-guard бросает при живой позиции
+- **LIVE #2**: `closePending` — sync-close гейт отвергает первую попытку, `_closedSignal` сохраняется и закрытие ретраится на следующем tick (closeId в результате)
+- **LIVE #3**: `activateScheduled` — вход по `priceOpen` (цена филла лимитника), commit "activate-scheduled" с activateId, broker уведомлён
+- **LIVE #4**: `cancelScheduled` — cancelled/user с cancelId, commit с note, broker `onSignalScheduleCancelled`
+- **LIVE #5**: `createTakeProfit`/`createStopLoss` — закрытие ПО ЭФФЕКТИВНОМУ уровню TP/SL минуя VWAP (рынок не двигался)
+- **BACKTEST #1**: `cancelScheduled` из `onSchedulePing` — свечной цикл дренит отмену mid-frame (cancelId)
+- **BACKTEST #2**: `activateScheduled` из `onSchedulePing` — inline-открытие без касания priceOpen, базис = priceOpen, доживает до time_expired
+- **BACKTEST #3**: `createTakeProfit` из `onActivePing` — закрытие по эффективному TP при VWAP на месте (closeId)
+- **BACKTEST #4**: `closePending` из `onActivePing` — closed/"closed" mid-frame (closeId)
+- **BACKTEST #5**: манки-патч `onOrderSync` — order-гейты наблюдаемы и гейтят в backtest (полный цикл signal-open/schedule ×2 → active → close)
+- **LIVE #6**: check закрывает позицию на ПЯТОЙ проверке после активации (scheduled → opened → active×4 с успешными check'ами → closed/"closed"; счёт schedule/active check'ов точный)
+
+### test/e2e/manage.test.mjs
+Позиционные команды из `listenActivePing` (продакшн-паттерн императивного менеджмента по live-тику; схема всех тестов: tick #1 открывает → ping тика #2 подаёт команду → tick #3 показывает эффект):
+- **trailingStop**: shift −5пп (SL 10% → 5%) — закрытие stop_loss ровно по подтянутому 47500, оригинальный 45000 не тронут ценой; commit "trailing-stop"
+- **trailingTake**: shift −10пп (TP 20% → 10%) — take_profit по 55000 при рынке 56000 (< оригинального 60000); ассерт с fp-допуском
+- **breakeven**: SL → эффективный вход, закрытие ровно по 50000 (zero-risk exit); commit "breakeven"
+- **averageBuy**: DCA $100 на 48000 — эффективная цена = cost-weighted harmonic 200/(100/50000+100/48000), invested $200; commit "average-buy"
+- **partialProfit(40%)**: остаток $60, `_partial` типа "profit", commit дренится следующим tick
+- **partialLoss(30%)**: остаток $70, тип "loss", commit "partial-loss"
+- **Переплетение DCA × партиалы**: open $100 → DCA $100 → profit 50% → DCA $100 → loss 25% → profit 100% остатка; строгие снапшоты `costBasisAtClose` [200, 200, 150] / `entryCountAtClose` [2, 3, 3], invested $300, остаток ровно $0 (партиал #2 берёт базис «остаток после 50% + вход, добавленный ПОСЛЕ партиала»; финальный 100% проходит через epsilon-кап)
+
+ВАЖНО: `percentShift` у trailing-команд — сдвиг дистанции в процентных ПУНКТАХ
+(SL 10% + shift −5 → 5%), а не доля от дистанции.
+
+### test/e2e/recovery.test.mjs
+Матрица crash-recovery deferred-состояния (useJson-адаптеры локально, «крэш» = голый dispose через clear, сброс остатков прошлых прогонов null-записями):
+- **stopStrategy-отмена** переживает крэш: cancelled/user + `onSignalScheduleCancelled` в Broker-адаптер ПОСЛЕ рестарта
+- **activateScheduled**: рестарт → opened по priceOpen с commit activate-scheduled (activateId)
+- **createTakeProfit**: рестарт → closed take_profit по эффективному TP с closeId
+- **createSignal**: DTO из очереди переживает крэш и открывается (ВАЖНО: createSignal требует посеянной цены — сначала один tick)
+- **commit-очередь по pendingSignalId**: застрявший partial-profit commit дренится после рестарта, состояние партиала восстановлено
+- **Осиротевшая очередь НЕ реплеится** (at-most-once через рестарт): partial-commit + TP-филл занулил pending → после крэша commit дропнут, филл закрыл позицию
+
+### test/e2e/short.test.mjs
+SHORT-зеркало новой логики (вся сессия писалась на long):
+- **Гейты жизненного цикла**: placement reject/retry, активация на РОСТЕ цены, opened по priceOpen (fp-допуск: effective через 100/(100/60000))
+- **trailingStop**: SL ВЫШЕ входа подтягивается ВНИЗ (10% → 5% = 52500), закрытие на росте по подтянутому уровню
+- **DCA-вверх × партиалы × breakeven**: усреднение при росте (52000 > max entry), harmonic effective ≈50980.39, снапшоты [200, 120], breakeven вниз → выход ровно по effective
+
+### test/e2e/commit.test.mjs
+Императивный commit*-слой (function/strategy.ts → Broker-адаптер напрямую, НЕ подписки):
+- **Роутинг**: commitTrailingStop/commitAverageBuy/commitPartialProfit/commitBreakeven из listenActivePing (контексты наследуются от tick) → свои методы адаптера, один signalId, операции применяются (remaining $160). ВАЖНО: `commitTrailingStop(symbol, shift, currentPrice)` — третий аргумент обязателен
+- **Тишина без enable()**: commit* исполняются молча (skip, не throw), адаптер не вызывается
+
+### test/e2e/hardening.test.mjs
+Дозакрытие пробелов:
+- **`callbacks.onOrderSync` в Action** — второй санкционированный гейт-канал: throw → откат троттла → next-tick retry в "1h"
+- **Таймаут getSignal** (`CC_MAX_SIGNAL_GENERATION_SECONDS` через частичный setConfig): зависший getSignal обрывается за ~1с → idle
+- **Одноразовость listenSyncOnce/listenCheckOnce**: ровно 1 срабатывание на два цикла событий
+- **Infinity-холд через крэш**: JSON null → Infinity restore, позиция active сутки спустя, estimate === Infinity (нужен `CC_MAX_SIGNAL_LIFETIME_MINUTES: Infinity`)
+- **Whipsaw через рестарт**: `_lastPendingId` восстановлен из PersistRecentAdapter (Recent записан напрямую адаптером — канал Recent-класса в тестах не активен), детерминированный id заблокирован ПОСЛЕ вызова getSignal
+- **Конкуренция за общую риск-мапу**: shared riskName + validation по `activePositionCount` — A занимает слот → B idle → A закрылась → B opened (release-точки реально возвращают слот)
+- **stopStrategy на PLACEMENT-гейте**: отказ размещения при стопе не оставляет фантомов — ни schedule-событий (ордер не размещался), reserve/remove ровно по 1, getSignal замолкает
+- **Статистика отмен по новому пути** (BACKTEST): risk-reject wick-активации попадает в cancellationRate (50/50 на 2 сигналах) благодаря cancelled-outcome фиксу. НЮАНС: активация должна быть ПОЗЖЕ свечи создания scheduled, иначе pendingAt === scheduledAt и сервис (signalEmitter-based) не матчит; в LIVE отказ активации даёт idle-тик и в rate не попадает — задокументированное ограничение
+
+### test/e2e/short.test.mjs (дополнение)
+- **Backtest wick-активация short**: вик ВВЕРХ пробивает priceOpen, risk-reject первой активации → cancelled/user без фатала, второй short доживает до time_expired
+
+### test/e2e/coverage.test.mjs
+Тесты на изменения `git diff master -- src/client/ClientStrategy.ts`, не покрытые остальными файлами (каждый тест привязан к ханку дифа):
+- **Epsilon партиалов** (`PARTIAL_CAP_TOLERANCE_FACTOR`): 30% → 50% → 100%-от-остатка проходят все, остаток ровно 0
+- **Risk-release при timeout-отмене scheduled** (`CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN`): патч `strategy.params.risk.removeSignal` — ровно 1 вызов
+- **Risk-release при SL-отмене до активации** (`CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN`): то же для price_reject
+- **Release утёкшей резервации при validate-throw** (fallback `GET_SIGNAL_FN`): невалидный DTO после успешного reserve → remove ×1
+- **`GET_PROGRESS_PERCENT_FN`**: breakeven ставит SL = entry, отвергнутое sync-закрытие проваливается в мониторинг → percentSl = 100 (не Infinity/NaN)
+- **Drop очереди коммитов без pending** (`PROCESS_COMMIT_QUEUE_FN`): partial-commit в очереди + TP-филл занулил pending → commit дропнут (не эмитится), close-pending доставлен
+- **Cost-fallback** (`signal.cost ?? CC_POSITION_ENTRY_COST`): сигнал с cost=250 и пустым `_entry` (патч state) → invested/entries отдают 250, не $100
+- **Crash-recovery deferred close** (`WAIT_FOR_INIT_FN` + `PERSIST_STRATEGY_FN` + `getStatus`): closePending → dispose инстанса ГОЛЫМ clear() → restore → дренаж closed/"closed" с closeId; useJson-адаптеры локально в скоупе теста
+- **Контекстно-независимая поверхность**: 62 ГОЛЫХ вызова (без method/execution контекстов) по всей поверхности инстанса — все геттеры, validate*, позиционные команды (partial/trailing/breakeven/DCA), deferred-команды, setScheduledSignal, waitForInit (пустой restore), stopStrategy, dispose; упавший метод называется по имени. Вне инварианта (законно контекстные): tick, backtest, setPendingSignal (`when` для onWrite), restore-ветки waitForInit
 
 ## Отладка тестов
 

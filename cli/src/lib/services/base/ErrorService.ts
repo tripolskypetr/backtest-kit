@@ -9,17 +9,27 @@ import * as stackTrace from "stack-trace";
 
 const ERROR_HANDLER_INSTALLED = Symbol.for("error-handler-installed");
 
-function dumpStackTrace() {
-  const trace = stackTrace.get();
-  const result: string[] = [];
-  trace.forEach((callSite) => {
-    result.push(`File: ${callSite.getFileName()}`);
-    result.push(`Line: ${callSite.getLineNumber()}`);
-    result.push(`Function: ${callSite.getFunctionName() || "anonymous"}`);
-    result.push(`Method: ${callSite.getMethodName() || "none"}`);
-    result.push("---");
-  });
-  return str.newline(result);
+function dumpStackTrace(error: Error) {
+  // Parse the ERROR's own stack — stackTrace.get() captured the handler's
+  // stack instead, so error.txt carried a useless trace of ErrorService itself.
+  if (!(error instanceof Error) || !error.stack) {
+    return "";
+  }
+  try {
+    const trace = stackTrace.parse(error);
+    const result: string[] = [];
+    trace.forEach((callSite) => {
+      result.push(`File: ${callSite.getFileName()}`);
+      result.push(`Line: ${callSite.getLineNumber()}`);
+      result.push(`Function: ${callSite.getFunctionName() || "anonymous"}`);
+      result.push(`Method: ${callSite.getMethodName() || "none"}`);
+      result.push("---");
+    });
+    return str.newline(result);
+  } catch {
+    // Unparseable/exotic stack format — dump the raw stack rather than nothing
+    return error.stack;
+  }
 }
 
 const timeNow = () => {
@@ -41,7 +51,7 @@ export class ErrorService {
       message: getErrorMessage(error),
       data: errorData(error),
     }, null, 2);
-    const trace = dumpStackTrace();
+    const trace = dumpStackTrace(error);
     fs.appendFileSync("./error.txt", `${date}\n${msg}\n${trace}\n\n`);
   };
 

@@ -24,6 +24,7 @@ const RECENT_MEMORY_LIVE_METHOD_NAME_GET_LATEST_SIGNAL = "RecentMemoryLiveUtils.
 
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_HANDLE_ACTIVE_PING = "RecentBacktestAdapter.handleActivePing";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL = "RecentBacktestAdapter.getLatestSignal";
+const RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL = "RecentBacktestAdapter.getMinutesSinceLatestSignalCreated";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_ADAPTER = "RecentBacktestAdapter.useRecentAdapter";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST = "RecentBacktestAdapter.usePersist";
 const RECENT_BACKTEST_ADAPTER_METHOD_NAME_USE_MEMORY = "RecentBacktestAdapter.useMemory";
@@ -31,6 +32,7 @@ const RECENT_BACKTEST_ADAPTER_METHOD_NAME_CLEAR = "RecentBacktestAdapter.clear";
 
 const RECENT_LIVE_ADAPTER_METHOD_NAME_HANDLE_ACTIVE_PING = "RecentLiveAdapter.handleActivePing";
 const RECENT_LIVE_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL = "RecentLiveAdapter.getLatestSignal";
+const RECENT_LIVE_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL = "RecentLiveAdapter.getMinutesSinceLatestSignalCreated";
 const RECENT_LIVE_ADAPTER_METHOD_NAME_USE_ADAPTER = "RecentLiveAdapter.useRecentAdapter";
 const RECENT_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST = "RecentLiveAdapter.usePersist";
 const RECENT_LIVE_ADAPTER_METHOD_NAME_USE_MEMORY = "RecentLiveAdapter.useMemory";
@@ -594,7 +596,7 @@ export class RecentBacktestAdapter implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<number | null> => {
-    lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
+    lib.loggerService.info(RECENT_BACKTEST_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL, {
       symbol,
       strategyName,
       exchangeName,
@@ -742,7 +744,7 @@ export class RecentLiveAdapter implements IRecentUtils {
     frameName: FrameName,
     backtest: boolean,
   ): Promise<number | null> => {
-    lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_GET_LATEST_SIGNAL, {
+    lib.loggerService.info(RECENT_LIVE_ADAPTER_METHOD_NAME_GET_MINUTES_SINCE_LATEST_SIGNAL, {
       symbol,
       strategyName,
       exchangeName,

@@ -4,8 +4,11 @@ import swarm from "../lib";
 import { PersistMemoryAdapter } from "./Persist";
 import { signalEmitter } from "../config/emitters";
 
+// NUL separator: cannot appear in signal ids or bucket names, so the
+// disposeSignal prefix match never crosses into another signal whose id
+// merely starts with this one (e.g. "sig" vs "sig_2" with a "_" separator).
 const CREATE_KEY_FN = (signalId: string, bucketName: string) =>
-  `${signalId}_${bucketName}`;
+  `${signalId}\u0000${bucketName}`;
 
 const LIST_MEMORY_FN = <T extends object = object>({ id, content }) => ({
   memoryId: id,
@@ -327,9 +330,13 @@ export class MemoryPersistInstance implements IMemoryInstance {
 
   /**
    * Initialize persistence storage and rebuild BM25 index from disk.
+   * Singleshot: adapters call waitForInit on every operation, but the disk
+   * rescan and index rebuild must run exactly once per instance — otherwise
+   * every read/write/search pays O(files) fs reads and a concurrent rebuild
+   * can resurrect an entry that removeMemory just dropped from the index.
    * @param initial - Whether this is the first initialization
    */
-  public async waitForInit(initial: boolean): Promise<void> {
+  public waitForInit = singleshot(async (initial: boolean): Promise<void> => {
     swarm.loggerService.debug(MEMORY_PERSIST_INSTANCE_METHOD_NAME_WAIT_FOR_INIT, {
       signalId: this.signalId,
       bucketName: this.bucketName,
@@ -345,7 +352,7 @@ export class MemoryPersistInstance implements IMemoryInstance {
         when,
       });
     }
-  }
+  });
 
   /**
    * Write a value to disk and update the BM25 index.

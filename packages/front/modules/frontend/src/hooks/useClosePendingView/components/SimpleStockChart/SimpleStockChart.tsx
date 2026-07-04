@@ -22,6 +22,7 @@ interface IVertLineOptions {
   labelText?: string;
   color?: string;
   width?: number;
+  container?: HTMLElement | null;
 }
 
 class VertLine {
@@ -43,6 +44,7 @@ class VertLine {
       labelText: options.labelText ?? "",
       color: options.color ?? "blue",
       width: options.width ?? 2,
+      container: options.container ?? null,
     };
     this._createDiv();
     this._updatePosition();
@@ -50,11 +52,9 @@ class VertLine {
   }
 
   private _createDiv() {
-    const chartElement = (this._chart as unknown as { _container?: HTMLElement })._container
-      ?? document.querySelector(".tv-lightweight-charts");
-    if (!chartElement) return;
-
-    const container = chartElement.parentElement;
+    // Контейнер передаётся явно: _container у lightweight-charts не публичен,
+    // а глобальный querySelector цеплял первый график на странице
+    const container = this._options.container;
     if (!container) return;
 
     this._div = document.createElement("div");
@@ -332,6 +332,7 @@ export const SimpleStockChart = ({
         labelText: "Event",
         color: colors.blue[500],
         width: 2,
+        container: chartElement,
       });
     }
 

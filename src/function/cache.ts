@@ -9,6 +9,7 @@ import { retry } from "functools-kit";
 
 const WARM_CANDLES_METHOD_NAME = "cache.warmCandles";
 const CHECK_CANDLES_METHOD_NAME = "cache.checkCandles";
+const CHECK_FS_CANDLES_METHOD_NAME = "cache._checkFsCandles";
 const CACHE_CANDLES_METHOD_NAME = "cache.cacheCandles";
 
 const MS_PER_MINUTE = 60_000;
@@ -163,7 +164,7 @@ export async function _checkFsCandles(
 ): Promise<void> {
   const { symbol, exchangeName, interval, from, to } = params;
 
-  backtest.loggerService.info(CHECK_CANDLES_METHOD_NAME, params);
+  backtest.loggerService.info(CHECK_FS_CANDLES_METHOD_NAME, params);
 
   const step = INTERVAL_MINUTES[interval];
 

@@ -5,7 +5,8 @@ const join = <T = string>(...arr: (T | T[] | null)[] | (T | T[] | null)[][]): T[
             return join(item as T[]);
         }
         return item;
-    }).filter(Boolean) as T[];
+        // числовой 0 — валидное значение; отбрасываются false/null/undefined/""
+    }).filter((item) => Boolean(item) || (item as unknown) === 0) as T[];
 };
 
 /**

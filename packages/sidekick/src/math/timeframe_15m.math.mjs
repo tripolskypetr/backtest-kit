@@ -64,5 +64,5 @@ export const getSignal = async (signalId, symbol) => {
 
 export const dumpPlot = async (signalId, symbol) => {
   const plots = await getPlot(symbol);
-  dumpPlotData(signalId, plots, SIGNAL_SCHEMA, "math_15m");
+  await dumpPlotData(signalId, plots, SIGNAL_SCHEMA, "math_15m");
 };

@@ -155,8 +155,13 @@ ScrollAdjust.setAdjustHeight(25);
 const init = async () => {
     await serviceManager.waitForProvide(true);
     await serviceManager.prefetch(true);
-    while (!window.Translate) {
+    // Ограниченное ожидание: без лимита сбой инициализации i18n оставлял
+    // вечный пустой экран (t() умеет работать и без window.Translate)
+    for (let attempt = 0; !window.Translate && attempt < 20; attempt++) {
         await sleep(500);
+    }
+    if (!window.Translate) {
+        console.error("Translate failed to initialize, rendering without it");
     }
     root.render(<AppBootstrap />);
 };

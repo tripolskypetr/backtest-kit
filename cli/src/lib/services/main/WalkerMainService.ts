@@ -38,6 +38,8 @@ import ConfigService from "../core/ConfigService";
 import ConfigConnectionService from "../connection/ConfigConnectionService";
 import { kill } from "../../../utils/notifyKill";
 
+// Must match the getArgs --cacheInterval default ("1m, 15m, 30m, 1h, 4h"):
+// this fallback is only reachable with an explicit --cacheInterval ""
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
 const GET_CACHE_INTERVAL_LIST_FN = () => {

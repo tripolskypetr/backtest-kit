@@ -27,9 +27,11 @@ export const toPlainString = (content: string): string => {
     text = text.replace(/\*\*\*(.+?)\*\*\*/g, "$1");
     text = text.replace(/\*\*(.+?)\*\*/g, "$1");
     text = text.replace(/\*(.+?)\*/g, "$1");
-    text = text.replace(/___(.+?)___/g, "$1");
-    text = text.replace(/__(.+?)__/g, "$1");
-    text = text.replace(/_(.+?)_/g, "$1");
+    // Underscore emphasis requires word boundaries (CommonMark: intraword
+    // underscores are literal) — otherwise snake_case identifiers get mangled
+    text = text.replace(/(?<![\w])___([^_]+)___(?![\w])/g, "$1");
+    text = text.replace(/(?<![\w])__([^_]+)__(?![\w])/g, "$1");
+    text = text.replace(/(?<![\w])_([^_]+)_(?![\w])/g, "$1");
 
     // Remove strikethrough
     text = text.replace(/~~(.+?)~~/g, "$1");

@@ -225,9 +225,23 @@ export class IntervalFnInstance<F extends Function = Function> {
     }
 
     if (result && result instanceof Promise) {
-      result.catch(() => {
-        this._stateMap.delete(stateKey);
-      });
+      // The state was set optimistically above (a Promise is always non-null),
+      // which blocks concurrent double-fires while the handler is in flight.
+      // The retry-on-null contract must hold for async functions too: a
+      // resolved null (no signal) or a rejection releases the interval so the
+      // next call retries — matching the sync branch and IntervalFileInstance.
+      result.then(
+        (value) => {
+          if (value === null && this._stateMap.get(stateKey) === currentAligned) {
+            this._stateMap.delete(stateKey);
+          }
+        },
+        () => {
+          if (this._stateMap.get(stateKey) === currentAligned) {
+            this._stateMap.delete(stateKey);
+          }
+        },
+      );
     }
 
     return result;

@@ -19,8 +19,8 @@ import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
-import { SignalSyncContract } from "../contract/SignalSync.contract";
-import { SignalPingContract } from "../contract/SignalPing.contract";
+import { OrderSyncContract } from "../contract/OrderSync.contract";
+import { OrderCheckContract } from "../contract/OrderCheck.contract";
 import { errorEmitter } from "../config/emitters";
 import { FrameName } from "../interfaces/Frame.interface";
 import { ActionProxy } from "../classes/ActionProxy";
@@ -350,18 +350,18 @@ const CALL_RISK_REJECTION_CALLBACK_FN = trycatch(
 );
 
 /**
- * Calls onSignalSync callback WITHOUT trycatch — exceptions must propagate
+ * Calls onOrderSync callback WITHOUT trycatch — exceptions must propagate
  * up to CREATE_SYNC_FN in StrategyConnectionService (which returns false on error).
  */
-const CALL_SIGNAL_SYNC_CALLBACK_FN = async (
+const CALL_ORDER_SYNC_CALLBACK_FN = async (
   self: ClientAction,
-  event: SignalSyncContract,
+  event: OrderSyncContract,
   strategyName: StrategyName,
   frameName: FrameName,
   isBacktest: boolean
 ): Promise<void> => {
-  if (self.params.callbacks?.onSignalSync) {
-    await self.params.callbacks.onSignalSync(event, self.params.actionName, strategyName, frameName, isBacktest);
+  if (self.params.callbacks?.onOrderSync) {
+    await self.params.callbacks.onOrderSync(event, self.params.actionName, strategyName, frameName, isBacktest);
   }
 };
 
@@ -371,7 +371,7 @@ const CALL_SIGNAL_SYNC_CALLBACK_FN = async (
  */
 const CALL_ORDER_PING_CALLBACK_FN = async (
   self: ClientAction,
-  event: SignalPingContract,
+  event: OrderCheckContract,
   strategyName: StrategyName,
   frameName: FrameName,
   isBacktest: boolean
@@ -930,8 +930,8 @@ export class ClientAction implements IAction {
    * Gate for position open/close via limit order.
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
    */
-  public async signalSync(event: SignalSyncContract): Promise<void> {
-    this.params.logger.debug("ClientAction signalSync", {
+  public async orderSync(event: OrderSyncContract): Promise<void> {
+    this.params.logger.debug("ClientAction orderSync", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -942,10 +942,10 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined — exceptions propagate
-    await this._handlerInstance?.signalSync(event);
+    await this._handlerInstance?.orderSync(event);
 
     // Call callback if defined — exceptions propagate
-    await CALL_SIGNAL_SYNC_CALLBACK_FN(
+    await CALL_ORDER_SYNC_CALLBACK_FN(
       this,
       event,
       this.params.strategyName,
@@ -958,7 +958,7 @@ export class ClientAction implements IAction {
    * Gate for the pending-order ping (order still open on exchange?).
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
    */
-  public async orderCheck(event: SignalPingContract): Promise<void> {
+  public async orderCheck(event: OrderCheckContract): Promise<void> {
     this.params.logger.debug("ClientAction orderCheck", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,

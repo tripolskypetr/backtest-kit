@@ -10,7 +10,7 @@ import { SyncStatisticsModel, SyncEvent } from "../../../model/SyncStatistics.mo
 import { ColumnModel } from "../../../model/Column.model";
 import { COLUMN_CONFIG } from "../../../config/columns";
 import { syncSubject } from "../../../config/emitters";
-import SignalSyncContract from "../../../contract/SignalSync.contract";
+import OrderSyncContract from "../../../contract/OrderSync.contract";
 import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 import { GLOBAL_CONFIG } from "../../../config/params";
 
@@ -258,7 +258,7 @@ export class SyncMarkdownService {
   );
 
   /**
-   * Subscribes to `syncSubject` to start receiving `SignalSyncContract` events.
+   * Subscribes to `syncSubject` to start receiving `OrderSyncContract` events.
    * Protected against multiple subscriptions via `singleshot` — subsequent calls
    * return the same unsubscribe function without re-subscribing.
    *
@@ -309,7 +309,7 @@ export class SyncMarkdownService {
   };
 
   /**
-   * Handles a single `SignalSyncContract` event emitted by `syncSubject`.
+   * Handles a single `OrderSyncContract` event emitted by `syncSubject`.
    *
    * Maps the contract fields to a `SyncEvent`, enriching it with a
    * `createdAt` ISO timestamp from `getContextTimestamp()` (backtest clock
@@ -320,11 +320,18 @@ export class SyncMarkdownService {
    * Routes the constructed event to the appropriate `ReportStorage` bucket
    * via `getStorage(symbol, strategyName, exchangeName, frameName, backtest)`.
    *
-   * @param data - Discriminated union `SignalSyncContract`
-   *   (`SignalOpenContract | SignalCloseContract`)
+   * @param data - Discriminated union `OrderSyncContract`
+   *   (`OrderOpenContract | OrderCloseContract`)
    */
-  private tick = async (data: SignalSyncContract) => {
+  private tick = async (data: OrderSyncContract) => {
     this.loggerService.log("syncMarkdownService tick", { data });
+
+    // A "schedule" open is a resting-order placement, not a fill. SyncEvent
+    // has no `type` column, so recording it would be indistinguishable from
+    // a real open and would double openCount for scheduled signals.
+    if (data.action === "signal-open" && data.type === "schedule") {
+      return;
+    }
 
     const createdAt = new Date(getContextTimestamp()).toISOString();
     const event: SyncEvent = {

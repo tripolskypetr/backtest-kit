@@ -141,7 +141,7 @@ export class GPT5Provider implements IProvider {
     });
 
     const result = {
-      content: content!,
+      content: content ?? "",
       mode,
       agentName,
       role,

@@ -1072,7 +1072,7 @@ export interface TrailingTakeCommitNotification {
  * Signal sync open notification.
  * Emitted when a scheduled (limit order) signal is activated and the position is opened.
  */
-export interface SignalSyncOpenNotification {
+export interface OrderSyncOpenNotification {
   /** Discriminator for type-safe union */
   type: "signal_sync.open";
   /** Unique notification identifier */
@@ -1161,7 +1161,7 @@ export interface SignalSyncOpenNotification {
  * Signal sync close notification.
  * Emitted when an active pending signal is closed (TP/SL hit, time expired, or user-initiated).
  */
-export interface SignalSyncCloseNotification {
+export interface OrderSyncCloseNotification {
   /** Discriminator for type-safe union */
   type: "signal_sync.close";
   /** Unique notification identifier */
@@ -1756,8 +1756,8 @@ export type NotificationModel =
   | TrailingTakeCommitNotification
   | CancelScheduledCommitNotification
   | ClosePendingCommitNotification
-  | SignalSyncOpenNotification
-  | SignalSyncCloseNotification
+  | OrderSyncOpenNotification
+  | OrderSyncCloseNotification
   | RiskRejectionNotification
   | SignalScheduledNotification
   | SignalCancelledNotification

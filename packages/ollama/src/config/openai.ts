@@ -1,6 +1,14 @@
 import OpenAI from "openai";
-import { singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import engine from "../lib";
+
+const GET_CLIENT_FN = memoize(
+    ([apiKey]) => `${apiKey}`,
+    (apiKey: string | undefined) =>
+        new OpenAI({
+            apiKey,
+        }),
+);
 
 /**
  * Creates and caches an OpenAI client for OpenAI API.
@@ -29,13 +37,10 @@ import engine from "../lib";
  * });
  * ```
  */
-export const getOpenAi = singleshot(() => {
+export const getOpenAi = () => {
     const apiKey = engine.contextService.context.apiKey;
     if (Array.isArray(apiKey)) {
-        getOpenAi.clear();
         throw new Error("OpenAI provider does not support token rotation");
     }
-    return new OpenAI({
-        apiKey: apiKey,
-    })
-});
+    return GET_CLIENT_FN(apiKey);
+};

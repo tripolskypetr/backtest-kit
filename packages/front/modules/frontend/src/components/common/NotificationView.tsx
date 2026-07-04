@@ -188,7 +188,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "signal.opened":
       return `${t("Opened")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal.closed":
-      return `${t("Closed")} ${item.symbol} (${!!item.pnlPercentage ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "signal.scheduled":
       return `${t("Scheduled")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal.cancelled":
@@ -216,7 +216,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "signal_sync.open":
       return `${t("Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal_sync.close":
-      return `${t("Sync Close")} ${item.symbol} (${!!item.pnlPercentage ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
@@ -230,7 +230,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "error.critical":
       return `${t("Critical")}: ${item.message}`;
     case "signal.info":
-      return `${t("Signal Info")} ${item.symbol} (${!!item.pnlPercentage ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     default:
       return `${t("Unknown")} ${get(item, "type")}`;
   }

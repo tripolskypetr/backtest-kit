@@ -214,26 +214,6 @@ declare const cohere: <T extends (...args: any[]) => Promise<any>>(fn: T, model:
  */
 declare const alibaba: <T extends (...args: any[]) => Promise<any>>(fn: T, model: string, apiKey?: string | string[]) => T;
 /**
- * Wrap async function with Zhipu AI GLM-4 inference context.
- *
- * Creates a higher-order function that executes the provided async function
- * within a Zhipu AI GLM-4 inference context via OpenAI-compatible Z.ai API.
- *
- * @template T - Async function type
- * @param fn - Async function to wrap
- * @param model - GLM-4 model name (e.g., "glm-4-plus", "glm-4-air")
- * @param apiKey - Single API key or array of keys
- * @returns Wrapped function with same signature as input
- *
- * @example
- * ```typescript
- * import { glm4 } from '@backtest-kit/ollama';
- *
- * const wrappedFn = glm4(myAsyncFn, 'glm-4-plus', process.env.ZAI_API_KEY);
- * const result = await wrappedFn(args);
- * ```
- */
-/**
  * Wrap async function with Groq inference context.
  *
  * Creates a higher-order function that executes the provided async function
@@ -254,6 +234,26 @@ declare const alibaba: <T extends (...args: any[]) => Promise<any>>(fn: T, model
  * ```
  */
 declare const groq: <T extends (...args: any[]) => Promise<any>>(fn: T, model: string, apiKey?: string | string[]) => T;
+/**
+ * Wrap async function with Zhipu AI GLM-4 inference context.
+ *
+ * Creates a higher-order function that executes the provided async function
+ * within a Zhipu AI GLM-4 inference context via OpenAI-compatible Z.ai API.
+ *
+ * @template T - Async function type
+ * @param fn - Async function to wrap
+ * @param model - GLM-4 model name (e.g., "glm-4-plus", "glm-4-air")
+ * @param apiKey - Single API key or array of keys
+ * @returns Wrapped function with same signature as input
+ *
+ * @example
+ * ```typescript
+ * import { glm4 } from '@backtest-kit/ollama';
+ *
+ * const wrappedFn = glm4(myAsyncFn, 'glm-4-plus', process.env.ZAI_API_KEY);
+ * const result = await wrappedFn(args);
+ * ```
+ */
 declare const glm4: <T extends (...args: any[]) => Promise<any>>(fn: T, model: string, apiKey?: string | string[]) => T;
 
 /**
@@ -389,7 +389,8 @@ interface MessageModel {
  *
  * @example
  * ```typescript
- * import { dumpSignal, getCandles } from "backtest-kit";
+ * import { getCandles } from "backtest-kit";
+ * import { dumpSignal } from "@backtest-kit/ollama";
  * import { v4 as uuid } from "uuid";
  *
  * addStrategy({
@@ -769,7 +770,8 @@ interface IOptimizerStrategy {
      */
     symbol: string;
     /**
-     * Unique name taken from data source.
+     * Strategy name: the training range note when provided,
+     * otherwise joined source names (e.g. "news+backtests").
      * Used in callbacks and logging.
      */
     name: string;
@@ -1248,7 +1250,7 @@ declare function getOptimizerSchema(optimizerName: OptimizerName): IOptimizerSch
  *
  * @example
  * ```typescript
- * import { listOptimizers, addOptimizer } from "backtest-kit";
+ * import { listOptimizers, addOptimizer } from "@backtest-kit/ollama";
  *
  * addOptimizer({
  *   optimizerName: "llm-strategy-generator",

@@ -1,34 +1,52 @@
 import { randomString } from "functools-kit";
 
-import INode from '../interfaces/Node.interface';
+import INode, { INodeInternal } from '../interfaces/Node.interface';
 import IFlatNode from '../interfaces/FlatNode.interface';
 
 import deepFlat from './deepFlat';
 
 /**
+ * Нормализация на входе пайплайна: гарантирует каждому узлу идентификатор.
+ * Узлы из sourceNode/outputNode приходят уже с id; рукописным INode id
+ * доштамповывается прямо на объект — повторный serialize того же графа
+ * даёт те же идентификаторы.
+ */
+const ENSURE_ID_FN = (node: INode): INodeInternal => {
+    if (!node.id) {
+        node.id = randomString();
+    }
+    return node as INodeInternal;
+};
+
+/**
  * Преобразует древовидный граф в плоский массив IFlatNode для хранения в БД.
- * Каждому узлу присваивается уникальный id (если не задан),
- * объектные ссылки nodes заменяются на массив nodeIds.
+ * Объектные ссылки nodes заменяются на массив nodeIds.
+ *
+ * Задавайте узлам стабильные id, если планируете восстанавливать fetch/compute
+ * после JSON-сериализации: функции в JSON не переживают round-trip, и найти
+ * узел для повторной привязки можно только по известному id (случайный id
+ * не переживает перезапуск процесса).
  */
 export const serialize = (roots: INode[]): IFlatNode[] => {
-    const flat = deepFlat(roots);
+    // Вход пайплайна: все узлы получают гарантированный id
+    const flat = deepFlat(roots).map(ENSURE_ID_FN);
 
-    // Первый проход: назначаем id каждому уникальному узлу
-    const idMap = new Map<INode, string>();
+    const usedIds = new Set<string>();
     flat.forEach((node) => {
-        const id = randomString();
-        idMap.set(node, id);
+        if (usedIds.has(node.id)) {
+            throw new Error(`graph serialize: duplicate node id "${node.id}"`);
+        }
+        usedIds.add(node.id);
     });
 
-    // Второй проход: строим IFlatNode с nodeIds вместо nodes
     return flat.map((node) => {
         const flatNode: IFlatNode = {
-            id: idMap.get(node)!,
+            id: node.id,
             type: node.type,
             description: node.description,
             fetch: node.fetch,
             compute: node.compute,
-            nodeIds: node.nodes?.map((child) => idMap.get(child)!),
+            nodeIds: node.nodes?.map((child) => ENSURE_ID_FN(child).id),
         };
         return flatNode;
     });
@@ -36,14 +54,18 @@ export const serialize = (roots: INode[]): IFlatNode[] => {
 
 /**
  * Восстанавливает древовидный граф из плоского массива IFlatNode.
- * nodes каждого узла заполняется по nodeIds.
+ * nodes каждого узла заполняется по nodeIds; id сохраняется на узле,
+ * так что повторный serialize даёт те же идентификаторы.
+ * Ссылка на неизвестный nodeId — ошибка: contract compute(values)
+ * позиционный, тихое выпадение элемента сдвинуло бы чужие значения.
  * Возвращает корневые узлы (те, на которые никто не ссылается).
  */
-export const deserialize = (flat: IFlatNode[]): INode[] => {
-    // Первый проход: создаём INode-объекты, индексируем по id
-    const byId = new Map<string, INode>();
+export const deserialize = (flat: IFlatNode[]): INodeInternal[] => {
+    // Первый проход: создаём узлы, индексируем по id
+    const byId = new Map<string, INodeInternal>();
     flat.forEach((flatNode) => {
-        const node: INode = {
+        const node: INodeInternal = {
+            id: flatNode.id,
             type: flatNode.type,
             description: flatNode.description,
             fetch: flatNode.fetch,
@@ -52,13 +74,20 @@ export const deserialize = (flat: IFlatNode[]): INode[] => {
         byId.set(flatNode.id, node);
     });
 
-    // Второй проход: проставляем nodes[] по nodeIds
+    // Второй проход: проставляем nodes[] по nodeIds (включая пустой массив —
+    // OutputNode без зависимостей легален и должен получить nodes: [])
     flat.forEach((flatNode) => {
-        if (flatNode.nodeIds?.length) {
+        if (flatNode.nodeIds) {
             const node = byId.get(flatNode.id)!;
-            node.nodes = flatNode.nodeIds
-                .map((id) => byId.get(id))
-                .filter((n): n is INode => n !== undefined);
+            node.nodes = flatNode.nodeIds.map((id) => {
+                const child = byId.get(id);
+                if (!child) {
+                    throw new Error(
+                        `graph deserialize: node "${flatNode.id}" references unknown nodeId "${id}"`,
+                    );
+                }
+                return child;
+            });
         }
     });
 

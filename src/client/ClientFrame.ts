@@ -84,12 +84,11 @@ const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
     throw new Error(`ClientFrame unknown interval: ${interval}`);
   }
 
-  // Get current date at the start of today (00:00:00) for comparison
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-
-  // Ensure endDate doesn't go beyond today
-  const effectiveEndDate = endDate > today ? today : endDate;
+  // Ensure endDate doesn't go beyond the current moment. Clamp to `now`, not to
+  // the start of today — clamping to 00:00 UTC silently dropped up to 24h of
+  // today's candles from the backtest range.
+  const now = new Date();
+  const effectiveEndDate = endDate > now ? now : endDate;
 
   // Align the iteration start down to the 1-minute boundary so every generated
   // timestamp lands on a clean minute, matching live mode
@@ -103,6 +102,15 @@ const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
   while (currentDate <= effectiveEndDate) {
     timeframes.push(new Date(currentDate));
     currentDate = new Date(currentDate.getTime() + intervalMinutes * 60 * 1000);
+  }
+
+  if (!timeframes.length) {
+    throw new Error(
+      `ClientFrame ${self.params.frameName}: empty timeframe range. ` +
+      `startDate=${startDate.toISOString()} must not exceed effective endDate=${effectiveEndDate.toISOString()} ` +
+      `(endDate=${endDate.toISOString()} clamped to now). ` +
+      `Check the frame schema: startDate in the future or startDate > endDate produces no timeframes.`,
+    );
   }
 
   await CALL_TIMEFRAME_CALLBACKS_FN(self, timeframes, startDate, effectiveEndDate, interval);

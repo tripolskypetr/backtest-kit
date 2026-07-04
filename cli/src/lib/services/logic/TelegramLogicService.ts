@@ -21,8 +21,8 @@ import {
   TrailingStopCommit,
   TrailingTakeCommit,
   AverageBuyCommit,
-  SignalOpenContract,
-  SignalCloseContract,
+  OrderOpenContract,
+  OrderCloseContract,
   SignalInfoContract,
   listenSignalNotify,
 } from "backtest-kit";
@@ -180,7 +180,7 @@ export class TelegramLogicService {
   };
 
   private notifyRisk = async (event: RiskContract) => {
-    this.loggerService.log("telegramLogicService notifyClosed", {
+    this.loggerService.log("telegramLogicService notifyRisk", {
       event,
     });
     const markdown = await this.telegramTemplateService.getRiskMarkdown(event);
@@ -207,7 +207,7 @@ export class TelegramLogicService {
     });
   };
 
-  private notifySignalOpen = trycatch(async (event: SignalOpenContract) => {
+  private notifySignalOpen = trycatch(async (event: OrderOpenContract) => {
     this.loggerService.log("telegramLogicService notifySignalOpen", {
       event,
     });
@@ -221,7 +221,7 @@ export class TelegramLogicService {
     });
   });
 
-  private notifySignalClose = trycatch(async (event: SignalCloseContract) => {
+  private notifySignalClose = trycatch(async (event: OrderCloseContract) => {
     this.loggerService.log("telegramLogicService notifySignalClose", {
       event,
     });
@@ -340,6 +340,11 @@ export class TelegramLogicService {
 
     const unSync = listenSync(async (event) => {
       if (event.action === "signal-open") {
+        // type "schedule" is a resting-order PLACEMENT, not a position open:
+        // the user already got the "scheduled" notification from listenSignal
+        if (event.type !== "active") {
+          return;
+        }
         await this.notifySignalOpen(event);
         return;
       }

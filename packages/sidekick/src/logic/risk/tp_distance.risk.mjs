@@ -23,10 +23,10 @@ addRiskSchema({
             : ((priceOpen - priceTakeProfit) / priceOpen) * 100;
 
         if (tpDistance < SLIPPAGE_THRESHOLD) {
-          throw new Error(`TP distance ${tpDistance.toFixed(2)}% < 1%`);
+          throw new Error(`TP distance ${tpDistance.toFixed(2)}% < ${SLIPPAGE_THRESHOLD}%`);
         }
       },
-      note: "TP distance must be at least 1%",
+      note: "TP distance must be at least 0.2%",
     },
   ],
 });

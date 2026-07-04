@@ -24,6 +24,7 @@ import { tpPriceToPercentShift } from "../math/tpPriceToPercentShift";
 import { slPercentShiftToPrice } from "../math/slPercentShiftToPrice";
 import { tpPercentShiftToPrice } from "../math/tpPercentShiftToPrice";
 import { percentToCloseCost } from "../math/percentToCloseCost";
+import { investedCostToPercent } from "../math/investedCostToPercent";
 import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
 import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "./Broker";
@@ -3692,8 +3693,12 @@ export class LiveUtils {
         );
     }
 
-    const investedCost =
-      await backtest.strategyCoreService.getPositionInvestedCost(
+    // percentToClose is applied to the REMAINING cost basis (see PARTIAL_*_FN in
+    // ClientStrategy), so dollar conversion and the broker-facing cost are
+    // derived from the remaining basis — total invested under-closed after
+    // the first partial
+    const remainingCost =
+      await backtest.strategyCoreService.getTotalCostClosed(
         false,
         symbol,
         {
@@ -3702,7 +3707,7 @@ export class LiveUtils {
           frameName: "",
         },
       );
-    if (investedCost === null) {
+    if (remainingCost === null) {
       return false;
     }
     const signalForProfit = await backtest.strategyCoreService.getPendingSignal(
@@ -3739,7 +3744,7 @@ export class LiveUtils {
       symbol,
       signalId: signalForProfit.id,
       percentToClose,
-      cost: percentToCloseCost(percentToClose, investedCost),
+      cost: percentToCloseCost(percentToClose, remainingCost),
       currentPrice,
       position: signalForProfit.position,
       priceTakeProfit: signalForProfit.priceTakeProfit,
@@ -3840,8 +3845,12 @@ export class LiveUtils {
         );
     }
 
-    const investedCost =
-      await backtest.strategyCoreService.getPositionInvestedCost(
+    // percentToClose is applied to the REMAINING cost basis (see PARTIAL_*_FN in
+    // ClientStrategy), so dollar conversion and the broker-facing cost are
+    // derived from the remaining basis — total invested under-closed after
+    // the first partial
+    const remainingCost =
+      await backtest.strategyCoreService.getTotalCostClosed(
         false,
         symbol,
         {
@@ -3850,7 +3859,7 @@ export class LiveUtils {
           frameName: "",
         },
       );
-    if (investedCost === null) {
+    if (remainingCost === null) {
       return false;
     }
     const signalForLoss = await backtest.strategyCoreService.getPendingSignal(
@@ -3887,7 +3896,7 @@ export class LiveUtils {
       symbol,
       signalId: signalForLoss.id,
       percentToClose,
-      cost: percentToCloseCost(percentToClose, investedCost),
+      cost: percentToCloseCost(percentToClose, remainingCost),
       currentPrice,
       position: signalForLoss.position,
       priceTakeProfit: signalForLoss.priceTakeProfit,
@@ -3986,8 +3995,12 @@ export class LiveUtils {
         );
     }
 
-    const investedCost =
-      await backtest.strategyCoreService.getPositionInvestedCost(
+    // percentToClose is applied to the REMAINING cost basis (see PARTIAL_*_FN in
+    // ClientStrategy), so dollar conversion and the broker-facing cost are
+    // derived from the remaining basis — total invested under-closed after
+    // the first partial
+    const remainingCost =
+      await backtest.strategyCoreService.getTotalCostClosed(
         false,
         symbol,
         {
@@ -3996,7 +4009,7 @@ export class LiveUtils {
           frameName: "",
         },
       );
-    if (investedCost === null) {
+    if (remainingCost === null) {
       return false;
     }
     const signalForProfitCost = await backtest.strategyCoreService.getPendingSignal(
@@ -4012,7 +4025,7 @@ export class LiveUtils {
     if (!signalForProfitCost) {
       return false;
     }
-    const percentToClose = (dollarAmount / investedCost) * 100;
+    const percentToClose = investedCostToPercent(dollarAmount, remainingCost);
     if (
       await not(
         backtest.strategyCoreService.validatePartialProfit(
@@ -4133,8 +4146,12 @@ export class LiveUtils {
         );
     }
 
-    const investedCost =
-      await backtest.strategyCoreService.getPositionInvestedCost(
+    // percentToClose is applied to the REMAINING cost basis (see PARTIAL_*_FN in
+    // ClientStrategy), so dollar conversion and the broker-facing cost are
+    // derived from the remaining basis — total invested under-closed after
+    // the first partial
+    const remainingCost =
+      await backtest.strategyCoreService.getTotalCostClosed(
         false,
         symbol,
         {
@@ -4143,7 +4160,7 @@ export class LiveUtils {
           frameName: "",
         },
       );
-    if (investedCost === null) {
+    if (remainingCost === null) {
       return false;
     }
     const signalForLossCost = await backtest.strategyCoreService.getPendingSignal(
@@ -4159,7 +4176,7 @@ export class LiveUtils {
     if (!signalForLossCost) {
       return false;
     }
-    const percentToClose = (dollarAmount / investedCost) * 100;
+    const percentToClose = investedCostToPercent(dollarAmount, remainingCost);
     if (
       await not(
         backtest.strategyCoreService.validatePartialLoss(
@@ -4345,9 +4362,12 @@ export class LiveUtils {
       signalId: signal.id,
       percentShift,
       currentPrice,
+      // ClientStrategy applies percentShift relative to the ORIGINAL stop-loss,
+      // so the broker-facing price must be derived from it too
+      // (signal.priceStopLoss is the effective, possibly trailing, level)
       newStopLossPrice: slPercentShiftToPrice(
         percentShift,
-        signal.priceStopLoss,
+        signal.originalPriceStopLoss ?? signal.priceStopLoss,
         effectivePriceOpen,
         signal.position,
       ),
@@ -4508,9 +4528,12 @@ export class LiveUtils {
       signalId: signal.id,
       percentShift,
       currentPrice,
+      // ClientStrategy applies percentShift relative to the ORIGINAL take-profit,
+      // so the broker-facing price must be derived from it too
+      // (signal.priceTakeProfit is the effective, possibly trailing, level)
       newTakeProfitPrice: tpPercentShiftToPrice(
         percentShift,
-        signal.priceTakeProfit,
+        signal.originalPriceTakeProfit ?? signal.priceTakeProfit,
         effectivePriceOpen,
         signal.position,
       ),
@@ -4620,8 +4643,9 @@ export class LiveUtils {
     }
     const percentShift = slPriceToPercentShift(
       newStopLossPrice,
-      signal.priceStopLoss,
+      signal.originalPriceStopLoss ?? signal.priceStopLoss,
       effectivePriceOpen,
+      signal.position,
     );
     if (
       await not(
@@ -4752,8 +4776,9 @@ export class LiveUtils {
     }
     const percentShift = tpPriceToPercentShift(
       newTakeProfitPrice,
-      signal.priceTakeProfit,
+      signal.originalPriceTakeProfit ?? signal.priceTakeProfit,
       effectivePriceOpen,
+      signal.position,
     );
     if (
       await not(

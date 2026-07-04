@@ -41,6 +41,8 @@ export {
   getStrategyStatus,
   getTotalPercentClosed,
   getTotalCostClosed,
+  getTotalPercentHeld,
+  getRemainingCostBasis,
   getPositionEffectivePrice,
   getPositionInvestedCount,
   getPositionInvestedCost,
@@ -157,6 +159,8 @@ export {
   listenStrategyCommitOnce,
   listenSync,
   listenSyncOnce,
+  listenCheck,
+  listenCheckOnce,
   listenHighestProfit,
   listenHighestProfitOnce,
   listenMaxDrawdown,
@@ -345,8 +349,8 @@ export {
   SignalScheduledNotification,
   ValidationErrorNotification,
   AverageBuyCommitNotification,
-  SignalSyncCloseNotification,
-  SignalSyncOpenNotification,
+  OrderSyncCloseNotification,
+  OrderSyncOpenNotification,
   CancelScheduledCommitNotification,
   ClosePendingCommitNotification,
   SignalInfoNotification,
@@ -408,14 +412,14 @@ export {
 } from "./contract/StrategyCommit.contract";
 
 export {
-  SignalCloseContract,
-  SignalOpenContract,
-  SignalSyncContract
-} from "./contract/SignalSync.contract";
+  OrderCloseContract,
+  OrderOpenContract,
+  OrderSyncContract
+} from "./contract/OrderSync.contract";
 
 export {
-  SignalPingContract
-} from "./contract/SignalPing.contract";
+  OrderCheckContract
+} from "./contract/OrderCheck.contract";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";

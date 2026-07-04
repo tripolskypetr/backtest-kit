@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import "./config/setup.mjs";
 import "./logic/index.mjs";
 

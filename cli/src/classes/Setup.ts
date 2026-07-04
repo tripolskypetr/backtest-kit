@@ -66,11 +66,6 @@ const SETUP_ADAPTER_FN = () => {
   }
 
   {
-    RecentLive.usePersist();
-    RecentBacktest.useMemory();
-  }
-
-  {
     NotificationLive.usePersist();
     NotificationBacktest.useMemory();
   }
@@ -153,6 +148,7 @@ export class SetupUtils {
       Markdown.disable();
       Report.disable();
       Dump.disable();
+      State.disable();
       Memory.disable();
     }
 

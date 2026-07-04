@@ -225,7 +225,7 @@ This runs the default backtest with:
 Override defaults via command-line flags (parsed by `backtest-kit`):
 
 ```bash
-node ./src/index.mjs --backtest --symbol ETHUSDT --frameName nov_2025_frame
+node ./src/index.mjs --backtest --symbol ETHUSDT --frame nov_2025_frame
 ```
 
 | Flag | Default | Description |
@@ -234,9 +234,9 @@ node ./src/index.mjs --backtest --symbol ETHUSDT --frameName nov_2025_frame
 | `--paper` | — | Run in paper trading mode (not yet implemented) |
 | `--live` | — | Run in live trading mode (not yet implemented) |
 | `--symbol` | `BTCUSDT` | Trading pair |
-| `--strategyName` | `main_strategy` | Strategy to use |
-| `--frameName` | `oct_2025_frame` | Backtest time frame |
-| `--exchangeName` | `binance_exchange` | Exchange connector |
+| `--strategy` | `main_strategy` | Strategy to use |
+| `--frame` | `oct_2025_frame` | Backtest time frame |
+| `--exchange` | `binance_exchange` | Exchange connector |
 
 ## 📋 Dependencies
 

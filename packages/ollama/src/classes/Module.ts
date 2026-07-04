@@ -1,6 +1,8 @@
 import { join } from "path";
 
-const MODULE_TYPE_SYMBOL = Symbol("module-type");
+// Symbol.for keeps the brand check working when CJS and ESM copies of the
+// package end up in the same process (dual-package hazard).
+const MODULE_TYPE_SYMBOL = Symbol.for("backtest-kit.ollama.module-type");
 
 export class Module {
   private readonly __type__ = MODULE_TYPE_SYMBOL;

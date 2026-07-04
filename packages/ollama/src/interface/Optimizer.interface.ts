@@ -128,7 +128,8 @@ export interface IOptimizerStrategy {
   symbol: string;
 
   /**
-   * Unique name taken from data source.
+   * Strategy name: the training range note when provided,
+   * otherwise joined source names (e.g. "news+backtests").
    * Used in callbacks and logging.
    */
   name: string;

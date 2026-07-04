@@ -232,7 +232,7 @@ export class ExchangeConnectionService implements IExchange {
    * @returns Promise resolving to formatted price string
    */
   public formatPrice = async (symbol: string, price: number) => {
-    this.loggerService.log("exchangeConnectionService getAveragePrice", {
+    this.loggerService.log("exchangeConnectionService formatPrice", {
       symbol,
       price,
     });
@@ -251,7 +251,7 @@ export class ExchangeConnectionService implements IExchange {
    * @returns Promise resolving to formatted quantity string
    */
   public formatQuantity = async (symbol: string, quantity: number) => {
-    this.loggerService.log("exchangeConnectionService getAveragePrice", {
+    this.loggerService.log("exchangeConnectionService formatQuantity", {
       symbol,
       quantity,
     });

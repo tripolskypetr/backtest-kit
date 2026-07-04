@@ -15,6 +15,24 @@ import { TYPES } from "../../core/types";
 import ExchangeContextService, {
   TExchangeContextService,
 } from "../context/ExchangeContextService";
+import { INTERVAL_MINUTES } from "./AxisProviderService";
+
+/**
+ * Known quote assets for base/quote splitting in getSymbolInfo, longest first.
+ * Symbols with an unrecognized quote keep the whole ticker as base.
+ */
+const QUOTE_ASSETS = [
+  "USDT",
+  "USDC",
+  "BUSD",
+  "TUSD",
+  "FDUSD",
+  "USD",
+  "BTC",
+  "ETH",
+  "BNB",
+  "EUR",
+];
 
 const PINE_TF_MAP = {
   "1": "1m",
@@ -88,6 +106,13 @@ export class CandleProviderService implements IProvider {
       .replace(/^BINANCE:|^BYBIT:|^OKX:/, "");
 
     const normalizedTimeframe = PINE_TF_MAP[timeframe] ?? timeframe;
+    if (!INTERVAL_MINUTES[<CandleInterval>normalizedTimeframe]) {
+      throw new Error(
+        `CandleProvider getMarketData: unknown timeframe=${timeframe}. ` +
+          `Allowed Pine values: ${Object.keys(PINE_TF_MAP).join(", ")}; ` +
+          `allowed intervals: ${Object.keys(INTERVAL_MINUTES).join(", ")}`,
+      );
+    }
     let clampedEDate = eDate;
     if (ExecutionContextService.hasContext()) {
       const whenMs = lib.executionContextService.context.when.getTime();
@@ -125,13 +150,16 @@ export class CandleProviderService implements IProvider {
     const symbol = tickerId
       .toUpperCase()
       .replace(/^BINANCE:|^BYBIT:|^OKX:/, "");
-    const base = symbol.replace(/USDT$|BUSD$|USD$/, "");
-    const quote = symbol.replace(base, "");
+    const quote =
+      QUOTE_ASSETS.find(
+        (asset) => symbol.endsWith(asset) && symbol.length > asset.length,
+      ) ?? "";
+    const base = quote ? symbol.slice(0, symbol.length - quote.length) : symbol;
 
     const result: SymbolInfoModel = {
       ticker: symbol,
       tickerid: symbol,
-      description: `${base}/${quote}`,
+      description: quote ? `${base}/${quote}` : symbol,
       type: "crypto",
       basecurrency: base,
       currency: quote || "USDT",

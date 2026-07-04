@@ -25,6 +25,12 @@ export type InferNodeValue<T extends TypedNode> =
  */
 export type SourceNode<T extends Value = Value> = {
     type: NodeType.SourceNode;
+    /**
+     * Идентификатор узла. Хелпер sourceNode проставляет случайный id при
+     * создании; перезапишите своим стабильным значением, если узел должен
+     * переживать JSON round-trip (повторная привязка fetch по id).
+     */
+    id: string;
     description?: string;
     fetch: (symbol: string, when: Date, currentPrice: number, exchangeName: ExchangeName) => Promise<T> | T;
 };
@@ -39,6 +45,12 @@ export type OutputNode<
     TResult extends Value = Value,
 > = {
     type: NodeType.OutputNode;
+    /**
+     * Идентификатор узла. Хелпер outputNode проставляет случайный id при
+     * создании; перезапишите своим стабильным значением, если узел должен
+     * переживать JSON round-trip (повторная привязка compute по id).
+     */
+    id: string;
     description?: string;
     nodes: TNodes;
     compute: (values: InferValues<TNodes>) => Promise<TResult> | TResult;

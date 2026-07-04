@@ -10,8 +10,8 @@ import {
   IStrategyTickResultScheduled,
 } from "../interfaces/Strategy.interface";
 import { PersistStorageAdapter } from "./Persist";
-import backtest from "../lib";
 import { GLOBAL_CONFIG } from "../config/params";
+import LoggerService from "../lib/services/base/LoggerService";
 
 const STORAGE_BACKTEST_METHOD_NAME_WAIT_FOR_INIT = "StoragePersistBacktestUtils.waitForInit";
 const STORAGE_BACKTEST_METHOD_NAME_UPDATE_STORAGE = "StoragePersistBacktestUtils._updateStorage";
@@ -77,6 +77,9 @@ const STORAGE_LIVE_ADAPTER_METHOD_NAME_CLEAR = "StorageLiveAdapter.clear";
  * Extracted from IStorageSignalRow for type safety and reusability.
  */
 type StorageId = IStorageSignalRow["id"];
+
+/** Logger service injected as DI singleton */
+const LOGGER_SERVICE = new LoggerService();
 
 /**
  * Base interface for storage adapters.
@@ -155,7 +158,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * Protected by singleshot to ensure one-time execution.
    */
   private waitForInit = singleshot(async () => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_WAIT_FOR_INIT);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_WAIT_FOR_INIT);
     const signalList = await PersistStorageAdapter.readStorageData(true);
     signalList.sort((a, b) => a.priority - b.priority);
     this._signals = new Map(
@@ -166,14 +169,26 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
   });
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -183,7 +198,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @throws Error if not initialized
    */
   private async _updateStorage(): Promise<void> {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_UPDATE_STORAGE);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_UPDATE_STORAGE);
     if (!this._signals) {
       throw new Error(
         "StoragePersistBacktestUtils not initialized. Call waitForInit first.",
@@ -203,7 +218,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @param tick - The opened signal tick data
    */
   public handleOpened = async (tick: IStrategyTickResultOpened) => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_OPENED, {
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_OPENED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -229,7 +244,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @param tick - The closed signal tick data
    */
   public handleClosed = async (tick: IStrategyTickResultClosed) => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_CLOSED, {
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_CLOSED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -258,7 +273,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @param tick - The scheduled signal tick data
    */
   public handleScheduled = async (tick: IStrategyTickResultScheduled) => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_SCHEDULED, {
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_SCHEDULED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -284,7 +299,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @param tick - The cancelled signal tick data
    */
   public handleCancelled = async (tick: IStrategyTickResultCancelled) => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_CANCELLED, {
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_CANCELLED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -311,7 +326,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
   public findById = async (
     id: StorageId,
   ): Promise<IStorageSignalRow | null> => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_FIND_BY_ID, { id });
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_FIND_BY_ID, { id });
     await this.waitForInit();
     return this._signals.get(id) ?? null;
   };
@@ -321,7 +336,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @returns Array of all signal rows
    */
   public list = async (): Promise<IStorageSignalRow[]> => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_LIST);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_LIST);
     await this.waitForInit();
     return Array.from(this._signals.values());
   };
@@ -334,7 +349,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @param event - Active ping contract with signal data and current price
    */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
     });
     await this.waitForInit();
@@ -365,7 +380,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
    * @param event - Schedule ping contract with signal data and current price
    */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
     });
     await this.waitForInit();
@@ -405,14 +420,26 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
   private _signals: Map<StorageId, IStorageSignalRow> = new Map();
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -422,7 +449,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @param tick - The opened signal tick data
    */
   public handleOpened = async (tick: IStrategyTickResultOpened): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_OPENED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_OPENED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -446,7 +473,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @param tick - The closed signal tick data
    */
   public handleClosed = async (tick: IStrategyTickResultClosed): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CLOSED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CLOSED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -473,7 +500,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @param tick - The scheduled signal tick data
    */
   public handleScheduled = async (tick: IStrategyTickResultScheduled): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -497,7 +524,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @param tick - The cancelled signal tick data
    */
   public handleCancelled = async (tick: IStrategyTickResultCancelled): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CANCELLED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CANCELLED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -520,7 +547,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @returns The signal row or null if not found
    */
   public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_FIND_BY_ID, { id });
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_FIND_BY_ID, { id });
     return this._signals.get(id) ?? null;
   };
 
@@ -529,7 +556,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @returns Array of all signal rows
    */
   public list = async (): Promise<IStorageSignalRow[]> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_LIST);
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_LIST);
     return Array.from(this._signals.values());
   };
 
@@ -541,7 +568,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @param event - Active ping contract with signal data and current price
    */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
     });
     const lastStorage = this._signals.get(event.data.id);
@@ -570,7 +597,7 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
    * @param event - Schedule ping contract with signal data and current price
    */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
     });
     const lastStorage = this._signals.get(event.data.id);
@@ -682,7 +709,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * Protected by singleshot to ensure one-time execution.
    */
   private waitForInit = singleshot(async () => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_WAIT_FOR_INIT);
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_WAIT_FOR_INIT);
     const signalList = await PersistStorageAdapter.readStorageData(false);
     signalList.sort((a, b) => a.priority - b.priority);
     this._signals = new Map(
@@ -693,14 +720,26 @@ export class StoragePersistLiveUtils implements IStorageUtils {
   });
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -710,7 +749,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @throws Error if not initialized
    */
   private async _updateStorage(): Promise<void> {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_UPDATE_STORAGE);
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_UPDATE_STORAGE);
     if (!this._signals) {
       throw new Error(
         "StoragePersistLiveUtils not initialized. Call waitForInit first.",
@@ -730,7 +769,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @param tick - The opened signal tick data
    */
   public handleOpened = async (tick: IStrategyTickResultOpened) => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_OPENED, {
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_HANDLE_OPENED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -756,7 +795,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @param tick - The closed signal tick data
    */
   public handleClosed = async (tick: IStrategyTickResultClosed) => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_CLOSED, {
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_HANDLE_CLOSED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -785,7 +824,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @param tick - The scheduled signal tick data
    */
   public handleScheduled = async (tick: IStrategyTickResultScheduled) => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_SCHEDULED, {
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_HANDLE_SCHEDULED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -811,7 +850,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @param tick - The cancelled signal tick data
    */
   public handleCancelled = async (tick: IStrategyTickResultCancelled) => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_CANCELLED, {
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_HANDLE_CANCELLED, {
       signalId: tick.signal.id,
     });
     await this.waitForInit();
@@ -838,7 +877,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
   public findById = async (
     id: StorageId,
   ): Promise<IStorageSignalRow | null> => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_FIND_BY_ID, { id });
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_FIND_BY_ID, { id });
     await this.waitForInit();
     return this._signals.get(id) ?? null;
   };
@@ -848,7 +887,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @returns Array of all signal rows
    */
   public list = async (): Promise<IStorageSignalRow[]> => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_LIST);
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_LIST);
     await this.waitForInit();
     return Array.from(this._signals.values());
   };
@@ -861,7 +900,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @param event - Active ping contract with signal data and current price
    */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
     });
     await this.waitForInit();
@@ -892,7 +931,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
    * @param event - Schedule ping contract with signal data and current price
    */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+    LOGGER_SERVICE.info(STORAGE_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
     });
     await this.waitForInit();
@@ -932,14 +971,26 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
   private _signals: Map<StorageId, IStorageSignalRow> = new Map();
 
   /**
-   * Removes oldest signal if limit is exceeded.
+   * Removes the lowest-priority signal if the limit is exceeded.
+   * Eviction must go by priority, not Map insertion order: updating an
+   * existing key keeps its original insertion position, so the currently
+   * active signal (freshest priority, oldest insertion) would otherwise be
+   * evicted first.
    */
   private _enforceLimit(): void {
-    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
-      const firstKey = this._signals.keys().next().value;
-      if (firstKey) {
-        this._signals.delete(firstKey);
+    if (this._signals.size <= GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      return;
+    }
+    let oldestKey: StorageId | null = null;
+    let oldestPriority = Infinity;
+    for (const [key, row] of this._signals) {
+      if (row.priority < oldestPriority) {
+        oldestPriority = row.priority;
+        oldestKey = key;
       }
+    }
+    if (oldestKey !== null) {
+      this._signals.delete(oldestKey);
     }
   }
 
@@ -949,7 +1000,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @param tick - The opened signal tick data
    */
   public handleOpened = async (tick: IStrategyTickResultOpened): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_OPENED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_OPENED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -973,7 +1024,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @param tick - The closed signal tick data
    */
   public handleClosed = async (tick: IStrategyTickResultClosed): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CLOSED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CLOSED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -1000,7 +1051,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @param tick - The scheduled signal tick data
    */
   public handleScheduled = async (tick: IStrategyTickResultScheduled): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -1024,7 +1075,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @param tick - The cancelled signal tick data
    */
   public handleCancelled = async (tick: IStrategyTickResultCancelled): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CANCELLED, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CANCELLED, {
       signalId: tick.signal.id,
     });
     const lastStorage = this._signals.get(tick.signal.id);
@@ -1047,7 +1098,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @returns The signal row or null if not found
    */
   public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_FIND_BY_ID, { id });
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_FIND_BY_ID, { id });
     return this._signals.get(id) ?? null;
   };
 
@@ -1056,7 +1107,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @returns Array of all signal rows
    */
   public list = async (): Promise<IStorageSignalRow[]> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_LIST);
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_LIST);
     return Array.from(this._signals.values());
   };
 
@@ -1068,7 +1119,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @param event - Active ping contract with signal data and current price
    */
   public handleActivePing = async (event: ActivePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_ACTIVE_PING, {
       signalId: event.data.id,
     });
     const lastStorage = this._signals.get(event.data.id);
@@ -1097,7 +1148,7 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
    * @param event - Schedule ping contract with signal data and current price
    */
   public handleSchedulePing = async (event: SchedulePingContract): Promise<void> => {
-    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
+    LOGGER_SERVICE.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULE_PING, {
       signalId: event.data.id,
     });
     const lastStorage = this._signals.get(event.data.id);
@@ -1193,8 +1244,8 @@ export class StorageDummyLiveUtils implements IStorageUtils {
  *
  * Features:
  * - Adapter pattern for swappable storage implementations
- * - Default adapter: StoragePersistBacktestUtils (persistent storage)
- * - Alternative adapters: StorageMemoryBacktestUtils, StorageDummyBacktestUtils
+ * - Default adapter: StorageMemoryBacktestUtils (in-memory storage)
+ * - Alternative adapters: StoragePersistBacktestUtils, StorageDummyBacktestUtils
  * - Convenience methods: usePersist(), useMemory(), useDummy()
  */
 export class StorageBacktestAdapter implements IStorageUtils {
@@ -1280,7 +1331,7 @@ export class StorageBacktestAdapter implements IStorageUtils {
    * @param Ctor - Constructor for storage adapter
    */
   useStorageAdapter = (Ctor: TStorageUtilsCtor): void => {
-    backtest.loggerService.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_ADAPTER);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_ADAPTER);
     this._signalBacktestFactory = () => Reflect.construct(Ctor, []);
     this.getInstance.clear();
   };
@@ -1290,7 +1341,7 @@ export class StorageBacktestAdapter implements IStorageUtils {
    * All future storage writes will be no-ops.
    */
   useDummy = (): void => {
-    backtest.loggerService.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_DUMMY);
     this._signalBacktestFactory = () => new StorageDummyBacktestUtils();
     this.getInstance.clear();
   };
@@ -1300,7 +1351,7 @@ export class StorageBacktestAdapter implements IStorageUtils {
    * Signals will be persisted to disk.
    */
   usePersist = (): void => {
-    backtest.loggerService.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST);
     this._signalBacktestFactory = () => new StoragePersistBacktestUtils();
     this.getInstance.clear();
   };
@@ -1310,7 +1361,7 @@ export class StorageBacktestAdapter implements IStorageUtils {
    * Signals will be stored in memory only.
    */
   useMemory = (): void => {
-    backtest.loggerService.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_MEMORY);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_USE_MEMORY);
     this._signalBacktestFactory = () => new StorageMemoryBacktestUtils();
     this.getInstance.clear();
   };
@@ -1321,7 +1372,7 @@ export class StorageBacktestAdapter implements IStorageUtils {
    * so a new instance is created with the updated base path.
    */
   public clear = (): void => {
-    backtest.loggerService.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.info(STORAGE_BACKTEST_ADAPTER_METHOD_NAME_CLEAR);
     this.getInstance.clear();
   };
 }
@@ -1418,7 +1469,7 @@ export class StorageLiveAdapter implements IStorageUtils {
    * @param Ctor - Constructor for storage adapter
    */
   useStorageAdapter = (Ctor: TStorageUtilsCtor): void => {
-    backtest.loggerService.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_ADAPTER);
+    LOGGER_SERVICE.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_ADAPTER);
     this._signalLiveFactory = () => Reflect.construct(Ctor, []);
     this.getInstance.clear();
   };
@@ -1428,7 +1479,7 @@ export class StorageLiveAdapter implements IStorageUtils {
    * All future storage writes will be no-ops.
    */
   useDummy = (): void => {
-    backtest.loggerService.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_DUMMY);
+    LOGGER_SERVICE.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_DUMMY);
     this._signalLiveFactory = () => new StorageDummyLiveUtils();
     this.getInstance.clear();
   };
@@ -1438,7 +1489,7 @@ export class StorageLiveAdapter implements IStorageUtils {
    * Signals will be persisted to disk.
    */
   usePersist = (): void => {
-    backtest.loggerService.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST);
+    LOGGER_SERVICE.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST);
     this._signalLiveFactory = () => new StoragePersistLiveUtils();
     this.getInstance.clear();
   };
@@ -1448,7 +1499,7 @@ export class StorageLiveAdapter implements IStorageUtils {
    * Signals will be stored in memory only.
    */
   useMemory = (): void => {
-    backtest.loggerService.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_MEMORY);
+    LOGGER_SERVICE.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_USE_MEMORY);
     this._signalLiveFactory = () => new StorageMemoryLiveUtils();
     this.getInstance.clear();
   };
@@ -1459,7 +1510,7 @@ export class StorageLiveAdapter implements IStorageUtils {
    * so a new instance is created with the updated base path.
    */
   public clear = (): void => {
-    backtest.loggerService.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_CLEAR);
+    LOGGER_SERVICE.info(STORAGE_LIVE_ADAPTER_METHOD_NAME_CLEAR);
     this.getInstance.clear();
   };
 }
@@ -1481,7 +1532,7 @@ export class StorageAdapter {
    * @returns Cleanup function that unsubscribes from all emitters
    */
   public enable = singleshot(() => {
-    backtest.loggerService.info(STORAGE_ADAPTER_METHOD_NAME_ENABLE);
+    LOGGER_SERVICE.info(STORAGE_ADAPTER_METHOD_NAME_ENABLE);
     let unLive: Function;
     let unBacktest: Function;
 
@@ -1583,7 +1634,7 @@ export class StorageAdapter {
    * Safe to call multiple times.
    */
   public disable = () => {
-    backtest.loggerService.info(STORAGE_ADAPTER_METHOD_NAME_DISABLE);
+    LOGGER_SERVICE.info(STORAGE_ADAPTER_METHOD_NAME_DISABLE);
     if (this.enable.hasValue()) {
       const lastSubscription = this.enable();
       lastSubscription();
@@ -1601,7 +1652,7 @@ export class StorageAdapter {
   public findSignalById = async (
     id: StorageId,
   ): Promise<IStorageSignalRow | null> => {
-    backtest.loggerService.info(STORAGE_ADAPTER_METHOD_NAME_FIND_SIGNAL_BY_ID, { id });
+    LOGGER_SERVICE.info(STORAGE_ADAPTER_METHOD_NAME_FIND_SIGNAL_BY_ID, { id });
     if (!this.enable.hasValue()) {
       throw new Error("StorageAdapter is not enabled. Call enable() first.");
     }
@@ -1622,7 +1673,7 @@ export class StorageAdapter {
    * @throws Error if StorageAdapter is not enabled
    */
   public listSignalBacktest = async (): Promise<IStorageSignalRow[]> => {
-    backtest.loggerService.info(STORAGE_ADAPTER_METHOD_NAME_LIST_SIGNAL_BACKTEST);
+    LOGGER_SERVICE.info(STORAGE_ADAPTER_METHOD_NAME_LIST_SIGNAL_BACKTEST);
     if (!this.enable.hasValue()) {
       throw new Error("StorageAdapter is not enabled. Call enable() first.");
     }
@@ -1636,7 +1687,7 @@ export class StorageAdapter {
    * @throws Error if StorageAdapter is not enabled
    */
   public listSignalLive = async (): Promise<IStorageSignalRow[]> => {
-    backtest.loggerService.info(STORAGE_ADAPTER_METHOD_NAME_LIST_SIGNAL_LIVE);
+    LOGGER_SERVICE.info(STORAGE_ADAPTER_METHOD_NAME_LIST_SIGNAL_LIVE);
     if (!this.enable.hasValue()) {
       throw new Error("StorageAdapter is not enabled. Call enable() first.");
     }

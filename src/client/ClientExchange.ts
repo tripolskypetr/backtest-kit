@@ -226,8 +226,8 @@ const GET_CANDLES_FN = async (
     }
 
     // Cache miss or error - fetch from API
-    let lastError: Error;
-    for (let i = 0; i !== GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_COUNT; i++) {
+    let lastError: Error | undefined;
+    for (let i = 0; i < GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_COUNT; i++) {
       try {
         const result = await self.params.getCandles(
           dto.symbol,
@@ -255,7 +255,9 @@ const GET_CANDLES_FN = async (
         await sleep(GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_DELAY_MS);
       }
     }
-    throw lastError;
+    throw lastError ?? new Error(
+      `ClientExchange GET_CANDLES_FN: no fetch attempts made (CC_GET_CANDLES_RETRY_COUNT=${GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_COUNT})`,
+    );
   } finally {
     Candle.releaseLock(`ClientExchange GET_CANDLES_FN symbol=${dto.symbol} interval=${dto.interval} limit=${dto.limit}`);
   }
@@ -688,7 +690,7 @@ export class ClientExchange implements IExchange {
    * @returns Promise resolving to formatted quantity as string
    */
   public async formatQuantity(symbol: string, quantity: number) {
-    this.params.logger.debug("binanceService formatQuantity", {
+    this.params.logger.debug("ClientExchange formatQuantity", {
       symbol,
       quantity,
     });
@@ -708,7 +710,7 @@ export class ClientExchange implements IExchange {
    * @returns Promise resolving to formatted price as string
    */
   public async formatPrice(symbol: string, price: number) {
-    this.params.logger.debug("binanceService formatPrice", {
+    this.params.logger.debug("ClientExchange formatPrice", {
       symbol,
       price,
     });
@@ -1025,12 +1027,20 @@ export class ClientExchange implements IExchange {
       );
     }
 
-    // With limit: paginate backwards until we have enough trades
+    // With limit: paginate backwards until we have enough trades.
+    // Consecutive empty windows bound the scan: before the symbol's listing
+    // date (or across a long data gap) every window returns [], so without
+    // this guard the loop would walk back to the epoch and never terminate.
+    const MAX_CONSECUTIVE_EMPTY_WINDOWS = 10;
     const result: IAggregatedTradeData[] = [];
     let windowEnd = alignedTo;
+    let emptyWindows = 0;
 
     while (result.length < limit) {
       const windowStart = windowEnd - windowMs;
+      if (windowStart <= 0) {
+        break;
+      }
       const to = new Date(windowEnd);
       const from = new Date(windowStart);
 
@@ -1040,6 +1050,19 @@ export class ClientExchange implements IExchange {
         to,
         this.params.execution.context.backtest,
       );
+
+      if (chunk.length === 0) {
+        emptyWindows += 1;
+        if (emptyWindows >= MAX_CONSECUTIVE_EMPTY_WINDOWS) {
+          this.params.logger.warn(
+            `ClientExchange getAggregatedTrades: stopped after ${MAX_CONSECUTIVE_EMPTY_WINDOWS} consecutive empty windows, returning ${result.length}/${limit} trades`,
+            { symbol, limit, windowEnd },
+          );
+          break;
+        }
+      } else {
+        emptyWindows = 0;
+      }
 
       // Prepend chunk (older data goes first)
       result.unshift(...chunk);

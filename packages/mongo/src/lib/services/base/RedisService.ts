@@ -39,10 +39,6 @@ export class RedisService {
     return redis;
   });
 
-  protected init = async () => {
-    this.loggerService.log("redisService init");
-    await this.waitForInit();
-  };
 }
 
 export default RedisService;

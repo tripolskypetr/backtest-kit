@@ -101,7 +101,7 @@ export class ScheduleReportService {
     } else if (data.action === "opened") {
       if (data.signal?.scheduledAt !== data.signal?.pendingAt) {
         const durationMs = data.signal?.pendingAt - data.signal?.scheduledAt;
-        const durationMin = Math.round(durationMs / 60000);
+        const durationMin = durationMs / 60000;
 
         await ReportWriter.writeData("schedule", {
           timestamp: data.signal?.pendingAt,
@@ -133,7 +133,7 @@ export class ScheduleReportService {
       }
     } else if (data.action === "cancelled") {
       const durationMs = data.closeTimestamp - data.signal?.scheduledAt;
-      const durationMin = Math.round(durationMs / 60000);
+      const durationMin = durationMs / 60000;
 
       await ReportWriter.writeData("schedule", {
         timestamp: data.closeTimestamp,

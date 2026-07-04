@@ -13,7 +13,7 @@ const LIST_OPTIMIZERS_METHOD_NAME = "list.listOptimizerSchema";
  *
  * @example
  * ```typescript
- * import { listOptimizers, addOptimizer } from "backtest-kit";
+ * import { listOptimizers, addOptimizer } from "@backtest-kit/ollama";
  *
  * addOptimizer({
  *   optimizerName: "llm-strategy-generator",

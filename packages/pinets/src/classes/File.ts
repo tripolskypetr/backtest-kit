@@ -1,6 +1,8 @@
 import { join } from "path";
 
-const FILE_TYPE_SYMBOL = Symbol("file-type");
+// Symbol.for keeps the brand check working when CJS and ESM copies of the
+// package end up in the same process (dual-package hazard).
+const FILE_TYPE_SYMBOL = Symbol.for("backtest-kit.pinets.file-type");
 
 export class File {
   private readonly __type__ = FILE_TYPE_SYMBOL;
