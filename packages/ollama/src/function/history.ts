@@ -70,15 +70,17 @@ export async function commitPrompt(
   );
 
   if (systemPrompts.length > 0) {
-    for (const content of systemPrompts) {
-      if (!content.trim()) {
-        continue;
-      }
-      history.unshift({
-        role: "system",
-        content,
-      });
-    }
+    // Single unshift with spread: per-item unshift in a loop would REVERSE
+    // the system prompt order at the head of the history.
+    const systemMessages = systemPrompts
+      .filter((content) => content.trim())
+      .map(
+        (content): MessageModel => ({
+          role: "system",
+          content,
+        })
+      );
+    history.unshift(...systemMessages);
   }
 
   if (userPrompt && userPrompt.trim()) {

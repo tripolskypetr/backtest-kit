@@ -389,7 +389,8 @@ interface MessageModel {
  *
  * @example
  * ```typescript
- * import { dumpSignal, getCandles } from "backtest-kit";
+ * import { getCandles } from "backtest-kit";
+ * import { dumpSignal } from "@backtest-kit/ollama";
  * import { v4 as uuid } from "uuid";
  *
  * addStrategy({
@@ -1249,7 +1250,7 @@ declare function getOptimizerSchema(optimizerName: OptimizerName): IOptimizerSch
  *
  * @example
  * ```typescript
- * import { listOptimizers, addOptimizer } from "backtest-kit";
+ * import { listOptimizers, addOptimizer } from "@backtest-kit/ollama";
  *
  * addOptimizer({
  *   optimizerName: "llm-strategy-generator",
