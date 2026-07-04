@@ -1137,12 +1137,12 @@ export type TBrokerCtor = new () => Partial<IBroker>;
  * Wrapper around a `Partial<IBroker>` adapter instance.
  *
  * Implements the full `IBroker` interface but guards every method call —
- * if the underlying adapter does not implement a given method, an error is thrown.
- * `waitForInit` is the only exception: it is silently skipped when not implemented.
+ * if the underlying adapter does not implement a given method, the call is
+ * skipped with a warning log (`waitForInit` is skipped silently).
  *
- * Created internally by `BrokerAdapter.useBrokerAdapter` and stored as
- * `_brokerInstance`. All `BrokerAdapter.commit*` methods delegate here
- * after backtest-mode and enable-state checks pass.
+ * Created internally by `BrokerAdapter.useBrokerAdapter` (via the
+ * `_brokerFactory` -> memoized `getInstance()` pair). All `BrokerAdapter.commit*`
+ * methods delegate here after backtest-mode and enable-state checks pass.
  */
 export class BrokerProxy implements IBroker {
   constructor(readonly _instance: Partial<IBroker>) {}

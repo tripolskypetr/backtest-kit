@@ -23,7 +23,10 @@ import path from "path";
 import dotenv from "dotenv";
 
 const getBroker = singleshot(() => {
-  const broker: IBroker = Broker["_brokerInstance"];
+  // Reaches into BrokerAdapter internals on purpose: the public commit*
+  // methods skip when payload.backtest=true and require enable(), while
+  // brokerdebug must fire exactly one commit at the raw adapter proxy.
+  const broker: IBroker = Broker["getInstance"]();
   if (!broker) {
     throw new Error("Broker instance is not initialized.");
   }
@@ -228,6 +231,8 @@ export const main = async () => {
     exchangeName: exchangeName as any,
   };
 
+  const signalId = `broker-debug-${Date.now()}`;
+
   {
     console.log(`symbol=${symbol} price=${currentPrice} commit=${commit}`);
     console.time(commit);
@@ -236,7 +241,9 @@ export const main = async () => {
   const run = async () => {
     if (commit === "signal-open") {
       await commitSignalOpen({
+        type: "active",
         symbol,
+        signalId,
         cost: 100,
         position: "long",
         priceOpen: currentPrice,
@@ -253,6 +260,7 @@ export const main = async () => {
     if (commit === "signal-close") {
       await commitSignalClose({
         symbol,
+        signalId,
         cost: 100,
         position: "long",
         currentPrice,
@@ -272,6 +280,7 @@ export const main = async () => {
     if (commit === "partial-profit") {
       await commitPartialProfit({
         symbol,
+        signalId,
         percentToClose: 50,
         cost: 50,
         currentPrice,
@@ -286,6 +295,7 @@ export const main = async () => {
     if (commit === "partial-loss") {
       await commitPartialLoss({
         symbol,
+        signalId,
         percentToClose: 50,
         cost: 50,
         currentPrice,
@@ -300,6 +310,7 @@ export const main = async () => {
     if (commit === "average-buy") {
       await commitAverageBuy({
         symbol,
+        signalId,
         currentPrice,
         cost: 100,
         position: "long",
@@ -313,6 +324,7 @@ export const main = async () => {
     if (commit === "trailing-stop") {
       await commitTrailingStop({
         symbol,
+        signalId,
         percentShift: -50,
         currentPrice,
         newStopLossPrice: priceStopLoss + (currentPrice - priceStopLoss) * 0.5,
@@ -326,6 +338,7 @@ export const main = async () => {
     if (commit === "trailing-take") {
       await commitTrailingTake({
         symbol,
+        signalId,
         percentShift: 50,
         currentPrice,
         newTakeProfitPrice:
@@ -340,6 +353,7 @@ export const main = async () => {
     if (commit === "breakeven") {
       await commitBreakeven({
         symbol,
+        signalId,
         currentPrice,
         newStopLossPrice: currentPrice,
         newTakeProfitPrice: priceTakeProfit,

@@ -520,3 +520,25 @@ Breaking changes (кандидаты на major bump):
 Проверено и чисто: **DashboardPage/api.ts** (по запросу) — updatedAt = tick.createdAt = время свечи в бектесте (Storage.ts:220,249), т.е. дневные корзины и окна выручки корректно работают в симулированном времени; несортированный dailyTrades сортируется потребителем (ChartWidget); clearSignalCache() чистит обе моды (семантика memoize.clear проверена); DST-сдвиг окон на ±1ч неактуален для UTC/RU. Также чисто: AveragingWidget, ListView, AppHeader, IconPhoto, useIndicatorStream, все 52 useOnce (подписки только через обёртку, cleanup при unmount подтверждён по реализации в бандле).
 
 Замечание: IDE-ошибка TS2739 (onPointerEnterCapture/placeholder на PaperView) — преждесуществующее несоответствие @types/react и react-declarative по всему проекту, к правкам отношения не имеет (проект не типчекается, vite+swc).
+
+---
+
+## Аудит cli/src (исправлено)
+
+Прочитаны все 79 файлов (~7300 строк): config, helpers, utils, main/* (15 режимов), lib/services (main/logic/api/template/core/provider/schema/connection/base/web), ClientLoader, Setup, functions, model.
+
+- [x] **P1: билд-брейк после ренейма контрактов** — CLI импортировал `SignalOpenContract`/`SignalCloseContract` из backtest-kit (Config.model.ts, TelegramLogicService.ts, TelegramTemplateService.ts), а core после ренейма экспортирует только `OrderOpenContract`/`OrderCloseContract` (сверено со свежим types.d.ts в cli/node_modules). Импорты и типы переименованы; методы адаптера `getSignalOpenMarkdown`/`getSignalCloseMarkdown` (публичный API telegram.config) сохранены.
+
+- [x] **P1: --brokerdebug всегда падал «Broker instance is not initialized»** — `Broker["_brokerInstance"]` читал несуществующее поле: у BrokerAdapter приватные `_brokerFactory` + мемоизированный `getInstance()` (имя `_brokerInstance` осталось только в устаревшем doc-комментарии BrokerProxy — комментарий тоже поправлен). Фикс: `Broker["getInstance"]()` (доступ к приватному осознан: публичные commit* скипают backtest=true и требуют enable()). Плюс синтетические payload'ы дополнены обязательными `signalId` (все 8 коммитов) и `type: "active"` (signal-open) — новые поля Broker-контрактов.
+
+- [x] **P2: Telegram-уведомление «открытие позиции» при размещении scheduled-ордера** — после появления placement-события (`signal-open`, `type: "schedule"`) TelegramLogicService слал бы signal-open-шаблон за ещё не активированный отложенный ордер (само размещение уже покрыто уведомлением «scheduled» из listenSignal). Фикс: фильтр `event.type === "active"`.
+
+- [x] **P2 (core): те же placement-события без фильтра в core-консюмерах** — (а) Notification: `signal_sync.open` документирован как «limit order confirmed filled», а NotificationModel не имеет поля type — placement был бы неотличим от филла; гард добавлен во все 4 копии handleSync (memory/persist × backtest/live, правило SRP-копипасты); (б) SyncMarkdownService.tick: SyncEvent без колонки type, placement задваивал бы openCount на каждый scheduled-сигнал (2 open на 1 close). Гейты (Broker-адаптер, Actions, listenSync) события по-прежнему получают — фильтрация только в отчёте/уведомлениях.
+
+- [x] **P3: help.ts расходился с кодом** — (а) у `--dump` не был документирован реализованный `--markdown`; (б) секция walker утверждала «loaded without changing process.cwd(); .env is read from the working directory only» — на деле WalkerMainService делает chdir в директорию каждой стратегии (при загрузке и в onStrategyStart, с восстановлением) и читает оба .env (директория запуска, затем директория стратегии — она побеждает).
+
+- [x] **P3: фолбэк DEFAULT_CACHE_LIST расходился с дефолтом --cacheInterval** — код-фолбэк содержал "1h", которого не было в дефолте parseArgs и help («1m, 15m, 30m, 4h»); ветка достижима только при явном `--cacheInterval ""`. Решение (по указанию): «1h» добавлен в дефолт везде — getArgs.ts, help.ts (backtest + walker), фолбэки обеих копий (BacktestMainService, WalkerMainService) → единый список «1m, 15m, 30m, 1h, 4h».
+
+Проверено и признано корректным (не трогалось): ClientLoader (двухфазная загрузка require→Babel/eval с сохранением причин ошибок, циркулярный guard через seen-set, alias/overrideModule-подмены, di-kit прототипная память); порядок cwd-манипуляций в entry.ts/main.ts (cwd захватывается до chdir, flush/attachEntry резолвят от исходного); getEnv с самоочисткой до появления entrySubject.data; TelegramApiService (flood-retry с персистентным isImagesPublished, watchdog TIMEOUT_COUNTER, queued-сериализация); toTelegramHtml (балансировка тегов при обрезке, инъекция маркеров списков до санитизации); treeKill (вендоренный tree-kill); Setup.enable/clear/update; CacheLogicService (retry(2): check→warm→re-check); walker-снапшоты System.createSnapshot с восстановлением per-strategy. Копипаста между main-режимами (backtest/paper/live/walker/entry: dotenv→setup.config→loader.config→waitForInit→Setup.enable→провайдеры) — осознанная (SRP), правки применять во все копии.
+
+Замечание: `--entry` (режим для docker-compose) отсутствует в help — вероятно намеренно (внутренний флаг), не трогал.

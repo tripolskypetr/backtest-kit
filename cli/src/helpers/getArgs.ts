@@ -90,7 +90,7 @@ export const getArgs = singleshot(() => {
       },
       cacheInterval: {
         type: "string",
-        default: "1m, 15m, 30m, 4h",
+        default: "1m, 15m, 30m, 1h, 4h",
       },
       // pinescript entry
       editor: {

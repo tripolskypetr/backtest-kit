@@ -326,6 +326,13 @@ export class SyncMarkdownService {
   private tick = async (data: OrderSyncContract) => {
     this.loggerService.log("syncMarkdownService tick", { data });
 
+    // A "schedule" open is a resting-order placement, not a fill. SyncEvent
+    // has no `type` column, so recording it would be indistinguishable from
+    // a real open and would double openCount for scheduled signals.
+    if (data.action === "signal-open" && data.type === "schedule") {
+      return;
+    }
+
     const createdAt = new Date(getContextTimestamp()).toISOString();
     const event: SyncEvent = {
       timestamp: data.timestamp,

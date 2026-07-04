@@ -1347,6 +1347,11 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
+    // A "schedule" open is a resting-order placement, not a fill:
+    // signal_sync.open means "limit order confirmed filled"
+    if (data.action === "signal-open" && data.type === "schedule") {
+      return;
+    }
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
   }, {
     defaultValue: null,
@@ -1684,6 +1689,11 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
+    // A "schedule" open is a resting-order placement, not a fill:
+    // signal_sync.open means "limit order confirmed filled"
+    if (data.action === "signal-open" && data.type === "schedule") {
+      return;
+    }
     await this.waitForInit();
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
     await this._updateNotifications();
@@ -1875,6 +1885,11 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
+    // A "schedule" open is a resting-order placement, not a fill:
+    // signal_sync.open means "limit order confirmed filled"
+    if (data.action === "signal-open" && data.type === "schedule") {
+      return;
+    }
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
   }, {
     defaultValue: null,
@@ -2215,6 +2230,11 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
+    // A "schedule" open is a resting-order placement, not a fill:
+    // signal_sync.open means "limit order confirmed filled"
+    if (data.action === "signal-open" && data.type === "schedule") {
+      return;
+    }
     await this.waitForInit();
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
     await this._updateNotifications();

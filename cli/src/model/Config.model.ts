@@ -12,8 +12,8 @@ import {
   RiskContract,
   TrailingStopCommit,
   TrailingTakeCommit,
-  SignalOpenContract,
-  SignalCloseContract,
+  OrderOpenContract,
+  OrderCloseContract,
   SignalInfoContract,
 } from "backtest-kit";
 
@@ -53,8 +53,8 @@ export interface TelegramConfig {
   getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string>;
   getRiskMarkdown(event: RiskContract): Promise<string>;
   getAverageBuyMarkdown(event: AverageBuyCommit): Promise<string>;
-  getSignalOpenMarkdown(event: SignalOpenContract): Promise<string>;
-  getSignalCloseMarkdown(event: SignalCloseContract): Promise<string>;
+  getSignalOpenMarkdown(event: OrderOpenContract): Promise<string>;
+  getSignalCloseMarkdown(event: OrderCloseContract): Promise<string>;
   getCancelScheduledMarkdown(event: CancelScheduledCommit): Promise<string>;
   getClosePendingMarkdown(event: ClosePendingCommit): Promise<string>;
   getSignalInfoMarkdown(event: SignalInfoContract): Promise<string>;

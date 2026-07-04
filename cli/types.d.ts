@@ -1,6 +1,6 @@
 import * as functools_kit from 'functools-kit';
 import * as BacktestKit from 'backtest-kit';
-import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, SignalOpenContract, SignalCloseContract, CancelScheduledCommit, ClosePendingCommit, SignalInfoContract } from 'backtest-kit';
+import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, OrderOpenContract, OrderCloseContract, CancelScheduledCommit, ClosePendingCommit, SignalInfoContract } from 'backtest-kit';
 import * as BacktestKitUi from '@backtest-kit/ui';
 import * as BacktestKitGraph from '@backtest-kit/graph';
 import * as BacktestKitOllama from '@backtest-kit/ollama';
@@ -342,8 +342,8 @@ interface TelegramConfig {
     getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string>;
     getRiskMarkdown(event: RiskContract): Promise<string>;
     getAverageBuyMarkdown(event: AverageBuyCommit): Promise<string>;
-    getSignalOpenMarkdown(event: SignalOpenContract): Promise<string>;
-    getSignalCloseMarkdown(event: SignalCloseContract): Promise<string>;
+    getSignalOpenMarkdown(event: OrderOpenContract): Promise<string>;
+    getSignalCloseMarkdown(event: OrderCloseContract): Promise<string>;
     getCancelScheduledMarkdown(event: CancelScheduledCommit): Promise<string>;
     getClosePendingMarkdown(event: ClosePendingCommit): Promise<string>;
     getSignalInfoMarkdown(event: SignalInfoContract): Promise<string>;
@@ -365,8 +365,8 @@ declare class TelegramTemplateService implements TelegramConfig {
     getClosedMarkdown: (event: IStrategyTickResultClosed) => Promise<string>;
     getRiskMarkdown: (event: RiskContract) => Promise<string>;
     getAverageBuyMarkdown: (event: AverageBuyCommit) => Promise<string>;
-    getSignalOpenMarkdown: (event: SignalOpenContract) => Promise<string>;
-    getSignalCloseMarkdown: (event: SignalCloseContract) => Promise<string>;
+    getSignalOpenMarkdown: (event: OrderOpenContract) => Promise<string>;
+    getSignalCloseMarkdown: (event: OrderCloseContract) => Promise<string>;
     getCancelScheduledMarkdown: (event: CancelScheduledCommit) => Promise<string>;
     getClosePendingMarkdown: (event: ClosePendingCommit) => Promise<string>;
     getSignalInfoMarkdown: (event: SignalInfoContract) => Promise<string>;
