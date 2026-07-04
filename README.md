@@ -830,6 +830,7 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
  - ✅ Parallel execution: multi-backtest interleaving without cross-contamination
  - ✅ Graceful shutdown: `Backtest.stop()`/`Live.stop()` mid-run, no new signals after stop, stopStrategy draining through the cancel pipeline
  - ✅ Live-tick semantics: schedule-ping rejection cancelling the resting order, time_expired and schedule-await timeouts, VWAP TP/SL crossings between ticks, pre-activation SL break never opening, getSignal throttled to one call per aligned interval, live/backtest channel routing with typed sync open/close pair, out-of-context Price/TimeMeta reads by identifiers
+ - ✅ Broker-driven order cancellation in live (4 hermetic tests): onOrderCheck throw cancelling the resting order (with onSignalScheduleCancelled notification) or closing the position as externally closed (pinned: NO redundant close commit), onSignalOpenCommit throw rejecting placement with same-interval retry, and terminally cancelling a rejected activation fill
  - ✅ Unexpected-stop family: mid-tick stop races, deferred user activation under stop, post-stop activateScheduled rejected, pre-stop deferred close/cancel and broker-confirmed TP fills still draining, stop flag being process-local across restarts
  - ✅ Statistics engine: 100 golden backtest datasets — expectancy, Sharpe, drawdown, corrupted-row filtering (Backtest and Live parity)
  - ✅ Config: global overrides, validation toggles, partial `setConfig` merges
