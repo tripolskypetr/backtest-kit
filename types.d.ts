@@ -9735,9 +9735,9 @@ declare function listenValidation(fn: (error: Error) => void): () => void;
  *
  * @example
  * ```typescript
- * import { listenPartialProfit } from "./function/event";
+ * import { listenPartialProfitAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialProfit((event) => {
+ * const unsubscribe = listenPartialProfitAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% profit`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -9791,9 +9791,9 @@ declare function listenPartialProfitAvailableOnce(filterFn: (event: PartialProfi
  *
  * @example
  * ```typescript
- * import { listenPartialLoss } from "./function/event";
+ * import { listenPartialLossAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialLoss((event) => {
+ * const unsubscribe = listenPartialLossAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% loss`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -9848,9 +9848,9 @@ declare function listenPartialLossAvailableOnce(filterFn: (event: PartialLossCon
  *
  * @example
  * ```typescript
- * import { listenBreakeven } from "./function/event";
+ * import { listenBreakevenAvailable } from "./function/event";
  *
- * const unsubscribe = listenBreakeven((event) => {
+ * const unsubscribe = listenBreakevenAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached breakeven`);
  *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
  *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);

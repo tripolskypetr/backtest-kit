@@ -47,12 +47,12 @@ const LISTEN_WALKER_METHOD_NAME = "event.listenWalker";
 const LISTEN_WALKER_ONCE_METHOD_NAME = "event.listenWalkerOnce";
 const LISTEN_WALKER_COMPLETE_METHOD_NAME = "event.listenWalkerComplete";
 const LISTEN_VALIDATION_METHOD_NAME = "event.listenValidation";
-const LISTEN_PARTIAL_PROFIT_METHOD_NAME = "event.listenPartialProfit";
-const LISTEN_PARTIAL_PROFIT_ONCE_METHOD_NAME = "event.listenPartialProfitOnce";
-const LISTEN_PARTIAL_LOSS_METHOD_NAME = "event.listenPartialLoss";
-const LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME = "event.listenPartialLossOnce";
-const LISTEN_BREAKEVEN_METHOD_NAME = "event.listenBreakeven";
-const LISTEN_BREAKEVEN_ONCE_METHOD_NAME = "event.listenBreakevenOnce";
+const LISTEN_PARTIAL_PROFIT_METHOD_NAME = "event.listenPartialProfitAvailable";
+const LISTEN_PARTIAL_PROFIT_ONCE_METHOD_NAME = "event.listenPartialProfitAvailableOnce";
+const LISTEN_PARTIAL_LOSS_METHOD_NAME = "event.listenPartialLossAvailable";
+const LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME = "event.listenPartialLossAvailableOnce";
+const LISTEN_BREAKEVEN_METHOD_NAME = "event.listenBreakevenAvailable";
+const LISTEN_BREAKEVEN_ONCE_METHOD_NAME = "event.listenBreakevenAvailableOnce";
 const LISTEN_RISK_METHOD_NAME = "event.listenRisk";
 const LISTEN_RISK_ONCE_METHOD_NAME = "event.listenRiskOnce";
 const LISTEN_SCHEDULE_PING_METHOD_NAME = "event.listenSchedulePing";
@@ -852,9 +852,9 @@ export function listenValidation(fn: (error: Error) => void) {
  *
  * @example
  * ```typescript
- * import { listenPartialProfit } from "./function/event";
+ * import { listenPartialProfitAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialProfit((event) => {
+ * const unsubscribe = listenPartialProfitAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% profit`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -946,9 +946,9 @@ export function listenPartialProfitAvailableOnce(
  *
  * @example
  * ```typescript
- * import { listenPartialLoss } from "./function/event";
+ * import { listenPartialLossAvailable } from "./function/event";
  *
- * const unsubscribe = listenPartialLoss((event) => {
+ * const unsubscribe = listenPartialLossAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached ${event.level}% loss`);
  *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
  *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
@@ -1041,9 +1041,9 @@ export function listenPartialLossAvailableOnce(
  *
  * @example
  * ```typescript
- * import { listenBreakeven } from "./function/event";
+ * import { listenBreakevenAvailable } from "./function/event";
  *
- * const unsubscribe = listenBreakeven((event) => {
+ * const unsubscribe = listenBreakevenAvailable((event) => {
  *   console.log(`Signal ${event.data.id} reached breakeven`);
  *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
  *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);
