@@ -848,6 +848,11 @@ clearTimeout(watchdog);
 - **Осиротевшая очередь НЕ реплеится** (at-most-once через рестарт): partial-commit + TP-филл занулил pending → после крэша commit дропнут, филл закрыл позицию
 - **Крэш МЕЖДУ записями closePending** (write-ahead порядок): deferred _closedSignal записан, стирание pending не успело → устаревший pending возвращён на диск вручную → waitForInit по совпадению id пропускает restore, ДОСТИРАЕТ pending с диска, дренаж closed/"closed" с closeId, tick #3 = idle (нет зомби)
 - **Крэш МЕЖДУ записями cancelScheduled**: то же для scheduled — deferred _cancelledSignal суперсидит устаревший scheduled-снапшот, cancelled/user с cancelId, scheduled достёрт, нет воскрешения resting-ордера
+- **Крэш МЕЖДУ записями activateScheduled** (ветка _activatedSignal сверки): исход дренажа противоположный — opened по priceOpen с activateId; без сверки restore scheduled затёр бы активацию
+- **Крэш МЕЖДУ записями createTakeProfit / createStopLoss** (ветки _takeProfitSignal/_stopLossSignal): дренаж через fill-путь — закрытие по ЭФФЕКТИВНОМУ уровню TP/SL минуя VWAP, с closeId
+- **Сверка строго id-гейтится (негатив)**: pending с чужим id НЕ стирается — восстановлен и мониторится (active), deferred close дренится независимо; защита от слишком агрессивной сверки
+- **Крэш МЕЖДУ записями stopStrategy**: cancelled/user без cancelId, commit note "stop_strategy"; _isStopped in-memory — после рестарта getSignal снова жив (осознанная семантика)
+- **Двойной крэш (идемпотентность)**: рестарт #1 = голый waitForInit (стирание происходит именно там, не в tick) → крэш #2 до дренажа → рестарт #2 дренит deferred close штатно; голый waitForInit законен — superseded-ветка контекст-фри
 
 ### test/e2e/short.test.mjs
 SHORT-зеркало новой логики (вся сессия писалась на long):
