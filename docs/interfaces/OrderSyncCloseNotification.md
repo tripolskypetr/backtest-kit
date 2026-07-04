@@ -1,9 +1,9 @@
 ---
-title: docs/interface/SignalSyncCloseNotification
+title: docs/interface/OrderSyncCloseNotification
 group: docs
 ---
 
-# SignalSyncCloseNotification
+# OrderSyncCloseNotification
 
 Signal sync close notification.
 Emitted when an active pending signal is closed (TP/SL hit, time expired, or user-initiated).

@@ -242,10 +242,10 @@ Retrieves action list from strategy schema (IStrategySchema.actions)
 and invokes the riskRejection handler on each ClientAction instance sequentially.
 Called only when a signal fails risk validation.
 
-### signalSync
+### orderSync
 
 ```ts
-signalSync: (backtest: boolean, event: SignalSyncContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+orderSync: (backtest: boolean, event: OrderSyncContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Gates position open/close across all registered actions.
@@ -255,7 +255,7 @@ Returns true only if ALL actions return true.
 ### orderCheck
 
 ```ts
-orderCheck: (backtest: boolean, event: SignalPingContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+orderCheck: (backtest: boolean, event: OrderCheckContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Gates the pending-order ping across all registered actions.

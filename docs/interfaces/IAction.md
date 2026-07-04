@@ -171,10 +171,10 @@ Emitted by: RiskConnectionService via riskSubject
 Source: COMMIT_REJECTION_FN callback in RiskConnectionService
 Frequency: Only when signal is rejected (not emitted for allowed signals)
 
-### signalSync
+### orderSync
 
 ```ts
-signalSync: (event: SignalSyncContract) => void | Promise<void>
+orderSync: (event: OrderSyncContract) => void | Promise<void>
 ```
 
 Called when framework attempts to open or close a position via limit order.
@@ -186,12 +186,12 @@ MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
 `onSignalOpenCommit` / `onSignalCloseCommit`. Throw on "signal-open" → open rolls back to idle
 (scheduled activation cancelled); throw on "signal-close" → close skipped, position stays open;
 retried next tick. Same `syncSubject` emission as the Broker commit hooks (collapsed to false by
-CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onSignalSync} callback.
+CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
 
 ### orderCheck
 
 ```ts
-orderCheck: (event: SignalPingContract) => void | Promise<void>
+orderCheck: (event: OrderCheckContract) => void | Promise<void>
 ```
 
 Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,

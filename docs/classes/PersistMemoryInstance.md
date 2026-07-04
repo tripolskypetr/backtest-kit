@@ -84,6 +84,8 @@ removeMemoryData(memoryId: string): Promise<void>;
 ```
 
 Soft-deletes a memory entry by writing `removed: true` flag.
+No-op when the entry does not exist (readValue throws on a missing
+entity, so existence must be checked first to keep removal idempotent).
 
 ### listMemoryData
 

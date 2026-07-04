@@ -40,7 +40,7 @@ getStorage: any
 subscribe: (() => () => void) & ISingleshotClearable<() => () => void>
 ```
 
-Subscribes to `syncSubject` to start receiving `SignalSyncContract` events.
+Subscribes to `syncSubject` to start receiving `OrderSyncContract` events.
 Protected against multiple subscriptions via `singleshot` — subsequent calls
 return the same unsubscribe function without re-subscribing.
 
@@ -64,7 +64,7 @@ If `subscribe()` was never called, does nothing.
 tick: any
 ```
 
-Handles a single `SignalSyncContract` event emitted by `syncSubject`.
+Handles a single `OrderSyncContract` event emitted by `syncSubject`.
 
 Maps the contract fields to a `SyncEvent`, enriching it with a
 `createdAt` ISO timestamp from `getContextTimestamp()` (backtest clock

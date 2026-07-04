@@ -14,8 +14,8 @@ declare function getSignalState<Value extends object = object>(symbol: string, d
 
 Reads the state value scoped to the current active signal.
 
-Resolves the active pending signal automatically from execution context.
-If no pending signal exists, logs a warning and returns the initialValue.
+Resolves the active pending or scheduled signal automatically from execution context.
+Throws if neither a pending nor a scheduled signal exists.
 
 Automatically detects backtest/live mode from execution context.
 

@@ -194,10 +194,10 @@ Handles risk rejection events with error capture.
 Wraps the user's riskRejection() method to catch and log any errors.
 Called only when signal is rejected by risk management validation.
 
-### signalSync
+### orderSync
 
 ```ts
-signalSync(event: SignalSyncContract): Promise<void>;
+orderSync(event: OrderSyncContract): Promise<void>;
 ```
 
 Gate for position open/close via limit order.
@@ -206,10 +206,12 @@ NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
 ### orderCheck
 
 ```ts
-orderCheck(event: SignalPingContract): Promise<void>;
+orderCheck(event: OrderCheckContract): Promise<void>;
 ```
 
-Gate for the pending-order ping (order still open on exchange?).
+Gate for the order ping (order still open on exchange?). Fires for both
+monitored states: event.type "active" (open position order) and "schedule"
+(resting entry order of a scheduled signal).
 NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_PENDING_FN.
 
 ### dispose

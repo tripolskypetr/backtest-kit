@@ -97,7 +97,7 @@ Proxies call to the underlying notification adapter.
 ### handleSync
 
 ```ts
-handleSync: (data: SignalSyncContract) => any
+handleSync: (data: OrderSyncContract) => any
 ```
 
 Handles signal sync events (signal-open, signal-close).

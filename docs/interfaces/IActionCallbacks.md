@@ -204,10 +204,10 @@ Called when signal is rejected by risk management.
 Triggered by: RiskConnectionService via riskSubject
 Frequency: Only when signal fails risk validation (not emitted for allowed signals)
 
-### onSignalSync
+### onOrderSync
 
 ```ts
-onSignalSync: (event: SignalSyncContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+onOrderSync: (event: OrderSyncContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
 ```
 
 Called when framework attempts to open or close a position via limit order.
@@ -227,21 +227,25 @@ collapsed to false by `CREATE_SYNC_FN`. Backtest short-circuits the gate to true
 ### onOrderCheck
 
 ```ts
-onOrderCheck: (event: SignalPingContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+onOrderCheck: (event: OrderCheckContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
 ```
 
 Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
 to confirm the order is still pending (open) on the exchange.
 
+Fires for both monitored states, discriminated by `event.type`: "active" — pending signal
+(open position); "schedule" — scheduled signal (resting entry order awaiting activation).
+
 Query the exchange by `event.signalId` and THROW ONLY when the order is NOT FOUND by that id
 (filled, cancelled, or liquidated externally) — the framework then closes the position with
-closeReason "closed".
+closeReason "closed" (type "active") or cancels the scheduled signal with reason "user"
+(type "schedule").
 
 CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
 normally instead of throwing, otherwise a connectivity blip would wrongly close an open
 position. Throw exclusively on a confirmed "order not found by id" result.
 
-NOTE: Like onSignalSync, exceptions from this method are NOT swallowed. They propagate up to
+NOTE: Like onOrderSync, exceptions from this method are NOT swallowed. They propagate up to
 CREATE_SYNC_PENDING_FN which catches them and returns false.
 
 MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker `onOrderCheck`.

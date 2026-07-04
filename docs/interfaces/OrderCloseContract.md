@@ -1,9 +1,9 @@
 ---
-title: docs/interface/SignalCloseContract
+title: docs/interface/OrderCloseContract
 group: docs
 ---
 
-# SignalCloseContract
+# OrderCloseContract
 
 Signal close sync event.
 

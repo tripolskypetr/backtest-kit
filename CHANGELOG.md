@@ -1,3 +1,126 @@
+# 🔮 Mythos Full-Codebase Audit (v15.0.0, 04/07/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/15.0.0)
+
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+This is a hardening major. The whole monorepo went through a **line-by-line audit** — six passes over the core `./src` (including the full 9k-line `ClientStrategy.ts` state machine) and one to three passes over every package — with ~90 documented fixes ranging from silent signal loss and risk-reservation leaks to an API-key leak in LLM dumps. The headline product change: **scheduled signals are now first-class exchange citizens**. The resting entry order behind a scheduled signal is gated at placement, pinged against the exchange on every live tick, and routed through the broker cancel pipeline on *every* terminal drop — no code path can orphan a live order on the exchange anymore. The exchange-synchronization surface was renamed from `signal*` to `order*` to reflect what it actually synchronizes, and both sync contracts gained a `type: "schedule" | "active"` discriminator. Test count crossed **910+** (was 775+): sixteen new e2e suites cover the broker lifecycle, crash recovery, unexpected-stop races, SHORT mirrors, and live-tick semantics
+
+**Scheduled signals: placement gate → order check → guaranteed cancel**
+
+The full lifecycle of the resting order is now visible to (and gated by) the infrastructure layer:
+
+```typescript
+import { Broker, OrderSyncContract, OrderCheckContract } from "backtest-kit";
+
+Broker.useBrokerAdapter({
+  // Placement gate. Fires with type: "schedule" when a scheduled signal is being
+  // created — the signal is registered and persisted ONLY after this resolves.
+  // Throw → the resting order was not accepted: risk reservation is released and
+  // placement retries on the next tick.
+  async onSignalOpenCommit(payload) {
+    if (payload.type === "schedule") await exchange.placeLimitOrder(payload);
+  },
+
+  // Order check. Fires on every live tick for BOTH monitored states:
+  // type "active"  — the order backing the open position;
+  // type "schedule" — the resting entry order awaiting activation.
+  // Throw ONLY when the order is gone from the exchange: "active" closes the
+  // position (closeReason "closed"), "schedule" cancels the scheduled signal.
+  // If the resting order actually FILLED — confirm it via commitActivateScheduled
+  // instead of failing the check.
+  async onOrderCheck(payload: OrderCheckContract) {
+    const order = await exchange.getOrderById(payload.signalId);
+    if (!order) throw new Error("order not found");
+  },
+
+  // Guaranteed to fire on EVERY terminal drop of a scheduled signal — user cancel,
+  // timeout, frame end, risk reject, sync reject, stopStrategy — so the adapter
+  // can remove the real resting order from the exchange.
+  async onSignalScheduleCancelled(payload) {
+    await exchange.cancelOrder(payload.signalId);
+  },
+});
+```
+
+Before v15, an activation-time rejection (risk / sync / stop) dropped the scheduled signal silently: no event, no broker commit, a live resting order orphaned on the exchange, and — in backtest — a fatal `"no pending signal after scheduled activation"` that aborted the whole run. All eight silent-drop sites now emit the `cancelled` schedule event + `cancel-scheduled` commit, backtest continues through rejections as a normal `cancelled` outcome, and `stopStrategy()` converts a live scheduled signal into a deferred cancellation that survives a crash (persisted, drained through the broker channel after restart).
+
+**`signal*` → `order*` renames + `type` discriminator (breaking)**
+
+The exchange-sync surface said "signal" but always meant "order". Renamed, with **wire literals (`"signal-open"` / `"signal-close"` / `"signal-ping"`), subject names and `listenSync` left untouched**:
+
+| Was | Now |
+|---|---|
+| `onSignalSync` (strategy / action callback) | `onOrderSync` |
+| `onSignalPing` (strategy callback) | `onOrderCheck` |
+| `IAction::signalSync` | `IAction::orderSync` |
+| `SignalSyncContract` / `SignalOpenContract` / `SignalCloseContract` | `OrderSyncContract` / `OrderOpenContract` / `OrderCloseContract` |
+| `SignalPingContract` | `OrderCheckContract` |
+| `SignalSyncOpenNotification` / `SignalSyncCloseNotification` | `OrderSyncOpenNotification` / `OrderSyncCloseNotification` |
+
+Both contracts (and the corresponding `BrokerSignalOpenPayload` / `BrokerSignalPendingPayload`) now carry `type: "schedule" | "active"`. **Migration:** existing `listenSync` / `onOrderSync` consumers that treat every event as a position event must filter `type === "active"` — placement events for resting orders now flow through the same channel.
+
+**Next-tick retry for rejected opens**
+
+A sync- or risk-rejected open used to stay silent until the next *interval* boundary (`"1h"` → up to an hour of downtime). The interval throttle is now rolled back on rejection, so the entry retries on the **next tick**. Same semantics for rejected resting-order placement.
+
+**Broker adapters: optional means optional**
+
+`TBrokerCtor` always documented every `IBroker` method as optional, but eight `commit*` methods threw `"not implemented"` — and since a throw means "exchange refused", an adapter with only notification hooks silently blocked *all* opens and closes under `enable()`. Unimplemented commit methods now skip with a warn log.
+
+## Breaking Changes
+
+1. **`signal*` → `order*` renames** — see the table above; TypeScript will point at every use site.
+2. **`type` discriminator on sync/check contracts** — filter `type === "active"` where you mean the position order.
+3. **`percentValue`** — formula fixed and rescaled: was `yesterday / today - 1`, now `(today / yesterday - 1) * 100` (a percent, as the name says).
+4. **`slPriceToPercentShift` / `tpPriceToPercentShift`** — required 4th argument `position`; the returned distance is now signed (targets on either side of entry are expressible).
+5. **`percentDiff`** — honest edges: equal values → `0`, zero vs non-zero → `Infinity` (was a sentinel `100`); default arguments removed.
+6. **Breakeven honours `CC_BREAKEVEN_THRESHOLD`** (default 0.2%) in the commit path too — `commitBreakeven` now fires slightly later, matching `getBreakeven`.
+7. **Session persistence is per-symbol** — the disk key gained `symbol` and the backtest flag; `PersistSessionInstance` / `TPersistSessionInstanceCtor` constructors require `symbol: string, backtest: boolean` (breaking for custom session adapters). Two live symbols of one strategy no longer clobber each other's session. Old session records are ignored once after upgrade. **Mongo users:** drop the legacy unique index `(strategyName, exchangeName, frameName)` on `session-items` before running two symbols of the same context.
+8. **`commitPartialProfitCost` / `commitPartialLossCost`** — dollar amounts convert against the **remaining cost basis**, not total invested (after a prior 50% partial, closing $75 closes $75 — not $37.50). Fixed in the canon and both Backtest/Live copies.
+9. **Trailing percent-variants** — the price reported to `Broker.commitTrailingStop/Take` is computed from the **original** SL/TP level (matching what the core applies), not the already-shifted effective level.
+
+## New Public API
+
+| Export | Kind | What it does |
+|---|---|---|
+| `listenCheck` / `listenCheckOnce` | function | Subscribe to order-check pings (`OrderCheckContract`) — the pair to `listenSync`; throw cancels the scheduled signal (`"schedule"`) or closes the position (`"active"`) |
+| `getTotalPercentHeld` / `getRemainingCostBasis` | function | Honest aliases for `getTotalPercentClosed` / `getTotalCostClosed` (which return the *remaining* share/basis and are now `@deprecated`) |
+| `OrderSyncContract` / `OrderOpenContract` / `OrderCloseContract` / `OrderCheckContract` | types | Renamed sync contracts with the `type` discriminator |
+| `OrderSyncOpenNotification` / `OrderSyncCloseNotification` | types | Renamed notification models |
+
+## Audit Highlights
+
+Everything below (and much more) is journaled per-file in [TODO.md](https://github.com/tripolskypetr/backtest-kit/blob/master/TODO.md) with priorities and regression tests.
+
+**Core — silent money loss (P0/P1):**
+- Signal DTOs with explicit `undefined` keys no longer clobber `id`/`cost`/`priceOpen` defaults.
+- Whipsaw protection no longer blocks retry after a sync rejection (`_lastPendingId` is committed only after a confirmed open).
+- Risk reservations are released on **every** abort path (sync reject, validate-throw, scheduled cancel/timeout, stop) — no more permanently occupied risk slots.
+- Phantom positions after a crash: pending is persisted only *after* the exchange confirms the open.
+- `Storage` evicted by insertion order instead of priority — an active signal could be dropped at `CC_MAX_SIGNALS` overflow.
+- Infinity-hold signals near the data edge crashed the process via `process.exit(-1)`; empty-history `getAggregatedTrades` paginated forever; frame timeframes were memoized without invalidation across repeated runs in one process.
+- Off-by-one after signal close ate one timeframe of re-entry in backtest vs live.
+- Persisted backtest history merged in reverse order (report trim discarded the *newest* rows); zero-trade sessions showed `0%` instead of `N/A`.
+- Stale `writeFileAtomic` tmp files no longer resurrect as phantom entities in `PersistBase` listings — swept on init.
+
+**Packages:**
+- `ollama` — **API keys leaked** into outline dumps and one HTTP request body (removed); all 12 wrapper functions spread string args char-by-char; singleshot froze the first apiKey forever.
+- `signals` — `[object Promise]` in LLM reports (missing awaits); every historical row stamped with report-generation time instead of the candle timestamp.
+- `mongo` — connections opened eagerly on import, ignoring `setup(config)`; `findAll` sorted by a nonexistent field, making the 1000-doc window arbitrary.
+- `graph` — diamond dependencies computed once per consumer (double fetch); no cycle detection; serialize/deserialize round-trip was unusable (unstable ids).
+- `front` / `frontend` — symlink-escape in the dump explorer; inverted `useOnce` accumulating subscriptions in manual trading; rejected promises stuck in TTL caches for minutes (33 files); `PartialWidget` overstated partial-close dollar PnL up to 4×.
+- `cli` — `--brokerdebug` always crashed; Telegram would notify "position opened" on resting-order placement (now filtered by `type`).
+- `pinets` — typo'd plot names silently produced `0` instead of a clear error; sidekick's `.env` was never loaded.
+
+## Testing
+
+**911 ok / 0 fail** (was 775+). Sixteen new e2e suites: `audit`, `gauntlet` (rejection cascades, stop races), `broker` (8-stage lifecycle routing, backtest silence), `broker_cancel`, `strategy` (deferred-command matrix Live × Backtest × Broker), `strategy_fn` / `edge_fn` (full commit/getter canon + SHORT mirrors and deferred races), `coverage` (a test per diff hunk), `hardening`, `manage` (position commands from `listenActivePing`, interleaved DCA × partials), `recovery` (crash recovery of every deferred flag and the commit queue), `short`, `commit`, `stopped` (unexpected-stop family with in-memory adapters), `live` (hermetic live-tick harness) — plus `spec/audit`.
+
+
+
+
 # 🧩 Actions, Runtime Introspection & Broker-Level Order Sync (v14.0.0, 19/06/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/14.0.0)

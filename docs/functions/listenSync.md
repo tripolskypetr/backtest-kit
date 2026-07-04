@@ -6,7 +6,7 @@ group: docs
 # listenSync
 
 ```ts
-declare function listenSync(fn: (event: SignalSyncContract) => void, warned?: boolean): () => void;
+declare function listenSync(fn: (event: OrderSyncContract) => void, warned?: boolean): () => void;
 ```
 
 Subscribes to signal synchronization events with queued async processing.

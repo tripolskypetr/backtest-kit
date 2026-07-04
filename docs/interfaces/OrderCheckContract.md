@@ -1,20 +1,27 @@
 ---
-title: docs/interface/SignalPingContract
+title: docs/interface/OrderCheckContract
 group: docs
 ---
 
-# SignalPingContract
+# OrderCheckContract
 
-Signal pending-ping sync event.
+Signal order-ping sync event.
 
-Emitted on every live tick while a pending signal (open position) is being monitored,
-BEFORE the framework evaluates TP/SL/time completion. It asks the external order
-management system whether the corresponding order is STILL pending (open) on the exchange.
+Emitted on every live tick while a signal is being monitored, BEFORE the framework
+evaluates completion. It asks the external order management system whether the
+corresponding order is STILL open on the exchange. Fires for BOTH monitored states,
+discriminated by `type`:
+- `type: "active"` — a pending signal (open position); the order backing the position.
+- `type: "schedule"` — a scheduled signal; the resting entry order awaiting activation.
 
 Listener contract (mirrors syncSubject semantics):
 - Return true (or do nothing) — the order is still open on the exchange, keep monitoring.
 - Return false OR throw — the order is no longer open on the exchange (filled, cancelled,
-  liquidated externally). The framework closes the pending signal with closeReason "closed".
+  liquidated externally). For "active" the framework closes the pending signal with
+  closeReason "closed"; for "schedule" it cancels the scheduled signal (reason "user").
+  NOTE for "schedule": if the resting order actually FILLED, confirm it via
+  activateScheduled/commitActivateScheduled instead of failing the ping — a failed ping
+  is a terminal cancel, not an activation.
 
 Backtest never emits this event — there is no live exchange to query.
 
@@ -31,6 +38,14 @@ action: "signal-ping"
 ```
 
 Discriminator for pending-ping action
+
+### type
+
+```ts
+type: "schedule" | "active"
+```
+
+Monitored state: "active" — open position order, "schedule" — resting entry order
 
 ### symbol
 

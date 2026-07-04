@@ -21,4 +21,4 @@ Automatically detects backtest/live mode from execution context.
 
 | Parameter | Description |
 |-----------|-------------|
-| `symbol` | Trading pair symbol |
+| `symbol` | Trading pair symbol; the strategy is resolved from the active method context |

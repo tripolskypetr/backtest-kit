@@ -6,7 +6,7 @@ group: docs
 # listenSyncOnce
 
 ```ts
-declare function listenSyncOnce(filterFn: (event: SignalSyncContract) => boolean, fn: (event: SignalSyncContract) => void, warned?: boolean): () => void;
+declare function listenSyncOnce(filterFn: (event: OrderSyncContract) => boolean, fn: (event: OrderSyncContract) => void, warned?: boolean): () => void;
 ```
 
 Subscribes to filtered signal synchronization events with one-time execution.

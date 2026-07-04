@@ -40,12 +40,21 @@ getSessionStorage: any
 ```
 
 Memoized factory creating one IPersistSessionInstance per
-(strategyName, exchangeName, frameName) triple.
+(strategyName, exchangeName, frameName, symbol, backtest) tuple.
+
+### GET_KEY_FN
+
+```ts
+GET_KEY_FN: any
+```
+
+Builds the memoization key for the given context.
+Kept in sync with the getSessionStorage key function.
 
 ### waitForInit
 
 ```ts
-waitForInit: (strategyName: string, exchangeName: string, frameName: string, initial: boolean) => Promise<void>
+waitForInit: (strategyName: string, exchangeName: string, frameName: string, initial: boolean, symbol: string, backtest: boolean) => Promise<void>
 ```
 
 Initializes the session storage for the given context.
@@ -54,7 +63,7 @@ Skips initialization when `initial` is false (used to gate first-time setup).
 ### readSessionData
 
 ```ts
-readSessionData: (strategyName: string, exchangeName: string, frameName: string) => Promise<SessionData>
+readSessionData: (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => Promise<SessionData>
 ```
 
 Reads persisted session data for the given context.
@@ -63,7 +72,7 @@ Lazily initializes the instance on first access.
 ### writeSessionData
 
 ```ts
-writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date) => Promise<void>
+writeSessionData: (data: SessionData, strategyName: string, exchangeName: string, frameName: string, when: Date, symbol: string, backtest: boolean) => Promise<void>
 ```
 
 Writes session data for the given context.
@@ -97,7 +106,7 @@ Call when process.cwd() changes between strategy iterations.
 ### dispose
 
 ```ts
-dispose: (strategyName: string, exchangeName: string, frameName: string) => void
+dispose: (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => void
 ```
 
 Drops the memoized instance for the given context.

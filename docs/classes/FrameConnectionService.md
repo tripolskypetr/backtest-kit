@@ -58,6 +58,21 @@ Retrieves memoized ClientFrame instance for given frame name.
 Creates ClientFrame on first call, returns cached instance on subsequent calls.
 Cache key is frameName string.
 
+### clear
+
+```ts
+clear: (frameName?: string) => void
+```
+
+Disposes cached ClientFrame instance(s) so the next getTimeframe call
+regenerates timeframes. Without this, ClientFrame's singleshot would keep
+the endDate-to-now clamp frozen at the moment of the first run: a
+long-running process re-running the same frame would silently backtest
+against stale timeframes and never see newly available candles.
+
+When called without arguments, clears all memoized frames.
+Called by Backtest/Walker at strategy start.
+
 ### getTimeframe
 
 ```ts

@@ -161,19 +161,19 @@ riskRejection: (event: RiskContract, backtest: boolean, context: { actionName: s
 
 Routes riskRejection event to appropriate ClientAction instance.
 
-### signalSync
+### orderSync
 
 ```ts
-signalSync: (event: SignalSyncContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+orderSync: (event: OrderSyncContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
-Routes signalSync event to appropriate ClientAction instance.
+Routes orderSync event to appropriate ClientAction instance.
 NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
 
 ### orderCheck
 
 ```ts
-orderCheck: (event: SignalPingContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+orderCheck: (event: OrderCheckContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Routes orderCheck event to appropriate ClientAction instance.

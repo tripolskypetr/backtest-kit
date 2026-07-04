@@ -98,4 +98,5 @@ getRawCandles: (symbol: string, interval: CandleInterval, context: { exchangeNam
 
 Fetches raw candles with flexible date/limit parameters.
 
-Uses Date.now() instead of execution context when for look-ahead bias protection.
+Look-ahead bias protection: the reference "now" is execution context `when`
+when a context is active (backtest), otherwise the current wall-clock time.

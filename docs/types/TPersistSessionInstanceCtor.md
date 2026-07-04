@@ -6,7 +6,7 @@ group: docs
 # TPersistSessionInstanceCtor
 
 ```ts
-type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: string, frameName: string) => IPersistSessionInstance;
+type TPersistSessionInstanceCtor = new (strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean) => IPersistSessionInstance;
 ```
 
 Constructor type for IPersistSessionInstance.

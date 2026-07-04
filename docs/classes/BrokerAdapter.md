@@ -76,12 +76,14 @@ Skipped silently in backtest mode or when no adapter is registered.
 commitSignalPending: (payload: BrokerSignalPendingPayload) => Promise<void>
 ```
 
-Forwards a pending-order ping to the registered broker adapter.
+Forwards an order ping to the registered broker adapter.
 
 Called automatically via syncPendingSubject when `enable()` is active, on every live tick
-while a pending signal is monitored. Skipped silently in backtest mode or when no adapter is
+while a pending signal (payload.type "active") or a scheduled signal (payload.type
+"schedule") is monitored. Skipped silently in backtest mode or when no adapter is
 registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
-syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed".
+syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
+(type "active") or cancels the scheduled signal with reason "user" (type "schedule").
 
 ### commitActivePing
 
@@ -140,6 +142,14 @@ Forwards a scheduled-signal-cancelled to the registered broker adapter.
 
 Called automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
 removed before activation. Skipped silently in backtest mode or when no adapter is registered.
+
+IMPORTANT (adapter responsibility): the cancel may race the real fill. The framework decides
+to drop the scheduled signal from ITS view (risk reject at activation, sync reject, stop,
+timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
+arrives. The adapter MUST check the actual order status before cancelling: if the order is
+filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
+(close it or reconcile via onOrderCheck / onSignalActivePing). The framework cannot model
+this case — from its side the signal is terminally cancelled.
 
 ### commitPendingOpen
 

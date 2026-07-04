@@ -1,9 +1,9 @@
 ---
-title: docs/interface/SignalSyncOpenNotification
+title: docs/interface/OrderSyncOpenNotification
 group: docs
 ---
 
-# SignalSyncOpenNotification
+# OrderSyncOpenNotification
 
 Signal sync open notification.
 Emitted when a scheduled (limit order) signal is activated and the position is opened.

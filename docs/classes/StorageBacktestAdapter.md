@@ -11,8 +11,8 @@ Backtest storage adapter with pluggable storage backend.
 
 Features:
 - Adapter pattern for swappable storage implementations
-- Default adapter: StoragePersistBacktestUtils (persistent storage)
-- Alternative adapters: StorageMemoryBacktestUtils, StorageDummyBacktestUtils
+- Default adapter: StorageMemoryBacktestUtils (in-memory storage)
+- Alternative adapters: StoragePersistBacktestUtils, StorageDummyBacktestUtils
 - Convenience methods: usePersist(), useMemory(), useDummy()
 
 ## Constructor

@@ -59,7 +59,7 @@ Handles strategy commit events (partial-profit, breakeven, trailing, etc.).
 ### handleSync
 
 ```ts
-handleSync: (data: SignalSyncContract) => Promise<void>
+handleSync: (data: OrderSyncContract) => Promise<void>
 ```
 
 Handles signal sync event (signal-open, signal-close).

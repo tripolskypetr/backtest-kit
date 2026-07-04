@@ -1,13 +1,28 @@
 ---
-title: docs/interface/SignalSyncBase
+title: docs/interface/OrderSyncBase
 group: docs
 ---
 
-# SignalSyncBase
+# OrderSyncBase
 
-Base fields shared by all signal sync events.
+Base fields shared by all order sync events.
 
 ## Properties
+
+### type
+
+```ts
+type: "schedule" | "active"
+```
+
+Which order the sync gate is about:
+- "active" — the position order: immediate open, activation fill of a resting
+  order, and every close. Reject (false/throw) skips the open/close; a rejected
+  fresh open rolls back the interval throttle and retries on the next tick.
+- "schedule" — the resting entry order being PLACED when a scheduled signal is
+  created (action "signal-open" only). Reject means the exchange did not accept
+  the resting order: the scheduled signal is NOT registered, the risk
+  reservation is released and the placement retries on the next tick.
 
 ### symbol
 

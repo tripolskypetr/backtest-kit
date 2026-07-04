@@ -76,7 +76,7 @@ signal_sync: boolean
 Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
 Fired when a limit order is confirmed filled (`signal-open`) or when an open
 position is confirmed exited (`signal-close`) by the exchange sync layer.
-Source: `syncSubject` (SignalSyncContract).
+Source: `syncSubject` (OrderSyncContract).
 
 ### risk
 

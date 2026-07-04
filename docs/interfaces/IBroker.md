@@ -34,7 +34,7 @@ Called when a signal is being closed (take-profit, stop-loss, or manual close). 
 syncSubject BEFORE the framework mutates strategy state, so it is also the close **gate**.
 
 MANUAL WIRING — EXCEPTION-BASED: place the real exit order here (tag/look up by `payload.signalId`)
-and record final PnL. This is the confirmed-close commit; like `onSignalSync` (signal-close) it
+and record final PnL. This is the confirmed-close commit; like `onOrderSync` (signal-close) it
 shares the gate semantics — a THROW means "the exchange did not close the position" and the
 framework SKIPS the close, leaving the position open and retrying on the next tick. Return
 normally to let the close proceed. Backtest short-circuits this (no live exchange), so the gate is
@@ -49,16 +49,18 @@ AFTER the close is committed (and cannot veto it).
 onSignalOpenCommit: (payload: BrokerSignalOpenPayload) => Promise<void>
 ```
 
-Called when a signal is being opened (position entry). Emitted via syncSubject BEFORE the
-framework mutates strategy state, so it is also the open **gate**.
+Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
+strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
+- "active" — position entry (immediate open or activation fill of the resting order);
+- "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
 
-MANUAL WIRING — EXCEPTION-BASED: place the real entry order here (tag the exchange order with
-`payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onSignalSync`
-(signal-open) it shares the gate semantics — a THROW means "the exchange did not fill the entry"
-(e.g. limit order rejected) and the framework ROLLS BACK the open: the pending signal returns to
-idle (a scheduled activation is cancelled) and is retried on the next tick. Return normally to let
-the open proceed. Also the point where a scheduled signal's activation surfaces. Backtest
-short-circuits this, so the gate is live-only.
+MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
+`payload.signalId` so later `onOrderCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
+(signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
+order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
+scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
+and the risk reservation is released. Both retry on the next tick. Return normally to let the
+open proceed. Backtest short-circuits this, so the gate is live-only.
 
 This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
 AFTER the open is committed (and cannot veto it).
@@ -69,10 +71,16 @@ AFTER the open is committed (and cannot veto it).
 onOrderCheck: (payload: BrokerSignalPendingPayload) => Promise<void>
 ```
 
-Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+Called on every live tick while a signal is monitored, BEFORE completion evaluation.
+Fires for both monitored states, discriminated by `payload.type`:
+- "active" — pending signal (open position), before TP/SL/time evaluation;
+- "schedule" — scheduled signal (resting entry order), before timeout/price-activation.
+
 Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
-— the framework will then close the position with closeReason "closed". Return normally to keep
-monitoring.
+— the framework will then close the position with closeReason "closed" (type "active") or
+cancel the scheduled signal with reason "user" (type "schedule"). Return normally to keep
+monitoring. For type "schedule": a filled resting order must be confirmed via
+`commitActivateScheduled`, not by throwing here (a throw is a terminal cancel).
 
 CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
 normally instead of throwing, otherwise a connectivity blip would wrongly close an open
@@ -190,7 +198,7 @@ Manual wiring — EVENT-BASED (placing entry + protective orders)
 
 Fires ONCE at open — place the real entry confirmation and protective TP/SL orders (tag them with
 `payload.signalId`). Drive the rest per-tick from `onSignalActivePing`. This hook does not gate
-the position; for a true entry gate use `onSignalSync` (signal-open).
+the position; for a true entry gate use `onOrderSync` (signal-open).
 
 ### onSignalPendingClose
 

@@ -17,7 +17,7 @@ Features:
 ## Constructor
 
 ```ts
-constructor(strategyName: string, exchangeName: string, frameName: string);
+constructor(strategyName: string, exchangeName: string, frameName: string, symbol: string, backtest: boolean);
 ```
 
 ## Properties
@@ -40,6 +40,18 @@ exchangeName: string
 frameName: string
 ```
 
+### symbol
+
+```ts
+symbol: string
+```
+
+### backtest
+
+```ts
+backtest: boolean
+```
+
 ### _storage
 
 ```ts
@@ -47,6 +59,17 @@ _storage: any
 ```
 
 Underlying file-based storage scoped to this context
+
+### _entityId
+
+```ts
+_entityId: any
+```
+
+Entity key inside the per-strategy/exchange/frame storage directory.
+Includes the symbol and backtest flag: without them two symbols running
+the same strategy would clobber one shared record and restore each
+other's session state after a restart.
 
 ## Methods
 
@@ -64,7 +87,7 @@ Initializes the underlying PersistBase storage.
 readSessionData(): Promise<SessionData | null>;
 ```
 
-Reads the persisted session data using `frameName` as the entity key.
+Reads the persisted session data using the per-symbol entity key.
 
 ### writeSessionData
 
@@ -72,7 +95,7 @@ Reads the persisted session data using `frameName` as the entity key.
 writeSessionData(data: SessionData, _when: Date): Promise<void>;
 ```
 
-Writes the session data using `frameName` as the entity key.
+Writes the session data using the per-symbol entity key.
 
 ### dispose
 

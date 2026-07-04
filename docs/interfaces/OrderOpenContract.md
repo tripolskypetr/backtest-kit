@@ -1,9 +1,9 @@
 ---
-title: docs/interface/SignalOpenContract
+title: docs/interface/OrderOpenContract
 group: docs
 ---
 
-# SignalOpenContract
+# OrderOpenContract
 
 Signal open sync event.
 
