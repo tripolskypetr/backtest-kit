@@ -10,7 +10,7 @@ import {
   errorData,
 } from "functools-kit";
 import { join } from "path";
-import { writeFileAtomic } from "../utils/writeFileAtomic";
+import { writeFileAtomic, TMP_FILE_PREFIX } from "../utils/writeFileAtomic";
 import {
   ISignalRow,
   ISignalDto,
@@ -266,6 +266,13 @@ const PERSIST_RECENT_UTILS_METHOD_NAME_CLEAR = "PersistRecentUtils.clear";
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
 const BASE_UNLINK_RETRY_COUNT = 5;
+
+/**
+ * Minimum age (ms) of a `${TMP_FILE_PREFIX}...` file before the init sweep
+ * reaps it: younger tmp files may belong to an in-flight atomic write of a
+ * concurrent process sharing the same persistence directory.
+ */
+const BASE_STALE_TMP_FILE_AGE = 120_000;
 const BASE_UNLINK_RETRY_DELAY = 1_000;
 
 /**
@@ -381,6 +388,33 @@ const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
     directory: self._directory,
   });
   await fs.mkdir(self._directory, { recursive: true });
+  // Sweep tmp leftovers from writeFileAtomic: a crash between the tmp write
+  // and the rename leaves a `${TMP_FILE_PREFIX}...` file that KEEPS the .json
+  // extension. keys() excludes the prefix (so it can never resurrect as a
+  // phantom entity). An in-flight atomic write from a CONCURRENT process
+  // sharing this directory also produces a tmp file here — only reap ones
+  // old enough (BASE_STALE_TMP_FILE_AGE) to be true crash leftovers.
+  try {
+    for await (const entry of await fs.opendir(self._directory)) {
+      if (entry.isFile() && entry.name.startsWith(TMP_FILE_PREFIX)) {
+        const tmpPath = join(self._directory, entry.name);
+        const stat = await fs.stat(tmpPath).catch(() => null);
+        if (!stat || Date.now() - stat.mtimeMs < BASE_STALE_TMP_FILE_AGE) {
+          continue;
+        }
+        console.error(
+          `backtest-kit PersistBase sweeping stale atomic-write tmp file filePath=${tmpPath} entityName=${self.entityName}`
+        );
+        if (await not(BASE_WAIT_FOR_INIT_UNLINK_FN(tmpPath))) {
+          console.error(
+            `backtest-kit PersistBase failed to remove stale tmp file filePath=${tmpPath} entityName=${self.entityName}`
+          );
+        }
+      }
+    }
+  } catch {
+    // best-effort sweep: never block init on cleanup errors
+  }
   for await (const key of self.keys()) {
     try {
       await self.readValue(key);
@@ -398,29 +432,33 @@ const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
   }
 };
 
-const BASE_WAIT_FOR_INIT_UNLINK_FN = async (filePath: string) =>
-  trycatch(
-    retry(
-      async () => {
-        try {
-          await fs.unlink(filePath);
-          return true;
-        } catch (error) {
-          console.error(
-            `backtest-kit PersistBase unlink failed for filePath=${filePath} error=${getErrorMessage(
-              error
-            )}`
-          );
-          throw error;
-        }
-      },
-      BASE_UNLINK_RETRY_COUNT,
-      BASE_UNLINK_RETRY_DELAY
-    ),
-    {
-      defaultValue: false,
-    }
-  );
+// NB: this must BE the wrapped function, not a factory returning one — the
+// previous `async (filePath) => trycatch(retry(...))` shape returned the
+// wrapper without invoking it, so `not(...)` saw a function (falsy-negated)
+// and the unlink never ran: invalid documents survived every init while the
+// log claimed success.
+const BASE_WAIT_FOR_INIT_UNLINK_FN = trycatch(
+  retry(
+    async (filePath: string) => {
+      try {
+        await fs.unlink(filePath);
+        return true;
+      } catch (error) {
+        console.error(
+          `backtest-kit PersistBase unlink failed for filePath=${filePath} error=${getErrorMessage(
+            error
+          )}`
+        );
+        throw error;
+      }
+    },
+    BASE_UNLINK_RETRY_COUNT,
+    BASE_UNLINK_RETRY_DELAY
+  ),
+  {
+    defaultValue: false,
+  }
+);
 
 /**
  * Base class for file-based persistence with atomic writes.
@@ -560,6 +598,12 @@ class PersistBase<EntityName extends string = string> implements IPersistBase {
     try {
       const entityIds: string[] = [];
       for await (const entry of await fs.opendir(this._directory)) {
+        // Skip writeFileAtomic tmp files: their names keep the .json extension
+        // (`.tmp-<hex>-<id>.json`), so a crash between write and rename would
+        // otherwise resurrect one as a phantom `.tmp-<hex>-<id>` entity here.
+        if (entry.name.startsWith(TMP_FILE_PREFIX)) {
+          continue;
+        }
         if (entry.isFile() && entry.name.endsWith(".json")) {
           entityIds.push(entry.name.slice(0, -5));
         }

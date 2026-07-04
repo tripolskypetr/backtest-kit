@@ -454,3 +454,59 @@ test("AUDIT session persist: symbols do not share persisted session state", asyn
     PersistSessionAdapter.useDummy();
   }
 });
+
+// Крэш между tmp-записью и rename в writeFileAtomic оставляет `.tmp-<hex>-<id>.json`
+// (расширение сохраняется!) — без фильтра keys() воскрешал его как фантомную
+// сущность `.tmp-<hex>-<id>`, а waitForInit не убирал мусор.
+test("persist: stale atomic-write tmp file is swept and never resurrects as entity", async (t) => {
+  const fs = await import("fs/promises");
+  const { join } = await import("path");
+  const { PersistBase } = await import("../../build/index.mjs");
+
+  const baseDir = join(process.cwd(), "dump", `audit_tmp_${Date.now()}`);
+  const entityName = "tmp-sweep";
+
+  {
+    const writer = new PersistBase(entityName, baseDir);
+    await writer.waitForInit(true);
+    await writer.writeValue("real", { id: "real", value: 42 });
+  }
+
+  // Симулируем крэш между write и rename: полностью записанный СТАРЫЙ tmp
+  // (mtime в прошлом — age-гейт должен его подмести) и МОЛОДОЙ tmp
+  // (in-flight запись конкурентного процесса — трогать нельзя, но и в keys()
+  // он попадать не должен)
+  const dir = join(baseDir, entityName);
+  const staleName = ".tmp-a1b2c3-ghost.json";
+  const stalePath = join(dir, staleName);
+  await fs.writeFile(stalePath, JSON.stringify({ id: "ghost", value: 666 }), "utf-8");
+  const past = new Date(Date.now() - 10 * 60 * 1000);
+  await fs.utimes(stalePath, past, past);
+  const youngName = ".tmp-d4e5f6-inflight.json";
+  await fs.writeFile(join(dir, youngName), JSON.stringify({ id: "inflight" }), "utf-8");
+
+  const reader = new PersistBase(entityName, baseDir);
+  await reader.waitForInit(true);
+
+  const ids = [];
+  for await (const id of reader.keys()) ids.push(id);
+
+  if (ids.some((id) => id.startsWith(".tmp-"))) {
+    t.fail(`phantom tmp entity resurrected: ${ids.join(",")}`);
+    return;
+  }
+  if (!ids.includes("real")) {
+    t.fail(`real entity lost: ${ids.join(",")}`);
+    return;
+  }
+  const leftovers = (await fs.readdir(dir)).filter((n) => n.startsWith(".tmp-"));
+  if (leftovers.includes(staleName)) {
+    t.fail("stale tmp leftover not swept by age gate");
+    return;
+  }
+  if (!leftovers.includes(youngName)) {
+    t.fail("young in-flight tmp must survive the sweep (concurrent-writer safety)");
+    return;
+  }
+  t.pass("stale tmp swept, young in-flight tmp preserved, keys() immune to tmp prefix, real entity intact");
+});
