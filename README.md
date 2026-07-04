@@ -792,7 +792,7 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 ## 💯 Tested
 
-860+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
+910+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
 
 <details>
 <summary>Core test axes</summary>
@@ -832,6 +832,7 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
  - ✅ Live-tick semantics: schedule-ping rejection cancelling the resting order, time_expired and schedule-await timeouts, VWAP TP/SL crossings between ticks, pre-activation SL break never opening, getSignal throttled to one call per aligned interval, live/backtest channel routing with typed sync open/close pair, out-of-context Price/TimeMeta reads by identifiers
  - ✅ Broker-driven order cancellation in live (4 hermetic tests): onOrderCheck throw cancelling the resting order (with onSignalScheduleCancelled notification) or closing the position as externally closed (pinned: NO redundant close commit), onSignalOpenCommit throw rejecting placement with same-interval retry, and terminally cancelling a rejected activation fill
  - ✅ Full commit/getter canon of function/strategy.ts (13 hermetic tests): absolute-price trailing (broker payload round-trip, second shift from the ORIGINAL level), dollar-exact partial loss off the remaining basis (live + backtest twins), confirmed SL fill bypassing VWAP, user-created signals, ladder overlap corridors, phase-tracking helpers, deferred-ops status snapshot, signal notifications, remaining-basis alias getters
+ - ✅ Edge contracts (12 hermetic tests): SHORT mirrors of absolute-price trailing and dollar partials, deferred-command races (double close collapses, activation beats a later cancel, TP fill beats user close), 100%-partial leaving a zero-basis position that TP still closes, invalid percent/dollar/alien-symbol rejections, and schema-change restarts (restored pending wins, new interval throttles after close)
  - ✅ Unexpected-stop family: mid-tick stop races, deferred user activation under stop, post-stop activateScheduled rejected, pre-stop deferred close/cancel and broker-confirmed TP fills still draining, stop flag being process-local across restarts
  - ✅ Statistics engine: 100 golden backtest datasets — expectancy, Sharpe, drawdown, corrupted-row filtering (Backtest and Live parity)
  - ✅ Config: global overrides, validation toggles, partial `setConfig` merges
