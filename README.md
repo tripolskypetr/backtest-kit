@@ -796,17 +796,15 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 <details>
 <summary>Core test axes</summary>
-| Axis | Files |
-|------|-------|
-| ✅ State machine under rejections (gates, throttle rollbacks, terminal drops, stopStrategy race) | gauntlet, audit |
-| ✅ Deferred commands, Live × Backtest | strategy |
-| ✅ Broker: 8-stage lifecycle routing, gates, backtest silence, enable/disable, commit\* layer | broker, commit |
-| ✅ Position commands + interleaved DCA × partial exits | manage |
-| ✅ Diff hunks vs master + context-free surface (62 bare calls) | coverage |
-| ✅ Crash recovery of every deferred flag + commit queue | recovery |
-| ✅ SHORT mirror of the key paths | short |
-| ✅ Timeouts, Once-listeners, action gate, Infinity holds, whipsaw restore, shared-risk contention, cancellation stats | hardening |
-| ✅ Order events: types, emission/silence per mode | audit, strategy |
+ - ✅ State machine under rejections (gates, throttle rollbacks, terminal drops, stopStrategy race)
+ - ✅ Deferred commands, Live × Backtest
+ - ✅ Broker: 8-stage lifecycle routing, gates, backtest silence, enable/disable, commit\* layer
+ - ✅ Position commands + interleaved DCA × partial exits
+ - ✅ Context-free surface (62 bare calls)
+ - ✅ Crash recovery of every deferred flag + commit queue
+ - ✅ SHORT mirror of the key paths 
+ - ✅ Timeouts, Once-listeners, action gate, Infinity holds, whipsaw restore, shared-risk contention, cancellation stats
+ - ✅ Order events: types, emission/silence per mode
 </details>
 
 ## 🤖 Reading this as a model?
