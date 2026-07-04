@@ -846,6 +846,8 @@ clearTimeout(watchdog);
 - **createSignal**: DTO из очереди переживает крэш и открывается (ВАЖНО: createSignal требует посеянной цены — сначала один tick)
 - **commit-очередь по pendingSignalId**: застрявший partial-profit commit дренится после рестарта, состояние партиала восстановлено
 - **Осиротевшая очередь НЕ реплеится** (at-most-once через рестарт): partial-commit + TP-филл занулил pending → после крэша commit дропнут, филл закрыл позицию
+- **Крэш МЕЖДУ записями closePending** (write-ahead порядок): deferred _closedSignal записан, стирание pending не успело → устаревший pending возвращён на диск вручную → waitForInit по совпадению id пропускает restore, ДОСТИРАЕТ pending с диска, дренаж closed/"closed" с closeId, tick #3 = idle (нет зомби)
+- **Крэш МЕЖДУ записями cancelScheduled**: то же для scheduled — deferred _cancelledSignal суперсидит устаревший scheduled-снапшот, cancelled/user с cancelId, scheduled достёрт, нет воскрешения resting-ордера
 
 ### test/e2e/short.test.mjs
 SHORT-зеркало новой логики (вся сессия писалась на long):

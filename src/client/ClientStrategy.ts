@@ -1094,10 +1094,12 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     self.params.exchangeName,
   );
   if (strategyData) {
-    // Deferred user actions are restored unconditionally: a deferred close belongs to
-    // an already-cleared _pendingSignal, and cancel/activate belong to the scheduled
-    // signal — none of them are tied to the currently-pending signal's id. A queued
-    // createSignal is a not-yet-consumed signal source and likewise stands on its own.
+    // Deferred user actions are restored unconditionally. They are persisted BEFORE
+    // the pending/scheduled snapshot is wiped from disk (write-ahead order), so a
+    // crash between those two writes can leave a stale pending/scheduled snapshot
+    // alongside them — the restore blocks below detect that by id and finish the
+    // interrupted wipe instead of restoring. A queued createSignal is a
+    // not-yet-consumed signal source and likewise stands on its own.
     self._userSignal = strategyData.createdSignal;
     self._closedSignal = strategyData.closedSignal;
     self._cancelledSignal = strategyData.cancelledSignal;
@@ -1126,7 +1128,28 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       persistedStrategyName: pendingSignal.strategyName,
     });
   }
-  if (pendingMatches) {
+  // Write-ahead reconciliation: a deferred close/fill snapshot (persisted FIRST)
+  // may coexist with a stale on-disk pending snapshot when the process crashed
+  // between the two writes. The deferred snapshot supersedes the pending one —
+  // restoring the pending would resurrect a position that is already closing, and
+  // after the deferred drains a later restart would revive it as a zombie. Skip
+  // the restore and finish the interrupted wipe instead.
+  if (pendingMatches && (
+    self._closedSignal?.id === pendingSignal.id
+    || self._takeProfitSignal?.id === pendingSignal.id
+    || self._stopLossSignal?.id === pendingSignal.id
+  )) {
+    self.params.logger.warn("ClientStrategy waitForInit: persisted pending signal superseded by deferred close/fill, skipping restore", {
+      symbol: self.params.symbol,
+      signalId: pendingSignal.id,
+    });
+    await PersistSignalAdapter.writeSignalData(
+      null,
+      self.params.symbol,
+      self.params.strategyName,
+      self.params.exchangeName,
+    );
+  } else if (pendingMatches) {
     // JSON serializes Infinity as null: an eternal-hold signal (minuteEstimatedTime:
     // Infinity) reads back as null. Restore it so the position is not immediately
     // time-expired on restore (guards custom persist adapters too).
@@ -1180,7 +1203,24 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       persistedStrategyName: scheduledSignal.strategyName,
     });
   }
-  if (scheduledMatches) {
+  // Same write-ahead reconciliation for the scheduled snapshot: a deferred
+  // cancel/activate (persisted FIRST) supersedes a stale on-disk scheduled
+  // snapshot left by a crash between the two writes.
+  if (scheduledMatches && (
+    self._cancelledSignal?.id === scheduledSignal.id
+    || self._activatedSignal?.id === scheduledSignal.id
+  )) {
+    self.params.logger.warn("ClientStrategy waitForInit: persisted scheduled signal superseded by deferred cancel/activate, skipping restore", {
+      symbol: self.params.symbol,
+      signalId: scheduledSignal.id,
+    });
+    await PersistScheduleAdapter.writeScheduleData(
+      null,
+      self.params.symbol,
+      self.params.strategyName,
+      self.params.exchangeName,
+    );
+  } else if (scheduledMatches) {
     // JSON serializes Infinity as null: an eternal-hold signal (minuteEstimatedTime:
     // Infinity) reads back as null. Restore it so the position is not immediately
     // time-expired on activation (guards custom persist adapters too).
@@ -3322,14 +3362,16 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
       });
     }
     if (!self.params.execution.context.backtest) {
+      // Write-ahead order: persist the deferred _cancelledSignal BEFORE wiping the
+      // scheduled snapshot — a crash between the writes then leaves both on disk
+      // and waitForInit reconciles by id (the reverse order lost the cancel).
+      await PERSIST_STRATEGY_FN(self);
       await PersistScheduleAdapter.writeScheduleData(
         self._scheduledSignal,
         self.params.execution.context.symbol,
         self.params.strategyName,
         self.params.exchangeName,
       );
-      // Persist deferred _cancelledSignal so a crash before the next tick does not lose it
-      await PERSIST_STRATEGY_FN(self);
     }
     return null;
   }
@@ -7786,15 +7828,17 @@ export class ClientStrategy implements IStrategy {
       return;
     }
 
+    // Write-ahead order: persist the deferred _cancelledSignal BEFORE wiping the
+    // scheduled snapshot — a crash between the writes then leaves both on disk and
+    // waitForInit reconciles by id (the reverse order lost the cancel silently).
+    await PERSIST_STRATEGY_FN(this);
+
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
       symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
-
-    // Persist deferred _cancelledSignal so a crash before the next tick does not lose it
-    await PERSIST_STRATEGY_FN(this);
   }
 
   /**
@@ -7843,15 +7887,17 @@ export class ClientStrategy implements IStrategy {
       return;
     }
 
+    // Write-ahead order: persist the deferred _cancelledSignal BEFORE wiping the
+    // scheduled snapshot — a crash between the writes then leaves both on disk and
+    // waitForInit reconciles by id (the reverse order lost the cancel silently).
+    await PERSIST_STRATEGY_FN(this);
+
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
       symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
-
-    // Persist deferred _cancelledSignal so a crash before the next tick does not lose it
-    await PERSIST_STRATEGY_FN(this);
 
     // Commit will be emitted in tick() with correct currentTime
   }
@@ -7914,15 +7960,17 @@ export class ClientStrategy implements IStrategy {
       return;
     }
 
+    // Write-ahead order: persist the deferred _activatedSignal BEFORE wiping the
+    // scheduled snapshot — a crash between the writes then leaves both on disk and
+    // waitForInit reconciles by id (the reverse order lost the activation silently).
+    await PERSIST_STRATEGY_FN(this);
+
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
       symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
-
-    // Persist deferred _activatedSignal so a crash before the next tick does not lose it
-    await PERSIST_STRATEGY_FN(this);
 
     // Commit will be emitted AFTER successful risk check in tick()
   }
@@ -7972,15 +8020,19 @@ export class ClientStrategy implements IStrategy {
       return;
     }
 
+    // Write-ahead order: persist the deferred _closedSignal (the intent) BEFORE
+    // wiping the pending snapshot from disk. A crash between the two writes then
+    // leaves BOTH snapshots — waitForInit detects the id match, skips restoring
+    // the stale pending and finishes the wipe. The reverse order silently lost
+    // the position (neither pending nor deferred close survived the crash).
+    await PERSIST_STRATEGY_FN(this);
+
     await PersistSignalAdapter.writeSignalData(
       this._pendingSignal,
       symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
-
-    // Persist deferred _closedSignal so a crash before the next tick does not lose it
-    await PERSIST_STRATEGY_FN(this);
 
     // Commit will be emitted in tick() with correct currentTime
   }
@@ -8100,15 +8152,17 @@ export class ClientStrategy implements IStrategy {
       return;
     }
 
+    // Write-ahead order: persist the deferred _takeProfitSignal BEFORE wiping the
+    // pending snapshot — a crash between the writes then leaves both on disk and
+    // waitForInit reconciles by id (the reverse order silently lost the position).
+    await PERSIST_STRATEGY_FN(this);
+
     await PersistSignalAdapter.writeSignalData(
       this._pendingSignal,
       symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
-
-    // Persist deferred _takeProfitSignal so a crash before the next tick does not lose it
-    await PERSIST_STRATEGY_FN(this);
   }
 
   /**
@@ -8151,15 +8205,17 @@ export class ClientStrategy implements IStrategy {
       return;
     }
 
+    // Write-ahead order: persist the deferred _stopLossSignal BEFORE wiping the
+    // pending snapshot — a crash between the writes then leaves both on disk and
+    // waitForInit reconciles by id (the reverse order silently lost the position).
+    await PERSIST_STRATEGY_FN(this);
+
     await PersistSignalAdapter.writeSignalData(
       this._pendingSignal,
       symbol,
       this.params.strategyName,
       this.params.exchangeName,
     );
-
-    // Persist deferred _stopLossSignal so a crash before the next tick does not lose it
-    await PERSIST_STRATEGY_FN(this);
   }
 
   /**

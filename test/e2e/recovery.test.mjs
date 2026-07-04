@@ -519,3 +519,171 @@ test("RECOVERY: orphaned queued commit is NOT replayed after a crash without its
     useDummy();
   }
 });
+
+/**
+ * RECOVERY: крэш МЕЖДУ двумя записями closePending (write-ahead порядок:
+ * strategyData с _closedSignal записан, стирание pending НЕ успело). На диске
+ * остаются ОБА снапшота — waitForInit обязан по совпадению id пропустить
+ * restore устаревшего pending, ДОСТЕРЕТЬ его с диска и дренить отложенное
+ * закрытие. Без сверки pending воскрес бы и позиция закрылась бы дважды
+ * (или, после дренажа и второго рестарта, ожила бы зомби-позицией).
+ */
+test("RECOVERY: stale pending snapshot left by a crash mid-closePending is superseded, not resurrected", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-walclose-strategy",
+    exchangeName: "binance-recovery-walclose",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal close",
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    // Снапшот pending С ДИСКА (как его оставил бы недописанный closePending)
+    const stalePending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!stalePending || stalePending.id !== tick1.signal.id) {
+      fail(`pending snapshot expected on disk after open, got ${JSON.stringify(stalePending)}`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.closePending(false, "BTCUSDT", context, { id: "recovery-wal-close-1" }));
+
+    // Симулируем крэш МЕЖДУ записями: возвращаем устаревший pending на диск —
+    // ровно то состояние, что оставляет остановка процесса после
+    // PERSIST_STRATEGY_FN (deferred записан), но до writeSignalData(null)
+    await PersistSignalAdapter.writeSignalData(stalePending, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeReason !== "closed" || tick2.closeId !== "recovery-wal-close-1") {
+      fail(`REGRESSION: post-restart tick expected closed/"closed" (deferred close drained), got "${tick2.action}"/"${tick2.closeReason}"/closeId=${tick2.closeId}`);
+      return;
+    }
+
+    // Сверка обязана ДОСТЕРЕТЬ устаревший pending с диска (иначе следующий
+    // рестарт — уже без deferred — воскресит зомби-позицию)
+    const diskPending = await PersistSignalAdapter.readSignalData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskPending !== null) {
+      fail(`REGRESSION: stale pending must be wiped from disk by waitForInit reconciliation, got ${JSON.stringify(diskPending)}`);
+      return;
+    }
+
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "idle") {
+      fail(`tick #3 expected "idle" (no zombie position), got "${tick3.action}"`);
+      return;
+    }
+
+    pass(`mid-closePending crash reconciled: deferred close drained (closeId), stale pending wiped, no zombie`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: то же крэш-окно для scheduled: cancelScheduled записал deferred
+ * _cancelledSignal, стирание scheduled с диска НЕ успело. waitForInit обязан
+ * пропустить restore устаревшего scheduled по совпадению id, достереть его и
+ * дренить отмену (cancelled/user с cancelId) — без воскрешения resting-ордера.
+ */
+test("RECOVERY: stale scheduled snapshot left by a crash mid-cancelScheduled is superseded, not resurrected", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-walcancel-strategy",
+    exchangeName: "binance-recovery-walcancel",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery wal cancel",
+        priceOpen: basePrice - 10000,
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 12000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+
+    const staleScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (!staleScheduled || staleScheduled.id !== tick1.signal.id) {
+      fail(`scheduled snapshot expected on disk, got ${JSON.stringify(staleScheduled)}`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.cancelScheduled(false, "BTCUSDT", context, { id: "recovery-wal-cancel-1" }));
+
+    // Крэш между записями: deferred _cancelledSignal на диске, scheduled не стёрт
+    await PersistScheduleAdapter.writeScheduleData(staleScheduled, "BTCUSDT", context.strategyName, context.exchangeName);
+    await crash(context);
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "cancelled" || tick2.reason !== "user" || tick2.cancelId !== "recovery-wal-cancel-1") {
+      fail(`REGRESSION: post-restart tick expected cancelled/user (deferred cancel drained), got "${tick2.action}"/"${tick2.reason}"/cancelId=${tick2.cancelId}`);
+      return;
+    }
+
+    const diskScheduled = await PersistScheduleAdapter.readScheduleData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (diskScheduled !== null) {
+      fail(`REGRESSION: stale scheduled must be wiped from disk by waitForInit reconciliation, got ${JSON.stringify(diskScheduled)}`);
+      return;
+    }
+
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "idle") {
+      fail(`tick #3 expected "idle" (no resurrected resting order), got "${tick3.action}"`);
+      return;
+    }
+
+    pass(`mid-cancelScheduled crash reconciled: deferred cancel drained (cancelId), stale scheduled wiped, no resurrection`);
+  } finally {
+    useDummy();
+  }
+});
