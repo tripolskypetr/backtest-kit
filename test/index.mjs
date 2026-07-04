@@ -38,6 +38,7 @@ import "./e2e/recovery.test.mjs";
 import "./e2e/short.test.mjs";
 import "./e2e/commit.test.mjs";
 import "./e2e/hardening.test.mjs";
+import "./e2e/stopped.test.mjs";
 
 import "./spec/audit.test.mjs";
 import "./spec/live.test.mjs";
