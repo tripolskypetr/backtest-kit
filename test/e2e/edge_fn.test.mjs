@@ -674,3 +674,68 @@ test("schedule-ping triggering activateScheduled defers the activation instead o
   if (errors.length !== 0) { t.fail(`no errors expected, got: ${errors.join(" | ")}`); return; }
   t.pass(`schedule-ping activation deferred cleanly: idle → opened@49000, pings=${pings}`);
 });
+
+/**
+ * SL-зеркало гонки check-пинг × deferred-филл: слушатель active-пинга
+ * подтверждает SL-филл через commitCreateStopLoss, когда VWAP УЖЕ ниже SL.
+ * Гард после пинга: idle (не TypeError), следующий tick закрывает ОДИН раз
+ * по эффективному SL 46000 (не по VWAP 45500), без дубля VWAP-закрытия.
+ */
+test("check-ping triggering createStopLoss while VWAP is already below SL closes once by the fill", async (t) => {
+  useMemoryPersist();
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  let px = 50000;
+  makePriceExchange("e11-ex", () => px);
+
+  const CTX = { strategyName: "e11-strat", exchangeName: "e11-ex", frameName: "" };
+  let emitted = false;
+  addStrategySchema({
+    strategyName: CTX.strategyName,
+    interval: "1m",
+    getSignal: async () => (emitted ? null : ((emitted = true), { ...LONG_DTO })),
+  });
+
+  const closes = [];
+  listenSignal((e) => { if (e.action === "closed") closes.push(`${e.closeReason}@${e.currentPrice}`); });
+  const errors = [];
+  listenError((e) => errors.push(String(e?.message ?? e)));
+
+  const r1 = await liveTick("BTCUSDT", BASE + 1 * MIN, CTX);
+  if (r1.action !== "opened") { t.fail(`tick1 ${r1.action}`); return; }
+
+  // VWAP уходит НИЖЕ SL (46000); на пинге адаптер подтверждает реальный SL-филл
+  px = 45500;
+  let pings = 0;
+  const unsubCheck = listenCheck(async (event) => {
+    if (event.type !== "active" || event.strategyName !== CTX.strategyName) return;
+    pings += 1;
+    if (pings === 1) {
+      await commitCreateStopLoss("BTCUSDT");
+    }
+  }, true);
+
+  const r2 = await liveTick("BTCUSDT", BASE + 2 * MIN, CTX);
+  if (r2.action !== "idle") {
+    unsubCheck();
+    t.fail(`tick2 expected "idle" (pending consumed by SL fill mid-ping), got ${r2.action}/${r2.closeReason}`);
+    return;
+  }
+
+  const r3 = await liveTick("BTCUSDT", BASE + 3 * MIN, CTX);
+  unsubCheck();
+  if (r3.action !== "closed" || r3.closeReason !== "stop_loss") {
+    t.fail(`tick3 expected closed/stop_loss (deferred fill drained), got ${r3.action}/${r3.closeReason}`);
+    return;
+  }
+  if (!near(r3.currentPrice, 46000)) {
+    t.fail(`fill must close at the effective SL 46000 (not VWAP 45500), got ${r3.currentPrice}`);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 100));
+  if (closes.length !== 1 || !closes[0].startsWith("stop_loss")) {
+    t.fail(`exactly one stop_loss close expected (no VWAP double-close), got: ${closes.join(",")}`);
+    return;
+  }
+  if (errors.length !== 0) { t.fail(`no errors expected, got: ${errors.join(" | ")}`); return; }
+  t.pass(`check-ping SL fill wins: single closed/stop_loss@46000, tick survived (idle), pings=${pings}`);
+});
