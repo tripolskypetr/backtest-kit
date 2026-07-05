@@ -7296,6 +7296,13 @@ export class ClientStrategy implements IStrategy {
           this._scheduledSignal,
           this
         );
+        // Зеркало гарда pending-монитора ниже: слушатель пинга мог потребить
+        // scheduled deferred-командой (activateScheduled / cancelScheduled) —
+        // _scheduledSignal уже null, deferred-слот дренится следующим tick.
+        // Провал дальше упал бы с TypeError на null-сигнале.
+        if (!this._scheduledSignal) {
+          return await RETURN_IDLE_FN(this, currentPrice);
+        }
         if (!stillScheduled) {
           return await CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN(
             this,
@@ -7405,6 +7412,16 @@ export class ClientStrategy implements IStrategy {
         this._pendingSignal,
         this
       );
+      // Слушатель пинга мог потребить pending прямо посреди тика deferred-
+      // командой (createTakeProfit / createStopLoss / closePending): брокер
+      // подтвердил филл/закрытие out-of-band, снапшот уже лежит в deferred-
+      // слоте. Проваливаться дальше с null-сигналом нельзя (completion-чек
+      // упадёт с TypeError), закрывать "closed" поверх — тоже: подтверждённый
+      // филл ВЫИГРЫВАЕТ у вердикта пинга и дренится следующим tick со своим
+      // истинным closeReason.
+      if (!this._pendingSignal) {
+        return await RETURN_IDLE_FN(this, averagePrice);
+      }
       if (!stillPending) {
         return await CLOSE_PENDING_SIGNAL_AS_CLOSED_FN(
           this,

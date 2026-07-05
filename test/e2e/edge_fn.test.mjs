@@ -15,6 +15,7 @@ import {
   Broker,
   listenSignal,
   listenScheduleEvent,
+  listenCheck,
   listenError,
   commitTrailingStopCost,
   commitPartialProfit,
@@ -552,4 +553,124 @@ test("restored pending survives a schema interval change; new interval throttles
     return;
   }
   t.pass("schema restart: pending restored intact, closed by persisted TP, generator obeys the NEW interval");
+});
+
+// ===== №7: гонка order-check пинга × deferred-команды =====
+
+/**
+ * Слушатель check-пинга (type "active") подтверждает TP-филл через
+ * commitCreateTakeProfit, когда VWAP УЖЕ выше TP. До гарда tick падал с
+ * TypeError: пинг зануляет _pendingSignal посреди тика, а completion-чек /
+ * CLOSE_AS_CLOSED получали null. С гардом: tick → idle (филл в deferred-слоте),
+ * следующий tick закрывает ОДИН раз по эффективному TP (не по VWAP), без
+ * дубля VWAP-закрытия и без "closed" поверх подтверждённого филла.
+ */
+test("check-ping triggering createTakeProfit while VWAP is already at TP closes once by the fill", async (t) => {
+  useMemoryPersist();
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  let px = 50000;
+  makePriceExchange("e9-ex", () => px);
+
+  const CTX = { strategyName: "e9-strat", exchangeName: "e9-ex", frameName: "" };
+  let emitted = false;
+  addStrategySchema({
+    strategyName: CTX.strategyName,
+    interval: "1m",
+    getSignal: async () => (emitted ? null : ((emitted = true), { ...LONG_DTO })),
+  });
+
+  const closes = [];
+  listenSignal((e) => { if (e.action === "closed") closes.push(`${e.closeReason}@${e.currentPrice}`); });
+  const errors = [];
+  listenError((e) => errors.push(String(e?.message ?? e)));
+
+  const r1 = await liveTick("BTCUSDT", BASE + 1 * MIN, CTX);
+  if (r1.action !== "opened") { t.fail(`tick1 ${r1.action}`); return; }
+
+  // VWAP уходит ВЫШЕ TP (55000); на пинге адаптер подтверждает реальный филл
+  px = 55500;
+  let pings = 0;
+  const unsubCheck = listenCheck(async (event) => {
+    if (event.type !== "active" || event.strategyName !== CTX.strategyName) return;
+    pings += 1;
+    if (pings === 1) {
+      await commitCreateTakeProfit("BTCUSDT");
+    }
+  }, true);
+
+  const r2 = await liveTick("BTCUSDT", BASE + 2 * MIN, CTX);
+  if (r2.action !== "idle") {
+    unsubCheck();
+    t.fail(`tick2 expected "idle" (pending consumed by fill mid-ping), got ${r2.action}/${r2.closeReason}`);
+    return;
+  }
+
+  const r3 = await liveTick("BTCUSDT", BASE + 3 * MIN, CTX);
+  unsubCheck();
+  if (r3.action !== "closed" || r3.closeReason !== "take_profit") {
+    t.fail(`tick3 expected closed/take_profit (deferred fill drained), got ${r3.action}/${r3.closeReason}`);
+    return;
+  }
+  if (!near(r3.currentPrice, 55000)) {
+    t.fail(`fill must close at the effective TP 55000 (not VWAP 55500), got ${r3.currentPrice}`);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 100));
+  if (closes.length !== 1 || !closes[0].startsWith("take_profit")) {
+    t.fail(`exactly one take_profit close expected (no VWAP double-close), got: ${closes.join(",")}`);
+    return;
+  }
+  if (errors.length !== 0) { t.fail(`no errors expected, got: ${errors.join(" | ")}`); return; }
+  t.pass(`check-ping fill wins: single closed/take_profit@55000, tick survived (idle), pings=${pings}`);
+});
+
+/**
+ * Зеркало для scheduled: слушатель check-пинга (type "schedule") активирует
+ * resting-ордер через commitActivateScheduled. До гарда tick падал с TypeError
+ * (timeout-чек на null). С гардом: idle, следующий tick дренит активацию —
+ * opened по priceOpen.
+ */
+test("schedule-ping triggering activateScheduled defers the activation instead of crashing the tick", async (t) => {
+  useMemoryPersist();
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  makePriceExchange("e10-ex", () => 50000);
+
+  const CTX = { strategyName: "e10-strat", exchangeName: "e10-ex", frameName: "" };
+  let emitted = false;
+  addStrategySchema({
+    strategyName: CTX.strategyName,
+    interval: "1m",
+    getSignal: async () => (emitted ? null : ((emitted = true), { ...SCHEDULED_DTO })),
+  });
+
+  const errors = [];
+  listenError((e) => errors.push(String(e?.message ?? e)));
+
+  const r1 = await liveTick("BTCUSDT", BASE + 1 * MIN, CTX);
+  if (r1.action !== "scheduled") { t.fail(`tick1 ${r1.action}`); return; }
+
+  let pings = 0;
+  const unsubCheck = listenCheck(async (event) => {
+    if (event.type !== "schedule" || event.strategyName !== CTX.strategyName) return;
+    pings += 1;
+    if (pings === 1) {
+      await commitActivateScheduled("BTCUSDT");
+    }
+  }, true);
+
+  const r2 = await liveTick("BTCUSDT", BASE + 2 * MIN, CTX);
+  if (r2.action !== "idle") {
+    unsubCheck();
+    t.fail(`tick2 expected "idle" (scheduled consumed by activation mid-ping), got ${r2.action}`);
+    return;
+  }
+
+  const r3 = await liveTick("BTCUSDT", BASE + 3 * MIN, CTX);
+  unsubCheck();
+  if (r3.action !== "opened" || !near(r3.signal.priceOpen, 49000)) {
+    t.fail(`tick3 expected opened@49000 (deferred activation drained), got ${r3.action}@${r3.signal?.priceOpen}`);
+    return;
+  }
+  if (errors.length !== 0) { t.fail(`no errors expected, got: ${errors.join(" | ")}`); return; }
+  t.pass(`schedule-ping activation deferred cleanly: idle → opened@49000, pings=${pings}`);
 });

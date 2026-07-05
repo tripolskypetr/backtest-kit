@@ -874,6 +874,12 @@ SHORT-зеркало новой логики (вся сессия писалас
 - **Роутинг**: commitTrailingStop/commitAverageBuy/commitPartialProfit/commitBreakeven из listenActivePing (контексты наследуются от tick) → свои методы адаптера, один signalId, операции применяются (remaining $160). ВАЖНО: `commitTrailingStop(symbol, shift, currentPrice)` — третий аргумент обязателен
 - **Тишина без enable()**: commit* исполняются молча (skip, не throw), адаптер не вызывается
 
+### test/e2e/edge_fn.test.mjs (дополнение)
+Гонки order-check пинга × deferred-команды (№7): слушатель check-пинга потребляет сигнал ПОСРЕДИ тика:
+- **createTakeProfit из active-пинга при VWAP уже выше TP**: гард после пинга возвращает idle (не TypeError на null-сигнале), следующий tick закрывает ОДИН раз по эффективному TP (не VWAP), без дубля и без "closed" поверх подтверждённого филла — филл выигрывает у вердикта пинга
+- **activateScheduled из schedule-пинга**: зеркальный гард — idle вместо TypeError на timeout-чеке, следующий tick дренит активацию → opened по priceOpen
+Также: пиннинг НОВОГО контракта 100%-партиала (№4) — авто-закрытие closed/"closed", без зомби и дублей
+
 ### test/e2e/hardening.test.mjs
 Дозакрытие пробелов:
 - **`callbacks.onOrderSync` в Action** — второй санкционированный гейт-канал: throw → откат троттла → next-tick retry в "1h"
