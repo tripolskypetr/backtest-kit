@@ -5308,6 +5308,28 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, candle.timestamp);
   }
 
+  // Deferred-команды дренятся в НАЧАЛЕ следующей свечи — отмена, поданная из
+  // onSchedulePing на ПОСЛЕДНЕЙ свече цикла, оставалась незадренированной:
+  // backtest() пропускал scheduled-ветку (сигнал уже потреблён) и падал
+  // фаталом «no pending signal after scheduled activation». Дренируем здесь
+  // с меткой последней свечи.
+  if (self._cancelledSignal) {
+    const lastCandles = candles.slice(-candlesCount);
+    const averagePrice = GET_AVG_PRICE_FN(lastCandles);
+    const cancelId = self._cancelledSignal.cancelId;
+    const cancelNote = self._cancelledSignal.cancelNote;
+    const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
+      self,
+      scheduled,
+      averagePrice,
+      candles[candles.length - 1].timestamp,
+      "user",
+      cancelId,
+      cancelNote
+    );
+    return { outcome: "cancelled", result };
+  }
+
   return { outcome: "pending" };
 };
 
@@ -7441,6 +7463,15 @@ export class ClientStrategy implements IStrategy {
       return closedResult;
     }
 
+    // Слушатель sync-close гейта мог ОТВЕРГНУТЬ закрытие и одновременно
+    // потребить pending deferred-командой («не закрывай по времени — ордер
+    // реально исполнился по TP»): completion вернул null, а снапшот уже лежит
+    // в deferred-слоте. Провал в RETURN_PENDING_SIGNAL_ACTIVE_FN(null) падал
+    // с TypeError — дренаж следующим tick, как в гарде check-пинга выше.
+    if (!this._pendingSignal) {
+      return await RETURN_IDLE_FN(this, averagePrice);
+    }
+
     return await RETURN_PENDING_SIGNAL_ACTIVE_FN(
       this,
       this._pendingSignal,
@@ -7853,6 +7884,17 @@ export class ClientStrategy implements IStrategy {
     const signal = this._pendingSignal;
 
     if (!signal) {
+      // Активация, поданная из onSchedulePing на ПОСЛЕДНЕЙ свече цикла:
+      // scheduled потреблён в _activatedSignal, а свечей для inline-открытия и
+      // мониторинга не осталось. Честная ошибка вместо вводящего в заблуждение
+      // фатала ниже (симметрично insufficient-candles при price-активации у
+      // края окна).
+      if (this._activatedSignal) {
+        throw new Error(
+          `ClientStrategy backtest: user activation (activateScheduled) consumed the scheduled signal on the final candle (signalId=${this._activatedSignal.id}); ` +
+          `no candles remain to open and monitor the activated position. Provide a candle range extending past the activation point.`
+        );
+      }
       throw new Error(
         "ClientStrategy backtest: no pending signal after scheduled activation"
       );

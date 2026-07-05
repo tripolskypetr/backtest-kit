@@ -16,6 +16,7 @@ import {
   listenSignal,
   listenScheduleEvent,
   listenCheck,
+  listenSync,
   listenError,
   commitTrailingStopCost,
   commitPartialProfit,
@@ -738,4 +739,174 @@ test("check-ping triggering createStopLoss while VWAP is already below SL closes
   }
   if (errors.length !== 0) { t.fail(`no errors expected, got: ${errors.join(" | ")}`); return; }
   t.pass(`check-ping SL fill wins: single closed/stop_loss@46000, tick survived (idle), pings=${pings}`);
+});
+
+// ===== №8: гард отвергнутого sync-close × deferred-филл; last-candle потребление в backtest =====
+
+/**
+ * Sync-close гейт ОТВЕРГАЕТ VWAP-закрытие по TP и одновременно подтверждает
+ * реальный филл через commitCreateTakeProfit («не закрывай по VWAP — ордер уже
+ * исполнился»). До гарда completion возвращал null и tick падал с TypeError в
+ * RETURN_PENDING_SIGNAL_ACTIVE_FN(null). С гардом: idle, следующий tick — одно
+ * закрытие по эффективному TP.
+ */
+test("sync-close gate rejecting the VWAP close while confirming the fill defers cleanly", async (t) => {
+  useMemoryPersist();
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  let px = 50000;
+  makePriceExchange("e12-ex", () => px);
+
+  const CTX = { strategyName: "e12-strat", exchangeName: "e12-ex", frameName: "" };
+  let emitted = false;
+  addStrategySchema({
+    strategyName: CTX.strategyName,
+    interval: "1m",
+    getSignal: async () => (emitted ? null : ((emitted = true), { ...LONG_DTO })),
+  });
+
+  const closes = [];
+  listenSignal((e) => { if (e.action === "closed") closes.push(`${e.closeReason}@${e.currentPrice}`); });
+
+  const r1 = await liveTick("BTCUSDT", BASE + 1 * MIN, CTX);
+  if (r1.action !== "opened") { t.fail(`tick1 ${r1.action}`); return; }
+
+  // VWAP выше TP (55000) → completion инициирует take_profit → sync-close гейт
+  px = 55500;
+  let gateHits = 0;
+  const unsubSync = listenSync(async (event) => {
+    if (event.action !== "signal-close" || event.type !== "active" || event.strategyName !== CTX.strategyName) return;
+    gateHits += 1;
+    if (gateHits === 1) {
+      await commitCreateTakeProfit("BTCUSDT");
+      throw new Error("e12: fill confirmed out-of-band, reject the VWAP close");
+    }
+  }, true);
+
+  const r2 = await liveTick("BTCUSDT", BASE + 2 * MIN, CTX);
+  if (r2.action !== "idle") {
+    unsubSync();
+    t.fail(`tick2 expected "idle" (close rejected, fill deferred), got ${r2.action}/${r2.closeReason}`);
+    return;
+  }
+
+  const r3 = await liveTick("BTCUSDT", BASE + 3 * MIN, CTX);
+  unsubSync();
+  if (r3.action !== "closed" || r3.closeReason !== "take_profit" || !near(r3.currentPrice, 55000)) {
+    t.fail(`tick3 expected closed/take_profit@55000, got ${r3.action}/${r3.closeReason}@${r3.currentPrice}`);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 100));
+  if (closes.length !== 1 || !closes[0].startsWith("take_profit")) {
+    t.fail(`exactly one take_profit close expected, got: ${closes.join(",")}`);
+    return;
+  }
+  t.pass(`rejected sync-close + confirmed fill: tick survived (idle), single closed/take_profit@55000, gateHits=${gateHits}`);
+});
+
+/**
+ * BACKTEST: cancelScheduled из onSchedulePing на ПОСЛЕДНЕЙ свече цикла. Deferred
+ * дренится в начале следующей свечи, которой нет — до фикса backtest() падал
+ * фаталом «no pending signal after scheduled activation». С пост-цикловым
+ * дренажом: graceful cancelled/user с cancelId и меткой последней свечи.
+ */
+test("BACKTEST: cancelScheduled on the final candle drains gracefully instead of a fatal throw", async (t) => {
+  useMemoryPersist();
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  makePriceExchange("e13-ex", () => 50000);
+
+  const t0 = BASE + 10 * MIN;
+  const lastTs = t0 + 5 * MIN;
+  const CTX = { strategyName: "e13-strat", exchangeName: "e13-ex", frameName: "" };
+  let emitted = false;
+  addStrategySchema({
+    strategyName: CTX.strategyName,
+    interval: "1m",
+    getSignal: async () => (emitted ? null : ((emitted = true), { ...SCHEDULED_DTO })),
+    callbacks: {
+      onSchedulePing: async (_symbol, _signal, _price, when) => {
+        if (when.getTime() === lastTs) {
+          await lib.strategyCoreService.cancelScheduled(true, "BTCUSDT", CTX, { id: "e13-last-cancel" });
+        }
+      },
+    },
+  });
+
+  const inMethod = (fn) => MethodContextService.runInContext(fn, CTX);
+
+  const tick1 = await inMethod(() => lib.strategyCoreService.tick("BTCUSDT", new Date(t0), true, CTX));
+  if (tick1.action !== "scheduled") { t.fail(`tick1 expected "scheduled", got ${tick1.action}`); return; }
+
+  // 4 буферные свечи + 6 основных; цена 50000 не активирует (priceOpen 49000) и не пробивает SL
+  const candles = [];
+  for (let i = -4; i <= 5; i++) {
+    const ts = t0 + i * MIN;
+    candles.push({ timestamp: ts, open: 50000, high: 50000, low: 50000, close: 50000, volume: 100 });
+  }
+
+  let result;
+  try {
+    result = await inMethod(() => lib.strategyCoreService.backtest("BTCUSDT", candles, t0 + 60 * MIN, new Date(t0), true, CTX));
+  } catch (error) {
+    t.fail(`REGRESSION: backtest threw instead of draining the last-candle cancel: ${error.message}`);
+    return;
+  }
+
+  if (result.action !== "cancelled" || result.reason !== "user" || result.cancelId !== "e13-last-cancel") {
+    t.fail(`expected cancelled/user with cancelId, got ${result.action}/${result.reason}/cancelId=${result.cancelId}`);
+    return;
+  }
+  if (result.closeTimestamp !== lastTs) {
+    t.fail(`cancel must carry the final candle timestamp ${lastTs}, got ${result.closeTimestamp}`);
+    return;
+  }
+  t.pass(`last-candle cancel drained gracefully: cancelled/user@${lastTs} (cancelId), no fatal`);
+});
+
+/**
+ * BACKTEST: activateScheduled на ПОСЛЕДНЕЙ свече — inline-открытие невозможно
+ * (нет свечей для мониторинга). Ожидаем ЧЕСТНУЮ ошибку про финальную свечу,
+ * а не вводящий в заблуждение фатал «no pending signal after scheduled activation».
+ */
+test("BACKTEST: activateScheduled on the final candle throws the honest insufficient-candles error", async (t) => {
+  useMemoryPersist();
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  makePriceExchange("e14-ex", () => 50000);
+
+  const t0 = BASE + 10 * MIN;
+  const lastTs = t0 + 5 * MIN;
+  const CTX = { strategyName: "e14-strat", exchangeName: "e14-ex", frameName: "" };
+  let emitted = false;
+  addStrategySchema({
+    strategyName: CTX.strategyName,
+    interval: "1m",
+    getSignal: async () => (emitted ? null : ((emitted = true), { ...SCHEDULED_DTO })),
+    callbacks: {
+      onSchedulePing: async (_symbol, _signal, _price, when) => {
+        if (when.getTime() === lastTs) {
+          await lib.strategyCoreService.activateScheduled(true, "BTCUSDT", CTX, { id: "e14-last-activate" });
+        }
+      },
+    },
+  });
+
+  const inMethod = (fn) => MethodContextService.runInContext(fn, CTX);
+
+  const tick1 = await inMethod(() => lib.strategyCoreService.tick("BTCUSDT", new Date(t0), true, CTX));
+  if (tick1.action !== "scheduled") { t.fail(`tick1 expected "scheduled", got ${tick1.action}`); return; }
+
+  const candles = [];
+  for (let i = -4; i <= 5; i++) {
+    candles.push({ timestamp: t0 + i * MIN, open: 50000, high: 50000, low: 50000, close: 50000, volume: 100 });
+  }
+
+  try {
+    const result = await inMethod(() => lib.strategyCoreService.backtest("BTCUSDT", candles, t0 + 60 * MIN, new Date(t0), true, CTX));
+    t.fail(`expected an honest error, got result ${result.action}`);
+  } catch (error) {
+    if (!String(error.message).includes("final candle")) {
+      t.fail(`expected the honest final-candle error, got: ${error.message}`);
+      return;
+    }
+    t.pass(`last-candle activation throws the honest error: "${String(error.message).slice(0, 80)}..."`);
+  }
 });
