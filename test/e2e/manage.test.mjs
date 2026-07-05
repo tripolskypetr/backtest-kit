@@ -741,3 +741,318 @@ test("MANAGE: interleaved DCA and partial exits keep the dollar cost basis exact
     unsubscribeCommit();
   }
 });
+
+/**
+ * MANAGE (интеграционный, LONG): полный жизненный цикл с ПЯТЬЮ механизмами
+ * через общее состояние — DCA → partialLoss → partialProfit → trailingStop →
+ * trailingTake → закрытие по ПОДТЯНУТОМУ TP. Все ожидания считаются от
+ * effective price (harmonic после DCA; партиалы после DCA его не сдвигают —
+ * пропорциональный replay), трейлинги — по формулам ORIGINAL-дистанций от
+ * effective. Проверяются: точная цена закрытия, снапшоты партиалов
+ * (базис/входы), original vs effective SL/TP в закрытом сигнале, полный
+ * набор коммитов.
+ */
+test("MANAGE INTEGRATION LONG: DCA + partialLoss + partialProfit + trailingStop + trailingTake in one lifecycle", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const dcaPrice = 48000;
+  const TP = 60000;
+  const SL = 45000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const near = (a, b, eps = 0.001) => Math.abs(a - b) < eps;
+
+  const context = {
+    strategyName: "manage-integration-long-strategy",
+    exchangeName: "binance-manage-integration-long",
+    frameName: "",
+  };
+
+  let market = basePrice;
+  let signalGenerated = false;
+  let pings = 0;
+  const ops = [];
+  const commits = [];
+
+  makeExchange(context.exchangeName, () => market);
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "manage integration long",
+        priceTakeProfit: TP,
+        priceStopLoss: SL,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    commits.push(event.action);
+  });
+
+  const unsubscribePing = listenActivePing(async (event) => {
+    if (event.strategyName !== context.strategyName) return;
+    pings += 1;
+    const S = lib.strategyCoreService;
+    if (pings === 1) ops.push(["dca@48000", await inCtx(context, () => S.averageBuy(false, "BTCUSDT", event.currentPrice, context, 100))]);
+    if (pings === 2) ops.push(["loss25@47000", await inCtx(context, () => S.partialLoss(false, "BTCUSDT", 25, event.currentPrice, context))]);
+    if (pings === 3) ops.push(["profit40@52000", await inCtx(context, () => S.partialProfit(false, "BTCUSDT", 40, event.currentPrice, context))]);
+    if (pings === 4) ops.push(["tstop-5@53000", await inCtx(context, () => S.trailingStop(false, "BTCUSDT", -5, event.currentPrice, context))]);
+    if (pings === 5) ops.push(["ttake-8@54000", await inCtx(context, () => S.trailingTake(false, "BTCUSDT", -8, event.currentPrice, context))]);
+  });
+
+  try {
+    const runTick = makeRunTick(context);
+    const S = lib.strategyCoreService;
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened" || tick1.signal.priceOpen !== basePrice) {
+      fail(`tick #1 expected opened@${basePrice}, got "${tick1.action}"@${tick1.signal?.priceOpen}`);
+      return;
+    }
+
+    market = dcaPrice; await runTick(new Date(t0 + 1 * MIN)); // ping1: DCA на просадке
+    market = 47000;    await runTick(new Date(t0 + 2 * MIN)); // ping2: partialLoss 25%
+    market = 52000;    await runTick(new Date(t0 + 3 * MIN)); // ping3: partialProfit 40%
+    market = 53000;    await runTick(new Date(t0 + 4 * MIN)); // ping4: trailingStop −5пп
+    market = 54000;    await runTick(new Date(t0 + 5 * MIN)); // ping5: trailingTake −8пп
+
+    const failedOp = ops.find(([, r]) => r !== true);
+    if (ops.length !== 5 || failedOp) {
+      fail(`all 5 ops must succeed, got ${JSON.stringify(ops)}`);
+      return;
+    }
+
+    // Effective price: harmonic после DCA (партиалы после DCA его не сдвигают)
+    const eff = await inCtx(context, () => S.getPositionEffectivePrice(false, "BTCUSDT", context));
+    const expectedEff = 200 / (100 / basePrice + 100 / dcaPrice);
+    if (!near(eff, expectedEff)) {
+      fail(`effective price expected ~${expectedEff}, got ${eff}`);
+      return;
+    }
+    // Остаток базиса: 200 → loss25 → 150 → profit40 → 90
+    const remaining = await inCtx(context, () => S.getTotalCostClosed(false, "BTCUSDT", context));
+    if (!near(remaining, 90)) {
+      fail(`remaining basis expected 90, got ${remaining}`);
+      return;
+    }
+
+    // Ожидаемые трейлинг-уровни: формулы ORIGINAL-дистанций от effective
+    const slDist = (eff - SL) / eff * 100;            // 8.125%
+    const expectedSL = eff * (1 - (slDist - 5) / 100); // дистанция 3.125%
+    const tpDist = (TP - eff) / eff * 100;             // 22.5%
+    const expectedTP = eff * (1 + (tpDist - 8) / 100); // дистанция 14.5%
+
+    // Рынок доходит до подтянутого TP (ниже оригинального 60000)
+    market = expectedTP + 150;
+    const tick7 = await runTick(new Date(t0 + 6 * MIN));
+    if (tick7.action !== "closed" || tick7.closeReason !== "take_profit") {
+      fail(`tick #7 expected closed/take_profit by TRAILED TP, got "${tick7.action}"/"${tick7.closeReason}"`);
+      return;
+    }
+    if (!near(tick7.currentPrice, expectedTP)) {
+      fail(`close must land exactly on the trailed TP ~${expectedTP}, got ${tick7.currentPrice}`);
+      return;
+    }
+
+    const sig = tick7.signal;
+    if (sig.originalPriceTakeProfit !== TP || sig.originalPriceStopLoss !== SL) {
+      fail(`original TP/SL expected ${TP}/${SL}, got ${sig.originalPriceTakeProfit}/${sig.originalPriceStopLoss}`);
+      return;
+    }
+    if (!near(sig.priceTakeProfit, expectedTP) || !near(sig.priceStopLoss, expectedSL)) {
+      fail(`effective TP/SL expected ~${expectedTP}/~${expectedSL}, got ${sig.priceTakeProfit}/${sig.priceStopLoss}`);
+      return;
+    }
+    const entries = (sig._entry ?? []).map((e) => e.price);
+    const invested = (sig._entry ?? []).reduce((sum, e) => sum + e.cost, 0);
+    if (JSON.stringify(entries) !== JSON.stringify([basePrice, dcaPrice]) || invested !== 200) {
+      fail(`entries/invested expected [${basePrice},${dcaPrice}]/200, got ${JSON.stringify(entries)}/${invested}`);
+      return;
+    }
+    const partials = (sig._partial ?? []).map((p) => ({ t: p.type, pct: p.percent, basis: p.costBasisAtClose, entries: p.entryCountAtClose }));
+    const expectedPartials = [
+      { t: "loss", pct: 25, basis: 200, entries: 2 },
+      { t: "profit", pct: 40, basis: 150, entries: 2 },
+    ];
+    if (JSON.stringify(partials) !== JSON.stringify(expectedPartials)) {
+      fail(`partial snapshots mismatch: expected ${JSON.stringify(expectedPartials)}, got ${JSON.stringify(partials)}`);
+      return;
+    }
+    if (!near(sig.partialExecuted, 55)) { // $50 + $60 из $200 = 55%
+      fail(`partialExecuted expected 55%, got ${sig.partialExecuted}`);
+      return;
+    }
+
+    await new Promise((r) => setTimeout(r, 100));
+    const byAction = commits.reduce((acc, a) => ((acc[a] = (acc[a] ?? 0) + 1), acc), {});
+    if (byAction["average-buy"] !== 1 || byAction["partial-loss"] !== 1 || byAction["partial-profit"] !== 1 || byAction["trailing-stop"] !== 1 || byAction["trailing-take"] !== 1) {
+      fail(`commit counts expected each ×1, got ${JSON.stringify(byAction)}`);
+      return;
+    }
+
+    pass(`LONG lifecycle exact: eff~${eff.toFixed(2)}, remaining 90, closed@trailed TP ${tick7.currentPrice.toFixed(2)} (orig ${TP}), SL trailed ${sig.priceStopLoss.toFixed(2)} (orig ${SL}), commits ${JSON.stringify(byAction)}`);
+  } finally {
+    unsubscribePing();
+    unsubscribeCommit();
+  }
+});
+
+/**
+ * MANAGE (интеграционный, SHORT): зеркало — DCA на РОСТЕ (выше max entry),
+ * partialLoss на росте, partialProfit на падении, trailingStop тянет SL ВНИЗ,
+ * trailingTake поднимает TP ВВЕРХ, закрытие по подтянутому TP на падении.
+ */
+test("MANAGE INTEGRATION SHORT: DCA + partialLoss + partialProfit + trailingStop + trailingTake in one lifecycle", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const dcaPrice = 52000;
+  const TP = 40000;
+  const SL = 55000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const near = (a, b, eps = 0.001) => Math.abs(a - b) < eps;
+
+  const context = {
+    strategyName: "manage-integration-short-strategy",
+    exchangeName: "binance-manage-integration-short",
+    frameName: "",
+  };
+
+  let market = basePrice;
+  let signalGenerated = false;
+  let pings = 0;
+  const ops = [];
+  const commits = [];
+
+  makeExchange(context.exchangeName, () => market);
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "short",
+        note: "manage integration short",
+        priceTakeProfit: TP,
+        priceStopLoss: SL,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    commits.push(event.action);
+  });
+
+  const unsubscribePing = listenActivePing(async (event) => {
+    if (event.strategyName !== context.strategyName) return;
+    pings += 1;
+    const S = lib.strategyCoreService;
+    if (pings === 1) ops.push(["dca@52000", await inCtx(context, () => S.averageBuy(false, "BTCUSDT", event.currentPrice, context, 100))]);
+    if (pings === 2) ops.push(["loss25@53000", await inCtx(context, () => S.partialLoss(false, "BTCUSDT", 25, event.currentPrice, context))]);
+    if (pings === 3) ops.push(["profit40@48000", await inCtx(context, () => S.partialProfit(false, "BTCUSDT", 40, event.currentPrice, context))]);
+    if (pings === 4) ops.push(["tstop-4@47000", await inCtx(context, () => S.trailingStop(false, "BTCUSDT", -4, event.currentPrice, context))]);
+    if (pings === 5) ops.push(["ttake-10@46000", await inCtx(context, () => S.trailingTake(false, "BTCUSDT", -10, event.currentPrice, context))]);
+  });
+
+  try {
+    const runTick = makeRunTick(context);
+    const S = lib.strategyCoreService;
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened" || tick1.signal.priceOpen !== basePrice) {
+      fail(`tick #1 expected opened@${basePrice}, got "${tick1.action}"@${tick1.signal?.priceOpen}`);
+      return;
+    }
+
+    market = dcaPrice; await runTick(new Date(t0 + 1 * MIN)); // ping1: DCA на росте (52000 > max entry 50000)
+    market = 53000;    await runTick(new Date(t0 + 2 * MIN)); // ping2: partialLoss 25% (рост = убыток шорта)
+    market = 48000;    await runTick(new Date(t0 + 3 * MIN)); // ping3: partialProfit 40% (падение = профит)
+    market = 47000;    await runTick(new Date(t0 + 4 * MIN)); // ping4: trailingStop −4пп (SL тянется ВНИЗ)
+    market = 46000;    await runTick(new Date(t0 + 5 * MIN)); // ping5: trailingTake −10пп (TP поднимается ВВЕРХ)
+
+    const failedOp = ops.find(([, r]) => r !== true);
+    if (ops.length !== 5 || failedOp) {
+      fail(`all 5 ops must succeed, got ${JSON.stringify(ops)}`);
+      return;
+    }
+
+    const eff = await inCtx(context, () => S.getPositionEffectivePrice(false, "BTCUSDT", context));
+    const expectedEff = 200 / (100 / basePrice + 100 / dcaPrice);
+    if (!near(eff, expectedEff)) {
+      fail(`effective price expected ~${expectedEff}, got ${eff}`);
+      return;
+    }
+    const remaining = await inCtx(context, () => S.getTotalCostClosed(false, "BTCUSDT", context));
+    if (!near(remaining, 90)) {
+      fail(`remaining basis expected 90, got ${remaining}`);
+      return;
+    }
+
+    // SHORT: SL выше входа, TP ниже; трейлинг тянет оба К входу
+    const slDist = (SL - eff) / eff * 100;
+    const expectedSL = eff * (1 + (slDist - 4) / 100);
+    const tpDist = (eff - TP) / eff * 100;
+    const expectedTP = eff * (1 - (tpDist - 10) / 100);
+
+    // Рынок падает до подтянутого TP (ВЫШЕ оригинального 40000)
+    market = expectedTP - 150;
+    const tick7 = await runTick(new Date(t0 + 6 * MIN));
+    if (tick7.action !== "closed" || tick7.closeReason !== "take_profit") {
+      fail(`tick #7 expected closed/take_profit by TRAILED TP, got "${tick7.action}"/"${tick7.closeReason}"`);
+      return;
+    }
+    if (!near(tick7.currentPrice, expectedTP)) {
+      fail(`close must land exactly on the trailed TP ~${expectedTP}, got ${tick7.currentPrice}`);
+      return;
+    }
+
+    const sig = tick7.signal;
+    if (sig.originalPriceTakeProfit !== TP || sig.originalPriceStopLoss !== SL) {
+      fail(`original TP/SL expected ${TP}/${SL}, got ${sig.originalPriceTakeProfit}/${sig.originalPriceStopLoss}`);
+      return;
+    }
+    if (!near(sig.priceTakeProfit, expectedTP) || !near(sig.priceStopLoss, expectedSL)) {
+      fail(`effective TP/SL expected ~${expectedTP}/~${expectedSL}, got ${sig.priceTakeProfit}/${sig.priceStopLoss}`);
+      return;
+    }
+    const entries = (sig._entry ?? []).map((e) => e.price);
+    const invested = (sig._entry ?? []).reduce((sum, e) => sum + e.cost, 0);
+    if (JSON.stringify(entries) !== JSON.stringify([basePrice, dcaPrice]) || invested !== 200) {
+      fail(`entries/invested expected [${basePrice},${dcaPrice}]/200, got ${JSON.stringify(entries)}/${invested}`);
+      return;
+    }
+    const partials = (sig._partial ?? []).map((p) => ({ t: p.type, pct: p.percent, basis: p.costBasisAtClose, entries: p.entryCountAtClose }));
+    const expectedPartials = [
+      { t: "loss", pct: 25, basis: 200, entries: 2 },
+      { t: "profit", pct: 40, basis: 150, entries: 2 },
+    ];
+    if (JSON.stringify(partials) !== JSON.stringify(expectedPartials)) {
+      fail(`partial snapshots mismatch: expected ${JSON.stringify(expectedPartials)}, got ${JSON.stringify(partials)}`);
+      return;
+    }
+    if (!near(sig.partialExecuted, 55)) {
+      fail(`partialExecuted expected 55%, got ${sig.partialExecuted}`);
+      return;
+    }
+
+    await new Promise((r) => setTimeout(r, 100));
+    const byAction = commits.reduce((acc, a) => ((acc[a] = (acc[a] ?? 0) + 1), acc), {});
+    if (byAction["average-buy"] !== 1 || byAction["partial-loss"] !== 1 || byAction["partial-profit"] !== 1 || byAction["trailing-stop"] !== 1 || byAction["trailing-take"] !== 1) {
+      fail(`commit counts expected each ×1, got ${JSON.stringify(byAction)}`);
+      return;
+    }
+
+    pass(`SHORT lifecycle exact: eff~${eff.toFixed(2)}, remaining 90, closed@trailed TP ${tick7.currentPrice.toFixed(2)} (orig ${TP}), SL trailed ${sig.priceStopLoss.toFixed(2)} (orig ${SL}), commits ${JSON.stringify(byAction)}`);
+  } finally {
+    unsubscribePing();
+    unsubscribeCommit();
+  }
+});

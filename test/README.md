@@ -835,6 +835,8 @@ clearTimeout(watchdog);
 - **partialLoss(30%)**: остаток $70, тип "loss", commit "partial-loss"
 - **Переплетение DCA × партиалы**: open $100 → DCA $100 → profit 50% → DCA $100 → loss 25% → profit 100% остатка; строгие снапшоты `costBasisAtClose` [200, 200, 150] / `entryCountAtClose` [2, 3, 3], invested $300 (партиал #2 берёт базис «остаток после 50% + вход, добавленный ПОСЛЕ партиала»; финальный 100% проходит epsilon-кап и АВТО-ЗАКРЫВАЕТ позицию: следующий tick = closed/"closed" + close-pending коммит; финансовые снапшоты читаются из закрытого сигнала, финальный partial-profit коммит доставляется через _closedSignal-атрибуцию)
 
+- **Интеграционные lifecycle-тесты (LONG и SHORT)**: все пять механизмов в одной позиции — DCA → partialLoss(25%) → partialProfit(40%) → trailingStop(−5/−4пп) → trailingTake(−8/−10пп) → закрытие по ПОДТЯНУТОМУ TP. Ожидания считаются от effective price (harmonic после DCA; партиалы после DCA его не сдвигают — пропорциональный replay): LONG eff=2400000/49≈48979.59, close@56081.63; SHORT eff≈50980.39, close@45098.04. Ассерты: точная цена закрытия, original vs effective SL/TP, снапшоты партиалов [loss 25/200/2, profit 40/150/2], invested 200/остаток 90/partialExecuted 55%, все пять коммитов ×1
+
 ВАЖНО: `percentShift` у trailing-команд — сдвиг дистанции в процентных ПУНКТАХ
 (SL 10% + shift −5 → 5%), а не доля от дистанции.
 
