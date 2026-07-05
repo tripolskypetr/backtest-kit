@@ -878,6 +878,8 @@ SHORT-зеркало новой логики (вся сессия писалас
 Гонки order-check пинга × deferred-команды (№7): слушатель check-пинга потребляет сигнал ПОСРЕДИ тика:
 - **createTakeProfit из active-пинга при VWAP уже выше TP**: гард после пинга возвращает idle (не TypeError на null-сигнале), следующий tick закрывает ОДИН раз по эффективному TP (не VWAP), без дубля и без "closed" поверх подтверждённого филла — филл выигрывает у вердикта пинга
 - **createStopLoss из active-пинга при VWAP уже ниже SL**: SL-зеркало — один closed/stop_loss по эффективному SL 46000 (не VWAP 45500), тот же гард
+- **Отвергнутый sync-close × подтверждённый филл (№8)**: слушатель close-гейта отвергает VWAP-закрытие И вызывает commitCreateTakeProfit — гард после completion возвращает idle (не TypeError в RETURN_PENDING(null)), следующий tick закрывает одним take_profit по эффективному TP
+- **BACKTEST last-candle потребление**: cancelScheduled из onSchedulePing на ПОСЛЕДНЕЙ свече дренится пост-цикловым дренажом (cancelled/user с cancelId и меткой последней свечи) вместо фатала «no pending signal after scheduled activation»; activateScheduled на последней свече бросает ЧЕСТНУЮ ошибку про финальную свечу (нет свечей для мониторинга)
 - **activateScheduled из schedule-пинга**: зеркальный гард — idle вместо TypeError на timeout-чеке, следующий tick дренит активацию → opened по priceOpen
 Также: пиннинг НОВОГО контракта 100%-партиала (№4) — авто-закрытие closed/"closed", без зомби и дублей
 
