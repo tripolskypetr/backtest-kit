@@ -914,6 +914,9 @@ SHORT-зеркало новой логики (вся сессия писалас
 - **DTO-поля в priceOpen-ветках**: кастомные поля пользовательского DTO переживают конверсию в scheduled И immediate-с-priceOpen ветках GET_SIGNAL_FN (spread structuredClone)
 - **Контекстно-независимая поверхность**: 62 ГОЛЫХ вызова (без method/execution контекстов) по всей поверхности инстанса — все геттеры, validate*, позиционные команды (partial/trailing/breakeven/DCA), deferred-команды, setScheduledSignal, waitForInit (пустой restore), stopStrategy, dispose; упавший метод называется по имени. Вне инварианта (законно контекстные): tick, backtest, setPendingSignal (`when` для onWrite), restore-ветки waitForInit
 
+### test/e2e/persist.test.mjs (дополнение)
+- **PERSIST OMNIBUS — все 16 Persist-хранилищ одним тестом**: спаи прямым присваиванием на write-методы синглтонов-адаптеров (бэкенды остаются Dummy из setup — диск не трогается, чистка не нужна). Один live-цикл: scheduled → активация по priceOpen → профит-тик (partial 10% + breakeven) → deferred closePending → closed. Триггеры: schedule/signal/strategy/risk — жизненный цикл; candle — каждый live-getCandles; storage/notification/recent — `Storage.enable()` + `NotificationLive.usePersist()`+`Notification.enable()` + `Recent.enable()`; measure/interval — `Cache.file`/`Interval.file` ИЗ getSignal (нужны оба контекста — внутри tick активны); log/memory/state/session — канонические писатели (`Log.usePersist()`+`Log.info`, `MemoryLive.writeMemory`, `State.setState` с backtest:false, `Session.setData`). НЮАНСЫ: дефолтный live-бэкенд Notification — Memory (нужен usePersist), Storage — уже Persist; `Log.info` fire-and-forget — перед ассертом sleep
+
 ## Отладка тестов
 
 ### Добавление console.log

@@ -1488,3 +1488,231 @@ test("PERSIST SEQUENCE: onWrite(null) called AFTER onClose - correct lifecycle o
 
   pass(`PERSIST LIFECYCLE ORDER: Correct event sequence (${events.length} events): ${eventSequence}`);
 });
+
+import {
+  addRiskSchema,
+  lib,
+  MethodContextService,
+  Cache,
+  Interval,
+  Log,
+  Storage,
+  Notification,
+  NotificationLive,
+  Recent,
+  MemoryLive,
+  State,
+  Session,
+  PersistScheduleAdapter,
+  PersistStrategyAdapter,
+  PersistPartialAdapter,
+  PersistBreakevenAdapter,
+  PersistRiskAdapter,
+  PersistCandleAdapter,
+  PersistStorageAdapter,
+  PersistNotificationAdapter,
+  PersistLogAdapter,
+  PersistMeasureAdapter,
+  PersistIntervalAdapter,
+  PersistMemoryAdapter,
+  PersistStateAdapter,
+  PersistSessionAdapter,
+  PersistRecentAdapter,
+} from "../../build/index.mjs";
+
+/**
+ * PERSIST OMNIBUS: один live-цикл затрагивает ВСЕ 16 Persist-хранилищ.
+ *
+ * Спаи вешаются прямым присваиванием на write-методы синглтонов-адаптеров
+ * (бэкенды остаются Dummy из setup.mjs — на диск ничего не пишется, чистка
+ * не нужна). Триггеры по бакетам:
+ * - schedule/signal/strategy/risk/candle — жизненный цикл стратегии:
+ *   scheduled (tick #1) → активация по priceOpen (tick #2) → deferred
+ *   closePending → дренаж closed (tick #4); свечной кеш пишется каждым
+ *   live-getCandles; риск — резервация слота при создании сигнала.
+ * - partial/breakeven — профит-тик (tick #3): прогресс 18% к TP пересекает
+ *   уровень 10%, профит +1.82% пересекает breakeven-порог (0.4% + 0.2%).
+ * - storage/notification/recent — глобальные ленты: Storage.enable() (live
+ *   бэкенд Persist по умолчанию), NotificationLive.usePersist() +
+ *   Notification.enable(), Recent.enable() (запись на active-пинге).
+ * - measure/interval — Cache.file / Interval.file, вызванные ИЗ getSignal
+ *   (требуют оба контекста — внутри tick они активны).
+ * - log/memory/state/session — канонические писатели: Log.usePersist() +
+ *   Log.info, MemoryLive.writeMemory, State.setState (backtest:false),
+ *   Session.setData (backtest:false).
+ */
+test("PERSIST OMNIBUS: one live lifecycle touches all 16 persist buckets", async ({ pass, fail }) => {
+  const MIN = 60_000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const basePrice = 50000;
+  const priceOpen = 49500;
+  const TP = 54500;
+  const SL = 45000;
+
+  const context = {
+    strategyName: "persist-omnibus-strategy",
+    exchangeName: "binance-persist-omnibus",
+    frameName: "",
+  };
+
+  // Спаи на write-пути всех 16 адаптеров: считаем вызовы, делегируем оригиналу
+  const touched = {};
+  const spy = (adapter, method, bucket) => {
+    const orig = adapter[method];
+    adapter[method] = async (...args) => {
+      touched[bucket] = (touched[bucket] ?? 0) + 1;
+      return await orig(...args);
+    };
+  };
+  spy(PersistSignalAdapter, "writeSignalData", "signal");
+  spy(PersistScheduleAdapter, "writeScheduleData", "schedule");
+  spy(PersistStrategyAdapter, "writeStrategyData", "strategy");
+  spy(PersistPartialAdapter, "writePartialData", "partial");
+  spy(PersistBreakevenAdapter, "writeBreakevenData", "breakeven");
+  spy(PersistRiskAdapter, "writePositionData", "risk");
+  spy(PersistCandleAdapter, "writeCandlesData", "candle");
+  spy(PersistStorageAdapter, "writeStorageData", "storage");
+  spy(PersistNotificationAdapter, "writeNotificationData", "notification");
+  spy(PersistLogAdapter, "writeLogData", "log");
+  spy(PersistMeasureAdapter, "writeMeasureData", "measure");
+  spy(PersistIntervalAdapter, "writeIntervalData", "interval");
+  spy(PersistMemoryAdapter, "writeMemoryData", "memory");
+  spy(PersistStateAdapter, "writeStateData", "state");
+  spy(PersistSessionAdapter, "writeSessionData", "session");
+  spy(PersistRecentAdapter, "writeRecentData", "recent");
+
+  // Глобальные ленты: маршрутизация событий в Persist-адаптеры
+  Storage.enable();                 // live-бэкенд Storage = Persist по умолчанию
+  NotificationLive.usePersist();    // дефолт live-нотификаций — Memory, переключаем
+  Notification.enable();            // WILDCARD: все категории событий
+  Recent.enable();                  // запись последнего сигнала на active-пинге
+  Log.usePersist();                 // дефолт Log — Memory, переключаем
+
+  let market = basePrice;
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = Math.floor(since.getTime() / MIN) * MIN;
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * MIN,
+          open: market,
+          high: market,
+          low: market,
+          close: market,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRiskSchema({
+    riskName: "persist-omnibus-risk",
+    validations: [],
+  });
+
+  // Персист-кеши функций: требуют method+execution контексты — зовём из getSignal
+  const cacheFn = Cache.file(
+    async (symbol) => ({ symbol, cached: true }),
+    { interval: "1m", name: "persist-omnibus-cache" },
+  );
+  const intervalFn = Interval.file(
+    async (symbol) => ({ symbol, throttled: true }),
+    { interval: "1m", name: "persist-omnibus-interval" },
+  );
+
+  let signalGenerated = false;
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    riskName: "persist-omnibus-risk",
+    getSignal: async (symbol) => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      await cacheFn(symbol);    // measure-бакет
+      await intervalFn(symbol); // interval-бакет
+      return {
+        position: "long",
+        note: "persist omnibus",
+        priceOpen,               // ниже VWAP 50000 → scheduled
+        priceTakeProfit: TP,
+        priceStopLoss: SL,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const runTick = (when) =>
+    MethodContextService.runInContext(
+      async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+      context,
+    );
+
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "scheduled") {
+    fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+    return;
+  }
+
+  market = 49400; // низ пробивает priceOpen 49500 → активация
+  const tick2 = await runTick(new Date(t0 + 1 * MIN));
+  if (tick2.action !== "opened" || tick2.signal.priceOpen !== priceOpen) {
+    fail(`tick #2 expected opened@${priceOpen}, got "${tick2.action}"@${tick2.signal?.priceOpen}`);
+    return;
+  }
+
+  // Профит-тик: прогресс к TP = (50400-49500)/5000 = 18% (уровень 10 partial),
+  // профит +1.82% > breakeven-порога 0.6%; active-пинг пишет Recent
+  market = 50400;
+  await runTick(new Date(t0 + 2 * MIN));
+
+  // Deferred-команда → strategy-бакет (write-ahead запись _closedSignal)
+  await MethodContextService.runInContext(
+    async () => await lib.strategyCoreService.closePending(false, "BTCUSDT", context),
+    context,
+  );
+  const tick4 = await runTick(new Date(t0 + 3 * MIN));
+  if (tick4.action !== "closed") {
+    fail(`tick #4 expected "closed" (drained closePending), got "${tick4.action}"`);
+    return;
+  }
+
+  // Канонические писатели утилитарных бакетов (live-ветки)
+  await MemoryLive.writeMemory({
+    memoryId: "omnibus-memory",
+    value: { touched: true },
+    signalId: "persist-omnibus",
+    bucketName: "persist-omnibus",
+    description: "omnibus touch",
+    when: new Date(t0),
+  });
+  await State.setState({ counter: 1 }, {
+    signalId: "persist-omnibus",
+    bucketName: "persist-omnibus",
+    initialValue: {},
+    backtest: false,
+    when: new Date(t0),
+  });
+  await Session.setData("BTCUSDT", { omnibus: true }, context, false, new Date(t0));
+  Log.info("persist-omnibus", "touch");
+
+  // Fire-and-forget записи (Log, ленты из событий) — даём долететь
+  await sleep(300);
+
+  const buckets = [
+    "signal", "schedule", "strategy", "partial", "breakeven", "risk",
+    "candle", "storage", "notification", "log", "measure", "interval",
+    "memory", "state", "session", "recent",
+  ];
+  const missing = buckets.filter((bucket) => !(touched[bucket] > 0));
+  if (missing.length > 0) {
+    fail(`persist buckets NOT touched: [${missing.join(", ")}]; counts: ${JSON.stringify(touched)}`);
+    return;
+  }
+
+  pass(`ALL 16 persist buckets touched in one lifecycle: ${JSON.stringify(touched)}`);
+});
