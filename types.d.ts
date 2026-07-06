@@ -32474,6 +32474,16 @@ declare class ClientRisk implements IRisk {
      * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
      */
     _activePositions: RiskMap | typeof POSITION_NEED_FETCH;
+    /**
+     * Keys of transient reservation placeholders (checkSignalAndReserve) still
+     * awaiting their finalizing addSignal / releasing removeSignal. Excluded from
+     * persisted snapshots in _updatePositions: a reservation is process-transient,
+     * but a CONCURRENT strategy's addSignal persists the whole shared map — flushed
+     * to disk that placeholder would survive a crash as a phantom position and
+     * block the shared concurrency limit for the whole signal lifetime (forever
+     * for minuteEstimatedTime: Infinity, which the expiry pruning never removes).
+     */
+    _reservedKeys: Set<string>;
     constructor(params: IRiskParams);
     /**
      * Initializes active positions by loading from persistence.

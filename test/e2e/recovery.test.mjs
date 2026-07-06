@@ -15,6 +15,7 @@ import {
   listenSync,
   lib,
   MethodContextService,
+  ExecutionContextService,
 } from "../../build/index.mjs";
 
 // Матрица crash-recovery: каждый deferred-флаг ClientStrategy персистится
@@ -2177,6 +2178,128 @@ test("RECOVERY: final partial-profit commit of a full partial close survives a c
     pass(`full partial close survived crash: final partial-profit commit drained, close-pending carries full_partial_close`);
   } finally {
     unsubscribeCommit();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: транзитная риск-резервация (checkSignalAndReserve) НЕ должна
+ * попадать на диск. Резервация живёт в общей риск-мапе между reserve и
+ * addSignal/removeSignal ОДНОГО тика; но конкурентная стратегия, разделяющая
+ * riskName, вызывает addSignal → _updatePositions персистит ВСЮ мапу. Если
+ * плейсхолдер утёк на диск, крэш до финализации оставляет фантомный слот,
+ * который блокирует общий лимит на весь lifetime сигнала (для
+ * minuteEstimatedTime=Infinity — навсегда: чистка протухших слотов его
+ * не удаляет, а removeSignal некому вызвать).
+ */
+test("RECOVERY: transient risk reservation is not persisted by a concurrent strategy's addSignal", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const riskName = "recovery-reserve-risk";
+  const exchangeName = "binance-recovery-reserve";
+  const strategyNameA = "recovery-reserve-a-strategy";
+  const contextB = { strategyName: "recovery-reserve-b-strategy", exchangeName, frameName: "" };
+
+  const keyA = `${strategyNameA}_${exchangeName}_BTCUSDT`;
+  const keyB = `${contextB.strategyName}_${exchangeName}_BTCUSDT`;
+
+  makeExchange(exchangeName, () => basePrice);
+  addRiskSchema({ riskName, validations: [] });
+  addStrategySchema({
+    strategyName: contextB.strategyName,
+    interval: "1m",
+    riskName,
+    getSignal: async () => ({
+      position: "long",
+      note: "recovery reserve b",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+    }),
+  });
+
+  usePersist();
+  PersistRiskAdapter.useJson();
+
+  try {
+    await resetPersist(contextB);
+    await PersistRiskAdapter.writePositionData([], riskName, exchangeName, new Date(t0));
+    await lib.riskConnectionService.clear();
+
+    // Общий ClientRisk инстанс (тот же ключ riskName+exchange+frame+backtest,
+    // что использует стратегия B)
+    const riskConn = Object.getPrototypeOf(lib.riskConnectionService);
+    const risk = riskConn.getRisk(riskName, exchangeName, "", false);
+
+    // Стратегия A: резервация сделана (GET_SIGNAL_FN прошёл риск-чек), а
+    // addSignal ещё НЕ вызван — A «висит» на sync-open подтверждении брокера
+    const inExec = (fn) => ExecutionContextService.runInContext(fn, {
+      when: new Date(t0), symbol: "BTCUSDT", backtest: false,
+    });
+    const reserved = await inExec(() => risk.checkSignalAndReserve({
+      currentSignal: {
+        id: "recovery-reserve-a-id",
+        position: "long",
+        priceOpen: basePrice - 10000,
+        priceStopLoss: basePrice - 12000,
+        priceTakeProfit: basePrice + 5000,
+        minuteEstimatedTime: Infinity,
+        _isScheduled: true,
+      },
+      symbol: "BTCUSDT",
+      strategyName: strategyNameA,
+      exchangeName,
+      frameName: "",
+      riskName,
+      currentPrice: basePrice,
+      timestamp: t0,
+    }));
+    if (!reserved) {
+      fail(`checkSignalAndReserve expected to allow and reserve for strategy A`);
+      return;
+    }
+
+    // Конкурентная стратегия B открывается штатно → addSignal персистит мапу
+    const tickB = await makeRunTick(contextB)(new Date(t0));
+    if (tickB.action !== "opened") {
+      fail(`strategy B tick expected "opened", got "${tickB.action}"`);
+      return;
+    }
+
+    // Диск: слот B есть, транзитный плейсхолдер A — НЕТ. Если он утёк, крэш
+    // до финализации оставит вечный фантом (Infinity не чистится по expiry)
+    const persistedMid = await PersistRiskAdapter.readPositionData(riskName, exchangeName, new Date(t0));
+    const keysMid = persistedMid.map(([key]) => key);
+    if (!keysMid.includes(keyB)) {
+      fail(`strategy B slot expected in persisted risk map, got ${JSON.stringify(keysMid)}`);
+      return;
+    }
+    if (keysMid.includes(keyA)) {
+      fail(`REGRESSION: transient reservation of strategy A leaked to disk via concurrent addSignal — a crash now leaves an eternal phantom slot, got ${JSON.stringify(keysMid)}`);
+      return;
+    }
+
+    // Резервация видима конкурентным чекам в памяти (это её назначение)
+    if (risk._activePositions.size !== 2) {
+      fail(`in-memory map expected 2 entries (reservation + B), got ${risk._activePositions.size}`);
+      return;
+    }
+
+    // Финализация A (addSignal) переводит плейсхолдер в реальный слот — теперь персистится
+    await inExec(() => risk.addSignal("BTCUSDT",
+      { strategyName: strategyNameA, riskName, exchangeName, frameName: "" },
+      { position: "long", priceOpen: basePrice - 10000, priceStopLoss: basePrice - 12000, priceTakeProfit: basePrice + 5000, minuteEstimatedTime: 300, openTimestamp: t0 },
+    ));
+    const persistedFinal = await PersistRiskAdapter.readPositionData(riskName, exchangeName, new Date(t0));
+    const keysFinal = persistedFinal.map(([key]) => key);
+    if (!keysFinal.includes(keyA) || !keysFinal.includes(keyB)) {
+      fail(`finalized slots A and B both expected on disk, got ${JSON.stringify(keysFinal)}`);
+      return;
+    }
+
+    pass(`transient reservation stayed in-memory only (concurrent persist excluded it), finalized addSignal persisted normally`);
+  } finally {
+    PersistRiskAdapter.useDummy();
     useDummy();
   }
 });

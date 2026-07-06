@@ -248,6 +248,17 @@ export class ClientRisk implements IRisk {
    */
   _activePositions: RiskMap | typeof POSITION_NEED_FETCH = POSITION_NEED_FETCH;
 
+  /**
+   * Keys of transient reservation placeholders (checkSignalAndReserve) still
+   * awaiting their finalizing addSignal / releasing removeSignal. Excluded from
+   * persisted snapshots in _updatePositions: a reservation is process-transient,
+   * but a CONCURRENT strategy's addSignal persists the whole shared map — flushed
+   * to disk that placeholder would survive a crash as a phantom position and
+   * block the shared concurrency limit for the whole signal lifetime (forever
+   * for minuteEstimatedTime: Infinity, which the expiry pruning never removes).
+   */
+  _reservedKeys = new Set<string>();
+
   constructor(readonly params: IRiskParams) {}
 
   /**
@@ -270,8 +281,11 @@ export class ClientRisk implements IRisk {
       await this.waitForInit(when);
     }
 
+    // Reservation placeholders stay in-memory only (see _reservedKeys)
     await PersistRiskAdapter.writePositionData(
-      Array.from(<RiskMap>this._activePositions),
+      Array.from(<RiskMap>this._activePositions).filter(
+        ([key]) => !this._reservedKeys.has(key),
+      ),
       this.params.riskName,
       this.params.exchangeName,
       when,
@@ -327,6 +341,8 @@ export class ClientRisk implements IRisk {
         minuteEstimatedTime: positionData.minuteEstimatedTime,
         openTimestamp: positionData.openTimestamp,
       });
+      // The placeholder (if any) is finalized into a real position — persist it
+      this._reservedKeys.delete(key);
 
       await this._updatePositions(new Date(timestamp));
     } finally {
@@ -364,6 +380,7 @@ export class ClientRisk implements IRisk {
       const key = CREATE_NAME_FN(context.strategyName, context.exchangeName, symbol);
       const riskMap = <RiskMap>this._activePositions;
       riskMap.delete(key);
+      this._reservedKeys.delete(key);
 
       await this._updatePositions(new Date(timestamp));
     } finally {
@@ -498,6 +515,9 @@ export class ClientRisk implements IRisk {
           minuteEstimatedTime: signal.minuteEstimatedTime,
           openTimestamp: timestamp,
         });
+        // Transient placeholder: visible to concurrent checks, but kept out of
+        // persisted snapshots until addSignal finalizes it (see _reservedKeys)
+        this._reservedKeys.add(reserveKey);
       }
 
       // All checks passed
