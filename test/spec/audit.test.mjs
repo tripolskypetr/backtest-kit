@@ -603,3 +603,96 @@ test("AUDIT getSignal timeout: no lingering 3-minute timer after the race resolv
 
   pass(`all ${raceTimersCreated} getSignal timeout timers cleared after the race resolved`);
 });
+
+/**
+ * AUDIT: пагинация getAggregatedTrades не должна дублировать сделку на стыке
+ * окон. Соседние окна разделяют граничную метку времени, а инклюзивность
+ * [from, to] адаптера контрактом не закреплена — инклюзивный (например,
+ * поминутно-агрегированный) источник возвращал граничную сделку в ОБОИХ
+ * окнах. Движок обязан дедуплицировать по id сделки.
+ */
+test("AUDIT getAggregatedTrades: no duplicate trades at pagination window seams", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T12:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+
+  let tradesResult = null;
+
+  addExchangeSchema({
+    exchangeName: "binance-mock-audit-aggseam",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = Math.floor(since.getTime() / intervalMs) * intervalMs;
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return result;
+    },
+    // Поминутно-агрегированный источник, ИНКЛЮЗИВНЫЙ по обеим границам:
+    // одна сделка на каждую минутную метку в [from, to]
+    getAggregatedTrades: async (_symbol, from, to) => {
+      const trades = [];
+      for (let ts = from.getTime(); ts <= to.getTime(); ts += intervalMs) {
+        trades.push({
+          id: `agg-${ts}`,
+          price: basePrice,
+          qty: 1,
+          timestamp: ts,
+          isBuyerMaker: false,
+        });
+      }
+      return trades;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-strategy-audit-aggseam",
+    interval: "1m",
+    getSignal: async () => {
+      if (tradesResult === null) {
+        // 100 > окна в 60 минут → минимум два окна пагинации → есть стык
+        tradesResult = await getAggregatedTrades("BTCUSDT", 100);
+      }
+      return null;
+    },
+  });
+
+  addFrameSchema({
+    frameName: "audit-aggseam-frame",
+    interval: "1m",
+    startDate: new Date("2024-01-01T12:00:00Z"),
+    endDate: new Date("2024-01-01T12:01:00Z"),
+  });
+
+  for await (const _ of Backtest.run("BTCUSDT", {
+    strategyName: "test-strategy-audit-aggseam",
+    exchangeName: "binance-mock-audit-aggseam",
+    frameName: "audit-aggseam-frame",
+  })) {
+    // Just consume
+  }
+
+  if (!Array.isArray(tradesResult) || tradesResult.length !== 100) {
+    fail(`expected exactly 100 trades, got ${Array.isArray(tradesResult) ? tradesResult.length : typeof tradesResult}`);
+    return;
+  }
+
+  const ids = tradesResult.map((t) => t.id);
+  const uniqueIds = new Set(ids);
+  if (uniqueIds.size !== ids.length) {
+    const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+    fail(`REGRESSION: duplicate trades at window seam(s): ${JSON.stringify(dupes)}`);
+    return;
+  }
+
+  pass("pagination returned 100 unique trades across window seams");
+});

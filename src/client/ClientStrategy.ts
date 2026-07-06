@@ -824,8 +824,14 @@ const GET_SIGNAL_FN = trycatch(
       const intervalMs = intervalMinutes * 60 * 1000;
       const alignedTime = Math.floor(currentTime / intervalMs) * intervalMs;
 
-      // Проверяем что наступил новый интервал (по aligned timestamp)
+      // Проверяем что наступил новый интервал (по aligned timestamp).
+      // User-queued DTO (createSignal) минует троттл: это явная команда, а не
+      // периодическая генерация — ожидание границы интервала задерживало её
+      // до целого интервала (час для "1h"). Потребление DTO при этом занимает
+      // слот текущего интервала (ниже), так что собственная генерация
+      // стратегии не учащается.
       if (
+        !self._userSignal &&
         self._lastSignalTimestamp !== null &&
         alignedTime === self._lastSignalTimestamp
       ) {
@@ -6848,18 +6854,23 @@ export class ClientStrategy implements IStrategy {
     // NOTE: No _isStopped check here - cancellation must work for graceful shutdown
     if (this._cancelledSignal) {
       const cancelledSignal = this._cancelledSignal;
-      this._cancelledSignal = null; // Clear after emitting
 
-      // Persist the cleared deferred state so the drained flag is not replayed on restart
-      await PERSIST_STRATEGY_FN(this);
-
-      // Release the slot reserved at scheduled-signal creation
+      // Release the slot reserved at scheduled-signal creation BEFORE persisting
+      // the drained flag: a crash in between replays the (idempotent) removal on
+      // restart instead of orphaning the slot — an orphan blocks the shared
+      // concurrency limit for the whole lifetime, forever for Infinity-hold
+      // (expiry pruning never removes those, and no owner is left to removeSignal).
       await CALL_RISK_REMOVE_SIGNAL_FN(
         this,
         this.params.execution.context.symbol,
         currentTime,
         this.params.execution.context.backtest
       );
+
+      this._cancelledSignal = null; // Clear after emitting
+
+      // Persist the cleared deferred state so the drained flag is not replayed on restart
+      await PERSIST_STRATEGY_FN(this);
 
       this.params.logger.info("ClientStrategy tick: scheduled signal was cancelled", {
         symbol: this.params.execution.context.symbol,
@@ -6948,6 +6959,16 @@ export class ClientStrategy implements IStrategy {
         return await RETURN_IDLE_FN(this, currentPrice);
       }
 
+      // Release the risk slot BEFORE persisting the drained flag: a crash in
+      // between replays the (idempotent) removal on restart instead of orphaning
+      // the slot until lifetime expiry (forever for Infinity-hold positions).
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        this,
+        this.params.execution.context.symbol,
+        currentTime,
+        this.params.execution.context.backtest
+      );
+
       this._closedSignal = null; // Clear only after sync confirmed
 
       // Persist the cleared deferred state so the drained flag is not replayed on restart
@@ -7003,18 +7024,12 @@ export class ClientStrategy implements IStrategy {
       );
 
       // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+      // (риск-слот уже освобождён ДО персиста дренированного флага — см. выше)
       await CALL_BREAKEVEN_CLEAR_FN(
         this,
         this.params.execution.context.symbol,
         closedSignal,
         currentPrice,
-        currentTime,
-        this.params.execution.context.backtest
-      );
-
-      await CALL_RISK_REMOVE_SIGNAL_FN(
-        this,
-        this.params.execution.context.symbol,
         currentTime,
         this.params.execution.context.backtest
       );
@@ -7050,6 +7065,17 @@ export class ClientStrategy implements IStrategy {
     // The exchange filled the TP order (e.g. by high/low); close bypassing the VWAP TP check.
     if (this._takeProfitSignal) {
       const filledSignal = this._takeProfitSignal;
+
+      // Release the risk slot BEFORE persisting the drained flag (crash-safe:
+      // removal is idempotent and re-runs on replay; the late removal inside
+      // CLOSE_PENDING_SIGNAL_AS_FILL_FN stays for the backtest paths)
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        this,
+        this.params.execution.context.symbol,
+        currentTime,
+        this.params.execution.context.backtest
+      );
+
       this._takeProfitSignal = null; // Clear after draining
 
       // Persist the cleared deferred state so the drained flag is not replayed on restart
@@ -7067,6 +7093,17 @@ export class ClientStrategy implements IStrategy {
     // The exchange filled the SL order (e.g. by high/low); close bypassing the VWAP SL check.
     if (this._stopLossSignal) {
       const filledSignal = this._stopLossSignal;
+
+      // Release the risk slot BEFORE persisting the drained flag (crash-safe:
+      // removal is idempotent and re-runs on replay; the late removal inside
+      // CLOSE_PENDING_SIGNAL_AS_FILL_FN stays for the backtest paths)
+      await CALL_RISK_REMOVE_SIGNAL_FN(
+        this,
+        this.params.execution.context.symbol,
+        currentTime,
+        this.params.execution.context.backtest
+      );
+
       this._stopLossSignal = null; // Clear after draining
 
       // Persist the cleared deferred state so the drained flag is not replayed on restart
@@ -7976,6 +8013,14 @@ export class ClientStrategy implements IStrategy {
 
     this._isStopped = true;
 
+    // A queued createSignal DTO is an explicit intent to open a NEW position —
+    // stop voids it, like it cancels a scheduled signal. Nothing was placed on
+    // the exchange for a queued DTO, so the drop is safe. Without this,
+    // _isStopped (deliberately NOT persisted: restart = operator intent to run)
+    // left the DTO on disk and the next restart silently opened a stale position.
+    const droppedUserSignal = this._userSignal !== null;
+    this._userSignal = null;
+
     // NOTE: _isStopped blocks NEW position opening, but deferred user commands
     // and broker-confirmed fills must still drain on subsequent ticks:
     // - _cancelledSignal / _closedSignal are KEPT — their drain emits the
@@ -8001,6 +8046,11 @@ export class ClientStrategy implements IStrategy {
     this._scheduledSignal = null;
 
     if (!signalToCancel) {
+      // Persist the dropped createSignal DTO even when there is nothing to
+      // cancel — otherwise a crash after stop restores and opens it.
+      if (droppedUserSignal && !backtest) {
+        await PERSIST_STRATEGY_FN(this);
+      }
       return;
     }
 
@@ -8251,6 +8301,13 @@ export class ClientStrategy implements IStrategy {
    */
   public async createSignal(symbol: string, currentPrice: number, dto: ISignalDto): Promise<void> {
     this.params.logger.debug("ClientStrategy createSignal", { symbol, currentPrice });
+
+    // Queueing a DTO is opening a NEW position — blocked while stopped,
+    // mirroring activateScheduled (stopStrategy likewise voids an already
+    // queued DTO).
+    if (this._isStopped) {
+      throw new Error(`ClientStrategy createSignal: strategy is stopped for symbol=${symbol}`);
+    }
 
     // Validate BEFORE mutating state — a bad DTO or a busy strategy must store nothing.
     // Reuse validateSignal (the canonical getSignal-output validator, branching

@@ -2303,3 +2303,232 @@ test("RECOVERY: transient risk reservation is not persisted by a concurrent stra
     useDummy();
   }
 });
+
+/**
+ * createSignal — явная команда пользователя, а не периодическая генерация:
+ * DTO обязан потребиться на СЛЕДУЮЩЕМ tick, минуя интервальный троттл.
+ * Раньше DTO, поданный посреди интервала, ждал следующей границы —
+ * до целого интервала задержки (час для "1h").
+ */
+test("createSignal: DTO is consumed on the very next tick, bypassing the interval throttle", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-dtolatency-strategy",
+    exchangeName: "binance-recovery-dtolatency",
+    frameName: "",
+  };
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => null, // сигнал только из очереди createSignal
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    // tick #0 занимает слот генерации ТЕКУЩЕЙ минуты (и сеет цену)
+    const tick0 = await runTick(new Date(t0));
+    if (tick0.action !== "idle") {
+      fail(`tick #0 expected "idle", got "${tick0.action}"`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.createSignal(false, "BTCUSDT", {
+      position: "long",
+      note: "dto latency",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+    }, context));
+
+    // Тот же интервал (t0 + 10s): троттл уже потреблён, но user-DTO обязан пройти
+    const tick1 = await runTick(new Date(t0 + 10_000));
+    if (tick1.action !== "opened" || tick1.signal.note !== "dto latency") {
+      fail(`REGRESSION: mid-interval tick expected "opened" (user DTO bypasses throttle), got "${tick1.action}"/"${tick1.signal?.note}"`);
+      return;
+    }
+
+    pass(`queued createSignal opened mid-interval without waiting for the next boundary`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * stopStrategy аннулирует очередь createSignal (как отменяет scheduled):
+ * DTO — намерение открыть НОВУЮ позицию, стоп его гасит, и сброс персистится.
+ * _isStopped намеренно НЕ персистится (рестарт = намерение оператора работать),
+ * поэтому без сброса рестарт после стопа молча открывал устаревший DTO.
+ * Симметрично createSignal при работающем стопе отклоняется (как activateScheduled).
+ */
+test("RECOVERY: stopStrategy voids the queued createSignal DTO — a restart does not open it", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-stopdto-strategy",
+    exchangeName: "binance-recovery-stopdto",
+    frameName: "",
+  };
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => null, // сигнал только из очереди createSignal
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick0 = await runTick(new Date(t0));
+    if (tick0.action !== "idle") {
+      fail(`tick #0 expected "idle", got "${tick0.action}"`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.createSignal(false, "BTCUSDT", {
+      position: "long",
+      note: "stale dto",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss: basePrice - 5000,
+      minuteEstimatedTime: 300,
+    }, context));
+
+    await inCtx(context, () => lib.strategyCoreService.stopStrategy(false, "BTCUSDT", context));
+
+    // Пока стратегия остановлена — новое намерение открытия отклоняется
+    let threw = false;
+    try {
+      await inCtx(context, () => lib.strategyCoreService.createSignal(false, "BTCUSDT", {
+        position: "long",
+        note: "post-stop dto",
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 300,
+      }, context));
+    } catch {
+      threw = true;
+    }
+    if (!threw) {
+      fail(`createSignal after stopStrategy expected to throw (opening NEW position while stopped)`);
+      return;
+    }
+
+    // Сброс очереди персистнут — крэш после стопа не воскрешает DTO
+    const dataOnDisk = await PersistStrategyAdapter.readStrategyData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (dataOnDisk?.createdSignal !== null) {
+      fail(`REGRESSION: dropped createSignal DTO must be persisted as null after stopStrategy, got ${JSON.stringify(dataOnDisk?.createdSignal)}`);
+      return;
+    }
+
+    await crash(context);
+
+    const tick1 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick1.action !== "idle") {
+      fail(`REGRESSION: post-restart tick expected "idle" (stale DTO voided by stop), got "${tick1.action}"`);
+      return;
+    }
+
+    pass(`stopStrategy voided the queued DTO (persisted), post-stop createSignal throws, restart stays idle`);
+  } finally {
+    useDummy();
+  }
+});
+
+/**
+ * Порядок записей при дренаже deferred close: риск-слот освобождается ДО
+ * персиста дренированного флага. Обратный порядок оставлял окно крэша, в
+ * котором слот осиротевал до конца lifetime (для Infinity-холда — навсегда:
+ * expiry-чистка его не берёт, а removeSignal вызвать больше некому).
+ */
+test("RECOVERY: risk slot is released BEFORE the drained deferred-close flag is persisted", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const riskName = "recovery-draindorder-risk";
+  const context = {
+    strategyName: "recovery-drainorder-strategy",
+    exchangeName: "binance-recovery-drainorder",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addRiskSchema({ riskName, validations: [] });
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    riskName,
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "drain order",
+        priceTakeProfit: basePrice + 5000,
+        priceStopLoss: basePrice - 5000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+  usePersist();
+
+  const calls = [];
+  let recording = false;
+  const origRiskWrite = PersistRiskAdapter.writePositionData;
+  const origStrategyWrite = PersistStrategyAdapter.writeStrategyData;
+  PersistRiskAdapter.writePositionData = async (...args) => {
+    if (recording) calls.push("risk-write");
+    return await origRiskWrite.call(PersistRiskAdapter, ...args);
+  };
+  PersistStrategyAdapter.writeStrategyData = async (data, ...rest) => {
+    if (recording) calls.push(data?.closedSignal === null ? "strategy-cleared" : "strategy-write");
+    return await origStrategyWrite.call(PersistStrategyAdapter, data, ...rest);
+  };
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    await inCtx(context, () => lib.strategyCoreService.closePending(false, "BTCUSDT", context, { id: "drain-order-1" }));
+
+    recording = true;
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    recording = false;
+
+    if (tick2.action !== "closed") {
+      fail(`tick #2 expected "closed" (deferred close drained), got "${tick2.action}"`);
+      return;
+    }
+
+    const riskIdx = calls.indexOf("risk-write");
+    const clearedIdx = calls.indexOf("strategy-cleared");
+    if (riskIdx === -1 || clearedIdx === -1) {
+      fail(`both risk-write and strategy-cleared expected during the drain, got ${JSON.stringify(calls)}`);
+      return;
+    }
+    if (riskIdx > clearedIdx) {
+      fail(`REGRESSION: risk slot must be released BEFORE the drained flag is persisted (crash window orphans the slot), got order ${JSON.stringify(calls)}`);
+      return;
+    }
+
+    pass(`drain write order correct: risk release at #${riskIdx}, drained-flag persist at #${clearedIdx}`);
+  } finally {
+    PersistRiskAdapter.writePositionData = origRiskWrite;
+    PersistStrategyAdapter.writeStrategyData = origStrategyWrite;
+    useDummy();
+  }
+});

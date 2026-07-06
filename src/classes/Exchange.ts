@@ -727,8 +727,16 @@ export class ExchangeInstance {
       windowEnd = windowStart;
     }
 
+    // Deduplicate by trade id across window seams: adjacent windows share the
+    // boundary timestamp, and the adapter [from, to] inclusivity is not pinned
+    // by the contract — an inclusive adapter returns the boundary trade in
+    // BOTH windows (systematically so for minute-bucketed sources).
+    const uniqueTrades = Array.from(
+      new Map(result.map((trade) => [trade.id, trade])).values(),
+    );
+
     // Slice to requested limit (most recent trades)
-    return result.slice(-limit);
+    return uniqueTrades.slice(-limit);
   };
 
   /**
