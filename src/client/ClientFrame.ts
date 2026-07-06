@@ -4,7 +4,6 @@ import {
   IFrameParams,
   FrameInterval,
 } from "../interfaces/Frame.interface";
-import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { alignToInterval } from "../utils/alignToInterval";
 

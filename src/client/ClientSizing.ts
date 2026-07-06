@@ -10,7 +10,6 @@ import {
   ISizingSchemaATR,
 } from "../interfaces/Sizing.interface";
 import { trycatch, errorData, getErrorMessage } from "functools-kit";
-import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 
 /**

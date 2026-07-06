@@ -1164,6 +1164,18 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // _closedSignal), so they stand on their own and are restored unconditionally too.
     self._takeProfitSignal = strategyData.takeProfitSignal;
     self._stopLossSignal = strategyData.stopLossSignal;
+
+    // Restore the commit queue when its attribution target is the deferred USER
+    // close snapshot (closePending / full-partial auto-close): that snapshot has
+    // pendingSignalId already null, so the pending-id match below cannot apply,
+    // yet PROCESS_COMMIT_QUEUE_FN attributes drained ops to _closedSignal — the
+    // non-crash flow delivers them, so dropping the queue here would lose
+    // broker-confirmed operations only because a restart happened in between.
+    // Broker-confirmed TP/SL fill snapshots intentionally do NOT restore the
+    // queue: those ops are void (see the orphaned-queue recovery test).
+    if (strategyData.closedSignal) {
+      self._commitQueue = strategyData.commitQueue ?? [];
+    }
   }
 
   // Restore pending signal. A context mismatch skips ONLY this block (not an

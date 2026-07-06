@@ -2000,3 +2000,183 @@ test("RECOVERY: createSignal DTO invalidated by price move dies loudly (listenEr
     useDummy();
   }
 });
+
+/**
+ * RECOVERY: очередь коммитов ВОССТАНАВЛИВАЕТСЯ, когда её цель атрибуции —
+ * deferred USER close (_closedSignal). closePending персистит снапшот с
+ * pendingSignalId=null, поэтому восстановление по совпадению pending-id
+ * невозможно — но PROCESS_COMMIT_QUEUE_FN атрибуцирует дренаж именно снапшоту
+ * _closedSignal, и не-крэшовый поток эти коммиты доставляет. Крэш между
+ * closePending и следующим tick не должен их терять (в отличие от
+ * осиротевшей очереди TP/SL-филла — та void по дизайну).
+ */
+test("RECOVERY: queued commits survive a crash after closePending (deferred close is the attribution target)", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-closequeue-strategy",
+    exchangeName: "binance-recovery-closequeue",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  let afterRestart = false;
+  const commitsAfterRestart = [];
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery close queue",
+        priceTakeProfit: basePrice + 20000,
+        priceStopLoss: basePrice - 20000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    if (afterRestart) commitsAfterRestart.push(event.action);
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    // Партиал ставит commit в очередь, closePending зануляет pending —
+    // очередь теперь атрибуцируется deferred-снапшоту _closedSignal
+    const partial = await inCtx(context, () => lib.strategyCoreService.partialProfit(false, "BTCUSDT", 30, basePrice + 1000, context));
+    if (!partial) {
+      fail(`partialProfit(30%) must execute`);
+      return;
+    }
+    await inCtx(context, () => lib.strategyCoreService.closePending(false, "BTCUSDT", context, { id: "recovery-closequeue-1" }));
+
+    await crash(context);
+    afterRestart = true;
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeReason !== "closed") {
+      fail(`post-restart tick expected closed/"closed" (deferred close drained), got "${tick2.action}"/"${tick2.closeReason}"`);
+      return;
+    }
+    if (!commitsAfterRestart.includes("partial-profit")) {
+      fail(`REGRESSION: partial-profit commit lost in crash — queue must be restored when _closedSignal is the attribution target, got ${JSON.stringify(commitsAfterRestart)}`);
+      return;
+    }
+    if (!commitsAfterRestart.includes("close-pending")) {
+      fail(`close-pending commit expected after restart, got ${JSON.stringify(commitsAfterRestart)}`);
+      return;
+    }
+
+    pass(`queued partial-profit commit survived crash after closePending and drained attributed to the deferred close`);
+  } finally {
+    unsubscribeCommit();
+    useDummy();
+  }
+});
+
+/**
+ * RECOVERY: полное закрытие партиалами (full_partial_close) маршрутизируется
+ * через deferred close — комментарий в partialProfit обещает, что «сам
+ * финальный партиал-коммит не теряется». Крэш между partialProfit(100%) и
+ * следующим tick не должен нарушать это обещание: очередь восстанавливается
+ * вместе со снапшотом _closedSignal и дренится после рестарта.
+ */
+test("RECOVERY: final partial-profit commit of a full partial close survives a crash", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "recovery-fullpartial-strategy",
+    exchangeName: "binance-recovery-fullpartial",
+    frameName: "",
+  };
+
+  let signalGenerated = false;
+  let afterRestart = false;
+  const commitsAfterRestart = [];
+  let closeNote = null;
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "recovery full partial",
+        priceTakeProfit: basePrice + 20000,
+        priceStopLoss: basePrice - 20000,
+        minuteEstimatedTime: 300,
+      };
+    },
+  });
+
+  const unsubscribeCommit = listenStrategyCommit((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    if (!afterRestart) return;
+    commitsAfterRestart.push(event.action);
+    if (event.action === "close-pending") closeNote = event.note;
+  });
+  usePersist();
+
+  try {
+    await resetPersist(context);
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    // 100% партиал экономически закрывает позицию: pending → _closedSignal,
+    // финальный partial-profit commit остаётся в очереди до следующего tick
+    const partial = await inCtx(context, () => lib.strategyCoreService.partialProfit(false, "BTCUSDT", 100, basePrice + 1000, context));
+    if (!partial) {
+      fail(`partialProfit(100%) must execute`);
+      return;
+    }
+
+    await crash(context);
+    afterRestart = true;
+
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "closed" || tick2.closeReason !== "closed") {
+      fail(`post-restart tick expected closed/"closed" (full partial close drained), got "${tick2.action}"/"${tick2.closeReason}"`);
+      return;
+    }
+    if (!commitsAfterRestart.includes("partial-profit")) {
+      fail(`REGRESSION: final partial-profit commit of the full partial close lost in crash, got ${JSON.stringify(commitsAfterRestart)}`);
+      return;
+    }
+    if (!commitsAfterRestart.includes("close-pending")) {
+      fail(`close-pending commit expected after restart, got ${JSON.stringify(commitsAfterRestart)}`);
+      return;
+    }
+    if (closeNote !== "full_partial_close") {
+      fail(`close-pending note expected "full_partial_close", got ${JSON.stringify(closeNote)}`);
+      return;
+    }
+
+    pass(`full partial close survived crash: final partial-profit commit drained, close-pending carries full_partial_close`);
+  } finally {
+    unsubscribeCommit();
+    useDummy();
+  }
+});
