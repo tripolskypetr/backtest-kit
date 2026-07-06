@@ -1800,3 +1800,92 @@ test("riskList with shared position counting across multiple risks", async ({ pa
   fail(`Risk1 counts: ${JSON.stringify(risk1ActiveCount)}, Risk2 counts: ${JSON.stringify(risk2ActiveCount)}`);
 
 });
+
+test("Risk validation payload carries finite pnl for market signal without priceOpen", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
+  addExchangeSchema({
+    exchangeName: "binance-integration-risk-pnl-nan",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  // A market signal (no priceOpen in the DTO) is risk-checked BEFORE the row is
+  // built, so TO_RISK_SIGNAL must apply the currentPrice fallback before
+  // computing pnl — otherwise validations receive pnlPercentage=NaN and every
+  // numeric comparison silently passes.
+  let observedPnl;
+  let observedPnlPriceOpen;
+
+  addRiskSchema({
+    riskName: "risk-pnl-nan-check",
+    validations: [
+      ({ currentSignal }) => {
+        observedPnl = currentSignal.pnl?.pnlPercentage;
+        observedPnlPriceOpen = currentSignal.pnl?.priceOpen;
+      },
+    ],
+  });
+
+  addStrategySchema({
+    strategyName: "test-strategy-risk-pnl-nan",
+    interval: "1m",
+    riskName: "risk-pnl-nan-check",
+    getSignal: async () => {
+      return {
+        position: "long",
+        note: "market signal without priceOpen",
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrameSchema({
+    frameName: "2h-risk-pnl-nan",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T02:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-risk-pnl-nan",
+    exchangeName: "binance-integration-risk-pnl-nan",
+    frameName: "2h-risk-pnl-nan",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (observedPnl === undefined) {
+    fail("risk validation was never called");
+    return;
+  }
+
+  if (!Number.isFinite(observedPnl) || !Number.isFinite(observedPnlPriceOpen)) {
+    fail(`pnl is not finite: pnlPercentage=${observedPnl}, pnl.priceOpen=${observedPnlPriceOpen}`);
+    return;
+  }
+
+  pass(`pnl is finite for market signal: pnlPercentage=${observedPnl}, pnl.priceOpen=${observedPnlPriceOpen}`);
+});

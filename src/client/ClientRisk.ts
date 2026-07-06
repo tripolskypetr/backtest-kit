@@ -25,6 +25,7 @@ import { FrameName } from "../interfaces/Frame.interface";
 import { IRiskSignalRow, ISignalRow, IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
 import toProfitLossDto from "../helpers/toProfitLossDto";
+import { getTotalClosed } from "../helpers/getTotalClosed";
 import alignToInterval from "../utils/alignToInterval";
 import ExecutionContextService from "../lib/services/context/ExecutionContextService";
 import { Lock } from "../classes/Lock";
@@ -77,13 +78,19 @@ const ZERO_PNL: IStrategyPnL = { pnlPercentage: 0, priceOpen: 0, priceClose: 0, 
  * // riskSignal.originalPriceTakeProfit = activeSignal.priceTakeProfit (original)
  * ```
  */
-const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, timestamp): IRiskSignalRow => {
+const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, timestamp: number): IRiskSignalRow => {
   const hasTrailingSL = "_trailingPriceStopLoss" in signal && signal._trailingPriceStopLoss !== undefined;
   const hasTrailingTP = "_trailingPriceTakeProfit" in signal && signal._trailingPriceTakeProfit !== undefined;
   const partialExecuted = ("_partial" in signal && Array.isArray(signal._partial))
-    ? signal._partial.reduce((sum, partial) => sum + partial.percent, 0)
+    ? getTotalClosed(signal).totalClosedPercent
     : 0;
-  const pnl = signal._isScheduled ? ZERO_PNL : toProfitLossDto(signal, currentPrice);
+  // A market-open candidate (ISignalDto without priceOpen) opens at currentPrice —
+  // apply the same fallback BEFORE computing pnl, otherwise pnl.pnlPercentage is
+  // NaN and every numeric comparison in user risk validations silently passes.
+  const pnlSignal = signal.priceOpen === undefined
+    ? { ...signal, priceOpen: currentPrice }
+    : signal;
+  const pnl = signal._isScheduled ? ZERO_PNL : toProfitLossDto(pnlSignal, currentPrice);
   const maxDrawdown = signal._isScheduled ? ZERO_PNL : pnl;
   const peakProfit = signal._isScheduled ? ZERO_PNL : pnl;
   return {
@@ -512,7 +519,11 @@ export class ClientRisk implements IRisk {
           priceOpen: signal.priceOpen ?? params.currentPrice,
           priceStopLoss: signal.priceStopLoss,
           priceTakeProfit: signal.priceTakeProfit,
-          minuteEstimatedTime: signal.minuteEstimatedTime,
+          // The DTO is risk-checked BEFORE GET_SIGNAL_FN applies row defaults, so
+          // apply the same lifetime default here — an undefined placeholder value
+          // poisons expiry math (openTimestamp + undefined * 60_000 = NaN) in
+          // concurrent validations reading activePositions.
+          minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
           openTimestamp: timestamp,
         });
         // Transient placeholder: visible to concurrent checks, but kept out of
