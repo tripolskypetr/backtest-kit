@@ -875,3 +875,69 @@ test("Statistical metrics are calculated correctly", async ({ pass, fail }) => {
   pass(`All metrics calculated correctly: winRate=${stats.winRate.toFixed(2)}%, stdDev=${stats.stdDev === null ? "N/A (N<MIN_SIGNALS_FOR_RATIOS)" : `${stats.stdDev.toFixed(2)}%`}`);
 
 });
+
+/**
+ * toProfitLossDto: guard «партиалы превысили вложения» обязан использовать
+ * относительный допуск. Кап партиалов пропускает дрейф до totalInvested×1e-9,
+ * а чисто абсолютный порог 0.001$ отвергал легитимное 100%-закрытие позиции
+ * с крупным кастомным cost (>$1M): дрейф в несколько центов — это шум double,
+ * а не превышение вложений.
+ */
+test("toProfitLossDto tolerates float drift proportional to a large invested cost", async ({ pass, fail }) => {
+  const { toProfitLossDto } = await import("../../build/index.mjs");
+
+  const invested = 10_000_000; // $10M кастомный cost
+  // Дрейф 5e-9 относительных = $0.05 — в пределах капа (1e-9 на шаг × реплей),
+  // но больше старого абсолютного порога $0.001
+  const drift = invested * 5e-9;
+
+  const signal = {
+    id: "pnl-tolerance-test",
+    position: "long",
+    priceOpen: 50000,
+    priceTakeProfit: 60000,
+    priceStopLoss: 40000,
+    cost: invested,
+    _entry: [{ price: 50000, cost: invested, timestamp: 1704067200000 }],
+    _partial: [
+      {
+        type: "profit",
+        percent: 100,
+        currentPrice: 51000,
+        costBasisAtClose: invested + drift,
+        entryCountAtClose: 1,
+        timestamp: 1704067260000,
+      },
+    ],
+  };
+
+  let result;
+  try {
+    result = toProfitLossDto(signal, 51000);
+  } catch (e) {
+    fail(`REGRESSION: float drift of $${drift.toFixed(3)} on $${invested} invested must not throw, got: ${e.message}`);
+    return;
+  }
+
+  if (!Number.isFinite(result.pnlPercentage)) {
+    fail(`pnlPercentage expected finite, got ${result.pnlPercentage}`);
+    return;
+  }
+
+  // Реальное превышение (не шум) по-прежнему отклоняется
+  let threw = false;
+  try {
+    toProfitLossDto({
+      ...signal,
+      _partial: [{ ...signal._partial[0], costBasisAtClose: invested * 1.01 }],
+    }, 51000);
+  } catch {
+    threw = true;
+  }
+  if (!threw) {
+    fail(`genuine over-close (+1%) must still throw`);
+    return;
+  }
+
+  pass(`drift $${drift.toFixed(3)} tolerated on $10M invested, genuine over-close still rejected`);
+});

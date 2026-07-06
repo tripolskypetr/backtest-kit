@@ -74,6 +74,17 @@ export const validateCandles = (candles: ICandleData[]): void => {
       );
     }
 
+    // OHLC coherence: high < low is definitionally corrupt — such a candle
+    // would silently skew VWAP ((h+l+c)/3) and scheduled activation (low/high
+    // breach checks). Deliberately NOT extended to open/close vs high/low:
+    // cross-feed aggregation occasionally puts open/close a rounding step
+    // outside [low, high] on real exchanges.
+    if (candle.high < candle.low) {
+      throw new Error(
+        `validateCandles: candle[${i}] has high (${candle.high}) < low (${candle.low})`,
+      );
+    }
+
     // Check for anomalously low prices (incomplete candle indicator)
     if (
       candle.open < minValidPrice ||

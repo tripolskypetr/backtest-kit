@@ -9,6 +9,19 @@ interface Signal extends ISignalDto {
 }
 
 /**
+ * Относительная составляющая допуска для guard'а «партиалы превысили вложения».
+ *
+ * Кап партиалов (PARTIAL_CAP_TOLERANCE_FACTOR в ClientStrategy) пропускает
+ * floating-point дрейф до totalInvested × 1e-9 НА ШАГ, а этот guard заново
+ * суммирует весь реплей partial-истории — дрейф накапливается по шагам, поэтому
+ * запас на порядок шире (1e-8). Чисто абсолютный порог ($0.001) отвергал
+ * легитимное 100%-закрытие позиции с крупным кастомным cost (>$1M): центы
+ * ULP-шума double — это не превышение вложений. Реальный перебор (проценты,
+ * а не 1e-8 относительных) по-прежнему отсекается.
+ */
+const PARTIAL_OVERCLOSE_RELATIVE_TOLERANCE = 1e-8;
+
+/**
  * Calculates profit/loss for a closed signal with slippage and fees.
  *
  * For signals with partial closes:
@@ -91,7 +104,8 @@ export const toProfitLossDto = (
         (priceCloseWithSlippage / priceOpenWithSlippage);
     }
 
-    if (closedDollarValue > totalInvested + 0.001) {
+    // Допуск absolute-OR-relative: см. PARTIAL_OVERCLOSE_RELATIVE_TOLERANCE
+    if (closedDollarValue > totalInvested + Math.max(0.001, totalInvested * PARTIAL_OVERCLOSE_RELATIVE_TOLERANCE)) {
       throw new Error(
         `Partial closes dollar value (${closedDollarValue.toFixed(4)}) exceeds total invested (${totalInvested}) — signal id: ${signal.id}`
       );

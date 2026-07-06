@@ -803,3 +803,55 @@ test("negative minuteEstimatedTime fails validation", async ({ pass, fail }) => 
   fail("Negative time validation error not caught");
 
 });
+
+/**
+ * validateCandles: свеча с high < low определённо повреждена — молча пройдя в
+ * кэш, она искажала VWAP ((h+l+c)/3) и проверки пробоя low/high у scheduled.
+ * Когерентность open/close vs high/low намеренно НЕ проверяется (кросс-фидовая
+ * агрегация на реальных биржах даёт погрешность округления).
+ */
+test("validateCandles rejects a candle with high < low", async ({ pass, fail }) => {
+  const { validateCandles } = await import("../../build/index.mjs");
+
+  const base = {
+    open: 100,
+    high: 110,
+    low: 90,
+    close: 105,
+    volume: 10,
+    timestamp: 1704067200000,
+  };
+
+  // Когерентная пачка проходит
+  try {
+    validateCandles([base, { ...base, timestamp: base.timestamp + 60000 }]);
+  } catch (e) {
+    fail(`coherent candles must pass, got: ${e.message}`);
+    return;
+  }
+
+  // high < low — отклоняется
+  let threw = false;
+  try {
+    validateCandles([
+      base,
+      { ...base, high: 89, low: 111, timestamp: base.timestamp + 60000 },
+    ]);
+  } catch (e) {
+    threw = /high.*<.*low|high \(89\)/.test(e.message) || e.message.includes("high");
+  }
+  if (!threw) {
+    fail(`REGRESSION: candle with high (89) < low (111) must be rejected`);
+    return;
+  }
+
+  // open/close вне [low, high] по-прежнему допускается (осознанно)
+  try {
+    validateCandles([base, { ...base, open: 111, timestamp: base.timestamp + 60000 }]);
+  } catch (e) {
+    fail(`open outside [low, high] must still pass (cross-feed rounding), got: ${e.message}`);
+    return;
+  }
+
+  pass("high < low rejected, coherent and rounding-edge candles pass");
+});
