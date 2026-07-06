@@ -26,8 +26,6 @@ import { IRiskSignalRow, ISignalRow, IStrategyPnL, StrategyName } from "../inter
 import { GLOBAL_CONFIG } from "../config/params";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getTotalClosed } from "../helpers/getTotalClosed";
-import alignToInterval from "../utils/alignToInterval";
-import ExecutionContextService from "../lib/services/context/ExecutionContextService";
 import { Lock } from "../classes/Lock";
 
 /** Used to prevent race confition between concurent strategies */

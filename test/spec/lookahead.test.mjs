@@ -1411,3 +1411,102 @@ test("STRICT: Exchange.getCandles returns exact limit with timestamp alignment",
     fail(`STRICT getCandles test threw error: ${error.message}`);
   }
 });
+
+test("getRawCandles (sDate+eDate+limit) rejects limit extending past execution context when (lookahead bias)", async ({
+  pass,
+  fail,
+}) => {
+  const [awaiter, { resolve }] = createAwaiter();
+
+  // Test Time: 2024-01-01T10:24:00Z
+  const T_10_24 = new Date("2024-01-01T10:24:00Z");
+  const T_10_00_MS = new Date("2024-01-01T10:00:00Z").getTime();
+  const T_10_20_MS = new Date("2024-01-01T10:20:00Z").getTime();
+
+  // 1m candles covering well past `when` — a leaked fetch WOULD find future data
+  const candles1m = [];
+  {
+    let current = new Date("2024-01-01T00:00:00Z").getTime();
+    const end = new Date("2024-01-02T00:00:00Z").getTime();
+    while (current < end) {
+      candles1m.push({
+        timestamp: current,
+        open: 100, high: 105, low: 95, close: 101, volume: 1000,
+      });
+      current += 60 * 1000;
+    }
+  }
+
+  addExchangeSchema({
+    exchangeName: "test-exchange-raw-lookahead",
+    getCandles: async (_symbol, interval, since, limit) => {
+      if (interval !== "1m") return [];
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      return candles1m.filter((c) => c.timestamp >= alignedSince).slice(0, limit);
+    },
+    formatPrice: async (_, p) => p.toFixed(2),
+    formatQuantity: async (_, q) => q.toFixed(5),
+  });
+
+  addStrategySchema({
+    strategyName: "test-raw-candles-lookahead",
+    interval: "1m",
+    getSignal: async () => {
+      const outcome = {};
+      // Control: sDate+eDate+limit fully inside `when` (10:00 + 15m = 10:15 <= 10:24)
+      try {
+        outcome.control = await getRawCandles("BTCUSDT", "1m", 15, T_10_00_MS, T_10_20_MS);
+      } catch (e) {
+        outcome.controlError = e.message;
+      }
+      // Attack: eDate (10:20) passes the eDate<=when check, but limit=30 makes the
+      // actual fetch end at 10:00 + 30m = 10:30 — PAST when (10:24)
+      try {
+        outcome.attack = await getRawCandles("BTCUSDT", "1m", 30, T_10_00_MS, T_10_20_MS);
+      } catch (e) {
+        outcome.attackError = e.message;
+      }
+      resolve(outcome);
+      return null;
+    },
+  });
+
+  addFrameSchema({
+    frameName: "raw-lookahead-check",
+    interval: "1d",
+    startDate: T_10_24,
+    endDate: new Date("2024-01-01T10:35:00Z"),
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-raw-candles-lookahead",
+    exchangeName: "test-exchange-raw-lookahead",
+    frameName: "raw-lookahead-check",
+  });
+
+  const { control, controlError, attack, attackError } = await awaiter;
+
+  const errors = [];
+
+  if (controlError) {
+    errors.push(`Control call (limit=15, end=10:15 <= when=10:24) must succeed, threw: ${controlError}`);
+  } else if (!control || control.length !== 15) {
+    errors.push(`Control call: expected 15 candles, got ${control?.length || 0}`);
+  }
+
+  if (!attackError) {
+    const last = attack?.[attack.length - 1];
+    errors.push(
+      `Attack call (limit=30, end=10:30 > when=10:24) must throw look-ahead error, ` +
+      `but returned ${attack?.length || 0} candles, last at ${last ? new Date(last.timestamp).toISOString() : "n/a"}`
+    );
+  } else if (!attackError.includes("Look-ahead")) {
+    errors.push(`Attack call threw, but not the look-ahead error: ${attackError}`);
+  }
+
+  if (errors.length === 0) {
+    pass("getRawCandles (sDate+eDate+limit) enforces look-ahead protection on the actual fetch range");
+  } else {
+    fail("getRawCandles sDate+eDate+limit look-ahead failures:\n" + errors.join("\n"));
+  }
+});

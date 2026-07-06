@@ -244,7 +244,7 @@ const GET_CANDLES_FN = async (
 
         return result;
       } catch (err) {
-        const message = `ClientExchange GET_CANDLES_FN: attempt ${i + 1} failed for symbol=${dto.symbol}, interval=${dto.interval}, since=${since.toISOString()}, limit=${dto.limit}}`;
+        const message = `ClientExchange GET_CANDLES_FN: attempt ${i + 1} failed for symbol=${dto.symbol}, interval=${dto.interval}, since=${since.toISOString()}, limit=${dto.limit}`;
         const payload = {
           error: errorData(err),
           message: getErrorMessage(err),
@@ -252,7 +252,9 @@ const GET_CANDLES_FN = async (
         self.params.logger.warn(message, payload);
         console.warn(message, payload);
         lastError = err;
-        await sleep(GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_DELAY_MS);
+        if (i < GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_COUNT - 1) {
+          await sleep(GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_DELAY_MS);
+        }
       }
     }
     throw lastError ?? new Error(
@@ -795,6 +797,15 @@ export class ClientExchange implements IExchange {
       }
       // Align sDate down to interval boundary
       sinceTimestamp = ALIGN_TO_INTERVAL_FN(sDate, step);
+      // The fetch is driven by sDate+limit, not by eDate — validate the ACTUAL
+      // end of the range like Case 4 does, otherwise a limit larger than the
+      // sDate..eDate span silently reads candles past `when` (and past eDate).
+      const endTimestamp = sinceTimestamp + limit * stepMs;
+      if (endTimestamp > whenTimestamp) {
+        throw new Error(
+          `ClientExchange getRawCandles: calculated endTimestamp (${endTimestamp}) exceeds execution context when (${whenTimestamp}). Look-ahead bias protection.`,
+        );
+      }
       calculatedLimit = limit;
     }
     // Case 2: sDate + eDate (no limit) - calculate limit from date range
