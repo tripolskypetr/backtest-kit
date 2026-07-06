@@ -510,3 +510,96 @@ test("persist: stale atomic-write tmp file is swept and never resurrects as enti
   }
   t.pass("stale tmp swept, young in-flight tmp preserved, keys() immune to tmp prefix, real entity intact");
 });
+
+/**
+ * AUDIT: таймаут генерации сигнала (CC_MAX_SIGNAL_GENERATION_SECONDS) не должен
+ * оставлять живой таймер после разрешения гонки. Promise.race не отменяет
+ * проигравшего: обычный sleep(180s) держал event loop до 3 минут после
+ * завершения бектеста (скрипт «не выходит») и копил по живому таймеру на
+ * каждый интервал длинного прогона.
+ */
+test("AUDIT getSignal timeout: no lingering 3-minute timer after the race resolves", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+
+  addExchangeSchema({
+    exchangeName: "binance-mock-audit-signal-timer",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = Math.floor(since.getTime() / intervalMs) * intervalMs;
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        result.push({
+          timestamp: alignedSince + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-strategy-audit-signal-timer",
+    interval: "1m",
+    getSignal: async () => null,
+  });
+
+  addFrameSchema({
+    frameName: "audit-signal-timer-frame",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:03:00Z"),
+  });
+
+  // Перехватываем таймеры: контракт — каждый 180-секундный таймер гонки
+  // (CC_MAX_SIGNAL_GENERATION_SECONDS) обязан быть снят после разрешения race.
+  // process._getActiveHandles внутри worker-треда не видит локальные таймеры,
+  // поэтому проверяем через set/clearTimeout напрямую.
+  const originalSetTimeout = global.setTimeout;
+  const originalClearTimeout = global.clearTimeout;
+  const lingering = new Set();
+  let raceTimersCreated = 0;
+  global.setTimeout = (fn, ms, ...args) => {
+    const timer = originalSetTimeout(fn, ms, ...args);
+    if (ms === 180_000) {
+      raceTimersCreated += 1;
+      lingering.add(timer);
+    }
+    return timer;
+  };
+  global.clearTimeout = (timer) => {
+    lingering.delete(timer);
+    return originalClearTimeout(timer);
+  };
+
+  try {
+    for await (const _ of Backtest.run("BTCUSDT", {
+      strategyName: "test-strategy-audit-signal-timer",
+      exchangeName: "binance-mock-audit-signal-timer",
+      frameName: "audit-signal-timer-frame",
+    })) {
+      // Just consume
+    }
+  } finally {
+    global.setTimeout = originalSetTimeout;
+    global.clearTimeout = originalClearTimeout;
+    for (const timer of lingering) originalClearTimeout(timer);
+  }
+
+  if (raceTimersCreated === 0) {
+    fail(`test harness expected at least one getSignal-timeout race timer, got none`);
+    return;
+  }
+  if (lingering.size > 0) {
+    fail(`REGRESSION: ${lingering.size}/${raceTimersCreated} getSignal-timeout timer(s) left running after the race resolved — they keep the process alive up to 3 minutes after a backtest`);
+    return;
+  }
+
+  pass(`all ${raceTimersCreated} getSignal timeout timers cleared after the race resolved`);
+});

@@ -4,7 +4,6 @@ import {
   not,
   randomString,
   singleshot,
-  sleep,
   str,
   trycatch,
 } from "functools-kit";
@@ -848,14 +847,26 @@ const GET_SIGNAL_FN = trycatch(
     {
       if (!self._userSignal) {
         const timeoutMs = GLOBAL_CONFIG.CC_MAX_SIGNAL_GENERATION_SECONDS * 1_000;
-        signal = await Promise.race([
-          self.params.getSignal(
-            self.params.execution.context.symbol,
-            self.params.execution.context.when,
-            currentPrice,
-          ),
-          sleep(timeoutMs).then(() => TIMEOUT_SYMBOL),
-        ]);
+        // Cancelable timeout instead of a plain sleep: Promise.race does not
+        // cancel the loser, so the sleep timer stayed referenced for the full
+        // CC_MAX_SIGNAL_GENERATION_SECONDS after every getSignal call — keeping
+        // the node process alive up to 3 minutes after a backtest finishes and
+        // piling up one live timer per interval on long runs.
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        try {
+          signal = await Promise.race([
+            self.params.getSignal(
+              self.params.execution.context.symbol,
+              self.params.execution.context.when,
+              currentPrice,
+            ),
+            new Promise<typeof TIMEOUT_SYMBOL>((res) => {
+              timeoutId = setTimeout(() => res(TIMEOUT_SYMBOL), timeoutMs);
+            }),
+          ]);
+        } finally {
+          timeoutId !== undefined && clearTimeout(timeoutId);
+        }
       }
       if (self._userSignal) {
         const userDto = self._userSignal;
