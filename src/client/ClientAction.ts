@@ -541,6 +541,13 @@ export class ClientAction implements IAction {
   _handlerInstance: ActionProxy | null = null;
 
   /**
+   * Terminal flag set by dispose(). Once true, all event methods become no-ops:
+   * the handler will not be recreated (waitForInit is singleshot), so late
+   * events must not reach the schema callbacks either.
+   */
+  _isDisposed = false;
+
+  /**
    * Creates a new ClientAction instance.
    *
    * @param params - Action parameters including handler, callbacks, and context
@@ -601,6 +608,13 @@ export class ClientAction implements IAction {
       action: event.action,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -627,6 +641,13 @@ export class ClientAction implements IAction {
       frameName: this.params.frameName,
       action: event.action,
     });
+
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
 
     if (!this._handlerInstance) {
       await this.waitForInit();
@@ -656,6 +677,13 @@ export class ClientAction implements IAction {
       action: event.action,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -682,6 +710,13 @@ export class ClientAction implements IAction {
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
     });
+
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
 
     if (!this._handlerInstance) {
       await this.waitForInit();
@@ -710,6 +745,13 @@ export class ClientAction implements IAction {
       frameName: this.params.frameName,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -737,6 +779,13 @@ export class ClientAction implements IAction {
       frameName: this.params.frameName,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -763,6 +812,13 @@ export class ClientAction implements IAction {
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
     });
+
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
 
     if (!this._handlerInstance) {
       await this.waitForInit();
@@ -796,6 +852,13 @@ export class ClientAction implements IAction {
       action: event.action,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -828,6 +891,13 @@ export class ClientAction implements IAction {
       action: event.action,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -854,6 +924,13 @@ export class ClientAction implements IAction {
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
     });
+
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
 
     if (!this._handlerInstance) {
       await this.waitForInit();
@@ -882,6 +959,13 @@ export class ClientAction implements IAction {
       frameName: this.params.frameName,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -908,6 +992,13 @@ export class ClientAction implements IAction {
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
     });
+
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
 
     if (!this._handlerInstance) {
       await this.waitForInit();
@@ -937,6 +1028,13 @@ export class ClientAction implements IAction {
       frameName: this.params.frameName,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -965,6 +1063,13 @@ export class ClientAction implements IAction {
       frameName: this.params.frameName,
     });
 
+    // Dropped after dispose(): the handler is gone and will not be recreated
+    // (waitForInit is singleshot), so firing only the schema callbacks here
+    // would desync them from the handler.
+    if (this._isDisposed) {
+      return;
+    }
+
     if (!this._handlerInstance) {
       await this.waitForInit();
     }
@@ -987,6 +1092,7 @@ export class ClientAction implements IAction {
    * Uses singleshot pattern to ensure cleanup happens exactly once.
    */
   public dispose = singleshot(async (): Promise<void> => {
+    this._isDisposed = true;
     await WAIT_FOR_DISPOSE_FN(this);
   });
 }

@@ -94,7 +94,7 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
   return {
     ...structuredClone(signal) as ISignalRow,
     cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
-    timestamp: signal.timestamp || timestamp,
+    timestamp: signal.timestamp ?? timestamp,
     totalEntries: 1,
     totalPartials: 0,
     priceOpen: signal.priceOpen ?? currentPrice,
@@ -248,7 +248,7 @@ export const WAIT_FOR_INIT_FN = async (when: Date, self: ClientRisk): Promise<vo
 export class ClientRisk implements IRisk {
   /**
    * Map of active positions tracked across all strategies.
-   * Key: `${strategyName}:${exchangeName}:${symbol}`
+   * Key: `${strategyName}_${exchangeName}_${symbol}` (see CREATE_NAME_FN)
    * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
    */
   _activePositions: RiskMap | typeof POSITION_NEED_FETCH = POSITION_NEED_FETCH;
@@ -480,13 +480,16 @@ export class ClientRisk implements IRisk {
       }
 
       if (rejectionResult) {
-        // Call params.onRejected for riskSubject emission
+        // Call params.onRejected for riskSubject emission.
+        // Use the time-service timestamp — the same clock the rest of this
+        // critical section runs on (TO_RISK_SIGNAL, waitForInit, reservation),
+        // not the caller-supplied params.timestamp.
         await this.params.onRejected(
           params.symbol,
           params,
           riskMap.size,
           rejectionResult,
-          params.timestamp,
+          timestamp,
           this.params.backtest
         );
 

@@ -147,12 +147,12 @@ const HANDLE_BREAKEVEN_FN = async (
  * @param exchangeName - Exchange identifier
  * @param self - ClientBreakeven instance reference
  */
-const WAIT_FOR_INIT_FN = async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: string, backtest: boolean, self: ClientBreakeven) => {
+const WAIT_FOR_INIT_FN = async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: string, self: ClientBreakeven) => {
   self.params.logger.debug("ClientBreakeven waitForInit", {
     symbol,
     strategyName,
     exchangeName,
-    backtest,
+    backtest: self.params.backtest,
   });
 
   if (self._states !== NEED_FETCH) {
@@ -295,7 +295,7 @@ export class ClientBreakeven implements IBreakeven {
    * ```
    */
   public waitForInit = singleshot(
-    async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: string, backtest: boolean) => await WAIT_FOR_INIT_FN(symbol, strategyName, exchangeName, frameName, backtest, this)
+    async (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: string) => await WAIT_FOR_INIT_FN(symbol, strategyName, exchangeName, frameName, this)
   );
 
   /**

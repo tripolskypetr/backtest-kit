@@ -477,7 +477,9 @@ export class ClientExchange implements IExchange {
    * @param symbol - Trading pair symbol
    * @param interval - Candle interval
    * @param limit - Number of candles to fetch
-   * @returns Promise resolving to array of candles
+   * @returns Promise resolving to array of candles; an EMPTY array when the
+   *          requested range extends beyond Date.now() (those candles have not
+   *          closed yet in the real world — the caller decides how to proceed)
    * @throws Error if trying to fetch future candles in live mode
    */
   public async getNextCandles(
@@ -804,6 +806,15 @@ export class ClientExchange implements IExchange {
       if (endTimestamp > whenTimestamp) {
         throw new Error(
           `ClientExchange getRawCandles: calculated endTimestamp (${endTimestamp}) exceeds execution context when (${whenTimestamp}). Look-ahead bias protection.`,
+        );
+      }
+      // eDate is a hard bound, not advisory: the declared range must contain the
+      // whole fetch, otherwise the eDate<=when validation above is illusory.
+      const alignedEDate = ALIGN_TO_INTERVAL_FN(eDate, step);
+      if (endTimestamp > alignedEDate) {
+        throw new Error(
+          `ClientExchange getRawCandles: limit (${limit}) extends the fetch end (${endTimestamp}) past aligned eDate (${alignedEDate}). ` +
+          `With sDate+eDate+limit the whole range [alignedSDate, alignedSDate + limit*step] must fit within eDate.`,
         );
       }
       calculatedLimit = limit;

@@ -32129,7 +32129,9 @@ declare class ClientExchange implements IExchange {
      * @param symbol - Trading pair symbol
      * @param interval - Candle interval
      * @param limit - Number of candles to fetch
-     * @returns Promise resolving to array of candles
+     * @returns Promise resolving to array of candles; an EMPTY array when the
+     *          requested range extends beyond Date.now() (those candles have not
+     *          closed yet in the real world — the caller decides how to proceed)
      * @throws Error if trying to fetch future candles in live mode
      */
     getNextCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICandleData[]>;
@@ -32470,7 +32472,7 @@ declare class ClientRisk implements IRisk {
     readonly params: IRiskParams;
     /**
      * Map of active positions tracked across all strategies.
-     * Key: `${strategyName}:${exchangeName}:${symbol}`
+     * Key: `${strategyName}_${exchangeName}_${symbol}` (see CREATE_NAME_FN)
      * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
      */
     _activePositions: RiskMap | typeof POSITION_NEED_FETCH;
@@ -35099,6 +35101,12 @@ declare class ClientAction implements IAction {
      * Starts as null, gets initialized on first use.
      */
     _handlerInstance: ActionProxy | null;
+    /**
+     * Terminal flag set by dispose(). Once true, all event methods become no-ops:
+     * the handler will not be recreated (waitForInit is singleshot), so late
+     * events must not reach the schema callbacks either.
+     */
+    _isDisposed: boolean;
     /**
      * Creates a new ClientAction instance.
      *

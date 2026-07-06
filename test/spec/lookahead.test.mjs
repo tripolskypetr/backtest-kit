@@ -1466,6 +1466,13 @@ test("getRawCandles (sDate+eDate+limit) rejects limit extending past execution c
       } catch (e) {
         outcome.attackError = e.message;
       }
+      // Range attack: end = 10:00 + 22m = 10:22 stays under when (10:24) but
+      // overshoots the declared eDate (10:20) — eDate is a hard bound
+      try {
+        outcome.rangeAttack = await getRawCandles("BTCUSDT", "1m", 22, T_10_00_MS, T_10_20_MS);
+      } catch (e) {
+        outcome.rangeAttackError = e.message;
+      }
       resolve(outcome);
       return null;
     },
@@ -1484,7 +1491,7 @@ test("getRawCandles (sDate+eDate+limit) rejects limit extending past execution c
     frameName: "raw-lookahead-check",
   });
 
-  const { control, controlError, attack, attackError } = await awaiter;
+  const { control, controlError, attack, attackError, rangeAttack, rangeAttackError } = await awaiter;
 
   const errors = [];
 
@@ -1502,6 +1509,16 @@ test("getRawCandles (sDate+eDate+limit) rejects limit extending past execution c
     );
   } else if (!attackError.includes("Look-ahead")) {
     errors.push(`Attack call threw, but not the look-ahead error: ${attackError}`);
+  }
+
+  if (!rangeAttackError) {
+    const last = rangeAttack?.[rangeAttack.length - 1];
+    errors.push(
+      `Range attack (limit=22, end=10:22 <= when but > eDate=10:20) must throw range error, ` +
+      `but returned ${rangeAttack?.length || 0} candles, last at ${last ? new Date(last.timestamp).toISOString() : "n/a"}`
+    );
+  } else if (!rangeAttackError.includes("eDate")) {
+    errors.push(`Range attack threw, but not the eDate range error: ${rangeAttackError}`);
   }
 
   if (errors.length === 0) {
