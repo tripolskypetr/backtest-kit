@@ -358,3 +358,87 @@ test("PositionSize integration with mock Binance workflow", async ({ pass, fail 
 
   fail("Binance integration workflow failed");
 });
+
+test("PositionSize.kellyCriterion throws on zero priceOpen", async ({ pass, fail }) => {
+
+  addSizingSchema({
+    sizingName: "test-kelly-zero-price",
+    method: "kelly-criterion",
+    kellyMultiplier: 0.25,
+  });
+
+  try {
+    const quantity = await PositionSize.kellyCriterion(
+      "BTCUSDT",
+      10000,
+      0, // priceOpen = 0 → division by zero
+      0.55,
+      1.5,
+      { sizingName: "test-kelly-zero-price" }
+    );
+    fail(`Did not throw on zero priceOpen, got ${quantity}`);
+  } catch (error) {
+    if (error.message.includes("priceOpen")) {
+      pass("Correctly threw error on zero priceOpen");
+      return;
+    }
+    fail(`Unexpected error message: ${error.message}`);
+  }
+
+});
+
+test("PositionSize.fixedPercentage throws on zero priceOpen with maxPositionPercentage", async ({ pass, fail }) => {
+
+  addSizingSchema({
+    sizingName: "test-fixed-zero-price",
+    method: "fixed-percentage",
+    riskPercentage: 2,
+    maxPositionPercentage: 10, // triggers division by priceOpen
+  });
+
+  try {
+    const quantity = await PositionSize.fixedPercentage(
+      "BTCUSDT",
+      10000,
+      0, // priceOpen = 0 → division by zero in maxByPercentage
+      -100, // ensure non-zero stop distance
+      { sizingName: "test-fixed-zero-price" }
+    );
+    fail(`Did not throw on zero priceOpen, got ${quantity}`);
+  } catch (error) {
+    if (error.message.includes("priceOpen")) {
+      pass("Correctly threw error on zero priceOpen");
+      return;
+    }
+    fail(`Unexpected error message: ${error.message}`);
+  }
+
+});
+
+test("PositionSize.atrBased throws on zero atrMultiplier", async ({ pass, fail }) => {
+
+  addSizingSchema({
+    sizingName: "test-atr-zero-mult",
+    method: "atr-based",
+    riskPercentage: 2,
+    atrMultiplier: 0, // zero multiplier → stopDistance = 0 → division by zero
+  });
+
+  try {
+    const quantity = await PositionSize.atrBased(
+      "BTCUSDT",
+      10000,
+      50000,
+      500,
+      { sizingName: "test-atr-zero-mult" }
+    );
+    fail(`Did not throw on zero atrMultiplier, got ${quantity}`);
+  } catch (error) {
+    if (error.message.includes("distance") || error.message.includes("atrMultiplier")) {
+      pass("Correctly threw error on zero atrMultiplier");
+      return;
+    }
+    fail(`Unexpected error message: ${error.message}`);
+  }
+
+});

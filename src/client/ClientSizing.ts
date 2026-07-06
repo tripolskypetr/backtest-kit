@@ -62,6 +62,10 @@ const calculateKellyCriterion = (
     throw new Error("winLossRatio must be positive");
   }
 
+  if (priceOpen <= 0) {
+    throw new Error("priceOpen must be positive");
+  }
+
   // Kelly formula: (W * R - L) / R
   // W = win rate, L = loss rate (1 - W), R = win/loss ratio
   const kellyPercentage =
@@ -96,6 +100,10 @@ const calculateATRBased = (
 
   const riskAmount = accountBalance * (riskPercentage / 100);
   const stopDistance = atr * atrMultiplier;
+
+  if (stopDistance === 0) {
+    throw new Error("ATR stop distance cannot be zero (check atrMultiplier)");
+  }
 
   return riskAmount / stopDistance;
 };
@@ -189,6 +197,11 @@ const CALCULATE_FN = async (
 
   // Apply max position percentage constraint (risk cap)
   if (schema.maxPositionPercentage !== undefined) {
+    if (params.priceOpen <= 0) {
+      throw new Error(
+        "ClientSizing calculate: priceOpen must be positive to apply maxPositionPercentage"
+      );
+    }
     const maxByPercentage =
       (params.accountBalance * schema.maxPositionPercentage) /
       100 /
