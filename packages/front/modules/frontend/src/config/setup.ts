@@ -18,6 +18,7 @@ import isToday from "dayjs/plugin/isToday";
 import localeData from "dayjs/plugin/localeData";
 import enLocale from "dayjs/locale/en-gb";
 import utc from "dayjs/plugin/utc";
+import timezone from 'dayjs/plugin/timezone';
 
 ChartJS.register(
   CategoryScale,
@@ -36,6 +37,6 @@ ChartJS.register(
     dayjs.extend(localeData);
     dayjs.extend(utc);
     dayjs.extend(isToday);
-
+    dayjs.extend(timezone);
     dayjs.locale(enLocale);
 }
