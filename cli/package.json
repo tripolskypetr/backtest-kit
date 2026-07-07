@@ -85,7 +85,7 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "pinets": "0.9.27",
+    "pinets": "0.9.28",
     "ccxt": "4.5.39",
     "worker-testbed": "3.0.0"
   },
@@ -97,7 +97,7 @@
     "@backtest-kit/pinets": "^15.2.0",
     "@backtest-kit/signals": "^15.2.0",
     "@backtest-kit/ui": "^15.2.0",
-    "pinets": "^0.9.27",
+    "pinets": "^0.9.28",
     "ccxt": "^4.5.39",
     "backtest-kit": "^15.2.0",
     "markdown-it": "^14.1.1",

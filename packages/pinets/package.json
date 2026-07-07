@@ -69,13 +69,13 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "pinets": "0.9.27",
+    "pinets": "0.9.28",
     "backtest-kit": "15.2.0",
     "worker-testbed": "3.0.0"
   },
   "peerDependencies": {
     "backtest-kit": "^15.2.0",
-    "pinets": "^0.9.27",
+    "pinets": "^0.9.28",
     "typescript": "^5.0.0"
   },
   "dependencies": {
