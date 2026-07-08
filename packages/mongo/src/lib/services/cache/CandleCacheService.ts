@@ -15,7 +15,7 @@ export class CandleCacheService extends BaseMap(REDIS_KEY, -1) {
   }
 
   public async hasCandleId(symbol: string, interval: CandleInterval, exchangeName: string, timestamp: number) {
-    this.loggerService.log("candleCacheService getCandleId", { 
+    this.loggerService.log("candleCacheService hasCandleId", {
         symbol, 
         interval, 
         exchangeName, 

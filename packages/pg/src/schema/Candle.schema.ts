@@ -5,6 +5,7 @@ import { epochTransformer } from "../utils/epochTransformer";
 interface ICandleDto {
   symbol: string;
   interval: CandleInterval;
+  exchangeName: string;
   timestamp: number;
   open: number;
   high: number;
@@ -15,7 +16,6 @@ interface ICandleDto {
 
 interface ICandleRow extends ICandleDto {
   id: string;
-  exchangeName: string;
   createDate: Date;
   updatedDate: Date;
 }
@@ -39,7 +39,7 @@ const CandleModel = new EntitySchema<ICandleRow>({
   indices: [
     {
       name: "candle_items_uq",
-      columns: ["symbol", "interval", "timestamp"],
+      columns: ["exchangeName", "symbol", "interval", "timestamp"],
       unique: true,
     },
   ],
