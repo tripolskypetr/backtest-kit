@@ -747,6 +747,12 @@ MongoDB source-of-truth + Redis O(1) cache. All 15 persistence contracts, atomic
 npm install @backtest-kit/mongo backtest-kit mongoose ioredis
 ```
 
+### `@backtest-kit/pg` — [npm](https://www.npmjs.com/package/@backtest-kit/pg)
+PostgreSQL + Redis O(1) cache via TypeORM. All 15 persistence contracts, atomic upserts, soft delete, look-ahead-safe `when`. Tuned for Pgpool-II so read fan-out scales across replicas: up to ~4× faster
+```bash
+npm install @backtest-kit/pg backtest-kit typeorm pg ioredis reflect-metadata
+```
+
 ### `@backtest-kit/ollama` — [npm](https://www.npmjs.com/package/@backtest-kit/ollama)
 Universal LLM adapter: 10+ providers, structured output, token rotation, fallback chains, trading-context injection.
 ```bash

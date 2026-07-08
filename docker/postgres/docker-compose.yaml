@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: backtest
+      POSTGRES_PASSWORD: mysecurepassword
+      POSTGRES_DB: backtest-pro
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+    restart: always
+volumes:
+  pg_data:

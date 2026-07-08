@@ -1,0 +1,36 @@
+# Runs the published all-in-one cluster image tripolskypetr/pgpool:latest —
+# 1 primary + 2 streaming replicas behind Pgpool-II on port 5432, in one
+# container. See ../../pgpool for the image source.
+#
+# Every environment variable the image understands is listed explicitly below and
+# set to the image's built-in default, so this file is self-documenting: change a
+# value here and nothing else needs touching. Cluster data is bind-mounted to
+# ./data (gitignored) so it survives restarts and is easy to inspect/wipe.
+
+services:
+  pgpool:
+    image: tripolskypetr/pgpool:latest
+    container_name: pgcluster
+    ports:
+      - "5432:5432"          # single entrypoint: writes->primary, reads->replicas
+    environment:
+      # --- application role / database (must match src/config/params.ts) ---
+      POSTGRES_USER: backtest
+      POSTGRES_PASSWORD: mysecurepassword
+      POSTGRES_DB: backtest-pro
+      # --- internal streaming-replication role ---
+      REPL_USER: replicator
+      REPL_PASSWORD: replicatorpass
+      # --- paths inside the container (image defaults; rarely changed) ---
+      PGCLUSTER_ROOT: /var/lib/pgcluster
+      PGBIN: /usr/local/bin
+    volumes:
+      # Bind-mount cluster data to a local folder (gitignored).
+      - ./data:/var/lib/pgcluster
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=mysecurepassword psql -h 127.0.0.1 -p 5432 -U backtest -d backtest-pro -tAc 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 120s     # first boot clones two replicas (~60-90s)
+    restart: always

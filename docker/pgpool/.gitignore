@@ -1,0 +1,2 @@
+# Bind-mounted Postgres cluster data (primary + replicas) — never commit.
+data/
