@@ -45,7 +45,7 @@ const CRON_METHOD_NAME_DISPOSE = "CronUtils.dispose";
  * subsequent lifecycle tick while the process stays alive and outwardly
  * healthy.
  */
-const CRON_HANDLER_TIMEOUT = 600_000;
+const CRON_HANDLER_TIMEOUT = 900_000;
 
 /**
  * Early-warning threshold (ms) for a single cron handler invocation.
