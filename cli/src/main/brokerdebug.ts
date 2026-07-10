@@ -233,6 +233,8 @@ export const main = async () => {
 
   const signalId = `broker-debug-${Date.now()}`;
 
+  const when = alignToInterval(new Date(), "1m");
+
   {
     console.log(`symbol=${symbol} price=${currentPrice} commit=${commit}`);
     console.time(commit);
@@ -253,6 +255,7 @@ export const main = async () => {
         peakProfit: ZERO_PNL,
         maxDrawdown: ZERO_PNL,
         context,
+        when,
         backtest: true,
       });
     }
@@ -273,6 +276,7 @@ export const main = async () => {
         peakProfit: ZERO_PNL,
         maxDrawdown: ZERO_PNL,
         context,
+        when,
         backtest: true,
       });
     }
@@ -288,6 +292,7 @@ export const main = async () => {
         priceTakeProfit,
         priceStopLoss,
         context,
+        when,
         backtest: true,
       });
     }
@@ -303,6 +308,7 @@ export const main = async () => {
         priceTakeProfit,
         priceStopLoss,
         context,
+        when,
         backtest: true,
       });
     }
@@ -317,6 +323,7 @@ export const main = async () => {
         priceTakeProfit,
         priceStopLoss,
         context,
+        when,
         backtest: true,
       });
     }
@@ -331,6 +338,7 @@ export const main = async () => {
         takeProfitPrice: priceTakeProfit,
         position: "long",
         context,
+        when,
         backtest: true,
       });
     }
@@ -346,6 +354,7 @@ export const main = async () => {
         takeProfitPrice: priceTakeProfit,
         position: "long",
         context,
+        when,
         backtest: true,
       });
     }
@@ -359,13 +368,14 @@ export const main = async () => {
         newTakeProfitPrice: priceTakeProfit,
         position: "long",
         context,
+        when,
         backtest: true,
       });
     }
   }
 
   await runInMockContext(run, {
-    when: alignToInterval(new Date(), "1m"),
+    when,
     strategyName: context.strategyName,
     exchangeName: context.exchangeName,
     frameName: "",
