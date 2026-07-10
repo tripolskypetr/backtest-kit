@@ -31,17 +31,34 @@ const CRON_METHOD_NAME_DISPOSE = "CronUtils.dispose";
 /**
  * Watchdog timeout (ms) for a single cron handler invocation.
  *
- * A handler that does not settle within this window is treated as failed:
- * `_runEntry` races `entry.handler(info)` against this `sleep` and, when the
- * timeout wins, throws into the same `catch` as any other handler error —
- * surfacing `failed = true`, logging a warning, and (for periodic entries)
- * rolling back the watermark so the boundary is retried on the next tick.
+ * A slot that does not settle within this window is treated as failed:
+ * `_runEntry` races the runtime-info assembly plus `entry.handler(info)`
+ * against a timer of this duration and, when the timer wins, rejects into the
+ * same `catch` as any other handler error — surfacing `failed = true`, logging
+ * a warning, and (for periodic entries) rolling back the watermark so the
+ * boundary is retried on the next tick.
  *
  * This guards the `singlerun`-serialised tick pipeline against a handler that
- * never resolves (a lost `resolve`, a hung promise with no timeout of its
- * own): without it such a handler would stall every subsequent tick forever.
+ * never resolves (a lost `resolve`, a hung network call with no timeout of its
+ * own): without it such a handler would hold its `_inFlight` slot forever and
+ * `_tick`'s `Promise.all` would never settle, silently stalling every
+ * subsequent lifecycle tick while the process stays alive and outwardly
+ * healthy.
  */
 const CRON_HANDLER_TIMEOUT = 120_000;
+
+/**
+ * Extra slack (ms) added on top of {@link CRON_HANDLER_TIMEOUT} by the
+ * tick-level alarm in {@link CronUtils._tick}.
+ *
+ * Each slot self-terminates via the `_runEntry` watchdog, so under normal
+ * operation `Promise.all` settles within `CRON_HANDLER_TIMEOUT` plus epsilon.
+ * The tick-level alarm is a last-resort stall detector and must fire strictly
+ * *after* the per-slot watchdogs have had their chance — without the slack the
+ * two timers race at the exact same instant and every legitimate per-slot
+ * timeout would also emit a spurious tick-level "timed out" error.
+ */
+const CRON_TICK_ALARM_SLACK = 30_000;
 
 /**
  * Local logger instance.
@@ -409,9 +426,14 @@ export class CronUtils {
    *
    * Assembles the {@link IRuntimeInfo} snapshot via
    * `RuntimeMetaService.getRuntimeInfo(symbol, context, backtest)` and invokes
-   * `entry.handler(info)`. Logs any error via `console.error` and **returns** a
-   * `failed` boolean (`true` when the handler — or the runtime-info assembly —
-   * threw) so the caller (`_tick`) can roll back the periodic watermark of the
+   * `entry.handler(info)`, racing both against the
+   * {@link CRON_HANDLER_TIMEOUT} watchdog — a slot that does not settle in time
+   * rejects into the same `catch` as any other error, so a hung handler (or a
+   * hung price fetch inside `getRuntimeInfo`) can never hold the `_inFlight`
+   * slot forever and stall the serialised tick pipeline. Logs any error via
+   * `console.error` and **returns** a `failed` boolean (`true` when the
+   * handler — or the runtime-info assembly — threw or timed out) so the caller
+   * (`_tick`) can roll back the periodic watermark of the
    * slot it opened and retry that boundary. The error is **not** rethrown, so a
    * failing handler never produces an unhandled rejection. Clears the
    * `_inFlight` slot in `.finally()` so the next boundary produces a fresh
@@ -444,9 +466,32 @@ export class CronUtils {
     context: { strategyName: string; exchangeName: string; frameName: string }
   ): Promise<boolean> {
     let failed = false;
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
     try {
-      const info = await RUNTIME_META_SERVICE.getRuntimeInfo(symbol, context, backtest);
-      await entry.handler(info);
+      // The runtime-info assembly is raced alongside the handler: in live mode
+      // getRuntimeInfo reaches out to the exchange for the current price, so it
+      // can hang on a dead network exactly like a user handler can.
+      const work = (async () => {
+        const info = await RUNTIME_META_SERVICE.getRuntimeInfo(symbol, context, backtest);
+        await entry.handler(info);
+      })();
+      // A timed-out slot abandons `work`; swallow its eventual rejection so a
+      // zombie handler that fails later never surfaces as an unhandled
+      // rejection. Its late success is equally unobserved: `failed` was already
+      // reported and (for fire-once entries) the fired mark deliberately not set.
+      work.catch(() => void 0);
+      await Promise.race([
+        work,
+        new Promise<never>((_, reject) => {
+          watchdog = setTimeout(() => {
+            reject(
+              new Error(
+                `Cron entry "${entry.name}" timed out after ${CRON_HANDLER_TIMEOUT}ms`
+              )
+            );
+          }, CRON_HANDLER_TIMEOUT);
+        }),
+      ]);
     } catch (error) {
       failed = true;
       const message = `${CRON_METHOD_NAME_TICK} entry "${entry.name}" failed`;
@@ -460,6 +505,7 @@ export class CronUtils {
       console.error(message, payload);
       errorEmitter.next(error as Error);
     } finally {
+      clearTimeout(watchdog);
       this._inFlight.delete(slotKey);
       if (!failed && firedKey !== null) {
         this._firedOnce.add(firedKey);
@@ -763,20 +809,22 @@ export class CronUtils {
     }
 
     {
-      // Watchdog: warn (do not interrupt) if the slots this tick is awaiting
-      // have not settled within CRON_HANDLER_TIMEOUT. We deliberately keep
-      // awaiting Promise.all so the singlerun pipeline stays serialised and no
-      // duplicate/zombie slots are spawned — the timer only surfaces the stall.
-      // Use a real setTimeout/clearTimeout (not sleep) so the alarm is cancelled
-      // the instant Promise.all resolves, rather than lingering for the full
-      // timeout on every fast tick.
+      // Last-resort alarm: every slot self-terminates via the `_runEntry`
+      // watchdog, so Promise.all is expected to settle within
+      // CRON_HANDLER_TIMEOUT plus epsilon. If it still hasn't after the extra
+      // CRON_TICK_ALARM_SLACK, something is stuck outside the raced section —
+      // warn (do not interrupt) so the stall is visible in the logs. The slack
+      // keeps this alarm from racing the per-slot watchdogs and double-firing
+      // on every legitimate slot timeout. Use a real setTimeout/clearTimeout
+      // (not sleep) so the alarm is cancelled the instant Promise.all resolves,
+      // rather than lingering for the full timeout on every fast tick.
       const timer = setTimeout(() => {
-        const message = `${CRON_METHOD_NAME_TICK} timed out after ${CRON_HANDLER_TIMEOUT}ms`;
+        const message = `${CRON_METHOD_NAME_TICK} timed out after ${CRON_HANDLER_TIMEOUT + CRON_TICK_ALARM_SLACK}ms`;
         const payload = { symbol, when, context };
         LOGGER_SERVICE.warn(message, payload);
         console.error(message, payload);
         errorEmitter.next(new Error(message));
-      }, CRON_HANDLER_TIMEOUT);
+      }, CRON_HANDLER_TIMEOUT + CRON_TICK_ALARM_SLACK);
 
       try {
         await Promise.all(taskList);
