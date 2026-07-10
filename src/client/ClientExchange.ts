@@ -21,6 +21,28 @@ import { validateCandles } from "../validation/validateCandles";
 
 const MS_PER_MINUTE = 60_000;
 
+/**
+ * Normalizes raw adapter output to the {@link IAggregatedTradeData} contract.
+ *
+ * Implicit-API exchange adapters (e.g. ccxt `publicGetAggTrades`) return every
+ * scalar as a string. A string `timestamp` is type-invisible at runtime — it
+ * survives serialization and comparison — and only blows up deep inside a
+ * downstream consumer (`Number.isFinite("1783601403565") === false`). Coercing
+ * the numeric fields here, at the single point where adapter data enters the
+ * framework, guarantees the contract's `number` types hold regardless of
+ * adapter behaviour. `isBuyerMaker` is deliberately left untouched: `Boolean`
+ * coercion of a string `"false"` would yield `true`.
+ */
+const NORMALIZE_AGGREGATED_TRADES_FN = (
+  trades: IAggregatedTradeData[],
+): IAggregatedTradeData[] =>
+  trades.map((trade) => ({
+    ...trade,
+    price: Number(trade.price),
+    qty: Number(trade.qty),
+    timestamp: Number(trade.timestamp),
+  }));
+
 const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
   "3m": 3,
@@ -1041,11 +1063,13 @@ export class ClientExchange implements IExchange {
     if (limit === undefined) {
       const to = new Date(alignedTo);
       const from = new Date(alignedTo - windowMs);
-      return await this.params.getAggregatedTrades(
-        symbol,
-        from,
-        to,
-        this.params.execution.context.backtest,
+      return NORMALIZE_AGGREGATED_TRADES_FN(
+        await this.params.getAggregatedTrades(
+          symbol,
+          from,
+          to,
+          this.params.execution.context.backtest,
+        ),
       );
     }
 
@@ -1066,11 +1090,13 @@ export class ClientExchange implements IExchange {
       const to = new Date(windowEnd);
       const from = new Date(windowStart);
 
-      const chunk = await this.params.getAggregatedTrades(
-        symbol,
-        from,
-        to,
-        this.params.execution.context.backtest,
+      const chunk = NORMALIZE_AGGREGATED_TRADES_FN(
+        await this.params.getAggregatedTrades(
+          symbol,
+          from,
+          to,
+          this.params.execution.context.backtest,
+        ),
       );
 
       if (chunk.length === 0) {

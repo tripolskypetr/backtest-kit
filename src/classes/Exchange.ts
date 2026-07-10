@@ -20,6 +20,28 @@ const EXCHANGE_METHOD_NAME_GET_AGGREGATED_TRADES = "ExchangeUtils.getAggregatedT
 const MS_PER_MINUTE = 60_000;
 
 /**
+ * Normalizes raw adapter output to the {@link IAggregatedTradeData} contract.
+ *
+ * Implicit-API exchange adapters (e.g. ccxt `publicGetAggTrades`) return every
+ * scalar as a string. A string `timestamp` is type-invisible at runtime — it
+ * survives serialization and comparison — and only blows up deep inside a
+ * downstream consumer (`Number.isFinite("1783601403565") === false`). Coercing
+ * the numeric fields here, at the single point where adapter data enters the
+ * framework, guarantees the contract's `number` types hold regardless of
+ * adapter behaviour. `isBuyerMaker` is deliberately left untouched: `Boolean`
+ * coercion of a string `"false"` would yield `true`.
+ */
+const NORMALIZE_AGGREGATED_TRADES_FN = (
+  trades: IAggregatedTradeData[],
+): IAggregatedTradeData[] =>
+  trades.map((trade) => ({
+    ...trade,
+    price: Number(trade.price),
+    qty: Number(trade.qty),
+    timestamp: Number(trade.timestamp),
+  }));
+
+/**
  * Gets current timestamp from execution context if available.
  * Returns current Date() if no execution context exists (non-trading GUI).
  */
@@ -685,7 +707,15 @@ export class ExchangeInstance {
     if (limit === undefined) {
       const to = new Date(alignedTo);
       const from = new Date(alignedTo - windowMs);
-      return await this._methods.getAggregatedTrades(symbol, from, to, isBacktest);
+
+      return NORMALIZE_AGGREGATED_TRADES_FN(
+        await this._methods.getAggregatedTrades(
+          symbol,
+          from,
+          to,
+          isBacktest
+        )
+      );
     }
 
     // With limit: paginate backwards until we have enough trades.
@@ -705,7 +735,14 @@ export class ExchangeInstance {
       const to = new Date(windowEnd);
       const from = new Date(windowStart);
 
-      const chunk = await this._methods.getAggregatedTrades(symbol, from, to, isBacktest);
+      const chunk = NORMALIZE_AGGREGATED_TRADES_FN(
+        await this._methods.getAggregatedTrades(
+          symbol,
+          from,
+          to,
+          isBacktest
+        ),
+      );
 
       if (chunk.length === 0) {
         emptyWindows += 1;
