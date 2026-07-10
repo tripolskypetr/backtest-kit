@@ -1260,6 +1260,10 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     await strategy.waitForInit();
+    if (!this.timeMetaService.hasTimestamp(symbol, context, backtest)) {
+      const timestamp = this.executionContextService.context.when.getTime();
+      await this.timeMetaService.next(symbol, timestamp, context, backtest);
+    }
     const tick = await strategy.tick(symbol, context.strategyName);
     {
       await this.priceMetaService.next(symbol, tick.currentPrice, context, backtest);

@@ -27844,9 +27844,17 @@ declare class CronUtils {
      *
      * Assembles the {@link IRuntimeInfo} snapshot via
      * `RuntimeMetaService.getRuntimeInfo(symbol, context, backtest)` and invokes
-     * `entry.handler(info)`. Logs any error via `console.error` and **returns** a
-     * `failed` boolean (`true` when the handler — or the runtime-info assembly —
-     * threw) so the caller (`_tick`) can roll back the periodic watermark of the
+     * `entry.handler(info)`, racing both against the
+     * {@link CRON_HANDLER_TIMEOUT} watchdog — a slot that does not settle in time
+     * rejects into the same `catch` as any other error, so a hung handler (or a
+     * hung price fetch inside `getRuntimeInfo`) can never hold the `_inFlight`
+     * slot forever and stall the serialised tick pipeline. A slot still running
+     * at {@link CRON_HANDLER_WARN_TIMEOUT} logs an observational warning first,
+     * so a slow handler is visible in the logs well before the watchdog forcibly
+     * fails it. Logs any error via
+     * `console.error` and **returns** a `failed` boolean (`true` when the
+     * handler — or the runtime-info assembly — threw or timed out) so the caller
+     * (`_tick`) can roll back the periodic watermark of the
      * slot it opened and retry that boundary. The error is **not** rethrown, so a
      * failing handler never produces an unhandled rejection. Clears the
      * `_inFlight` slot in `.finally()` so the next boundary produces a fresh
@@ -29472,6 +29480,8 @@ type BrokerOrderOpenPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29531,6 +29541,8 @@ type BrokerOrderClosePayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29606,6 +29618,8 @@ type BrokerOrderCheckPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29653,6 +29667,8 @@ type BrokerActivePingPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29698,6 +29714,8 @@ type BrokerSchedulePingPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29729,6 +29747,8 @@ type BrokerIdlePingPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29775,6 +29795,8 @@ type BrokerScheduleOpenPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29823,6 +29845,8 @@ type BrokerScheduleCancelledPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29868,6 +29892,8 @@ type BrokerPendingOpenPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29916,6 +29942,8 @@ type BrokerPendingClosePayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -29960,6 +29988,8 @@ type BrokerPartialProfitPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -30004,6 +30034,8 @@ type BrokerPartialLossPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -30048,6 +30080,8 @@ type BrokerTrailingStopPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -30092,6 +30126,8 @@ type BrokerTrailingTakePayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -30135,6 +30171,8 @@ type BrokerBreakevenPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
@@ -30177,6 +30215,8 @@ type BrokerAverageBuyPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
     /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };

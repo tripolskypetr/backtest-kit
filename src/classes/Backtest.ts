@@ -3793,6 +3793,7 @@ export class BacktestUtils {
       priceTakeProfit: signalForProfit.priceTakeProfit,
       priceStopLoss: signalForProfit.priceStopLoss,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.partialProfit(
@@ -3925,6 +3926,7 @@ export class BacktestUtils {
       priceTakeProfit: signalForLoss.priceTakeProfit,
       priceStopLoss: signalForLoss.priceStopLoss,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.partialLoss(
@@ -4060,6 +4062,7 @@ export class BacktestUtils {
       priceTakeProfit: signalForProfitCost.priceTakeProfit,
       priceStopLoss: signalForProfitCost.priceStopLoss,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.partialProfit(
@@ -4195,6 +4198,7 @@ export class BacktestUtils {
       priceTakeProfit: signalForLossCost.priceTakeProfit,
       priceStopLoss: signalForLossCost.priceStopLoss,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.partialLoss(
@@ -4347,6 +4351,7 @@ export class BacktestUtils {
       takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.trailingStop(
@@ -4499,6 +4504,7 @@ export class BacktestUtils {
       takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.trailingTake(
@@ -4617,6 +4623,7 @@ export class BacktestUtils {
       position: signal.position,
       takeProfitPrice: signal.priceTakeProfit,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.trailingStop(
@@ -4735,6 +4742,7 @@ export class BacktestUtils {
       position: signal.position,
       takeProfitPrice: signal.priceTakeProfit,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.trailingTake(
@@ -4852,6 +4860,7 @@ export class BacktestUtils {
       newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
       position: signal.position,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.breakeven(
@@ -5040,6 +5049,7 @@ export class BacktestUtils {
       priceTakeProfit: signalForAvgBuy.priceTakeProfit,
       priceStopLoss: signalForAvgBuy.priceStopLoss,
       context,
+      when: new Date(await backtest.timeMetaService.getTimestamp(symbol, context, true)),
       backtest: true,
     });
     return await backtest.strategyCoreService.averageBuy(

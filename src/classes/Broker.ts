@@ -108,6 +108,8 @@ export type BrokerOrderOpenPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -168,6 +170,8 @@ export type BrokerOrderClosePayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -244,6 +248,8 @@ export type BrokerOrderCheckPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -292,6 +298,8 @@ export type BrokerActivePingPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -338,6 +346,8 @@ export type BrokerSchedulePingPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -370,6 +380,8 @@ export type BrokerIdlePingPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -417,6 +429,8 @@ export type BrokerScheduleOpenPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -466,6 +480,8 @@ export type BrokerScheduleCancelledPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -512,6 +528,8 @@ export type BrokerPendingOpenPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -561,6 +579,8 @@ export type BrokerPendingClosePayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -606,6 +626,8 @@ export type BrokerPartialProfitPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -651,6 +673,8 @@ export type BrokerPartialLossPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -696,6 +720,8 @@ export type BrokerTrailingStopPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -741,6 +767,8 @@ export type BrokerTrailingTakePayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -785,6 +813,8 @@ export type BrokerBreakevenPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -828,6 +858,8 @@ export type BrokerAverageBuyPayload = {
     exchangeName: ExchangeName;
     frameName?: FrameName;
   };
+  /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+  when: Date;
   /** true when called during a backtest run — adapter should skip exchange calls */
   backtest: boolean;
 };
@@ -2218,6 +2250,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       });
     });
@@ -2245,6 +2278,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       });
     });
@@ -2269,6 +2303,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       });
     });
@@ -2288,6 +2323,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       });
     });
@@ -2306,6 +2342,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       });
     });
@@ -2319,6 +2356,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       });
     });
@@ -2337,6 +2375,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       };
       if (event.action === "scheduled") {
@@ -2360,6 +2399,7 @@ export class BrokerAdapter {
           exchangeName: event.exchangeName,
           frameName: event.frameName,
         },
+        when: new Date(event.timestamp),
         backtest: event.backtest,
       };
       if (event.action === "opened") {

@@ -261,6 +261,7 @@ export async function commitPartialProfit(
     priceTakeProfit: signalForProfit.priceTakeProfit,
     priceStopLoss: signalForProfit.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.partialProfit(
@@ -360,6 +361,7 @@ export async function commitPartialLoss(
     priceTakeProfit: signalForLoss.priceTakeProfit,
     priceStopLoss: signalForLoss.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.partialLoss(
@@ -481,6 +483,7 @@ export async function commitTrailingStop(
     takeProfitPrice: signal.priceTakeProfit,
     position: signal.position,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.trailingStop(
@@ -602,6 +605,7 @@ export async function commitTrailingTake(
     takeProfitPrice: signal.priceTakeProfit,
     position: signal.position,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.trailingTake(
@@ -693,6 +697,7 @@ export async function commitTrailingStopCost(
     position: signal.position,
     takeProfitPrice: signal.priceTakeProfit,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.trailingStop(
@@ -784,6 +789,7 @@ export async function commitTrailingTakeCost(
     takeProfitPrice: signal.priceTakeProfit,
     position: signal.position,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.trailingTake(
@@ -871,6 +877,7 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
     newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
     position: signal.position,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.breakeven(
@@ -997,6 +1004,7 @@ export async function commitAverageBuy(
     priceTakeProfit: signalForAvgBuy.priceTakeProfit,
     priceStopLoss: signalForAvgBuy.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.averageBuy(
@@ -1537,6 +1545,7 @@ export async function commitPartialProfitCost(
     priceTakeProfit: signalForProfitCost.priceTakeProfit,
     priceStopLoss: signalForProfitCost.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.partialProfit(
@@ -1640,6 +1649,7 @@ export async function commitPartialLossCost(
     priceTakeProfit: signalForLossCost.priceTakeProfit,
     priceStopLoss: signalForLossCost.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
+    when: backtest.executionContextService.context.when,
     backtest: isBacktest,
   });
   return await backtest.strategyCoreService.partialLoss(

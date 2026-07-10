@@ -3754,6 +3754,13 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.partialProfit(
@@ -3906,6 +3913,13 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.partialLoss(
@@ -4057,6 +4071,13 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.partialProfit(
@@ -4208,6 +4229,13 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.partialLoss(
@@ -4374,6 +4402,13 @@ export class LiveUtils {
       takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.trailingStop(
@@ -4540,6 +4575,13 @@ export class LiveUtils {
       takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.trailingTake(
@@ -4673,6 +4715,13 @@ export class LiveUtils {
       takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.trailingStop(
@@ -4806,6 +4855,13 @@ export class LiveUtils {
       takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.trailingTake(
@@ -4942,6 +4998,13 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.breakeven(
@@ -5146,6 +5209,13 @@ export class LiveUtils {
         exchangeName: context.exchangeName,
         frameName: "",
       },
+      when: new Date(
+        await backtest.timeMetaService.getTimestamp(
+          symbol,
+          { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" },
+          false,
+        ),
+      ),
       backtest: false,
     });
     return await backtest.strategyCoreService.averageBuy(
