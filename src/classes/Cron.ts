@@ -59,19 +59,6 @@ const CRON_HANDLER_TIMEOUT = 600_000;
 const CRON_HANDLER_WARN_TIMEOUT = 120_000;
 
 /**
- * Timeout (ms) for the tick-level last-resort alarm in {@link CronUtils._tick}.
- *
- * Derived from {@link CRON_HANDLER_TIMEOUT} plus 30 seconds of slack. Each
- * slot self-terminates via the `_runEntry` watchdog, so under normal operation
- * `Promise.all` settles within `CRON_HANDLER_TIMEOUT` plus epsilon. The
- * tick-level alarm is a last-resort stall detector and must fire strictly
- * *after* the per-slot watchdogs have had their chance — without the slack the
- * two timers race at the exact same instant and every legitimate per-slot
- * timeout would also emit a spurious tick-level "timed out" error.
- */
-const CRON_TICK_STALL_ALARM_TIMEOUT = CRON_HANDLER_TIMEOUT + 30_000;
-
-/**
  * Local logger instance.
  *
  * Created directly rather than resolved from the DI container so that
@@ -832,31 +819,9 @@ export class CronUtils {
       taskList.push(pending);
     }
 
-    {
-      // Last-resort alarm: every slot self-terminates via the `_runEntry`
-      // watchdog, so Promise.all is expected to settle within
-      // CRON_HANDLER_TIMEOUT plus epsilon. If it still hasn't by
-      // CRON_TICK_STALL_ALARM_TIMEOUT, something is stuck outside the raced section —
-      // warn (do not interrupt) so the stall is visible in the logs. The slack
-      // built into that constant keeps this alarm from racing the per-slot
-      // watchdogs and double-firing
-      // on every legitimate slot timeout. Use a real setTimeout/clearTimeout
-      // (not sleep) so the alarm is cancelled the instant Promise.all resolves,
-      // rather than lingering for the full timeout on every fast tick.
-      const timer = setTimeout(() => {
-        const message = `${CRON_METHOD_NAME_TICK} timed out after ${CRON_TICK_STALL_ALARM_TIMEOUT}ms`;
-        const payload = { symbol, when, context };
-        LOGGER_SERVICE.warn(message, payload);
-        console.error(message, payload);
-        errorEmitter.next(new Error(message));
-      }, CRON_TICK_STALL_ALARM_TIMEOUT);
-
-      try {
-        await Promise.all(taskList);
-      } finally {
-        clearTimeout(timer);
-      }
-    }
+    // Every slot self-terminates via the `_runEntry` watchdog, so this settles
+    // within CRON_HANDLER_TIMEOUT plus epsilon even when a handler hangs.
+    await Promise.all(taskList);
 
     // Roll back the watermark for any periodic slot THIS tick opened whose
     // handler failed, so the next tick re-opens the same boundary and retries
