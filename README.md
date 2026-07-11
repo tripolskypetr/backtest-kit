@@ -797,20 +797,27 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 ---
 
-## 🌐 Localization
+## 🌐 Internationalization
 
 The `@backtest-kit/ui` dashboard ships in **7 languages**: English, Русский, Türkçe, 中文, हिन्दी, Español, Português. Switch via the language picker in the header
 
 <details>
 <summary>Locales</summary>
 
-- 🇬🇧 **English** — ~1.5B speakers. *Backtest Kit is a TypeScript engine for backtesting and live trading where the code you test is the code you ship.*
-- 🇨🇳 **中文** — ~1.1B speakers. *Backtest Kit 是一个 TypeScript 回测与实盘交易引擎——回测过的代码与实盘运行的代码完全一致。*
-- 🇮🇳 **हिन्दी** — ~600M speakers. *Backtest Kit एक TypeScript इंजन है, जिसमें बैकटेस्ट किया गया कोड ही बिना किसी बदलाव के लाइव ट्रेडिंग में चलता है।*
-- 🇪🇸 **Español** — ~560M speakers. *Backtest Kit es un motor TypeScript de backtesting y trading en vivo donde el código que pruebas es exactamente el que opera.*
-- 🇧🇷 **Português** — ~260M speakers. *Backtest Kit é um motor TypeScript de backtesting e trading ao vivo em que o código testado é exatamente o que vai para produção.*
-- 🇷🇺 **Русский** — ~255M speakers. *Backtest Kit — TypeScript-движок для бэктеста и живой торговли: код, проверенный на истории, без изменений торгует на бирже.*
-- 🇹🇷 **Türkçe** — ~90M speakers. *Backtest Kit, geçmiş verilerle test ettiğiniz kodun canlı işlemlerde birebir aynı çalıştığı bir TypeScript motorudur.*
+
+- 🇬🇧 **English** — ~1.5B speakers. Backtest Kit is a TypeScript engine where the strategy you test on history is byte-for-byte the one that trades live — only the clock changes. It removes the failure modes that kill bots (look-ahead bias, crash corruption, silent order rejects, averaging up) at the API level, then adds first-class DCA, partial closes, portfolio risk, and AI/Pine signals on top.
+
+- 🇨🇳 **中文** — ~1.1B speakers. Backtest Kit 是一个 TypeScript 引擎：在历史数据上回测的策略代码，与实盘运行的代码逐字节一致，唯一区别只是时钟来源。它在 API 层面消除了让交易机器人崩溃的隐患（未来函数、崩溃损坏、静默拒单、越买越亏），并内置分批建仓、部分平仓、组合风控以及 AI/Pine 信号。
+
+- 🇮🇳 **हिन्दी** — ~600M speakers. Backtest Kit एक TypeScript इंजन है जिसमें इतिहास पर परखा गया कोड ही बिना बदलाव के लाइव ट्रेड करता है — केवल घड़ी बदलती है। यह बॉट को बर्बाद करने वाली गलतियाँ (लुक-अहेड बायस, क्रैश करप्शन, चुपचाप ऑर्डर रिजेक्ट, ऊपर औसत करना) API स्तर पर ही रोकता है, और ऊपर से DCA, आंशिक क्लोज़, पोर्टफोलियो जोखिम व AI/Pine सिग्नल देता है।
+
+- 🇪🇸 **Español** — ~560M speakers. Backtest Kit es un motor TypeScript donde la estrategia que pruebas con datos históricos es, byte a byte, la que opera en vivo — solo cambia el reloj. Elimina en la propia API los fallos que arruinan bots (sesgo look-ahead, corrupción por caídas, rechazos silenciosos de órdenes, promediar al alza) y suma DCA, cierres parciales, riesgo de cartera y señales de IA/Pine.
+
+- 🇧🇷 **Português** — ~260M speakers. Backtest Kit é um motor TypeScript em que a estratégia testada no histórico é, byte a byte, a mesma que opera ao vivo — só o relógio muda. Ele elimina no próprio API os erros que matam bots (viés look-ahead, corrupção por falha, rejeição silenciosa de ordens, preço médio para cima) e ainda oferece DCA, fechamentos parciais, risco de carteira e sinais de IA/Pine.
+
+- 🇷🇺 **Русский** — ~255M speakers. Backtest Kit — TypeScript-движок, где стратегия, проверенная на истории, побайтово совпадает с той, что торгует вживую: меняются только часы. Он устраняет на уровне API ошибки, губящие ботов (заглядывание в будущее, порча состояния при сбое, тихий отказ ордера, усреднение вверх), и добавляет полноценный DCA, частичные закрытия, портфельный риск и сигналы от AI/Pine.
+
+- 🇹🇷 **Türkçe** — ~90M speakers. Backtest Kit, geçmiş veride test ettiğiniz stratejinin canlıda bayt bayt aynısını çalıştıran bir TypeScript motorudur — yalnızca saat değişir. Botları çökerten hataları (look-ahead yanlılığı, çökme bozulması, sessiz emir reddi, yukarı ortalama) API düzeyinde ortadan kaldırır; üstüne DCA, kısmi kapanışlar, portföy riski ve AI/Pine sinyalleri ekler.
 
 </details>
 
