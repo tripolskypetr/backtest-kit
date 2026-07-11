@@ -256,6 +256,16 @@ export const GLOBAL_CONFIG = {
    */
   CC_MAX_NOTIFICATIONS: 500,
   /**
+   * Minimum interval between `signal_sync.check` notifications for a single signalId.
+   * Order-ping events (syncPendingSubject) fire on every live tick, so the
+   * NotificationAdapter throttles them: a signal produces at most one check
+   * notification per this interval. The throttle entry is removed when the
+   * signal is closed or cancelled.
+   *
+   * Default: 900000 ms (15 minutes)
+   */
+  CC_NOTIFICATION_CHECK_TTL: 900_000,
+  /**
    * Maximum number of signals to keep in storage.
    * Older signals are removed when this limit is exceeded.
    *

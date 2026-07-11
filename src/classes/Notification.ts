@@ -11,6 +11,9 @@ import {
   validationSubject,
   strategyCommitSubject,
   syncSubject,
+  syncPendingSubject,
+  signalEventSubject,
+  scheduleEventSubject,
   signalNotifySubject,
 } from "../config/emitters";
 import { NotificationModel } from "../model/Notification.model";
@@ -21,6 +24,9 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { OrderSyncContract } from "../contract/OrderSync.contract";
+import { OrderCheckContract } from "../contract/OrderCheck.contract";
+import { SignalEventContract } from "../contract/SignalEvent.contract";
+import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import backtest from "../lib";
 import { PersistNotificationAdapter } from "./Persist";
@@ -91,6 +97,17 @@ export interface INotificationTarget {
   signal_sync: boolean;
 
   /**
+   * Order-ping check notifications (`signal_sync.check`).
+   * Fired while a signal is monitored in live mode, when the framework asks the
+   * external order management system whether the order is still open on the
+   * exchange. Throttled to at most one notification per signalId per
+   * `CC_NOTIFICATION_CHECK_TTL` (default 15 minutes); the throttle entry is
+   * dropped when the signal is closed or cancelled.
+   * Source: `syncPendingSubject` (OrderCheckContract).
+   */
+  signal_check: boolean;
+
+  /**
    * Risk manager rejection notifications (`risk.rejection`).
    * Fired when the risk manager blocks a new signal from opening due to
    * active position count limits or other risk rules.
@@ -139,6 +156,7 @@ const WILDCARD_TARGET: INotificationTarget = {
   breakeven: true,
   strategy_commit: true,
   signal_sync: true,
+  signal_check: true,
   risk: true,
   info: true,
   common_error: true,
@@ -978,6 +996,55 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
 };
 
 /**
+ * Creates a notification model for order-ping check events.
+ * @param data - The order check contract data
+ * @returns NotificationModel for signal sync check event
+ */
+const CREATE_ORDER_CHECK_NOTIFICATION_FN = (data: OrderCheckContract): NotificationModel => ({
+  type: "signal_sync.check",
+  id: CREATE_KEY_FN(),
+  timestamp: data.timestamp,
+  backtest: data.backtest,
+  symbol: data.symbol,
+  strategyName: data.strategyName,
+  exchangeName: data.exchangeName,
+  signalId: data.signalId,
+  orderType: data.type,
+  currentPrice: data.currentPrice,
+  position: data.position,
+  priceOpen: data.priceOpen,
+  priceTakeProfit: data.priceTakeProfit,
+  priceStopLoss: data.priceStopLoss,
+  originalPriceTakeProfit: data.originalPriceTakeProfit,
+  originalPriceStopLoss: data.originalPriceStopLoss,
+  originalPriceOpen: data.originalPriceOpen,
+  totalEntries: data.totalEntries,
+  totalPartials: data.totalPartials,
+  pnl: data.pnl,
+  maxDrawdown: data.maxDrawdown,
+  peakProfit: data.peakProfit,
+  pnlPercentage: data.pnl.pnlPercentage,
+  pnlPriceOpen: data.pnl.priceOpen,
+  pnlPriceClose: data.pnl.priceClose,
+  pnlCost: data.pnl.pnlCost,
+  pnlEntries: data.pnl.pnlEntries,
+  peakProfitPriceOpen: data.peakProfit.priceOpen,
+  peakProfitPriceClose: data.peakProfit.priceClose,
+  peakProfitPercentage: data.peakProfit.pnlPercentage,
+  peakProfitCost: data.peakProfit.pnlCost,
+  peakProfitEntries: data.peakProfit.pnlEntries,
+  maxDrawdownPriceOpen: data.maxDrawdown.priceOpen,
+  maxDrawdownPriceClose: data.maxDrawdown.priceClose,
+  maxDrawdownPercentage: data.maxDrawdown.pnlPercentage,
+  maxDrawdownCost: data.maxDrawdown.pnlCost,
+  maxDrawdownEntries: data.maxDrawdown.pnlEntries,
+  scheduledAt: data.scheduledAt,
+  pendingAt: data.pendingAt,
+  note: data.signal.note,
+  createdAt: data.timestamp,
+});
+
+/**
  * Creates a notification model for risk rejection events.
  * @param data - The risk contract data
  * @returns NotificationModel for risk rejection event
@@ -1099,6 +1166,7 @@ const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS = "Notificati
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationMemoryBacktestUtils.handleBreakeven";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationMemoryBacktestUtils.handleStrategyCommit";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryBacktestUtils.handleSync";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CHECK = "NotificationMemoryBacktestUtils.handleCheck";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationMemoryBacktestUtils.handleRisk";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryBacktestUtils.handleError";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationMemoryBacktestUtils.handleCriticalError";
@@ -1113,6 +1181,7 @@ const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationMe
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationMemoryLiveUtils.handleBreakeven";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationMemoryLiveUtils.handleStrategyCommit";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryLiveUtils.handleSync";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CHECK = "NotificationMemoryLiveUtils.handleCheck";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationMemoryLiveUtils.handleRisk";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryLiveUtils.handleError";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationMemoryLiveUtils.handleCriticalError";
@@ -1146,6 +1215,7 @@ const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS = "Notificat
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistBacktestUtils.handleBreakeven";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistBacktestUtils.handleStrategyCommit";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationPersistBacktestUtils.handleSync";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CHECK = "NotificationPersistBacktestUtils.handleCheck";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationPersistBacktestUtils.handleRisk";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationPersistBacktestUtils.handleError";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationPersistBacktestUtils.handleCriticalError";
@@ -1162,6 +1232,7 @@ const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationP
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistLiveUtils.handleBreakeven";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistLiveUtils.handleStrategyCommit";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationPersistLiveUtils.handleSync";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CHECK = "NotificationPersistLiveUtils.handleCheck";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationPersistLiveUtils.handleRisk";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationPersistLiveUtils.handleError";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationPersistLiveUtils.handleCriticalError";
@@ -1205,6 +1276,11 @@ export interface INotificationUtils {
    * @param data - The signal sync contract data
    */
   handleSync(data: OrderSyncContract): Promise<void>;
+  /**
+   * Handles order-ping check event (signal-ping).
+   * @param data - The order check contract data
+   */
+  handleCheck(data: OrderCheckContract): Promise<void>;
   /**
    * Handles risk rejection event.
    * @param data - The risk contract data
@@ -1358,6 +1434,18 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
   });
 
   /**
+   * Handles order-ping check event.
+   * @param data - The order check contract data
+   */
+  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CHECK, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -1477,6 +1565,13 @@ export class NotificationDummyBacktestUtils implements INotificationUtils {
   }, {
     defaultValue: null,
   });
+
+  /**
+   * No-op handler for order-ping check event.
+   */
+  public handleCheck = async (): Promise<void> => {
+    void 0;
+  };
 
   /**
    * No-op handler for risk rejection event.
@@ -1697,6 +1792,20 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
   });
 
   /**
+   * Handles order-ping check event.
+   * @param data - The order check contract data
+   */
+  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CHECK, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -1886,6 +1995,18 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
   });
 
   /**
+   * Handles order-ping check event.
+   * @param data - The order check contract data
+   */
+  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CHECK, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -2005,6 +2126,13 @@ export class NotificationDummyLiveUtils implements INotificationUtils {
   }, {
     defaultValue: null,
   });
+
+  /**
+   * No-op handler for order-ping check event.
+   */
+  public handleCheck = async (): Promise<void> => {
+    void 0;
+  };
 
   /**
    * No-op handler for risk rejection event.
@@ -2228,6 +2356,20 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
   });
 
   /**
+   * Handles order-ping check event.
+   * @param data - The order check contract data
+   */
+  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CHECK, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -2382,6 +2524,15 @@ export class NotificationBacktestAdapter implements INotificationUtils {
   }, {
     defaultValue: null,
   });
+
+  /**
+   * Handles order-ping check event.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order check contract data
+   */
+  handleCheck = async (data: OrderCheckContract): Promise<void> => {
+    return await this.getInstance().handleCheck(data);
+  };
 
   /**
    * Handles risk rejection event.
@@ -2572,6 +2723,15 @@ export class NotificationLiveAdapter implements INotificationUtils {
   });
 
   /**
+   * Handles order-ping check event.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order check contract data
+   */
+  handleCheck = async (data: OrderCheckContract): Promise<void> => {
+    return await this.getInstance().handleCheck(data);
+  };
+
+  /**
    * Handles risk rejection event.
    * Proxies call to the underlying notification adapter.
    * @param data - The risk contract data
@@ -2701,6 +2861,7 @@ export class NotificationAdapter {
     breakeven = false,
     strategy_commit = false,
     signal_sync = false,
+    signal_check = false,
     risk = false,
     common_error = false,
     critical_error = false,
@@ -2711,11 +2872,38 @@ export class NotificationAdapter {
     let unBacktest: Function;
 
     {
+      // Throttle state for signal_sync.check: signalId -> timestamp of the last
+      // emitted check notification. Entries are dropped on signal close/cancel
+      // so the map cannot grow unbounded.
+      const checkThrottleMap = new Map<string, number>();
+
       const unBacktestSignal = signalBacktestEmitter.subscribe(async (data: IStrategyTickResult) => {
         if (signal) {
           await NotificationBacktest.handleSignal(data);
         }
       });
+
+      // Cleanup for checkThrottleMap. Tick-result emitters are NOT sufficient here:
+      // out-of-band closes (commitClosePending, failed order ping, scheduled cancel
+      // via commit) never reach signalBacktestEmitter/signalLiveEmitter. The
+      // lifecycle channels cover every path: signalEventSubject "closed" fires for
+      // all pending-signal closes (TP/SL/time_expired/user/ping), scheduleEventSubject
+      // "cancelled" fires for scheduled signals removed before activation.
+      const unBacktestSignalEvent = signalEventSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (event: SignalEventContract) => {
+          if (event.action === "closed") {
+            checkThrottleMap.delete(event.data.id);
+          }
+        });
+
+      const unBacktestScheduleEvent = scheduleEventSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (event: ScheduleEventContract) => {
+          if (event.action === "cancelled") {
+            checkThrottleMap.delete(event.data.id);
+          }
+        });
 
       const unBacktestPartialProfit = partialProfitSubject
         .filter(({ backtest }) => backtest)
@@ -2757,6 +2945,19 @@ export class NotificationAdapter {
           }
         });
 
+      const unBacktestCheck = syncPendingSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (data: OrderCheckContract) => {
+          if (signal_check) {
+            const lastTimestamp = checkThrottleMap.get(data.signalId);
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
+              return;
+            }
+            checkThrottleMap.set(data.signalId, data.timestamp);
+            await NotificationBacktest.handleCheck(data);
+          }
+        });
+
       const unBacktestRisk = riskSubject
         .filter(({ backtest }) => backtest)
         .connect(async (data: RiskContract) => {
@@ -2793,25 +2994,56 @@ export class NotificationAdapter {
 
       unBacktest = compose(
         () => unBacktestSignal(),
+        () => unBacktestSignalEvent(),
+        () => unBacktestScheduleEvent(),
         () => unBacktestPartialProfit(),
         () => unBacktestPartialLoss(),
         () => unBacktestBreakeven(),
         () => unBacktestStrategyCommit(),
         () => unBacktestSync(),
+        () => unBacktestCheck(),
         () => unBacktestRisk(),
         () => unBacktestError(),
         () => unBacktestExit(),
         () => unBacktestValidation(),
         () => unBacktestSignalNotify(),
+        () => checkThrottleMap.clear(),
       );
     }
 
     {
+      // Throttle state for signal_sync.check: signalId -> timestamp of the last
+      // emitted check notification. Entries are dropped on signal close/cancel
+      // so the map cannot grow unbounded.
+      const checkThrottleMap = new Map<string, number>();
+
       const unLiveSignal = signalLiveEmitter.subscribe(async (data: IStrategyTickResult) => {
         if (signal) {
           await NotificationLive.handleSignal(data);
         }
       });
+
+      // Cleanup for checkThrottleMap. Tick-result emitters are NOT sufficient here:
+      // out-of-band closes (commitClosePending, failed order ping, scheduled cancel
+      // via commit) never reach signalBacktestEmitter/signalLiveEmitter. The
+      // lifecycle channels cover every path: signalEventSubject "closed" fires for
+      // all pending-signal closes (TP/SL/time_expired/user/ping), scheduleEventSubject
+      // "cancelled" fires for scheduled signals removed before activation.
+      const unLiveSignalEvent = signalEventSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (event: SignalEventContract) => {
+          if (event.action === "closed") {
+            checkThrottleMap.delete(event.data.id);
+          }
+        });
+
+      const unLiveScheduleEvent = scheduleEventSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (event: ScheduleEventContract) => {
+          if (event.action === "cancelled") {
+            checkThrottleMap.delete(event.data.id);
+          }
+        });
 
       const unLivePartialProfit = partialProfitSubject
         .filter(({ backtest }) => !backtest)
@@ -2853,6 +3085,19 @@ export class NotificationAdapter {
           }
         });
 
+      const unLiveCheck = syncPendingSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (data: OrderCheckContract) => {
+          if (signal_check) {
+            const lastTimestamp = checkThrottleMap.get(data.signalId);
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
+              return;
+            }
+            checkThrottleMap.set(data.signalId, data.timestamp);
+            await NotificationLive.handleCheck(data);
+          }
+        });
+
       const unLiveRisk = riskSubject
         .filter(({ backtest }) => !backtest)
         .connect(async (data: RiskContract) => {
@@ -2889,16 +3134,20 @@ export class NotificationAdapter {
 
       unLive = compose(
         () => unLiveSignal(),
+        () => unLiveSignalEvent(),
+        () => unLiveScheduleEvent(),
         () => unLivePartialProfit(),
         () => unLivePartialLoss(),
         () => unLiveBreakeven(),
         () => unLiveStrategyCommit(),
         () => unLiveSync(),
+        () => unLiveCheck(),
         () => unLiveRisk(),
         () => unLiveError(),
         () => unLiveExit(),
         () => unLiveValidation(),
         () => unLiveSignalNotify(),
+        () => checkThrottleMap.clear(),
       );
     }
 
