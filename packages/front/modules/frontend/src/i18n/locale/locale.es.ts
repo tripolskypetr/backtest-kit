@@ -576,4 +576,8 @@ export const LOCALE: Record<string, string> = {
   "Breakeven Set": "Breakeven establecido",
   // Валюта: для Мосбиржи в ru — рубль
   "$": "$",
+  // LocalePicker
+  "Locale": "Idioma",
+  "Current Locale": "Idioma actual",
+  "Select Locale": "Seleccionar idioma",
 };

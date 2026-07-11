@@ -79,12 +79,12 @@ const useStyles = makeStyles()((theme) => ({
 
 const LOCALE_NAMES: Record<Locale, string> = {
   en: "English",
-  ru: "Russian",
-  tr: "Turkish",
-  zh: "Chinese",
-  hi: "Hindi",
-  es: "Spanish",
-  pt: "Portuguese",
+  ru: "Русский",
+  tr: "Türkçe",
+  zh: "中文",
+  hi: "हिन्दी",
+  es: "Español",
+  pt: "Português",
 };
 
 const LOCALE_ICONS: Record<Locale, Icon> = {
