@@ -1,4 +1,5 @@
 import "./tools/dom_patch";
 import "./i18n";
 
-export { t } from './tools/t';
+export { t, getLocale, setLocale, localeMap } from './tools/t';
+export type { Locale } from './tools/t';

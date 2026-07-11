@@ -2,6 +2,11 @@ import { singleshot, Subject } from "react-declarative";
 
 import { LOCALE as LOCALE_EN } from "../locale/locale.en";
 import { LOCALE as LOCALE_RU } from "../locale/locale.ru";
+import { LOCALE as LOCALE_TR } from "../locale/locale.tr";
+import { LOCALE as LOCALE_ZH } from "../locale/locale.zh";
+import { LOCALE as LOCALE_HI } from "../locale/locale.hi";
+import { LOCALE as LOCALE_ES } from "../locale/locale.es";
+import { LOCALE as LOCALE_PT } from "../locale/locale.pt";
 
 export type Locale = keyof typeof localeMap;
 
@@ -25,11 +30,11 @@ export const setLocale = (locale: keyof typeof localeMap) => {
 export const localeMap = {
   en: LOCALE_EN,
   ru: LOCALE_RU,
-};
-
-export const localeTrMap = {
-  "en": "English",
-  "ru": "Русский",
+  tr: LOCALE_TR,
+  zh: LOCALE_ZH,
+  hi: LOCALE_HI,
+  es: LOCALE_ES,
+  pt: LOCALE_PT,
 };
 
 export function t(str: string) {

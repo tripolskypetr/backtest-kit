@@ -18,6 +18,7 @@ import { IRouteItem } from "../../config/routes";
 import { useMemo } from "react";
 import Tooltip from "./Tooltip";
 import { t } from "../../i18n";
+import LocalePicker from "./LocalePicker";
 
 const LOADER_HEIGHT = 4;
 
@@ -323,6 +324,7 @@ export const AppHeader = ({
                 </Typography>
                 {renderTabs()}
                 <div className={classes.stretch} />
+                <LocalePicker />
                 <NotificationView />
                 <ActionMenu
                     className={classes.actionMenu}
