@@ -61,12 +61,16 @@ export class LinkService {
                 this.layoutService.pickSignalCancelled(parsed.params.notificationId);
                 return;
             }
-            if (parsed = parseRouteUrl("/pick-signal-sync-open/:notificationId", href)) {
-                this.layoutService.pickSignalSyncOpen(parsed.params.notificationId);
+            if (parsed = parseRouteUrl("/pick-order-sync-open/:notificationId", href)) {
+                this.layoutService.pickOrderSyncOpen(parsed.params.notificationId);
                 return;
             }
-            if (parsed = parseRouteUrl("/pick-signal-sync-close/:notificationId", href)) {
-                this.layoutService.pickSignalSyncClose(parsed.params.notificationId);
+            if (parsed = parseRouteUrl("/pick-order-sync-close/:notificationId", href)) {
+                this.layoutService.pickOrderSyncClose(parsed.params.notificationId);
+                return;
+            }
+            if (parsed = parseRouteUrl("/pick-order-sync-check/:notificationId", href)) {
+                this.layoutService.pickOrderSyncCheck(parsed.params.notificationId);
                 return;
             }
             if (parsed = parseRouteUrl("/pick-activate-scheduled/:notificationId", href)) {

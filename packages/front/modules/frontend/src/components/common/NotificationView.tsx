@@ -113,11 +113,11 @@ const getNotificationColor = (item: NotificationModel): string | undefined => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
-    case "signal_sync.open":
+    case "order_sync.open":
       return item.orderType === "schedule" ? "#FF9800" : "#4CAF50";
-    case "signal_sync.close":
+    case "order_sync.close":
       return "#2196F3";
-    case "signal_sync.check":
+    case "order_sync.check":
       return "#3F51B5";
     case "cancel_scheduled.commit":
       return "#9E9E9E";
@@ -164,11 +164,11 @@ const getNotificationIcon = (item: NotificationModel) => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
-    case "signal_sync.open":
+    case "order_sync.open":
       return item.orderType === "schedule" ? <Schedule sx={sx} /> : <PlayArrow sx={sx} />;
-    case "signal_sync.close":
+    case "order_sync.close":
       return <Close sx={sx} />;
-    case "signal_sync.check":
+    case "order_sync.check":
       return <Sync sx={sx} />;
     case "cancel_scheduled.commit":
       return <Cancel sx={sx} />;
@@ -218,11 +218,11 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
       return `${t("Trailing take")} ${item.symbol}`;
-    case "signal_sync.open":
+    case "order_sync.open":
       return `${t(item.orderType === "schedule" ? "Sync Placed" : "Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
-    case "signal_sync.close":
+    case "order_sync.close":
       return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
-    case "signal_sync.check":
+    case "order_sync.check":
       return `${t("Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
@@ -290,14 +290,14 @@ const handleNotificationClick = (item: NotificationModel) => {
     case "average_buy.commit":
       ioc.layoutService.pickAverageBuyCommit(item.id);
       break;
-    case "signal_sync.open":
-      ioc.layoutService.pickSignalSyncOpen(item.id);
+    case "order_sync.open":
+      ioc.layoutService.pickOrderSyncOpen(item.id);
       break;
-    case "signal_sync.close":
-      ioc.layoutService.pickSignalSyncClose(item.id);
+    case "order_sync.close":
+      ioc.layoutService.pickOrderSyncClose(item.id);
       break;
-    case "signal_sync.check":
-      ioc.layoutService.pickSignalSyncCheck(item.id);
+    case "order_sync.check":
+      ioc.layoutService.pickOrderSyncCheck(item.id);
       break;
     case "cancel_scheduled.commit":
       ioc.layoutService.pickCancelScheduled(item.id);
@@ -452,7 +452,7 @@ export const NotificationView = () => {
                 {async () => {
                   const rawItems = await ioc.notificationViewService.getList();
                   const items = rawItems.filter((item) =>
-                    item.type.startsWith("signal.") || item.type.startsWith("signal_sync.")
+                    item.type.startsWith("signal.") || item.type.startsWith("order_sync.")
                   );
                   return (
                     <VirtualView

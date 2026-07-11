@@ -135,7 +135,7 @@
     "maxDrawdownEntries": 100
   },
   {
-    "type": "signal_sync.close",
+    "type": "order_sync.close",
     "id": "a0b1c2d3-0001-4000-8000-000000000001",
     "timestamp": 1708875300000,
     "backtest": true,
@@ -182,7 +182,7 @@
     "maxDrawdownEntries": 100
   },
   {
-    "type": "signal_sync.check",
+    "type": "order_sync.check",
     "id": "a0b1c2d3-0004-4000-8000-000000000004",
     "timestamp": 1708873500000,
     "backtest": false,
@@ -684,7 +684,7 @@
     "maxDrawdownEntries": 100
   },
   {
-    "type": "signal_sync.open",
+    "type": "order_sync.open",
     "id": "a0b1c2d3-0002-4000-8000-000000000002",
     "timestamp": 1708871700000,
     "backtest": true,
@@ -731,7 +731,7 @@
     "maxDrawdownEntries": 100
   },
   {
-    "type": "signal_sync.open",
+    "type": "order_sync.open",
     "id": "a0b1c2d3-0003-4000-8000-000000000003",
     "timestamp": 1708871640000,
     "backtest": true,

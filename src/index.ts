@@ -351,20 +351,10 @@ export {
   AverageBuyCommitNotification,
   OrderSyncCloseNotification,
   OrderSyncOpenNotification,
-  OrderCheckNotification,
+  OrderSyncCheckNotification,
   CancelScheduledCommitNotification,
   ClosePendingCommitNotification,
   SignalInfoNotification,
-} from "./model/Notification.model";
-
-/**
- * Frontend-facing aliases: the UI keeps the "signal sync" entity naming
- * for order sync/check notifications.
- */
-export type {
-  OrderSyncOpenNotification as SignalSyncOpenNotification,
-  OrderSyncCloseNotification as SignalSyncCloseNotification,
-  OrderCheckNotification as SignalSyncCheckNotification,
 } from "./model/Notification.model";
 
 export { BacktestStatisticsModel } from "./model/BacktestStatistics.model";

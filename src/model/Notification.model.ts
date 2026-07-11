@@ -1076,7 +1076,7 @@ export interface TrailingTakeCommitNotification {
  */
 export interface OrderSyncOpenNotification {
   /** Discriminator for type-safe union */
-  type: "signal_sync.open";
+  type: "order_sync.open";
   /** Unique notification identifier */
   id: string;
   /** Unix timestamp in milliseconds when signal was opened */
@@ -1171,7 +1171,7 @@ export interface OrderSyncOpenNotification {
  */
 export interface OrderSyncCloseNotification {
   /** Discriminator for type-safe union */
-  type: "signal_sync.close";
+  type: "order_sync.close";
   /** Unique notification identifier */
   id: string;
   /** Unix timestamp in milliseconds when signal was closed */
@@ -1265,9 +1265,9 @@ export interface OrderSyncCloseNotification {
  * `CC_NOTIFICATION_CHECK_TTL` (default 15 minutes); the throttle entry is dropped
  * when the signal is closed or cancelled.
  */
-export interface OrderCheckNotification {
+export interface OrderSyncCheckNotification {
   /** Discriminator for type-safe union */
-  type: "signal_sync.check";
+  type: "order_sync.check";
   /** Unique notification identifier */
   id: string;
   /** Unix timestamp in milliseconds when the order ping was emitted */
@@ -1866,7 +1866,7 @@ export type NotificationModel =
   | ClosePendingCommitNotification
   | OrderSyncOpenNotification
   | OrderSyncCloseNotification
-  | OrderCheckNotification
+  | OrderSyncCheckNotification
   | RiskRejectionNotification
   | SignalScheduledNotification
   | SignalCancelledNotification

@@ -66,11 +66,11 @@ const getNotificationColor = (item: NotificationModel): string => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
-    case "signal_sync.open":
+    case "order_sync.open":
       return item.orderType === "schedule" ? "#FF9800" : "#4CAF50";
-    case "signal_sync.close":
+    case "order_sync.close":
       return "#2196F3";
-    case "signal_sync.check":
+    case "order_sync.check":
       return "#3F51B5";
     case "cancel_scheduled.commit":
       return "#9E9E9E";
@@ -117,11 +117,11 @@ const getNotificationIcon = (item: NotificationModel) => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
-    case "signal_sync.open":
+    case "order_sync.open":
       return item.orderType === "schedule" ? <Schedule sx={sx} /> : <PlayArrow sx={sx} />;
-    case "signal_sync.close":
+    case "order_sync.close":
       return <Close sx={sx} />;
-    case "signal_sync.check":
+    case "order_sync.check":
       return <Sync sx={sx} />;
     case "cancel_scheduled.commit":
       return <Cancel sx={sx} />;
@@ -171,11 +171,11 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
       return `${t("Trailing take")} ${item.symbol}`;
-    case "signal_sync.open":
+    case "order_sync.open":
       return `${t(item.orderType === "schedule" ? "Sync Placed" : "Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
-    case "signal_sync.close":
+    case "order_sync.close":
       return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
-    case "signal_sync.check":
+    case "order_sync.check":
       return `${t("Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
@@ -226,12 +226,12 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Trailing Stop");
     case "trailing_take.commit":
       return t("Trailing Take");
-    case "signal_sync.open":
-      return item.orderType === "schedule" ? t("Signal Sync Placed") : t("Signal Sync Open");
-    case "signal_sync.close":
-      return t("Signal Sync Close");
-    case "signal_sync.check":
-      return t("Signal Sync Check");
+    case "order_sync.open":
+      return item.orderType === "schedule" ? t("Order Sync Placed") : t("Order Sync Open");
+    case "order_sync.close":
+      return t("Order Sync Close");
+    case "order_sync.check":
+      return t("Order Sync Check");
     case "cancel_scheduled.commit":
       return t("Cancel Scheduled");
     case "close_pending.commit":
@@ -298,14 +298,14 @@ const handleNotificationClick = (item: NotificationModel) => {
     case "average_buy.commit":
       ioc.layoutService.pickAverageBuyCommit(item.id);
       break;
-    case "signal_sync.open":
-      ioc.layoutService.pickSignalSyncOpen(item.id);
+    case "order_sync.open":
+      ioc.layoutService.pickOrderSyncOpen(item.id);
       break;
-    case "signal_sync.close":
-      ioc.layoutService.pickSignalSyncClose(item.id);
+    case "order_sync.close":
+      ioc.layoutService.pickOrderSyncClose(item.id);
       break;
-    case "signal_sync.check":
-      ioc.layoutService.pickSignalSyncCheck(item.id);
+    case "order_sync.check":
+      ioc.layoutService.pickOrderSyncCheck(item.id);
       break;
     case "cancel_scheduled.commit":
       ioc.layoutService.pickCancelScheduled(item.id);
@@ -404,7 +404,7 @@ const hasPercentShift = (
 const hasOrderType = (
   item: NotificationModel
 ): item is NotificationModel & { orderType: "schedule" | "active" } => {
-  return (item.type === "signal_sync.open" || item.type === "signal_sync.check") && !!item.orderType;
+  return (item.type === "order_sync.open" || item.type === "order_sync.check") && !!item.orderType;
 };
 
 const hasNote = (
@@ -661,7 +661,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       sx={{ mt: 1, mr: 1 }}
                       size="small"
-                      label={item.type === "signal_sync.check" ? item.orderType.toUpperCase() : t(item.orderType === "schedule" ? "Order placed" : "Order filled")}
+                      label={item.type === "order_sync.check" ? item.orderType.toUpperCase() : t(item.orderType === "schedule" ? "Order placed" : "Order filled")}
                       variant="outlined"
                       color={item.orderType === "schedule" ? "warning" : "success"}
                     />

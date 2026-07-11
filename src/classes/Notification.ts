@@ -42,7 +42,7 @@ import get from "../utils/get";
  * @example
  * // Subscribe only to signal lifecycle and error events
  * notificationAdapter.enable({ signal: true, common_error: true, critical_error: true, validation_error: true,
- *   partial_profit: false, partial_loss: false, breakeven: false, strategy_commit: false, signal_sync: false,
+ *   partial_profit: false, partial_loss: false, breakeven: false, strategy_commit: false, order_sync: false, order_check: false,
  *   risk: false, info: false });
  */
 export interface INotificationTarget {
@@ -87,17 +87,17 @@ export interface INotificationTarget {
   strategy_commit: boolean;
 
   /**
-   * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
+   * Signal synchronization events for live trading (`order_sync.open`, `order_sync.close`).
    * Fired when the position order is filled (`signal-open` with `orderType: "active"`),
    * when the resting entry order is placed at scheduled-signal creation (`signal-open`
    * with `orderType: "schedule"`), or when an open position is confirmed exited
    * (`signal-close`) by the exchange sync layer.
    * Source: `syncSubject` (OrderSyncContract).
    */
-  signal_sync: boolean;
+  order_sync: boolean;
 
   /**
-   * Order-ping check notifications (`signal_sync.check`).
+   * Order-ping check notifications (`order_sync.check`).
    * Fired while a signal is monitored in live mode, when the framework asks the
    * external order management system whether the order is still open on the
    * exchange. Throttled to at most one notification per signalId per
@@ -105,7 +105,7 @@ export interface INotificationTarget {
    * dropped when the signal is closed or cancelled.
    * Source: `syncPendingSubject` (OrderCheckContract).
    */
-  signal_check: boolean;
+  order_check: boolean;
 
   /**
    * Risk manager rejection notifications (`risk.rejection`).
@@ -155,8 +155,8 @@ const WILDCARD_TARGET: INotificationTarget = {
   partial_loss: true,
   breakeven: true,
   strategy_commit: true,
-  signal_sync: true,
-  signal_check: true,
+  order_sync: true,
+  order_check: true,
   risk: true,
   info: true,
   common_error: true,
@@ -902,7 +902,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
 const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): NotificationModel => {
   if (data.action === "signal-open") {
     return {
-      type: "signal_sync.open",
+      type: "order_sync.open",
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -948,7 +948,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
   }
   if (data.action === "signal-close") {
     return {
-      type: "signal_sync.close",
+      type: "order_sync.close",
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -1001,7 +1001,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
  * @returns NotificationModel for signal sync check event
  */
 const CREATE_ORDER_CHECK_NOTIFICATION_FN = (data: OrderCheckContract): NotificationModel => ({
-  type: "signal_sync.check",
+  type: "order_sync.check",
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,
@@ -2860,8 +2860,8 @@ export class NotificationAdapter {
     partial_loss = false,
     breakeven = false,
     strategy_commit = false,
-    signal_sync = false,
-    signal_check = false,
+    order_sync = false,
+    order_check = false,
     risk = false,
     common_error = false,
     critical_error = false,
@@ -2872,7 +2872,7 @@ export class NotificationAdapter {
     let unBacktest: Function;
 
     {
-      // Throttle state for signal_sync.check: signalId -> timestamp of the last
+      // Throttle state for order_sync.check: signalId -> timestamp of the last
       // emitted check notification. Entries are dropped on signal close/cancel
       // so the map cannot grow unbounded.
       const checkThrottleMap = new Map<string, number>();
@@ -2940,7 +2940,7 @@ export class NotificationAdapter {
       const unBacktestSync = syncSubject
         .filter(({ backtest }) => backtest)
         .connect(async (data: OrderSyncContract) => {
-          if (signal_sync) {
+          if (order_sync) {
             await NotificationBacktest.handleSync(data);
           }
         });
@@ -2948,7 +2948,7 @@ export class NotificationAdapter {
       const unBacktestCheck = syncPendingSubject
         .filter(({ backtest }) => backtest)
         .connect(async (data: OrderCheckContract) => {
-          if (signal_check) {
+          if (order_check) {
             const lastTimestamp = checkThrottleMap.get(data.signalId);
             if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
               return;
@@ -3012,7 +3012,7 @@ export class NotificationAdapter {
     }
 
     {
-      // Throttle state for signal_sync.check: signalId -> timestamp of the last
+      // Throttle state for order_sync.check: signalId -> timestamp of the last
       // emitted check notification. Entries are dropped on signal close/cancel
       // so the map cannot grow unbounded.
       const checkThrottleMap = new Map<string, number>();
@@ -3080,7 +3080,7 @@ export class NotificationAdapter {
       const unLiveSync = syncSubject
         .filter(({ backtest }) => !backtest)
         .connect(async (data: OrderSyncContract) => {
-          if (signal_sync) {
+          if (order_sync) {
             await NotificationLive.handleSync(data);
           }
         });
@@ -3088,7 +3088,7 @@ export class NotificationAdapter {
       const unLiveCheck = syncPendingSubject
         .filter(({ backtest }) => !backtest)
         .connect(async (data: OrderCheckContract) => {
-          if (signal_check) {
+          if (order_check) {
             const lastTimestamp = checkThrottleMap.get(data.signalId);
             if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
               return;

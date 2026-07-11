@@ -762,7 +762,8 @@ Defaults (override per strategy):
 | `strategy_commit` | `true` | All committed actions (partial close, DCA, trailing, …) |
 | `partial_loss` | `false` | Partial loss level reached (before commit) |
 | `partial_profit` | `false` | Partial profit level reached (before commit) |
-| `signal_sync` | `false` | Live order fill / exit confirmations from exchange sync |
+| `order_sync` | `false` | Live order fill / exit confirmations from exchange sync |
+| `order_check` | `false` | Live order ping / pending confirmations from exchange sync |
 
 ```js
 // config/notification.config.ts

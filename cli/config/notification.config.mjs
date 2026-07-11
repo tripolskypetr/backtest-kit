@@ -8,6 +8,7 @@ export default {
   validation_error: true,
   partial_loss: false,
   partial_profit: false,
-  signal_sync: false,
+  order_sync: false,
+  order_check: false,
   strategy_commit: true,
 };

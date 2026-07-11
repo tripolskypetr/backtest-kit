@@ -37,7 +37,8 @@ export interface NotificationConfig {
   validation_error: boolean;
   partial_loss: boolean;
   partial_profit: boolean;
-  signal_sync: boolean;
+  order_sync: boolean;
+  order_check: boolean;
   strategy_commit: boolean;
 }
 
