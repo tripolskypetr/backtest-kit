@@ -24,6 +24,7 @@ import {
   SwapVert,
   Timeline,
   PlayArrow,
+  Sync,
   Warning as WarningIcon,
 } from "@mui/icons-material";
 
@@ -69,6 +70,8 @@ const getNotificationColor = (item: NotificationModel): string => {
       return item.orderType === "schedule" ? "#FF9800" : "#4CAF50";
     case "signal_sync.close":
       return "#2196F3";
+    case "signal_sync.check":
+      return "#3F51B5";
     case "cancel_scheduled.commit":
       return "#9E9E9E";
     case "close_pending.commit":
@@ -118,6 +121,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return item.orderType === "schedule" ? <Schedule sx={sx} /> : <PlayArrow sx={sx} />;
     case "signal_sync.close":
       return <Close sx={sx} />;
+    case "signal_sync.check":
+      return <Sync sx={sx} />;
     case "cancel_scheduled.commit":
       return <Cancel sx={sx} />;
     case "close_pending.commit":
@@ -170,6 +175,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t(item.orderType === "schedule" ? "Sync Placed" : "Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal_sync.close":
       return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+    case "signal_sync.check":
+      return `${t("Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
@@ -223,6 +230,8 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return item.orderType === "schedule" ? t("Signal Sync Placed") : t("Signal Sync Open");
     case "signal_sync.close":
       return t("Signal Sync Close");
+    case "signal_sync.check":
+      return t("Signal Sync Check");
     case "cancel_scheduled.commit":
       return t("Cancel Scheduled");
     case "close_pending.commit":
@@ -294,6 +303,9 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "signal_sync.close":
       ioc.layoutService.pickSignalSyncClose(item.id);
+      break;
+    case "signal_sync.check":
+      ioc.layoutService.pickSignalSyncCheck(item.id);
       break;
     case "cancel_scheduled.commit":
       ioc.layoutService.pickCancelScheduled(item.id);
@@ -392,7 +404,7 @@ const hasPercentShift = (
 const hasOrderType = (
   item: NotificationModel
 ): item is NotificationModel & { orderType: "schedule" | "active" } => {
-  return item.type === "signal_sync.open" && !!item.orderType;
+  return (item.type === "signal_sync.open" || item.type === "signal_sync.check") && !!item.orderType;
 };
 
 const hasNote = (
@@ -649,7 +661,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       sx={{ mt: 1, mr: 1 }}
                       size="small"
-                      label={t(item.orderType === "schedule" ? "Order placed" : "Order filled")}
+                      label={item.type === "signal_sync.check" ? item.orderType.toUpperCase() : t(item.orderType === "schedule" ? "Order placed" : "Order filled")}
                       variant="outlined"
                       color={item.orderType === "schedule" ? "warning" : "success"}
                     />

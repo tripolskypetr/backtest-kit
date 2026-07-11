@@ -41,9 +41,10 @@ import useActivateScheduledView from "../hooks/useActivateScheduledView";
 // Average buy hook
 import useAverageBuyCommitView from "../hooks/useAverageBuyCommitView";
 
-// Signal sync hooks (2 types)
+// Signal sync hooks (3 types)
 import useSignalSyncOpenView from "../hooks/useSignalSyncOpenView";
 import useSignalSyncCloseView from "../hooks/useSignalSyncCloseView";
+import useSignalSyncCheckView from "../hooks/useSignalSyncCheckView";
 
 // Cancel scheduled / close pending hooks
 import useCancelScheduledView from "../hooks/useCancelScheduledView";
@@ -128,9 +129,10 @@ export const LayoutModalProvider = ({
     // Average buy hook
     const pickAverageBuyCommit = useAverageBuyCommitView();
 
-    // Signal sync hooks (2 types)
+    // Signal sync hooks (3 types)
     const pickSignalSyncOpen = useSignalSyncOpenView();
     const pickSignalSyncClose = useSignalSyncCloseView();
+    const pickSignalSyncCheck = useSignalSyncCheckView();
 
     // Cancel scheduled / close pending hooks
     const pickCancelScheduled = useCancelScheduledView();
@@ -199,9 +201,10 @@ export const LayoutModalProvider = ({
     // Average buy subscription
     useOnce(() => ioc.layoutService.pickAverageBuyCommitSubject.subscribe(pickAverageBuyCommit));
 
-    // Signal sync subscriptions (2 types)
+    // Signal sync subscriptions (3 types)
     useOnce(() => ioc.layoutService.pickSignalSyncOpenSubject.subscribe(pickSignalSyncOpen));
     useOnce(() => ioc.layoutService.pickSignalSyncCloseSubject.subscribe(pickSignalSyncClose));
+    useOnce(() => ioc.layoutService.pickSignalSyncCheckSubject.subscribe(pickSignalSyncCheck));
 
     // Cancel scheduled / close pending subscriptions
     useOnce(() => ioc.layoutService.pickCancelScheduledSubject.subscribe(pickCancelScheduled));

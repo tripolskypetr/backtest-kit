@@ -38,9 +38,10 @@ export class LayoutService {
     // Average buy subject
     public readonly pickAverageBuyCommitSubject = new Subject<string>();
 
-    // Signal sync subjects (2 types)
+    // Signal sync subjects (3 types)
     public readonly pickSignalSyncOpenSubject = new Subject<string>();
     public readonly pickSignalSyncCloseSubject = new Subject<string>();
+    public readonly pickSignalSyncCheckSubject = new Subject<string>();
 
     // Cancel scheduled / close pending subjects
     public readonly pickCancelScheduledSubject = new Subject<string>();
@@ -213,13 +214,17 @@ export class LayoutService {
         await this.pickAverageBuyCommitSubject.next(notificationId);
     };
 
-    // Signal sync methods (2 types)
+    // Signal sync methods (3 types)
     pickSignalSyncOpen = async (notificationId: string) => {
         await this.pickSignalSyncOpenSubject.next(notificationId);
     };
 
     pickSignalSyncClose = async (notificationId: string) => {
         await this.pickSignalSyncCloseSubject.next(notificationId);
+    };
+
+    pickSignalSyncCheck = async (notificationId: string) => {
+        await this.pickSignalSyncCheckSubject.next(notificationId);
     };
 
     // Cancel scheduled / close pending methods
