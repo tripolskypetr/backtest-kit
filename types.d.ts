@@ -26314,7 +26314,7 @@ declare class NotificationBacktestAdapter implements INotificationUtils {
      * Proxies call to the underlying notification adapter.
      * @param data - The order check contract data
      */
-    handleCheck: (data: OrderCheckContract) => Promise<void>;
+    handleCheck: (data: OrderCheckContract) => any;
     /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.
@@ -26441,7 +26441,7 @@ declare class NotificationLiveAdapter implements INotificationUtils {
      * Proxies call to the underlying notification adapter.
      * @param data - The order check contract data
      */
-    handleCheck: (data: OrderCheckContract) => Promise<void>;
+    handleCheck: (data: OrderCheckContract) => any;
     /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.

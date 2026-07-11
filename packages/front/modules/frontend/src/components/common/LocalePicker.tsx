@@ -146,6 +146,16 @@ export const LocalePicker = () => {
                   setAnchorEl(currentTarget);
                 }
               }}
+              sx={{
+                ml: {
+                  xs: 1,
+                  md: 2,
+                },
+                mr: {
+                  xs: 1,
+                  sm: 2,
+                },
+              }}
             >
                 <TranslateOutlined />
             </IconButton>
