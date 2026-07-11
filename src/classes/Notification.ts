@@ -101,7 +101,7 @@ export interface INotificationTarget {
    * Fired while a signal is monitored in live mode, when the framework asks the
    * external order management system whether the order is still open on the
    * exchange. Throttled to at most one notification per signalId per
-   * `CC_NOTIFICATION_CHECK_TTL` (default 15 minutes); the throttle entry is
+   * `CC_NOTIFICATION_ORDER_CHECK_TTL` (default 15 minutes); the throttle entry is
    * dropped when the signal is closed or cancelled.
    * Source: `syncPendingSubject` (OrderCheckContract).
    */
@@ -2950,7 +2950,7 @@ export class NotificationAdapter {
         .connect(async (data: OrderCheckContract) => {
           if (order_check) {
             const lastTimestamp = checkThrottleMap.get(data.signalId);
-            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_ORDER_CHECK_TTL) {
               return;
             }
             checkThrottleMap.set(data.signalId, data.timestamp);
@@ -3090,7 +3090,7 @@ export class NotificationAdapter {
         .connect(async (data: OrderCheckContract) => {
           if (order_check) {
             const lastTimestamp = checkThrottleMap.get(data.signalId);
-            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_ORDER_CHECK_TTL) {
               return;
             }
             checkThrottleMap.set(data.signalId, data.timestamp);

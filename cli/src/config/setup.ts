@@ -6,6 +6,10 @@ setConfig({
 })
 
 setConfig({
+  CC_NOTIFICATION_ORDER_CHECK_TTL: 15 * 60 * 1_000,
+})
+
+setConfig({
   CC_ENABLE_DCA_EVERYWHERE: true,
   CC_ENABLE_PPPL_EVERYWHERE: true,
   CC_ENABLE_TRAILING_EVERYWHERE: true,
