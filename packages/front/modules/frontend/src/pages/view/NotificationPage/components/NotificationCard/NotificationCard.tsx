@@ -66,7 +66,7 @@ const getNotificationColor = (item: NotificationModel): string => {
     case "trailing_take.commit":
       return "#673AB7";
     case "signal_sync.open":
-      return "#4CAF50";
+      return item.orderType === "schedule" ? "#FF9800" : "#4CAF50";
     case "signal_sync.close":
       return "#2196F3";
     case "cancel_scheduled.commit":
@@ -115,7 +115,7 @@ const getNotificationIcon = (item: NotificationModel) => {
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
     case "signal_sync.open":
-      return <PlayArrow sx={sx} />;
+      return item.orderType === "schedule" ? <Schedule sx={sx} /> : <PlayArrow sx={sx} />;
     case "signal_sync.close":
       return <Close sx={sx} />;
     case "cancel_scheduled.commit":
@@ -167,7 +167,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "trailing_take.commit":
       return `${t("Trailing take")} ${item.symbol}`;
     case "signal_sync.open":
-      return `${t("Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
+      return `${t(item.orderType === "schedule" ? "Sync Placed" : "Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal_sync.close":
       return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "cancel_scheduled.commit":
@@ -220,7 +220,7 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
     case "trailing_take.commit":
       return t("Trailing Take");
     case "signal_sync.open":
-      return t("Signal Sync Open");
+      return item.orderType === "schedule" ? t("Signal Sync Placed") : t("Signal Sync Open");
     case "signal_sync.close":
       return t("Signal Sync Close");
     case "cancel_scheduled.commit":
@@ -387,6 +387,12 @@ const hasPercentShift = (
   item: NotificationModel
 ): item is NotificationModel & { percentShift: number } => {
   return "percentShift" in item;
+};
+
+const hasOrderType = (
+  item: NotificationModel
+): item is NotificationModel & { orderType: "schedule" | "active" } => {
+  return item.type === "signal_sync.open" && !!item.orderType;
 };
 
 const hasNote = (
@@ -637,6 +643,15 @@ export const NotificationCard = forwardRef(
                       sx={{ mt: 1, mr: 1 }}
                       label={`${t("Shift")}: ${item.percentShift > 0 ? "+" : ""}${item.percentShift}%`}
                       variant="outlined"
+                    />
+                  )}
+                  {hasOrderType(item) && (
+                    <Chip
+                      size="small"
+                      sx={{ mt: 1, mr: 1 }}
+                      label={t(item.orderType === "schedule" ? "Order placed" : "Order filled")}
+                      variant="outlined"
+                      color={item.orderType === "schedule" ? "warning" : "success"}
                     />
                   )}
                   {hasActivePositionCount(item) && (

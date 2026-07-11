@@ -70,6 +70,21 @@ export const signal_sync_open_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
+                        name: "orderType",
+                        title: "Order Type",
+                        readonly: true,
+                        isVisible: (obj) => !!obj.orderType,
+                        compute: (obj) =>
+                            obj.orderType === "schedule"
+                                ? "Schedule (order placed)"
+                                : "Active (order filled)",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
                         name: "currentPrice",
                         title: "Current Price",
                         readonly: true,

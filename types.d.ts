@@ -12833,7 +12833,9 @@ interface TrailingTakeCommitNotification {
 }
 /**
  * Signal sync open notification.
- * Emitted when a scheduled (limit order) signal is activated and the position is opened.
+ * Emitted when the position order is filled (`orderType: "active"` — immediate open
+ * or activation fill of a resting order) or when the resting entry order is placed
+ * at scheduled-signal creation (`orderType: "schedule"`).
  */
 interface OrderSyncOpenNotification {
     /** Discriminator for type-safe union */
@@ -12852,6 +12854,12 @@ interface OrderSyncOpenNotification {
     exchangeName: ExchangeName;
     /** Unique signal identifier (UUID v4) */
     signalId: string;
+    /**
+     * Which order this sync event is about (from OrderSyncContract.type):
+     * - "active" — the position order was filled (immediate open or activation of a resting order)
+     * - "schedule" — the resting entry order was placed at scheduled-signal creation (not a fill)
+     */
+    orderType: "schedule" | "active";
     /** Current market price at activation */
     currentPrice: number;
     /** Total PNL of the closed position (including all entries and partials) */
@@ -12940,6 +12948,8 @@ interface OrderSyncCloseNotification {
     exchangeName: ExchangeName;
     /** Unique signal identifier (UUID v4) */
     signalId: string;
+    /** Which order this sync event is about (from OrderSyncContract.type). Closes always go through the position order, so this is always "active". */
+    orderType: "schedule" | "active";
     /** Current market price at close */
     currentPrice: number;
     /** Total PNL of the closed position (including all entries and partials) */
@@ -26007,8 +26017,10 @@ interface INotificationTarget {
     strategy_commit: boolean;
     /**
      * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
-     * Fired when a limit order is confirmed filled (`signal-open`) or when an open
-     * position is confirmed exited (`signal-close`) by the exchange sync layer.
+     * Fired when the position order is filled (`signal-open` with `orderType: "active"`),
+     * when the resting entry order is placed at scheduled-signal creation (`signal-open`
+     * with `orderType: "schedule"`), or when an open position is confirmed exited
+     * (`signal-close`) by the exchange sync layer.
      * Source: `syncSubject` (OrderSyncContract).
      */
     signal_sync: boolean;

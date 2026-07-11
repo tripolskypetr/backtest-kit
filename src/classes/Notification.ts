@@ -82,8 +82,10 @@ export interface INotificationTarget {
 
   /**
    * Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
-   * Fired when a limit order is confirmed filled (`signal-open`) or when an open
-   * position is confirmed exited (`signal-close`) by the exchange sync layer.
+   * Fired when the position order is filled (`signal-open` with `orderType: "active"`),
+   * when the resting entry order is placed at scheduled-signal creation (`signal-open`
+   * with `orderType: "schedule"`), or when an open position is confirmed exited
+   * (`signal-close`) by the exchange sync layer.
    * Source: `syncSubject` (OrderSyncContract).
    */
   signal_sync: boolean;
@@ -874,7 +876,8 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
 
 /**
  * Creates a notification model for signal sync events.
- * Handles signal-open (limit order filled) and signal-close (position exited) actions.
+ * Handles signal-open (position order filled with orderType "active", or resting
+ * entry order placed with orderType "schedule") and signal-close (position exited) actions.
  * @param data - The signal sync contract data
  * @returns NotificationModel for signal sync event
  */
@@ -889,6 +892,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
       strategyName: data.strategyName,
       exchangeName: data.exchangeName,
       signalId: data.signalId,
+      orderType: data.type,
       currentPrice: data.currentPrice,
       pnl: data.signal.pnl,
       maxDrawdown: data.signal.maxDrawdown,
@@ -934,6 +938,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
       strategyName: data.strategyName,
       exchangeName: data.exchangeName,
       signalId: data.signalId,
+      orderType: data.type,
       currentPrice: data.currentPrice,
       pnl: data.signal.pnl,
       maxDrawdown: data.signal.maxDrawdown,
@@ -1347,11 +1352,6 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
-    // A "schedule" open is a resting-order placement, not a fill:
-    // signal_sync.open means "limit order confirmed filled"
-    if (data.action === "signal-open" && data.type === "schedule") {
-      return;
-    }
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
   }, {
     defaultValue: null,
@@ -1689,11 +1689,6 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
-    // A "schedule" open is a resting-order placement, not a fill:
-    // signal_sync.open means "limit order confirmed filled"
-    if (data.action === "signal-open" && data.type === "schedule") {
-      return;
-    }
     await this.waitForInit();
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
     await this._updateNotifications();
@@ -1885,11 +1880,6 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
-    // A "schedule" open is a resting-order placement, not a fill:
-    // signal_sync.open means "limit order confirmed filled"
-    if (data.action === "signal-open" && data.type === "schedule") {
-      return;
-    }
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
   }, {
     defaultValue: null,
@@ -2230,11 +2220,6 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
       signalId: data.signalId,
       action: data.action,
     });
-    // A "schedule" open is a resting-order placement, not a fill:
-    // signal_sync.open means "limit order confirmed filled"
-    if (data.action === "signal-open" && data.type === "schedule") {
-      return;
-    }
     await this.waitForInit();
     this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
     await this._updateNotifications();
