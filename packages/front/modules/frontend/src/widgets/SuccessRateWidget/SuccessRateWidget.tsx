@@ -1,6 +1,7 @@
 import { FadeView } from "react-declarative";
 
 import { makeStyles } from '../../styles';
+import { t } from "../../i18n";
 
 import Box from "@mui/material/Box";
 
@@ -80,7 +81,7 @@ export const SuccessRateWidget = ({
                     }}
                 >
                     <div style={{background: '#7FB537', width: 15, height: 15, borderRadius: '3px', marginRight: '5px'}}></div>
-                    <span>Take profit</span>
+                    <span>{t("Take profit")}</span>
                 </Box>
                 <Box
                     sx={{
@@ -89,7 +90,7 @@ export const SuccessRateWidget = ({
                     }}
                 >
                     <div style={{background: '#4FC0E8', width: 15, height: 15, borderRadius: '3px', marginRight: '5px'}}></div>
-                    <span>Resolved</span>
+                    <span>{t("Resolved")}</span>
                 </Box>
                 <Box
                     sx={{
@@ -98,7 +99,7 @@ export const SuccessRateWidget = ({
                     }}
                 >
                     <div style={{background: '#FE9B31', width: 15, height: 15, borderRadius: '3px', marginRight: '5px'}}></div>
-                    <span>Rejected</span>
+                    <span>{t("Rejected")}</span>
                 </Box>
                 <Box
                     sx={{
@@ -107,7 +108,7 @@ export const SuccessRateWidget = ({
                     }}
                 >
                     <div style={{background: '#FA5F5A', width: 15, height: 15, borderRadius: '3px', marginRight: '5px'}}></div>
-                    <span>Stop loss</span>
+                    <span>{t("Stop loss")}</span>
                 </Box>
             </Box>
         </Paper>

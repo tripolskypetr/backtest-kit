@@ -10,6 +10,7 @@ import { Box } from "@mui/material";
 import StatusCard from "../components/StatusCard";
 import ioc from "../../../../../../lib";
 import { IBreakevenPayload } from "../useBreakevenModal";
+import { t } from "../../../../../../i18n";
 
 interface IState {
   success: boolean;
@@ -68,7 +69,7 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="error"
-          title="Breakeven Error"
+          title={t("Breakeven Error")}
           description={state.error}
           symbol={symbol}
         />
@@ -78,8 +79,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="loading"
-          title="Moving to Breakeven"
-          description="Please wait. Your operation is being processed..."
+          title={t("Moving to Breakeven")}
+          description={t("Please wait. Your operation is being processed...")}
           symbol={symbol}
         />
       );
@@ -87,8 +88,8 @@ export const SubmitView = ({
     return (
       <StatusCard
         type="success"
-        title="Breakeven Set"
-        description="Breakeven has been scheduled successfully. Waiting for the order to be executed on the exchange"
+        title={t("Breakeven Set")}
+        description={t("Breakeven has been scheduled successfully. Waiting for the order to be executed on the exchange")}
         symbol={symbol}
       />
     );
@@ -97,7 +98,7 @@ export const SubmitView = ({
   const renderNavigation = () => (
     <WizardNavigation
       hasNext={state.success || !!state.error}
-      labelNext="Close"
+      labelNext={t("Close")}
       onNext={async () => {
         await beginSave();
       }}

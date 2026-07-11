@@ -7,6 +7,7 @@ import Typography from "@mui/material/Typography";
 import usePropsContext from "../../context/PropsContext";
 
 import roundNumber from "../../../../utils/roundNumber";
+import { t } from "../../../../i18n";
 
 interface INoteProps {
   className?: string;
@@ -44,7 +45,7 @@ const useStyles = makeStyles()((theme) => ({
 
 export const Note = ({ className, style }: INoteProps) => {
   const { classes } = useStyles();
-  const { value, roundDigits = 3, valueUnit = "Unit" } = usePropsContext();
+  const { value, roundDigits = 3, valueUnit = t("Unit") } = usePropsContext();
   return (
     <div className={classNames(className, classes.root)} style={style}>
       <div className={classes.container}>

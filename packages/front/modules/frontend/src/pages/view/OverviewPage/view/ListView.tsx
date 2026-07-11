@@ -29,6 +29,7 @@ import ioc from "../../../../lib";
 import IconPhoto from "../../../../components/common/IconPhoto";
 import { IStorageSignalRow } from "backtest-kit";
 import actionSubject from "../config/actionSubject";
+import { t } from "../../../../i18n";
 
 interface IListViewData {
     type: "backtest" | "live";
@@ -135,8 +136,8 @@ export const ListView = ({
                                 maxWidth: "435px",
                             },
                         }}
-                        primary="No signals"
-                        secondary="Signals will be displayed here after they appear"
+                        primary={t("No signals")}
+                        secondary={t("Signals will be displayed here after they appear")}
                     />
                 </ListItem>
             );
@@ -220,7 +221,7 @@ export const ListView = ({
                                                 mr: 0.5,
                                             }}
                                         >
-                                            Entry:
+                                            {t("Entry")}:
                                         </Box>
                                         {formatAmount(item.priceOpen)}$
                                         {item.originalPriceOpen != null && Number(item.originalPriceOpen).toFixed(6) !== Number(item.priceOpen).toFixed(6) && (
@@ -252,7 +253,7 @@ export const ListView = ({
                                                 mr: 0.5,
                                             }}
                                         >
-                                            TP:
+                                            {t("TP")}:
                                         </Box>
                                         {formatAmount(item.priceTakeProfit)}$
                                         {item.originalPriceTakeProfit != null && Number(item.originalPriceTakeProfit).toFixed(6) !== Number(item.priceTakeProfit).toFixed(6) && (
@@ -284,7 +285,7 @@ export const ListView = ({
                                                 mr: 0.5,
                                             }}
                                         >
-                                            SL:
+                                            {t("SL")}:
                                         </Box>
                                         {formatAmount(item.priceStopLoss)}$
                                         {item.originalPriceStopLoss != null && Number(item.originalPriceStopLoss).toFixed(6) !== Number(item.priceStopLoss).toFixed(6) && (
@@ -314,7 +315,7 @@ export const ListView = ({
                                                     mr: 0.5,
                                                 }}
                                             >
-                                                Invested:
+                                                {t("Invested")}:
                                             </Box>
                                             {formatAmount(item.pnl.pnlEntries)}$
                                         </Typography>
@@ -338,7 +339,7 @@ export const ListView = ({
                                                         : "#c62828",
                                             }}
                                         >
-                                            PNL: {item.pnl.pnlPercentage >= 0 ? "+" : ""}
+                                            {t("PNL")}: {item.pnl.pnlPercentage >= 0 ? "+" : ""}
                                             {item.pnl.pnlPercentage.toFixed(2)}%
                                             {" / "}
                                             {item.pnl.pnlCost >= 0 ? "+" : ""}
@@ -372,7 +373,7 @@ export const ListView = ({
                                                 color: "#6a1b9a",
                                             }}
                                         >
-                                            Partial×{item.totalPartials}
+                                            {t("Partial")}×{item.totalPartials}
                                         </Typography>
                                     )}
                                     <Typography
@@ -454,11 +455,11 @@ export const ListView = ({
                         return (
                             <ListItem>
                                 <ListItemText
-                                    primary="No signals yet"
+                                    primary={t("No signals yet")}
                                     secondary={
                                         type === "live"
-                                            ? "Live signals will be displayed here"
-                                            : "Backtest signals will be displayed here"
+                                            ? t("Live signals will be displayed here")
+                                            : t("Backtest signals will be displayed here")
                                     }
                                 />
                             </ListItem>
@@ -498,7 +499,7 @@ export const ListView = ({
                                             variant="body2"
                                             sx={{ fontWeight: "medium" }}
                                         >
-                                            {wordForm(count, { one: "Signal", two: "Signals", many: "Signals" })}
+                                            {wordForm(count, { one: t("Signal"), two: t("Signals"), many: t("Signals") })}
                                         </Typography>
                                     </ListSubheader>
                                     <Box

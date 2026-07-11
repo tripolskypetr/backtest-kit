@@ -22,6 +22,7 @@ import Tooltip from "../../../../components/common/Tooltip";
 import { CloudSync } from "@mui/icons-material";
 import getPriceScale from "../../../../utils/getPriceScale";
 import ioc from "../../../../lib";
+import { t } from "../../../../i18n";
 
 const RUNTIME_INFO_TTL = 15_000;
 
@@ -53,7 +54,7 @@ export const NavigationView = () => {
         return (
             <Tooltip
                 placement="bottom"
-                description={backtest ? "Backtest mode" : "Live mode"}
+                description={backtest ? t("Backtest mode") : t("Live mode")}
             >
                 <Stack
                     direction="row"
@@ -81,7 +82,7 @@ export const NavigationView = () => {
                             opacity: 0.5,
                         }}
                     >
-                        Symbol:
+                        {t("Symbol")}:
                         {typo.nbsp}
                         <b>{symbol}</b>
                     </Typography>
@@ -92,7 +93,7 @@ export const NavigationView = () => {
                             opacity: 0.5,
                         }}
                     >
-                        Time:
+                        {t("Time")}:
                         {typo.nbsp}
                         <b>{dayjs(when).format("HH:mm DD MMM YYYY")}</b>
                     </Typography>
@@ -103,7 +104,7 @@ export const NavigationView = () => {
                             opacity: 0.5,
                         }}
                     >
-                        Price:
+                        {t("Price")}:
                         {typo.nbsp}
                         <b>
                             {formatAmount(
@@ -120,14 +121,14 @@ export const NavigationView = () => {
 
     return (
         <Stack direction="row" alignItems="center">
-            <Breadcrumbs aria-label="breadcrumb">
+            <Breadcrumbs aria-label={t("breadcrumb")}>
                 <Link
                     underline="always"
                     color="inherit"
                     href="#"
                     onClick={(e) => e.preventDefault()}
                 >
-                    Main
+                    {t("Main")}
                 </Link>
                 <Link
                     underline="always"
@@ -135,7 +136,7 @@ export const NavigationView = () => {
                     href="#"
                     onClick={(e) => e.preventDefault()}
                 >
-                    Navigation
+                    {t("Navigation")}
                 </Link>
             </Breadcrumbs>
             <Box flex={1} />

@@ -1,31 +1,32 @@
 import { ITabsStep } from "react-declarative";
+import { t } from "../../i18n";
 
 export const tabs: ITabsStep[] = [
   {
     id: "status",
-    label: "Signal Status",
+    label: t("Signal Status"),
   },
   {
     id: "signal",
-    label: "Signal State",
+    label: t("Signal State"),
   },
   {
     id: "notification",
-    label: "Notifications",
+    label: t("Notifications"),
   },
   {
     id: "candle_1m",
-    label: "Timeframe 1m",
+    label: t("Timeframe 1m"),
     isVisible: ({ candle_1m }) => !!candle_1m,
   },
   {
     id: "candle_15m",
-    label: "Timeframe 15m",
+    label: t("Timeframe 15m"),
     isVisible: ({ candle_15m }) => !!candle_15m,
   },
   {
     id: "candle_1h",
-    label: "Timeframe 1h",
+    label: t("Timeframe 1h"),
     isVisible: ({ candle_1h }) => !!candle_1h,
   },
 ];

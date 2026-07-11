@@ -13,6 +13,7 @@ import {
 import { defaultSlots } from "../../../../../../components/OneSlotFactory";
 import ioc from "../../../../../../lib";
 import { IBreakevenPayload } from "../useBreakevenModal";
+import { t } from "../../../../../../i18n";
 
 const fields: TypedField[] = [
   {
@@ -28,7 +29,7 @@ const fields: TypedField[] = [
           style: { opacity: 0.5 },
           fieldBottomMargin: "3",
           typoVariant: "h6",
-          placeholder: "Move to Breakeven",
+          placeholder: t("Move to Breakeven"),
         },
         {
           type: FieldType.Outline,
@@ -37,7 +38,7 @@ const fields: TypedField[] = [
               type: FieldType.Text,
               name: "symbol",
               compute: ({}, payload) => payload.symbol,
-              title: "Symbol",
+              title: t("Symbol"),
             },
             {
               type: FieldType.Text,
@@ -46,7 +47,7 @@ const fields: TypedField[] = [
               inputMode: "decimal",
               inputType: "tel",
               compute: ({}, payload) => `${formatAmount(payload.averagePrice)}$`,
-              title: "Coin Price",
+              title: t("Coin Price"),
               placeholder: "000000.00",
               inputFormatterSymbol: "0",
               inputFormatterAllowed: /[0-9.]/,
@@ -58,7 +59,7 @@ const fields: TypedField[] = [
           fieldBottomMargin: "3",
           typoVariant: "caption",
           sx: { pt: 2, opacity: 0.5, fontSize: 12 },
-          placeholder: `${typo.bullet} Carefully verify that this is the coin whose stop you want to move to breakeven. Rely on the symbol AND THE PRICE`,
+          placeholder: `${typo.bullet} ${t("Carefully verify that this is the coin whose stop you want to move to breakeven. Rely on the symbol AND THE PRICE")}`,
         },
       ],
     },
@@ -121,7 +122,7 @@ export const BriefView = ({
         <WizardNavigation
           hasPrev
           hasNext={!!info}
-          labelPrev="Close"
+          labelPrev={t("Close")}
           onPrev={async () => {
             await onClose();
           }}

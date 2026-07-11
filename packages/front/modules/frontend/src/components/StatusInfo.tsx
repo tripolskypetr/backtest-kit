@@ -9,6 +9,7 @@ import StatusInfoModel from "../model/StatusInfo.model";
 import ContentCopy from "@mui/icons-material/ContentCopy";
 import { copyToClipboard } from "react-declarative";
 import ioc from "../lib";
+import { t } from "../i18n";
 
 const useStyles = makeStyles()((theme) => ({
     root: {
@@ -44,7 +45,7 @@ const fmt = (v: number | null, suffix = "%") =>
     v == null || Number.isNaN(v) ? "—" : `${v.toFixed(2)}${suffix}`;
 
 const fmtMin = (v: number | null) =>
-    v == null || Number.isNaN(v) ? "—" : `${v.toFixed(1)} min`;
+    v == null || Number.isNaN(v) ? "—" : `${v.toFixed(1)} ${t("min")}`;
 
 const t = (key: string) =>
     window.Translate ? window.Translate.translateText(key) : key;
@@ -85,7 +86,7 @@ const toMarkdown = (data: StatusInfoModel): string => {
         `## ${mode}: ${context.strategyName} / ${context.exchangeName}${frame}`,
         "",
         `**${t("Total PNL")}:** ${fmt(portfolioTotalPnl)}  `,
-        `**Sharpe Ratio:** ${fmt(portfolioSharpeRatio, "")}  `,
+        `**${t("Sharpe Ratio")}:** ${fmt(portfolioSharpeRatio, "")}  `,
         `**${t("Annualized Sharpe")}:** ${fmt(portfolioAnnualizedSharpeRatio, "")}  `,
         `**${t("Certainty Ratio")}:** ${fmt(portfolioCertaintyRatio, "")}  `,
         `**${t("Expected Yearly Returns")}:** ${fmt(portfolioExpectedYearlyReturns)}  `,
@@ -113,35 +114,35 @@ const toMarkdown = (data: StatusInfoModel): string => {
         lines.push(
             `### ${s.symbol}`,
             "",
-            `**PNL:** ${fmt(s.totalPnl)}  `,
+            `**${t("PNL")}:** ${fmt(s.totalPnl)}  `,
             `**${t("Avg PNL")}:** ${fmt(s.avgPnl)}  `,
             `**${t("Median PNL")}:** ${fmt(s.medianPnl)}  `,
-            `**Win Rate:** ${fmt(s.winRate)}  `,
-            `**Profit Factor:** ${fmt(s.profitFactor, "")}  `,
-            `**Max Drawdown:** ${fmt(s.maxDrawdown)}  `,
-            `**Expectancy:** ${fmt(s.expectancy)}  `,
-            `**Sharpe Ratio:** ${fmt(s.sharpeRatio, "")}  `,
-            `**Annualized Sharpe:** ${fmt(s.annualizedSharpeRatio, "")}  `,
-            `**Certainty Ratio:** ${fmt(s.certaintyRatio, "")}  `,
-            `**Expected Yearly Returns:** ${fmt(s.expectedYearlyReturns)}  `,
-            `**Trades Per Year:** ${s.tradesPerYear !== null ? s.tradesPerYear.toFixed(1) : "—"}  `,
-            `**Sortino Ratio:** ${fmt(s.sortinoRatio, "")}  `,
-            `**Calmar Ratio:** ${fmt(s.calmarRatio, "")}  `,
-            `**Recovery Factor Per Equity Drawdown:** ${fmt(s.recoveryFactor, "")}  `,
-            `**Standard Deviation:** ${fmt(s.stdDev)}  `,
-            `**Avg Win:** ${fmt(s.avgWin)}  `,
-            `**Avg Loss:** ${fmt(s.avgLoss)}  `,
-            `**Max Win Streak:** ${s.maxWinStreak}  `,
-            `**Max Loss Streak:** ${s.maxLossStreak}  `,
-            `**Avg Peak PNL:** ${fmt(s.avgPeakPnl)}  `,
-            `**Avg Drawdown PNL:** ${fmt(s.avgFallPnl)}  `,
-            `**Peak Profit PNL:** ${fmt(s.peakProfitPnl)}  `,
-            `**Max Drawdown PNL:** ${fmt(s.maxDrawdownPnl)}  `,
-            `**Avg Duration:** ${fmtMin(s.avgDuration)}  `,
-            `**Avg Win Duration:** ${fmtMin(s.avgWinDuration)}  `,
-            `**Avg Loss Duration:** ${fmtMin(s.avgLossDuration)}  `,
-            `**Avg Consecutive Win PNL:** ${fmt(s.avgConsecutiveWinPnl)}  `,
-            `**Avg Consecutive Loss PNL:** ${fmt(s.avgConsecutiveLossPnl)}  `,
+            `**${t("Win Rate")}:** ${fmt(s.winRate)}  `,
+            `**${t("Profit Factor")}:** ${fmt(s.profitFactor, "")}  `,
+            `**${t("Max Drawdown")}:** ${fmt(s.maxDrawdown)}  `,
+            `**${t("Expectancy")}:** ${fmt(s.expectancy)}  `,
+            `**${t("Sharpe Ratio")}:** ${fmt(s.sharpeRatio, "")}  `,
+            `**${t("Annualized Sharpe")}:** ${fmt(s.annualizedSharpeRatio, "")}  `,
+            `**${t("Certainty Ratio")}:** ${fmt(s.certaintyRatio, "")}  `,
+            `**${t("Expected Yearly Returns")}:** ${fmt(s.expectedYearlyReturns)}  `,
+            `**${t("Trades Per Year")}:** ${s.tradesPerYear !== null ? s.tradesPerYear.toFixed(1) : "—"}  `,
+            `**${t("Sortino Ratio")}:** ${fmt(s.sortinoRatio, "")}  `,
+            `**${t("Calmar Ratio")}:** ${fmt(s.calmarRatio, "")}  `,
+            `**${t("Recovery Factor Per Equity Drawdown")}:** ${fmt(s.recoveryFactor, "")}  `,
+            `**${t("Standard Deviation")}:** ${fmt(s.stdDev)}  `,
+            `**${t("Avg Win")}:** ${fmt(s.avgWin)}  `,
+            `**${t("Avg Loss")}:** ${fmt(s.avgLoss)}  `,
+            `**${t("Max Win Streak")}:** ${s.maxWinStreak}  `,
+            `**${t("Max Loss Streak")}:** ${s.maxLossStreak}  `,
+            `**${t("Avg Peak PNL")}:** ${fmt(s.avgPeakPnl)}  `,
+            `**${t("Avg Drawdown PNL")}:** ${fmt(s.avgFallPnl)}  `,
+            `**${t("Peak Profit PNL")}:** ${fmt(s.peakProfitPnl)}  `,
+            `**${t("Max Drawdown PNL")}:** ${fmt(s.maxDrawdownPnl)}  `,
+            `**${t("Avg Duration")}:** ${fmtMin(s.avgDuration)}  `,
+            `**${t("Avg Win Duration")}:** ${fmtMin(s.avgWinDuration)}  `,
+            `**${t("Avg Loss Duration")}:** ${fmtMin(s.avgLossDuration)}  `,
+            `**${t("Avg Consecutive Win PNL")}:** ${fmt(s.avgConsecutiveWinPnl)}  `,
+            `**${t("Avg Consecutive Loss PNL")}:** ${fmt(s.avgConsecutiveLossPnl)}  `,
             `**${t("Trades")}:** ${s.totalTrades}`,
             "",
         );
@@ -173,7 +174,7 @@ export const StatusInfo = ({ data }: IStatusInfoProps) => {
     const handleCopy = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (await copyToClipboard(content)) {
-            ioc.alertService.notify("Copied!");
+            ioc.alertService.notify(t("Copied!"));
         }
     }
 
@@ -233,7 +234,7 @@ export const StatusInfo = ({ data }: IStatusInfoProps) => {
                     alignItems="flex-start"
                     justifyContent="center"
                 >
-                    {data.backtest ? "Backtest" : "Live"}: {data.context.strategyName}
+                    {data.backtest ? t("Backtest") : t("Live")}: {data.context.strategyName}
                 </Typography>
 
                 <Collapse in={expanded} timeout="auto" unmountOnExit>

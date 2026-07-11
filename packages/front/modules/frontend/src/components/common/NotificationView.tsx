@@ -193,7 +193,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "signal.opened":
       return `${t("Opened")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal.closed":
-      return `${t("Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "signal.scheduled":
       return `${t("Scheduled")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal.cancelled":
@@ -221,9 +221,9 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "order_sync.open":
       return `${t(item.orderType === "schedule" ? "Order Sync Placed" : "Order Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "order_sync.close":
-      return `${t("Order Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Order Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "order_sync.check":
-      return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
@@ -237,7 +237,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "error.critical":
       return `${t("Critical")}: ${item.message}`;
     case "signal.info":
-      return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     default:
       return `${t("Unknown")} ${get(item, "type")}`;
   }
@@ -434,7 +434,7 @@ export const NotificationView = () => {
                               }
                               secondary={"timestamp" in item ? dayjs(item.timestamp).format(
                                 "HH:mm DD/MM/YYYY"
-                              ) : "N/A"}
+                              ) : t("N/A")}
                             />
                             <IconButton disableRipple>
                               <ArrowForwardIcon />
@@ -494,7 +494,7 @@ export const NotificationView = () => {
                               }
                               secondary={"timestamp" in item ? dayjs(item.timestamp).format(
                                 "HH:mm DD/MM/YYYY"
-                              ) : "N/A"}
+                              ) : t("N/A")}
                             />
                             <IconButton disableRipple>
                               <ArrowForwardIcon />

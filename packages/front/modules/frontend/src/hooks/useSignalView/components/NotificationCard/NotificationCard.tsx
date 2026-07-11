@@ -146,7 +146,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "signal.opened":
       return `${t("Opened")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal.closed":
-      return `${t("Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "signal.scheduled":
       return `${t("Scheduled")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "signal.cancelled":
@@ -174,9 +174,9 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "order_sync.open":
       return `${t(item.orderType === "schedule" ? "Order Sync Placed" : "Order Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "order_sync.close":
-      return `${t("Order Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Order Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "order_sync.check":
-      return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
@@ -190,7 +190,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "error.critical":
       return `${t("Critical")}: ${item.message}`;
     case "signal.info":
-      return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     default:
       return t("Unknown");
   }
@@ -602,7 +602,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       sx={{ mt: 1, mr: 1 }}
                       size="small"
-                      label={`PnL: ${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"}`}
+                      label={`${t("PnL")}: ${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")}`}
                       color={item.pnlPercentage >= 0 ? "success" : "error"}
                       variant="outlined"
                     />
@@ -694,7 +694,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       sx={{ mt: 1, mr: 1 }}
                       size="small"
-                      label={`${t("Cost")}: ${!!item.cost ? `${item.cost.toFixed(getPriceScale(item.cost))}$` : "N/A"}`}
+                      label={`${t("Cost")}: ${!!item.cost ? `${item.cost.toFixed(getPriceScale(item.cost))}$` : t("N/A")}`}
                       variant="outlined"
                     />
                   )}
@@ -702,7 +702,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       sx={{ mt: 1, mr: 1 }}
                       size="small"
-                      label={`${t("Avg entry")}: ${!!item.effectivePriceOpen ? formatAmount(item.effectivePriceOpen, getPriceScale(item.effectivePriceOpen)) : "N/A"}`}
+                      label={`${t("Avg entry")}: ${!!item.effectivePriceOpen ? formatAmount(item.effectivePriceOpen, getPriceScale(item.effectivePriceOpen)) : t("N/A")}`}
                       variant="outlined"
                       color="warning"
                     />
@@ -711,7 +711,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       sx={{ mt: 1, mr: 1 }}
                       size="small"
-                      label={`${t("Orig entry")}: ${!!item.originalPriceOpen ? formatAmount(item.originalPriceOpen, getPriceScale(item.originalPriceOpen)) : "N/A"}`}
+                      label={`${t("Orig entry")}: ${!!item.originalPriceOpen ? formatAmount(item.originalPriceOpen, getPriceScale(item.originalPriceOpen)) : t("N/A")}`}
                       variant="outlined"
                     />
                   )}
@@ -726,20 +726,20 @@ export const NotificationCard = forwardRef(
                           <Typography component="span" color="text.secondary">
                             {t("Current")}:{" "}
                           </Typography>
-                          {!!item.currentPrice ? formatAmount(item.currentPrice, getPriceScale(item.currentPrice)) : "N/A"}
+                          {!!item.currentPrice ? formatAmount(item.currentPrice, getPriceScale(item.currentPrice)) : t("N/A")}
                         </Typography>
                       )}
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Take Profit")}:{" "}
                         </Typography>
-                        {!!item.priceTakeProfit ? formatAmount(item.priceTakeProfit, getPriceScale(item.priceTakeProfit)) : "N/A"}
+                        {!!item.priceTakeProfit ? formatAmount(item.priceTakeProfit, getPriceScale(item.priceTakeProfit)) : t("N/A")}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Stop Loss")}:{" "}
                         </Typography>
-                        {!!item.priceStopLoss ? formatAmount(item.priceStopLoss, getPriceScale(item.priceStopLoss)) : "N/A"}
+                        {!!item.priceStopLoss ? formatAmount(item.priceStopLoss, getPriceScale(item.priceStopLoss)) : t("N/A")}
                       </Typography>
                     </Stack>
                   </>
@@ -752,13 +752,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("PnL Entry")}:{" "}
                         </Typography>
-                        {!!item.pnlPriceOpen ? formatAmount(item.pnlPriceOpen, getPriceScale(item.pnlPriceOpen)) : "N/A"}
+                        {!!item.pnlPriceOpen ? formatAmount(item.pnlPriceOpen, getPriceScale(item.pnlPriceOpen)) : t("N/A")}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("PnL Exit")}:{" "}
                         </Typography>
-                        {!!item.pnlPriceClose ? formatAmount(item.pnlPriceClose, getPriceScale(item.pnlPriceClose)) : "N/A"}
+                        {!!item.pnlPriceClose ? formatAmount(item.pnlPriceClose, getPriceScale(item.pnlPriceClose)) : t("N/A")}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
@@ -768,14 +768,14 @@ export const NotificationCard = forwardRef(
                           component="span"
                           color={item.pnlCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {!!item.pnlCost ? `${item.pnlCost >= 0 ? "+" : ""}${item.pnlCost.toFixed(getPriceScale(item.pnlCost))}$` : "N/A"}
+                          {!!item.pnlCost ? `${item.pnlCost >= 0 ? "+" : ""}${item.pnlCost.toFixed(getPriceScale(item.pnlCost))}$` : t("N/A")}
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {!!item.pnlEntries ? `${item.pnlEntries.toFixed(getPriceScale(item.pnlEntries))}$` : "N/A"}
+                        {!!item.pnlEntries ? `${item.pnlEntries.toFixed(getPriceScale(item.pnlEntries))}$` : t("N/A")}
                       </Typography>
                     </Stack>
                   </>
@@ -788,13 +788,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("Peak Entry")}:{" "}
                         </Typography>
-                        {!!item.peakProfitPriceOpen ? formatAmount(item.peakProfitPriceOpen, getPriceScale(item.peakProfitPriceOpen)) : "N/A"}
+                        {!!item.peakProfitPriceOpen ? formatAmount(item.peakProfitPriceOpen, getPriceScale(item.peakProfitPriceOpen)) : t("N/A")}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Peak Exit")}:{" "}
                         </Typography>
-                        {!!item.peakProfitPriceClose ? formatAmount(item.peakProfitPriceClose, getPriceScale(item.peakProfitPriceClose)) : "N/A"}
+                        {!!item.peakProfitPriceClose ? formatAmount(item.peakProfitPriceClose, getPriceScale(item.peakProfitPriceClose)) : t("N/A")}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
@@ -804,14 +804,14 @@ export const NotificationCard = forwardRef(
                           component="span"
                           color={item.peakProfitCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {!!item.peakProfitCost ? `${item.peakProfitCost >= 0 ? "+" : ""}${item.peakProfitCost.toFixed(getPriceScale(item.peakProfitCost))}$` : "N/A"}
+                          {!!item.peakProfitCost ? `${item.peakProfitCost >= 0 ? "+" : ""}${item.peakProfitCost.toFixed(getPriceScale(item.peakProfitCost))}$` : t("N/A")}
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {!!item.peakProfitEntries ? `${item.peakProfitEntries.toFixed(getPriceScale(item.peakProfitEntries))}$` : "N/A"}
+                        {!!item.peakProfitEntries ? `${item.peakProfitEntries.toFixed(getPriceScale(item.peakProfitEntries))}$` : t("N/A")}
                       </Typography>
                     </Stack>
                   </>
@@ -824,13 +824,13 @@ export const NotificationCard = forwardRef(
                         <Typography component="span" color="text.secondary">
                           {t("Drawdown Entry")}:{" "}
                         </Typography>
-                        {!!item.maxDrawdownPriceOpen ? formatAmount(item.maxDrawdownPriceOpen, getPriceScale(item.maxDrawdownPriceOpen)) : "N/A"}
+                        {!!item.maxDrawdownPriceOpen ? formatAmount(item.maxDrawdownPriceOpen, getPriceScale(item.maxDrawdownPriceOpen)) : t("N/A")}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Drawdown Exit")}:{" "}
                         </Typography>
-                        {!!item.maxDrawdownPriceClose ? formatAmount(item.maxDrawdownPriceClose, getPriceScale(item.maxDrawdownPriceClose)) : "N/A"}
+                        {!!item.maxDrawdownPriceClose ? formatAmount(item.maxDrawdownPriceClose, getPriceScale(item.maxDrawdownPriceClose)) : t("N/A")}
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
@@ -840,14 +840,14 @@ export const NotificationCard = forwardRef(
                           component="span"
                           color={item.maxDrawdownCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {!!item.maxDrawdownCost ? `${item.maxDrawdownCost >= 0 ? "+" : ""}${item.maxDrawdownCost.toFixed(getPriceScale(item.maxDrawdownCost))}$` : "N/A"}
+                          {!!item.maxDrawdownCost ? `${item.maxDrawdownCost >= 0 ? "+" : ""}${item.maxDrawdownCost.toFixed(getPriceScale(item.maxDrawdownCost))}$` : t("N/A")}
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {!!item.maxDrawdownEntries ? `${item.maxDrawdownEntries.toFixed(getPriceScale(item.maxDrawdownEntries))}$` : "N/A"}
+                        {!!item.maxDrawdownEntries ? `${item.maxDrawdownEntries.toFixed(getPriceScale(item.maxDrawdownEntries))}$` : t("N/A")}
                       </Typography>
                     </Stack>
                   </>

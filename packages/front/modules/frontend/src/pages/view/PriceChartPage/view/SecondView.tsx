@@ -28,6 +28,7 @@ import {
 } from "@mui/icons-material";
 import { useMemo } from "react";
 import ioc from "../../../../lib";
+import { t } from "../../../../i18n";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
 const GROUP_ROOT = "backtest-kit__groupRoot";
@@ -63,12 +64,12 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Price Chart",
+        label: t("Price Chart"),
     },
     {
         type: Breadcrumbs2Type.Link,
@@ -176,19 +177,19 @@ export const SecondView = ({ params }: IOutletProps) => {
     const candle_routes = useMemo(
         (): IRoute[] => [
             {
-                label: "1 minute",
+                label: t("1 minute"),
                 to: `/price_chart/${symbol}/1m`,
                 color: "#2979ff",
                 icon: LooksOneTwoTone,
             },
             {
-                label: "15 minutes",
+                label: t("15 minutes"),
                 to: `/price_chart/${symbol}/15m`,
                 color: "#f3a43a",
                 icon: LooksTwoTwoTone,
             },
             {
-                label: "1 hour",
+                label: t("1 hour"),
                 to: `/price_chart/${symbol}/1h`,
                 color: "#d500f9",
                 icon: Looks3TwoTone,
@@ -198,7 +199,7 @@ export const SecondView = ({ params }: IOutletProps) => {
     );
 
     const fields = useMemo(
-        (): TypedField[] => [createGroup("Chart", candle_routes)],
+        (): TypedField[] => [createGroup(t("Chart"), candle_routes)],
         [candle_routes],
     );
 

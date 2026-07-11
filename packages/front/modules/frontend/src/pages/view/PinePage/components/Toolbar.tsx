@@ -1,3 +1,5 @@
+import { t } from "../../../../i18n";
+
 const TIMEFRAMES = ['1', '5', '15', '60', 'D'] as const;
 
 interface ToolbarProps {
@@ -40,11 +42,11 @@ export function Toolbar({
       <select value={timeframe} onChange={(e) => onTimeframeChange(e.target.value)} style={selectStyle}>
         {TIMEFRAMES.map((t) => <option key={t}>{t}</option>)}
       </select>
-      <input type="number" value={limit} min={100} step={100} onChange={(e) => onLimitChange(Number(e.target.value))} style={{ ...selectStyle, width: 80 }} title="Bars limit" />
-      <input type="date" value={fromDate} onChange={(e) => onFromDateChange(e.target.value)} style={dateStyle} title="From date" />
-      <input type="date" value={toDate} onChange={(e) => onToDateChange(e.target.value)} style={dateStyle} title="To date" />
+      <input type="number" value={limit} min={100} step={100} onChange={(e) => onLimitChange(Number(e.target.value))} style={{ ...selectStyle, width: 80 }} title={t("Bars limit")} />
+      <input type="date" value={fromDate} onChange={(e) => onFromDateChange(e.target.value)} style={dateStyle} title={t("From date")} />
+      <input type="date" value={toDate} onChange={(e) => onToDateChange(e.target.value)} style={dateStyle} title={t("To date")} />
       <button onClick={onRun} disabled={running} style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 4, padding: '5px 16px', fontSize: 13, cursor: 'pointer' }}>
-        {running ? '...' : '▶ Run'}
+        {running ? '...' : t("▶ Run")}
       </button>
       {status && <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>{status}</span>}
     </div>

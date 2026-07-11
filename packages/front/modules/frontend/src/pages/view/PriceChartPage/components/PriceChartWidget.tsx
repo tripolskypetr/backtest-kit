@@ -12,6 +12,7 @@ import { CandleInterval } from "backtest-kit";
 import ioc from "../../../../lib";
 import StockChart from "./StockChart";
 import { Info } from "@mui/icons-material";
+import { t } from "../../../../i18n";
 
 const colorMap: Record<string, string> = {
     "1m": "#2979ff",
@@ -20,9 +21,9 @@ const colorMap: Record<string, string> = {
 };
 
 const titleMap: Record<string, string> = {
-    "1m": "1 minute",
-    "15m": "15 minutes",
-    "1h": "1 hour",
+    "1m": t("1 minute"),
+    "15m": t("15 minutes"),
+    "1h": t("1 hour"),
 };
 
 function downloadJson(

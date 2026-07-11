@@ -4,6 +4,7 @@ import classNames from "clsx";
 import { formatAmount } from "react-declarative";
 
 import { makeStyles } from '../../../../styles';
+import { t } from "../../../../i18n";
 
 import Typography from "@mui/material/Typography";
 
@@ -72,7 +73,7 @@ export const Content = ({
     roundDigits = 2,
     value,
     caption,
-    valueUnit = "Unit",
+    valueUnit = t("Unit"),
   } = usePropsContext();
 
   const style = useMemo(

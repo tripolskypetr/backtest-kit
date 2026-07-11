@@ -3,6 +3,7 @@ import StatusModel from "../../model/Status.model";
 import { makeStyles } from "../../styles";
 import { AutoSizer, formatAmount, PaperView } from "react-declarative";
 import { Chart } from "react-chartjs-2";
+import { t } from "../../i18n";
 
 const HEADER_HEIGHT = "35px";
 
@@ -88,7 +89,7 @@ export const PartialWidget = ({
         if (!data.positionPartials.length) {
             return (
                 <Box sx={{ p: 1, color: "text.secondary" }}>
-                    <Typography variant="body2">No partial exits</Typography>
+                    <Typography variant="body2">{t("No partial exits")}</Typography>
                 </Box>
             );
         }
@@ -139,7 +140,7 @@ export const PartialWidget = ({
         const plCount = data.positionPartials.filter((p) => p.type === "loss").length;
 
         const labels = partialData.map(({ partial }, i) =>
-            `#${i + 1} ${partial.type === "profit" ? "PP" : "PL"}`
+            `#${i + 1} ${partial.type === "profit" ? t("PP") : t("PL")}`
         );
 
         const pnlColors = partialData.map(({ pnlPct }) =>
@@ -150,7 +151,7 @@ export const PartialWidget = ({
             labels,
             datasets: [
                 {
-                    label: "P&L ($)",
+                    label: t("P&L ($)"),
                     data: partialData.map(({ pnlDollar }) => pnlDollar),
                     backgroundColor: pnlColors.map((c) => c.replace(", 1)", ", 0.5)")),
                     borderColor: pnlColors,
@@ -171,16 +172,16 @@ export const PartialWidget = ({
                         label: (ctx: { dataIndex: number }) => {
                             const { pnlDollar, pnlPct } = partialData[ctx.dataIndex];
                             const sign = pnlDollar >= 0 ? "+" : "";
-                            return `P&L: ${sign}${formatAmount(pnlDollar)}$ (${sign}${pnlPct.toFixed(2)}%)`;
+                            return `${t("P&L")}: ${sign}${formatAmount(pnlDollar)}$ (${sign}${pnlPct.toFixed(2)}%)`;
                         },
                         afterBody: (items: { dataIndex: number }[]) => {
                             const idx = items[0].dataIndex;
                             const { partial, effectiveEntry, closedDollar } = partialData[idx];
                             return [
-                                `Type: ${partial.type === "profit" ? "Partial Profit" : "Partial Loss"}`,
-                                `Exit price: ${formatAmount(partial.currentPrice)}$`,
-                                `Entry price: ${formatAmount(effectiveEntry)}$`,
-                                `Closed: ${partial.percent}% (${formatAmount(closedDollar)}$)`,
+                                `${t("Type")}: ${partial.type === "profit" ? t("Partial Profit") : t("Partial Loss")}`,
+                                `${t("Exit price")}: ${formatAmount(partial.currentPrice)}$`,
+                                `${t("Entry price")}: ${formatAmount(effectiveEntry)}$`,
+                                `${t("Closed")}: ${partial.percent}% (${formatAmount(closedDollar)}$)`,
                             ];
                         },
                     },
@@ -189,7 +190,7 @@ export const PartialWidget = ({
             scales: {
                 y: {
                     type: "linear" as const,
-                    title: { display: true, text: "P&L ($)" },
+                    title: { display: true, text: t("P&L ($)") },
                 },
             },
         };
@@ -225,7 +226,7 @@ export const PartialWidget = ({
                     }}
                 >
                     <Typography variant="caption" color="text.secondary">
-                        Total
+                        {t("Total")}
                     </Typography>
                     <Typography
                         variant="body2"
@@ -235,7 +236,7 @@ export const PartialWidget = ({
                         {totalPnlDollar >= 0 ? "+" : ""}{formatAmount(totalPnlDollar)}$
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        PP
+                        {t("PP")}
                     </Typography>
                     <Typography
                         variant="body2"
@@ -245,7 +246,7 @@ export const PartialWidget = ({
                         {ppCount}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        PL
+                        {t("PL")}
                     </Typography>
                     <Typography
                         variant="body2"
@@ -264,13 +265,13 @@ export const PartialWidget = ({
             <div className={classes.header}>
                 <div className={classes.title}>
                     <Typography className={classes.text} variant="body1">
-                        Partial Exits
+                        {t("Partial Exits")}
                     </Typography>
                     <Chip
                         size="small"
                         variant="outlined"
                         color="info"
-                        label="PP/PL"
+                        label={t("PP/PL")}
                     />
                 </div>
             </div>

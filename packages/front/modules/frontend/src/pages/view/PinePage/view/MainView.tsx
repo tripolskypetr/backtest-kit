@@ -4,6 +4,7 @@ import { CodeEditor } from '../components/CodeEditor';
 import { useIndicatorStream } from '../hooks/useIndicatorStream';
 import { Styles } from '../components/Styles';
 import { PortalView } from 'react-declarative';
+import { t } from "../../../../i18n";
 import { useCodeState } from '../context/CodeContext';
 import { useSymbolState } from '../context/SymbolContext';
 import { useTimeframeState } from '../context/TimeframeContext';
@@ -43,7 +44,7 @@ export const MainView = () => {
           <div style={{ flex: 1 }}>
             <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }}>
               <p style={{ color: '#475569', textAlign: 'center', marginTop: '20%' }}>
-                Press <b>▶ Run</b> or <b>Ctrl+Enter</b> to load the chart
+                {t("Press")} <b>{t("▶ Run")}</b> {t("or")} <b>Ctrl+Enter</b> {t("to load the chart")}
               </p>
             </div>
           </div>

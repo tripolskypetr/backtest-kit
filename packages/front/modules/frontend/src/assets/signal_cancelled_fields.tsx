@@ -4,6 +4,7 @@ import ioc from "../lib";
 import getPriceScale from "../utils/getPriceScale";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
+import { t } from "../i18n";
 
 export const signal_cancelled_fields: TypedField[] = [
     {
@@ -14,7 +15,7 @@ export const signal_cancelled_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                                 typoVariant: "h6",
-                placeholder: "General Information",
+                placeholder: t("General Information"),
             },
             {
                 type: FieldType.Outline,
@@ -27,9 +28,9 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "symbol",
-                        title: "Symbol",
+                        title: t("Symbol"),
                         readonly: true,
-                        compute: (obj) => obj.symbol || "Not specified",
+                        compute: (obj) => obj.symbol || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -38,9 +39,9 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "exchangeName",
-                        title: "Exchange",
+                        title: t("Exchange"),
                         readonly: true,
-                        compute: (obj) => obj.exchangeName || "Not specified",
+                        compute: (obj) => obj.exchangeName || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -49,9 +50,9 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "strategyName",
-                        title: "Strategy",
+                        title: t("Strategy"),
                         readonly: true,
-                        compute: (obj) => obj.strategyName || "Not specified",
+                        compute: (obj) => obj.strategyName || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -60,12 +61,12 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "position",
-                        title: "Position",
+                        title: t("Position"),
                         readonly: true,
                         compute: (obj) => {
                             if (obj.position === "long") return "LONG";
                             if (obj.position === "short") return "SHORT";
-                            return "Not specified";
+                            return t("Not specified");
                         },
                     },
                     {
@@ -75,9 +76,9 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "backtest",
-                        title: "Mode",
+                        title: t("Mode"),
                         readonly: true,
-                        compute: (obj) => (obj.backtest ? "Backtest" : "Live"),
+                        compute: (obj) => (obj.backtest ? t("Backtest") : t("Live")),
                     },
                     {
                         type: FieldType.Text,
@@ -86,19 +87,19 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "signalId",
-                        title: "Signal ID",
+                        title: t("Signal ID"),
                         readonly: true,
                         trailingIcon: ArrowForward,
                         click: ({}, {}, { signalId }) => signalId && ioc.layoutService.pickSignal(signalId),
                         isVisible: (obj) => !!obj.signalId,
-                        compute: (obj) => obj.signalId || "Not specified",
+                        compute: (obj) => obj.signalId || t("Not specified"),
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
                                 typoVariant: "h6",
-                placeholder: "Timestamps",
+                placeholder: t("Timestamps"),
             },
             {
                 type: FieldType.Outline,
@@ -111,7 +112,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "timestamp",
-                        title: "Event Time",
+                        title: t("Event Time"),
                         readonly: true,
                         compute: (obj) =>
                             obj.timestamp
@@ -125,7 +126,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "createdAt",
-                        title: "Created",
+                        title: t("Created"),
                         readonly: true,
                         compute: (obj) =>
                             obj.createdAt
@@ -139,7 +140,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "scheduledAt",
-                        title: "Scheduled At",
+                        title: t("Scheduled At"),
                         readonly: true,
                         isVisible: (obj) => !!obj.scheduledAt,
                         compute: (obj) =>
@@ -154,7 +155,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "pendingAt",
-                        title: "Pending At",
+                        title: t("Pending At"),
                         readonly: true,
                         isVisible: (obj) => !!obj.pendingAt,
                         compute: (obj) =>
@@ -167,7 +168,7 @@ export const signal_cancelled_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                                 typoVariant: "h6",
-                placeholder: "Price Levels",
+                placeholder: t("Price Levels"),
             },
             {
                 type: FieldType.Outline,
@@ -180,12 +181,12 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "priceOpen",
-                        title: "Entry Price",
+                        title: t("Entry Price"),
                         readonly: true,
                         compute: (obj) =>
                             !!obj.priceOpen
                                 ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -194,13 +195,13 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "priceTakeProfit",
-                        title: "Take Profit",
+                        title: t("Take Profit"),
                         readonly: true,
                         isVisible: (obj) => !!obj.priceTakeProfit,
                         compute: (obj) =>
                             !!obj.priceTakeProfit
                                 ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -209,13 +210,13 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "priceStopLoss",
-                        title: "Stop Loss",
+                        title: t("Stop Loss"),
                         readonly: true,
                         isVisible: (obj) => !!obj.priceStopLoss,
                         compute: (obj) =>
                             !!obj.priceStopLoss
                                 ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -224,13 +225,13 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "originalPriceTakeProfit",
-                        title: "Original Take Profit",
+                        title: t("Original Take Profit"),
                         readonly: true,
                         isVisible: (obj) => !!obj.originalPriceTakeProfit,
                         compute: (obj) =>
                             !!obj.originalPriceTakeProfit
                                 ? `${obj.originalPriceTakeProfit.toFixed(getPriceScale(obj.originalPriceTakeProfit))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -239,13 +240,13 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "originalPriceStopLoss",
-                        title: "Original Stop Loss",
+                        title: t("Original Stop Loss"),
                         readonly: true,
                         isVisible: (obj) => !!obj.originalPriceStopLoss,
                         compute: (obj) =>
                             !!obj.originalPriceStopLoss
                                 ? `${obj.originalPriceStopLoss.toFixed(getPriceScale(obj.originalPriceStopLoss))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -254,13 +255,13 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "originalPriceOpen",
-                        title: "Original Entry",
+                        title: t("Original Entry"),
                         readonly: true,
                         isVisible: (obj) => !!obj.originalPriceOpen && obj.originalPriceOpen !== obj.priceOpen,
                         compute: (obj) =>
                             !!obj.originalPriceOpen
                                 ? `${obj.originalPriceOpen.toFixed(getPriceScale(obj.originalPriceOpen))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -269,13 +270,13 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalEntries",
-                        title: "Total Entries",
+                        title: t("Total Entries"),
                         readonly: true,
                         isVisible: (obj) => !!obj.totalEntries && obj.totalEntries > 1,
                         compute: (obj) =>
                             !!obj.totalEntries
                                 ? String(obj.totalEntries)
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -284,7 +285,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalPartials",
-                        title: "Total Closes",
+                        title: t("Total Closes"),
                         readonly: true,
                         isVisible: (obj) => !!obj.totalPartials && obj.totalPartials > 0,
                         compute: (obj) => String(obj.totalPartials),
@@ -294,7 +295,7 @@ export const signal_cancelled_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                                 typoVariant: "h6",
-                placeholder: "Cancellation Details",
+                placeholder: t("Cancellation Details"),
             },
             {
                 type: FieldType.Outline,
@@ -307,9 +308,9 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "cancelReason",
-                        title: "Cancel Reason",
+                        title: t("Cancel Reason"),
                         readonly: true,
-                        compute: (obj) => obj.cancelReason || "Not specified",
+                        compute: (obj) => obj.cancelReason || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -318,17 +319,17 @@ export const signal_cancelled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "cancelId",
-                        title: "Cancel ID",
+                        title: t("Cancel ID"),
                         readonly: true,
                         isVisible: (obj) => !!obj.cancelId,
-                        compute: (obj) => obj.cancelId || "Not specified",
+                        compute: (obj) => obj.cancelId || t("Not specified"),
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "Note",
+                placeholder: t("Note"),
                 isVisible: (obj) => !!obj.note,
             },
             {
@@ -369,7 +370,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.signalId,
                         element: ({ signalId }) => (
                             <CopyButton
-                                label="Signal ID"
+                                label={t("Signal ID")}
                                 content={signalId}
                             />
                         ),
@@ -392,7 +393,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.cancelId,
                         element: ({ cancelId }) => (
                             <CopyButton
-                                label="Cancel ID"
+                                label={t("Cancel ID")}
                                 content={cancelId}
                             />
                         ),

@@ -4,6 +4,7 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import { makeStyles } from "../../styles/makeStyles";
 import { PortalView } from "react-declarative";
+import { t } from "../../i18n";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -34,8 +35,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const ERROR_LABEL = "Data is outdated. Please refresh the page";
-const OFFLINE_LABEL = "Disconnected from server";
+const ERROR_LABEL = t("Data is outdated. Please refresh the page");
+const OFFLINE_LABEL = t("Disconnected from server");
 
 interface IErrorViewProps {
   onLine?: boolean;
@@ -52,7 +53,7 @@ export const ErrorView = ({ onLine = navigator.onLine }: IErrorViewProps) => {
             <Stack direction="column" gap="15px">
               <span>{onLine ? ERROR_LABEL : OFFLINE_LABEL}</span>
               <Button variant="contained" onClick={() => window.location.reload()}>
-                {onLine ? "Reload page" : "Reconnect"}
+                {onLine ? t("Reload page") : t("Reconnect")}
               </Button>
             </Stack>
           </Paper>

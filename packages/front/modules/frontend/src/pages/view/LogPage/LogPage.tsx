@@ -19,11 +19,12 @@ import ioc from "../../../lib";
 import { ILogEntry } from "backtest-kit";
 import { CC_LIST_BUFFER_SIZE } from "../../../config/params";
 import LogCard from "./components/LogCard";
+import { t } from "../../../i18n";
 
 const actions: IBreadcrumbs2Action[] = [
   {
     action: "download-action",
-    label: "Download",
+    label: t("Download"),
     icon: () => <IconWrapper icon={Download} color="#4caf50" />
   },
   {
@@ -31,7 +32,7 @@ const actions: IBreadcrumbs2Action[] = [
   },
   {
     action: "update-now",
-    label: "Refresh manually",
+    label: t("Refresh manually"),
     icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
   },
 ];
@@ -45,18 +46,18 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Main",
+    label: t("Main"),
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Logs",
+    label: t("Logs"),
   },
   {
     type: Breadcrumbs2Type.Button,
     icon: Search,
     action: "search-action",
-    label: "Search",
+    label: t("Search"),
   }
 ];
 
@@ -97,7 +98,7 @@ export const LogPage = () => {
   });
 
   const handleSearch = async () => {
-    const prompt = await ioc.layoutService.prompt("Search keyword");
+    const prompt = await ioc.layoutService.prompt(t("Search keyword"));
     if (prompt) {
       setFilterData(prompt);
       reloadSubject.next();

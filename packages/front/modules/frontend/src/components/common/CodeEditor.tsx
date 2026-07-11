@@ -4,6 +4,7 @@ import { SxProps } from "@mui/material";
 import type * as Ace from "../../types/ace@1.4.12";
 import { compose, singleshot, useSubject } from "react-declarative";
 import ioc from "../../lib";
+import { t } from "../../i18n";
 
 interface ICodeEditorProps {
     className?: string;
@@ -85,7 +86,7 @@ export const CodeEditor = ({
             name: "find",
             bindKey: { win: "Ctrl-F", mac: "Command-F" },
             exec: async () => {
-                const search = await ioc.layoutService.prompt("Find text");
+                const search = await ioc.layoutService.prompt(t("Find text"));
                 search && highlight(search);
             },
         });

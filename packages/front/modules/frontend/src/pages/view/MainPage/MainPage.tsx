@@ -70,6 +70,7 @@ import str from "../../../utils/str";
 import getPriceScale from "../../../utils/getPriceScale";
 import Tooltip from "../../../components/common/Tooltip";
 import NavigationView from "./components/NavigationView";
+import { t } from "../../../i18n";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
 const GROUP_ROOT = "backtest-kit__groupRoot";
@@ -111,17 +112,17 @@ const options: IBreadcrumbs2Option[] = [
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "download-json",
-        label: "Download Heatmap JSON",
+        label: t("Download Heatmap JSON"),
         icon: () => <IconWrapper icon={DataObject} color="#4caf50" />,
     },
     {
         action: "download-markdown",
-        label: "Download Heatmap Markdown",
+        label: t("Download Heatmap Markdown"),
         icon: () => <IconWrapper icon={Description} color="#4caf50" />,
     },
     {
         action: "download-pdf",
-        label: "Download Heatmap PDF",
+        label: t("Download Heatmap PDF"),
         icon: () => <IconWrapper icon={PictureAsPdf} color="#4caf50" />,
     },
     {
@@ -129,7 +130,7 @@ const actions: IBreadcrumbs2Action[] = [
     },
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];
@@ -236,36 +237,36 @@ const createGroup = (label: string, routes: IRoute[]): TypedField => ({
 
 const application_routes: IRoute[] = [
     {
-        label: "Portfolio Overview",
+        label: t("Portfolio Overview"),
         description: str.newline(
-            "Closed trading signals grouped by symbol for Backtest and Live modes",
-            "Each card shows position type, entry price, TP/SL levels, PNL amount and percent",
-            "Displays DCA entry count and partial close count where applicable",
-            "Supports JSON export and manual refresh of the signal list",
+            t("Closed trading signals grouped by symbol for Backtest and Live modes"),
+            t("Each card shows position type, entry price, TP/SL levels, PNL amount and percent"),
+            t("Displays DCA entry count and partial close count where applicable"),
+            t("Supports JSON export and manual refresh of the signal list"),
         ),
         to: `/overview`,
         color: "#0033AD",
         icon: AccountBalanceWalletTwoTone,
     },
     {
-        label: "PNL Performance",
+        label: t("PNL Performance"),
         description: str.newline(
-            "KPI dashboard with aggregated trading performance metrics per symbol",
-            "Shows daily trade counts, success rates, resolved/rejected breakdowns",
-            "Revenue analytics across today, yesterday, 7-day and 31-day windows",
-            "Toggle between Backtest and Live modes; supports JSON export",
+            t("KPI dashboard with aggregated trading performance metrics per symbol"),
+            t("Shows daily trade counts, success rates, resolved/rejected breakdowns"),
+            t("Revenue analytics across today, yesterday, 7-day and 31-day windows"),
+            t("Toggle between Backtest and Live modes; supports JSON export"),
         ),
         to: `/dashboard`,
         color: "#E6007A",
         icon: InsertChartTwoTone,
     },
     {
-        label: "System Logs",
+        label: t("System Logs"),
         description: str.newline(
-            "Virtualized feed of runtime log entries with type badges: Debug, Info, Warn, Log",
-            "Each entry shows topic, timestamp and raw JSON arguments in monospace",
-            "Filter by keyword or regex via search prompt",
-            "Supports full log export as JSON file",
+            t("Virtualized feed of runtime log entries with type badges: Debug, Info, Warn, Log"),
+            t("Each entry shows topic, timestamp and raw JSON arguments in monospace"),
+            t("Filter by keyword or regex via search prompt"),
+            t("Supports full log export as JSON file"),
         ),
         to: `/logs`,
         color: "#58BF00",
@@ -275,36 +276,36 @@ const application_routes: IRoute[] = [
 
 const live_routes: IRoute[] = [
     {
-        label: "Notifications",
+        label: t("Notifications"),
         description: str.newline(
-            "Event feed for all trading signals: opens, closes, schedules, errors",
-            "Color-coded cards with symbol, position, PNL, entry/exit/TP/SL prices",
-            "Infinite-scroll pagination; click any card to open a detailed modal",
-            "Supports manual refresh to pull the latest activity",
+            t("Event feed for all trading signals: opens, closes, schedules, errors"),
+            t("Color-coded cards with symbol, position, PNL, entry/exit/TP/SL prices"),
+            t("Infinite-scroll pagination; click any card to open a detailed modal"),
+            t("Supports manual refresh to pull the latest activity"),
         ),
         to: `/notifications`,
         color: "#F7931A",
         icon: CircleNotificationsTwoTone,
     },
     {
-        label: "Pending Status",
+        label: t("Pending Status"),
         description: str.newline(
-            "Live view of active trading signals grouped by strategy",
-            "Grid of strategy buttons; click to inspect individual signal state",
-            "Detail view shows entry, exit, effective price, DCA and partial counts",
-            "Supports per-signal JSON export and manual refresh",
+            t("Live view of active trading signals grouped by strategy"),
+            t("Grid of strategy buttons; click to inspect individual signal state"),
+            t("Detail view shows entry, exit, effective price, DCA and partial counts"),
+            t("Supports per-signal JSON export and manual refresh"),
         ),
         to: `/status`,
         color: "#6F42C1",
         icon: PlayCircleFilledWhiteTwoTone,
     },
     {
-        label: "Dump Explorer",
+        label: t("Dump Explorer"),
         description: str.newline(
-            "Tree-structured file browser for backtest output and artifact files",
-            "Icons indicate file type: image, JSON, plain text or generic",
-            "Click any file to open a full-screen preview modal",
-            "Supports keyword search and manual refresh of the file tree",
+            t("Tree-structured file browser for backtest output and artifact files"),
+            t("Icons indicate file type: image, JSON, plain text or generic"),
+            t("Click any file to open a full-screen preview modal"),
+            t("Supports keyword search and manual refresh of the file tree"),
         ),
         to: `/dump`,
         color: "#0090FF",
@@ -314,36 +315,36 @@ const live_routes: IRoute[] = [
 
 const other_routes: IRoute[] = [
     {
-        label: "Markdown Reports",
+        label: t("Markdown Reports"),
         description: str.newline(
-            "Strategy performance reports rendered from markdown for Backtest and Live runs",
-            "Grid of strategy buttons grouped by type and sorted by signal volume",
-            "Download reports as markdown, PDF or raw JSON",
-            "Supports manual refresh to regenerate report content",
+            t("Strategy performance reports rendered from markdown for Backtest and Live runs"),
+            t("Grid of strategy buttons grouped by type and sorted by signal volume"),
+            t("Download reports as markdown, PDF or raw JSON"),
+            t("Supports manual refresh to regenerate report content"),
         ),
         to: `/report`,
         color: "#009688",
         icon: AdfScannerTwoTone,
     },
     {
-        label: "Price Charts",
+        label: t("Price Charts"),
         description: str.newline(
-            "Interactive candlestick charts powered by TradingView Lightweight Charts",
-            "Navigate by symbol then interval (1m, 15m, 1h) to view price history",
-            "Overlays active signal lines: entry, take profit (green) and stop loss (red)",
-            "Supports chart image export and signal detail inspection",
+            t("Interactive candlestick charts powered by TradingView Lightweight Charts"),
+            t("Navigate by symbol then interval (1m, 15m, 1h) to view price history"),
+            t("Overlays active signal lines: entry, take profit (green) and stop loss (red)"),
+            t("Supports chart image export and signal detail inspection"),
         ),
         to: `/price_chart`,
         color: "#1565C0",
         icon: CandlestickChartTwoTone,
     },
     {
-        label: "Heatmap",
+        label: t("Heatmap"),
         description: str.newline(
-            "Color-coded performance heatmap across all tracked symbols",
-            "Cells show win rate, profit factor, Sharpe ratio and other key metrics",
-            "Download heatmap as JSON, markdown report or PDF",
-            "Supports manual refresh to recalculate aggregated statistics",
+            t("Color-coded performance heatmap across all tracked symbols"),
+            t("Cells show win rate, profit factor, Sharpe ratio and other key metrics"),
+            t("Download heatmap as JSON, markdown report or PDF"),
+            t("Supports manual refresh to recalculate aggregated statistics"),
         ),
         to: `/heat`,
         color: "#8D6E63",
@@ -352,9 +353,9 @@ const other_routes: IRoute[] = [
 ];
 
 const fields: TypedField[] = [
-    createGroup("Application", application_routes),
-    createGroup("Live", live_routes),
-    createGroup("Other", other_routes),
+    createGroup(t("Application"), application_routes),
+    createGroup(t("Live"), live_routes),
+    createGroup(t("Other"), other_routes),
 ];
 
 const StatusLoader = () => <LoaderView sx={{ width: "100%", height: "75px" }} />

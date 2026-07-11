@@ -20,6 +20,7 @@ import { PartialProfitAvailableNotification } from "backtest-kit";
 import partial_profit_available_fields from "../../assets/partial_profit_available_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/partial_profit_available";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const usePartialProfitAvailableView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Partial Profit Available Details",
+    title: t("Partial Profit Available Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

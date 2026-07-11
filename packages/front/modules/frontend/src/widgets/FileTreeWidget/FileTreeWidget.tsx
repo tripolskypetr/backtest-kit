@@ -37,6 +37,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { Search } from "@mui/icons-material";
+import { t } from "../../i18n";
 
 interface IFileTreeWidgetProps {
     outlinePaper?: boolean;
@@ -200,7 +201,7 @@ export const FileTreeWidget = ({
                     }}
                 >
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        Not found
+                        {t("Not found")}
                     </Typography>
                 </Center>
             )
@@ -223,7 +224,7 @@ export const FileTreeWidget = ({
                         />
                         <CopyButton
                             content={node.path}
-                            label="Copy path"
+                            label={t("Copy path")}
                         />
                     </ListItem>
                 ))}
@@ -249,7 +250,7 @@ export const FileTreeWidget = ({
                             </IconButton>
                         </InputAdornment>
                     }
-                    placeholder="Search"
+                    placeholder={t("Search")}
                     value={search}
                     onBlur={() => flush()}
                     onChange={({ target }) => setSearch(target.value)}

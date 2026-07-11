@@ -15,6 +15,7 @@ import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
 import tabs from "./tabs";
 import ioc from "../../lib";
+import { t } from "../../i18n";
 import CopyIcon from "./components/CopyIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
 
@@ -63,7 +64,7 @@ export const useDumpContentView = () => {
         withStaticAction: true,
         onTabChange: handleTabChange,
         animation: "none",
-        title: "Dump Content",
+        title: t("Dump Content"),
         sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
         history,
         routes,

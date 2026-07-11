@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import ioc from '../../../../lib';
+import { t } from "../../../../i18n";
 
 const PINE_TF_MAP = {
   "1": "1m",
@@ -120,7 +121,7 @@ export function useIndicatorStream() {
   }
 
   function handleError(err: unknown) {
-    setStatus(`Error: ${(err as Error).message}`);
+    setStatus(`${t("Error")}: ${(err as Error).message}`);
     setRunning(false);
   }
 
@@ -128,7 +129,7 @@ export function useIndicatorStream() {
     if (!containerRef.current) return;
 
     setRunning(true);
-    setStatus('Connecting...');
+    setStatus(t("Connecting..."));
     stopStream();
     destroyChart();
 
@@ -176,7 +177,7 @@ export function useIndicatorStream() {
           chartRef.current.registerPlugin(new QFChart.LineTool());
           chartRef.current.registerPlugin(new QFChart.FibonacciTool());
 
-          setStatus(`${ohlcv.length} bars loaded`);
+          setStatus(`${ohlcv.length} ${t("bars loaded")}`);
           setRunning(false);
         } else {
           if (indicatorRef.current && ctx.plots) {

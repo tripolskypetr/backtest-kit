@@ -40,23 +40,23 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Dashboard",
+    label: t("Dashboard"),
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Performance",
+    label: t("Performance"),
   },
   {
     type: Breadcrumbs2Type.Button,
     action: "download-pdf",
-    label: "Download PDF",
+    label: t("Download PDF"),
     icon: PictureAsPdfOutlined,
   },
   {
     type: Breadcrumbs2Type.Fab,
     action: "setup-action",
-    label: "Settings",
+    label: t("Settings"),
     icon: Settings,
   }
 ];
@@ -64,7 +64,7 @@ const options: IBreadcrumbs2Option[] = [
 const actions: IBreadcrumbs2Action[] = [
     {
       action: "setup-action",
-      label: "Settings",
+      label: t("Settings"),
       icon: () => <IconWrapper icon={Settings} color="#4caf50" />,
     },
     {
@@ -72,17 +72,17 @@ const actions: IBreadcrumbs2Action[] = [
     },
     {
         action: "download-json",
-        label: "Download JSON",
+        label: t("Download JSON"),
         icon: () => <IconWrapper icon={DataObject} color="#4caf50" />,
     },
     {
         action: "download-markdown",
-        label: "Download Markdown",
+        label: t("Download Markdown"),
         icon: () => <IconWrapper icon={Description} color="#4caf50" />,
     },
     {
         action: "download-pdf",
-        label: "Download PDF",
+        label: t("Download PDF"),
         icon: () => <IconWrapper icon={PictureAsPdf} color="#4caf50" />,
     },
     {
@@ -90,7 +90,7 @@ const actions: IBreadcrumbs2Action[] = [
     },
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];

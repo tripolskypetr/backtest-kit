@@ -10,6 +10,7 @@ import steps from "./steps";
 import { IconButton, Stack } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../../../../config/params";
+import { t } from "../../../../../i18n";
 
 const DEFAULT_PATH = "/brief";
 
@@ -32,7 +33,7 @@ export const useOpenPendingModal = ({ payload }: IParams) => {
   const { pickData, render } = useWizardModal({
     history,
     animation: "none",
-    title: "Open Position",
+    title: t("Open Position"),
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={1}>
         <IconButton size="small" onClick={onClose}>

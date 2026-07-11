@@ -20,6 +20,7 @@ import { reloadSubject } from "../../../../config/emitters";
 import HeatCard from "../components/HeatCard";
 import ioc from "../../../../lib";
 import downloadMarkdown from "../../../../utils/downloadMarkdown";
+import { t } from "../../../../i18n";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -30,17 +31,17 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Dashboard",
+        label: t("Dashboard"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Heatmap",
+        label: t("Heatmap"),
     },
     {
         type: Breadcrumbs2Type.Button,
         action: "download-pdf",
-        label: "Download PDF",
+        label: t("Download PDF"),
         icon: PictureAsPdfOutlined,
     },
 ];
@@ -48,17 +49,17 @@ const options: IBreadcrumbs2Option[] = [
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "download-json",
-        label: "Download JSON",
+        label: t("Download JSON"),
         icon: () => <IconWrapper icon={DataObject} color="#4caf50" />,
     },
     {
         action: "download-markdown",
-        label: "Download Markdown",
+        label: t("Download Markdown"),
         icon: () => <IconWrapper icon={Description} color="#4caf50" />,
     },
     {
         action: "download-pdf",
-        label: "Download PDF",
+        label: t("Download PDF"),
         icon: () => <IconWrapper icon={PictureAsPdf} color="#4caf50" />,
     },
     {
@@ -66,7 +67,7 @@ const actions: IBreadcrumbs2Action[] = [
     },
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];
@@ -77,7 +78,7 @@ const createFields = (rows: IHeatmapRow[]): TypedField[] => {
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "No data",
+                placeholder: t("No data"),
                 sx: { textAlign: "center", opacity: 0.5, mt: 4 },
             },
         ];

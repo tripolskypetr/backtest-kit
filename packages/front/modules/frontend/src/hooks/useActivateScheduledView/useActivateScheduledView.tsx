@@ -20,6 +20,7 @@ import { ActivateScheduledCommitNotification } from "backtest-kit";
 import activate_scheduled_fields from "../../assets/activate_scheduled_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/activate_scheduled";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useActivateScheduledView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Activate Scheduled Details",
+    title: t("Activate Scheduled Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

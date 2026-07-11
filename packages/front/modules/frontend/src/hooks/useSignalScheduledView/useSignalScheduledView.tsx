@@ -20,6 +20,7 @@ import { SignalScheduledNotification } from "backtest-kit";
 import signal_scheduled_fields from "../../assets/signal_scheduled_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/signal_scheduled";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useSignalScheduledView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Scheduled Details",
+    title: t("Signal Scheduled Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

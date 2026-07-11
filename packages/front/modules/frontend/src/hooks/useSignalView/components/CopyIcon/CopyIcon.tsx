@@ -13,6 +13,7 @@ import {
     debounce,
 } from "react-declarative";
 import ioc from "../../../../lib";
+import { t } from "../../../../i18n";
 
 interface ICopyIconProps {
     disabled?: boolean;
@@ -73,7 +74,7 @@ export const CopyIcon = ({
                 {
                     await doCopy(content);
                 }
-                ioc.alertService.notify("Copied!");
+                ioc.alertService.notify(t("Copied!"));
             }}
         >
             <ContentCopy />

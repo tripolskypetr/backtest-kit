@@ -4,6 +4,7 @@ import ioc from "../lib";
 import getPriceScale from "../utils/getPriceScale";
 import Markdown from "../components/common/Markdown";
 import toPlainString from "../helpers/toPlainString";
+import { t } from "../i18n";
 
 export const activate_scheduled_fields: TypedField[] = [
     {
@@ -14,7 +15,7 @@ export const activate_scheduled_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "General Information",
+                placeholder: t("General Information"),
             },
             {
                 type: FieldType.Outline,
@@ -27,9 +28,9 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "symbol",
-                        title: "Symbol",
+                        title: t("Symbol"),
                         readonly: true,
-                        compute: (obj) => obj.symbol || "Not specified",
+                        compute: (obj) => obj.symbol || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -38,9 +39,9 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "exchangeName",
-                        title: "Exchange",
+                        title: t("Exchange"),
                         readonly: true,
-                        compute: (obj) => obj.exchangeName || "Not specified",
+                        compute: (obj) => obj.exchangeName || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -49,9 +50,9 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "strategyName",
-                        title: "Strategy",
+                        title: t("Strategy"),
                         readonly: true,
-                        compute: (obj) => obj.strategyName || "Not specified",
+                        compute: (obj) => obj.strategyName || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -60,9 +61,9 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "backtest",
-                        title: "Mode",
+                        title: t("Mode"),
                         readonly: true,
-                        compute: (obj) => (obj.backtest ? "Backtest" : "Live"),
+                        compute: (obj) => (obj.backtest ? t("Backtest") : t("Live")),
                     },
                     {
                         type: FieldType.Text,
@@ -71,12 +72,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "currentPrice",
-                        title: "Current Price",
+                        title: t("Current Price"),
                         readonly: true,
                         compute: (obj) =>
                             !!obj.currentPrice
                                 ? `${obj.currentPrice.toFixed(getPriceScale(obj.currentPrice))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -85,19 +86,19 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "signalId",
-                        title: "Signal ID",
+                        title: t("Signal ID"),
                         readonly: true,
                         trailingIcon: ArrowForward,
                         click: ({}, {}, { signalId }) => signalId && ioc.layoutService.pickSignal(signalId),
                         isVisible: (obj) => !!obj.signalId,
-                        compute: (obj) => obj.signalId || "Not specified",
+                        compute: (obj) => obj.signalId || t("Not specified"),
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "Timestamps",
+                placeholder: t("Timestamps"),
             },
             {
                 type: FieldType.Outline,
@@ -110,7 +111,7 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "timestamp",
-                        title: "Timestamp",
+                        title: t("Timestamp"),
                         readonly: true,
                         compute: (obj) =>
                             obj.timestamp
@@ -126,7 +127,7 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "createdAt",
-                        title: "Created",
+                        title: t("Created"),
                         readonly: true,
                         compute: (obj) =>
                             obj.createdAt
@@ -142,7 +143,7 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "scheduledAt",
-                        title: "Scheduled At",
+                        title: t("Scheduled At"),
                         readonly: true,
                         isVisible: (obj) => !!obj.scheduledAt,
                         compute: (obj) =>
@@ -159,7 +160,7 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "pendingAt",
-                        title: "Pending At",
+                        title: t("Pending At"),
                         readonly: true,
                         isVisible: (obj) => !!obj.pendingAt,
                         compute: (obj) =>
@@ -174,7 +175,7 @@ export const activate_scheduled_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "Activation Details",
+                placeholder: t("Activation Details"),
             },
             {
                 type: FieldType.Outline,
@@ -187,13 +188,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "position",
-                        title: "Position",
+                        title: t("Position"),
                         readonly: true,
                         compute: (obj) => {
                             const position = obj.position;
                             if (position === "long") return "LONG";
                             if (position === "short") return "SHORT";
-                            return "Not specified";
+                            return t("Not specified");
                         },
                     },
                     {
@@ -203,10 +204,10 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "activateId",
-                        title: "Activate ID",
+                        title: t("Activate ID"),
                         readonly: true,
                         isVisible: (obj) => !!obj.activateId,
-                        compute: (obj) => obj.activateId || "Not specified",
+                        compute: (obj) => obj.activateId || t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -215,12 +216,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "priceOpen",
-                        title: "Entry Price",
+                        title: t("Entry Price"),
                         readonly: true,
                         compute: (obj) =>
                             !!obj.priceOpen
                                 ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -229,13 +230,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "priceStopLoss",
-                        title: "Stop Loss",
+                        title: t("Stop Loss"),
                         readonly: true,
                         isVisible: (obj) => !!obj.priceStopLoss,
                         compute: (obj) =>
                             !!obj.priceStopLoss
                                 ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -244,13 +245,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "priceTakeProfit",
-                        title: "Take Profit",
+                        title: t("Take Profit"),
                         readonly: true,
                         isVisible: (obj) => !!obj.priceTakeProfit,
                         compute: (obj) =>
                             !!obj.priceTakeProfit
                                 ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -259,13 +260,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "originalPriceStopLoss",
-                        title: "Original Stop Loss",
+                        title: t("Original Stop Loss"),
                         readonly: true,
                         isVisible: (obj) => !!obj.originalPriceStopLoss,
                         compute: (obj) =>
                             !!obj.originalPriceStopLoss
                                 ? `${obj.originalPriceStopLoss.toFixed(getPriceScale(obj.originalPriceStopLoss))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -274,13 +275,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "originalPriceTakeProfit",
-                        title: "Original Take Profit",
+                        title: t("Original Take Profit"),
                         readonly: true,
                         isVisible: (obj) => !!obj.originalPriceTakeProfit,
                         compute: (obj) =>
                             !!obj.originalPriceTakeProfit
                                 ? `${obj.originalPriceTakeProfit.toFixed(getPriceScale(obj.originalPriceTakeProfit))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -289,13 +290,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "originalPriceOpen",
-                        title: "Original Entry",
+                        title: t("Original Entry"),
                         readonly: true,
                         isVisible: (obj) => !!obj.originalPriceOpen && obj.originalPriceOpen !== obj.priceOpen,
                         compute: (obj) =>
                             !!obj.originalPriceOpen
                                 ? `${obj.originalPriceOpen.toFixed(getPriceScale(obj.originalPriceOpen))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -304,13 +305,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalEntries",
-                        title: "Total Entries",
+                        title: t("Total Entries"),
                         readonly: true,
                         isVisible: (obj) => !!obj.totalEntries && obj.totalEntries > 1,
                         compute: (obj) =>
                             !!obj.totalEntries
                                 ? String(obj.totalEntries)
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -319,7 +320,7 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalPartials",
-                        title: "Total Closes",
+                        title: t("Total Closes"),
                         readonly: true,
                         isVisible: (obj) => !!obj.totalPartials && obj.totalPartials > 0,
                         compute: (obj) => String(obj.totalPartials),
@@ -329,7 +330,7 @@ export const activate_scheduled_fields: TypedField[] = [
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "PNL Details",
+                placeholder: t("PNL Details"),
                 isVisible: (obj) => !!obj.pnlPriceOpen,
             },
             {
@@ -344,13 +345,13 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "cost",
-                        title: "Cost",
+                        title: t("Cost"),
                         readonly: true,
                         isVisible: (obj) => !!obj.cost,
                         compute: (obj) =>
                             !!obj.cost
                                 ? `${obj.cost.toFixed(getPriceScale(obj.cost))}$`
-                                : "Not specified",
+                                : t("Not specified"),
                     },
                     {
                         type: FieldType.Text,
@@ -359,11 +360,11 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "pnlPercentage",
-                        title: "PNL %",
+                        title: t("PNL %"),
                         readonly: true,
                         compute: (obj) => {
                             const pnl = obj.pnlPercentage;
-                            if (pnl == null) return "N/A";
+                            if (pnl == null) return t("N/A");
                             const sign = pnl >= 0 ? "+" : "";
                             return `${sign}${pnl.toFixed(2)}%`;
                         },
@@ -375,11 +376,11 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "pnlCost",
-                        title: "PNL ($)",
+                        title: t("PNL ($)"),
                         readonly: true,
                         compute: (obj) => {
                             const v = obj.pnlCost;
-                            if (v == null) return "N/A";
+                            if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(getPriceScale(v))}$`;
                         },
@@ -391,12 +392,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "pnlEntries",
-                        title: "Invested",
+                        title: t("Invested"),
                         readonly: true,
                         compute: (obj) =>
                             !!obj.pnlEntries
                                 ? `${obj.pnlEntries.toFixed(getPriceScale(obj.pnlEntries))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                     {
                         type: FieldType.Text,
@@ -405,12 +406,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "pnlPriceOpen",
-                        title: "PNL Entry Price",
+                        title: t("PNL Entry Price"),
                         readonly: true,
                         compute: (obj) =>
                             !!obj.pnlPriceOpen
                                 ? `${obj.pnlPriceOpen.toFixed(getPriceScale(obj.pnlPriceOpen))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                     {
                         type: FieldType.Text,
@@ -419,19 +420,19 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "pnlPriceClose",
-                        title: "PNL Exit Price",
+                        title: t("PNL Exit Price"),
                         readonly: true,
                         compute: (obj) =>
                             !!obj.pnlPriceClose
                                 ? `${obj.pnlPriceClose.toFixed(getPriceScale(obj.pnlPriceClose))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "Peak Profit",
+                placeholder: t("Peak Profit"),
                 isVisible: (obj) => !!obj.peakProfitPriceClose,
             },
             {
@@ -446,11 +447,11 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "peakProfitPercentage",
-                        title: "Peak Profit %",
+                        title: t("Peak Profit %"),
                         readonly: true,
                         compute: (obj) => {
                             const v = obj.peakProfitPercentage;
-                            if (v == null) return "N/A";
+                            if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(2)}%`;
                         },
@@ -462,11 +463,11 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "peakProfitCost",
-                        title: "Peak Profit ($)",
+                        title: t("Peak Profit ($)"),
                         readonly: true,
                         compute: (obj) => {
                             const v = obj.peakProfitCost;
-                            if (v == null) return "N/A";
+                            if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(getPriceScale(v))}$`;
                         },
@@ -478,12 +479,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "peakProfitPriceOpen",
-                        title: "Entry Price",
+                        title: t("Entry Price"),
                         readonly: true,
                         compute: (obj) =>
                             obj.peakProfitPriceOpen
                                 ? `${obj.peakProfitPriceOpen.toFixed(getPriceScale(obj.peakProfitPriceOpen))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                     {
                         type: FieldType.Text,
@@ -492,12 +493,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "peakProfitPriceClose",
-                        title: "Peak Price",
+                        title: t("Peak Price"),
                         readonly: true,
                         compute: (obj) =>
                             obj.peakProfitPriceClose
                                 ? `${obj.peakProfitPriceClose.toFixed(getPriceScale(obj.peakProfitPriceClose))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                     {
                         type: FieldType.Text,
@@ -506,19 +507,19 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "peakProfitEntries",
-                        title: "Invested",
+                        title: t("Invested"),
                         readonly: true,
                         compute: (obj) =>
                             obj.peakProfitEntries
                                 ? `${obj.peakProfitEntries.toFixed(getPriceScale(obj.peakProfitEntries))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "Max Drawdown",
+                placeholder: t("Max Drawdown"),
                 isVisible: (obj) => !!obj.maxDrawdownPriceClose,
             },
             {
@@ -533,11 +534,11 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "maxDrawdownPercentage",
-                        title: "Max Drawdown %",
+                        title: t("Max Drawdown %"),
                         readonly: true,
                         compute: (obj) => {
                             const v = obj.maxDrawdownPercentage;
-                            if (v == null) return "N/A";
+                            if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(2)}%`;
                         },
@@ -549,11 +550,11 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "maxDrawdownCost",
-                        title: "Max Drawdown ($)",
+                        title: t("Max Drawdown ($)"),
                         readonly: true,
                         compute: (obj) => {
                             const v = obj.maxDrawdownCost;
-                            if (v == null) return "N/A";
+                            if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
                             return `${sign}${v.toFixed(getPriceScale(v))}$`;
                         },
@@ -565,12 +566,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "maxDrawdownPriceOpen",
-                        title: "Entry Price",
+                        title: t("Entry Price"),
                         readonly: true,
                         compute: (obj) =>
                             obj.maxDrawdownPriceOpen
                                 ? `${obj.maxDrawdownPriceOpen.toFixed(getPriceScale(obj.maxDrawdownPriceOpen))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                     {
                         type: FieldType.Text,
@@ -579,12 +580,12 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "maxDrawdownPriceClose",
-                        title: "Drawdown Price",
+                        title: t("Drawdown Price"),
                         readonly: true,
                         compute: (obj) =>
                             obj.maxDrawdownPriceClose
                                 ? `${obj.maxDrawdownPriceClose.toFixed(getPriceScale(obj.maxDrawdownPriceClose))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                     {
                         type: FieldType.Text,
@@ -593,19 +594,19 @@ export const activate_scheduled_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "maxDrawdownEntries",
-                        title: "Invested",
+                        title: t("Invested"),
                         readonly: true,
                         compute: (obj) =>
                             obj.maxDrawdownEntries
                                 ? `${obj.maxDrawdownEntries.toFixed(getPriceScale(obj.maxDrawdownEntries))}$`
-                                : "N/A",
+                                : t("N/A"),
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "Note",
+                placeholder: t("Note"),
                 isVisible: (obj) => !!obj.note,
             },
             {
@@ -646,7 +647,7 @@ export const activate_scheduled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.signalId,
                         element: ({ signalId }) => (
                             <CopyButton
-                                label="Signal ID"
+                                label={t("Signal ID")}
                                 content={signalId}
                             />
                         ),
@@ -669,7 +670,7 @@ export const activate_scheduled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.activateId,
                         element: ({ activateId }) => (
                             <CopyButton
-                                label="Activate ID"
+                                label={t("Activate ID")}
                                 content={activateId}
                             />
                         ),

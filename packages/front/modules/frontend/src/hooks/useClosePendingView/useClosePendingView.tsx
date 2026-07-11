@@ -20,6 +20,7 @@ import { ClosePendingCommitNotification } from "backtest-kit";
 import close_pending_commit_fields from "../../assets/close_pending_commit_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/close_pending_commit";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useClosePendingView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Close Pending Details",
+    title: t("Close Pending Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

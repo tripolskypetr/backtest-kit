@@ -15,11 +15,12 @@ import ioc from "../../../lib";
 import { NotificationModel } from "backtest-kit";
 import { CC_LIST_BUFFER_SIZE } from "../../../config/params";
 import NotificationCard from "./components/NotificationCard";
+import { t } from "../../../i18n";
 
 const actions: IBreadcrumbs2Action[] = [
   {
     action: "update-now",
-    label: "Refresh manually",
+    label: t("Refresh manually"),
     icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
   },
 ];
@@ -33,12 +34,12 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Main",
+    label: t("Main"),
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Notifications",
+    label: t("Notifications"),
   },
 ];
 

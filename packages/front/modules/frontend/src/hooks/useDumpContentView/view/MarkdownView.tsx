@@ -1,12 +1,13 @@
 import { IOutletModalProps, ScrollView } from "react-declarative";
 import { Box } from "@mui/material";
 import Markdown from "../../../components/common/Markdown";
+import { t } from "../../../i18n";
 
 export const MarkdownView = ({ data }: IOutletModalProps) => (
     <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
         <ScrollView withScrollbar hideOverflowX sx={{ height: "100%" }}>
             <div>
-                <Markdown content={data || "# File is empty"} />
+                <Markdown content={data || t("# File is empty")} />
                 <Box sx={{ paddingBottom: "65px" }} />
             </div>
         </ScrollView>

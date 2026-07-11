@@ -9,6 +9,7 @@ import {
 import { Box } from "@mui/material";
 import StatusCard from "../components/StatusCard";
 import ioc from "../../../../../../lib";
+import { t } from "../../../../../../i18n";
 import { IClosePendingPayload } from "../useClosePendingModal";
 
 interface IState {
@@ -75,7 +76,7 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="error"
-          title="Position Closing Error"
+          title={t("Position Closing Error")}
           description={state.error}
           symbol={symbol}
         />
@@ -85,8 +86,8 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="loading"
-          title="Closing Position"
-          description="Please wait. Your operation is being processed..."
+          title={t("Closing Position")}
+          description={t("Please wait. Your operation is being processed...")}
           symbol={symbol}
         />
       );
@@ -94,8 +95,8 @@ export const SubmitView = ({
     return (
       <StatusCard
         type="success"
-        title="Position Closed"
-        description="Closing has been scheduled successfully. Waiting for the order to be executed on the exchange"
+        title={t("Position Closed")}
+        description={t("Closing has been scheduled successfully. Waiting for the order to be executed on the exchange")}
         symbol={symbol}
       />
     );
@@ -104,7 +105,7 @@ export const SubmitView = ({
   const renderNavigation = () => (
     <WizardNavigation
       hasNext={state.success || !!state.error}
-      labelNext="Close"
+      labelNext={t("Close")}
       onNext={async () => {
         await beginSave();
       }}

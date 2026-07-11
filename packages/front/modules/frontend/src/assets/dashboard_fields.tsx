@@ -9,6 +9,7 @@ import SuccessRateWidget from "../widgets/SuccessRateWidget";
 import IconPhoto from "../components/common/IconPhoto";
 import ChartWidget from "../widgets/ChartWidget";
 import SignalGridWidget from "../widgets/SignalGridWidget";
+import { t } from "../i18n";
 
 const dashboard_fields: TypedField<IMeasure>[] = [
   {
@@ -33,12 +34,12 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           value={value}
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
-          valueUnit="USDT"
-          headerLabel="31 days"
-          footerLabel="Profit for 31 days"
+          valueUnit={t("USDT")}
+          headerLabel={t("31 days")}
+          footerLabel={t("Profit for 31 days")}
           caption={`${count} ${wordForm(count, {
-            one: "trade",
-            many: "trades",
+            one: t("trade"),
+            many: t("trades"),
           })}`}
         />
       );
@@ -66,12 +67,12 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           value={value}
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
-          valueUnit="USDT"
-          headerLabel="7 days"
-          footerLabel="Profit for 7 days"
+          valueUnit={t("USDT")}
+          headerLabel={t("7 days")}
+          footerLabel={t("Profit for 7 days")}
           caption={`${count} ${wordForm(count, {
-            one: "trade",
-            many: "trades",
+            one: t("trade"),
+            many: t("trades"),
           })}`}
         />
       );
@@ -99,12 +100,12 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           value={value}
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
-          valueUnit="USDT"
-          headerLabel="Yesterday"
-          footerLabel="Yesterday's profit"
+          valueUnit={t("USDT")}
+          headerLabel={t("Yesterday")}
+          footerLabel={t("Yesterday's profit")}
           caption={`${count} ${wordForm(count, {
-            one: "trade",
-            many: "trades",
+            one: t("trade"),
+            many: t("trades"),
           })}`}
         />
       );
@@ -132,12 +133,12 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           value={value}
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
-          valueUnit="USDT"
-          headerLabel="Today"
-          footerLabel="Today's profit"
+          valueUnit={t("USDT")}
+          headerLabel={t("Today")}
+          footerLabel={t("Today's profit")}
           caption={`${count} ${wordForm(count, {
-            one: "trade",
-            many: "trades",
+            one: t("trade"),
+            many: t("trades"),
           })}`}
         />
       );
@@ -154,13 +155,13 @@ const dashboard_fields: TypedField<IMeasure>[] = [
       const items = [
         {
           color: "#DD4049",
-          label: "Failed",
+          label: t("Failed"),
           maxValue: Math.max(tradePerfomance.rejectedCount + 1, 1),
           value: () => tradePerfomance.rejectedCount,
         },
         {
           color: "#2EA96F",
-          label: "Successful",
+          label: t("Successful"),
           maxValue: Math.max(
             tradePerfomance.rejectedCount + tradePerfomance.resolvedCount + 2,
             2
@@ -169,7 +170,7 @@ const dashboard_fields: TypedField<IMeasure>[] = [
         },
         {
           color: "#F3A43A",
-          label: "Total",
+          label: t("Total"),
           hidden: true,
           maxValue: Math.max(tradePerfomance.total + 3, 3),
           value: () => tradePerfomance.total,
@@ -181,8 +182,8 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           style={{ height: "max(calc((100dvh - 100px) / 2), 450px)" }}
           items={items}
           valueUnit={wordForm(Math.abs(tradePerfomance.resolvedCount), {
-            one: "Successful signal",
-            many: "Successful signals",
+            one: t("Successful signal"),
+            many: t("Successful signals"),
           })}
           value={tradePerfomance.resolvedCount}
         />

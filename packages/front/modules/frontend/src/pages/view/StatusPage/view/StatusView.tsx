@@ -20,6 +20,7 @@ import { Background } from "../../../../components/common/Background";
 import { get } from "lodash";
 import downloadMarkdown from "../../../../utils/downloadMarkdown";
 import signal_fields from "../../../../assets/signal_fields";
+import { t } from "../../../../i18n";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -30,34 +31,34 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Status",
+        label: t("Status"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        compute: (payload) => payload ? `${String(payload.symbol).toUpperCase()} (${payload.strategyName})` : "Live",
+        compute: (payload) => payload ? `${String(payload.symbol).toUpperCase()} (${payload.strategyName})` : t("Live"),
     },
     {
         type: Breadcrumbs2Type.Button,
         action: "control-action",
-        label: "Manual Control",
+        label: t("Manual Control"),
         icon: VideogameAsset,
     },
     {
         type: Breadcrumbs2Type.Fab,
         action: "print-action",
-        label: "Print",
+        label: t("Print"),
         icon: Print,
     },
     {
         type: Breadcrumbs2Type.Fab,
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: Refresh,
     }
 ];
@@ -65,12 +66,12 @@ const options: IBreadcrumbs2Option[] = [
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "print-action",
-        label: "Print",
+        label: t("Print"),
         icon: () => <IconWrapper icon={Print} color="#4caf50" />,
     },
     {
         action: "download-action",
-        label: "Download",
+        label: t("Download"),
         icon: () => <IconWrapper icon={Download} color="#4caf50" />,
     },
     {
@@ -78,7 +79,7 @@ const actions: IBreadcrumbs2Action[] = [
     },
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];
@@ -161,7 +162,7 @@ export const StatusView = ({ params }: IOutletProps) => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        Loading...
+                        {t("Loading...")}
                     </Typography>
                 </Center>
             );
@@ -171,7 +172,7 @@ export const StatusView = ({ params }: IOutletProps) => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        No pending signal
+                        {t("No pending signal")}
                     </Typography>
                 </Center>
             );

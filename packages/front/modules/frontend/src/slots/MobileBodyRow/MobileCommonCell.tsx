@@ -12,6 +12,7 @@ import {
 } from "react-declarative";
 import clsx from "clsx";
 import { makeStyles } from "../../styles";
+import { t } from "../../i18n";
 
 interface IMobileCommonCellProps extends ICommonCellSlot {
   className?: string;
@@ -76,7 +77,7 @@ export const MobileCommonCell = ({
 
   const maxWidth = useMemo(() => Math.max(fullWidth - 35, 0), [fullWidth]);
 
-  const { headerName = column.field || "Unknown" } = column;
+  const { headerName = column.field || t("Unknown") } = column;
 
   return (
     <TableCell
