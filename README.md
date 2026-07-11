@@ -797,6 +797,25 @@ Zero-dependency TypeScript ports of the quant math behind [vectorbt](https://git
 
 ---
 
+## 🌐 Localization
+
+The `@backtest-kit/ui` dashboard ships in **7 languages**: English, Русский, Türkçe, 中文, हिन्दी, Español, Português. Switch via the language picker in the header
+
+<details>
+<summary>Locales</summary>
+
+- 🇬🇧 **English** — ~1.5B speakers. *Backtest Kit is a TypeScript engine for backtesting and live trading where the code you test is the code you ship.*
+- 🇨🇳 **中文** — ~1.1B speakers. *Backtest Kit 是一个 TypeScript 回测与实盘交易引擎——回测过的代码与实盘运行的代码完全一致。*
+- 🇮🇳 **हिन्दी** — ~600M speakers. *Backtest Kit एक TypeScript इंजन है, जिसमें बैकटेस्ट किया गया कोड ही बिना किसी बदलाव के लाइव ट्रेडिंग में चलता है।*
+- 🇪🇸 **Español** — ~560M speakers. *Backtest Kit es un motor TypeScript de backtesting y trading en vivo donde el código que pruebas es exactamente el que opera.*
+- 🇧🇷 **Português** — ~260M speakers. *Backtest Kit é um motor TypeScript de backtesting e trading ao vivo em que o código testado é exatamente o que vai para produção.*
+- 🇷🇺 **Русский** — ~255M speakers. *Backtest Kit — TypeScript-движок для бэктеста и живой торговли: код, проверенный на истории, без изменений торгует на бирже.*
+- 🇹🇷 **Türkçe** — ~90M speakers. *Backtest Kit, geçmiş verilerle test ettiğiniz kodun canlı işlemlerde birebir aynı çalıştığı bir TypeScript motorudur.*
+
+</details>
+
+---
+
 ## 💯 Tested
 
 950+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
