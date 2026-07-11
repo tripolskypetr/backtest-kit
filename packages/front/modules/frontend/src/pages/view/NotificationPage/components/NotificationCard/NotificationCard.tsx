@@ -172,11 +172,11 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "trailing_take.commit":
       return `${t("Trailing take")} ${item.symbol}`;
     case "order_sync.open":
-      return `${t(item.orderType === "schedule" ? "Sync Placed" : "Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
+      return `${t(item.orderType === "schedule" ? "Order Sync Placed" : "Order Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "order_sync.close":
-      return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Order Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "order_sync.check":
-      return `${t("Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
+      return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : "N/A"})`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
