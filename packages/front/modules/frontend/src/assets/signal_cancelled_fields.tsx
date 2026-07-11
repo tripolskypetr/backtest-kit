@@ -185,7 +185,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.priceOpen
-                                ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}$`
+                                ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -200,7 +200,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.priceTakeProfit,
                         compute: (obj) =>
                             !!obj.priceTakeProfit
-                                ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}$`
+                                ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -215,7 +215,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.priceStopLoss,
                         compute: (obj) =>
                             !!obj.priceStopLoss
-                                ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}$`
+                                ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -230,7 +230,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.originalPriceTakeProfit,
                         compute: (obj) =>
                             !!obj.originalPriceTakeProfit
-                                ? `${obj.originalPriceTakeProfit.toFixed(getPriceScale(obj.originalPriceTakeProfit))}$`
+                                ? `${obj.originalPriceTakeProfit.toFixed(getPriceScale(obj.originalPriceTakeProfit))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -245,7 +245,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.originalPriceStopLoss,
                         compute: (obj) =>
                             !!obj.originalPriceStopLoss
-                                ? `${obj.originalPriceStopLoss.toFixed(getPriceScale(obj.originalPriceStopLoss))}$`
+                                ? `${obj.originalPriceStopLoss.toFixed(getPriceScale(obj.originalPriceStopLoss))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -260,7 +260,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.originalPriceOpen && obj.originalPriceOpen !== obj.priceOpen,
                         compute: (obj) =>
                             !!obj.originalPriceOpen
-                                ? `${obj.originalPriceOpen.toFixed(getPriceScale(obj.originalPriceOpen))}$`
+                                ? `${obj.originalPriceOpen.toFixed(getPriceScale(obj.originalPriceOpen))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {

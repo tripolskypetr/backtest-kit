@@ -81,7 +81,7 @@ export const status_fields: TypedField[] = [
                             outlinePaper={payload.outlinePaper}
                             color={pnlColor(pnlCost)}
                             label={t("PNL $")}
-                            value={`${pnlCost >= 0 ? "+" : "-"}${Math.abs(pnlCost).toFixed(getPriceScale(pnlCost))}$`}
+                            value={`${pnlCost >= 0 ? "+" : "-"}${Math.abs(pnlCost).toFixed(getPriceScale(pnlCost))}${t("$")}`}
                             icon={Analytics}
                         />
                     ),
@@ -103,7 +103,7 @@ export const status_fields: TypedField[] = [
                             outlinePaper={payload.outlinePaper}
                             color={COLOR_BLUE}
                             label={t("Invested $")}
-                            value={`$${pnlEntries.toFixed(getPriceScale(pnlEntries))}`}
+                            value={`${t("$")}${pnlEntries.toFixed(getPriceScale(pnlEntries))}`}
                             icon={AccountBalance}
                         />
                     ),

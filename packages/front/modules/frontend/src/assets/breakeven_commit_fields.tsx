@@ -76,7 +76,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.currentPrice
-                                ? `${obj.currentPrice.toFixed(getPriceScale(obj.currentPrice))}$`
+                                ? `${obj.currentPrice.toFixed(getPriceScale(obj.currentPrice))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -207,7 +207,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.priceOpen
-                                ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}$`
+                                ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -222,7 +222,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.priceStopLoss,
                         compute: (obj) =>
                             !!obj.priceStopLoss
-                                ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}$`
+                                ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -237,7 +237,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.priceTakeProfit,
                         compute: (obj) =>
                             !!obj.priceTakeProfit
-                                ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}$`
+                                ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -252,7 +252,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.originalPriceStopLoss,
                         compute: (obj) =>
                             !!obj.originalPriceStopLoss
-                                ? `${obj.originalPriceStopLoss.toFixed(getPriceScale(obj.originalPriceStopLoss))}$`
+                                ? `${obj.originalPriceStopLoss.toFixed(getPriceScale(obj.originalPriceStopLoss))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -267,7 +267,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.originalPriceTakeProfit,
                         compute: (obj) =>
                             !!obj.originalPriceTakeProfit
-                                ? `${obj.originalPriceTakeProfit.toFixed(getPriceScale(obj.originalPriceTakeProfit))}$`
+                                ? `${obj.originalPriceTakeProfit.toFixed(getPriceScale(obj.originalPriceTakeProfit))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -282,7 +282,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.originalPriceOpen && obj.originalPriceOpen !== obj.priceOpen,
                         compute: (obj) =>
                             !!obj.originalPriceOpen
-                                ? `${obj.originalPriceOpen.toFixed(getPriceScale(obj.originalPriceOpen))}$`
+                                ? `${obj.originalPriceOpen.toFixed(getPriceScale(obj.originalPriceOpen))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -354,7 +354,7 @@ export const breakeven_commit_fields: TypedField[] = [
                             const v = obj.pnlCost;
                             if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
-                            return `${sign}${v.toFixed(getPriceScale(v))}$`;
+                            return `${sign}${v.toFixed(getPriceScale(v))}${t("$")}`;
                         },
                     },
                     {
@@ -368,7 +368,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.pnlEntries
-                                ? `${obj.pnlEntries.toFixed(getPriceScale(obj.pnlEntries))}$`
+                                ? `${obj.pnlEntries.toFixed(getPriceScale(obj.pnlEntries))}${t("$")}`
                                 : t("N/A"),
                     },
                     {
@@ -382,7 +382,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.pnlPriceOpen
-                                ? `${obj.pnlPriceOpen.toFixed(getPriceScale(obj.pnlPriceOpen))}$`
+                                ? `${obj.pnlPriceOpen.toFixed(getPriceScale(obj.pnlPriceOpen))}${t("$")}`
                                 : t("N/A"),
                     },
                     {
@@ -396,7 +396,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.pnlPriceClose
-                                ? `${obj.pnlPriceClose.toFixed(getPriceScale(obj.pnlPriceClose))}$`
+                                ? `${obj.pnlPriceClose.toFixed(getPriceScale(obj.pnlPriceClose))}${t("$")}`
                                 : t("N/A"),
                     },
                 ],
@@ -441,7 +441,7 @@ export const breakeven_commit_fields: TypedField[] = [
                             const v = obj.peakProfitCost;
                             if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
-                            return `${sign}${v.toFixed(getPriceScale(v))}$`;
+                            return `${sign}${v.toFixed(getPriceScale(v))}${t("$")}`;
                         },
                     },
                     {
@@ -455,7 +455,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             obj.peakProfitPriceOpen
-                                ? `${obj.peakProfitPriceOpen.toFixed(getPriceScale(obj.peakProfitPriceOpen))}$`
+                                ? `${obj.peakProfitPriceOpen.toFixed(getPriceScale(obj.peakProfitPriceOpen))}${t("$")}`
                                 : t("N/A"),
                     },
                     {
@@ -469,7 +469,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             obj.peakProfitPriceClose
-                                ? `${obj.peakProfitPriceClose.toFixed(getPriceScale(obj.peakProfitPriceClose))}$`
+                                ? `${obj.peakProfitPriceClose.toFixed(getPriceScale(obj.peakProfitPriceClose))}${t("$")}`
                                 : t("N/A"),
                     },
                     {
@@ -483,7 +483,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             obj.peakProfitEntries
-                                ? `${obj.peakProfitEntries.toFixed(getPriceScale(obj.peakProfitEntries))}$`
+                                ? `${obj.peakProfitEntries.toFixed(getPriceScale(obj.peakProfitEntries))}${t("$")}`
                                 : t("N/A"),
                     },
                 ],
@@ -528,7 +528,7 @@ export const breakeven_commit_fields: TypedField[] = [
                             const v = obj.maxDrawdownCost;
                             if (v == null) return t("N/A");
                             const sign = v >= 0 ? "+" : "";
-                            return `${sign}${v.toFixed(getPriceScale(v))}$`;
+                            return `${sign}${v.toFixed(getPriceScale(v))}${t("$")}`;
                         },
                     },
                     {
@@ -542,7 +542,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             obj.maxDrawdownPriceOpen
-                                ? `${obj.maxDrawdownPriceOpen.toFixed(getPriceScale(obj.maxDrawdownPriceOpen))}$`
+                                ? `${obj.maxDrawdownPriceOpen.toFixed(getPriceScale(obj.maxDrawdownPriceOpen))}${t("$")}`
                                 : t("N/A"),
                     },
                     {
@@ -556,7 +556,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             obj.maxDrawdownPriceClose
-                                ? `${obj.maxDrawdownPriceClose.toFixed(getPriceScale(obj.maxDrawdownPriceClose))}$`
+                                ? `${obj.maxDrawdownPriceClose.toFixed(getPriceScale(obj.maxDrawdownPriceClose))}${t("$")}`
                                 : t("N/A"),
                     },
                     {
@@ -570,7 +570,7 @@ export const breakeven_commit_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             obj.maxDrawdownEntries
-                                ? `${obj.maxDrawdownEntries.toFixed(getPriceScale(obj.maxDrawdownEntries))}$`
+                                ? `${obj.maxDrawdownEntries.toFixed(getPriceScale(obj.maxDrawdownEntries))}${t("$")}`
                                 : t("N/A"),
                     },
                 ],

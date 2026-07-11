@@ -114,7 +114,7 @@ const signal_fields: TypedField[] = [
         title: t("Entry"),
         readonly: true,
         compute: (obj) =>
-            obj.priceOpen ? `${formatAmount(obj.priceOpen)}$` : t("N/A"),
+            obj.priceOpen ? `${formatAmount(obj.priceOpen)}${t("$")}` : t("N/A"),
     },
     {
         type: FieldType.Text,
@@ -130,7 +130,7 @@ const signal_fields: TypedField[] = [
             obj.originalPriceOpen !== obj.priceOpen,
         compute: (obj) =>
             obj.originalPriceOpen
-                ? `${formatAmount(obj.originalPriceOpen)}$`
+                ? `${formatAmount(obj.originalPriceOpen)}${t("$")}`
                 : t("N/A"),
     },
     {
@@ -144,7 +144,7 @@ const signal_fields: TypedField[] = [
         readonly: true,
         compute: (obj) =>
             obj.priceTakeProfit
-                ? `${formatAmount(obj.priceTakeProfit)}$`
+                ? `${formatAmount(obj.priceTakeProfit)}${t("$")}`
                 : t("N/A"),
     },
     {
@@ -161,7 +161,7 @@ const signal_fields: TypedField[] = [
             obj.originalPriceTakeProfit !== obj.priceTakeProfit,
         compute: (obj) =>
             obj.originalPriceTakeProfit
-                ? `${formatAmount(obj.originalPriceTakeProfit)}$`
+                ? `${formatAmount(obj.originalPriceTakeProfit)}${t("$")}`
                 : t("N/A"),
     },
     {
@@ -174,7 +174,7 @@ const signal_fields: TypedField[] = [
         title: t("Stop Loss"),
         readonly: true,
         compute: (obj) =>
-            obj.priceStopLoss ? `${formatAmount(obj.priceStopLoss)}$` : t("N/A"),
+            obj.priceStopLoss ? `${formatAmount(obj.priceStopLoss)}${t("$")}` : t("N/A"),
     },
     {
         type: FieldType.Text,
@@ -190,7 +190,7 @@ const signal_fields: TypedField[] = [
             obj.originalPriceStopLoss !== obj.priceStopLoss,
         compute: (obj) =>
             obj.originalPriceStopLoss
-                ? `${formatAmount(obj.originalPriceStopLoss)}$`
+                ? `${formatAmount(obj.originalPriceStopLoss)}${t("$")}`
                 : t("N/A"),
     },
     {

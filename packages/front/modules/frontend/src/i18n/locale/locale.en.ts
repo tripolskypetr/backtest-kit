@@ -574,4 +574,6 @@ export const LOCALE: Record<string, string> = {
   "Drawdown": "Drawdown",
   "Settings": "Settings",
   "Breakeven Set": "Breakeven Set",
+  // Валюта: для Мосбиржи в ru — рубль
+  "$": "$",
 };

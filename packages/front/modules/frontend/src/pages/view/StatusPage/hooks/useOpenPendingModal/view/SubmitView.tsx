@@ -84,7 +84,7 @@ export const SubmitView = ({
           type="error"
           title={t("Position Opening Error")}
           description={state.error}
-          amount={`${formatAmount(parseFloat(cost || "0"))}$`}
+          amount={`${formatAmount(parseFloat(cost || "0"))}${t("$")}`}
           symbol={symbol}
         />
       );
@@ -95,7 +95,7 @@ export const SubmitView = ({
           type="loading"
           title={t("Opening Position")}
           description={t("Please wait. Your operation is being processed...")}
-          amount={`${formatAmount(parseFloat(cost || "0"))}$`}
+          amount={`${formatAmount(parseFloat(cost || "0"))}${t("$")}`}
           symbol={symbol}
         />
       );
@@ -105,7 +105,7 @@ export const SubmitView = ({
         type="success"
         title={t("Position Opened")}
         description={t("Position has been scheduled successfully. Waiting for the order to be executed on the exchange")}
-        amount={`${formatAmount(parseFloat(cost || "0"))}$`}
+        amount={`${formatAmount(parseFloat(cost || "0"))}${t("$")}`}
         symbol={symbol}
       />
     );

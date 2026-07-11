@@ -179,8 +179,8 @@ export const PartialWidget = ({
                             const { partial, effectiveEntry, closedDollar } = partialData[idx];
                             return [
                                 `${t("Type")}: ${partial.type === "profit" ? t("Partial Profit") : t("Partial Loss")}`,
-                                `${t("Exit price")}: ${formatAmount(partial.currentPrice)}$`,
-                                `${t("Entry price")}: ${formatAmount(effectiveEntry)}$`,
+                                `${t("Exit price")}: ${formatAmount(partial.currentPrice)}${t("$")}`,
+                                `${t("Entry price")}: ${formatAmount(effectiveEntry)}${t("$")}`,
                                 `${t("Closed")}: ${partial.percent}% (${formatAmount(closedDollar)}$)`,
                             ];
                         },

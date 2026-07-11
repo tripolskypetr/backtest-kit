@@ -694,7 +694,7 @@ export const NotificationCard = forwardRef(
                     <Chip
                       size="small"
                       sx={{ mt: 1, mr: 1 }}
-                      label={`${t("Cost")}: ${!!item.cost ? `${item.cost.toFixed(getPriceScale(item.cost))}$` : t("N/A")}`}
+                      label={`${t("Cost")}: ${!!item.cost ? `${item.cost.toFixed(getPriceScale(item.cost))}${t("$")}` : t("N/A")}`}
                       variant="outlined"
                     />
                   )}
@@ -768,14 +768,14 @@ export const NotificationCard = forwardRef(
                           component="span"
                           color={item.pnlCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {!!item.pnlCost ? `${item.pnlCost >= 0 ? "+" : ""}${item.pnlCost.toFixed(getPriceScale(item.pnlCost))}$` : t("N/A")}
+                          {!!item.pnlCost ? `${item.pnlCost >= 0 ? "+" : ""}${item.pnlCost.toFixed(getPriceScale(item.pnlCost))}${t("$")}` : t("N/A")}
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {!!item.pnlEntries ? `${item.pnlEntries.toFixed(getPriceScale(item.pnlEntries))}$` : t("N/A")}
+                        {!!item.pnlEntries ? `${item.pnlEntries.toFixed(getPriceScale(item.pnlEntries))}${t("$")}` : t("N/A")}
                       </Typography>
                     </Stack>
                   </>
@@ -804,14 +804,14 @@ export const NotificationCard = forwardRef(
                           component="span"
                           color={item.peakProfitCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {!!item.peakProfitCost ? `${item.peakProfitCost >= 0 ? "+" : ""}${item.peakProfitCost.toFixed(getPriceScale(item.peakProfitCost))}$` : t("N/A")}
+                          {!!item.peakProfitCost ? `${item.peakProfitCost >= 0 ? "+" : ""}${item.peakProfitCost.toFixed(getPriceScale(item.peakProfitCost))}${t("$")}` : t("N/A")}
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {!!item.peakProfitEntries ? `${item.peakProfitEntries.toFixed(getPriceScale(item.peakProfitEntries))}$` : t("N/A")}
+                        {!!item.peakProfitEntries ? `${item.peakProfitEntries.toFixed(getPriceScale(item.peakProfitEntries))}${t("$")}` : t("N/A")}
                       </Typography>
                     </Stack>
                   </>
@@ -840,14 +840,14 @@ export const NotificationCard = forwardRef(
                           component="span"
                           color={item.maxDrawdownCost >= 0 ? "success.main" : "error.main"}
                         >
-                          {!!item.maxDrawdownCost ? `${item.maxDrawdownCost >= 0 ? "+" : ""}${item.maxDrawdownCost.toFixed(getPriceScale(item.maxDrawdownCost))}$` : t("N/A")}
+                          {!!item.maxDrawdownCost ? `${item.maxDrawdownCost >= 0 ? "+" : ""}${item.maxDrawdownCost.toFixed(getPriceScale(item.maxDrawdownCost))}${t("$")}` : t("N/A")}
                         </Typography>
                       </Typography>
                       <Typography variant="body2">
                         <Typography component="span" color="text.secondary">
                           {t("Invested")}:{" "}
                         </Typography>
-                        {!!item.maxDrawdownEntries ? `${item.maxDrawdownEntries.toFixed(getPriceScale(item.maxDrawdownEntries))}$` : t("N/A")}
+                        {!!item.maxDrawdownEntries ? `${item.maxDrawdownEntries.toFixed(getPriceScale(item.maxDrawdownEntries))}${t("$")}` : t("N/A")}
                       </Typography>
                     </Stack>
                   </>

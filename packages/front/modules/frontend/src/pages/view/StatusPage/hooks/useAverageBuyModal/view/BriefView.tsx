@@ -46,7 +46,7 @@ const fields: TypedField[] = [
               inputPattern: "[0-9\.]*",
               inputMode: "decimal",
               inputType: "tel",
-              compute: ({}, payload) => `${formatAmount(payload.averagePrice)}$`,
+              compute: ({}, payload) => `${formatAmount(payload.averagePrice)}${t("$")}`,
               title: t("Coin Price"),
               placeholder: "000000.00",
               inputFormatterSymbol: "0",

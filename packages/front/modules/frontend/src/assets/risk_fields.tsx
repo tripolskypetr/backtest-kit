@@ -75,7 +75,7 @@ export const risk_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.currentPrice
-                                ? `${obj.currentPrice.toFixed(getPriceScale(obj.currentPrice))}$`
+                                ? `${obj.currentPrice.toFixed(getPriceScale(obj.currentPrice))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -192,7 +192,7 @@ export const risk_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.priceOpen
-                                ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}$`
+                                ? `${obj.priceOpen.toFixed(getPriceScale(obj.priceOpen))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -206,7 +206,7 @@ export const risk_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.priceTakeProfit
-                                ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}$`
+                                ? `${obj.priceTakeProfit.toFixed(getPriceScale(obj.priceTakeProfit))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {
@@ -220,7 +220,7 @@ export const risk_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             !!obj.priceStopLoss
-                                ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}$`
+                                ? `${obj.priceStopLoss.toFixed(getPriceScale(obj.priceStopLoss))}${t("$")}`
                                 : t("Not specified"),
                     },
                     {

@@ -122,14 +122,14 @@ const columns: IGridColumn<GridItem>[] = [
     label: t("Entry"),
     minWidth: 145,
     width: () => 145,
-    format: ({ buyPrice }) => `${formatAmount(buyPrice)}$`,
+    format: ({ buyPrice }) => `${formatAmount(buyPrice)}${t("$")}`,
   },
   {
     field: "pnlEntries",
     label: t("Invested"),
     minWidth: 80,
     width: () => 80,
-    format: ({ pnlEntries }) => `${formatAmount(pnlEntries)}$`,
+    format: ({ pnlEntries }) => `${formatAmount(pnlEntries)}${t("$")}`,
   },
   {
     field: "profitLossPercentage",
@@ -211,7 +211,7 @@ const signal_fields: TypedField[] = [
     title: t("Entry"),
     readonly: true,
     compute: (obj) =>
-      obj.buyPrice ? `${formatAmount(obj.buyPrice)}$` : t("N/A"),
+      obj.buyPrice ? `${formatAmount(obj.buyPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -224,7 +224,7 @@ const signal_fields: TypedField[] = [
     readonly: true,
     isVisible: (obj) => obj.originalBuyPrice != null && obj.originalBuyPrice !== obj.buyPrice,
     compute: (obj) =>
-      obj.originalBuyPrice ? `${formatAmount(obj.originalBuyPrice)}$` : t("N/A"),
+      obj.originalBuyPrice ? `${formatAmount(obj.originalBuyPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -236,7 +236,7 @@ const signal_fields: TypedField[] = [
     title: t("Take Profit"),
     readonly: true,
     compute: (obj) =>
-      obj.takeProfitPrice ? `${formatAmount(obj.takeProfitPrice)}$` : t("N/A"),
+      obj.takeProfitPrice ? `${formatAmount(obj.takeProfitPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -249,7 +249,7 @@ const signal_fields: TypedField[] = [
     readonly: true,
     isVisible: (obj) => obj.originalTakeProfitPrice != null && obj.originalTakeProfitPrice !== obj.takeProfitPrice,
     compute: (obj) =>
-      obj.originalTakeProfitPrice ? `${formatAmount(obj.originalTakeProfitPrice)}$` : t("N/A"),
+      obj.originalTakeProfitPrice ? `${formatAmount(obj.originalTakeProfitPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -261,7 +261,7 @@ const signal_fields: TypedField[] = [
     title: t("Stop Loss"),
     readonly: true,
     compute: (obj) =>
-      obj.stopLossPrice ? `${formatAmount(obj.stopLossPrice)}$` : t("N/A"),
+      obj.stopLossPrice ? `${formatAmount(obj.stopLossPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -274,7 +274,7 @@ const signal_fields: TypedField[] = [
     readonly: true,
     isVisible: (obj) => obj.originalStopLossPrice != null && obj.originalStopLossPrice !== obj.stopLossPrice,
     compute: (obj) =>
-      obj.originalStopLossPrice ? `${formatAmount(obj.originalStopLossPrice)}$` : t("N/A"),
+      obj.originalStopLossPrice ? `${formatAmount(obj.originalStopLossPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -285,7 +285,7 @@ const signal_fields: TypedField[] = [
     name: "pnlEntries",
     title: t("Invested"),
     readonly: true,
-    compute: (obj) => `${formatAmount(obj.pnlEntries)}$`,
+    compute: (obj) => `${formatAmount(obj.pnlEntries)}${t("$")}`,
   },
   {
     type: FieldType.Text,
@@ -330,7 +330,7 @@ const signal_fields: TypedField[] = [
     readonly: true,
     compute: (obj) => {
       const isProfit = obj.pnlCost >= 0;
-      return `${isProfit ? "+" : ""}${formatAmount(obj.pnlCost)}$`;
+      return `${isProfit ? "+" : ""}${formatAmount(obj.pnlCost)}${t("$")}`;
     },
   },
   {

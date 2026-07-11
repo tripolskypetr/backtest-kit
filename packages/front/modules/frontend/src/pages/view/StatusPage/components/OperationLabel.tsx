@@ -118,7 +118,7 @@ export const OperationLabel = ({ payload }: IOperationLabelProps) => {
                   mr={1}
                 >
                   {t("Avg price")} {payload.symbol}:{typo.nbsp}
-                  <b>{`${priceNum.toFixed(getPriceScale(priceNum))}$`}</b>
+                  <b>{`${priceNum.toFixed(getPriceScale(priceNum))}${t("$")}`}</b>
                 </Typography>
               );
             }}

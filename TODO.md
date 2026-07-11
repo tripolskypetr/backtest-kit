@@ -22,6 +22,7 @@
 Примечания:
 - `src/pages/view/PinePage/hooks/useIndicatorStream.ts:82` — `currency: quote || "USDT"` оставлен: это техническое поле symbol info для чарт-библиотеки (извлекается из тикера `BTCUSDT`), не UI-текст.
 - Тикеры (`BTCUSDT` и т.п.) и данные mock-сервисов намеренно не обёрнуты — это данные, а не интерфейс.
+- Суффикс валюты `$` в отображаемых ценах (429 мест в 36 файлах) обёрнут в `t("$")`: en — `$`, ru — `₽`. Русские значения меток с `$` («PNL ($)», «Вложено $» и т.п.) переведены на `₽`.
 - `npx tsc --noEmit` не работает из-за `ignoreDeprecations` в tsconfig (несовместимость версии TS, существовало до правок); синтаксис всех 224 изменённых файлов проверен esbuild.
 
 - [x] src/api/useSignalOffsetPaginator/core/makeItemIterator.ts
