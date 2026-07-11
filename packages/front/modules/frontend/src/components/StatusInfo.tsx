@@ -47,9 +47,6 @@ const fmt = (v: number | null, suffix = "%") =>
 const fmtMin = (v: number | null) =>
     v == null || Number.isNaN(v) ? "—" : `${v.toFixed(1)} ${t("min")}`;
 
-const t = (key: string) =>
-    window.Translate ? window.Translate.translateText(key) : key;
-
 const toMarkdown = (data: StatusInfoModel): string => {
     const {
         context,
