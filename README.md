@@ -773,7 +773,7 @@ npx -y @backtest-kit/sidekick my-trading-bot && cd my-trading-bot && npm start
 
 ---
 
-## 👪 Community
+## 👨‍👩‍👦 Community
 
 Real, runnable templates — not slideware. And worth naming the concern directly: yes, this is one author's ecosystem, which is exactly what makes it *coherent* — but coherent is not captive. Everything is **MIT and open-source**, the core engine has **zero hard dependency** on any `@backtest-kit/*` add-on (you can run `getSignal` + `listen*` against a bare `addExchangeSchema` and nothing else), and each repo below is an independent reference you're meant to **fork and own**. The lock-in you'd normally fear — a closed runtime, a proprietary data format, a cloud you can't leave — none of it applies; the persistence is plain files or your own Mongo, the signals are your code, and the exit cost is a `git clone`.
 
