@@ -20,6 +20,7 @@ import { OrderSyncCloseNotification } from "backtest-kit";
 import order_sync_close_fields from "../../assets/order_sync_close_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/order_sync_close";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useOrderSyncCloseView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Order Sync Close Details",
+    title: t("Order Sync Close Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

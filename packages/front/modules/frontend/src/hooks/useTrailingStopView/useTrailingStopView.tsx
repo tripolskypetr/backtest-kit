@@ -20,6 +20,7 @@ import { TrailingStopCommitNotification } from "backtest-kit";
 import trailing_stop_fields from "../../assets/trailing_stop_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/trailing_stop";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useTrailingStopView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Trailing Stop Commit Details",
+    title: t("Trailing Stop Commit Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

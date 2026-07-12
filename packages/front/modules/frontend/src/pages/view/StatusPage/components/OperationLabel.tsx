@@ -33,6 +33,7 @@ import { Typography } from "@mui/material";
 import ioc from "../../../../lib";
 import { reloadSubject } from "../../../../config/emitters";
 import getPriceScale from "../../../../utils/getPriceScale";
+import { t } from "../../../../i18n";
 
 interface IOperationLabelProps {
   payload: {
@@ -67,7 +68,7 @@ export const OperationLabel = ({ payload }: IOperationLabelProps) => {
             color="success"
             sx={{ whiteSpace: "nowrap" }}
           >
-            Open Position
+            {t("Open Position")}
           </ActionButton>
           <ActionButton
             startIcon={<TrendingUpOutlined />}
@@ -77,7 +78,7 @@ export const OperationLabel = ({ payload }: IOperationLabelProps) => {
             color="warning"
             sx={{ whiteSpace: "nowrap" }}
           >
-            Commit Averaging
+            {t("Commit Averaging")}
           </ActionButton>
           <ActionButton
             startIcon={<ShieldOutlined />}
@@ -86,7 +87,7 @@ export const OperationLabel = ({ payload }: IOperationLabelProps) => {
             }
             sx={{ whiteSpace: "nowrap" }}
           >
-            Commit Breakeven
+            {t("Commit Breakeven")}
           </ActionButton>
           <Box flex={1} />
           <Async
@@ -116,8 +117,8 @@ export const OperationLabel = ({ payload }: IOperationLabelProps) => {
                   whiteSpace="nowrap"
                   mr={1}
                 >
-                  Avg price {payload.symbol}:{typo.nbsp}
-                  <b>{`${priceNum.toFixed(getPriceScale(priceNum))}$`}</b>
+                  {t("Avg price")} {payload.symbol}:{typo.nbsp}
+                  <b>{`${priceNum.toFixed(getPriceScale(priceNum))}${t("$")}`}</b>
                 </Typography>
               );
             }}
@@ -130,7 +131,7 @@ export const OperationLabel = ({ payload }: IOperationLabelProps) => {
             sx={{ whiteSpace: "nowrap" }}
             color="error"
           >
-            Close Position
+            {t("Close Position")}
           </ActionButton>
         </Stack>
       </ScrollView>

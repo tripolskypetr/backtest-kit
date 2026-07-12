@@ -20,6 +20,7 @@ import { SignalInfoNotification } from "backtest-kit";
 import signal_notify_fields from "../../assets/signal_notify_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/signal_notify";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useSignalNotifyView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Info Details",
+    title: t("Signal Info Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

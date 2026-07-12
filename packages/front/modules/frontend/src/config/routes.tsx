@@ -7,6 +7,7 @@ import str from "../utils/str";
 import ErrorPage from "../pages/base/ErrorPage";
 import { HourglassTop, LiveTv } from "@mui/icons-material";
 import PinePage from "../pages/view/PinePage";
+import { t } from "../i18n";
 
 export interface IRouteItem extends ISwitchItem {
     noHeader?: boolean;
@@ -66,10 +67,10 @@ const dashboardRoutes: IRouteItem[] = [
         path: "/dashboard",
         tabs: [
             {
-                label: "Backtest Measures",
+                label: t("Backtest Measures"),
                 description: str.newline(
-                    "KPI metrics computed from historical backtest simulation runs.",
-                    "Includes success rate, trade performance, daily trade counts, and revenue aggregated across all symbols.",
+                    t("KPI metrics computed from historical backtest simulation runs."),
+                    t("Includes success rate, trade performance, daily trade counts, and revenue aggregated across all symbols."),
                 ),
                 isActive: () => true,
                 icon: HourglassTop,
@@ -77,10 +78,10 @@ const dashboardRoutes: IRouteItem[] = [
                 navigate: () => ioc.routerService.push("/dashboard/backtest"),
             },
             {
-                label: "Live Measures",
+                label: t("Live Measures"),
                 description: str.newline(
-                    "KPI metrics collected from real-time live trading activity.",
-                    "Tracks live success rate, trade performance, daily trade counts, and revenue aggregated across all symbols.",
+                    t("KPI metrics collected from real-time live trading activity."),
+                    t("Tracks live success rate, trade performance, daily trade counts, and revenue aggregated across all symbols."),
                 ),
                 isActive: () => false,
                 icon: LiveTv,
@@ -94,10 +95,10 @@ const dashboardRoutes: IRouteItem[] = [
         path: "/dashboard/:mode",
         tabs: [
             {
-                label: "Backtest Measures",
+                label: t("Backtest Measures"),
                 description: str.newline(
-                    "KPI metrics computed from historical backtest simulation runs.",
-                    "Includes success rate, trade performance, daily trade counts, and revenue aggregated across all symbols.",
+                    t("KPI metrics computed from historical backtest simulation runs."),
+                    t("Includes success rate, trade performance, daily trade counts, and revenue aggregated across all symbols."),
                 ),
                 isActive: ({ routeParams }) => routeParams.mode === "backtest",
                 icon: HourglassTop,
@@ -105,10 +106,10 @@ const dashboardRoutes: IRouteItem[] = [
                 navigate: () => ioc.routerService.push("/dashboard/backtest"),
             },
             {
-                label: "Live Measures",
+                label: t("Live Measures"),
                 description: str.newline(
-                    "KPI metrics collected from real-time live trading activity.",
-                    "Tracks live success rate, trade performance, daily trade counts, and revenue aggregated across all symbols.",
+                    t("KPI metrics collected from real-time live trading activity."),
+                    t("Tracks live success rate, trade performance, daily trade counts, and revenue aggregated across all symbols."),
                 ),
                 isActive: ({ routeParams }) => routeParams.mode === "live",
                 icon: LiveTv,

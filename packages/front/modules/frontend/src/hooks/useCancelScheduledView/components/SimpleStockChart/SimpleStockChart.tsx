@@ -14,6 +14,7 @@ import getPriceScale from "../../../../utils/getPriceScale";
 import { makeStyles } from "../../../../styles";
 import { dayjs, fromMomentStamp, getMomentStamp } from "react-declarative";
 import { colors } from "@mui/material";
+import { t } from "../../../../i18n";
 
 declare function parseFloat(value: unknown): number;
 
@@ -279,9 +280,9 @@ export const SimpleStockChart = ({
         tickMarkFormatter: (time: Time) => {
           const candle =
             candles.find((c) => c.momentStamp === Number(time)) || candles[0];
-          if (!candle || !candle.originalTime) return "Invalid date";
+          if (!candle || !candle.originalTime) return t("Invalid date");
           const date = dayjs(candle.originalTime);
-          if (!date.isValid()) return "Invalid date";
+          if (!date.isValid()) return t("Invalid date");
           if (source === "1m") return date.format("HH:mm:ss");
           if (source === "15m") return date.format("HH:mm");
           return date.format("DD/MM HH:mm");
@@ -329,7 +330,7 @@ export const SimpleStockChart = ({
 
       vertLine = new VertLine(chart, lineSeries, eventTime, {
         showLabel: true,
-        labelText: "Event",
+        labelText: t("Event"),
         color: colors.blue[500],
         width: 2,
         container: chartElement,

@@ -1,55 +1,56 @@
 import { ITabsStep } from "react-declarative";
+import { t } from "../../i18n";
 
 export const tabs: ITabsStep[] = [
     {
         id: "backtest",
-        label: "Backtest",
+        label: t("Backtest"),
         isVisible: ({ type }) => type === "backtest",
     },
     {
         id: "live",
-        label: "Live",
+        label: t("Live"),
         isVisible: ({ type }) => type === "live",
     },
     {
         id: "strategy",
-        label: "Strategy",
+        label: t("Strategy"),
     },
     {
         id: "breakeven",
-        label: "Breakeven",
+        label: t("Breakeven"),
     },
     {
         id: "risk",
-        label: "Risk",
+        label: t("Risk"),
     },
     {
         id: "partial",
-        label: "Partial",
+        label: t("Partial"),
     },
     {
         id: "highest_profit",
-        label: "Highest Profit",
+        label: t("Highest Profit"),
     },
     {
         id: "max_drawdown",
-        label: "Max Drawdown",
+        label: t("Max Drawdown"),
     },
     {
         id: "schedule",
-        label: "Schedule",
+        label: t("Schedule"),
     },
     {
         id: "performance",
-        label: "Performance",
+        label: t("Performance"),
     },
     {
         id: "sync",
-        label: "Sync",
+        label: t("Sync"),
     },
     {
         id: "heat",
-        label: "Heat",
+        label: t("Heat"),
     },
 ];
 

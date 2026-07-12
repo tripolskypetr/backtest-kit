@@ -14,6 +14,7 @@ import getPriceScale from "../../../../utils/getPriceScale";
 import { makeStyles } from "../../../../styles";
 import { dayjs, fromMomentStamp, getMomentStamp } from "react-declarative";
 import { colors } from "@mui/material";
+import { t } from "../../../../i18n";
 
 declare function parseFloat(value: unknown): number;
 
@@ -250,11 +251,11 @@ export const StockChart = ({
           const candle =
             candles.find((c) => c.momentStamp === Number(time)) || candles[0];
           if (!candle || !candle.originalTime) {
-            return "Invalid date";
+            return t("Invalid date");
           }
           const date = dayjs(candle.originalTime);
           if (!date.isValid()) {
-            return "Invalid date";
+            return t("Invalid date");
           }
           if (source === "1m") {
             return date.format("HH:mm:ss");
@@ -284,7 +285,7 @@ export const StockChart = ({
       lineWidth: 2,
       lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
-      title: `${positionLabel} Entry`,
+      title: `${positionLabel} ${t("Entry")}`,
     });
 
     // Stop Loss line (current/trailing)
@@ -294,7 +295,7 @@ export const StockChart = ({
       lineWidth: 2,
       lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
-      title: "SL",
+      title: t("SL"),
     });
 
     // Original Stop Loss line (if trailing changed it)
@@ -305,7 +306,7 @@ export const StockChart = ({
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: "Original SL",
+        title: t("Original SL"),
       });
     }
 
@@ -316,7 +317,7 @@ export const StockChart = ({
       lineWidth: 2,
       lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
-      title: "TP",
+      title: t("TP"),
     });
 
     // Original Take Profit line (if trailing changed it)
@@ -327,7 +328,7 @@ export const StockChart = ({
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: "Original TP",
+        title: t("Original TP"),
       });
     }
 
@@ -355,7 +356,7 @@ export const StockChart = ({
         color: positionColor,
         shape: position === "short" ? "arrowDown" : "arrowUp",
         size: 1,
-        text: "Entry",
+        text: t("Entry"),
       });
     }
 
@@ -381,7 +382,7 @@ export const StockChart = ({
           color: colors.grey[500],
           shape: "circle",
           size: 1,
-          text: "Exit",
+          text: t("Exit"),
         });
       }
     }

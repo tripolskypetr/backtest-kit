@@ -1,4 +1,5 @@
 import { makeStyles } from '../../../styles';
+import { t } from "../../../i18n";
 
 import Box from "@mui/material/Box";
 import { Avatar, ListItemText } from "@mui/material";
@@ -52,10 +53,10 @@ export const TimeLossItem = ({
         <Box flex="1">
           <ColorProgressBar
             data={{
-              done: { color: '#7FB537', title: 'Take profit', value: done },
-              inprogress: { color: '#4FC0E8', title: 'Resolved', value: inprogress },
-              waiting: { color: '#FE9B31', title: 'Rejected', value: waiting },
-              archive: { color: '#FA5F5A', title: 'Stop loss', value: archive }
+              done: { color: '#7FB537', title: t('Take profit'), value: done },
+              inprogress: { color: '#4FC0E8', title: t('Resolved'), value: inprogress },
+              waiting: { color: '#FE9B31', title: t('Rejected'), value: waiting },
+              archive: { color: '#FA5F5A', title: t('Stop loss'), value: archive }
             }}
           />
         </Box>

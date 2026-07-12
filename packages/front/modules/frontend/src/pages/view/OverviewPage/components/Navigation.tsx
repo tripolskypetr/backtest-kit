@@ -7,6 +7,7 @@ import {
 import actionSubject from "../config/actionSubject";
 import { Dashboard, Download, EditNote, KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import IconWrapper from "../../../../components/common/IconWrapper";
+import { t } from "../../../../i18n";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -17,17 +18,17 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Overview",
+        label: t("Overview"),
     },
     {
         type: Breadcrumbs2Type.Button,
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: Refresh,
     },
 ];
@@ -35,7 +36,7 @@ const options: IBreadcrumbs2Option[] = [
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "download-action",
-        label: "Download",
+        label: t("Download"),
         icon: () => <IconWrapper icon={Download} color="#4caf50" />,
     },
     {
@@ -43,12 +44,12 @@ const actions: IBreadcrumbs2Action[] = [
     },
     {
         action: "dashboard-action",
-        label: "Dashboard",
+        label: t("Dashboard"),
         icon: () => <IconWrapper icon={Dashboard} color="#4caf50" />,
     },
     {
         action: "logs-action",
-        label: "Logs",
+        label: t("Logs"),
         icon: () => <IconWrapper icon={EditNote} color="#4caf50" />,
     },
     {
@@ -57,7 +58,7 @@ const actions: IBreadcrumbs2Action[] = [
 
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];

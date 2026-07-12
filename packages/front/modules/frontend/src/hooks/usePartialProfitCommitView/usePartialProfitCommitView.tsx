@@ -20,6 +20,7 @@ import { PartialProfitCommitNotification } from "backtest-kit";
 import partial_profit_commit_fields from "../../assets/partial_profit_commit_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/partial_profit_commit";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const usePartialProfitCommitView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Partial Profit Commit Details",
+    title: t("Partial Profit Commit Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

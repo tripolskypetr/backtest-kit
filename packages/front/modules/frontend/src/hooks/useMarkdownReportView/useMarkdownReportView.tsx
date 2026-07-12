@@ -14,6 +14,7 @@ import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
 import tabs from "./tabs";
 import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
+import { t } from "../../i18n";
 import downloadMarkdown from "../../utils/downloadMarkdown";
 import CopyIcon from "./components/CopyIcon";
 import MenuIcon from "./components/MenuIcon";
@@ -464,7 +465,7 @@ export const useMarkdownReportView = () => {
         withStaticAction: true,
         onTabChange: handleTabChange,
         animation: "none",
-        title: "Markdown Report",
+        title: t("Markdown Report"),
         sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
         history,
         routes,

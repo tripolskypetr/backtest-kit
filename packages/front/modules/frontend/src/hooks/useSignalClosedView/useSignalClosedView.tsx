@@ -20,6 +20,7 @@ import { SignalClosedNotification } from "backtest-kit";
 import signal_closed_fields from "../../assets/signal_closed_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/signal_closed";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useSignalClosedView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Closed Details",
+    title: t("Signal Closed Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

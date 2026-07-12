@@ -12,6 +12,7 @@ import {
 } from "react-declarative";
 import { defaultSlots } from "../../../../../../components/OneSlotFactory";
 import ioc from "../../../../../../lib";
+import { t } from "../../../../../../i18n";
 import { IClosePendingPayload } from "../useClosePendingModal";
 
 const fields: TypedField[] = [
@@ -28,7 +29,7 @@ const fields: TypedField[] = [
           style: { opacity: 0.5 },
           fieldBottomMargin: "3",
           typoVariant: "h6",
-          placeholder: "Close Position",
+          placeholder: t("Close Position"),
         },
         {
           type: FieldType.Outline,
@@ -37,7 +38,7 @@ const fields: TypedField[] = [
               type: FieldType.Text,
               name: "symbol",
               compute: ({}, payload) => payload.symbol,
-              title: "Symbol",
+              title: t("Symbol"),
             },
             {
               type: FieldType.Text,
@@ -45,8 +46,8 @@ const fields: TypedField[] = [
               inputPattern: "[0-9\.]*",
               inputMode: "decimal",
               inputType: "tel",
-              compute: ({}, payload) => `${formatAmount(payload.averagePrice)}$`,
-              title: "Coin Price",
+              compute: ({}, payload) => `${formatAmount(payload.averagePrice)}${t("$")}`,
+              title: t("Coin Price"),
               placeholder: "000000.00",
               inputFormatterSymbol: "0",
               inputFormatterAllowed: /[0-9.]/,
@@ -58,7 +59,7 @@ const fields: TypedField[] = [
           fieldBottomMargin: "3",
           typoVariant: "caption",
           sx: { pt: 2, opacity: 0.5, fontSize: 12 },
-          placeholder: `${typo.bullet} Carefully verify that this is the coin you want to close the position on. Rely on the symbol AND THE PRICE`,
+          placeholder: `${typo.bullet} ${t("Carefully verify that this is the coin you want to close the position on. Rely on the symbol AND THE PRICE")}`,
         },
       ],
     },
@@ -121,7 +122,7 @@ export const BriefView = ({
         <WizardNavigation
           hasPrev
           hasNext={!!info}
-          labelPrev="Close"
+          labelPrev={t("Close")}
           onPrev={async () => {
             await onClose();
           }}

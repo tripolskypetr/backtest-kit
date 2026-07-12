@@ -1262,7 +1262,7 @@ export interface OrderSyncCloseNotification {
  * asks the external order management system whether the order backing the signal is
  * still open on the exchange (`syncPendingSubject` / OrderCheckContract).
  * Throttled by NotificationAdapter to at most one notification per signalId per
- * `CC_NOTIFICATION_CHECK_TTL` (default 15 minutes); the throttle entry is dropped
+ * `CC_NOTIFICATION_ORDER_CHECK_TTL` (default 15 minutes); the throttle entry is dropped
  * when the signal is closed or cancelled.
  */
 export interface OrderSyncCheckNotification {

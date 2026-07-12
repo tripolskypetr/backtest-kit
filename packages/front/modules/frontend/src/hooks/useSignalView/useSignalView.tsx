@@ -20,6 +20,7 @@ import { IStorageSignalRow } from "backtest-kit";
 import signal_fields from "../../assets/signal_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/status";
 const CACHE_TTL = 45_000;
@@ -220,7 +221,7 @@ export const useSignalView = () => {
         withStaticAction: true,
         onTabChange: handleTabChange,
         animation: "none",
-        title: "Signal Details",
+        title: t("Signal Details"),
         sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
         history,
         routes,

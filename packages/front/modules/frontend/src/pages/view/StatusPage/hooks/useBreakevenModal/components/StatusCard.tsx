@@ -16,6 +16,7 @@ import {
   Info,
   TrendingUp,
 } from '@mui/icons-material';
+import { t } from '../../../../../../i18n';
 
 interface StatusCardProps {
   type: 'loading' | 'success' | 'error' | 'warning' | 'info';
@@ -164,7 +165,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
             {amount && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Amount
+                  {t("Amount")}
                 </Typography>
                 <Typography
                   variant="subtitle1"
@@ -180,7 +181,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
             {price && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Price
+                  {t("Price")}
                 </Typography>
                 <Typography
                   variant="subtitle1"

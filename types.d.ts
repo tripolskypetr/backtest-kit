@@ -7432,7 +7432,7 @@ declare const GLOBAL_CONFIG: {
      *
      * Default: 900000 ms (15 minutes)
      */
-    CC_NOTIFICATION_CHECK_TTL: number;
+    CC_NOTIFICATION_ORDER_CHECK_TTL: number;
     /**
      * Maximum number of signals to keep in storage.
      * Older signals are removed when this limit is exceeded.
@@ -7644,7 +7644,7 @@ declare function getConfig(): {
     CC_WALKER_MARKDOWN_TOP_N: number;
     CC_MAX_PERFORMANCE_MARKDOWN_ROWS: number;
     CC_MAX_NOTIFICATIONS: number;
-    CC_NOTIFICATION_CHECK_TTL: number;
+    CC_NOTIFICATION_ORDER_CHECK_TTL: number;
     CC_MAX_SIGNALS: number;
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
@@ -7704,7 +7704,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_WALKER_MARKDOWN_TOP_N: number;
     CC_MAX_PERFORMANCE_MARKDOWN_ROWS: number;
     CC_MAX_NOTIFICATIONS: number;
-    CC_NOTIFICATION_CHECK_TTL: number;
+    CC_NOTIFICATION_ORDER_CHECK_TTL: number;
     CC_MAX_SIGNALS: number;
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
@@ -13035,7 +13035,7 @@ interface OrderSyncCloseNotification {
  * asks the external order management system whether the order backing the signal is
  * still open on the exchange (`syncPendingSubject` / OrderCheckContract).
  * Throttled by NotificationAdapter to at most one notification per signalId per
- * `CC_NOTIFICATION_CHECK_TTL` (default 15 minutes); the throttle entry is dropped
+ * `CC_NOTIFICATION_ORDER_CHECK_TTL` (default 15 minutes); the throttle entry is dropped
  * when the signal is closed or cancelled.
  */
 interface OrderSyncCheckNotification {
@@ -26138,7 +26138,7 @@ interface INotificationTarget {
      * Fired while a signal is monitored in live mode, when the framework asks the
      * external order management system whether the order is still open on the
      * exchange. Throttled to at most one notification per signalId per
-     * `CC_NOTIFICATION_CHECK_TTL` (default 15 minutes); the throttle entry is
+     * `CC_NOTIFICATION_ORDER_CHECK_TTL` (default 15 minutes); the throttle entry is
      * dropped when the signal is closed or cancelled.
      * Source: `syncPendingSubject` (OrderCheckContract).
      */
@@ -26314,7 +26314,7 @@ declare class NotificationBacktestAdapter implements INotificationUtils {
      * Proxies call to the underlying notification adapter.
      * @param data - The order check contract data
      */
-    handleCheck: (data: OrderCheckContract) => Promise<void>;
+    handleCheck: (data: OrderCheckContract) => any;
     /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.
@@ -26441,7 +26441,7 @@ declare class NotificationLiveAdapter implements INotificationUtils {
      * Proxies call to the underlying notification adapter.
      * @param data - The order check contract data
      */
-    handleCheck: (data: OrderCheckContract) => Promise<void>;
+    handleCheck: (data: OrderCheckContract) => any;
     /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.

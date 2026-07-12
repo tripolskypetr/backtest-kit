@@ -18,6 +18,7 @@ import { makeStyles } from "../../../styles";
 import { colors } from "@mui/material";
 import { dayjs, formatAmount } from "react-declarative";
 import getPriceScale from "../../../utils/getPriceScale";
+import { t } from "../../../i18n";
 
 declare function parseFloat(value: unknown): number;
 
@@ -170,11 +171,11 @@ export const StockChart = ({
                         visibleItems.find((c) => c.timestamp === Number(time)) ||
                         visibleItems[0];
                     if (!candle || !candle.timestamp) {
-                        return "Invalid date";
+                        return t("Invalid date");
                     }
                     const date = dayjs(candle.timestamp);
                     if (!date.isValid()) {
-                        return "Invalid date";
+                        return t("Invalid date");
                     }
                     return date.format("HH:mm:ss");
                 },
@@ -204,7 +205,7 @@ export const StockChart = ({
                 lineWidth: 1,
                 lineStyle: LineStyle.Dashed,
                 axisLabelVisible: true,
-                title: `${positionLabel} Original Entry`,
+                title: `${positionLabel} ${t("Original Entry")}`,
             });
         }
 
@@ -215,7 +216,7 @@ export const StockChart = ({
             lineWidth: 2,
             lineStyle: LineStyle.Solid,
             axisLabelVisible: true,
-            title: `${positionLabel} Entry`,
+            title: `${positionLabel} ${t("Entry")}`,
         });
 
         // Original SL (dashed)
@@ -226,7 +227,7 @@ export const StockChart = ({
                 lineWidth: 1,
                 lineStyle: LineStyle.Dashed,
                 axisLabelVisible: true,
-                title: "Original SL",
+                title: t("Original SL"),
             });
         }
 
@@ -237,7 +238,7 @@ export const StockChart = ({
             lineWidth: 2,
             lineStyle: LineStyle.Solid,
             axisLabelVisible: true,
-            title: "SL",
+            title: t("SL"),
         });
 
         // Original TP (dashed)
@@ -248,7 +249,7 @@ export const StockChart = ({
                 lineWidth: 1,
                 lineStyle: LineStyle.Dashed,
                 axisLabelVisible: true,
-                title: "Original TP",
+                title: t("Original TP"),
             });
         }
 
@@ -259,7 +260,7 @@ export const StockChart = ({
             lineWidth: 2,
             lineStyle: LineStyle.Solid,
             axisLabelVisible: true,
-            title: "TP",
+            title: t("TP"),
         });
 
         const markers: SeriesMarker<Time>[] = [];
@@ -271,7 +272,7 @@ export const StockChart = ({
                 color: positionColor,
                 shape: position === "short" ? "arrowDown" : "arrowUp",
                 size: 1,
-                text: "Entry",
+                text: t("Entry"),
             });
 
             if (status === "closed") {
@@ -281,7 +282,7 @@ export const StockChart = ({
                     color: positionColor,
                     shape: position === "short" ? "arrowUp" : "arrowDown",
                     size: 1,
-                    text: "Exit",
+                    text: t("Exit"),
                 });
             }
         }
@@ -299,7 +300,7 @@ export const StockChart = ({
                 color: colors.amber[400],
                 shape: "circle",
                 size: 1,
-                text: `DCA ${idx}`,
+                text: `${t("DCA")} ${idx}`,
             });
         }
 
@@ -311,7 +312,7 @@ export const StockChart = ({
                 color: isProfit ? colors.green[400] : colors.red[400],
                 shape: "square",
                 size: 1,
-                text: `${isProfit ? "PP" : "PL"} ${partial.percent}%`,
+                text: `${isProfit ? t("PP") : t("PL")} ${partial.percent}%`,
             });
         }
 
