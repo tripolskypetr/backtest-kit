@@ -3,6 +3,7 @@ import { SxProps } from "@mui/material";
 import { DataObject, Description, PictureAsPdf } from "@mui/icons-material";
 import { ActionMenu, IOption, useActualCallback } from "react-declarative";
 import IconWrapper from "../../../../components/common/IconWrapper";
+import { t } from "../../../../i18n";
 
 interface IMenuIconProps {
     disabled?: boolean;
@@ -17,17 +18,17 @@ interface IMenuIconProps {
 const options: IOption[] = [
     {
         action: "json",
-        label: "Download JSON",
+        label: t("Download JSON"),
         icon: () => <IconWrapper icon={DataObject} color="#4caf50" />,
     },
     {
         action: "markdown",
-        label: "Download Markdown",
+        label: t("Download Markdown"),
         icon: () => <IconWrapper icon={Description} color="#4caf50" />,
     },
     {
         action: "pdf",
-        label: "Download PDF",
+        label: t("Download PDF"),
         icon: () => <IconWrapper icon={PictureAsPdf} color="#4caf50" />,
     },
 ];

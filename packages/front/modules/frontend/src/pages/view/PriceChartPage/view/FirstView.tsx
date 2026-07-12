@@ -28,6 +28,7 @@ import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import ioc from "../../../../lib";
 import IconPhoto from "../../../../components/common/IconPhoto";
 import IconWrapper from "../../../../components/common/IconWrapper";
+import { t } from "../../../../i18n";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
 const GROUP_ROOT = "backtest-kit__groupRoot";
@@ -62,19 +63,19 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Price Chart",
+        label: t("Price Chart"),
     },
 ];
 
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];
@@ -221,7 +222,7 @@ const createFields = async (): Promise<TypedField[]> => {
     const wideColumn: TypedField[] = [];
 
     sortedPriorities.forEach(({ routes, priority }, idx) => {
-        const group = createGroup(`Priority ${priority}`, routes);
+        const group = createGroup(`${t("Priority")} ${priority}`, routes);
 
         if (idx % 2 === 0) {
             tabletLeftColumn.push(group);
@@ -296,7 +297,7 @@ export const FirstView = () => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        Loading...
+                        {t("Loading...")}
                     </Typography>
                 </Center>
             );
@@ -306,7 +307,7 @@ export const FirstView = () => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        No symbols found
+                        {t("No symbols found")}
                     </Typography>
                 </Center>
             );

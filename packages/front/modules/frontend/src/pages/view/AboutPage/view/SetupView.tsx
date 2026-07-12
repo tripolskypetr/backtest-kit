@@ -18,6 +18,7 @@ import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import ioc from "../../../../lib";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import { setup_fields } from "../../../../assets/setup_fields";
+import { t } from "../../../../i18n";
 
 interface IBackendData {
     broker_enabled: boolean;
@@ -41,22 +42,22 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Dashboard",
+    label: t("Dashboard"),
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Performance",
+    label: t("Performance"),
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Settings",
+    label: t("Settings"),
   },
   {
     type: Breadcrumbs2Type.Button,
     action: "update-now",
-    label: "Refresh",
+    label: t("Refresh"),
     icon: Refresh,
   },
 ];
@@ -64,7 +65,7 @@ const options: IBreadcrumbs2Option[] = [
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];

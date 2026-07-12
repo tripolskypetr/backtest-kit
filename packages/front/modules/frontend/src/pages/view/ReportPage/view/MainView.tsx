@@ -31,6 +31,7 @@ import ioc from "../../../../lib";
 import IconPhoto from "../../../../components/common/IconPhoto";
 import IconWrapper from "../../../../components/common/IconWrapper";
 import useMarkdownReportView from "../../../../hooks/useMarkdownReportView";
+import { t } from "../../../../i18n";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
 const GROUP_ROOT = "backtest-kit__groupRoot";
@@ -68,19 +69,19 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Markdown Report",
+        label: t("Markdown Report"),
     },
 ];
 
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];
@@ -249,7 +250,7 @@ const createFields = async (): Promise<TypedField[]> => {
             fields: [
                 {
                     type: FieldType.Line,
-                    title: "Backtest",
+                    title: t("Backtest"),
                 },
                 {
                     type: FieldType.Group,
@@ -264,7 +265,7 @@ const createFields = async (): Promise<TypedField[]> => {
             fields: [
                 {
                     type: FieldType.Line,
-                    title: "Live",
+                    title: t("Live"),
                 },
                 {
                     type: FieldType.Group,
@@ -312,7 +313,7 @@ export const MainView = () => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        Loading...
+                        {t("Loading...")}
                     </Typography>
                 </Center>
             );
@@ -322,7 +323,7 @@ export const MainView = () => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        No pending signals
+                        {t("No pending signals")}
                     </Typography>
                 </Center>
             );

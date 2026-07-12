@@ -33,6 +33,7 @@ import useSignalOffsetPaginator from "../../api/useSignalOffsetPaginator";
 import IconWrapper from "../../components/common/IconWrapper";
 import { ISignal } from "../../api/useSignalOffsetPaginator/model/Signal.model";
 import ioc from "../../lib";
+import { t } from "../../i18n";
 
 interface ISignalGridWidgetProps {
   sx: SxProps;
@@ -77,7 +78,7 @@ const columns: IGridColumn<GridItem>[] = [
   },
   {
     field: "symbol",
-    label: "Symbol",
+    label: t("Symbol"),
     minWidth: 115,
     width: (fullWidth) =>
       Math.max(fullWidth - 45 - 90 - 145 - 80 - 90 - 80, 45),
@@ -96,7 +97,7 @@ const columns: IGridColumn<GridItem>[] = [
   },
   {
     field: "position",
-    label: "Position",
+    label: t("Position"),
     minWidth: 90,
     width: () => 90,
     format: ({ position }) => {
@@ -118,21 +119,21 @@ const columns: IGridColumn<GridItem>[] = [
   },
   {
     field: "buyPrice",
-    label: "Entry",
+    label: t("Entry"),
     minWidth: 145,
     width: () => 145,
-    format: ({ buyPrice }) => `${formatAmount(buyPrice)}$`,
+    format: ({ buyPrice }) => `${formatAmount(buyPrice)}${t("$")}`,
   },
   {
     field: "pnlEntries",
-    label: "Invested",
+    label: t("Invested"),
     minWidth: 80,
     width: () => 80,
-    format: ({ pnlEntries }) => `${formatAmount(pnlEntries)}$`,
+    format: ({ pnlEntries }) => `${formatAmount(pnlEntries)}${t("$")}`,
   },
   {
     field: "profitLossPercentage",
-    label: "PNL %",
+    label: t("PNL %"),
     minWidth: 90,
     width: () => 90,
     format: ({ profitLossPercentage }) => {
@@ -147,7 +148,7 @@ const columns: IGridColumn<GridItem>[] = [
   },
   {
     field: "pnlCost",
-    label: "PNL $",
+    label: t("PNL $"),
     minWidth: 80,
     width: () => 80,
     format: ({ pnlCost }) => {
@@ -170,9 +171,9 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "symbol",
-    title: "Symbol",
+    title: t("Symbol"),
     readonly: true,
-    compute: (obj) => obj.symbol || "N/A",
+    compute: (obj) => obj.symbol || t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -181,11 +182,11 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "position",
-    title: "Position",
+    title: t("Position"),
     readonly: true,
     compute: (obj) => {
       const isLong = obj.position === "long";
-      return isLong ? "🔵 LONG (profit on rise)" : "🟠 SHORT (profit on fall)";
+      return isLong ? `🔵 ${t("LONG (profit on rise)")}` : `🟠 ${t("SHORT (profit on fall)")}`;
     },
   },
   {
@@ -195,7 +196,7 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "date",
-    title: "Date",
+    title: t("Date"),
     readonly: true,
     compute: (obj) =>
       obj.date ? dayjs(obj.date).format("DD/MM/YYYY HH:mm") : "",
@@ -207,10 +208,10 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "buyPrice",
-    title: "Entry",
+    title: t("Entry"),
     readonly: true,
     compute: (obj) =>
-      obj.buyPrice ? `${formatAmount(obj.buyPrice)}$` : "N/A",
+      obj.buyPrice ? `${formatAmount(obj.buyPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -219,11 +220,11 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "originalBuyPrice",
-    title: "Original Entry",
+    title: t("Original Entry"),
     readonly: true,
     isVisible: (obj) => obj.originalBuyPrice != null && obj.originalBuyPrice !== obj.buyPrice,
     compute: (obj) =>
-      obj.originalBuyPrice ? `${formatAmount(obj.originalBuyPrice)}$` : "N/A",
+      obj.originalBuyPrice ? `${formatAmount(obj.originalBuyPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -232,10 +233,10 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "takeProfitPrice",
-    title: "Take Profit",
+    title: t("Take Profit"),
     readonly: true,
     compute: (obj) =>
-      obj.takeProfitPrice ? `${formatAmount(obj.takeProfitPrice)}$` : "N/A",
+      obj.takeProfitPrice ? `${formatAmount(obj.takeProfitPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -244,11 +245,11 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "originalTakeProfitPrice",
-    title: "Original Take Profit",
+    title: t("Original Take Profit"),
     readonly: true,
     isVisible: (obj) => obj.originalTakeProfitPrice != null && obj.originalTakeProfitPrice !== obj.takeProfitPrice,
     compute: (obj) =>
-      obj.originalTakeProfitPrice ? `${formatAmount(obj.originalTakeProfitPrice)}$` : "N/A",
+      obj.originalTakeProfitPrice ? `${formatAmount(obj.originalTakeProfitPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -257,10 +258,10 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "stopLossPrice",
-    title: "Stop Loss",
+    title: t("Stop Loss"),
     readonly: true,
     compute: (obj) =>
-      obj.stopLossPrice ? `${formatAmount(obj.stopLossPrice)}$` : "N/A",
+      obj.stopLossPrice ? `${formatAmount(obj.stopLossPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -269,11 +270,11 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "originalStopLossPrice",
-    title: "Original Stop Loss",
+    title: t("Original Stop Loss"),
     readonly: true,
     isVisible: (obj) => obj.originalStopLossPrice != null && obj.originalStopLossPrice !== obj.stopLossPrice,
     compute: (obj) =>
-      obj.originalStopLossPrice ? `${formatAmount(obj.originalStopLossPrice)}$` : "N/A",
+      obj.originalStopLossPrice ? `${formatAmount(obj.originalStopLossPrice)}${t("$")}` : t("N/A"),
   },
   {
     type: FieldType.Text,
@@ -282,9 +283,9 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "pnlEntries",
-    title: "Invested",
+    title: t("Invested"),
     readonly: true,
-    compute: (obj) => `${formatAmount(obj.pnlEntries)}$`,
+    compute: (obj) => `${formatAmount(obj.pnlEntries)}${t("$")}`,
   },
   {
     type: FieldType.Text,
@@ -293,7 +294,7 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "profitLossPercentage",
-    title: "PNL %",
+    title: t("PNL %"),
     readonly: true,
     trailingIcon: ({ data }) => {
       if (data.profitLossPercentage < 0) {
@@ -325,11 +326,11 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "pnlCost",
-    title: "PNL $",
+    title: t("PNL $"),
     readonly: true,
     compute: (obj) => {
       const isProfit = obj.pnlCost >= 0;
-      return `${isProfit ? "+" : ""}${formatAmount(obj.pnlCost)}$`;
+      return `${isProfit ? "+" : ""}${formatAmount(obj.pnlCost)}${t("$")}`;
     },
   },
   {
@@ -339,7 +340,7 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "totalEntries",
-    title: "Total Entries",
+    title: t("Total Entries"),
     readonly: true,
     isVisible: (obj) => obj.totalEntries != null && obj.totalEntries > 1,
     compute: (obj) => String(obj.totalEntries),
@@ -351,7 +352,7 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "totalPartials",
-    title: "Total Closes",
+    title: t("Total Closes"),
     readonly: true,
     isVisible: (obj) => obj.totalPartials != null && obj.totalPartials > 0,
     compute: (obj) => String(obj.totalPartials),
@@ -366,7 +367,7 @@ const signal_fields: TypedField[] = [
         variant="outlined"
         onClick={payload.handleClose}
       >
-        Back
+        {t("Back")}
       </Button>
     ),
   },
@@ -374,7 +375,7 @@ const signal_fields: TypedField[] = [
 
 const row_actions: IGridAction[] = [
   {
-    label: "Details",
+    label: t("Details"),
     icon: () => <IconWrapper icon={AutoFixHigh} color="#4caf50" />,
     action: "open-action",
   }
@@ -391,7 +392,7 @@ export const SignalGridWidget = ({
   );
 
   const { pickData, setOpen, render } = useActionModal({
-    title: "Info",
+    title: t("Info"),
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={2}>
         <ActionButton
@@ -400,7 +401,7 @@ export const SignalGridWidget = ({
             }
             variant="outlined"
         >
-            Show Details
+            {t("Show Details")}
         </ActionButton>
         <IconButton size="small" onClick={onClose}>
           <Close />

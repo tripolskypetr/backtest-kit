@@ -11,6 +11,7 @@ import {
 } from "react-declarative";
 import str from "../utils/str";
 import { get } from "lodash";
+import { t } from "../i18n";
 
 interface IFeatureParams {
   title: string;
@@ -211,21 +212,21 @@ const renderText = ({
 
 const feature_list = [
   {
-    title: "JSONL files",
+    title: t("JSONL files"),
     description:
-      "Files processed by Claude Code, HuggingFace, Parquet",
+      t("Files processed by Claude Code, HuggingFace, Parquet"),
     name: "recent_enabled",
   },
   {
-    title: "Markdown files",
+    title: t("Markdown files"),
     description:
-      "Human-readable files. Useful when running without a GUI",
+      t("Human-readable files. Useful when running without a GUI"),
     name: "markdown_enabled",
   },
   {
-    title: "Dump files",
+    title: t("Dump files"),
     description:
-      "Conversation dump with the AI agent used for trading signals",
+      t("Conversation dump with the AI agent used for trading signals"),
     name: "dump_enabled",
   },
 ];
@@ -257,7 +258,7 @@ const config_fields: TypedField[] = [
             },
             fieldBottomMargin: "0",
             typoVariant: "subtitle2",
-            placeholder: "Runtime Configuration",
+            placeholder: t("Runtime Configuration"),
           },
           {
             type: FieldType.Box,
@@ -741,7 +742,7 @@ const config_fields: TypedField[] = [
           fieldBottomMargin: "0",
           fieldRightMargin: "0",
           buttonVariant: "contained",
-          title: "Download",
+          title: t("Download"),
           click: async (_name, _e, _data, payload) => {
             await closeSubject.next();
             await payload.handleDownloadConfig();
@@ -785,7 +786,7 @@ export const setup_fields: TypedField[] = [
                     type: FieldType.Typography,
                     fieldBottomMargin: "1",
                     typoVariant: "h6",
-                    placeholder: "Running mode",
+                    placeholder: t("Running mode"),
                   },
                   {
                     type: FieldType.Typography,
@@ -797,7 +798,7 @@ export const setup_fields: TypedField[] = [
                     },
                     typoVariant: "body1",
                     placeholder:
-                      "Historical data processing",
+                      t("Historical data processing"),
                   },
                   {
                     type: FieldType.Typography,
@@ -809,7 +810,7 @@ export const setup_fields: TypedField[] = [
                     },
                     typoVariant: "body1",
                     placeholder:
-                      "Real-time exchange integration",
+                      t("Real-time exchange integration"),
                   },
                   {
                     type: FieldType.Typography,
@@ -820,7 +821,7 @@ export const setup_fields: TypedField[] = [
                       color: "red",
                     },
                     typoVariant: "body1",
-                    placeholder: "UI only",
+                    placeholder: t("UI only"),
                   },
                 ]
               },
@@ -864,7 +865,7 @@ export const setup_fields: TypedField[] = [
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "backtest",
-            title: "Historical data",
+            title: t("Historical data"),
           },
           {
             type: FieldType.Radio,
@@ -872,7 +873,7 @@ export const setup_fields: TypedField[] = [
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "live",
-            title: "Real-time",
+            title: t("Real-time"),
           },
           {
             type: FieldType.Radio,
@@ -880,7 +881,7 @@ export const setup_fields: TypedField[] = [
             fieldBottomMargin: "0",
             name: "running_mode",
             radioValue: "none",
-            title: "Frontend only",
+            title: t("Frontend only"),
           },
         ],
       },
@@ -901,7 +902,7 @@ export const setup_fields: TypedField[] = [
                 type: FieldType.Typography,
                 fieldBottomMargin: "1",
                 typoVariant: "h6",
-                placeholder: "Log mode",
+                placeholder: t("Log mode"),
               },
               {
                 type: FieldType.Typography,
@@ -910,7 +911,7 @@ export const setup_fields: TypedField[] = [
                   opacity: 0.5,
                 },
                 typoVariant: "caption",
-                placeholder: "Logs take up disk space but are needed for debugging",
+                placeholder: t("Logs take up disk space but are needed for debugging"),
               },
             ],
           },
@@ -932,13 +933,13 @@ export const setup_fields: TypedField[] = [
             type: FieldType.Typography,
             fieldBottomMargin: "1",
             typoVariant: "h6",
-            placeholder: "User interface",
+            placeholder: t("User interface"),
           },
           {
             type: FieldType.Switch,
             readonly: true,
             fieldBottomMargin: "0",
-            title: "Save notifications",
+            title: t("Save notifications"),
             name: "notification_enabled",
           },
           {
@@ -948,13 +949,13 @@ export const setup_fields: TypedField[] = [
               opacity: 0.5,
             },
             typoVariant: "caption",
-            placeholder: "Event history is saved to disk",
+            placeholder: t("Event history is saved to disk"),
           },
           {
             type: FieldType.Switch,
             readonly: true,
             fieldBottomMargin: "0",
-            title: "Save signals",
+            title: t("Save signals"),
             name: "storage_enabled",
           },
           {
@@ -964,7 +965,7 @@ export const setup_fields: TypedField[] = [
               opacity: 0.5,
             },
             typoVariant: "caption",
-            placeholder: "Latest signal state is saved to disk",
+            placeholder: t("Latest signal state is saved to disk"),
           },
         ],
       },
@@ -986,12 +987,12 @@ export const setup_fields: TypedField[] = [
             type: FieldType.Typography,
             fieldBottomMargin: "3",
             typoVariant: "h6",
-            placeholder: "Strategy",
+            placeholder: t("Strategy"),
           },
 
           {
             type: FieldType.Typography,
-            placeholder: "Broker",
+            placeholder: t("Broker"),
           },
           {
             type: FieldType.Outline,
@@ -1001,14 +1002,14 @@ export const setup_fields: TypedField[] = [
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Connected to mainnet (production)",
+                title: t("Connected to mainnet (production)"),
                 name: "broker_enabled",
               },
             ],
           },
           {
             type: FieldType.Typography,
-            placeholder: "Market signals",
+            placeholder: t("Market signals"),
           },
           {
             type: FieldType.Outline,
@@ -1018,21 +1019,21 @@ export const setup_fields: TypedField[] = [
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Use BM25 for RAG",
+                title: t("Use BM25 for RAG"),
                 name: "memory_enabled",
               },
               {
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Use stateful strategies",
+                title: t("Use stateful strategies"),
                 name: "state_enabled",
               },
               {
                 type: FieldType.Checkbox,
                 readonly: true,
                 fieldBottomMargin: "0",
-                title: "Save previous signal",
+                title: t("Save previous signal"),
                 name: "recent_enabled",
               },
             ],
@@ -1047,7 +1048,7 @@ export const setup_fields: TypedField[] = [
             type: FieldType.Typography,
             fieldBottomMargin: "2",
             typoVariant: "h6",
-            placeholder: "Risk management",
+            placeholder: t("Risk management"),
           },
           {
             type: FieldType.Typography,
@@ -1057,20 +1058,20 @@ export const setup_fields: TypedField[] = [
             },
             typoVariant: "body1",
             placeholder:
-              "Use LONG or SHORT positions depending on market conditions",
+              t("Use LONG or SHORT positions depending on market conditions"),
           },
           {
             type: FieldType.Checkbox,
             readonly: true,
             fieldBottomMargin: "0",
-            title: "Enable LONG",
+            title: t("Enable LONG"),
             name: "enable_long",
           },
           {
             type: FieldType.Checkbox,
             readonly: true,
             fieldBottomMargin: "1",
-            title: "Enable SHORT",
+            title: t("Enable SHORT"),
             name: "enable_short",
           },
         ],
@@ -1094,7 +1095,7 @@ export const setup_fields: TypedField[] = [
             update();
           }}
         >
-          Refresh
+          {t("Refresh")}
         </ActionButton>
       );
     },

@@ -11,6 +11,7 @@ import { Box } from "@mui/material";
 import StatusCard from "../components/StatusCard";
 import ioc from "../../../../../../lib";
 import { IAverageBuyPayload } from "../useAverageBuyModal";
+import { t } from "../../../../../../i18n";
 
 interface IState {
   success: boolean;
@@ -78,9 +79,9 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="error"
-          title="Averaging Error"
+          title={t("Averaging Error")}
           description={state.error}
-          amount={`${formatAmount(parseFloat(cost || "0"))}$`}
+          amount={`${formatAmount(parseFloat(cost || "0"))}${t("$")}`}
           symbol={symbol}
         />
       );
@@ -89,9 +90,9 @@ export const SubmitView = ({
       return (
         <StatusCard
           type="loading"
-          title="Averaging Position"
-          description="Please wait. Your operation is being processed..."
-          amount={`${formatAmount(parseFloat(cost || "0"))}$`}
+          title={t("Averaging Position")}
+          description={t("Please wait. Your operation is being processed...")}
+          amount={`${formatAmount(parseFloat(cost || "0"))}${t("$")}`}
           symbol={symbol}
         />
       );
@@ -99,9 +100,9 @@ export const SubmitView = ({
     return (
       <StatusCard
         type="success"
-        title="Position Averaged"
-        description="Averaging has been scheduled successfully. Waiting for the order to be executed on the exchange"
-        amount={`${formatAmount(parseFloat(cost || "0"))}$`}
+        title={t("Position Averaged")}
+        description={t("Averaging has been scheduled successfully. Waiting for the order to be executed on the exchange")}
+        amount={`${formatAmount(parseFloat(cost || "0"))}${t("$")}`}
         symbol={symbol}
       />
     );
@@ -110,7 +111,7 @@ export const SubmitView = ({
   const renderNavigation = () => (
     <WizardNavigation
       hasNext={state.success || !!state.error}
-      labelNext="Close"
+      labelNext={t("Close")}
       onNext={async () => {
         await beginSave();
       }}

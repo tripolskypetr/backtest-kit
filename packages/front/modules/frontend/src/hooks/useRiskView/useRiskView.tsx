@@ -20,6 +20,7 @@ import { RiskRejectionNotification } from "backtest-kit";
 import risk_fields from "../../assets/risk_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/risk";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useRiskView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Risk Rejection Details",
+    title: t("Risk Rejection Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

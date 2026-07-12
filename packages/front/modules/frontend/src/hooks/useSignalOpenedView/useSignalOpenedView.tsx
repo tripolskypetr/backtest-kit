@@ -20,6 +20,7 @@ import { SignalOpenedNotification } from "backtest-kit";
 import signal_opened_fields from "../../assets/signal_opened_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/signal_opened";
 const CACHE_TTL = 45_000;
@@ -168,7 +169,7 @@ export const useSignalOpenedView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Opened Details",
+    title: t("Signal Opened Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

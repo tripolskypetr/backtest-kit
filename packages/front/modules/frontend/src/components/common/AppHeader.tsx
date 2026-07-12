@@ -17,6 +17,8 @@ import NotificationView from "./NotificationView";
 import { IRouteItem } from "../../config/routes";
 import { useMemo } from "react";
 import Tooltip from "./Tooltip";
+import { t } from "../../i18n";
+import LocalePicker from "./LocalePicker";
 
 const LOADER_HEIGHT = 4;
 
@@ -128,13 +130,13 @@ const default_actions: IOption[] = [
     {
         action: "toggle-fullscreen",
         isVisible: () => !document.fullscreenElement,
-        label: "Enter Fullscreen",
+        label: t("Enter Fullscreen"),
         icon: () => <IconWrapper icon={Fullscreen} color="#4caf50" />,
     },
     {
         action: "toggle-fullscreen",
         isVisible: () => !!document.fullscreenElement,
-        label: "Exit Fullscreen",
+        label: t("Exit Fullscreen"),
         icon: () => <IconWrapper icon={FullscreenExit} color="#4caf50" />,
     },
     {
@@ -143,7 +145,7 @@ const default_actions: IOption[] = [
     {
         action: "github-action",
         icon: () => <IconWrapper icon={GitHub} color="#6A1B9A " />,
-        label: "Open GitHub",
+        label: t("Open GitHub"),
     },
 ];
 
@@ -318,10 +320,11 @@ export const AppHeader = ({
                     className={cx(classes.title, LOGO_CLASS)}
                     sx={{ display: { xs: "none", sm: "flex" }, whiteSpace: "nowrap" }}
                 >
-                    Backtest Kit
+                    {t("Backtest Kit")}
                 </Typography>
                 {renderTabs()}
                 <div className={classes.stretch} />
+                <LocalePicker />
                 <NotificationView />
                 <ActionMenu
                     className={classes.actionMenu}

@@ -23,6 +23,7 @@ import {
 } from "../../../../model/Explorer.model";
 import { Background } from "../../../../components/common/Background";
 import FileTreeWidget from "../../../../widgets/FileTreeWidget";
+import { t } from "../../../../i18n";
 
 const options: IBreadcrumbs2Option[] = [
     {
@@ -33,19 +34,19 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Dump Explorer",
+        label: t("Dump Explorer"),
     },
 ];
 
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];
@@ -83,7 +84,7 @@ export const MainView = ({
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        Loading...
+                        {t("Loading...")}
                     </Typography>
                 </Center>
             );

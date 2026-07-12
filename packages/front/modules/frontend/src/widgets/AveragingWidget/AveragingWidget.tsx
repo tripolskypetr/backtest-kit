@@ -3,6 +3,7 @@ import StatusModel from "../../model/Status.model";
 import { makeStyles } from "../../styles";
 import { AutoSizer, formatAmount, PaperView } from "react-declarative";
 import { Chart } from "react-chartjs-2";
+import { t } from "../../i18n";
 
 const HEADER_HEIGHT = "35px";
 
@@ -88,7 +89,7 @@ export const AveragingWidget = ({
         if (!data.positionEntries.length) {
             return (
                 <Box sx={{ p: 1, color: "text.secondary" }}>
-                    <Typography variant="body2">No entries</Typography>
+                    <Typography variant="body2">{t("No entries")}</Typography>
                 </Box>
             );
         }
@@ -129,7 +130,7 @@ export const AveragingWidget = ({
             datasets: [
                 {
                     type: "bar" as const,
-                    label: "Price ($)",
+                    label: t("Price ($)"),
                     data: data.positionEntries.map((e) => e.price),
                     yAxisID: "y",
                     backgroundColor: barColor,
@@ -138,7 +139,7 @@ export const AveragingWidget = ({
                 },
                 {
                     type: "bar" as const,
-                    label: "Cost ($)",
+                    label: t("Cost ($)"),
                     data: data.positionEntries.map((e) => e.cost),
                     yAxisID: "y1",
                     backgroundColor: "rgba(76, 175, 80, 0.5)",
@@ -147,7 +148,7 @@ export const AveragingWidget = ({
                 },
                 {
                     type: "line" as const,
-                    label: "Eff.Avg",
+                    label: t("Eff.Avg"),
                     data: runningAvgs,
                     yAxisID: "y",
                     borderColor: "rgba(244, 67, 54, 1)",
@@ -178,7 +179,7 @@ export const AveragingWidget = ({
                 y: {
                     type: "linear" as const,
                     position: "left" as const,
-                    title: { display: true, text: "Price ($)" },
+                    title: { display: true, text: t("Price ($)") },
                     beginAtZero: false,
                     min: Math.floor((yMin - yRange * 0.1) / stepSize) * stepSize,
                     max: Math.ceil((yMax + yRange * 0.1) / stepSize) * stepSize,
@@ -191,7 +192,7 @@ export const AveragingWidget = ({
                 y1: {
                     type: "linear" as const,
                     position: "right" as const,
-                    title: { display: true, text: "Cost ($)" },
+                    title: { display: true, text: t("Cost ($)") },
                     beginAtZero: true,
                     grid: { drawOnChartArea: false },
                 },
@@ -229,7 +230,7 @@ export const AveragingWidget = ({
                     }}
                 >
                     <Typography variant="caption" color="text.secondary">
-                        Eff.Avg
+                        {t("Eff.Avg")}
                     </Typography>
                     <Typography variant="body2" fontWeight="medium">
                         {formatAmount(finalAvg)}$
@@ -254,13 +255,13 @@ export const AveragingWidget = ({
             <div className={classes.header}>
                 <div className={classes.title}>
                     <Typography className={classes.text} variant="body1">
-                        Dollar Cost Averaging
+                        {t("Dollar Cost Averaging")}
                     </Typography>
                     <Chip
                         size="small"
                         variant="outlined"
                         color="info"
-                        label="DCA"
+                        label={t("DCA")}
                     />
                 </div>
             </div>

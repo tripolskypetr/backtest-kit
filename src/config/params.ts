@@ -264,7 +264,7 @@ export const GLOBAL_CONFIG = {
    *
    * Default: 900000 ms (15 minutes)
    */
-  CC_NOTIFICATION_CHECK_TTL: 900_000,
+  CC_NOTIFICATION_ORDER_CHECK_TTL: 900_000,
   /**
    * Maximum number of signals to keep in storage.
    * Older signals are removed when this limit is exceeded.

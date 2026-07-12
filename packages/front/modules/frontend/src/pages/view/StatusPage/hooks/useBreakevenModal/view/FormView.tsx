@@ -9,6 +9,7 @@ import {
   typo,
 } from "react-declarative";
 import { defaultSlots } from "../../../../../../components/OneSlotFactory";
+import { t } from "../../../../../../i18n";
 
 const fields: TypedField[] = [
   {
@@ -24,7 +25,7 @@ const fields: TypedField[] = [
           style: { opacity: 0.5 },
           fieldBottomMargin: "3",
           typoVariant: "h6",
-          placeholder: "Move to Breakeven",
+          placeholder: t("Move to Breakeven"),
         },
         {
           type: FieldType.Outline,
@@ -33,7 +34,7 @@ const fields: TypedField[] = [
               type: FieldType.Typography,
               typoVariant: "body1",
               placeholder:
-                "The stop-loss will be moved to the breakeven point of the current position. No additional input is required.",
+                t("The stop-loss will be moved to the breakeven point of the current position. No additional input is required."),
             },
           ],
         },
@@ -42,7 +43,7 @@ const fields: TypedField[] = [
           fieldBottomMargin: "3",
           typoVariant: "caption",
           sx: { pt: 2, opacity: 0.5, fontSize: 12 },
-          placeholder: `${typo.bullet} After pressing the Next button, the move to breakeven will be performed IMMEDIATELY`,
+          placeholder: `${typo.bullet} ${t("After pressing the Next button, the move to breakeven will be performed IMMEDIATELY")}`,
         },
       ],
     },
@@ -63,7 +64,7 @@ export const FormView = ({
         <WizardNavigation
           hasPrev
           hasNext
-          labelPrev="Back"
+          labelPrev={t("Back")}
           onPrev={async () => {
             history.replace("/brief");
           }}

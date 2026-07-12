@@ -20,6 +20,7 @@ import { SignalCancelledNotification } from "backtest-kit";
 import signal_cancelled_fields from "../../assets/signal_cancelled_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/signal_cancelled";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useSignalCancelledView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Cancelled Details",
+    title: t("Signal Cancelled Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

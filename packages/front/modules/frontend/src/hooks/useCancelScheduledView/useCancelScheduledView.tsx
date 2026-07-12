@@ -20,6 +20,7 @@ import { CancelScheduledCommitNotification } from "backtest-kit";
 import cancel_scheduled_commit_fields from "../../assets/cancel_scheduled_commit_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/cancel_scheduled_commit";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useCancelScheduledView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Cancel Scheduled Details",
+    title: t("Cancel Scheduled Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

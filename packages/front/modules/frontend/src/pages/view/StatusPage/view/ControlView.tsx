@@ -17,10 +17,11 @@ import {
     commitClosePendingEmitter,
     commitOpenPendingEmitter,
 } from "../config/emitters";
+import { t } from "../../../../i18n";
 
 const getLabel = (key: string) => {
   if (key === "pnl") {
-    return "P&L";
+    return t("P&L");
   }
   return key;
 };
@@ -40,27 +41,27 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Status",
+        label: t("Status"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        compute: (payload) => payload ? `${String(payload.symbol).toUpperCase()} (${payload.strategyName})` : "Live",
+        compute: (payload) => payload ? `${String(payload.symbol).toUpperCase()} (${payload.strategyName})` : t("Live"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Manual Control",
+        label: t("Manual Control"),
     },
     {
         type: Breadcrumbs2Type.Button,
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: Refresh,
     },
 ];
@@ -68,7 +69,7 @@ const options: IBreadcrumbs2Option[] = [
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "download-action",
-        label: "Download",
+        label: t("Download"),
         icon: () => <IconWrapper icon={Download} color="#4caf50" />,
     },
     {
@@ -76,7 +77,7 @@ const actions: IBreadcrumbs2Action[] = [
     },
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];

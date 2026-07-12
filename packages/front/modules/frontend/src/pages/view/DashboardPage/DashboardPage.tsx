@@ -27,6 +27,7 @@ import { ISuccessRateWithSymbol } from "../../../model/Measure.model";
 import IRevenueCount from "../../../model/RevenueCount.model";
 import ioc from "../../../lib";
 import dashboard_fields from "../../../assets/dashboard_fields";
+import { t } from "../../../i18n";
 
 const INITIAL_TRADE_PERFOMANCE: ITradePerfomance = {
   rejectedCount: 0,
@@ -37,7 +38,7 @@ const INITIAL_TRADE_PERFOMANCE: ITradePerfomance = {
 const actions: IBreadcrumbs2Action[] = [
   {
     action: "download-action",
-    label: "Download",
+    label: t("Download"),
     icon: () => <IconWrapper icon={Download} color="#4caf50" />
   },
   {
@@ -45,13 +46,13 @@ const actions: IBreadcrumbs2Action[] = [
   },
   {
     action: "live-action",
-    label: "Switch to LIVE",
+    label: t("Switch to LIVE"),
     isVisible: (payload) => payload === "backtest",
     icon: () => <IconWrapper icon={LiveTv} color="#4caf50" />
   },
   {
     action: "backtest-action",
-    label: "Switch to BACKTEST",
+    label: t("Switch to BACKTEST"),
     isVisible: (payload) => payload === "live",
     icon: () => <IconWrapper icon={HourglassTop} color="#4caf50" />
   },
@@ -60,7 +61,7 @@ const actions: IBreadcrumbs2Action[] = [
   },
   {
     action: "update-now",
-    label: "Refresh manually",
+    label: t("Refresh manually"),
     icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
   },
 ];
@@ -74,17 +75,17 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Main",
+    label: t("Main"),
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Dashboard",
+    label: t("Dashboard"),
   },
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    compute: (payload) => `KPI ${String(payload).toUpperCase()}`,
+    compute: (payload) => `${t("KPI")} ${String(payload).toUpperCase()}`,
   },
 ];
 

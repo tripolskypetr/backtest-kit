@@ -101,7 +101,7 @@ export interface INotificationTarget {
    * Fired while a signal is monitored in live mode, when the framework asks the
    * external order management system whether the order is still open on the
    * exchange. Throttled to at most one notification per signalId per
-   * `CC_NOTIFICATION_CHECK_TTL` (default 15 minutes); the throttle entry is
+   * `CC_NOTIFICATION_ORDER_CHECK_TTL` (default 15 minutes); the throttle entry is
    * dropped when the signal is closed or cancelled.
    * Source: `syncPendingSubject` (OrderCheckContract).
    */
@@ -1437,13 +1437,15 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
    * Handles order-ping check event.
    * @param data - The order check contract data
    */
-  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+  public handleCheck = trycatch(async (data: OrderCheckContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CHECK, {
       signalId: data.signalId,
       type: data.type,
     });
     this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * Handles risk rejection event.
@@ -1569,9 +1571,11 @@ export class NotificationDummyBacktestUtils implements INotificationUtils {
   /**
    * No-op handler for order-ping check event.
    */
-  public handleCheck = async (): Promise<void> => {
+  public handleCheck = trycatch(async (): Promise<void> => {
     void 0;
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * No-op handler for risk rejection event.
@@ -1795,7 +1799,7 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
    * Handles order-ping check event.
    * @param data - The order check contract data
    */
-  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+  public handleCheck = trycatch(async (data: OrderCheckContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CHECK, {
       signalId: data.signalId,
       type: data.type,
@@ -1803,7 +1807,9 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
     await this.waitForInit();
     this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
     await this._updateNotifications();
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * Handles risk rejection event.
@@ -1998,13 +2004,15 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
    * Handles order-ping check event.
    * @param data - The order check contract data
    */
-  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+  public handleCheck = trycatch(async (data: OrderCheckContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CHECK, {
       signalId: data.signalId,
       type: data.type,
     });
     this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * Handles risk rejection event.
@@ -2130,9 +2138,11 @@ export class NotificationDummyLiveUtils implements INotificationUtils {
   /**
    * No-op handler for order-ping check event.
    */
-  public handleCheck = async (): Promise<void> => {
+  public handleCheck = trycatch(async (): Promise<void> => {
     void 0;
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * No-op handler for risk rejection event.
@@ -2359,7 +2369,7 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
    * Handles order-ping check event.
    * @param data - The order check contract data
    */
-  public handleCheck = async (data: OrderCheckContract): Promise<void> => {
+  public handleCheck = trycatch(async (data: OrderCheckContract): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CHECK, {
       signalId: data.signalId,
       type: data.type,
@@ -2367,7 +2377,9 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
     await this.waitForInit();
     this._addNotification(CREATE_ORDER_CHECK_NOTIFICATION_FN(data));
     await this._updateNotifications();
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * Handles risk rejection event.
@@ -2530,9 +2542,11 @@ export class NotificationBacktestAdapter implements INotificationUtils {
    * Proxies call to the underlying notification adapter.
    * @param data - The order check contract data
    */
-  handleCheck = async (data: OrderCheckContract): Promise<void> => {
+  handleCheck = trycatch(async (data: OrderCheckContract): Promise<void> => {
     return await this.getInstance().handleCheck(data);
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * Handles risk rejection event.
@@ -2727,9 +2741,11 @@ export class NotificationLiveAdapter implements INotificationUtils {
    * Proxies call to the underlying notification adapter.
    * @param data - The order check contract data
    */
-  handleCheck = async (data: OrderCheckContract): Promise<void> => {
+  handleCheck = trycatch(async (data: OrderCheckContract): Promise<void> => {
     return await this.getInstance().handleCheck(data);
-  };
+  }, {
+    defaultValue: null,
+  });
 
   /**
    * Handles risk rejection event.
@@ -2950,7 +2966,7 @@ export class NotificationAdapter {
         .connect(async (data: OrderCheckContract) => {
           if (order_check) {
             const lastTimestamp = checkThrottleMap.get(data.signalId);
-            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_ORDER_CHECK_TTL) {
               return;
             }
             checkThrottleMap.set(data.signalId, data.timestamp);
@@ -3090,7 +3106,7 @@ export class NotificationAdapter {
         .connect(async (data: OrderCheckContract) => {
           if (order_check) {
             const lastTimestamp = checkThrottleMap.get(data.signalId);
-            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_CHECK_TTL) {
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_ORDER_CHECK_TTL) {
               return;
             }
             checkThrottleMap.set(data.signalId, data.timestamp);

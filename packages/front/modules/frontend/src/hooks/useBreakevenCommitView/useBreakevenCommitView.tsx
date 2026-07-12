@@ -20,6 +20,7 @@ import { BreakevenCommitNotification } from "backtest-kit";
 import breakeven_commit_fields from "../../assets/breakeven_commit_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/breakeven_commit";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useBreakevenCommitView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Breakeven Commit Details",
+    title: t("Breakeven Commit Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

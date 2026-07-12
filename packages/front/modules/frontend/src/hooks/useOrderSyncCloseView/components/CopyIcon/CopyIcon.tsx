@@ -4,6 +4,7 @@ import { SxProps } from "@mui/material";
 import { ActionIcon, copyToClipboard, createAwaiter } from "react-declarative";
 import ContentCopy from "@mui/icons-material/ContentCopy";
 import ioc from "../../../../lib";
+import { t } from "../../../../i18n";
 
 interface ICopyIconProps {
     disabled?: boolean;
@@ -64,7 +65,7 @@ export const CopyIcon = ({
                 {
                     await doCopy(content);
                 }
-                ioc.alertService.notify("Copied!");
+                ioc.alertService.notify(t("Copied!"));
             }}
         >
             <ContentCopy />

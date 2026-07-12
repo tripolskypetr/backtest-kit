@@ -10,6 +10,7 @@ import {
     PaperView,
     useAsyncValue,
 } from "react-declarative";
+import { t } from "../../i18n";
 
 interface IStatusWidgetProps {
     outlinePaper: boolean;
@@ -185,7 +186,7 @@ export const StatusWidget = ({
             <div className={classes.header}>
                 <div className={classes.title}>
                     <Typography className={classes.text} variant="body1">
-                        Current Status
+                        {t("Current Status")}
                     </Typography>
                     {renderChip()}
                     {renderStatus()}

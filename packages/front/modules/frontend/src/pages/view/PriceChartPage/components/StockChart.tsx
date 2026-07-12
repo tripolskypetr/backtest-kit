@@ -15,6 +15,7 @@ import { makeStyles } from "../../../../styles";
 import { colors } from "@mui/material";
 import { dayjs, formatAmount } from "react-declarative";
 import getPriceScale from "../../../../utils/getPriceScale";
+import { t } from "../../../../i18n";
 
 declare function parseFloat(value: unknown): number;
 
@@ -114,11 +115,11 @@ export const StockChart = ({ height, width, items, position, priceOpen, priceSto
                         items.find((c) => c.timestamp === Number(time)) ||
                         items[0];
                     if (!candle || !candle.timestamp) {
-                        return "Invalid date";
+                        return t("Invalid date");
                     }
                     const date = dayjs(candle.timestamp);
                     if (!date.isValid()) {
-                        return "Invalid date";
+                        return t("Invalid date");
                     }
                     return date.format("HH:mm:ss");
                 },
@@ -145,7 +146,7 @@ export const StockChart = ({ height, width, items, position, priceOpen, priceSto
                 lineWidth: 2,
                 lineStyle: LineStyle.Solid,
                 axisLabelVisible: true,
-                title: position === "long" ? "LONG Entry" : "SHORT Entry",
+                title: position === "long" ? t("LONG Entry") : t("SHORT Entry"),
             });
         }
 
@@ -156,7 +157,7 @@ export const StockChart = ({ height, width, items, position, priceOpen, priceSto
                 lineWidth: 2,
                 lineStyle: LineStyle.Solid,
                 axisLabelVisible: true,
-                title: "SL",
+                title: t("SL"),
             });
         }
 
@@ -167,7 +168,7 @@ export const StockChart = ({ height, width, items, position, priceOpen, priceSto
                 lineWidth: 2,
                 lineStyle: LineStyle.Solid,
                 axisLabelVisible: true,
-                title: "TP",
+                title: t("TP"),
             });
         }
 

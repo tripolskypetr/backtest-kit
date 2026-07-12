@@ -11,6 +11,7 @@ import { createMemoryHistory } from "history";
 import { Background } from "../../../components/common/Background";
 import ioc from "../../../lib";
 import { Container } from "@mui/material";
+import { t } from "../../../i18n";
 
 const history = createMemoryHistory();
 
@@ -34,11 +35,11 @@ const routes: IOutlet[] = [
 const tabs: ITabsStep[] = [
     {
         id: "backtest",
-        label: "Backtest",
+        label: t("Backtest"),
     },
     {
         id: "live",
-        label: "Live",
+        label: t("Live"),
     },
 ];
 

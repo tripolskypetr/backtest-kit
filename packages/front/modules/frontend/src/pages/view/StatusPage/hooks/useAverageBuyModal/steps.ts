@@ -1,17 +1,18 @@
 import { IWizardStep } from "react-declarative";
+import { t } from "../../../../../i18n";
 
 const steps: IWizardStep[] = [
   {
     id: "brief",
-    label: "Briefing",
+    label: t("Briefing"),
   },
   {
     id: "form",
-    label: "Input",
+    label: t("Input"),
   },
   {
     id: "submit",
-    label: "Averaging",
+    label: t("Averaging"),
   },
 ];
 

@@ -30,6 +30,7 @@ import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import ioc from "../../../../lib";
 import IconPhoto from "../../../../components/common/IconPhoto";
 import IconWrapper from "../../../../components/common/IconWrapper";
+import { t } from "../../../../i18n";
 
 const GROUP_HEADER = "backtest-kit__groupHeader";
 const GROUP_ROOT = "backtest-kit__groupRoot";
@@ -66,19 +67,19 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Main",
+        label: t("Main"),
     },
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Status",
+        label: t("Status"),
     },
 ];
 
 const actions: IBreadcrumbs2Action[] = [
     {
         action: "update-now",
-        label: "Refresh",
+        label: t("Refresh"),
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
     },
 ];
@@ -198,7 +199,7 @@ const createFields = async (): Promise<TypedField[]> => {
             {
                 type: FieldType.Typography,
                 typoVariant: "h6",
-                placeholder: "Listening for a pending signal...",
+                placeholder: t("Listening for a pending signal..."),
                 sx: { textAlign: "center", opacity: 0.5, mt: 4 },
             },
         ];
@@ -315,7 +316,7 @@ export const MainView = () => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        Loading...
+                        {t("Loading...")}
                     </Typography>
                 </Center>
             );
@@ -325,7 +326,7 @@ export const MainView = () => {
             return (
                 <Center>
                     <Typography variant="h6" sx={{ opacity: 0.5 }}>
-                        No pending signals
+                        {t("No pending signals")}
                     </Typography>
                 </Center>
             );

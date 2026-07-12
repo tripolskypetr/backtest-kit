@@ -20,6 +20,7 @@ import { AverageBuyCommitNotification } from "backtest-kit";
 import average_buy_commit_fields from "../../assets/average_buy_commit_fields";
 import MenuIcon from "./components/MenuIcon";
 import downloadMarkdown from "../../utils/downloadMarkdown";
+import { t } from "../../i18n";
 
 const DEFAULT_PATH = "/average_buy_commit";
 const CACHE_TTL = 45_000;
@@ -171,7 +172,7 @@ export const useAverageBuyCommitView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Average Buy Details",
+    title: t("Average Buy Details"),
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,
