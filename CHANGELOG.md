@@ -1,3 +1,30 @@
+# 🇬🇧 🇨🇳 🇮🇳 Internationalization (v15.3.0, 12/07/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/15.3.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+The `@backtest-kit/ui` dashboard now ships in **7 languages**: English, Русский, Türkçe, 中文, हिन्दी, Español, Português. Every user-facing string across the frontend — 637 files audited file-by-file, form templates, widgets, modals, wizards, toasts and chart labels included — is routed through the `t()` translation layer, backed by a dictionary of **560+ keys per locale** (key sets verified identical across all seven by script). A new **language picker** in the dashboard header (with flag icons, language names shown in their native form) switches the locale at runtime.
+
+**Locales & currency conventions**
+
+- New locale files: `locale.tr.ts`, `locale.zh.ts`, `locale.hi.ts`, `locale.es.ts`, `locale.pt.ts` — joining the existing `en` / `ru`.
+- The Russian locale targets Мосбиржа conventions: `USDT` renders as `RUB` and `$` as `₽`. All other locales keep the original currency symbols.
+- Tickers (`BTCUSDT`), dayjs formats, routes and other technical values are intentionally left untranslated — data, not interface.
+- The i18n module now exports `getLocale`, `setLocale`, `localeMap` and the `Locale` type for programmatic control.
+
+**Core fixes riding along**
+
+- `handleCheck` is wrapped in `trycatch` across all six Notification implementations and both mode adapters — an error thrown while recording an order-check notification can no longer propagate into the live monitoring loop.
+- The order-check notification throttle config was renamed to say what it throttles (see Breaking Changes).
+
+## Breaking Changes
+
+1. **`CC_NOTIFICATION_CHECK_TTL` → `CC_NOTIFICATION_ORDER_CHECK_TTL`** — the config key that throttles order-check notifications (default 15 minutes, one per signalId) was renamed to match the `order*` sync surface introduced in v15.0.0. Update any `setConfig({ CC_NOTIFICATION_CHECK_TTL: ... })` call to the new name; TypeScript will point at the use site.
+
+
+
+
 # 🔮 Mythos Full-Codebase Audit (v15.0.0, 04/07/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/15.0.0)
