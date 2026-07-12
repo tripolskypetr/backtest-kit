@@ -306,8 +306,8 @@ const config_fields: TypedField[] = [
             title: "CC_SCHEDULE_AWAIT_MINUTES",
             name: "config.CC_SCHEDULE_AWAIT_MINUTES",
             description: str.newline(
-              "Time to wait for scheduled signal to activate (in minutes).",
-              "If signal does not activate within this time, it will be cancelled.",
+              t("Time to wait for scheduled signal to activate (in minutes)."),
+              t("If signal does not activate within this time, it will be cancelled."),
             ),
           }),
           renderText({
@@ -315,8 +315,8 @@ const config_fields: TypedField[] = [
             title: "CC_AVG_PRICE_CANDLES_COUNT",
             name: "config.CC_AVG_PRICE_CANDLES_COUNT",
             description: str.newline(
-              "Number of candles to use for average price calculation (VWAP).",
-              "Default: 5 candles (last 5 minutes when using 1m interval).",
+              t("Number of candles to use for average price calculation (VWAP)."),
+              t("Default: 5 candles (last 5 minutes when using 1m interval)."),
             ),
           }),
           renderText({
@@ -324,10 +324,10 @@ const config_fields: TypedField[] = [
             title: "CC_PERCENT_SLIPPAGE",
             name: "config.CC_PERCENT_SLIPPAGE",
             description: str.newline(
-              "Slippage percentage applied to entry and exit prices.",
-              "Simulates market impact and order book depth.",
-              "Applied twice (entry and exit) for realistic execution simulation.",
-              "Default: 0.1% per transaction.",
+              t("Slippage percentage applied to entry and exit prices."),
+              t("Simulates market impact and order book depth."),
+              t("Applied twice (entry and exit) for realistic execution simulation."),
+              t("Default: 0.1% per transaction."),
             ),
           }),
           renderText({
@@ -335,9 +335,9 @@ const config_fields: TypedField[] = [
             title: "CC_PERCENT_FEE",
             name: "config.CC_PERCENT_FEE",
             description: str.newline(
-              "Fee percentage charged per transaction.",
-              "Applied twice (entry and exit) for total fee calculation.",
-              "Default: 0.1% per transaction (total 0.2%).",
+              t("Fee percentage charged per transaction."),
+              t("Applied twice (entry and exit) for total fee calculation."),
+              t("Default: 0.1% per transaction (total 0.2%)."),
             ),
           }),
           renderText({
@@ -345,9 +345,9 @@ const config_fields: TypedField[] = [
             title: "CC_MIN_TAKEPROFIT_DISTANCE_PERCENT",
             name: "config.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT",
             description: str.newline(
-              "Minimum TakeProfit distance from priceOpen (percentage).",
-              "Must be greater than (slippage + fees) to ensure profitable trades.",
-              "Default: 0.5% (covers all costs + minimum profit margin).",
+              t("Minimum TakeProfit distance from priceOpen (percentage)."),
+              t("Must be greater than (slippage + fees) to ensure profitable trades."),
+              t("Default: 0.5% (covers all costs + minimum profit margin)."),
             ),
           }),
           renderText({
@@ -355,9 +355,9 @@ const config_fields: TypedField[] = [
             title: "CC_MIN_STOPLOSS_DISTANCE_PERCENT",
             name: "config.CC_MIN_STOPLOSS_DISTANCE_PERCENT",
             description: str.newline(
-              "Minimum StopLoss distance from priceOpen (percentage).",
-              "Prevents signals from being immediately stopped out due to price volatility.",
-              "Default: 0.5% (buffer to avoid instant stop loss on normal market fluctuations).",
+              t("Minimum StopLoss distance from priceOpen (percentage)."),
+              t("Prevents signals from being immediately stopped out due to price volatility."),
+              t("Default: 0.5% (buffer to avoid instant stop loss on normal market fluctuations)."),
             ),
           }),
           renderText({
@@ -365,9 +365,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_STOPLOSS_DISTANCE_PERCENT",
             name: "config.CC_MAX_STOPLOSS_DISTANCE_PERCENT",
             description: str.newline(
-              "Maximum StopLoss distance from priceOpen (percentage).",
-              "Prevents catastrophic losses from extreme StopLoss values.",
-              "Default: 20% (one signal cannot lose more than 20% of position).",
+              t("Maximum StopLoss distance from priceOpen (percentage)."),
+              t("Prevents catastrophic losses from extreme StopLoss values."),
+              t("Default: 20% (one signal cannot lose more than 20% of position)."),
             ),
           }),
           renderText({
@@ -375,11 +375,11 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_SIGNAL_LIFETIME_MINUTES",
             name: "config.CC_MAX_SIGNAL_LIFETIME_MINUTES",
             description: str.newline(
-              "Maximum signal lifetime in minutes.",
-              "Also used as the default when minuteEstimatedTime is not provided in ISignalDto.",
-              "Prevents eternal signals that block risk limits for weeks/months.",
-              "Use Infinity to allow signals to live indefinitely (until TP/SL or explicit close).",
-              "Default: 1440 minutes (1 day).",
+              t("Maximum signal lifetime in minutes."),
+              t("Also used as the default when minuteEstimatedTime is not provided in ISignalDto."),
+              t("Prevents eternal signals that block risk limits for weeks/months."),
+              t("Use Infinity to allow signals to live indefinitely (until TP/SL or explicit close)."),
+              t("Default: 1440 minutes (1 day)."),
             ),
           }),
           renderText({
@@ -387,10 +387,10 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_SIGNAL_GENERATION_SECONDS",
             name: "config.CC_MAX_SIGNAL_GENERATION_SECONDS",
             description: str.newline(
-              "Maximum time allowed for signal generation (in seconds).",
-              "Prevents long-running or stuck signal generation routines from blocking execution or consuming resources indefinitely.",
-              "If generation exceeds this threshold the attempt should be aborted, logged and optionally retried.",
-              "Default: 180 seconds (3 minutes).",
+              t("Maximum time allowed for signal generation (in seconds)."),
+              t("Prevents long-running or stuck signal generation routines from blocking execution or consuming resources indefinitely."),
+              t("If generation exceeds this threshold the attempt should be aborted, logged and optionally retried."),
+              t("Default: 180 seconds (3 minutes)."),
             ),
           }),
           renderText({
@@ -398,8 +398,8 @@ const config_fields: TypedField[] = [
             title: "CC_GET_CANDLES_RETRY_COUNT",
             name: "config.CC_GET_CANDLES_RETRY_COUNT",
             description: str.newline(
-              "Number of retries for getCandles function.",
-              "Default: 3 retries.",
+              t("Number of retries for getCandles function."),
+              t("Default: 3 retries."),
             ),
           }),
           renderText({
@@ -407,8 +407,8 @@ const config_fields: TypedField[] = [
             title: "CC_GET_CANDLES_RETRY_DELAY_MS",
             name: "config.CC_GET_CANDLES_RETRY_DELAY_MS",
             description: str.newline(
-              "Delay between retries for getCandles function (in milliseconds).",
-              "Default: 5000 ms (5 seconds).",
+              t("Delay between retries for getCandles function (in milliseconds)."),
+              t("Default: 5000 ms (5 seconds)."),
             ),
           }),
           renderText({
@@ -416,9 +416,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_CANDLES_PER_REQUEST",
             name: "config.CC_MAX_CANDLES_PER_REQUEST",
             description: str.newline(
-              "Maximum number of candles to request per single API call.",
-              "If a request exceeds this limit, data will be fetched using pagination.",
-              "Default: 1000 candles per request.",
+              t("Maximum number of candles to request per single API call."),
+              t("If a request exceeds this limit, data will be fetched using pagination."),
+              t("Default: 1000 candles per request."),
             ),
           }),
           renderText({
@@ -426,9 +426,9 @@ const config_fields: TypedField[] = [
             title: "CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR",
             name: "config.CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR",
             description: str.newline(
-              "Maximum allowed deviation factor for price anomaly detection.",
-              "Price should not be more than this factor lower than reference price.",
-              "Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies).",
+              t("Maximum allowed deviation factor for price anomaly detection."),
+              t("Price should not be more than this factor lower than reference price."),
+              t("Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies)."),
             ),
           }),
           renderText({
@@ -436,9 +436,9 @@ const config_fields: TypedField[] = [
             title: "CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN",
             name: "config.CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN",
             description: str.newline(
-              "Minimum number of candles required for reliable median calculation.",
-              "Below this threshold, use simple average instead of median.",
-              "Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median).",
+              t("Minimum number of candles required for reliable median calculation."),
+              t("Below this threshold, use simple average instead of median."),
+              t("Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)."),
             ),
           }),
           renderText({
@@ -446,9 +446,9 @@ const config_fields: TypedField[] = [
             title: "CC_REPORT_SHOW_SIGNAL_NOTE",
             name: "config.CC_REPORT_SHOW_SIGNAL_NOTE",
             description: str.newline(
-              "Controls visibility of signal notes in markdown report tables.",
-              "When enabled, the \"Note\" column will be displayed in all markdown reports (backtest, live, schedule, risk, etc.)",
-              "Default: false (notes are hidden to reduce table width and improve readability).",
+              t("Controls visibility of signal notes in markdown report tables."),
+              t("When enabled, the \"Note\" column will be displayed in all markdown reports (backtest, live, schedule, risk, etc.)"),
+              t("Default: false (notes are hidden to reduce table width and improve readability)."),
             ),
           }),
           renderText({
@@ -456,9 +456,9 @@ const config_fields: TypedField[] = [
             title: "CC_BREAKEVEN_THRESHOLD",
             name: "config.CC_BREAKEVEN_THRESHOLD",
             description: str.newline(
-              "Breakeven threshold percentage - minimum profit distance from entry to enable breakeven.",
-              "When price moves this percentage in profit direction, stop-loss can be moved to entry (breakeven).",
-              "Default: 0.2% (additional buffer above costs to ensure no loss when moving to breakeven).",
+              t("Breakeven threshold percentage - minimum profit distance from entry to enable breakeven."),
+              t("When price moves this percentage in profit direction, stop-loss can be moved to entry (breakeven)."),
+              t("Default: 0.2% (additional buffer above costs to ensure no loss when moving to breakeven)."),
             ),
           }),
           renderText({
@@ -466,10 +466,10 @@ const config_fields: TypedField[] = [
             title: "CC_ORDER_BOOK_TIME_OFFSET_MINUTES",
             name: "config.CC_ORDER_BOOK_TIME_OFFSET_MINUTES",
             description: str.newline(
-              "Time offset in minutes for order book fetching.",
-              "Subtracts this amount from the current time when fetching order book data.",
-              "This helps get a more stable snapshot of the order book by avoiding real-time volatility.",
-              "Default: 10 minutes.",
+              t("Time offset in minutes for order book fetching."),
+              t("Subtracts this amount from the current time when fetching order book data."),
+              t("This helps get a more stable snapshot of the order book by avoiding real-time volatility."),
+              t("Default: 10 minutes."),
             ),
           }),
           renderText({
@@ -477,9 +477,9 @@ const config_fields: TypedField[] = [
             title: "CC_ORDER_BOOK_MAX_DEPTH_LEVELS",
             name: "config.CC_ORDER_BOOK_MAX_DEPTH_LEVELS",
             description: str.newline(
-              "Maximum depth levels for order book fetching.",
-              "Specifies how many price levels to fetch from both bids and asks.",
-              "Default: 20 levels.",
+              t("Maximum depth levels for order book fetching."),
+              t("Specifies how many price levels to fetch from both bids and asks."),
+              t("Default: 20 levels."),
             ),
           }),
           renderText({
@@ -487,9 +487,9 @@ const config_fields: TypedField[] = [
             title: "CC_AGGREGATED_TRADES_MAX_MINUTES",
             name: "config.CC_AGGREGATED_TRADES_MAX_MINUTES",
             description: str.newline(
-              "Maximum minutes of aggregated trades to fetch when no limit is provided.",
-              "If limit is not specified, the system will fetch aggregated trades for this many minutes starting from the current time minus the offset.",
-              "Binance requirement.",
+              t("Maximum minutes of aggregated trades to fetch when no limit is provided."),
+              t("If limit is not specified, the system will fetch aggregated trades for this many minutes starting from the current time minus the offset."),
+              t("Binance requirement."),
             ),
           }),
           renderText({
@@ -497,9 +497,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_BACKTEST_MARKDOWN_ROWS",
             name: "config.CC_MAX_BACKTEST_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in backtest markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in backtest markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -507,9 +507,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_BREAKEVEN_MARKDOWN_ROWS",
             name: "config.CC_MAX_BREAKEVEN_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in breakeven markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in breakeven markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -517,9 +517,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_HEATMAP_MARKDOWN_ROWS",
             name: "config.CC_MAX_HEATMAP_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in heatmap markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in heatmap markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -527,9 +527,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS",
             name: "config.CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in highest profit markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in highest profit markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -537,9 +537,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS",
             name: "config.CC_MAX_MAX_DRAWDOWN_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in max drawdown markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in max drawdown markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -547,9 +547,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_LIVE_MARKDOWN_ROWS",
             name: "config.CC_MAX_LIVE_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in live markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in live markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -557,9 +557,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_PARTIAL_MARKDOWN_ROWS",
             name: "config.CC_MAX_PARTIAL_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in partial markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in partial markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -567,9 +567,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_RISK_MARKDOWN_ROWS",
             name: "config.CC_MAX_RISK_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in risk markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in risk markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -577,9 +577,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_SCHEDULE_MARKDOWN_ROWS",
             name: "config.CC_MAX_SCHEDULE_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in schedule markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in schedule markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -587,9 +587,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_STRATEGY_MARKDOWN_ROWS",
             name: "config.CC_MAX_STRATEGY_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in strategy markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in strategy markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -597,9 +597,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_SYNC_MARKDOWN_ROWS",
             name: "config.CC_MAX_SYNC_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of events to keep in sync markdown report storage.",
-              "Older events are removed (FIFO) when this limit is exceeded.",
-              "Default: 250 events.",
+              t("Maximum number of events to keep in sync markdown report storage."),
+              t("Older events are removed (FIFO) when this limit is exceeded."),
+              t("Default: 250 events."),
             ),
           }),
           renderText({
@@ -607,8 +607,8 @@ const config_fields: TypedField[] = [
             title: "CC_WALKER_MARKDOWN_TOP_N",
             name: "config.CC_WALKER_MARKDOWN_TOP_N",
             description: str.newline(
-              "Number of top strategies to include in the walker comparison table.",
-              "Default: 10 strategies.",
+              t("Number of top strategies to include in the walker comparison table."),
+              t("Default: 10 strategies."),
             ),
           }),
           renderText({
@@ -616,10 +616,10 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_PERFORMANCE_MARKDOWN_ROWS",
             name: "config.CC_MAX_PERFORMANCE_MARKDOWN_ROWS",
             description: str.newline(
-              "Maximum number of performance metric events to keep in storage.",
-              "Older events are removed when this limit is exceeded.",
-              "Higher than other report event limits because performance metrics are lightweight and benefit from larger sample sizes for accurate statistical analysis.",
-              "Default: 10000 events.",
+              t("Maximum number of performance metric events to keep in storage."),
+              t("Older events are removed when this limit is exceeded."),
+              t("Higher than other report event limits because performance metrics are lightweight and benefit from larger sample sizes for accurate statistical analysis."),
+              t("Default: 10000 events."),
             ),
           }),
           renderText({
@@ -627,9 +627,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_NOTIFICATIONS",
             name: "config.CC_MAX_NOTIFICATIONS",
             description: str.newline(
-              "Maximum number of notifications to keep in storage.",
-              "Older notifications are removed when this limit is exceeded.",
-              "Default: 500 notifications.",
+              t("Maximum number of notifications to keep in storage."),
+              t("Older notifications are removed when this limit is exceeded."),
+              t("Default: 500 notifications."),
             ),
           }),
           renderText({
@@ -637,9 +637,9 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_SIGNALS",
             name: "config.CC_MAX_SIGNALS",
             description: str.newline(
-              "Maximum number of signals to keep in storage.",
-              "Older signals are removed when this limit is exceeded.",
-              "Default: 50 signals.",
+              t("Maximum number of signals to keep in storage."),
+              t("Older signals are removed when this limit is exceeded."),
+              t("Default: 50 signals."),
             ),
           }),
           renderText({
@@ -647,10 +647,10 @@ const config_fields: TypedField[] = [
             title: "CC_MAX_LOG_LINES",
             name: "config.CC_MAX_LOG_LINES",
             description: str.newline(
-              "Maximum number of log lines to keep in storage.",
-              "Older log lines are removed when this limit is exceeded.",
-              "This helps prevent unbounded log growth which can consume memory and degrade performance over time.",
-              "Default: 1000 log lines.",
+              t("Maximum number of log lines to keep in storage."),
+              t("Older log lines are removed when this limit is exceeded."),
+              t("This helps prevent unbounded log growth which can consume memory and degrade performance over time."),
+              t("Default: 1000 log lines."),
             ),
           }),
           renderText({
@@ -658,9 +658,9 @@ const config_fields: TypedField[] = [
             title: "CC_ENABLE_CANDLE_FETCH_MUTEX",
             name: "config.CC_ENABLE_CANDLE_FETCH_MUTEX",
             description: str.newline(
-              "Enables mutex locking for candle fetching to prevent concurrent fetches of the same candles.",
-              "This can help avoid redundant API calls and ensure data consistency when multiple processes/threads attempt to fetch candles simultaneously.",
-              "Default: true (mutex locking enabled for candle fetching).",
+              t("Enables mutex locking for candle fetching to prevent concurrent fetches of the same candles."),
+              t("This can help avoid redundant API calls and ensure data consistency when multiple processes/threads attempt to fetch candles simultaneously."),
+              t("Default: true (mutex locking enabled for candle fetching)."),
             ),
           }),
           renderText({
@@ -668,9 +668,9 @@ const config_fields: TypedField[] = [
             title: "CC_ENABLE_BACKTEST_PARALLEL_SPIN",
             name: "config.CC_ENABLE_BACKTEST_PARALLEL_SPIN",
             description: str.newline(
-              "Enables cooperative interleaving of concurrently running backtests after each candle fetch.",
-              "Hands the event loop to a peer backtest waiting on the same mutex, so multiple parallel Backtest.run / Walker workloads progress in round-robin fashion instead of one monopolizing the event loop until completion.",
-              "Default: true (parallel backtests are interleaved on each candle fetch boundary).",
+              t("Enables cooperative interleaving of concurrently running backtests after each candle fetch."),
+              t("Hands the event loop to a peer backtest waiting on the same mutex, so multiple parallel Backtest.run / Walker workloads progress in round-robin fashion instead of one monopolizing the event loop until completion."),
+              t("Default: true (parallel backtests are interleaved on each candle fetch boundary)."),
             ),
           }),
           renderText({
@@ -678,9 +678,9 @@ const config_fields: TypedField[] = [
             title: "CC_ENABLE_DCA_EVERYWHERE",
             name: "config.CC_ENABLE_DCA_EVERYWHERE",
             description: str.newline(
-              "Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken.",
-              "Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.",
-              "Default: false (DCA logic enabled only when antirecord is broken).",
+              t("Enables DCA (Dollar-Cost Averaging) logic even if antirecord is not broken."),
+              t("Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen."),
+              t("Default: false (DCA logic enabled only when antirecord is broken)."),
             ),
           }),
           renderText({
@@ -688,9 +688,9 @@ const config_fields: TypedField[] = [
             title: "CC_ENABLE_PPPL_EVERYWHERE",
             name: "config.CC_ENABLE_PPPL_EVERYWHERE",
             description: str.newline(
-              "Enables PPPL (Partial Profit, Partial Loss) logic even if this breaks a direction of exits.",
-              "Allows to take partial profit or loss on a position even if it results in a mix of profit and loss exits.",
-              "Default: false (PPPL logic is only applied when it does not break the direction of exits, ensuring clearer profit/loss outcomes).",
+              t("Enables PPPL (Partial Profit, Partial Loss) logic even if this breaks a direction of exits."),
+              t("Allows to take partial profit or loss on a position even if it results in a mix of profit and loss exits."),
+              t("Default: false (PPPL logic is only applied when it does not break the direction of exits, ensuring clearer profit/loss outcomes)."),
             ),
           }),
           renderText({
@@ -698,9 +698,9 @@ const config_fields: TypedField[] = [
             title: "CC_ENABLE_LONG_SIGNAL",
             name: "config.CC_ENABLE_LONG_SIGNAL",
             description: str.newline(
-              "Enables long signals in strategies that are primarily designed for short signals.",
-              "This allows the strategy to generate and manage long signals in addition to short signals, even if the original design was focused on short trading.",
-              "Default: false (long signals are only enabled in strategies that are designed for them, ensuring strategy logic is aligned with signal types).",
+              t("Enables long signals in strategies that are primarily designed for short signals."),
+              t("This allows the strategy to generate and manage long signals in addition to short signals, even if the original design was focused on short trading."),
+              t("Default: false (long signals are only enabled in strategies that are designed for them, ensuring strategy logic is aligned with signal types)."),
             ),
           }),
           renderText({
@@ -708,8 +708,8 @@ const config_fields: TypedField[] = [
             title: "CC_ENABLE_SHORT_SIGNAL",
             name: "config.CC_ENABLE_SHORT_SIGNAL",
             description: str.newline(
-              "Enables short signals in strategies that are primarily designed for long signals.",
-              "This allows the strategy to generate and manage short signals in addition to long signals, even if the original design was focused on long trading.",
+              t("Enables short signals in strategies that are primarily designed for long signals."),
+              t("This allows the strategy to generate and manage short signals in addition to long signals, even if the original design was focused on long trading."),
             ),
           }),
           renderText({
@@ -717,9 +717,9 @@ const config_fields: TypedField[] = [
             title: "CC_ENABLE_TRAILING_EVERYWHERE",
             name: "config.CC_ENABLE_TRAILING_EVERYWHERE",
             description: str.newline(
-              "Enables trailing logic (Trailing Take / Trailing Stop) without requiring absorption conditions.",
-              "Allows trailing mechanisms to be activated regardless of whether absorption has been detected.",
-              "Default: false (trailing logic is applied only when absorption conditions are met).",
+              t("Enables trailing logic (Trailing Take / Trailing Stop) without requiring absorption conditions."),
+              t("Allows trailing mechanisms to be activated regardless of whether absorption has been detected."),
+              t("Default: false (trailing logic is applied only when absorption conditions are met)."),
             ),
           }),
           renderText({
@@ -727,9 +727,9 @@ const config_fields: TypedField[] = [
             title: "CC_POSITION_ENTRY_COST",
             name: "config.CC_POSITION_ENTRY_COST",
             description: str.newline(
-              "Cost of entering a position (in USD).",
-              "This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy.",
-              "Default: $100 per position.",
+              t("Cost of entering a position (in USD)."),
+              t("This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy."),
+              t("Default: $100 per position."),
             ),
           }),
         ]

@@ -172,7 +172,7 @@ export const PartialWidget = ({
                         label: (ctx: { dataIndex: number }) => {
                             const { pnlDollar, pnlPct } = partialData[ctx.dataIndex];
                             const sign = pnlDollar >= 0 ? "+" : "";
-                            return `${t("P&L")}: ${sign}${formatAmount(pnlDollar)}$ (${sign}${pnlPct.toFixed(2)}%)`;
+                            return `${t("P&L")}: ${sign}${formatAmount(pnlDollar)}${t("$")} (${sign}${pnlPct.toFixed(2)}%)`;
                         },
                         afterBody: (items: { dataIndex: number }[]) => {
                             const idx = items[0].dataIndex;
@@ -181,7 +181,7 @@ export const PartialWidget = ({
                                 `${t("Type")}: ${partial.type === "profit" ? t("Partial Profit") : t("Partial Loss")}`,
                                 `${t("Exit price")}: ${formatAmount(partial.currentPrice)}${t("$")}`,
                                 `${t("Entry price")}: ${formatAmount(effectiveEntry)}${t("$")}`,
-                                `${t("Closed")}: ${partial.percent}% (${formatAmount(closedDollar)}$)`,
+                                `${t("Closed")}: ${partial.percent}% (${formatAmount(closedDollar)}${t("$")})`,
                             ];
                         },
                     },

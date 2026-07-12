@@ -242,7 +242,7 @@ export const status_fields: TypedField[] = [
                                         color={COLOR_PURPLE}
                                         outlinePaper={payload.outlinePaper}
                                         label={t("Max Drawdown")}
-                                        value={`${maxDrawdownCost}$ / ${maxDrawdownPercentage}%`}
+                                        value={`${maxDrawdownCost}${t("$")} / ${maxDrawdownPercentage}%`}
                                         icon={DonutSmall}
                                     />
                                 );
@@ -276,7 +276,7 @@ export const status_fields: TypedField[] = [
                                         }
                                         outlinePaper={payload.outlinePaper}
                                         label={t("Peak Profit")}
-                                        value={`${peakProfitCost}$ / ${peakProfitPercentage}%`}
+                                        value={`${peakProfitCost}${t("$")} / ${peakProfitPercentage}%`}
                                         icon={DonutSmall}
                                     />
                                 )
