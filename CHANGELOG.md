@@ -1,4 +1,4 @@
-# 🇬🇧 🇨🇳 🇮🇳 Internationalization (v15.3.0, 12/07/2026)
+# 🇧🇷 🇨🇳 🇮🇳 Internationalization (v15.3.0, 12/07/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/15.3.0)
 
