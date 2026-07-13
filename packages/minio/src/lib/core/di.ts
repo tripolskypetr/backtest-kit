@@ -1,3 +1,3 @@
 import { createActivator } from "di-kit";
 
-export const { init, inject, provide } = createActivator("mongo");
+export const { init, inject, provide } = createActivator("minio");
