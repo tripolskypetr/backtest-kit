@@ -753,6 +753,12 @@ PostgreSQL + Redis O(1) cache via TypeORM. All 15 persistence contracts, atomic 
 npm install @backtest-kit/pg backtest-kit typeorm pg ioredis reflect-metadata
 ```
 
+### `@backtest-kit/minio` — [npm](https://www.npmjs.com/package/@backtest-kit/minio)
+MinIO (S3) source-of-truth + Redis time-ordered index. Listings in O(limit), zero schema management. Zero strategy changes.
+```bash
+npm install @backtest-kit/minio backtest-kit minio ioredis
+```
+
 ### `@backtest-kit/ollama` — [npm](https://www.npmjs.com/package/@backtest-kit/ollama)
 Universal LLM adapter: 10+ providers, structured output, token rotation, fallback chains, trading-context injection.
 ```bash
