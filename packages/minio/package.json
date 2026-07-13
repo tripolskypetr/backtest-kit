@@ -1,6 +1,7 @@
 {
   "name": "@backtest-kit/minio",
   "version": "0.0.1",
+  "description": "Backtest-kit persistence on MinIO (S3) as the source of truth with Redis as a time-ordered index",
   "author": {
     "name": "Petr Tripolsky",
     "email": "tripolskypetr@gmail.com",
@@ -12,6 +13,26 @@
   },
   "license": "MIT",
   "homepage": "https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html",
+  "keywords": [
+    "backtest-kit",
+    "backtesting",
+    "trading",
+    "algotrading",
+    "quant",
+    "crypto",
+    "ccxt",
+    "binance",
+    "candles",
+    "ohlcv",
+    "persistence",
+    "minio",
+    "s3",
+    "object-storage",
+    "redis",
+    "docker",
+    "docker-compose",
+    "typescript"
+  ],
   "files": [
     "build",
     "types.d.ts",
