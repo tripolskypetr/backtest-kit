@@ -10,12 +10,12 @@ export class PersistLogInstance implements IPersistLogInstance {
     await waitForInit();
   }
   async readLogData(): Promise<LogData> {
-    const rows = await ioc.logDbService.listAll();
+    const rows = await ioc.logDataService.listAll();
     return rows.map((row) => row.payload).reverse();
   }
   async writeLogData(entries: LogData): Promise<void> {
     for (const entry of entries) {
-      await ioc.logDbService.upsert(entry.id, entry);
+      await ioc.logDataService.upsert(entry.id, entry);
     }
   }
 }

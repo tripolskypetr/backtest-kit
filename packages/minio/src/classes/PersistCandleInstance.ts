@@ -16,7 +16,7 @@ export class PersistCandleInstance implements IPersistCandleInstance {
   }
   async writeCandlesData(candles: CandleData[]): Promise<void> {
     for (const candle of candles) {
-      await ioc.candleDbService.create({
+      await ioc.candleDataService.create({
         symbol: this.symbol,
         interval: this.interval,
         exchangeName: this.exchangeName,
@@ -34,7 +34,7 @@ export class PersistCandleInstance implements IPersistCandleInstance {
     const result: CandleData[] = [];
     for (let i = 0; i < limit; i++) {
       const ts = sinceTimestamp + i * stepMs;
-      const row = await ioc.candleDbService.findBySymbolIntervalTimestamp(this.symbol, this.interval, this.exchangeName, ts);
+      const row = await ioc.candleDataService.findBySymbolIntervalTimestamp(this.symbol, this.interval, this.exchangeName, ts);
       if (!row) {
         return null;
       }

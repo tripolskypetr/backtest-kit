@@ -5,8 +5,8 @@ export {
 } from "./functions/setup";
 
 export {
-    getPostgres,
-} from "./config/postgres";
+    getMinio,
+} from "./config/minio";
 
 export {
     getRedis,
@@ -18,8 +18,8 @@ export {
 } from "./config/params";
 
 export {
-    BaseCRUD,
-} from "./lib/common/BaseCRUD";
+    BaseStorage,
+} from "./lib/common/BaseStorage";
 
 export {
     BaseMap,

@@ -11,12 +11,12 @@ export class PersistNotificationInstance implements IPersistNotificationInstance
     await waitForInit();
   }
   async readNotificationData(): Promise<NotificationData> {
-    const rows = await ioc.notificationDbService.listByMode(this.backtest);
+    const rows = await ioc.notificationDataService.listByMode(this.backtest);
     return rows.map((row) => row.payload).reverse();
   }
   async writeNotificationData(notifications: NotificationData): Promise<void> {
     for (const notification of notifications) {
-      await ioc.notificationDbService.upsert(this.backtest, notification.id, notification);
+      await ioc.notificationDataService.upsert(this.backtest, notification.id, notification);
     }
   }
 }

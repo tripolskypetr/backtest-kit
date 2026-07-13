@@ -1,4 +1,3 @@
-import { EntitySchema } from "typeorm";
 import { MeasureData } from "backtest-kit";
 
 interface IMeasureDto {
@@ -14,24 +13,4 @@ interface IMeasureRow extends IMeasureDto {
   updatedDate: Date;
 }
 
-const MeasureModel = new EntitySchema<IMeasureRow>({
-  name: "measure-items",
-  columns: {
-    id: { type: "uuid", primary: true, generated: "uuid" },
-    bucket: { type: String },
-    entryKey: { type: String },
-    payload: { type: "jsonb" },
-    removed: { type: "boolean", default: false },
-    createDate: { type: "timestamptz", createDate: true },
-    updatedDate: { type: "timestamptz", updateDate: true },
-  },
-  indices: [
-    {
-      name: "measure_items_uq",
-      columns: ["bucket", "entryKey"],
-      unique: true,
-    },
-  ],
-});
-
-export { MeasureModel, IMeasureDto, IMeasureRow };
+export { IMeasureDto, IMeasureRow };

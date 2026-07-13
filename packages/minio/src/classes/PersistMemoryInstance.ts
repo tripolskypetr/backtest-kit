@@ -14,23 +14,23 @@ export class PersistMemoryInstance implements IPersistMemoryInstance {
     await waitForInit();
   }
   async readMemoryData(memoryId: string): Promise<MemoryData | null> {
-    const row = await ioc.memoryDbService.findByMemoryId(this.signalId, this.bucketName, memoryId);
+    const row = await ioc.memoryDataService.findByMemoryId(this.signalId, this.bucketName, memoryId);
     if (!row || row.removed) {
       return null;
     }
     return row.payload;
   }
   async hasMemoryData(memoryId: string): Promise<boolean> {
-    return await ioc.memoryDbService.hasMemoryEntry(this.signalId, this.bucketName, memoryId);
+    return await ioc.memoryDataService.hasMemoryEntry(this.signalId, this.bucketName, memoryId);
   }
   async writeMemoryData(data: MemoryData, memoryId: string, when: Date): Promise<void> {
-    await ioc.memoryDbService.upsert(this.signalId, this.bucketName, memoryId, data, when);
+    await ioc.memoryDataService.upsert(this.signalId, this.bucketName, memoryId, data, when);
   }
   async removeMemoryData(memoryId: string): Promise<void> {
-    await ioc.memoryDbService.softRemove(this.signalId, this.bucketName, memoryId);
+    await ioc.memoryDataService.softRemove(this.signalId, this.bucketName, memoryId);
   }
   async *listMemoryData(): AsyncGenerator<{ memoryId: string; data: MemoryData }> {
-    const rows = await ioc.memoryDbService.listEntries(this.signalId, this.bucketName);
+    const rows = await ioc.memoryDataService.listEntries(this.signalId, this.bucketName);
     for (const row of rows) {
       yield { memoryId: row.memoryId, data: row.payload };
     }

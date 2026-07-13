@@ -17,11 +17,11 @@ export class PersistSessionInstance implements IPersistSessionInstance {
     await waitForInit();
   }
   async readSessionData(): Promise<SessionData | null> {
-    const row = await ioc.sessionDbService.findByContext(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest);
+    const row = await ioc.sessionDataService.findByContext(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest);
     return row ? row.payload : null;
   }
   async writeSessionData(data: SessionData, when: Date): Promise<void> {
-    await ioc.sessionDbService.upsert(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest, data, when);
+    await ioc.sessionDataService.upsert(this.strategyName, this.exchangeName, this.frameName, this.symbol, this.backtest, data, when);
   }
   dispose(): void { void 0; }
 }

@@ -17,7 +17,7 @@ export class PersistRecentInstance implements IPersistRecentInstance {
     await waitForInit();
   }
   async readRecentData(): Promise<RecentData> {
-    const row = await ioc.recentDbService.findByContext(
+    const row = await ioc.recentDataService.findByContext(
       this.symbol,
       this.strategyName,
       this.exchangeName,
@@ -27,7 +27,7 @@ export class PersistRecentInstance implements IPersistRecentInstance {
     return row ? row.payload : null;
   }
   async writeRecentData(signalRow: NonNullable<RecentData>, when: Date): Promise<void> {
-    await ioc.recentDbService.upsert(
+    await ioc.recentDataService.upsert(
       this.symbol,
       this.strategyName,
       this.exchangeName,

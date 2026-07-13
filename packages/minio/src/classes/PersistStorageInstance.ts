@@ -11,12 +11,12 @@ export class PersistStorageInstance implements IPersistStorageInstance {
     await waitForInit();
   }
   async readStorageData(): Promise<StorageData> {
-    const rows = await ioc.storageDbService.listByMode(this.backtest);
+    const rows = await ioc.storageDataService.listByMode(this.backtest);
     return rows.map((row) => row.payload);
   }
   async writeStorageData(signals: StorageData): Promise<void> {
     for (const signal of signals) {
-      await ioc.storageDbService.upsert(this.backtest, signal.id, signal);
+      await ioc.storageDataService.upsert(this.backtest, signal.id, signal);
     }
   }
 }

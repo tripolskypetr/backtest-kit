@@ -11,20 +11,20 @@ export class PersistMeasureInstance implements IPersistMeasureInstance {
     await waitForInit();
   }
   async readMeasureData(key: string): Promise<MeasureData | null> {
-    const row = await ioc.measureDbService.findByKey(this.bucket, key);
+    const row = await ioc.measureDataService.findByKey(this.bucket, key);
     if (!row || row.removed) {
       return null;
     }
     return row.payload;
   }
   async writeMeasureData(data: MeasureData, key: string, _when: Date): Promise<void> {
-    await ioc.measureDbService.upsert(this.bucket, key, data);
+    await ioc.measureDataService.upsert(this.bucket, key, data);
   }
   async removeMeasureData(key: string): Promise<void> {
-    await ioc.measureDbService.softRemove(this.bucket, key);
+    await ioc.measureDataService.softRemove(this.bucket, key);
   }
   async *listMeasureData(): AsyncGenerator<string> {
-    const keys = await ioc.measureDbService.listKeys(this.bucket);
+    const keys = await ioc.measureDataService.listKeys(this.bucket);
     for (const key of keys) {
       yield key;
     }

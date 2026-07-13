@@ -1,5 +1,6 @@
+import * as minio from 'minio';
+import { Client } from 'minio';
 import * as functools_kit from 'functools-kit';
-import { DataSource, EntitySchema, Repository } from 'typeorm';
 import { Redis } from 'ioredis';
 
 declare const GLOBAL_CONFIG: {
@@ -7,7 +8,10 @@ declare const GLOBAL_CONFIG: {
     CC_REDIS_PORT: number;
     CC_REDIS_USER: string;
     CC_REDIS_PASSWORD: string;
-    CC_POSTGRES_CONNECTION_STRING: string;
+    CC_MINIO_ENDPOINT: string;
+    CC_MINIO_PORT: number;
+    CC_MINIO_ACCESSKEY: string;
+    CC_MINIO_SECRETKEY: string;
 };
 type Config = typeof GLOBAL_CONFIG;
 declare const getConfig: () => {
@@ -15,7 +19,10 @@ declare const getConfig: () => {
     CC_REDIS_PORT: number;
     CC_REDIS_USER: string;
     CC_REDIS_PASSWORD: string;
-    CC_POSTGRES_CONNECTION_STRING: string;
+    CC_MINIO_ENDPOINT: string;
+    CC_MINIO_PORT: number;
+    CC_MINIO_ACCESSKEY: string;
+    CC_MINIO_SECRETKEY: string;
 };
 declare const setConfig: (config: Partial<Config>) => void;
 
@@ -108,7 +115,7 @@ declare function install(): void;
  */
 declare function setLogger(logger: ILogger): void;
 
-declare const getPostgres: (() => Promise<DataSource>) & functools_kit.ISingleshotClearable<() => Promise<DataSource>>;
+declare const getMinio: () => Client;
 
 declare const getRedis: (() => Redis) & functools_kit.ISingleshotClearable<() => Redis>;
 
@@ -121,27 +128,55 @@ declare class LoggerService implements ILogger {
     setLogger: (logger: ILogger) => void;
 }
 
-declare const BaseCRUD: (TargetModel: EntitySchema<any>) => (new () => {
+declare class MinioService {
+    getClient: ((bucketName: string) => Promise<minio.Client>) & functools_kit.IClearableMemoize<[bucketName: string]> & functools_kit.IControlMemoize<[bucketName: string], Promise<minio.Client>>;
+}
+
+declare const BaseStorage: (BUCKET_NAME: string) => (new () => {
     readonly loggerService: LoggerService;
-    readonly TargetModel: EntitySchema<any>;
-    readonly entityName: string;
-    repo<T = any>(): Promise<Repository<T>>;
-    create(dto: object): Promise<any>;
-    update(id: string, dto: object): Promise<any>;
-    findById(id: string): Promise<any>;
-    findByFilter(filterData: object, order?: object): Promise<any>;
-    findAll(filterData?: object, limit?: number, order?: object): Promise<any[]>;
+    readonly minioService: MinioService;
+    /**
+     * Physical MinIO bucket: the first path segment of BUCKET_NAME.
+     * S3 bucket names cannot contain slashes, so "backtest-kit/candle-items"
+     * means bucket "backtest-kit" with root key prefix "candle-items/".
+     */
+    readonly bucketName: string;
+    /** Root key prefix inside the bucket ("" when BUCKET_NAME has no parent folder). */
+    readonly rootPrefix: string;
+    readonly BUCKET_NAME: string;
+    set(key: string, value: unknown): Promise<void>;
+    get<T = unknown>(key: string | null): Promise<T | null>;
+    has(key: string): Promise<boolean>;
+    delete(key: string): Promise<void>;
+    clear(prefix?: string): Promise<void>;
+    keys(prefix?: string, limit?: number): AsyncIterableIterator<string>;
+    values(prefix?: string, limit?: number): AsyncIterableIterator<unknown>;
+    iterate(prefix?: string, limit?: number): AsyncIterableIterator<readonly [string, unknown]>;
+    toArray(prefix?: string): Promise<[string, unknown][]>;
+    size(prefix?: string): Promise<number>;
 }) & Omit<{
-    new (TargetModel: EntitySchema<any>): {
+    new (BUCKET_NAME: string): {
         readonly loggerService: LoggerService;
-        readonly TargetModel: EntitySchema<any>;
-        readonly entityName: string;
-        repo<T = any>(): Promise<Repository<T>>;
-        create(dto: object): Promise<any>;
-        update(id: string, dto: object): Promise<any>;
-        findById(id: string): Promise<any>;
-        findByFilter(filterData: object, order?: object): Promise<any>;
-        findAll(filterData?: object, limit?: number, order?: object): Promise<any[]>;
+        readonly minioService: MinioService;
+        /**
+         * Physical MinIO bucket: the first path segment of BUCKET_NAME.
+         * S3 bucket names cannot contain slashes, so "backtest-kit/candle-items"
+         * means bucket "backtest-kit" with root key prefix "candle-items/".
+         */
+        readonly bucketName: string;
+        /** Root key prefix inside the bucket ("" when BUCKET_NAME has no parent folder). */
+        readonly rootPrefix: string;
+        readonly BUCKET_NAME: string;
+        set(key: string, value: unknown): Promise<void>;
+        get<T = unknown>(key: string | null): Promise<T | null>;
+        has(key: string): Promise<boolean>;
+        delete(key: string): Promise<void>;
+        clear(prefix?: string): Promise<void>;
+        keys(prefix?: string, limit?: number): AsyncIterableIterator<string>;
+        values(prefix?: string, limit?: number): AsyncIterableIterator<unknown>;
+        iterate(prefix?: string, limit?: number): AsyncIterableIterator<readonly [string, unknown]>;
+        toArray(prefix?: string): Promise<[string, unknown][]>;
+        size(prefix?: string): Promise<number>;
     };
 }, "prototype">;
 
@@ -181,4 +216,4 @@ declare const BaseMap: (connectionKey: string, ttlExpireSeconds?: number) => (ne
 
 declare const waitForInit: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
 
-export { BaseCRUD, BaseMap, getConfig, getPostgres, getRedis, install, setConfig, setLogger, setup, waitForInit };
+export { BaseMap, BaseStorage, getConfig, getMinio, getRedis, install, setConfig, setLogger, setup, waitForInit };

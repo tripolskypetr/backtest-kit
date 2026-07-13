@@ -15,11 +15,11 @@ export class PersistSignalInstance implements IPersistSignalInstance {
     await waitForInit();
   }
   async readSignalData(): Promise<ISignalRow | null> {
-    const row = await ioc.signalDbService.findByContext(this.symbol, this.strategyName, this.exchangeName);
+    const row = await ioc.signalDataService.findByContext(this.symbol, this.strategyName, this.exchangeName);
     return row ? row.payload : null;
   }
   async writeSignalData(signalRow: ISignalRow | null): Promise<void> {
-    await ioc.signalDbService.upsert(this.symbol, this.strategyName, this.exchangeName, signalRow);
+    await ioc.signalDataService.upsert(this.symbol, this.strategyName, this.exchangeName, signalRow);
   }
 }
 

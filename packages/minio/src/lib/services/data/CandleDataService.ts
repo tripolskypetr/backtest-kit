@@ -5,10 +5,8 @@ import { LoggerService } from "../base/LoggerService";
 import { CandleInterval } from "backtest-kit";
 import BaseStorage from "../../common/BaseStorage";
 
-const EXCHANGE_NAME = "ccxt_binance";
-
-const GET_STORAGE_KEY_FN = (symbol: string, interval: CandleInterval, timestamp: number) => {
-    return `${EXCHANGE_NAME}/${symbol}/${interval}/${timestamp}`;
+const GET_STORAGE_KEY_FN = (exchangeName: string, symbol: string, interval: CandleInterval, timestamp: number) => {
+    return `${exchangeName}/${symbol}/${interval}/${timestamp}`;
 }
 
 export class CandleDataService extends BaseStorage("backtest-kit/candle-items") {
@@ -16,11 +14,11 @@ export class CandleDataService extends BaseStorage("backtest-kit/candle-items") 
 
   public create = async (dto: ICandleDto): Promise<ICandleRow> => {
     this.loggerService.log("candleDataService create", { dto });
-    const key = GET_STORAGE_KEY_FN(dto.symbol, dto.interval, dto.timestamp);
+    const key = GET_STORAGE_KEY_FN(dto.exchangeName, dto.symbol, dto.interval, dto.timestamp);
     const now = new Date();
     const row: ICandleRow = {
       id: key,
-      exchangeName: EXCHANGE_NAME,
+      exchangeName: dto.exchangeName,
       symbol: dto.symbol,
       interval: dto.interval,
       timestamp: dto.timestamp,
@@ -41,18 +39,18 @@ export class CandleDataService extends BaseStorage("backtest-kit/candle-items") 
     return row;
   };
 
-  public hasCandle = async (symbol: string, interval: CandleInterval, timestamp: number): Promise<boolean> => {
+  public hasCandle = async (symbol: string, interval: CandleInterval, exchangeName: string, timestamp: number): Promise<boolean> => {
     this.loggerService.log("candleDataService hasCandle", {
       symbol,
       interval,
       timestamp,
     });
-    return await this.has(GET_STORAGE_KEY_FN(symbol, interval, timestamp));
+    return await this.has(GET_STORAGE_KEY_FN(exchangeName, symbol, interval, timestamp));
   };
 
-  public findBySymbolIntervalTimestamp = async (symbol: string, interval: CandleInterval, timestamp: number): Promise<ICandleRow | null> => {
+  public findBySymbolIntervalTimestamp = async (symbol: string, interval: CandleInterval, exchangeName: string, timestamp: number): Promise<ICandleRow | null> => {
     this.loggerService.log("candleDataService findBySymbolIntervalTimestamp", { symbol, interval, timestamp });
-    return await this.get<ICandleRow>(GET_STORAGE_KEY_FN(symbol, interval, timestamp));
+    return await this.get<ICandleRow>(GET_STORAGE_KEY_FN(exchangeName, symbol, interval, timestamp));
   };
 
 }

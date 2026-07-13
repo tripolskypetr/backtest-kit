@@ -15,11 +15,11 @@ export class PersistStrategyInstance implements IPersistStrategyInstance {
     await waitForInit();
   }
   async readStrategyData(): Promise<StrategyData | null> {
-    const row = await ioc.strategyDbService.findByContext(this.symbol, this.strategyName, this.exchangeName);
+    const row = await ioc.strategyDataService.findByContext(this.symbol, this.strategyName, this.exchangeName);
     return row ? row.payload : null;
   }
   async writeStrategyData(strategyRow: StrategyData | null): Promise<void> {
-    await ioc.strategyDbService.upsert(this.symbol, this.strategyName, this.exchangeName, strategyRow);
+    await ioc.strategyDataService.upsert(this.symbol, this.strategyName, this.exchangeName, strategyRow);
   }
 }
 

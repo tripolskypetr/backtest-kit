@@ -15,11 +15,11 @@ export class PersistScheduleInstance implements IPersistScheduleInstance {
     await waitForInit();
   }
   async readScheduleData(): Promise<IScheduledSignalRow | null> {
-    const row = await ioc.scheduleDbService.findByContext(this.symbol, this.strategyName, this.exchangeName);
+    const row = await ioc.scheduleDataService.findByContext(this.symbol, this.strategyName, this.exchangeName);
     return row ? row.payload : null;
   }
   async writeScheduleData(scheduleRow: IScheduledSignalRow | null): Promise<void> {
-    await ioc.scheduleDbService.upsert(this.symbol, this.strategyName, this.exchangeName, scheduleRow);
+    await ioc.scheduleDataService.upsert(this.symbol, this.strategyName, this.exchangeName, scheduleRow);
   }
 }
 

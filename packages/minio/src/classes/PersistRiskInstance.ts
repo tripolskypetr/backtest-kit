@@ -14,11 +14,11 @@ export class PersistRiskInstance implements IPersistRiskInstance {
     await waitForInit();
   }
   async readPositionData(_when: Date): Promise<RiskData> {
-    const row = await ioc.riskDbService.findByContext(this.riskName, this.exchangeName);
+    const row = await ioc.riskDataService.findByContext(this.riskName, this.exchangeName);
     return row ? row.positions : [];
   }
   async writePositionData(positions: RiskData, when: Date): Promise<void> {
-    await ioc.riskDbService.upsert(this.riskName, this.exchangeName, positions, when);
+    await ioc.riskDataService.upsert(this.riskName, this.exchangeName, positions, when);
   }
 }
 

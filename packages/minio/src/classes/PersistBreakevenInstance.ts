@@ -15,11 +15,11 @@ export class PersistBreakevenInstance implements IPersistBreakevenInstance {
     await waitForInit();
   }
   async readBreakevenData(signalId: string, _when: Date): Promise<BreakevenData> {
-    const row = await ioc.breakevenDbService.findByContext(this.symbol, this.strategyName, this.exchangeName, signalId);
+    const row = await ioc.breakevenDataService.findByContext(this.symbol, this.strategyName, this.exchangeName, signalId);
     return row ? row.payload : {};
   }
   async writeBreakevenData(data: BreakevenData, signalId: string, when: Date): Promise<void> {
-    await ioc.breakevenDbService.upsert(this.symbol, this.strategyName, this.exchangeName, signalId, data, when);
+    await ioc.breakevenDataService.upsert(this.symbol, this.strategyName, this.exchangeName, signalId, data, when);
   }
 }
 
