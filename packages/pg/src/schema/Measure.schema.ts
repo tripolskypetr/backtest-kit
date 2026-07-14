@@ -31,6 +31,10 @@ const MeasureModel = new EntitySchema<IMeasureRow>({
       columns: ["bucket", "entryKey"],
       unique: true,
     },
+    {
+      name: "measure_items_bucket_removed_idx",
+      columns: ["bucket", "removed"],
+    },
   ],
 });
 

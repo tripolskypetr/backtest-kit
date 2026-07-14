@@ -27,6 +27,10 @@ const LogModel = new EntitySchema<ILogRow>({
       columns: ["entryId"],
       unique: true,
     },
+    {
+      name: "log_items_create_date_idx",
+      columns: ["createDate"],
+    },
   ],
 });
 

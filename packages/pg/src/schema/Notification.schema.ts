@@ -29,6 +29,10 @@ const NotificationModel = new EntitySchema<INotificationRow>({
       columns: ["backtest", "notificationId"],
       unique: true,
     },
+    {
+      name: "notification_items_backtest_create_date_idx",
+      columns: ["backtest", "createDate"],
+    },
   ],
 });
 

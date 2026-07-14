@@ -34,6 +34,10 @@ const IntervalModel = new EntitySchema<IIntervalRow>({
       columns: ["bucket", "entryKey"],
       unique: true,
     },
+    {
+      name: "interval_items_bucket_removed_idx",
+      columns: ["bucket", "removed"],
+    },
   ],
 });
 

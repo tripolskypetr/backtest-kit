@@ -36,6 +36,10 @@ const MemoryModel = new EntitySchema<IMemoryRow>({
       columns: ["signalId", "bucketName", "memoryId"],
       unique: true,
     },
+    {
+      name: "memory_items_signal_bucket_removed_idx",
+      columns: ["signalId", "bucketName", "removed"],
+    },
   ],
 });
 
