@@ -20,6 +20,7 @@ type BrokerPartialLossPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

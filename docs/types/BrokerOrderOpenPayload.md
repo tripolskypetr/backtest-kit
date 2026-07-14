@@ -1,12 +1,12 @@
 ---
-title: docs/type/BrokerSignalOpenPayload
+title: docs/type/BrokerOrderOpenPayload
 group: docs
 ---
 
-# BrokerSignalOpenPayload
+# BrokerOrderOpenPayload
 
 ```ts
-type BrokerSignalOpenPayload = {
+type BrokerOrderOpenPayload = {
     type: "schedule" | "active";
     symbol: string;
     signalId: string;
@@ -23,6 +23,7 @@ type BrokerSignalOpenPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```
@@ -30,7 +31,7 @@ type BrokerSignalOpenPayload = {
 Payload for the signal-open broker event.
 
 Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
-`onSignalOpenCommit`. Discriminated by `type`:
+`onOrderOpenCommit`. Discriminated by `type`:
 - "active" — a pending signal is being opened (immediate entry or activation fill of the
   resting order); throw = the exchange did not fill the entry, the framework rolls back the
   open and retries on the next tick;

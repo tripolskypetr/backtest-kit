@@ -19,6 +19,7 @@ type BrokerTrailingTakePayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

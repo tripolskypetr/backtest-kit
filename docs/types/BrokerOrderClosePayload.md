@@ -1,12 +1,12 @@
 ---
-title: docs/type/BrokerSignalClosePayload
+title: docs/type/BrokerOrderClosePayload
 group: docs
 ---
 
-# BrokerSignalClosePayload
+# BrokerOrderClosePayload
 
 ```ts
-type BrokerSignalClosePayload = {
+type BrokerOrderClosePayload = {
     symbol: string;
     signalId: string;
     cost: number;
@@ -25,6 +25,7 @@ type BrokerSignalClosePayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```
@@ -32,4 +33,4 @@ type BrokerSignalClosePayload = {
 Payload for the signal-close broker event.
 
 Emitted automatically via syncSubject when a pending signal is closed (SL/TP hit or manual close).
-Forwarded to the registered IBroker adapter via `onSignalCloseCommit`.
+Forwarded to the registered IBroker adapter via `onOrderCloseCommit`.

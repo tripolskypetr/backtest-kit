@@ -20,6 +20,7 @@ type BrokerPartialProfitPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

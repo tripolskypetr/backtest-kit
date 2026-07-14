@@ -14,6 +14,7 @@ type BrokerIdlePingPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

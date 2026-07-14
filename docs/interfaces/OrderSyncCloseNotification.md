@@ -13,7 +13,7 @@ Emitted when an active pending signal is closed (TP/SL hit, time expired, or use
 ### type
 
 ```ts
-type: "signal_sync.close"
+type: "order_sync.close"
 ```
 
 Discriminator for type-safe union
@@ -73,6 +73,14 @@ signalId: string
 ```
 
 Unique signal identifier (UUID v4)
+
+### orderType
+
+```ts
+orderType: "schedule" | "active"
+```
+
+Which order this sync event is about (from OrderSyncContract.type). Closes always go through the position order, so this is always "active".
 
 ### currentPrice
 

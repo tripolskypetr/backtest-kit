@@ -30,8 +30,8 @@ Lifecycle:
 4. No explicit dispose — clean up in `waitForInit` teardown or externally
 
 Event flow (called only in live mode, skipped in backtest):
-- `onSignalOpenCommit` — new position opened
-- `onSignalCloseCommit` — position closed (SL/TP hit or manual close)
+- `onOrderOpenCommit` — new position opened
+- `onOrderCloseCommit` — position closed (SL/TP hit or manual close)
 - `onPartialProfitCommit` — partial close at profit executed
 - `onPartialLossCommit` — partial close at loss executed
 - `onTrailingStopCommit` — trailing stop-loss updated
@@ -60,10 +60,10 @@ Override to establish exchange connections, authenticate API clients, load confi
 
 Default implementation: Logs initialization event.
 
-### onSignalOpenCommit
+### onOrderOpenCommit
 
 ```ts
-onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
+onOrderOpenCommit(payload: BrokerOrderOpenPayload): Promise<void>;
 ```
 
 Called when a position is being opened (signal activated).
@@ -76,15 +76,16 @@ Default implementation: Logs signal-open event.
 Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
 (e.g. limit order rejected) rolls back the open — the pending signal returns to idle and retries
 next tick; return normally to let it open. Live-only (backtest short-circuits). See
-{@link IBroker.onSignalOpenCommit} for the full semantics.
+{@link IBroker.onOrderOpenCommit} for the full semantics.
 
-### onOrderCheck
+### onOrderActiveCheck
 
 ```ts
-onOrderCheck(payload: BrokerSignalPendingPayload): Promise<void>;
+onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void>;
 ```
 
-Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
+Called on every live tick while a pending signal (open position) is monitored, BEFORE
+TP/SL/time evaluation.
 
 Override to query the exchange for the order by `payload.signalId` and THROW ONLY when it is
 definitively NOT FOUND by that id (filled, cancelled, or liquidated externally) — the framework
@@ -96,8 +97,30 @@ normally instead of throwing. A thrown network error would wrongly close an open
 a confirmed "order not found by id" response is a valid reason to throw.
 
 Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
-commit-function wiring in `onSignalActivePing`. See {@link IBroker.onOrderCheck} for the full
-comparison and example.
+commit-function wiring in `onSignalActivePing`. See {@link IBroker.onOrderActiveCheck} for the
+full comparison and example.
+
+### onOrderScheduleCheck
+
+```ts
+onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void>;
+```
+
+Called on every live tick while a scheduled signal (resting entry order) is monitored, BEFORE
+timeout/price-activation evaluation.
+
+Override to query the exchange for the resting order by `payload.signalId` and THROW ONLY when
+it is definitively NOT FOUND by that id — the framework then cancels the scheduled signal with
+reason "user". The default implementation logs and returns normally. A FILLED resting order
+must be confirmed via `commitActivateScheduled`, not by throwing here.
+
+CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+normally instead of throwing; only a confirmed "order not found by id" response is a valid
+reason to throw.
+
+Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
+commit-function wiring in `onSignalSchedulePing`. See {@link IBroker.onOrderScheduleCheck} for
+the full comparison and example.
 
 ### onSignalActivePing
 
@@ -107,7 +130,7 @@ onSignalActivePing(payload: BrokerActivePingPayload): Promise<void>;
 
 Called on every live tick while a pending (open) signal is monitored.
 
-Purely informational mirror of the active-ping lifecycle — unlike `onOrderCheck`, a throw here
+Purely informational mirror of the active-ping lifecycle — unlike `onOrderActiveCheck`, a throw here
 does NOT close the position. Override to mirror live monitoring state into your own systems.
 The default implementation logs.
 
@@ -147,7 +170,7 @@ onSignalScheduleOpen(payload: BrokerScheduleOpenPayload): Promise<void>;
 
 Called when a new scheduled signal is created and starts waiting for priceOpen activation.
 
-The scheduled -&gt; active transition is reported via `onSignalOpenCommit`, not here. Override to
+The scheduled -&gt; active transition is reported via `onOrderOpenCommit`, not here. Override to
 place a resting/limit order on the exchange. The default logs.
 
 Manual wiring — EVENT-BASED: fires ONCE at creation — place the real resting order (tag it with
@@ -195,10 +218,10 @@ Manual wiring — EVENT-BASED (outbound): the strategy already removed the pendi
 position and cancel leftover TP/SL orders by `payload.signalId`. See
 {@link IBroker.onSignalPendingClose}.
 
-### onSignalCloseCommit
+### onOrderCloseCommit
 
 ```ts
-onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
+onOrderCloseCommit(payload: BrokerOrderClosePayload): Promise<void>;
 ```
 
 Called when a position is being closed (SL/TP hit or manual close).
@@ -211,7 +234,7 @@ Default implementation: Logs signal-close event.
 Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
 (e.g. exit order failed) SKIPS the close — the position stays open and the close retries next
 tick; return normally to let it close. Live-only (backtest short-circuits). See
-{@link IBroker.onSignalCloseCommit} for the full semantics.
+{@link IBroker.onOrderCloseCommit} for the full semantics.
 
 ### onPartialProfitCommit
 

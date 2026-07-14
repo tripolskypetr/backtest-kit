@@ -183,7 +183,7 @@ Throw to reject — framework will retry on next tick.
 NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_FN.
 
 MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
-`onSignalOpenCommit` / `onSignalCloseCommit`. Throw on "signal-open" → open rolls back to idle
+`onOrderOpenCommit` / `onOrderCloseCommit`. Throw on "signal-open" → open rolls back to idle
 (scheduled activation cancelled); throw on "signal-close" → close skipped, position stays open;
 retried next tick. Same `syncSubject` emission as the Broker commit hooks (collapsed to false by
 CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.

@@ -218,7 +218,7 @@ They propagate up to CREATE_SYNC_FN which catches them and returns false.
 Throw to reject the operation — framework will retry on next tick.
 
 MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
-`onSignalOpenCommit` / `onSignalCloseCommit` gate. Throwing (or returning false) on
+`onOrderOpenCommit` / `onOrderCloseCommit` gate. Throwing (or returning false) on
 `event.action === "signal-open"` rolls the open back to idle (a scheduled activation is
 cancelled); on `"signal-close"` it skips the close and leaves the position open — retried next
 tick. Rides the same `syncSubject` emission as the Broker commit hooks, so a throw from either is

@@ -1,12 +1,12 @@
 ---
-title: docs/type/BrokerSignalPendingPayload
+title: docs/type/BrokerOrderCheckPayload
 group: docs
 ---
 
-# BrokerSignalPendingPayload
+# BrokerOrderCheckPayload
 
 ```ts
-type BrokerSignalPendingPayload = {
+type BrokerOrderCheckPayload = {
     type: "schedule" | "active";
     symbol: string;
     signalId: string;
@@ -25,6 +25,7 @@ type BrokerSignalPendingPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```
@@ -32,11 +33,12 @@ type BrokerSignalPendingPayload = {
 Payload for the order synchronization broker event.
 
 Emitted automatically via syncPendingSubject on every live tick while a signal is monitored,
-BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter via
-`onOrderCheck`. Fires for BOTH monitored states, discriminated by `type`:
-- `type: "active"` — pending signal (open position), before TP/SL/time evaluation;
+BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter,
+routed by `type` to the matching callback:
+- `type: "active"` — pending signal (open position), before TP/SL/time evaluation —
+  delivered to `onOrderActiveCheck`;
 - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
-  (the order in question is the resting entry order).
+  (the order in question is the resting entry order) — delivered to `onOrderScheduleCheck`.
 
 The adapter should query the exchange by `signalId` and THROW ONLY when the order is
 definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw

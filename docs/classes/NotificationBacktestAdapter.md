@@ -103,6 +103,15 @@ handleSync: (data: OrderSyncContract) => any
 Handles signal sync events (signal-open, signal-close).
 Proxies call to the underlying notification adapter.
 
+### handleCheck
+
+```ts
+handleCheck: (data: OrderCheckContract) => any
+```
+
+Handles order-ping check event.
+Proxies call to the underlying notification adapter.
+
 ### handleRisk
 
 ```ts

@@ -19,6 +19,7 @@ type BrokerTrailingStopPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

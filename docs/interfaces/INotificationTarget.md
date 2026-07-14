@@ -67,16 +67,32 @@ Covers all committed actions: `partial_profit.commit`, `partial_loss.commit`,
 `close_pending.commit`.
 Source: `strategyCommitSubject` (StrategyCommitContract).
 
-### signal_sync
+### order_sync
 
 ```ts
-signal_sync: boolean
+order_sync: boolean
 ```
 
-Signal synchronization events for live trading (`signal_sync.open`, `signal_sync.close`).
-Fired when a limit order is confirmed filled (`signal-open`) or when an open
-position is confirmed exited (`signal-close`) by the exchange sync layer.
+Signal synchronization events for live trading (`order_sync.open`, `order_sync.close`).
+Fired when the position order is filled (`signal-open` with `orderType: "active"`),
+when the resting entry order is placed at scheduled-signal creation (`signal-open`
+with `orderType: "schedule"`), or when an open position is confirmed exited
+(`signal-close`) by the exchange sync layer.
 Source: `syncSubject` (OrderSyncContract).
+
+### order_check
+
+```ts
+order_check: boolean
+```
+
+Order-ping check notifications (`order_sync.check`).
+Fired while a signal is monitored in live mode, when the framework asks the
+external order management system whether the order is still open on the
+exchange. Throttled to at most one notification per signalId per
+`CC_NOTIFICATION_ORDER_CHECK_TTL` (default 15 minutes); the throttle entry is
+dropped when the signal is closed or cancelled.
+Source: `syncPendingSubject` (OrderCheckContract).
 
 ### risk
 

@@ -1,21 +1,24 @@
 ---
-title: docs/interface/OrderSyncOpenNotification
+title: docs/interface/OrderSyncCheckNotification
 group: docs
 ---
 
-# OrderSyncOpenNotification
+# OrderSyncCheckNotification
 
-Signal sync open notification.
-Emitted when the position order is filled (`orderType: "active"` — immediate open
-or activation fill of a resting order) or when the resting entry order is placed
-at scheduled-signal creation (`orderType: "schedule"`).
+Signal sync check (order-ping) notification.
+Emitted while a signal is being monitored in live mode: on every tick the framework
+asks the external order management system whether the order backing the signal is
+still open on the exchange (`syncPendingSubject` / OrderCheckContract).
+Throttled by NotificationAdapter to at most one notification per signalId per
+`CC_NOTIFICATION_ORDER_CHECK_TTL` (default 15 minutes); the throttle entry is dropped
+when the signal is closed or cancelled.
 
 ## Properties
 
 ### type
 
 ```ts
-type: "order_sync.open"
+type: "order_sync.check"
 ```
 
 Discriminator for type-safe union
@@ -34,7 +37,7 @@ Unique notification identifier
 timestamp: number
 ```
 
-Unix timestamp in milliseconds when signal was opened
+Unix timestamp in milliseconds when the order ping was emitted
 
 ### backtest
 
@@ -42,7 +45,7 @@ Unix timestamp in milliseconds when signal was opened
 backtest: boolean
 ```
 
-Whether this notification is from backtest mode (true) or live mode (false)
+Whether this notification is from backtest mode (true) or live mode (false); pings are live-only in practice
 
 ### symbol
 
@@ -82,9 +85,9 @@ Unique signal identifier (UUID v4)
 orderType: "schedule" | "active"
 ```
 
-Which order this sync event is about (from OrderSyncContract.type):
-- "active" — the position order was filled (immediate open or activation of a resting order)
-- "schedule" — the resting entry order was placed at scheduled-signal creation (not a fill)
+Which order is being monitored (from OrderCheckContract.type):
+- "active" — the order backing an open position (pending signal)
+- "schedule" — the resting entry order of a scheduled signal awaiting activation
 
 ### currentPrice
 
@@ -92,7 +95,79 @@ Which order this sync event is about (from OrderSyncContract.type):
 currentPrice: number
 ```
 
-Current market price at activation
+Market price at the moment of the ping (VWAP)
+
+### position
+
+```ts
+position: "long" | "short"
+```
+
+Trade direction: "long" (buy) or "short" (sell)
+
+### priceOpen
+
+```ts
+priceOpen: number
+```
+
+Effective entry price (may differ from original after DCA averaging)
+
+### priceTakeProfit
+
+```ts
+priceTakeProfit: number
+```
+
+Effective take profit price (with trailing if set)
+
+### priceStopLoss
+
+```ts
+priceStopLoss: number
+```
+
+Effective stop loss price (with trailing if set)
+
+### originalPriceTakeProfit
+
+```ts
+originalPriceTakeProfit: number
+```
+
+Original take profit price before any trailing adjustments
+
+### originalPriceStopLoss
+
+```ts
+originalPriceStopLoss: number
+```
+
+Original stop loss price before any trailing adjustments
+
+### originalPriceOpen
+
+```ts
+originalPriceOpen: number
+```
+
+Original entry price at signal creation (unchanged by DCA averaging)
+
+### totalEntries
+
+```ts
+totalEntries: number
+```
+
+Total number of DCA entries (_entry.length). 1 = no averaging.
+
+### totalPartials
+
+```ts
+totalPartials: number
+```
+
+Total number of partial closes executed (_partial.length). 0 = no partial closes done.
 
 ### pnl
 
@@ -100,7 +175,7 @@ Current market price at activation
 pnl: IStrategyPnL
 ```
 
-Total PNL of the closed position (including all entries and partials)
+Unrealized PNL of the open position at the moment of the ping
 
 ### peakProfit
 
@@ -108,7 +183,7 @@ Total PNL of the closed position (including all entries and partials)
 peakProfit: IStrategyPnL
 ```
 
-Peak profit achieved during the life of this position up to the moment this public signal was created
+Peak profit achieved during the life of this position up to the moment of the ping
 
 ### maxDrawdown
 
@@ -116,7 +191,7 @@ Peak profit achieved during the life of this position up to the moment this publ
 maxDrawdown: IStrategyPnL
 ```
 
-Maximum drawdown experienced during the life of this position up to the moment this public signal was created
+Maximum drawdown experienced during the life of this position up to the moment of the ping
 
 ### pnlPercentage
 
@@ -124,7 +199,7 @@ Maximum drawdown experienced during the life of this position up to the moment t
 pnlPercentage: number
 ```
 
-Profit/loss as percentage
+Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%)
 
 ### pnlPriceOpen
 
@@ -132,7 +207,7 @@ Profit/loss as percentage
 pnlPriceOpen: number
 ```
 
-Entry price from PNL calculation
+Entry price from PNL calculation (effective price adjusted with slippage and fees)
 
 ### pnlPriceClose
 
@@ -140,7 +215,7 @@ Entry price from PNL calculation
 pnlPriceClose: number
 ```
 
-Exit price from PNL calculation
+Exit price from PNL calculation (adjusted with slippage and fees)
 
 ### pnlCost
 
@@ -238,93 +313,13 @@ maxDrawdownEntries: number
 
 Number of entries executed at the moment the position reached its maximum drawdown during the life of this position
 
-### cost
-
-```ts
-cost: number
-```
-
-Cost of the position entry in USD
-
-### position
-
-```ts
-position: "long" | "short"
-```
-
-Trade direction: "long" (buy) or "short" (sell)
-
-### priceOpen
-
-```ts
-priceOpen: number
-```
-
-Entry price at which the limit order was filled
-
-### priceTakeProfit
-
-```ts
-priceTakeProfit: number
-```
-
-Effective take profit price at activation
-
-### priceStopLoss
-
-```ts
-priceStopLoss: number
-```
-
-Effective stop loss price at activation
-
-### originalPriceTakeProfit
-
-```ts
-originalPriceTakeProfit: number
-```
-
-Original take profit price before any trailing adjustments
-
-### originalPriceStopLoss
-
-```ts
-originalPriceStopLoss: number
-```
-
-Original stop loss price before any trailing adjustments
-
-### originalPriceOpen
-
-```ts
-originalPriceOpen: number
-```
-
-Original entry price before any DCA averaging
-
-### totalEntries
-
-```ts
-totalEntries: number
-```
-
-Total number of DCA entries (_entry.length). 1 = no averaging.
-
-### totalPartials
-
-```ts
-totalPartials: number
-```
-
-Total number of partial closes executed (_partial.length). 0 = no partial closes done.
-
 ### scheduledAt
 
 ```ts
 scheduledAt: number
 ```
 
-Signal creation timestamp in milliseconds
+Signal creation timestamp in milliseconds (when signal was first created/scheduled)
 
 ### pendingAt
 
@@ -332,7 +327,7 @@ Signal creation timestamp in milliseconds
 pendingAt: number
 ```
 
-Position activation timestamp in milliseconds
+Pending timestamp in milliseconds (when position became pending/active at priceOpen)
 
 ### note
 

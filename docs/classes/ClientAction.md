@@ -45,6 +45,16 @@ _handlerInstance: ActionProxy
 Handler instance created from params.handler constructor.
 Starts as null, gets initialized on first use.
 
+### _isDisposed
+
+```ts
+_isDisposed: boolean
+```
+
+Terminal flag set by dispose(). Once true, all event methods become no-ops:
+the handler will not be recreated (waitForInit is singleshot), so late
+events must not reach the schema callbacks either.
+
 ### waitForInit
 
 ```ts

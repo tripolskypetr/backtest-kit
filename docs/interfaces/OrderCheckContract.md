@@ -26,7 +26,7 @@ Listener contract (mirrors syncSubject semantics):
 Backtest never emits this event — there is no live exchange to query.
 
 Consumers:
-- Broker adapter via `onOrderCheck` (syncPendingSubject subscription)
+- Broker adapter via `onOrderActiveCheck` / `onOrderScheduleCheck` (syncPendingSubject subscription)
 - Registered actions via `orderCheck` / `onOrderCheck`
 
 ## Properties

@@ -18,6 +18,7 @@ type BrokerBreakevenPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

@@ -48,10 +48,10 @@ Returns `null` when no adapter has been registered via `useBrokerAdapter()`.
 Reset via `clear()` so the next call rebuilds from the current factory
 (e.g. when `process.cwd()` changes between strategy iterations).
 
-### commitSignalOpen
+### commitOrderOpen
 
 ```ts
-commitSignalOpen: (payload: BrokerSignalOpenPayload) => Promise<void>
+commitOrderOpen: (payload: BrokerOrderOpenPayload) => Promise<void>
 ```
 
 Forwards a signal-open event to the registered broker adapter.
@@ -59,10 +59,10 @@ Forwards a signal-open event to the registered broker adapter.
 Called automatically via syncSubject when `enable()` is active.
 Skipped silently in backtest mode or when no adapter is registered.
 
-### commitSignalClose
+### commitOrderClose
 
 ```ts
-commitSignalClose: (payload: BrokerSignalClosePayload) => Promise<void>
+commitOrderClose: (payload: BrokerOrderClosePayload) => Promise<void>
 ```
 
 Forwards a signal-close event to the registered broker adapter.
@@ -70,18 +70,19 @@ Forwards a signal-close event to the registered broker adapter.
 Called automatically via syncSubject when `enable()` is active.
 Skipped silently in backtest mode or when no adapter is registered.
 
-### commitSignalPending
+### commitOrderCheck
 
 ```ts
-commitSignalPending: (payload: BrokerSignalPendingPayload) => Promise<void>
+commitOrderCheck: (payload: BrokerOrderCheckPayload) => Promise<void>
 ```
 
 Forwards an order ping to the registered broker adapter.
 
 Called automatically via syncPendingSubject when `enable()` is active, on every live tick
 while a pending signal (payload.type "active") or a scheduled signal (payload.type
-"schedule") is monitored. Skipped silently in backtest mode or when no adapter is
-registered. Exceptions are NOT swallowed: a throw from the adapter propagates up to
+"schedule") is monitored — routed to `onOrderActiveCheck` / `onOrderScheduleCheck`
+respectively. Skipped silently in backtest mode or when no adapter is registered.
+Exceptions are NOT swallowed: a throw from the adapter propagates up to
 syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
 (type "active") or cancels the scheduled signal with reason "user" (type "schedule").
 
@@ -148,7 +149,7 @@ to drop the scheduled signal from ITS view (risk reject at activation, sync reje
 timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
 arrives. The adapter MUST check the actual order status before cancelling: if the order is
 filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
-(close it or reconcile via onOrderCheck / onSignalActivePing). The framework cannot model
+(close it or reconcile via onOrderActiveCheck / onSignalActivePing). The framework cannot model
 this case — from its side the signal is terminally cancelled.
 
 ### commitPendingOpen

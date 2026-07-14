@@ -20,6 +20,7 @@ type BrokerActivePingPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```
@@ -28,4 +29,4 @@ Payload for the active-ping broker event.
 
 Emitted automatically via activePingSubject on every live tick while a pending (open) signal is
 monitored. Forwarded to the registered IBroker adapter via `onSignalActivePing`. Purely
-informational — unlike `onOrderCheck` a throw here does NOT close the position.
+informational — unlike `onOrderActiveCheck` a throw here does NOT close the position.

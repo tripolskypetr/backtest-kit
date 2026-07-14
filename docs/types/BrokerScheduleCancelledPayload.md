@@ -20,6 +20,7 @@ type BrokerScheduleCancelledPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

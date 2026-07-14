@@ -40,6 +40,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_WALKER_MARKDOWN_TOP_N: number;
     CC_MAX_PERFORMANCE_MARKDOWN_ROWS: number;
     CC_MAX_NOTIFICATIONS: number;
+    CC_NOTIFICATION_ORDER_CHECK_TTL: number;
     CC_MAX_SIGNALS: number;
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;

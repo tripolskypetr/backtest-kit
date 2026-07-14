@@ -20,6 +20,7 @@ type BrokerPendingClosePayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

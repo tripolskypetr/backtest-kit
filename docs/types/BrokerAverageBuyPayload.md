@@ -19,6 +19,7 @@ type BrokerAverageBuyPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

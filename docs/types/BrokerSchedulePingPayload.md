@@ -19,6 +19,7 @@ type BrokerSchedulePingPayload = {
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    when: Date;
     backtest: boolean;
 };
 ```

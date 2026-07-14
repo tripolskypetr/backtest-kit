@@ -64,6 +64,14 @@ handleSync: (data: OrderSyncContract) => Promise<void>
 
 Handles signal sync event (signal-open, signal-close).
 
+### handleCheck
+
+```ts
+handleCheck: (data: OrderCheckContract) => Promise<void>
+```
+
+Handles order-ping check event (signal-ping).
+
 ### handleRisk
 
 ```ts
