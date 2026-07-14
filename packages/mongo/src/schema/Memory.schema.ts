@@ -35,6 +35,8 @@ MemorySchema.index(
   { unique: true }
 );
 
+MemorySchema.index({ signalId: 1, bucketName: 1, removed: 1 });
+
 const MemoryModel = mongoose.model<MemoryDocument>("memory-items", MemorySchema);
 
 export { MemoryModel, IMemoryDto, IMemoryRow };

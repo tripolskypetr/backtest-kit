@@ -28,6 +28,8 @@ const MeasureSchema: Schema<MeasureDocument> = new Schema(
 
 MeasureSchema.index({ bucket: 1, entryKey: 1 }, { unique: true });
 
+MeasureSchema.index({ bucket: 1, removed: 1 });
+
 const MeasureModel = mongoose.model<MeasureDocument>("measure-items", MeasureSchema);
 
 export { MeasureModel, IMeasureDto, IMeasureRow };

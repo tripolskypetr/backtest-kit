@@ -26,6 +26,8 @@ const NotificationSchema: Schema<NotificationDocument> = new Schema(
 
 NotificationSchema.index({ backtest: 1, notificationId: 1 }, { unique: true });
 
+NotificationSchema.index({ backtest: 1, createDate: -1 });
+
 const NotificationModel = mongoose.model<NotificationDocument>("notification-items", NotificationSchema);
 
 export { NotificationModel, INotificationDto, INotificationRow };

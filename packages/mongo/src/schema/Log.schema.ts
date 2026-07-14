@@ -22,6 +22,8 @@ const LogSchema: Schema<LogDocument> = new Schema(
   { timestamps: { createdAt: "createDate", updatedAt: "updatedDate" }, minimize: false }
 );
 
+LogSchema.index({ createDate: -1 });
+
 const LogModel = mongoose.model<LogDocument>("log-items", LogSchema);
 
 export { LogModel, ILogDto, ILogRow };

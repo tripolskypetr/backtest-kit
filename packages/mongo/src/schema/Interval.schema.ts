@@ -30,6 +30,8 @@ const IntervalSchema: Schema<IntervalDocument> = new Schema(
 
 IntervalSchema.index({ bucket: 1, entryKey: 1 }, { unique: true });
 
+IntervalSchema.index({ bucket: 1, removed: 1 });
+
 const IntervalModel = mongoose.model<IntervalDocument>("interval-items", IntervalSchema);
 
 export { IntervalModel, IIntervalDto, IIntervalRow };
