@@ -1050,6 +1050,9 @@ export class PersistRiskInstance implements IPersistRiskInstance {
   async readPositionData(_when: Date): Promise<RiskData> {
     if (await this._storage.hasValue(PersistRiskInstance.STORAGE_KEY)) {
       const riskData = await this._storage.readValue(PersistRiskInstance.STORAGE_KEY);
+      if (!riskData) {
+        return [];
+      }
       // JSON serializes Infinity as null, so an eternal-hold position
       // (minuteEstimatedTime: Infinity) reads back as null — restore it.
       for (const [, position] of riskData) {
@@ -1661,6 +1664,12 @@ export class PersistStrategyInstance implements IPersistStrategyInstance {
   async readStrategyData(): Promise<StrategyData | null> {
     if (await this._storage.hasValue(PersistStrategyInstance.STORAGE_KEY)) {
       const strategyData = await this._storage.readValue(PersistStrategyInstance.STORAGE_KEY);
+      // writeStrategyData(null) stores a literal null under the key, so an
+      // existing key does not imply an object (mirrors the signalRow/scheduledRow
+      // guards in readSignalData/readScheduleData).
+      if (!strategyData) {
+        return null;
+      }
       // JSON serializes Infinity as null, so an eternal-hold signal
       // (minuteEstimatedTime: Infinity) reads back as null — restore it.
       for (const signal of [strategyData.closedSignal, strategyData.cancelledSignal, strategyData.activatedSignal, strategyData.takeProfitSignal, strategyData.stopLossSignal]) {
