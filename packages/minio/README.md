@@ -44,7 +44,6 @@ Pick this variant when you want S3-grade durability and zero schema management, 
 - 🔑 **Deterministic object keys** — every key is a pure function of its context, so an upsert is one idempotent `PUT`: no read-before-write, no duplicate-key races.
 - ⚡ **Newest-first listings via Redis** — a per-minute Redis index answers "what was created last" in O(limit), independent of bucket size.
 - 🛡️ **Look-ahead protection** — decision-affecting adapters store the simulation `when`.
-- 🪦 **`removed` means absent** — soft-delete entities physically delete the object; listings stay pure prefix LISTs with zero body reads.
 - 🔌 **Zero strategy changes** — drop `setup()` into your entry point; everything else stays the same.
 
 ---
