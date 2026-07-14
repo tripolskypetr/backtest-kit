@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/pg",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "backtest-kit persistence on PostgreSQL (TypeORM) + Redis cache, with atomic ON CONFLICT upserts and a Pgpool-II replica cluster for dev.",
   "author": {
     "name": "Petr Tripolsky",
