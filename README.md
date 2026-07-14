@@ -753,6 +753,12 @@ PostgreSQL + Redis O(1) cache via TypeORM. All 15 persistence contracts, atomic 
 npm install @backtest-kit/pg backtest-kit typeorm pg ioredis reflect-metadata
 ```
 
+### `@backtest-kit/minio` — [npm](https://www.npmjs.com/package/@backtest-kit/minio)
+MinIO (S3) source-of-truth + Redis time-ordered index. Listings in O(limit), zero schema management. Zero strategy changes.
+```bash
+npm install @backtest-kit/minio backtest-kit minio ioredis
+```
+
 ### `@backtest-kit/ollama` — [npm](https://www.npmjs.com/package/@backtest-kit/ollama)
 Universal LLM adapter: 10+ providers, structured output, token rotation, fallback chains, trading-context injection.
 ```bash
@@ -781,6 +787,7 @@ Real, runnable templates — not slideware. And worth naming the concern directl
 - **[backtest-ollama-crontab](https://github.com/backtest-kit/backtest-ollama-crontab)** — a local Ollama (`gpt-oss` quantized) as a per-signal risk gate plus a 15-minute crontab ingesting any public Telegram channel; the *same code* re-polls live and bulk-prepares in backtest. Documented result: **+52.22% → +68.90%** with the LLM gate on.
 - **[backtest-kit-redis-mongo-docker](https://github.com/backtest-kit/backtest-kit-redis-mongo-docker)** — production persistence: all 15 adapters on Mongo+Redis, atomic read-after-write, `docker-compose` one-command deploy.
 - **[backtest-kit-redis-postgres-pgpool-docker](https://github.com/backtest-kit/backtest-kit-redis-postgres-pgpool-docker)** — backtest-kit persistence on PostgreSQL (Pgpool-II) + Redis cache, with atomic upserts and a replica cluster.
+- **[backtest-kit-minio-s3-docker](https://github.com/backtest-kit/backtest-kit-minio-s3-docker)** — persistence on MinIO (S3) with deterministic keys, S3-grade durability
 - **[backtest-kit-skills](https://github.com/backtest-kit/backtest-kit-skills)** — a Claude Code skill + Mintlify docs: describe a strategy in plain language, get working TypeScript with every schema registration wired. `npx skills add https://github.com/backtest-kit/backtest-kit-skills`
 - **[uzse-backtest-app](https://github.com/backtest-kit/uzse-backtest-app)** — Pine Script on regional exchanges that aren't on TradingView (UZSE, MSE, DSE…): download raw trades, build candles, feed them through a custom Mongo exchange adapter.
 - **[backtest-kit-docs](https://github.com/backtest-kit/backtest-kit-docs)** — Architecture handbook and knowledge base: explains the engine's design, AI workflows, production patterns, and quantitative trading concepts beyond the API.

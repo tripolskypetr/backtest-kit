@@ -1,0 +1,219 @@
+import * as minio from 'minio';
+import { Client } from 'minio';
+import * as functools_kit from 'functools-kit';
+import { Redis } from 'ioredis';
+
+declare const GLOBAL_CONFIG: {
+    CC_REDIS_HOST: string;
+    CC_REDIS_PORT: number;
+    CC_REDIS_USER: string;
+    CC_REDIS_PASSWORD: string;
+    CC_MINIO_ENDPOINT: string;
+    CC_MINIO_PORT: number;
+    CC_MINIO_ACCESSKEY: string;
+    CC_MINIO_SECRETKEY: string;
+};
+type Config = typeof GLOBAL_CONFIG;
+declare const getConfig: () => {
+    CC_REDIS_HOST: string;
+    CC_REDIS_PORT: number;
+    CC_REDIS_USER: string;
+    CC_REDIS_PASSWORD: string;
+    CC_MINIO_ENDPOINT: string;
+    CC_MINIO_PORT: number;
+    CC_MINIO_ACCESSKEY: string;
+    CC_MINIO_SECRETKEY: string;
+};
+declare const setConfig: (config: Partial<Config>) => void;
+
+interface ILogger {
+    log(topic: string, ...args: any[]): void;
+    debug(topic: string, ...args: any[]): void;
+    info(topic: string, ...args: any[]): void;
+    warn(topic: string, ...args: any[]): void;
+}
+
+/**
+ * Initializes the `@backtest-kit/mongo` package: applies user-provided configuration
+ * and registers all MongoDB/Redis persistence adapters into the global `backtest-kit` registries.
+ *
+ * Should be called **once** at application startup — before any trading data operations.
+ * Internally calls {@link setConfig} followed by {@link install}.
+ *
+ * @param config - Connection parameters. If omitted, {@link DEFAULT_CONFIG} is used,
+ *   which reads values from environment variables:
+ *   - `CC_MONGO_CONNECTION_STRING` — MongoDB connection string (default: `mongodb://localhost:27017/backtest-kit`)
+ *   - `CC_REDIS_HOST` — Redis host (default: `127.0.0.1`)
+ *   - `CC_REDIS_PORT` — Redis port (default: `6379`)
+ *   - `CC_REDIS_USER` — Redis username (default: empty string)
+ *   - `CC_REDIS_PASSWORD` — Redis password (default: empty string)
+ *
+ * @example
+ * // Minimal — everything is read from env variables
+ * setup();
+ *
+ * @example
+ * // Explicit configuration
+ * setup({
+ *   CC_MONGO_CONNECTION_STRING: "mongodb://mongo:27017/mydb",
+ *   CC_REDIS_HOST: "redis",
+ *   CC_REDIS_PORT: 6379,
+ *   CC_REDIS_USER: "",
+ *   CC_REDIS_PASSWORD: "secret",
+ * });
+ */
+declare function setup(config?: Partial<Config>): void;
+/**
+ * Registers MongoDB implementations of all `backtest-kit` persistence adapters
+ * without modifying the global connection configuration.
+ *
+ * Use directly when the configuration has already been applied via {@link setConfig}
+ * or is provided through environment variables and does not need to be overridden.
+ * In the typical scenario, calling {@link setup} is sufficient — it calls `install` internally.
+ *
+ * Registered adapters:
+ * - **Candle** — OHLCV candle data (`PersistCandleAdapter`)
+ * - **Signal** — strategy signals (`PersistSignalAdapter`)
+ * - **Risk** — risk manager positions (`PersistRiskAdapter`)
+ * - **Schedule** — deferred signals (`PersistScheduleAdapter`)
+ * - **Strategy** — deferred strategy state: commit queue + deferred user actions (`PersistStrategyAdapter`)
+ * - **Partial** — partial close data (`PersistPartialAdapter`)
+ * - **Breakeven** — breakeven data (`PersistBreakevenAdapter`)
+ * - **Storage** — general signal storage (`PersistStorageAdapter`)
+ * - **Notification** — notifications (`PersistNotificationAdapter`)
+ * - **Log** — log entries (`PersistLogAdapter`)
+ * - **Measure** — arbitrary metrics keyed by bucket/key (`PersistMeasureAdapter`)
+ * - **Interval** — interval task data (`PersistIntervalAdapter`)
+ * - **Memory** — long-term signal memory (`PersistMemoryAdapter`)
+ * - **Recent** — latest strategy frame result (`PersistRecentAdapter`)
+ * - **State** — signal state (`PersistStateAdapter`)
+ * - **Session** — strategy session data (`PersistSessionAdapter`)
+ *
+ * @example
+ * // Configuration is provided via env variables, adapters are installed manually
+ * install();
+ */
+declare function install(): void;
+/**
+ * Attaches a custom logger to the internal `LoggerService`.
+ *
+ * By default the package logs to `console`. Pass your own {@link ILogger} implementation
+ * to redirect output to an external logging system (Winston, Pino, Datadog, etc.).
+ *
+ * @param logger - Object with `log`, `debug`, `info`, and `warn` methods.
+ *   Each method receives a string topic followed by arbitrary arguments.
+ *
+ * @example
+ * import winston from "winston";
+ *
+ * setLogger({
+ *   log:   (topic, ...args) => winston.verbose(topic, ...args),
+ *   debug: (topic, ...args) => winston.debug(topic, ...args),
+ *   info:  (topic, ...args) => winston.info(topic, ...args),
+ *   warn:  (topic, ...args) => winston.warn(topic, ...args),
+ * });
+ */
+declare function setLogger(logger: ILogger): void;
+
+declare const getMinio: () => Client;
+
+declare const getRedis: (() => Redis) & functools_kit.ISingleshotClearable<() => Redis>;
+
+declare class LoggerService implements ILogger {
+    private _commonLogger;
+    log: (topic: string, ...args: any[]) => Promise<void>;
+    debug: (topic: string, ...args: any[]) => Promise<void>;
+    info: (topic: string, ...args: any[]) => Promise<void>;
+    warn: (topic: string, ...args: any[]) => Promise<void>;
+    setLogger: (logger: ILogger) => void;
+}
+
+declare class MinioService {
+    getClient: ((bucketName: string) => Promise<minio.Client>) & functools_kit.IClearableMemoize<[bucketName: string]> & functools_kit.IControlMemoize<[bucketName: string], Promise<minio.Client>>;
+}
+
+declare const BaseStorage: (BUCKET_NAME: string) => (new () => {
+    readonly loggerService: LoggerService;
+    readonly minioService: MinioService;
+    /**
+     * Physical MinIO bucket: the first path segment of BUCKET_NAME.
+     * S3 bucket names cannot contain slashes, so "backtest-kit/candle-items"
+     * means bucket "backtest-kit" with root key prefix "candle-items/".
+     */
+    readonly bucketName: string;
+    /** Root key prefix inside the bucket ("" when BUCKET_NAME has no parent folder). */
+    readonly rootPrefix: string;
+    readonly BUCKET_NAME: string;
+    set(key: string, value: unknown): Promise<void>;
+    get<T = unknown>(key: string | null): Promise<T | null>;
+    has(key: string): Promise<boolean>;
+    delete(key: string): Promise<void>;
+    clear(prefix?: string): Promise<void>;
+    keys(prefix?: string, limit?: number): AsyncIterableIterator<string>;
+    values(prefix?: string, limit?: number): AsyncIterableIterator<unknown>;
+    iterate(prefix?: string, limit?: number): AsyncIterableIterator<readonly [string, unknown]>;
+    toArray(prefix?: string): Promise<[string, unknown][]>;
+    size(prefix?: string): Promise<number>;
+}) & Omit<{
+    new (BUCKET_NAME: string): {
+        readonly loggerService: LoggerService;
+        readonly minioService: MinioService;
+        /**
+         * Physical MinIO bucket: the first path segment of BUCKET_NAME.
+         * S3 bucket names cannot contain slashes, so "backtest-kit/candle-items"
+         * means bucket "backtest-kit" with root key prefix "candle-items/".
+         */
+        readonly bucketName: string;
+        /** Root key prefix inside the bucket ("" when BUCKET_NAME has no parent folder). */
+        readonly rootPrefix: string;
+        readonly BUCKET_NAME: string;
+        set(key: string, value: unknown): Promise<void>;
+        get<T = unknown>(key: string | null): Promise<T | null>;
+        has(key: string): Promise<boolean>;
+        delete(key: string): Promise<void>;
+        clear(prefix?: string): Promise<void>;
+        keys(prefix?: string, limit?: number): AsyncIterableIterator<string>;
+        values(prefix?: string, limit?: number): AsyncIterableIterator<unknown>;
+        iterate(prefix?: string, limit?: number): AsyncIterableIterator<readonly [string, unknown]>;
+        toArray(prefix?: string): Promise<[string, unknown][]>;
+        size(prefix?: string): Promise<number>;
+    };
+}, "prototype">;
+
+declare const BaseMap: (connectionKey: string, ttlExpireSeconds?: number) => (new () => {
+    readonly loggerService: LoggerService;
+    readonly connectionKey: string;
+    readonly ttlExpireSeconds: number;
+    _getItemKey(key: string): string;
+    set(key: string, value: unknown): Promise<void>;
+    get(key: string | null): Promise<unknown | null>;
+    delete(key: string): Promise<void>;
+    has(key: string): Promise<boolean>;
+    clear(): Promise<void>;
+    toArray(): Promise<[string, unknown][]>;
+    iterate(): AsyncIterableIterator<readonly [string, unknown]>;
+    keys(): AsyncIterableIterator<string>;
+    values(): AsyncIterableIterator<unknown>;
+    size(): Promise<number>;
+}) & Omit<{
+    new (connectionKey: string, ttlExpireSeconds?: number): {
+        readonly loggerService: LoggerService;
+        readonly connectionKey: string;
+        readonly ttlExpireSeconds: number;
+        _getItemKey(key: string): string;
+        set(key: string, value: unknown): Promise<void>;
+        get(key: string | null): Promise<unknown | null>;
+        delete(key: string): Promise<void>;
+        has(key: string): Promise<boolean>;
+        clear(): Promise<void>;
+        toArray(): Promise<[string, unknown][]>;
+        iterate(): AsyncIterableIterator<readonly [string, unknown]>;
+        keys(): AsyncIterableIterator<string>;
+        values(): AsyncIterableIterator<unknown>;
+        size(): Promise<number>;
+    };
+}, "prototype">;
+
+declare const waitForInit: (() => Promise<void>) & functools_kit.ISingleshotClearable<() => Promise<void>>;
+
+export { BaseMap, BaseStorage, getConfig, getMinio, getRedis, install, setConfig, setLogger, setup, waitForInit };

@@ -1,0 +1,94 @@
+{
+  "name": "@backtest-kit/minio",
+  "version": "0.0.1",
+  "description": "Backtest-kit persistence on MinIO (S3) as the source of truth with Redis as a time-ordered index",
+  "author": {
+    "name": "Petr Tripolsky",
+    "email": "tripolskypetr@gmail.com",
+    "url": "https://github.com/tripolskypetr"
+  },
+  "funding": {
+    "type": "individual",
+    "url": "http://paypal.me/tripolskypetr"
+  },
+  "license": "MIT",
+  "homepage": "https://backtest-kit.github.io/documents/article_07_ai_news_trading_signals.html",
+  "keywords": [
+    "backtest-kit",
+    "backtesting",
+    "trading",
+    "algotrading",
+    "quant",
+    "crypto",
+    "ccxt",
+    "binance",
+    "candles",
+    "ohlcv",
+    "persistence",
+    "minio",
+    "s3",
+    "object-storage",
+    "redis",
+    "docker",
+    "docker-compose",
+    "typescript"
+  ],
+  "files": [
+    "build",
+    "types.d.ts",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tripolskypetr/backtest-kit",
+    "documentation": "https://github.com/tripolskypetr/backtest-kit/tree/master/docs"
+  },
+  "bugs": {
+    "url": "https://github.com/tripolskypetr/backtest-kit/issues"
+  },
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "main": "build/index.cjs",
+  "module": "build/index.mjs",
+  "source": "src/index.ts",
+  "types": "./types.d.ts",
+  "exports": {
+    "require": "./build/index.cjs",
+    "types": "./types.d.ts",
+    "import": "./build/index.mjs",
+    "default": "./build/index.cjs"
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "11.1.6",
+    "@types/node": "22.9.0",
+    "glob": "11.0.1",
+    "rimraf": "6.0.1",
+    "rollup": "3.29.5",
+    "rollup-plugin-dts": "6.1.1",
+    "rollup-plugin-peer-deps-external": "2.2.4",
+    "ts-morph": "27.0.2",
+    "tslib": "2.7.0",
+    "typedoc": "0.27.9",
+    "backtest-kit": "15.4.0",
+    "minio": "8.0.2",
+    "ioredis": "5.6.1",
+    "worker-testbed": "3.0.0"
+  },
+  "peerDependencies": {
+    "backtest-kit": "^15.4.0",
+    "minio": "^8.0.2",
+    "ioredis": "^5.6.1",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "di-kit": "^1.1.1",
+    "di-factory": "^1.0.9",
+    "di-scoped": "^1.0.21",
+    "functools-kit": "^4.0.0",
+    "get-moment-stamp": "^3.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
