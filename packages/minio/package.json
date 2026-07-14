@@ -70,13 +70,13 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "backtest-kit": "15.4.0",
+    "backtest-kit": "15.5.0",
     "minio": "8.0.2",
     "ioredis": "5.6.1",
     "worker-testbed": "3.0.0"
   },
   "peerDependencies": {
-    "backtest-kit": "^15.4.0",
+    "backtest-kit": "^15.5.0",
     "minio": "^8.0.2",
     "ioredis": "^5.6.1",
     "typescript": "^5.0.0"
