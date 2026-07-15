@@ -134,1931 +134,1920 @@ All tests follow consistent patterns:
 
 ## Interface WalkerStopContract
 
-This interface defines the information passed when a walker is instructed to stop. It's used to signal that a particular trading strategy needs to be halted.
+The WalkerStopContract is a notification that gets sent when a walker is being stopped. Think of it as a signal that a trading process is being interrupted. 
 
-The signal includes the trading symbol involved, the name of the strategy being stopped, and crucially, the name of the walker itself. This last detail is important because you might have several walkers running different strategies on the same symbol, and this helps pinpoint exactly which one to interrupt. Think of it like a precise instruction to stop a specific strategy running on a particular asset.
+It includes information about which trading symbol is affected, the specific strategy that needs to be halted, and the name of the walker itself. This is important because you might have several different automated trading setups running at once, and this contract helps you pinpoint exactly which one is being stopped. It's like a targeted message saying "stop this specific strategy, running under this walker, on this symbol."
 
 ## Interface WalkerStatisticsModel
 
-The WalkerStatisticsModel helps you understand how different strategies performed during a backtest. It's essentially a collection of results from multiple strategies, allowing you to easily compare their strengths and weaknesses. 
+The WalkerStatisticsModel helps organize and present the results of your backtesting experiments. Think of it as a container holding information about how different trading strategies performed.
 
-Specifically, the `strategyResults` property contains an array—a list—of these individual strategy results, each detailing a strategy's performance metrics. This makes it straightforward to see, at a glance, which strategies did best and why.
+It takes the core data from a standard backtest result and adds extra information to compare strategies against each other.
 
+Specifically, it includes a list of strategy results, which details the performance metrics for each strategy you tested. This list lets you easily see how each strategy stacked up.
 
 ## Interface WalkerContract
 
-WalkerContract defines what information is shared as a strategy backtest progresses. It's like a notification that a particular strategy has finished being tested, allowing you to track how it's performing relative to others.
+The WalkerContract represents updates during the backtesting comparison process. Imagine it as a notification sent when a particular strategy finishes its test run and its results are assessed. 
 
-Each notification includes details such as the name of the strategy, the exchange and symbol being tested, and the backtest statistics generated.
+Each notification contains details like the walker’s name, the exchange, the timeframe being used, and the symbol being tested.  You'll also find the name of the strategy that just finished, its performance statistics, and the value of the metric being optimized for that strategy.
 
-You'll also find the strategy's optimized metric value, alongside the best metric observed so far and which strategy achieved it. Finally, it tells you how many strategies have been tested and how many remain. This lets you monitor the entire backtest process and see how strategies are stacking up against one another.
-
+Importantly, the notification also includes the current best metric value seen among all tested strategies so far, along with the name of that top-performing strategy, plus how many strategies have been tested and how many are left. It provides a running tally of the comparison’s progress.
 
 ## Interface WalkerCompleteContract
 
-The WalkerCompleteContract represents the final stage of a backtesting process, signaling that all strategies have been evaluated. It bundles together all the crucial results from the backtest run. 
+This interface describes the final notification you receive after a complete backtesting run using the Walker system. It bundles together all the important information about the test. 
 
-You'll find information about which walker performed the test, the trading symbol involved, and the exchange and timeframe used.
+You’ll find details like the name of the Walker, the symbol being traded, and the exchange and timeframe used for the backtest.
 
-It also details the optimization metric, the total number of strategies tested, and identifies the best-performing strategy based on that metric.
+Crucially, it includes the metric used for optimization, the total number of strategies tested, and identifies the best-performing strategy. 
 
-Finally, the contract provides the detailed statistics associated with that top strategy, giving you a complete picture of its performance.
+The notification also delivers the best metric value achieved and comprehensive statistics for that top-performing strategy, giving you a full picture of the results.
 
 ## Interface ValidationErrorNotification
 
-This notification signals that a problem arose during validation – likely due to something in your trading strategy or setup failing a check. 
+This notification signals that a validation error occurred during the backtesting process. 
 
-It's a way for the system to tell you that a validation function encountered an error.
+It happens when the risk validation functions encounter problems and raise errors. 
 
-Each notification includes a unique ID, a detailed error message you can understand, and a serialized error object with a stack trace for debugging.
+Each notification includes a unique identifier, a detailed error object that contains stack trace information, and a user-friendly message explaining the validation issue. 
 
-The `backtest` property is always false because these errors happen during the live validation phase, not within a simulated backtest environment.
+Importantly, the `backtest` property will always be false because these errors originate from the live context, not directly from the backtest simulation itself.
 
 ## Interface ValidateArgs
 
-This interface, ValidateArgs, acts as a blueprint for ensuring the names of various components in your backtesting setup are correct. Think of it as a quality check for things like the exchange you're trading on, the timeframe you're using, or the strategy you've chosen.
+This interface, `ValidateArgs`, helps ensure the names you use for different parts of your backtesting setup are correct. Think of it as a safety net – it’s used internally to check that your exchange, timeframe, strategy, risk profile, action, sizing, and walker names match what the system knows. 
 
-It defines properties for ExchangeName, FrameName, StrategyName, RiskName, ActionName, SizingName, and WalkerName. Each of these properties expects an enum – essentially a list of acceptable values. The system will then verify that the names you’re using for these components are actually in that allowed list.
+Each property within `ValidateArgs` represents one of these names.  For example, `ExchangeName` holds an enum that validates the name of the exchange you're using.  All the properties work similarly to make sure everything aligns and to prevent errors caused by typos or incorrect names. This makes your backtests more reliable.
 
-This helps prevent errors and ensures consistency throughout your backtesting process by making sure everything is labeled correctly and refers to a recognized component.
 
 ## Interface TrailingTakeCommitNotification
 
-This notification signals that a trailing take-profit order has been executed. It provides a wealth of information about the trade, including a unique identifier, the exact time it happened, and whether it occurred during a backtest or live trading. You'll find details about the trading pair, the strategy that triggered it, and the exchange used.
+This notification tells you when a trailing take profit order has been executed. It's a signal that a trade is closing based on a trailing stop-loss.
 
-The notification details the original and adjusted take-profit and stop-loss prices, along with crucial metrics like the percentage shift applied to the original take-profit level. It also breaks down the trade's performance with profit and loss (both absolute and percentage), peak profit achieved, and maximum drawdown experienced.
+The notification includes a unique identifier, the time it happened, and whether it's from a backtest or a live trade. You'll find details about the trading pair, the strategy involved, and the exchange used.
 
-Furthermore, you'll get a complete picture of the position’s history—the entry price, the total number of entries if using dollar-cost averaging, and the number of partial closes performed. Detailed PNL calculations, including slippage and fees, are also included, as well as timestamps for signal creation and execution. Finally, a human-readable note can offer additional context about the reason behind the signal.
+It provides a comprehensive snapshot of the trade, including the original and adjusted take profit and stop-loss prices, entry price, and the number of entries and partial closes.
+
+You'll also see key performance metrics like profit and loss (both absolute and percentage), peak profit, and maximum drawdown. The notification also includes details about the signal, like the percent shift and any notes about why the signal was triggered. Finally, you get timestamps showing when the signal was created, became pending, and when this specific notification was generated.
 
 ## Interface TrailingTakeCommit
 
-This interface describes an event triggered when a trailing take profit order is executed. It represents a point in time when the take profit price has been adjusted based on a percentage shift, effectively following the market price. 
+This describes a trailing take profit event within the backtest-kit framework. It's essentially a notification triggered when a trailing stop mechanism adjusts the take profit level of a trade.
 
-The event provides detailed information about the trade, including the direction (long or short), the original entry price, and the current market price that caused the adjustment. You'll find the updated take profit and stop-loss prices, along with their original values before any trailing adjustments occurred.
+The event includes details about the trade itself, such as whether it's a long or short position, the original entry price, and the current market price at the time of the adjustment.
 
-Furthermore, the event captures performance metrics for the position, such as the total profit and loss (pnl), the highest profit achieved (peakProfit), and the maximum drawdown experienced. Timestamps indicate when the signal was created and when the position was activated. This information is invaluable for analyzing the effectiveness of your trailing take profit strategy.
+You'll find information on the adjusted take profit and stop-loss prices, as well as their original values before any trailing modifications.
 
+Crucially, it also provides performance metrics for the position, including the total profit and loss (pnl), the highest profit achieved (peak profit), and the maximum drawdown experienced.
+
+Finally, timestamps indicate when the signal was created and when the position was activated.
 
 ## Interface TrailingStopCommitNotification
 
-This notification signals that a trailing stop order has been triggered and executed. It provides a wealth of detail about the trade, including when it happened, which exchange and strategy were involved, and the specific parameters of the trailing stop itself – like the percentage shift applied. You’ll find information about the trade's direction (long or short), entry and stop-loss prices, and how they were adjusted by the trailing mechanism.
+This notification details when a trailing stop order has been triggered and executed. It provides a wealth of information about the trade, including a unique identifier, the exact time it happened, and whether it occurred during a backtest or live trading. You'll find details about the trading pair involved, the strategy that initiated the signal, and the exchange used.
 
-The notification also includes extensive performance data for the trade, like peak profit, maximum drawdown, and P&L figures, all meticulously tracked with details on slippage and fees. This allows for a thorough post-trade analysis of the strategy’s performance, offering insights into the trade's profitability and risk profile. Finally, there’s a timestamp indicating when the notification itself was generated, and a field for a human-readable note explaining the reason for the signal.
+The notification includes crucial pricing information like the entry price, stop-loss and take-profit levels, both original and adjusted for trailing. It also breaks down the position details, indicating whether it was a long or short trade, and the number of entries and partial closes involved. 
+
+Beyond the basics, you get a full picture of the position's performance, including the total profit and loss, peak profit achieved, maximum drawdown, and associated prices and percentages. Additional fields offer context such as a human-readable note, scheduling and pending timestamps, and when the notification itself was created. This comprehensive data allows for detailed analysis of trailing stop effectiveness and overall trading strategy performance.
 
 ## Interface TrailingStopCommit
 
-This describes a trailing stop event, which happens when a trailing stop-loss order is triggered during a trade. The `action` property simply confirms that this is a trailing stop event. The `percentShift` tells you how much the stop-loss price was adjusted, expressed as a percentage. 
+This data represents a trailing stop event, indicating a change in your trading strategy based on price movement. It contains details about the adjustment made to your stop-loss price.
 
-You'll also find details about the trade itself, including the `currentPrice` at the time of the adjustment, the `position` (whether it was a long or short trade), and the `priceOpen` - the original entry price. The `priceTakeProfit` and `priceStopLoss` show the current, potentially adjusted, prices for taking profit and stopping losses. 
+The `action` property confirms that this event is specifically a trailing stop action. 
 
-For historical context, `originalPriceTakeProfit` and `originalPriceStopLoss` tell you the original take profit and stop loss prices before any trailing adjustments were made.
+You'll find the `percentShift`, which shows how much the stop loss was adjusted based on a percentage. The `currentPrice` tells you the market price at the time of that adjustment.
 
-Finally, performance metrics are included such as `pnl` (profit and loss), `peakProfit` (the highest profit reached during the trade), and `maxDrawdown` (the largest loss experienced). `scheduledAt` and `pendingAt` provide timestamps relating to when the signal was created and when the position was activated.
+For performance tracking, you’ll see the `pnl` (profit and loss) of the closed position, `peakProfit` (the highest profit point reached), and `maxDrawdown` (the biggest loss experienced). 
+
+The `position` property clarifies whether it's a long (buy) or short (sell) trade. You can access the `priceOpen` (the initial entry price), the `priceTakeProfit` (the current take profit price, potentially adjusted), and the `priceStopLoss` (the updated stop-loss price). 
+
+Importantly, `originalPriceTakeProfit` and `originalPriceStopLoss` preserve the initial values before any trailing modifications. Finally, `scheduledAt` and `pendingAt` timestamps give you the exact moments of creation and activation of the position.
 
 ## Interface TickEvent
 
-This describes a standardized tick event, which is a core piece of data for analyzing and understanding what's happening during a trading process. Think of it as a single snapshot of an event, providing comprehensive information about a trade's lifecycle.
+This describes a standardized event object used to track what's happening in your trading system. Think of it as a single place to find all the important details about a trade, regardless of whether it's being scheduled, opened, closed, or something else.
 
-Each event has a timestamp indicating when it occurred, and an `action` type that categorizes it – like a scheduled order, a canceled trade, or a position being opened or closed.  Specific details vary depending on the action; for instance, "scheduled" or "opened" events will include signal information like the `signalId`, `position` type, and potentially notes.
+Each event includes a timestamp and an `action` type to clearly indicate what occurred. You’ll find key information like the trading symbol, a signal identifier, and position type for most events.
 
-The event also includes key price points – the open price, take profit, stop loss, and their original values – and details about averaging strategies if used (like `totalEntries` and `totalPartials`). Financial data like profit and loss (both absolute and percentage), along with metrics like progress toward take profit and stop loss, are also recorded.  For completed positions, you'll find the close reason and duration, while peak and fall PNL values offer insights into the position's performance.  Essentially, this structure provides a unified way to track all aspects of a trade.
-
+For trades that are actively running, you'll also get information about things like take profit and stop loss prices, how much capital is invested, progress toward those targets, and unrealized profit/loss. Closed trades will have realized PNL and duration.  If a trade is cancelled, there's a reason provided. Finally, you'll find metrics like peak and fall PNL, giving insight into the position's performance. The `totalEntries` and `totalPartials` fields help track DCA (Dollar-Cost Averaging) details.
 
 ## Interface SyncStatisticsModel
 
-The SyncStatisticsModel helps you understand how your signals are syncing. It essentially tracks events related to signal lifecycle, like when signals are opened or closed. 
-
-You'll find a detailed list of all syncing events within the `eventList` property, allowing you to examine individual occurrences. The `totalEvents` property provides a quick count of all syncing activities. 
-
-To easily monitor signal openings, use the `openCount`, and to track signal closures, use the `closeCount`.
+This model helps you understand how your trading signals are syncing with the system. It provides a collection of individual sync events, giving you detailed information about each one. You can also get a simple count of all sync events, as well as the number of times a signal was opened and closed, which is useful for monitoring signal lifecycle. Essentially, it’s a report card for your signal synchronization process.
 
 ## Interface SyncEvent
 
-The `SyncEvent` object acts as a central record of everything that happens during a trading signal's lifecycle. It contains a wealth of information about each event, from when the signal was created to when it was closed.
+The `SyncEvent` object is a central piece of information about what's happening during a trading signal’s lifecycle. It packages all the key details – like when the event occurred, which trading pair was involved, the strategy and exchange used, and crucially, *what* action took place.
 
-You'll find details like the exact timestamp of each action, the trading pair involved, the name of the strategy used, and the exchange it ran on. The `frameName` indicates if this is a live signal or part of a backtest.
+You'll find specifics like the signal's unique ID, the direction of the trade (long or short), entry and exit prices (take profit and stop loss), and even how those prices have been adjusted along the way. 
 
-Each signal has a unique identifier (`signalId`) and a type of action associated with it.  Important pricing information like entry price (`priceOpen`), take profit (`priceTakeProfit`), and stop loss (`priceStopLoss`) are all included, as are the original values before any trailing adjustments.
+It also tracks important performance metrics like total profit and loss (PNL), peak profit, and maximum drawdown, along with when the signal was initially created and when the position became active. 
 
-For signals involving DCA (Dollar Cost Averaging) or partial closes, you'll also see the total number of entries and partials executed.  Profit and loss (`pnl`), including peak profit and maximum drawdown, are tracked to showcase the position's performance.
-
-If a signal is closed, the `closeReason` explains why, and a `backtest` flag indicates whether the event occurred during a simulation. Finally, a timestamp of when the event was created (`createdAt`) is stored for audit purposes. This consolidated data allows for detailed analysis and report generation.
+For signals that were closed, the `closeReason` property explains why. A flag indicates whether the event relates to a backtest. Finally, a timestamp provides when the event itself was recorded. This comprehensive data is designed to be useful for generating clear and informative reports.
 
 ## Interface StrategyStatisticsModel
 
-This model holds detailed information about what happened during a strategy's execution. Think of it as a record of all the actions your strategy took.
+This model holds statistics about your trading strategy's performance, gathered from the events it generates. 
 
-It keeps track of things like the total number of events, and breaks those down further, showing how many times your strategy canceled scheduled actions, closed pending orders, took partial profits or losses, adjusted trailing stops, or hit breakeven points. 
+Think of it as a detailed log of what your strategy is doing. 
 
-You’ll also find counts for actions like activating scheduled orders and average buy (dollar-cost averaging) events.
+You'll find a list of every event that occurred, along with totals for various actions like canceling orders, closing positions, taking partial profits or losses, using trailing stops, setting breakeven points, and executing average buy (DCA) strategies. It's a good way to understand the behavior of your strategy and identify potential areas for optimization.
 
-The `eventList` property gives you access to a complete history of each individual strategy event, including all its details.
 
 ## Interface StrategyEvent
 
-This data structure holds all the key information about what's happening in your trading strategy, allowing for detailed reports and analysis. It essentially captures every action taken – from initial entry to profit taking or stop-loss triggers.
+The `StrategyEvent` object holds all the important details about what's happening during a trade, whether it's a backtest or a live execution. It's designed to provide a complete picture of a strategy's actions, from initial signals to closing positions.
 
-You'll find details like the exact time of the event, the trading pair involved, the strategy and exchange being used, and whether it's a backtest or live trade. Crucially, it records the action itself, along with the current market price, and any percentage-based adjustments like profit targets or trailing stops.
+Each event includes information like the exact time it happened (`timestamp`), which trading pair was involved (`symbol`), the name of the strategy used, and the exchange and timeframe being utilized. You’ll find specifics on the signal that triggered the action (`signalId`), the type of action taken (`action`), and the current market price at the time.
 
-For more complex strategies involving scheduled or pending actions, you'll see identifiers (cancelId, closeId, activateId) to track those operations. The structure also keeps track of entry prices, stop-loss levels, and whether they've been adjusted by trailing stops, along with how many DCA entries have been made. Finally, it includes profit and loss information, costs associated with trades, and any optional notes added to the commit. It allows to understand signal creation and pending times as well.
+For profit-taking or loss-limiting actions, the `percentToClose`, `percentShift` (for trailing stops/take profits), and original/effective prices are all recorded. If an action was scheduled or pending, unique IDs (`cancelId`, `closeId`, `activateId`) are provided.
+
+The event also notes whether it's a backtest (`backtest`) or live trade, the trade direction (`position`), and key pricing details like entry price (`priceOpen`), take profit (`priceTakeProfit`), and stop loss (`priceStopLoss`).  For strategies employing dollar-cost averaging (DCA), you'll also see data on entry counts, total entries, and associated costs. Finally, profit and loss data (`pnl`) and a potentially helpful note are included for a comprehensive record of each event.
+
 
 ## Interface SignalScheduledNotification
 
-This notification tells you when a trading signal has been planned for a future execution. It's like a heads-up that a trade is about to happen. 
+This notification tells you when a trading signal has been planned for future execution. It’s like a heads-up that a trade is about to happen.
 
-The notification includes details like a unique ID, the exact time the trade was scheduled, and whether it's happening in a test environment or live. You’ll also find important information about the trade itself: the trading pair (like BTCUSDT), the strategy that generated the signal, the exchange it’ll be executed on, the trade direction (long or short), and the planned entry, take profit, and stop-loss prices. 
+Each notification has a unique identifier, a timestamp indicating when the signal was scheduled, and a flag to specify whether it's from a backtest or live trading environment. It also includes crucial details like the trading pair (symbol), the strategy that generated the signal, and the exchange it's intended for.
 
-It provides a comprehensive snapshot of the signal’s performance metrics too, like total profit and loss, peak profit achieved, and the maximum drawdown experienced, along with percentages and prices related to these. Finally, there’s an optional note to provide additional context or reasoning behind the signal.
+You’ll find information about the trade itself: the direction (long or short), target entry price, take profit, and stop-loss levels. It also provides the original prices before any adjustments like trailing stops.
+
+The notification includes details about the trade’s financial aspects like the cost, potential profit and loss (PNL), peak profit achieved, and maximum drawdown experienced. You’ll also get performance metrics like profit/loss percentage and entry/exit prices for PNL calculations. Finally, it provides a current market price and an optional note that explains the reason behind the signal.
 
 ## Interface SignalOpenedNotification
 
-This notification tells you when a new trade has been opened by the system. It's a signal that a position is now active, whether it's a backtest simulation or a real-time trade. The notification provides a wealth of detail, including a unique identifier, the exact time the trade started, and whether it's a long (buy) or short (sell) position. 
+This notification tells you when a new trading position has been opened, whether it's part of a backtest or a live trade. It provides a wealth of details about the trade, including a unique identifier, the exact time it was opened, and whether it was a long (buy) or short (sell) position.  You'll find information about the exchange used, the signal that triggered the trade, and the prices involved – entry, take profit, and stop loss, along with their original values before any adjustments.
 
-You'll find information about the trade's symbol (like BTCUSDT), the strategy that triggered it, and the exchange used.  Crucially, it also includes details like the entry price, take profit and stop-loss levels, and information about any averaging strategies (DCA) or partial exits used. 
+The notification also gives you comprehensive profit and loss (PNL) data for the position, including peak profit, maximum drawdown, and the prices at which those extremes were reached.  If the position used dollar-cost averaging (DCA), you can see how many entries were made. 
 
-Beyond the basic trade information, you get performance metrics like total profit & loss (both in USD and percentage), peak profit and maximum drawdown, and specific price points associated with those metrics. This data allows for a detailed understanding of the position’s performance characteristics and can be used for analyzing the strategy's effectiveness. There’s also a “note” field for any custom explanations of the signal's reason and timestamps for when the signal was created and pending.
+Finally, the notification includes optional notes explaining the reasoning behind the trade and timestamps related to its creation and pending status.  It's like a complete report card for a newly opened trade, perfect for tracking performance and understanding trading decisions.
 
 ## Interface SignalInfoNotification
 
-This notification type lets your trading strategies communicate important details about a position to the outside world. Think of it as a way for your strategy to "shout out" information about a trade, like an update on its performance or key details about its configuration. It's particularly useful for monitoring strategies, creating custom dashboards, or integrating with other systems.
+This notification type provides detailed information when a trading strategy sends out a custom informational message about an active trade. It’s like getting a status update directly from your strategy, letting you know what's happening with a specific position.
 
-The notification includes things like the trade's symbol, the strategy that initiated it, and the exact time it was triggered. It also provides a wealth of performance data, like realized profit and loss, peak profit, and maximum drawdown, all calculated during the position's life. You'll find details about take profit, stop loss levels, and how they might have changed with trailing adjustments. 
+The notification includes a unique ID and timestamp, along with essential details such as the trading symbol, the strategy's name, and the exchange where the trade occurred. You’ll also find important data points like the entry price, take profit and stop loss levels, and information about any DCA (Dollar Cost Averaging) or partial closes that have been executed.
 
-Crucially, it also conveys user-defined notes, giving you the flexibility to include custom messages or explanations alongside the data. The notification includes identifiers for tracking and correlation across different systems, plus timestamps marking important phases of the trade – scheduling, pending, and creation. This extensive information lets you gain a deep understanding of your strategy's behavior and performance.
+Furthermore, it shares performance metrics like total profit/loss (both absolute and percentage), peak profit, and maximum drawdown, along with the specific prices at which these metrics were achieved. A user-defined note allows the strategy to communicate a custom message.  Finally, scheduling and pending timestamps help track the signal’s lifecycle, from initial creation to when the position became active.
 
 ## Interface SignalInfoContract
 
-This structure, `SignalInfoContract`, lets strategies communicate custom information during trading. Think of it as a way to broadcast messages about what's happening in your strategy—like a debugger or a way to send notifications to other systems.
+This interface defines the structure of messages a trading strategy can send out to let you know about important information related to its actions. Think of it as a way for strategies to "shout" out details about open positions, like what trading pair it's involved in (symbol), which strategy created it, and the exchange and frame used.
 
-When a strategy uses the `commitSignalInfo()` function, this object is sent out to any listeners.
-
-It includes details like the symbol being traded (e.g., BTCUSDT), the name of the strategy that triggered the event, and the exchange and frame involved.
-
-You'll find the full data from the signal itself, including original price levels and execution details.
-
-There’s also the current market price at the time of the event, a user-defined note for extra context, and an optional ID for tracking purposes.
-
-Finally, it clearly indicates whether the event comes from a backtest (historical data) or live trading. A timestamp provides a precise record of when the event occurred.
+You'll find details like the original prices, the current market price at the time of the event, and any custom notes or identifiers the strategy added.  The `backtest` flag tells you if the message is coming from a historical simulation or live trading, and the `timestamp` provides a precise record of when the event occurred, synchronized to the candle in backtest mode. It's a powerful way to monitor strategy behavior, add custom annotations, or push notifications to external systems.
 
 ## Interface SignalEventContract
 
-This interface helps you keep track of when trading positions are opened and closed within the backtest framework. It acts like a notification system, letting you know about significant events without needing to constantly monitor all signal activity. You’ll receive these notifications when a position begins – whether it’s from a new signal, an immediate entry, or a scheduled action – and when it concludes, covering various exit scenarios like hitting take profit or stop loss levels, or being closed manually.
+This interface defines how the backtest-kit framework communicates about the opening and closing of pending trading positions. Think of it as a notification system – it allows you to be informed about when a position is about to be or has been entered or exited, without needing to constantly monitor all signal data. 
 
-The notification includes details like the trading symbol, the strategy responsible, the exchange involved, and the timeframe being used. You’ll also get the full data associated with the signal that triggered the event, containing details like entry price, stop-loss levels, and potential profit. If a position is closed, the reason for closure will be specified. The notification also indicates if the event occurred during a backtest or live trading session and provides a timestamp for precise timing information. These notifications are useful for user callbacks and tracking the active state of trades.
+It covers all the ways a position can be initiated (like a new signal, an immediate order, or a scheduled action) and all the ways it can be closed (like hitting a take-profit or stop-loss, or a user manually closing it). You can subscribe to these events to build custom user interfaces or automate actions based on position lifecycle changes.
+
+The events provide key details about the position, including the trading symbol, the name of the strategy that generated the signal, the exchange being used, and the timeframe being considered. You'll also get the complete data related to the signal, including entry and exit prices, potential profit and loss, and importantly, the reason *why* a position closed if it’s a closing event. A current market price is included for both opening and closing events. Finally, there's a flag to indicate whether the event happened during a backtest or live trading session, as well as a timestamp for precise timing.
 
 ## Interface SignalData$1
 
-This `SignalData` object holds all the key details for a single trading signal that has been closed. Think of it as a record of one completed trade. 
-
-It includes the name of the strategy that created the signal, a unique ID for that signal, and the trading symbol involved. 
-
-You'll also find information about whether the position was a long or short one, the percentage profit or loss (PNL) realized from the trade, and the reason why the position was closed. Finally, it records the exact times the signal was opened and closed.
+This object holds all the critical details about a completed trading signal, specifically for calculating and analyzing performance. It tells you which strategy created the signal, provides a unique identifier for it, and specifies the symbol being traded. You’ll find details like whether it was a long or short position, the percentage profit or loss (PNL), and the reason the signal was closed. Finally, it records the exact times the signal was opened and closed, allowing for precise performance tracking over time.
 
 ## Interface SignalCommitBase
 
-This interface defines the common information found in every signal commitment event, whether it's part of a backtest or a live trade. Each signal event includes details like the trading symbol (e.g., BTCUSDT), the name of the strategy that created it, and the exchange used. 
+This interface defines the common information found in every signal commitment event, whether it's happening during a backtest or a live trade. Each event will tell you which trading pair is involved (symbol) and the name of the strategy that created the signal. It also specifies the exchange used and the timeframe if the signal originates from a backtest.
 
-You'll also find information specific to backtesting, like the timeframe used, and whether the event originated from a backtest or live execution. A unique identifier for the signal, a timestamp reflecting when it occurred, and tracking details like the number of entries and partial closes are also provided. 
+You'll get a unique ID for the signal itself (signalId), the exact time it occurred (timestamp), and details about any DCA averaging or partial closes that have taken place. The original entry price, the signal data at the moment of commitment, and an optional note describing the signal's reason are also included. 
 
-Crucially, it preserves the original entry price – the price when the signal was first generated – even if the trade is later adjusted through dollar-cost averaging. Finally, the entire signal data is bundled in a standardized format, along with an optional note for explaining the signal's reasoning.
+Essentially, it's a standardized package of information for tracking each signal commitment in your trading system.
 
 ## Interface SignalClosedNotification
 
-This notification tells you when a trading position has been closed, whether it was triggered by a take profit or stop loss, or simply expired. It provides a wealth of information about the trade, including a unique identifier, when it closed, and whether it happened during a backtest or live trading. You’ll find details like the symbol traded, the strategy used, and the direction of the trade (long or short).
+This notification tells you when a trading position has been closed, whether it was stopped out by a stop-loss, hit a take-profit target, or expired. It’s packed with details about the trade, including the unique identifier of the signal, when it closed, and whether it occurred during a backtest or live trading.
 
-The notification also breaks down the financial performance of the trade, showing the entry and exit prices, take profit and stop loss levels, and the total profit or loss, both in percentage and in raw USD. It even tracks the peak profit and maximum drawdown the position experienced and the prices at which those occurred.
+You’ll find key information such as the symbol traded (like BTCUSDT), the strategy that generated the signal, and the entry and exit prices. It also provides a breakdown of the position's performance, including profit/loss percentages, peak profit, and maximum drawdown – letting you understand how the trade performed throughout its lifecycle. 
 
-Finally, you can see details about the trade's execution, such as the number of entries made (useful if averaging was involved), the duration of the position, and a textual explanation for why it closed. It also keeps track of when the signal was first scheduled and when it went pending.
+The notification also includes details about how the position was managed, like the number of entries and partial closes, as well as original prices and durations. Finally, a note field allows for optional human-readable explanations regarding the signal's closure.
 
 ## Interface SignalCancelledNotification
 
-This notification tells you that a trading signal was cancelled before it could be activated. It's like getting a heads-up that a planned trade won't happen.
+This notification tells you when a scheduled trading signal was cancelled before it could be activated. It provides a lot of detail about the signal and the circumstances of its cancellation.
 
-The notification includes a lot of details about the cancelled signal, such as a unique identifier, the exact time of cancellation, and whether it occurred during a backtest or live trading.
+You’ll find information like a unique identifier for the notification, the exact time it was cancelled, and whether the cancellation happened during a backtest or live trading. The notification also includes details about the trading strategy involved, the symbol being traded (like BTCUSDT), and the intended trade direction (long or short).
 
-You'll also find information about the signal's specifics – the trading pair, the strategy that generated it, the intended trade direction (long or short), and the initially planned take profit and stop-loss prices.
-
-If the signal involved averaging entries (DCA) or partial closes, the notification reveals how many of each were planned.
-
-The `cancelReason` field explains *why* the signal was cancelled, which could be due to a timeout, price rejection, or a manual cancellation by a user. The `cancelId` provides further context if the cancellation was initiated by a user.
-
-Finally, timestamps track the signal’s lifecycle, from initial creation to its pending state and eventual cancellation, providing a full picture of the event.
+It also holds key information about the trade itself: the take profit and stop loss prices, the intended entry price, and even the original prices before any adjustments were made. You’ll see how many DCA entries were planned and if any partial closes were executed. Crucially, it explains *why* the signal was cancelled - whether it was due to a timeout, price rejection, or a manual user action. There's even a chance to see a custom note explaining the reason behind the signal. Finally, you can check the signal creation, pending, and creation timestamps to understand the signal's lifecycle.
 
 ## Interface Signal
 
-The `Signal` object holds information about a specific trading signal generated by your strategy. It tells you the opening price of the trade.
+The `Signal` object holds important information about a trading position. 
 
-It also keeps track of the entry details for each position taken—including the price, cost, and time of entry.
+It tracks the initial entry price using the `priceOpen` property.
 
-Finally, it records any partial exits, specifying the type of exit (profit or loss), the percentage of the position closed, the price at which it exited, the cost basis at the time of closing, the number of shares/contracts exited, and the timestamp.
+Internally, it keeps a record of all entry events within the position through the `_entry` array. Each entry includes the price, cost, and timestamp of that specific entry.
+
+The `_partial` array logs any partial exits from the position, noting the type (profit or loss), percentage, current price, cost basis at the time of exit, the entry count at that time, and the timestamp of the partial exit.
 
 ## Interface Signal$2
 
-This `Signal` object holds the details about a single trading signal generated by your backtest. 
+This `Signal` object holds information about a trading position.
 
-It keeps track of the initial entry price, which is the price at which you first bought or sold.
+It tracks the initial entry price, which is the `priceOpen` you used to get into the trade.
 
-You'll also find records of any partial exits from the position, noting whether they were profitable or resulted in a loss, along with the price, cost basis, and the number of units held at the time.
+You'll also find a record of all entry events – the `_entry` array – detailing the price, cost, and time for each entry.
 
-Finally, the object stores a history of entry points, including price, cost, and timestamp, useful for analyzing trade performance.
+Finally, it keeps track of any partial exits you've taken, including the type of exit (profit or loss), percentage, price, cost basis, entry count, and timestamp for each.
 
 ## Interface Signal$1
 
-This `Signal$1` object holds key details about a single trading signal used within the backtest-kit framework. It tracks the initial entry price for a trade, represented by the `priceOpen` property.
+This `Signal` object keeps track of information related to a specific trading signal. It contains the opening price used for the trade, which is essential for calculating profits and losses.
 
-You'll also find a record of entry events, including the price, cost, and timestamp of each.
+It also stores a history of entry events, detailing the price, cost, and timestamp for each entry made into the position.
 
-Finally, it stores information about any partial exits from the position, specifying whether they were profit-taking or loss-limiting actions, along with details like the percentage change, current price, cost basis at the time of closure, the number of units held at that point, and the timestamp.
-
+Finally, it tracks partial exits, recording details like whether the exit was for profit or loss, the percentage change, current price, cost basis, number of shares closed, and the timestamp of the exit.
 
 ## Interface ScheduledEvent
 
-The `ScheduledEvent` object acts as a central record for all trading events – when a signal is scheduled, opened, or cancelled. It bundles together a wealth of information about each event, making it easier to analyze and generate reports.
+This data structure holds all the key information about trading events like when a trade was scheduled, opened, or cancelled. It's designed to give you a complete picture for analyzing your backtesting results.
 
-Each event has a timestamp, identifies the specific action taken (scheduled, cancelled, or opened), and details the trading pair involved. You'll find the unique signal ID and position type associated with the event.
+You'll find details like the exact time of the event, the trading pair involved (symbol), a unique signal ID, and the type of position taken. It includes essential pricing data like the entry price, take profit, stop loss, and original prices before any adjustments.
 
-Beyond the basics, it includes notes about the signal, the current market price at the time, and the entry, take profit, and stop loss prices. Crucially, it stores the original take profit and stop loss prices before any adjustments were made.
-
-For signals using DCA (Dollar-Cost Averaging) strategies, you'll also see details about the number of entries and partial closes. It even tracks the total executed percentage of partial closes.
-
-Finally, the object includes information about the position's PNL (profit and loss), how long the position was open or cancelled, and, in the case of cancellations, the reason behind it and a unique cancellation ID. You'll also see the original entry price before any averaging and the time the position became active.
+If you used DCA (Dollar-Cost Averaging), it tracks the number of entries and partial closes. Profit and loss information (pnl) is also included, along with timing details and, for cancellations, the reason and a unique ID if a user initiated it. Finally, you can access when a position became active or when a signal was initially created.
 
 ## Interface ScheduleStatisticsModel
 
-This model gives you a clear picture of how your scheduled signals are performing. 
+This model holds statistics about scheduled signals, offering insights into how they're managed over time. 
 
-It tracks all the events associated with your scheduled signals – when they were scheduled, opened (activated), or cancelled. 
+It gives you a complete picture of signal activity, tracking everything from when a signal is scheduled to when it's opened or cancelled. 
 
-You’ll find the total count of each type of event, alongside key performance indicators like cancellation and activation rates. 
+You'll find key figures like the total number of signals scheduled, opened, and cancelled, alongside overall event counts.
 
-The cancellation rate tells you how often scheduled signals are cancelled, and the activation rate shows how often they’re successfully turned into open signals.
+It also calculates important performance indicators such as cancellation and activation rates, expressed as percentages, to assess the efficiency of your scheduling process.
 
-Finally, it provides insights into how long signals typically wait before cancellation or activation, helping you identify potential bottlenecks or areas for optimization.
-
+Finally, the model provides average waiting times for both cancelled and opened signals, helping you identify potential delays or bottlenecks.
 
 ## Interface SchedulePingContract
 
-This defines a standardized way for the backtest-kit framework to notify you about ongoing scheduled signals. Think of it as a heartbeat, letting you know a signal is actively being monitored. These "schedule ping" events happen every minute while a signal is running – it's not triggered when a signal is first created or when it's stopped.
+This interface describes the data you receive when tracking a scheduled signal – essentially, a regular "ping" to let you know the signal is active and being monitored. These pings happen roughly every minute while the signal is running, providing a stream of information about its status.
 
-It gives you a chance to keep tabs on the signal's lifecycle and put your own monitoring rules in place. You can listen for these pings repeatedly or just once.
+You'll get details like the trading symbol (e.g., BTCUSDT), the name of the strategy involved, and the exchange being used. A `frameName` indicates the timeframe being analyzed; this will be empty during live trading.
 
-Each ping contains essential information:
+The most important part is the `data` property, which contains all the information about the scheduled signal itself, including its ID, position size, and stop-loss levels. The `currentPrice` gives you the current market price at the time of the ping, which is crucial if you want to build custom logic to manage your signals, like automatically canceling them under certain price conditions.
 
-*   **symbol:** The trading pair, like "BTCUSDT".
-*   **strategyName:** The name of the trading strategy in use.
-*   **exchangeName:** The exchange the signal is being tracked on.
-*   **frameName:** The timeframe or date range of the analysis. This is blank during live trading.
-*   **data:** All the details about the scheduled signal itself, including entry price, take profit, and stop loss.
-*   **currentPrice:** The current market price at the moment the ping was sent.
-*   **backtest:** A flag indicating whether the ping comes from a historical backtest or live trading.
-*   **timestamp:** When the ping was generated.
-
-This provides a structured way to build custom logic around your scheduled signals, such as automatically cancelling a signal if certain conditions are met.
+Finally, the `backtest` flag tells you whether the data is coming from a historical simulation or real-time trading, and `timestamp` provides a record of when the ping occurred – either the exact time in live mode or the candle timestamp in backtest mode. This allows you to build custom monitoring and cancellation logic based on the ping events.
 
 ## Interface ScheduleEventContract
 
-This contract helps you keep track of what’s happening with your scheduled trading signals without needing to constantly monitor all the signals. It announces when a signal is initially scheduled (meaning it’s waiting to be triggered) and when it's removed before it ever gets activated.
+This contract lets you keep track of signals that are scheduled for execution but haven't actually started trading yet. You can use it to know when a signal is added to the schedule or when it's removed.
 
-Think of it like getting a heads-up when a signal is added to the queue, or when it's taken out because something went wrong – maybe it timed out, the price moved against it too quickly, or you manually cancelled it.
+It’s useful for monitoring the lifecycle of signals without needing to follow all the regular signal activity.
 
-Here's a breakdown of what's included in each notification:
+It's important to understand this *doesn't* track when a scheduled signal actually starts trading; that’s handled elsewhere. Instead, it focuses on the signal's journey from being scheduled to potentially being canceled.
 
-*   **Action:** Tells you whether a new signal was scheduled or if an existing one was cancelled.
-*   **Symbol:** The trading pair involved (like BTCUSDT).
-*   **Strategy & Exchange Names:** Identifies which strategy and exchange the signal belongs to.
-*   **Frame:** The timeframe or date range the signal is associated with.
-*   **Data:**  All the details of the signal itself, like its ID, price targets, and stop-loss levels.
-*   **Reason (for cancellations):** Explains *why* the signal was cancelled (e.g., timeout, price rejection, user intervention).
-*   **Current Price:** The market price at the moment of the event.
-*   **Backtest Flag:**  Indicates whether the event happened during a backtest or live trading.
-*   **Timestamp:**  The exact time of the event, which is the real-time moment in live trading or the candle timestamp in backtesting.
+Here’s a breakdown of what information you get with each event:
 
-You can use this contract to listen for these events, allowing you to react to changes in your scheduled signals without needing to process the full signal stream.
+*   **action**: Tells you whether a new signal was scheduled or an existing one was cancelled.
+*   **symbol**: Identifies the trading pair involved (e.g., BTCUSDT).
+*   **strategyName**: The name of the trading strategy that created the signal.
+*   **exchangeName**: The exchange where the signal originates.
+*   **frameName**: The timeframe or date range associated with the signal.
+*   **data**: Contains all the details of the signal itself, like its ID, price targets, and position size.
+*   **reason**: If a signal is cancelled, this tells you *why* (e.g., timeout, price reject, or user cancellation). It’s only available when the action is “cancelled”.
+*   **currentPrice**: The current market price when the event happened.
+*   **backtest**: Indicates whether the event occurred during a backtest or live trading.
+*   **timestamp**: The precise time of the event, based on either the tick time (live) or the candle timestamp (backtest).
+
+You can listen for these events using `listenScheduleEvent()` or `listenScheduleEventOnce()`.
 
 ## Interface RiskStatisticsModel
 
-This model holds information about risk events that occurred during a backtest. Think of it as a report card for your risk management system.
+This model holds information about risk rejections, helping you understand where and why risks are being triggered. 
 
-It includes a detailed list of all the risk rejections that happened, along with the total number of rejections. 
+It collects data about each individual risk event, giving you a detailed history. 
 
-You can also see how these rejections are distributed - broken down by the trading symbol involved, and by the strategy that triggered them. This helps identify areas needing attention.
+You'll find the total count of risk rejections, as well as a breakdown of those rejections organized by the symbols involved and the strategies employed. This allows you to pinpoint areas needing attention in your trading system.
+
 
 ## Interface RiskRejectionNotification
 
-This notification alerts you when a trading signal is blocked by your risk management rules. It's a way of knowing why a potential trade didn't happen.
+This notification tells you when a trading signal was blocked by your risk management rules. It provides detailed information about why the signal wasn't executed.
 
-The notification includes details like a unique ID, the timestamp of the rejection, and whether it occurred during a backtest or live trading. You’ll also see the symbol being traded (like BTCUSDT), the name of the strategy that generated the signal, and the exchange involved. 
+Each notification has a unique ID and timestamp, indicating when the rejection happened. You’ll find details like the strategy name, the exchange involved, and a clear explanation of the rejection reason.
 
-It provides a clear explanation for the rejection, an optional unique rejection identifier for tracking, and information about your existing portfolio.  You'll get the current price at the time of the rejection, and specifics about the proposed trade, including entry price, take profit, stop loss and the signal’s reason.
+The notification also includes technical information like whether it's from a backtest or live environment, the trading symbol, and current market price. 
+
+For a full picture, you’ll see the number of currently open positions, the intended trade direction (long or short), and the planned take profit and stop-loss prices. Optionally, a signal ID, the estimated duration, and a description of the signal’s reason can be provided too.
 
 ## Interface RiskEvent
 
-The RiskEvent data structure holds information about situations where trading signals were blocked due to risk management rules. It’s essentially a record of when a trade didn’t happen because a limit was triggered.
+This data structure holds information about situations where a trading signal was blocked due to risk management rules. Each `RiskEvent` represents a specific instance where a signal couldn't be executed.
 
-Each RiskEvent contains details like when it occurred (timestamp), the symbol being traded, the specifics of the signal that was rejected, the name of the strategy involved, the exchange and timeframe being used, and the current market price.
+It includes details like when the event happened (`timestamp`), the trading pair involved (`symbol`), the signal itself (`currentSignal`), and the name of the strategy that generated it. 
 
-You'll also find information on the number of active positions at the time of the rejection, a unique ID for tracking the rejection, and a note explaining why the signal was blocked. Finally, it indicates whether the event occurred during a backtest or live trading session.
+You'll also find the exchange and time frame, the current price, and how many positions were already open when the signal was rejected. 
+
+A unique ID (`rejectionId`) helps track individual rejections, and a note (`rejectionNote`) explains why the signal was rejected. Finally, it indicates whether the event occurred during a backtest or a live trading session.
 
 ## Interface RiskContract
 
-The RiskContract represents a rejected trading signal due to risk validation. It’s like a notification that a planned trade was blocked because it exceeded pre-defined risk limits.
+The RiskContract represents a signal that was blocked due to risk management checks. It's used to keep track of when and why signals are rejected because of risk limits, not just when signals are generally generated.
 
-This event only happens when a trade is actually rejected, avoiding unnecessary notifications for signals that pass the risk checks.
+Think of it as a log of the times the system prevented a trade from happening because it was deemed too risky.
 
-The information provided in the RiskContract helps you understand *why* a signal was rejected. You'll find details like the trading pair (symbol), the specifics of the signal (price, position size), which trading strategy requested it, and the time the rejection occurred.
+Here's what information you'll find about each rejected signal:
 
-Key data includes the current market price at the time of rejection, the total number of active positions held, and a unique ID for tracking the event.  A human-readable explanation (rejectionNote) will also be provided, explaining the reason for the rejection.  Finally, it indicates whether the rejection happened during a backtest or live trading.
+*   The trading pair involved (symbol), like "BTCUSDT."
+*   The details of the signal itself (currentSignal).
+*   The name of the strategy that tried to create the signal.
+*   The timeframe used during the backtest (frameName).
+*   The exchange involved (exchangeName).
+*   The price at the time of rejection (currentPrice).
+*   The total number of active positions at the time (activePositionCount).
+*   A unique ID for this specific rejection (rejectionId).
+*   A description of why the signal was rejected (rejectionNote).
+*   The timestamp marking when the rejection occurred.
+*   Whether the rejection happened during a backtest or live trading (backtest).
 
-This data is valuable for creating risk reports and letting users know when their trading strategies are being held back by risk controls.
+This information is used by services like risk reporting tools and by users who want to monitor risk events.
 
 ## Interface ProgressWalkerContract
 
-The `ProgressWalkerContract` helps you keep tabs on how a background process is running. It's designed to give you updates while a `Walker` is working, so you can see what's happening. 
+This interface helps you keep an eye on how a backtest walker is doing. 
 
-You'll receive information like the name of the walker, the exchange being used, and the trading symbol involved.
+It provides information about the walker’s name, the exchange being used, and the frame it’s working with. 
 
-It also tells you how many strategies are being evaluated in total, how many have already been processed, and the overall percentage of completion. Think of it as a progress bar for your backtesting operations.
+You'll also get details like the total number of trading strategies being analyzed, how many have already been processed, and a percentage representing how far along the process is – ranging from 0% to 100%. Think of it as a progress report during a lengthy backtesting run.
 
 ## Interface ProgressBacktestContract
 
-This interface helps you keep an eye on how your backtests are progressing. It provides updates during the backtesting process, letting you know which exchange and strategy are being used, along with the symbol being traded. You'll see information about the total number of historical data points (frames) the backtest needs to analyze and how many have already been processed. Finally, it tells you the percentage of the backtest that's complete, giving you a clear picture of how much longer it will take.
+This contract provides updates on the backtesting process. As a backtest runs, you’ll receive these events to monitor its progress. 
+
+Each update includes details like the exchange and strategy being used, the trading symbol, and how many historical data points (frames) have been processed out of the total. You'll also get a percentage indicating how much of the backtest is complete, allowing you to track its overall advancement.
+
 
 ## Interface PerformanceStatisticsModel
 
-This model holds the overall performance data for a specific trading strategy. It breaks down the results, telling you the strategy’s name, the total number of performance events tracked, and the total time it took to run.
+This model holds all the performance statistics collected during a backtest, grouped by the strategy that generated them. You'll find the strategy's name here, along with the total number of performance events that were tracked and the overall time it took to calculate those statistics. 
 
-The `metricStats` property is key – it organizes performance details by the type of metric being measured, giving you a categorized view of how the strategy performed. Finally, you have access to all the individual performance events (`events`) in their raw form, allowing for a very granular look at the strategy’s behavior.
+The `metricStats` property lets you drill down into performance details, broken down by the type of metric being measured. 
+
+Finally, the `events` array contains all the individual performance data points, providing the complete, raw information used to generate the summarized statistics.
 
 ## Interface PerformanceContract
 
-The `PerformanceContract` helps you understand how quickly different parts of your trading system are working. It records information about operations, like how long they take to complete, when they happen, and what they’re related to.
+The PerformanceContract helps you monitor how quickly and efficiently different parts of your trading system are running. It's like a digital stopwatch, recording how long various tasks take, like executing orders or calculating indicators.
 
-You'll see these records during backtesting and live trading, allowing you to spot slow areas or bottlenecks. Each record includes a timestamp, the time of the previous record, the type of operation, its duration, and details like the strategy, exchange, frame, and trading symbol it’s connected to. A flag will also indicate whether the data comes from a backtest or live environment.
+Each recorded event, or "metric," includes details like when it happened, how long the task took, which strategy and exchange were involved, and whether it was part of a backtest or live trading. This information lets you pinpoint slow areas in your system – perhaps a particular strategy or a connection to a specific exchange – so you can optimize performance. Think of it as a way to find and fix bottlenecks to make your trading run smoother and faster. The `frameName` will be empty if you're not using a frame.
 
 ## Interface PartialStatisticsModel
 
-This model holds key statistics about your backtest results, specifically focusing on events where partial profits or losses occurred. It gives you a breakdown of how many profit events you saw, how many loss events occurred, and the total number of events recorded. The `eventList` provides a detailed record of each individual profit or loss event, while `totalEvents` represents the overall count. Essentially, it’s a quick way to get a grasp on the distribution of profit and loss in your backtest.
+This model holds key statistics about partial profit and loss events during a backtest. 
+
+It gives you a breakdown of how many times profit and loss milestones were reached, along with the total number of events.
+
+You'll find a list of all the individual events, including all their details, stored in the eventList property. TotalEvents simply tells you how many profit and loss events occurred overall. TotalProfit and TotalLoss give you the counts for each type of event individually.
 
 ## Interface PartialProfitContract
 
-This describes a way to track progress when a trading strategy achieves partial profit milestones. Imagine a strategy aiming for a 100% return, but taking profits along the way at 10%, 20%, and so on. This structure represents each of those milestones, telling you exactly *when* and *how* a strategy is making progress.
+The `PartialProfitContract` represents a signal achieving a profit milestone during trading. It's like a notification saying "Hey, this trade has reached 10%, 20%, or another percentage of profit!".
 
-Each event includes details like the trading pair (e.g., BTCUSDT), the name of the strategy, the exchange being used, and the frame (which is usually empty for live trading). You’ll also see the original data that led to the signal, the current price at the time of the milestone, and the specific profit level (10%, 20%, etc.).
+These notifications, or events, are sent out as a signal progresses and hits these predefined profit levels – think of them as checkpoints along the way to a full take-profit.
 
-It tells you whether the event is from a historical backtest or live trading, and provides a timestamp, representing either the real-time moment of the detection or the timestamp of the candle that triggered the level during a backtest. These events are primarily used to monitor performance and generate reports about how your strategies are doing.
+You'll find details about the trading symbol, which strategy generated the signal, the exchange and frame it’s running on, and all the original data associated with the signal itself.
+
+The `currentPrice` tells you the price at which that profit level was actually reached, while the `level` property clearly indicates the percentage (10%, 20%, etc.).
+
+The `backtest` flag tells you if this event happened during a simulated historical test or a live trade. Finally, there's a timestamp indicating precisely *when* this profit level was detected – either the real-time moment for live trades or the timestamp of the historical candle that triggered the event.
+
+These events are used by services like the `PartialMarkdownService` to build reports and also allow you to set up callbacks to monitor strategy progress directly.
 
 ## Interface PartialProfitCommitNotification
 
-This notification tells you when a partial profit has been taken on a trade, whether it's a backtest or a live trade. It provides a ton of information about the trade, including a unique ID, when it happened, and which strategy triggered it.
+This notification tells you when a partial profit target has been hit during a trade. It’s like getting a little report card on a piece of your position being closed out. You'll see key details like the unique identifier of the notification, exactly when it happened (down to the millisecond), and whether it's a backtest or a real-time trade.
 
-You’ll find details like the trading pair (e.g., BTCUSDT), the entry and take profit/stop loss prices, and how much of the position was closed. It also gives you a complete financial picture of the trade, including profit/loss, peak profit, maximum drawdown, and the effective prices used for those calculations. 
+The notification also provides a wealth of information about the trade itself, including the trading pair, the strategy that triggered it, and the exchange involved. You can trace back the signal, see the entry price, the original take profit and stop-loss levels, and understand how any trailing adjustments have affected those prices.
 
-The notification includes details about DCA averaging, like the total number of entries and how that affected pricing. It even tracks the original prices and includes optional notes that explain the reason behind the signal. Finally, it logs timestamps for when the signal was scheduled, became pending, and when the notification itself was created.
+Beyond the basics, you’ll get a comprehensive view of the trade's performance – total profit and loss (both in USD and as a percentage), peak profit achieved, maximum drawdown experienced, and even details about the individual entries and partial closes. This makes it easy to analyze how the strategy is performing and understand its risk profile. There’s also an optional "note" field which provides some context about why the signal was triggered. Finally, timestamps track signal scheduling, pending state, and the creation of this specific notification.
 
 ## Interface PartialProfitCommit
 
-This data represents a partial profit taking action within a trading strategy. It details how much of a position is being closed – specified by the `percentToClose` – and the current market price at the time of the action. You’ll also find key performance metrics associated with the position, including the total profit and loss (`pnl`), the highest profit achieved (`peakProfit`), and the largest drawdown experienced (`maxDrawdown`). 
+This event signifies a partial profit-taking action within a trading strategy. It details the specifics of how much of the position is being closed, represented as a percentage. Alongside this, you'll find the current market price when the action was triggered, along with a breakdown of the position's performance.
 
-The information also describes the trade's characteristics, like whether it was a long or short position, the initial entry price (`priceOpen`), and the final take profit and stop loss prices, both as they were originally set and after any trailing adjustments.  A timestamp shows when the signal to take partial profit was generated (`scheduledAt`), and another indicates when the position initially started (`pendingAt`).
+The data includes the total profit and loss (pnl) for the closed portion, as well as important metrics like the peak profit and maximum drawdown experienced by the entire position. It also provides information about the original entry price, stop-loss and take-profit levels, both as they were initially set and as they are currently adjusted.
+
+Finally, timestamps are provided to indicate when the signal was generated and when the position was activated. This comprehensive set of information allows for a detailed analysis of the strategy’s profit-taking behavior and performance.
+
 
 ## Interface PartialProfitAvailableNotification
 
-This notification tells you when your trading strategy has reached a profit milestone, like 10%, 20%, or 30% of its potential. It’s essentially a checkpoint showing progress towards your take-profit target. 
+This notification lets you know when a trading strategy has reached a predefined profit milestone, like 10%, 20%, or 30% gain. It's a signal that things are going well with a trade, whether you're testing a strategy in backtest mode or actively trading live. The notification includes detailed information about the trade – the symbol, the strategy used, and the exchange it was executed on – as well as the entry and take profit/stop loss prices.
 
-The notification includes detailed information about the trade: the symbol being traded, the strategy used, which exchange is involved, and a unique ID for both the signal and the notification itself. 
-
-You'll also find key data points like the current price, your original entry price, and the effective stop-loss and take-profit prices (which might have been adjusted if you’re using trailing stops). 
-
-Beyond just the price data, the notification provides a full snapshot of the trade's performance so far, including its total profit and loss (both in USD and as a percentage), the peak profit achieved, and the maximum drawdown experienced. It also tracks details related to DCA averaging (if used) and partial profit-taking. 
-
-Finally, it indicates whether this notification originates from a backtest simulation or a live trading environment. A human-readable note field allows for optional extra context.
+You’ll find specifics on the trade's performance, like total profit and loss, peak profit achieved, and maximum drawdown experienced.  It also provides details on the DCA (Dollar Cost Averaging) process, like the number of entries and partial closes. The notification also outlines original pricing data and adjustments made for things like trailing stop losses. This allows a full picture of the trade’s progress and performance.
 
 ## Interface PartialLossContract
 
-The PartialLossContract represents a notification that a trading strategy has hit a predefined loss level, such as -10%, -20%, or -30%. Think of it as a way to keep track of how much a strategy is losing.
+The `PartialLossContract` describes events that occur when a trading strategy experiences a loss, specifically at predefined milestones like -10%, -20%, and so on. These events are crucial for monitoring a strategy's performance and understanding its drawdown.
 
-This event is triggered when a signal reaches one of these loss levels, and it happens only once for each level per signal.  If the price drops quickly, you might receive multiple loss level notifications in a single tick.
+Each event provides detailed information, including the trading symbol, the strategy's name, the exchange and frame it’s operating on, and the original signal data. You'll also find the current market price at the time of the loss, the specific loss level reached (e.g., -20%), whether the event originates from a backtest or live trading, and a timestamp of when it happened.
 
-The contract provides key information, including the trading symbol, strategy name, and the exchange and frame where the trade is happening.  You’ll also get the full signal data, the current price at the time of the loss, the specific loss level reached (e.g., 20% loss), and whether this event occurred during a backtest or live trading.
-
-Essentially, it's a detailed alert about strategy drawdown. Services like the PartialMarkdownService use this information to generate reports, and developers can use it to build custom monitoring or response systems.
-
+The `PartialLossContract` allows you to track these milestones, enabling services like report generation and allowing users to subscribe to these loss events through callbacks. Note that a single event can represent multiple loss levels triggered during a significant price drop.
 
 ## Interface PartialLossCommitNotification
 
-This notification tells you when a partial closing of a trade has happened. It's like a detailed report card for that specific action, letting you know exactly what happened and why.
+This notification tells you when a portion of a trading position has been closed. It’s like a detailed report card for a partial exit from a trade.
 
-You’ll find a unique ID for the notification, along with the exact time it occurred and whether it happened during a test or live trading. It also includes details about the trade itself: the symbol (like BTCUSDT), the strategy used, and the exchange involved.
+You'll find key information like a unique ID for the notification, when it happened, and whether it occurred during a backtest or live trading. It specifies which trading pair (like BTCUSDT) and strategy were involved, along with the exchange used.
 
-The notification breaks down the trade’s performance: you’ll see the percentage of the position closed, current market price, original entry price, and the take profit and stop loss prices, both original and adjusted. 
+The notification provides a wealth of data about the trade itself: the signal ID, the percentage of the position closed, the current price at the time of the partial close, the trade direction (long or short), the original entry price, and the original stop-loss and take-profit prices.
 
-It also provides a comprehensive view of the position’s profitability, including total profit and loss, peak profit, maximum drawdown, and all associated prices and percentages. There’s a lot of information about the cost, entries, and specific prices related to profit and loss calculations.
-
-Finally, you'll get notes if there's an optional description, a scheduled timestamp, pending time, and the notification creation timestamp – offering a complete timeline of events.
+Crucially, it includes comprehensive performance metrics. You'll get the total Profit and Loss (PNL), the highest profit achieved (peak profit), the largest loss experienced (max drawdown), and their respective prices and costs. You'll also find details about entries, slippage, and fees.  Finally, an optional note can offer extra context about why the partial close was executed.
 
 ## Interface PartialLossCommit
 
-This interface represents a partial loss event within a trading strategy's backtest. It signifies that a portion of a position has been closed, typically as a risk management technique.
+This object represents a partial loss event within the backtest framework. It details a situation where a portion of a trading position is being closed.
 
-The `action` property clearly identifies this as a 'partial-loss' event. 
+The `action` property simply identifies this as a partial loss event.
 
-The `percentToClose` specifies what percentage of the initial position size was closed.  You'll also find details about the position, including the `position` direction (long or short), the `priceOpen` at which it was initiated, and the `priceTakeProfit` and `priceStopLoss` levels, both their original values and any adjusted values due to trailing stops.
+The `percentToClose` tells you what percentage of the position is being closed.  A value of 50 would mean half the position is being closed.
 
-Crucially, the event includes performance metrics for the position up to this point: `pnl` (total profit and loss), `peakProfit` (highest profit achieved), and `maxDrawdown` (largest loss from a peak). Finally, `scheduledAt` and `pendingAt` provide timestamps indicating when the signal was created and when the position was initially activated.
+You'll find the `currentPrice` which shows the market price at the moment the partial loss action was triggered.
+
+The `pnl`, `peakProfit`, and `maxDrawdown` properties give you a comprehensive view of the position's performance up to this point, including total profit/loss, the highest profit achieved, and the largest drawdown experienced.
+
+The `position` property specifies whether the original trade was a long (buy) or short (sell) position.
+
+Various price-related properties like `priceOpen`, `priceTakeProfit`, `priceStopLoss`, `originalPriceTakeProfit`, and `originalPriceStopLoss` provide full details about the trade's entry, intended take profit, and stop-loss levels - useful for understanding the trade's parameters and how they evolved.
+
+`scheduledAt` and `pendingAt` timestamps provide a timeline of when the signal was created and when the position was activated.
 
 ## Interface PartialLossAvailableNotification
 
-This notification signals that a trading position has reached a predefined loss milestone, such as a 10% or 20% drawdown. It provides detailed information about the trade, including its unique identifier, the time it occurred, and whether it’s part of a backtest or live trading. You’ll find key details like the trading pair, the strategy and exchange involved, and the trade’s direction (long or short).
+This notification signals that a trading strategy has reached a predefined loss level, like -10%, -20%, or -30% of the initial investment. It’s a way to track potential downside risk within a strategy.
 
-The notification also includes comprehensive performance metrics:
+The notification includes a unique ID and timestamp, and tells you whether it's from a backtest or a live trade. It provides key details about the trade: the trading pair (like BTCUSDT), the strategy used, the exchange, a unique signal ID, and the specific loss level triggered.
 
-*   Entry and stop-loss/take-profit prices, both original and adjusted for trailing.
-*   Detailed information on DCA averaging, including the number of entries and partial closes.
-*   Profit and loss (pnl) calculations, including percentage, cost in USD, and entry/exit prices accounting for fees and slippage.
-*   Peak profit and maximum drawdown metrics, with associated prices, costs, percentages, and entry counts.
-*   An optional note can be included to explain the reason for the signal.
+You'll also find information about the trade itself, like the entry price, the trade direction (long or short), and the current price at the time the level was reached, along with the take profit and stop loss prices. It even includes the original prices before any trailing adjustments.
 
-Finally, timestamps are provided to track the signal's creation and lifecycle events like pending and creation.
+Further details cover the trade’s history: how many entries were made (important for dollar-cost averaging), how many partial closes have occurred, and the overall profit and loss (including fees), peak profit, and maximum drawdown, all presented in both absolute and percentage terms. There’s also an optional note field for a human-readable explanation of why the signal occurred and timestamps showing when the signal was scheduled, pending, and created.
 
 ## Interface PartialEvent
 
-The `PartialEvent` object holds all the important details about profit and loss milestones during a trade. It essentially captures a snapshot of the trade's progress at key points, giving you a complete picture for analysis and reporting.
+The `PartialEvent` object helps you understand what happened during a trade by bundling together key information about profit and loss milestones. Think of it as a snapshot of a significant moment in a trade. It records details like the exact time, whether it was a profit or loss event, the trading pair involved, the strategy used, and a unique identifier for the signal.
 
-You'll find information like the exact time of the event, whether it's a profit or loss, and the trading symbol involved. It also includes specifics about the strategy used, the signal that triggered the trade, and the position's details, such as entry and exit prices. 
-
-The object also tracks important settings like the original take profit and stop loss levels, as well as information about any DCA (Dollar Cost Averaging) strategies applied.  Details on partial closes, unrealized profit and loss, and even a human-readable note explaining the trade's reasoning are also included. Finally, flags indicate whether the trade was part of a backtest or live trading.
+You’ll also find crucial data points such as the current price, the level of profit or loss achieved (like 10%, 20%, etc.), and the original entry, take profit, and stop-loss prices set when the trade began.  If you’re using a dollar-cost averaging (DCA) strategy, it includes details like the total number of entries and the original entry price before averaging.  The `PartialEvent` also tracks the impact of partial closes, the unrealized profit and loss, a human-readable note explaining the signal, and timestamps marking when the position became active and when the signal was scheduled. Finally, it indicates if the trade occurred in backtest or live mode.
 
 ## Interface OrderSyncOpenNotification
 
-This notification provides detailed information when a scheduled order (like a limit order) is triggered and a position is opened. It acts as a signal confirming that the plan is in action.
+This notification tells you when a trading position has been opened, either immediately or through a scheduled order. It's essentially a signal that something happened in the trading process, letting you know a position is now active.
 
-The notification includes a unique ID, the time it was created, and whether it's from a backtest or live trading environment. You'll find essential details like the trading pair (e.g., BTCUSDT), the strategy that generated the signal, and the exchange used.
+The notification provides a wealth of information about this new position, including a unique ID, the timestamp of the event, and whether it occurred during a backtest or live trading. You'll also find details about the trading pair (like BTCUSDT), the strategy that generated the signal, and the exchange where the trade took place.
 
-It also gives you a comprehensive performance snapshot of the position, including profit/loss (both in USD and percentage), peak profit achieved, and the maximum drawdown experienced. You’ll find entry and exit prices, and information about any take profit or stop-loss orders initially set.
+Crucially, it breaks down the performance metrics of the position: profit and loss (PNL), peak profit, maximum drawdown, and associated prices. It also shares details about entry and exit prices, costs, and the number of entries or partials executed.
 
-Finally, the notification provides further details regarding the position like cost, direction (long or short), and relevant timestamps like when the signal was scheduled or when the position was activated. This provides a full picture of the trade’s initial conditions.
+Finally, you’ll see information around the order itself: opening price, take profit and stop loss levels, and when the order was scheduled or activated. There's also an optional note field for any additional context about the signal.
 
 ## Interface OrderSyncCloseNotification
 
-This notification type signals that a pending trading signal has been closed, whether that's because a take profit or stop loss was triggered, a time limit expired, or a manual closure. It provides a wealth of information about the closed position, including its unique identifier, when it was created and closed, and whether it was part of a backtest or live trading scenario. You'll find details about the trade itself, like the entry and exit prices, as well as key performance indicators like profit and loss (both absolute and percentage), peak profit, and maximum drawdown.
+This notification tells you when a trading signal has been closed, whether it’s from a backtest or a live trade. It provides a lot of details about what happened, including the trading pair, strategy used, and the exchange where the trade was executed. You’ll find the signal's unique identifier, the time it was closed, and whether it was part of a backtest.
 
-The notification also breaks down the specifics of how the position was managed, outlining the original take profit and stop loss levels, the total number of entries (for positions averaged with DCA), and any partial closes that occurred.  Finally, it describes *why* the signal was closed – whether it was due to hitting a target, timing out, or a manual intervention – alongside an optional descriptive note.  Essentially, it's a complete record of a closed trading signal's lifecycle and performance.
+The notification also breaks down the profit and loss (PNL) for the trade – including the total profit/loss, peak profit achieved, and maximum drawdown experienced. You get a comprehensive view of the trade's performance, including key prices, costs, and percentages, along with details like entry and exit prices.  It also provides information about how the trade was managed, like the original take profit and stop loss prices, the number of entries and partials involved, and the reason for closure (take profit, stop loss, time expiration, or manual closure). Finally, there’s an optional note field for extra explanation.
+
+## Interface OrderSyncCheckNotification
+
+This notification provides a snapshot of an open trading position, essentially a "health check" pinged from your external order management system. It's used to confirm that the order backing a signal is still active on the exchange, particularly in live trading environments. These checks happen frequently, but are throttled to avoid overwhelming the system – you'll receive a notification roughly every 15 minutes per signal.
+
+The notification contains a wealth of information about the position, including its symbol, strategy name, and the exchange where it's held. You'll see details about the original order, like the entry and stop-loss prices, along with how they've been adjusted by trailing.
+
+It also provides critical performance metrics such as realized and unrealized profit/loss (PNL), peak profit, and maximum drawdown, along with the entry and exit prices used in those calculations. You'll also find information on DCA entries and partial closes if they've occurred. Finally, a note field allows for additional human-readable context around the signal's rationale.
 
 ## Interface OrderSyncBase
 
-This defines the common information you’ll find in events related to order synchronization within the backtest-kit trading framework. It essentially describes what's happening with an order – whether it’s an active order (like opening, closing, or modifications) or a scheduled order being placed.
+This describes the common information you'll find in events related to order synchronization within the backtest-kit trading framework. Think of it as a shared foundation for understanding what's happening with your orders.
 
-Each event includes details such as the trading symbol, the name of the strategy that generated the signal, and the exchange used.  You’ll also see if the event originates from a backtest environment versus a live trading environment.  A unique ID and timestamp provide precise identification and tracking of the signal’s lifecycle. Finally, a complete snapshot of the signal data is included for detailed analysis.
+Each event will tell you what *type* of order is involved – whether it's an active order being managed (like opening, filling, or closing) or a scheduled order initially being placed. It will also specify the trading pair's *symbol*, the *strategyName* that generated the signal, and the *exchangeName* used. 
+
+You’ll also see details like the *frameName* (important for backtesting), whether it’s a *backtest* run or a live trade, and a unique *signalId* for tracking purposes. Finally, the *timestamp* reflects the precise moment of the event, and a full *signal* record provides all the signal data at that time.
 
 ## Interface OrderOpenContract
 
-This event lets you know when a limit order has been filled and a position is officially open. It’s particularly useful for synchronizing with external systems that manage orders, like order management systems or auditing tools. 
+This event, `OrderOpenContract`, lets you know when a limit order has been filled and a position has been opened. It’s especially useful if you’re connecting your trading framework to external systems that need to track order execution, like order management systems or audit logs. 
 
-Think of it as a confirmation that your limit order (the price you wanted to buy or sell at) was accepted by the exchange.
+Think of it as a confirmation that your buy or sell order has been accepted by the exchange. 
 
-During backtesting, this event is triggered based on price levels – when the candle's low is below your desired entry price for a long position, or the candle's high is above for a short position. In live trading, the event fires when the exchange confirms the order has been filled.
-
-The event provides a wealth of information about the trade, including the entry price (`priceOpen`), the current market price (`currentPrice`), and how the position has performed so far – its profit/loss (`pnl`), peak profit, and maximum drawdown. You’ll also find details about the original take profit and stop loss prices, as well as information about any DCA (Dollar-Cost Averaging) or partial closes that may have occurred. The `scheduledAt` and `pendingAt` timestamps are useful for tracking the timing of the order and its activation.
-
+The event provides a wealth of information about the trade, including the price at which it was filled (`priceOpen`), the current market price, and performance metrics like profit (`pnl`), peak profit, and maximum drawdown. You’ll also find details about the original take profit and stop loss prices, and how many entries and partial closes were involved. This data helps you understand the position’s history and performance. The `scheduledAt` and `pendingAt` fields indicate when the signal was initially created and when the position was activated, respectively. The `totalEntries` and `totalPartials` fields show you if and how much of your position was averaged or closed early.
 
 ## Interface OrderCloseContract
 
-When a trading signal is closed – whether it's because of a profit target, a stop-loss trigger, time expiry, or manual closure – this event is fired. It's designed to keep external systems in sync with what's happening in the backtest kit, like updating order books or recording profit and loss.
+When a trading signal is closed – whether by hitting a take profit or stop loss, expiring, or being manually closed – this event is triggered. It provides a wealth of information about the closed position, designed to help external systems keep track of orders and record financial results. Think of it as a notification saying, "This signal has finished, here's everything you need to know about it."
 
-You'll receive detailed information about the closure, including the current market price, the direction of the trade (long or short), and the original and final prices for entry, take profit, and stop-loss. The event also provides the overall profit and loss (pnl) for the position, along with its peak profit and maximum drawdown.
+You'll receive details like the current market price at the time of closure, the total profit and loss (PNL) for the entire trade, and key performance metrics like peak profit and maximum drawdown, which show the highest profit achieved and the largest loss experienced.
 
-The event also provides specifics on the signal's lifecycle, such as when it was created and activated, as well as the reason for closure. Finally, the event includes details about any averaging or partial closures that occurred during the trade's lifespan.
+The event also includes the initial trade direction (long or short), the effective entry and target prices used for closing, and the original prices before any adjustments like trailing or averaging. It also tells you exactly when the signal was created and when the position was activated. 
+
+Finally, it specifies the reason for the closure, and details the number of times the position was averaged (DCA) and how many partial closes were executed. This allows external systems to accurately reflect the nuances of the trade’s execution.
 
 ## Interface OrderCheckContract
 
-This event, called `OrderCheckContract`, is a crucial signal emitted during trading to ensure your orders remain valid with the exchange. It's like a regular check-in to confirm that an order you placed is still active. This happens both for open positions ("active" type) and for orders waiting to be triggered ("schedule" type).
+The `OrderCheckContract` is a signal sent during live trading to ensure orders are still valid on the exchange. Essentially, it's a periodic check-in to confirm that the orders backing your trading signals are still open and haven't been unexpectedly filled, canceled, or liquidated. This helps the system react gracefully to situations where an order might be missing from the exchange.
 
-If the framework receives a positive response when it checks if an order is still open, it continues monitoring. However, if it doesn't receive a response or a negative response, the framework takes action—either closing the position or cancelling the pending order. 
+There are two main types of checks: "active" for open positions and "schedule" for pending orders awaiting activation.  If the system receives a response indicating the order is missing, it will either close the pending signal or cancel the scheduled signal. 
 
-Keep in mind that this event *won't* happen during backtesting because there's no live exchange data involved. This is primarily used by broker adapters and registered actions.
-
-The signal provides a wealth of information, including the trading pair symbol, the strategy that generated the signal, the current market price, unrealized profit and loss, and details about the original and adjusted entry, take profit, and stop-loss prices. It also includes information on DCA entries and partial closes, giving you a comprehensive picture of the signal's progress and state.
+Importantly, this event is *not* sent during backtesting as there's no actual exchange interaction to query.  It's used by broker adapters and registered actions to stay informed about the status of orders and react accordingly. The data provided includes a wealth of details about the signal, position, pricing, profit/loss information, and historical details like entry and stop-loss prices – all crucial for a complete understanding of the trade's progress.
 
 ## Interface MetricStats
 
-The `MetricStats` object provides a collection of aggregated data about a specific type of performance metric. It essentially summarizes how a metric performed across a series of measurements.
+`MetricStats` provides a consolidated view of performance data for a particular metric. It bundles information like the number of times a metric was recorded (`count`), how long the total time was spent for that metric (`totalDuration`), and detailed timing statistics. You’ll find averages (`avgDuration`), minimums (`minDuration`), maximums (`maxDuration`), and measures of spread like standard deviation (`stdDev`), and percentiles (95th and 99th – represented as `p95` and `p99`), to understand the distribution of the metric's values. 
 
-You’ll find key details like the total number of times the metric was recorded, the total time it took over all those instances, and its average duration. 
+For metrics related to event timing, it also captures statistics like `avgWaitTime`, `minWaitTime`, and `maxWaitTime` to show the intervals between events. Essentially, this object is a summary snapshot of how a specific metric is performing.
 
-It also includes information about the shortest and longest durations, as well as the standard deviation, median, and percentiles (95th and 99th) to give a fuller picture of the distribution.
-
-Finally, the stats cover wait times between events – finding the average, minimum, and maximum waiting periods.
 
 ## Interface MessageModel
 
-This describes the structure of a single message within a chat history, like you’d see when interacting with a large language model. Each message has a `role` indicating who sent it – whether it's a system instruction, a user's question, the model's response, or the result of a tool usage.
+The `MessageModel` represents a single message within a conversation with a large language model. Think of it as one turn in the dialogue.
 
-The core of the message is its `content`, which is the text itself. Some models might also include `reasoning_content` to show the step-by-step thought process behind their answer.
+It contains information about who sent the message – whether it's a system instruction, something the user typed, a response from the assistant, or the result of a tool being used.
 
-If the assistant uses a tool, `tool_calls` will provide details about that process, and `tool_call_id` specifies which tool call this message refers to. Finally, messages can also contain images, which can be provided as base64 strings, raw bytes, or Blob objects.
+Each message has text content, and sometimes includes additional details like reasoning steps (if the language model provider exposes them).
+
+If the assistant uses tools, these messages also include a list of `tool_calls`. 
+
+Images can be attached to messages as well and are supported in different formats. When an assistant responds to a specific tool call, a `tool_call_id` identifies which tool call the message is related to.
 
 ## Interface MaxDrawdownStatisticsModel
 
-This model holds the results of a maximum drawdown analysis. 
+The `MaxDrawdownStatisticsModel` helps you understand and track maximum drawdowns in your trading strategy. 
 
-It contains a detailed list of all drawdown events, ordered from most recent to oldest, allowing you to examine the sequence of losses. 
+It provides two key pieces of information:
 
-Alongside the event list, it also provides a simple count of the total number of drawdown events that occurred during the backtest.
+*   `eventList`: This is a complete record of all the drawdown events that have occurred, presented in chronological order from the most recent to the oldest. Each event contains details about the drawdown.
+*   `totalEvents`: This simply tells you how many drawdown events have been recorded overall.
 
 ## Interface MaxDrawdownEvent
 
-This data represents a single instance of a maximum drawdown event experienced during a trade. It provides details about when the drawdown occurred (timestamp) and which asset (symbol) was involved. You'll also find information related to the trading strategy used (strategyName, signalId) and whether the trade was a long or short position.
+This object represents a single instance of maximum drawdown experienced during a trade. It contains key details about when the drawdown occurred, which asset was involved, and the specifics of the trade itself. You'll find information like the exact timestamp, the trading symbol, the name of the strategy used, and a unique identifier for the signal. 
 
-The record includes key financial data such as the profit and loss (pnl), the highest profit achieved (peakProfit), and the amount of the drawdown itself (maxDrawdown). To understand the trade’s context, it also stores the current price at the time of the drawdown, along with the entry price (priceOpen), take profit price (priceTakeProfit), and stop loss price (priceStopLoss). Finally, it specifies if the event happened during a backtesting simulation (backtest).
+The object also details the position taken (long or short), the profit and loss generated, and crucial price points: the initial entry price, take profit level, and stop loss level.  Knowing these values allows for a deep dive into the factors that led to the drawdown. Finally, a flag indicates whether this drawdown event occurred during a backtest simulation.
 
 ## Interface MaxDrawdownContract
 
-The MaxDrawdownContract provides information when a new maximum drawdown is encountered in a trading position. It's like a notification detailing the worst drop in a position's value so far.
+The `MaxDrawdownContract` provides information when a new maximum drawdown is detected for a trading position. It essentially tells you the worst peak-to-trough loss experienced by a position so far.
 
-You'll receive this information with details such as the trading symbol, the current price, and the exact time of the update. The contract also includes context about the trading strategy, the exchange being used, and the timeframe involved. 
+This data includes the trading symbol, the current price at the time of the update, and a timestamp. You’ll also find the names of the strategy, exchange, and timeframe being used.
 
-Importantly, it specifies whether the drawdown event occurred during a backtest or in live trading. This helps differentiate between simulated and real-world scenarios.
+The `signal` property contains data related to the trade itself. A crucial `backtest` flag tells you whether the update originates from a historical simulation (backtest) or live trading.
 
-This information allows you to build systems that react to drawdown levels, perhaps by adjusting stop-loss orders or adjusting risk exposure based on performance. The framework sends these updates whenever a new drawdown record is made.
-
+By tracking this information, you can build systems that react to drawdown events - for example, automatically adjusting stop-loss orders or implementing other risk management techniques. These updates occur whenever a new drawdown level is reached, letting you respond to changes in market conditions and position performance.
 
 ## Interface LiveStatisticsModel
 
-The `LiveStatisticsModel` provides a detailed snapshot of your trading performance based on live data. It gathers information from every trade event, including when signals are opened, active, and closed, and organizes it into key metrics. Many of these values will be null if the calculations are unreliable due to unusual market conditions.
+This model provides a comprehensive set of statistics derived from your live trading results, giving you detailed insights into your strategy's performance. It tracks everything from the total number of trades and closed signals to more advanced metrics like Sharpe Ratio and Calmar Ratio. 
 
-Here's a breakdown of what it tracks:
+You can access a full history of events through the `eventList` property. Key performance indicators like win rate, average PNL, and total PNL are readily available to assess profitability. Volatility and risk-adjusted returns are quantified with metrics such as standard deviation, Sharpe Ratio, and Sortino Ratio.
 
-*   **Event Data:** You can access a complete list of events with full details, plus the total number of events, closed signals, and wins/losses.
-*   **Performance Metrics:**  It calculates critical performance indicators like win rate, average profit per trade, total profit, and standard deviation (measuring volatility).  You’ll find ratios like Sharpe, Sortino, and Calmar to assess risk-adjusted returns.
-*   **Risk & Recovery:**  Metrics like drawdown, recovery factor, and expectancy help assess risk management and potential future profits.
-*   **Trade Duration:** The model tracks the average duration of trades, broken down into win and loss durations.
-*   **Price Action:** It analyzes price movements, determining buyer and seller pressure, and overall trend strength and confidence using regression analysis.
-*   **Distribution Insights:** It provides insights into the distribution of profits and losses through metrics like median PNL, consecutive win/loss sums, and step size analysis.
-
-
-
-Essentially, this model gives you a comprehensive toolkit to understand your trading strategy's effectiveness, identify areas for improvement, and gauge overall risk.
+Beyond simple profitability, the model delves into trade durations, consecutive win/loss streaks, and even the pressure from buyers and sellers impacting price movements. Trend analysis, including strength and confidence scores, helps you understand the overall market direction and how your strategy aligns with it. Remember that many of these values can be null if the calculation is unreliable due to factors like insufficient data or unusual market conditions.
 
 ## Interface InfoErrorNotification
 
-This notification system helps you keep track of issues that pop up during background processes, specifically those that your application can potentially recover from. Each notification has a unique identifier, a clear error message for understanding the problem, and includes detailed information about the error itself, such as a stack trace and any associated data.  The `backtest` flag is always false because these notifications relate to live environment activities, not simulated backtests. Think of it as a gentle alert about a hiccup that needs attention.
+This component handles notifications about errors that happen while things are running in the background. These aren't critical failures that stop everything, but issues that need attention.
+
+Each notification has a unique identifier (`id`) and a descriptive error message (`message`) to help you understand what went wrong. There’s also a detailed error object (`error`) included, providing a stack trace and extra information. 
+
+Importantly, these notifications always indicate that they originate from a live context, not a backtest (`backtest: false`). The `type` property confirms that it's an informational error notification.
 
 ## Interface IdlePingContract
 
-This interface describes a special event called an "idle ping." It happens when a trading strategy isn't actively doing anything – there are no signals being watched or orders being placed. 
+The IdlePingContract represents notifications that occur when a trading strategy isn't actively monitoring any signals. 
 
-Think of it as a heartbeat that lets you know the strategy is in a resting state. The information shared includes details about the trading pair (like "BTCUSDT"), the strategy's name, where it's running (the exchange), and whether it’s a backtest or live trade. 
+Think of it as a heartbeat signal indicating a period of inactivity for a particular strategy.
 
-You can use this event to monitor how often your strategies are idle and how long they stay that way, which can be useful for understanding their lifecycle. The event also provides the current price and a timestamp, which tells you exactly when the idle ping occurred, whether that's in a live trading environment or during a historical backtest.
+It provides details like the trading symbol ("BTCUSDT"), the name of the strategy, the exchange it's running on, and whether the activity is part of a backtest or live trading.
+
+You can subscribe to these idle ping events to keep track of your strategy's lifecycle and understand when it's not actively engaged.
+
+The event also includes the current market price and a timestamp, which reflects when the ping occurred—either a live tick or the timestamp of a historical candle during a backtest.
+
 
 ## Interface IWarmCandlesParams
 
-This object defines the settings needed to download historical candle data and store it for later use, like before running a backtest. You'll specify the trading pair you're interested in, like "BTCUSDT". You also need to tell it which exchange you're pulling data from and the timeframe of the candles, such as "1m" for one-minute candles or "4h" for four-hour candles. Finally, you'll give it a start and end date to define the specific historical period to download.
+This object defines the settings you use to download and store historical price data. Think of it as preparing the ground for a backtest by ensuring you have the necessary past information. You'll specify which trading pair (like BTCUSDT) and exchange you're interested in, along with the timeframe you need (like 1-minute candles or 4-hour candles). Most importantly, it sets the start and end dates for the historical data you want to retrieve and save for later use in your backtest.
 
 ## Interface IWalkerStrategyResult
 
-This object holds the results for a single trading strategy that you've tested. 
+This interface describes the output you get when evaluating a single trading strategy within a backtesting framework. It holds essential information about that strategy's performance.
 
-It includes the strategy's name so you know which strategy the results belong to.
+You'll find the strategy's name, allowing you to easily identify which strategy the results pertain to.
 
-You'll also find a collection of statistics detailing how the strategy performed during the backtest, like profit, drawdown, and win rate.
+The `stats` property bundles a comprehensive set of backtesting statistics – things like total return, Sharpe ratio, and maximum drawdown – giving you a detailed view of how the strategy performed.
 
-A single number, called the "metric," represents the strategy’s overall performance, which is used to compare it against other strategies. If the metric isn't valid for some reason, it will be null.
+The `metric` property represents a specific value used for comparing strategies, and it might be null if the strategy wasn't valid for that metric.
 
-Finally, the "rank" tells you where the strategy stands in comparison to all the others – the highest-performing strategy gets rank 1.
-
+Finally, `rank` indicates the strategy's position relative to other strategies being compared – a rank of 1 means it performed the best.
 
 ## Interface IWalkerSchema
 
-The IWalkerSchema defines how to set up A/B tests for different trading strategies. Think of it as a blueprint for comparing strategies against each other.
+The Walker Schema lets you set up and manage A/B tests for different trading strategies. 
 
-You'll give it a unique name (walkerName) to identify the test, and you can add a note for your own records. 
+Think of it as a blueprint for comparing how well various strategies perform against each other. You give it a unique name, a note for your own records, and specify which exchange and timeframe to use for all strategies being tested. 
 
-It specifies which exchange and timeframe to use for backtesting all the strategies involved. 
-
-The heart of the schema is the strategies property—this lists the names of the strategies you want to compare, making sure they’ve been registered beforehand. 
-
-You can select a specific metric, like Sharpe Ratio, to optimize for during the backtest, or you can leave it at the default. Finally, you can optionally include callbacks to trigger custom actions at different stages of the testing process.
+It tells the system which strategies to compare—making sure they've been previously registered. You can also choose which metric, like Sharpe Ratio, to optimize for.  Finally, optional callbacks let you hook into different stages of the testing process.
 
 ## Interface IWalkerResults
 
-The `IWalkerResults` interface holds all the information gathered when a trading strategy is tested and compared against others. It provides a structured way to understand the outcome of a full evaluation process. 
-
-You'll find details like the specific trading symbol being analyzed, the exchange used for the test, the name of the testing process itself (the "walker"), and the timeframe used for the backtest. This interface essentially acts as a report card for a strategy's performance within a particular scenario.
-
+The `IWalkerResults` object holds all the information gathered after a test run comparing different trading strategies. It tells you which financial instrument, or symbol, was being analyzed. It also specifies the exchange used for the trading and the name of the testing process, known as the walker. Finally, it identifies the time frame used in the backtest, like minute data or daily bars.
 
 ## Interface IWalkerCallbacks
 
-The `IWalkerCallbacks` interface lets you hook into the backtest process to get notified about key events. You can use it to monitor what's happening as the framework tests different strategies.
+The `IWalkerCallbacks` interface lets you hook into different stages of the backtest process when comparing multiple strategies. 
 
-It provides callbacks for when a strategy's testing begins (`onStrategyStart`), finishes (`onStrategyComplete`), encounters an error (`onStrategyError`), and when all testing is done (`onComplete`). The `onStrategyComplete` callback gives you access to performance statistics and a metric after each strategy's run. The `onComplete` callback delivers the final results after all the strategies are evaluated.
-
+You can get notified when a specific strategy begins testing, allowing you to log this event or prepare for data collection. 
+Once a strategy's backtest finishes, `onStrategyComplete` provides access to key statistics and a metric, giving you a chance to analyze the results. 
+If a strategy encounters an error during backtesting, `onStrategyError` will alert you, letting you debug the problem or handle the error gracefully. 
+Finally, `onComplete` fires when all the strategies have been run, providing the overall results of the walker process.
 
 ## Interface ITrailingTakeCommitRow
 
-This interface describes a specific action that's been queued for your trading strategy – a trailing take commit. Think of it as a command to adjust your take-profit level based on price movements.
+This interface represents a queued action for a trailing take commit, essentially a plan to adjust your trade based on a trailing stop-loss. 
 
-It includes three key pieces of information: 
+It tells the system to execute a "trailing-take" action.
 
-*   The `action` itself, clearly indicating it's a "trailing-take" action.
-*   The `percentShift`, which defines the percentage amount to adjust your take profit level.
-*   And finally, the `currentPrice`, which is the price at which this trailing adjustment was originally triggered.
+The `percentShift` property defines how much the price needs to move in your favor before the trailing stop is adjusted. This is expressed as a percentage.
+
+Finally, `currentPrice` records the price level when the trailing stop was initially established, providing context for the shift calculation.
 
 ## Interface ITrailingStopCommitRow
 
-This describes a record representing a trailing stop order that needs to be executed. It's essentially a message queued up for the trading system to process.
+This interface represents a queued action related to a trailing stop order. Think of it as a record of a pending change to a trailing stop, triggered by a specific event.
 
-The `action` property identifies this as a "trailing-stop" action.  The `percentShift` tells you how much the price needs to move before the stop-loss is adjusted. Finally, `currentPrice` indicates the price level at which the trailing stop was initially established.
+It includes the type of action, which will always be "trailing-stop" in this case.  You'll also find the percentage shift that needs to be applied to the stop price, and the price at which the trailing stop was originally established. This information helps ensure the trailing stop is adjusted correctly.
 
 ## Interface IStrategyTickResultWaiting
 
-This interface describes a special type of result you get when a trading strategy is patiently waiting for a signal to activate. It happens after a signal is initially created – you'll receive these repeated results as the strategy monitors the price to see if it reaches the entry point defined in that signal.
+This interface describes a tick result when a trading signal is scheduled but hasn't yet triggered. Think of it as a status update saying, "Hey, I'm waiting for the price to reach a certain point so I can execute this signal."
 
-The information included tells you which signal is waiting, the current price being watched, and details about the strategy and exchange involved (like the strategy's name, the exchange, the timeframe, and the trading pair). You'll also find indicators like the progress towards take profit and stop loss, although these are always zero during the waiting period. It also includes unrealized profit and loss (which is theoretical until the position is activated), whether the process is running a backtest, and when the result was generated.
+You'll receive this type of result repeatedly as the price fluctuates while the signal is on hold. It's different from the initial "scheduled" signal, which only happens once when the signal is first created.
 
+The information included allows you to track the details of the waiting signal: the signal itself, the current price being monitored, the strategy and exchange involved, the timeframe being used, the trading symbol, and progress towards take profit and stop loss. It also provides information on any unrealized profit and loss, whether the test is a backtest or live trade, and when the tick result was generated.
 
 ## Interface IStrategyTickResultScheduled
 
-This interface describes a specific event within a trading strategy – when a signal is generated and scheduled, awaiting a price trigger. Think of it as the system noting, "Okay, we have a trading idea, but let's wait for the price to reach a certain point first."
+This interface describes a special type of result you get during backtesting or live trading when a strategy has scheduled a trade. It means the strategy has generated a signal and is now waiting for the price to reach a specific entry point.
 
-The data included tells you which strategy and exchange generated the signal, the symbol being traded, the price at the time of scheduling, and whether it's happening in a backtest or live environment. You'll find details about the timeframe used and when the signal was created, all helping with tracking and debugging. Essentially, it’s a record of a pending trading opportunity.
+Think of it as a notification that a trade is "on hold" – the strategy is ready to act but needs the price to move a bit further.
+
+Here's what the information includes:
+
+*   The type of action is marked as "scheduled."
+*   Details about the scheduled signal itself.
+*   The name of the strategy that generated the signal.
+*   The exchange used for trading.
+*   The timeframe (like 1-minute or 5-minute) being used.
+*   The symbol being traded (e.g., BTCUSDT).
+*   The price at which the signal was initially triggered.
+*   A flag indicating whether this is a backtest or a live trade.
+*   A timestamp showing when this event happened.
 
 ## Interface IStrategyTickResultOpened
 
-This data structure represents what happens when a new trading signal is created within the backtest-kit framework. 
+This interface describes what happens when a new trading signal is created within the backtest-kit system. It's a notification that a signal has been successfully generated, checked, and saved.
 
-It's sent out when a signal is successfully generated, validated, and saved.
+The notification includes several details to help you understand the context:
 
-Think of it as a notification that a new trading opportunity has appeared.
-
-The information included details like the signal itself (including a unique ID), which strategy and exchange created it, the timeframe it applies to, the symbol being traded, the price at the moment the signal appeared, and whether it's part of a backtest or live trading scenario. There's also a timestamp associated with its creation.
+*   The strategy that generated the signal, including its name.
+*   The exchange and time frame used for the signal.
+*   The symbol being traded (like BTCUSDT).
+*   The price at the moment the signal was created.
+*   Whether the signal was created during a backtest or a live trading session.
+*   A timestamp indicating exactly when the signal was created.
+*   Most importantly, you'll get the full details of the new signal itself, complete with an automatically assigned ID.
 
 ## Interface IStrategyTickResultIdle
 
-This interface describes what happens when your trading strategy is in an "idle" state, meaning no trading signal is active. It provides key details about the situation, like the strategy's name, the exchange being used, and the timeframe being analyzed. You’ll also find the symbol of the trading pair, the current price, and whether the data comes from a backtest or live trading. Finally, it includes a timestamp indicating when this idle state was recorded.
+This interface describes what happens when a trading strategy isn't actively generating a signal – it's in an idle state. Think of it as a notification that the strategy is waiting for new information to make a decision.
+
+It provides key details about the situation, like the name of the strategy being used, the exchange it’s connected to, the time frame being analyzed, and the trading pair involved. 
+
+You'll also find the current price at that moment, whether this is part of a backtest or live trading, and a timestamp indicating when this idle state was observed. This allows you to track strategy behavior even when it’s not placing trades.
+
 
 ## Interface IStrategyTickResultClosed
 
-This interface represents the data you receive when a trading signal is closed, whether automatically or manually. It provides a complete picture of what happened at the time of closure, including the reason for closing (like hitting a stop-loss, reaching a take-profit target, or simply time expiration).
+This interface represents the result you get when a trading signal is closed, providing a snapshot of what happened and the outcome. It gives you detailed information about the closing event, including why it closed (like reaching a target profit, a stop-loss, or simply expiring) and the price at the time of closure.
 
-You’ll find details like the final price used for the trade, the profit or loss (including fees and potential slippage), and timestamps indicating when the signal was closed and the result was created. The information also includes tracking data such as the strategy name, exchange, time frame, and trading symbol used.
-
-If the close was initiated by the user, a unique close ID will be present. A flag indicates whether the closure happened during a backtest or in a live trading environment. Essentially, it's a comprehensive record of a signal's closure and its financial outcome.
+You'll find the original signal details along with important financial data like profit and loss, accounting for fees and potential slippage. The interface also keeps track of things like the strategy name, exchange, and timeframe used for trading, which is helpful for analysis and debugging. It also indicates if the close happened during a backtest or a live trade and if the close was user-initiated. Finally, a timestamp tells you exactly when the close occurred and when the result was generated.
 
 ## Interface IStrategyTickResultCancelled
 
-This interface describes what happens when a planned trading signal doesn't actually lead to a trade being opened – maybe the signal never triggers, or a stop loss is hit before an entry occurs. It's a record of that cancellation.
+This interface describes what happens when a previously scheduled trading signal is cancelled before a trade can be made. It’s used to tell you that something that *was* supposed to happen didn’t, perhaps because the signal didn't activate or was stopped before it could trigger a trade.
 
-It includes details like the signal that was cancelled, the final price used when it was cancelled, and the exact time of the cancellation. You'll find information about the strategy and exchange involved, along with whether the event happened during a backtest or a live trade. A reason for cancellation is provided, and if you intentionally cancelled the signal yourself using a cancel ID, that's also included. Finally, it notes when the cancellation record itself was created.
+The information contained includes details about the cancelled signal itself (the `signal`), the price at the time of cancellation (`currentPrice`), and the exact time it happened (`closeTimestamp`). You’ll also find identifiers like the strategy and exchange names (`strategyName`, `exchangeName`), the timeframe used (`frameName`), and the symbol being traded (`symbol`).
+
+It's flagged whether it's a backtest (`backtest`) or live trade, and provides a `reason` explaining why the signal was cancelled – such as manual cancellation. A unique ID (`cancelId`) is included if the cancellation was user-initiated. Finally, a timestamp (`createdAt`) notes when the result itself was generated, referencing either the candle time (in backtest) or the live execution context.
 
 ## Interface IStrategyTickResultActive
 
-This type, `IStrategyTickResultActive`, represents a specific state within a trading strategy – when a signal is active and the system is monitoring for a take profit (TP), stop loss (SL), or time expiration. It signifies the strategy is actively managing a position.
+This interface represents a specific state in a trading strategy where a signal is active and being monitored, typically waiting for a take profit (TP), stop loss (SL), or time expiration. It provides detailed information about the ongoing situation.
 
-It contains details about the current signal being monitored, the price being tracked, and identifies the associated strategy, exchange, and timeframe. You'll also find information about how far the position is from the TP and SL targets.
+The `action` property simply identifies this as an "active" state.
 
-The data includes the unrealized profit and loss (PNL) of the active position, taking into account fees and slippage. A flag indicates whether the data originates from a backtest or a live trading environment. Finally, timestamps track when the result was created and when the last candle was processed, which is useful for backtesting processes.
+You'll find the `signal` data associated with the active position. The `currentPrice` is the price being used to track progress towards TP/SL. 
+
+Alongside this, the interface includes tracking details like the `strategyName`, `exchangeName`, `frameName`, and `symbol` involved in the trade. 
+
+The `percentTp` and `percentSl` show how far along the strategy is in reaching its TP or SL targets. The `pnl` provides a real-time view of the unrealized profit and loss, factoring in fees and slippage. 
+
+It also indicates whether the trade is part of a `backtest` or live trading scenario. A timestamp, `createdAt`, records when the event occurred, and `_backtestLastTimestamp` assists with managing the timing of backtest operations.
 
 ## Interface IStrategySchema
 
-This schema defines how a trading strategy is structured and registered within the backtest-kit framework. Each strategy needs a unique name to be recognized.
+The IStrategySchema defines how a trading strategy behaves within the backtest-kit framework. Think of it as a blueprint that tells the system how to generate trading signals. 
 
-You can add a note for yourself or other developers to explain the strategy's logic.
+Each strategy needs a unique name for identification. You can also add a note to describe the strategy, helpful for your own records.
 
-The `interval` property lets you control how frequently the strategy generates signals, preventing it from sending too many requests.
+The strategy specifies how often it should be checked for new signals – it’s like setting a minimum refresh rate.
 
-The core of the strategy is the `getSignal` function, which takes the symbol, a timestamp, and the current price and calculates the signal. It can be configured to wait for a specific price level (entry point) or execute immediately.
+The core of the strategy is the `getSignal` function. This is the code that analyzes market data and decides whether to buy or sell. It can also handle situations where you want to wait for a specific price to be reached before entering a trade.
 
-You can also define lifecycle callbacks like `onOpen` and `onClose` to trigger specific actions at key moments.
-
-Additionally, you can associate a risk profile and list of risk identifiers for managing potential losses, and a list of actions to tag the signals generated.
-
-Finally, `info` is for adding custom data related to the strategy, useful for monitoring or integration with external tools.
+You can further customize a strategy by adding callbacks that execute when a position is opened or closed.  It also supports risk management by assigning a risk profile and potentially a list of profiles. There's even a way to tag strategies with actions for linking to other components. Finally, you can include custom data for ongoing monitoring and tracking.
 
 ## Interface IStrategyResult
 
-The `IStrategyResult` represents a single run of a trading strategy during a backtest. It bundles together important information for comparing different strategies.
-
-You’ll find the strategy's name here, so you know which strategy generated the results.
-
-It also includes a comprehensive set of backtest statistics to give you a detailed look at the strategy's performance, covering things like returns, drawdown, and more.
-
-A key metric value helps rank the strategies based on your chosen optimization goal. This value might be null if the backtest revealed issues.
-
-Finally, the timestamps of the first and last signals generated by the strategy are recorded, useful for understanding the strategy’s activity throughout the backtest period. If no signals were generated, these will be null.
+This interface defines the structure for a single row in a backtest comparison table. Each row represents a strategy that has been run, and includes its name, a comprehensive set of backtest statistics, and the value of the metric used to rank the strategies. It also tracks the timestamps of the first and last signals generated by the strategy. These timestamps can be useful for understanding the timing of trades and assessing the strategy's activity during the backtest period. If a strategy didn't generate any signals, those timestamps will be null.
 
 ## Interface IStrategyPnL
 
-This interface defines the results you get when calculating profit and loss for a trading strategy. It gives you a clear picture of how well your strategy performed, taking into account realistic factors like transaction fees and slippage – the difference between the expected price and the actual price you get when executing a trade. 
+This interface represents the profit and loss calculation for a trading strategy. It provides a detailed breakdown of performance, considering realistic trading conditions.
 
-The `pnlPercentage` shows the profit or loss as a percentage of your initial investment. 
+The `pnlPercentage` tells you the overall profit or loss as a percentage of your initial investment – a positive number means you made money, and a negative number means you lost.
 
-You’ll also find the entry price (`priceOpen`) and exit price (`priceClose`), both adjusted to account for those fees and slippage, so you know exactly what prices were used in the calculation.
+You'll also find the `priceOpen` and `priceClose` values, which reflect the actual prices you paid to enter and exit trades, after accounting for fees (0.1%) and slippage (0.1%). These adjusted prices provide a more accurate picture of your trading costs.
 
-The `pnlCost` represents the actual profit or loss in dollars, while `pnlEntries` shows the total amount of money invested to initiate the trades.
+The `pnlCost` is the absolute profit or loss in dollars, calculated based on your initial investment. Lastly, `pnlEntries` represents the total amount of capital initially used to execute your trades.
 
 ## Interface IStrategyCallbacks
 
-This interface provides a way to receive notifications about key events during a trading strategy's lifecycle. Think of these as event listeners that trigger when your strategy enters different states or performs specific actions. 
+This interface defines a set of optional callbacks that your trading strategy can use to respond to different lifecycle events of a trading signal. You can think of these as notification hooks that allow you to execute custom logic at specific points in a signal’s journey.
 
-You can hook into events like when a new signal is opened, when it’s actively being monitored, or when it's in an idle state with no open signals. There are also callbacks for when a signal is closed, scheduled, or cancelled, allowing you to respond to these transitions.
+The `onTick` callback is fired with every price update, giving you a constant stream of data.  `onOpen` triggers when a new signal is successfully validated and prepared for entry.  When the signal is actively monitored, `onActive` is called. If there are no signals being tracked, `onIdle` will notify you.
 
-Furthermore, you can receive updates about partial profits, losses, and when a signal reaches breakeven, giving you granular insight into the signal's performance.  There are specialized ping callbacks (`onSchedulePing`, `onActivePing`) that provide minute-by-minute updates for scheduled and active signals, ideal for custom monitoring or dynamic adjustments. Lastly, the `onWrite` callback is specifically for persisting data during backtesting.
+`onClose` is called when a signal is fully closed out, providing the final closing price. If you schedule a signal for later entry, `onSchedule` is called when it's created. Conversely, `onCancel` is used when a scheduled signal is cancelled without a position being opened.
+
+`onWrite` is a backtest-specific callback, used for persisting signal data.  For signals that have moved into profit or loss, but not yet reached their take profit or stop loss levels, `onPartialProfit` and `onPartialLoss` respectively, provide updates.  The `onBreakeven` callback notifies you when a signal reaches a breakeven point.
+
+Finally, `onSchedulePing` and `onActivePing` are designed for scheduled and active signals respectively, giving you regular updates (every minute) regardless of your strategy's main interval – useful for custom monitoring and adjustments.
 
 ## Interface IStrategy
 
-The `IStrategy` interface defines the core actions a trading strategy can perform. It focuses on managing positions, reacting to ticks, and handling signals, all with built-in considerations for things like slippage and fees.
+This interface, `IStrategy`, defines the core methods needed for a trading strategy to function within the framework. Think of it as a contract that all strategies must adhere to.
 
-The `tick` method is the heart of the strategy, handling each new price update by checking for signals and potential profit-taking or stop-loss triggers.
+The `tick` method is the heart of the strategy, executed for each new price tick. It checks for signals, trailing stops, and profit targets. The `getPendingSignal` and `getScheduledSignal` methods retrieve information about any active signals waiting for activation.
 
-You can use `getPendingSignal` and `getScheduledSignal` to check if a position is already active or waiting to be triggered.
+You can use `getBreakeven` to see if it's safe to move the stop-loss.
 
-Several methods help monitor the progress of a position, such as `getBreakeven` to determine if a position has reached a point where slippage and fees are covered, and `getTotalPercentClosed` and `getTotalCostClosed` to track partial exits.
+Several methods provide insights into the position's health: `getTotalPercentClosed` and `getTotalCostClosed` track how much of the position has been closed, `getPositionEffectivePrice` calculates the average entry price, and `getPositionPnlPercent` and `getPositionPnlCost` show the unrealized profit or loss.
 
-The framework allows for backtesting with `backtest`, giving you a way to evaluate strategies against historical data.  There are also methods for controlling a strategy's activity: `stopStrategy` to pause it, `cancelScheduled` to dismiss a scheduled entry, `activateScheduled` to manually trigger one, and `closePending` to prematurely close an active position.
+`getPositionEntries` gives you a history of when the position was built up through DCA. Partial closes are tracked with `getPositionPartials`.
 
-More specialized methods include `createSignal` to manually inject a signal, and a set of functions to control risk management such as `trailingStop` and `breakeven`. These allow users to fine-tune their strategies and react to market conditions.  Finally, various methods provide detailed insights into a position's performance, tracking metrics like highest profit/loss points and drawdown.
+The `backtest` method runs simulations using historical data. `stopStrategy` pauses new signal generation, `cancelScheduled` and `activateScheduled` manage scheduled signals without halting the strategy entirely, and `closePending` allows you to close a position directly.
+
+There are methods for inserting user-provided signals (`createSignal`), handling profit and loss events (`createTakeProfit`, `createStopLoss`), and retrieving position state (`getStatus`, `getPositionEstimateMinutes`).  Several other methods allow calculating and validating actions such as `partialProfit`, `trailingStop`, and `breakeven`. Finally, `dispose` cleans up resources when the strategy is no longer needed.
 
 ## Interface IStorageUtils
 
-This interface defines the core functionality that any storage adapter used with the backtest-kit trading framework needs to provide. It’s essentially a contract ensuring all storage solutions can consistently manage and interact with trading signals.
+This interface defines the core functionality expected of any storage adapter used within the backtest-kit framework. Think of it as a contract; any component handling signal data needs to implement these methods.
 
-The framework will call methods on your storage adapter to react to various signal lifecycle events like when a signal is opened, closed, scheduled, or cancelled. These calls let the adapter update its internal state accordingly.
+It provides hooks for responding to different signal lifecycle events: when a signal is opened, closed, scheduled, or cancelled.
 
-You'll also need to provide ways to retrieve signals. This includes finding a specific signal by its unique ID, or listing all signals currently held in storage.
+The interface also includes methods for retrieving signal data – you can find a specific signal by its ID or list all signals currently in storage.
 
-Finally, there are methods to handle “ping” events – special notifications about signals that are active or scheduled, allowing the adapter to keep track of their status and update timestamps. These pings ensure signals remain accurately represented in the storage system.
+Finally, it contains methods to handle periodic "ping" events, specifically for active and scheduled signals, allowing the system to keep track of when these signals were last interacted with. These updates are crucial for long-term data integrity.
 
 ## Interface IStorageSignalRowScheduled
 
-This interface describes a signal row that's been scheduled for later execution. 
-
-It contains two key pieces of information: a `status` indicating it's "scheduled," and the `currentPrice` which represents the price at the time the signal was initially scheduled. Think of `currentPrice` as a snapshot of the market conditions when the signal was created, tied to the `IStrategyTickResultScheduled` data. This helps you understand the context of the signal's scheduling.
+This interface represents a signal record that's been scheduled for execution. It holds information about the signal's current status, which will always be "scheduled". Crucially, it also stores the `currentPrice` at the time the signal was scheduled, which is the same price recorded in the strategy tick data. This price serves as a reference point for the signal's execution.
 
 ## Interface IStorageSignalRowOpened
 
-This interface describes a signal row when a trade has been opened. It essentially tracks the state of an active trade.
+This interface describes a signal event when a trade is opened. It essentially confirms that a signal has triggered an entry into a position. 
 
-The `status` property will always be "opened," indicating that a position is currently held. 
-
-The `currentPrice` represents the price at the moment the trade was initiated, a valuable reference point for monitoring trade performance. It's linked to the `IStrategyTickResultOpened.currentPrice` data.
+You'll find two key pieces of information here: a simple "opened" status indicator and the price at which the trade was initiated – specifically, the VWAP price at the time the signal fired. This price data, found in the `currentPrice` property, directly corresponds to the `currentPrice` found in a `IStrategyTickResultOpened` object.
 
 ## Interface IStorageSignalRowClosed
 
-This interface represents a signal that has been closed, meaning a trade was executed. It provides key information about the closed signal, specifically focusing on financial results and the circumstances of its closure.
-
-You'll find data here about the profit and loss (PNL) realized when the signal closed, along with the final price at which the trade happened.  
-
-The `closeReason` tells you *why* the signal was closed - perhaps it hit a target price, or a stop-loss was triggered.  Finally, the `closeTimestamp` records precisely when the closure occurred. This data is essential for analyzing performance and understanding trading behavior.
+This data structure represents a trading signal that has already been closed. It contains all the information related to that closed signal, including its profit and loss (PNL), the final price at which it was closed, and the reason for its closure. You'll find details about when the signal was closed, marked by a precise timestamp. Think of it as a record summarizing the outcome of a completed trade.
 
 ## Interface IStorageSignalRowCancelled
 
-This interface represents a signal row that has been cancelled. It's a simple way to mark a signal as no longer active or valid.  The only property it contains, `status`, is a fixed string value of "cancelled," clearly indicating the signal's current state. Think of it as a flag to say "this signal is no longer relevant."
+This interface represents a signal row that has been cancelled. 
+
+It's a simple way to indicate that a trading signal is no longer active or valid.
+
+The key property here is `status`, which is always set to "cancelled" to clearly mark the signal's state.
 
 ## Interface IStorageSignalRowBase
 
-This interface defines the fundamental structure for storing signal data, regardless of its specific state. It ensures that every signal record includes information about when it was created and last modified, using timestamps.  The `priority` field is crucial for managing the order in which signals are processed, using the current date and time to maintain order. This provides a consistent foundation for all signal storage implementations.
+This interface defines the basic structure for storing signal data, ensuring that all signal types share a consistent foundation. It includes key information like the creation timestamp, a timestamp for when the data was last updated, and a priority level used for organizing and processing signals. The `createdAt` and `updatedAt` values capture the exact moment the signal was generated and modified, respectively, and the `priority` field allows for controlled rewriting of signals based on their importance. Think of it as the foundational template for every signal you store.
 
 ## Interface IStateParams
 
-`IStateParams` helps you define how your trading signals manage their data. Think of it as setting up containers for related information.
+IStateParams helps you organize and manage data within your trading signals. Think of it as a way to categorize your signal's information.
 
-You specify a `bucketName`, which is like giving a folder a name to organize your signals – perhaps "trade" for trade-related data or "metrics" for performance tracking.
+You define a `bucketName`, which is essentially a label for grouping related data, like "trade" or "metrics."
 
-Then, you provide an `initialValue`. This is what the signal will start with if there's no existing data saved. It's the default state until something else comes along.
+And you specify an `initialValue`, which is what the signal's data will start with if there isn't any pre-existing information available.
 
 ## Interface IStateInstance
 
-The `IStateInstance` interface acts as a blueprint for how state is managed within the backtest-kit framework. It's designed to hold information that changes over time, like performance metrics for a trade. Think of it as a way to track things like the highest unrealized profit, how long a trade has been open, and when to cut losses if things aren’t going as planned.
+The `IStateInstance` interface is designed to manage mutable data associated with each trading signal, particularly useful for strategies relying on large language models (LLMs) that track metrics over a trade's lifespan. Think of it as a way to keep track of things like the highest unrealized profit, how long a trade has been open, and when to cut losses.
 
-This interface provides methods for getting started, reading the current state, updating the state, and cleaning up when finished. The `waitForInit` method sets things in motion. `getState` lets you check the state at a specific point in time, making sure you’re not looking into the future. `setState` is used to record new state information, and it has a clever feature – it allows older states to be overwritten, which is important if a backtest needs to be restarted. Finally, `dispose` makes sure that any resources used by the state are released properly.
+This interface provides methods to manage this data.
+
+`waitForInit` is used to kick things off at the start.
+
+`getState` lets you retrieve the current state, but it cleverly prevents "look-ahead bias" by returning an initial value if the requested time is in the future.  This prevents using information not yet known.
+
+`setState` updates the state, and it handles situations where the backtest restarts, ensuring that any previously written data doesn’t cause problems. It also provides the current state to the updater, guarded against look-ahead bias.
+
+`dispose` cleans up any resources used by the state instance.
 
 ## Interface ISizingSchemaKelly
 
-This schema defines a sizing strategy based on the Kelly Criterion, a mathematical formula for determining optimal bet sizes. It's designed for situations where you want to maximize long-term growth of your capital.
+This defines a way to calculate your trade size using the Kelly Criterion, a formula that helps determine how much of your capital to risk on each trade. 
 
-The `method` property confirms that this is a Kelly Criterion sizing approach.  The `kellyMultiplier` controls how aggressively the Kelly Criterion is applied; a smaller multiplier (like the default 0.25) results in smaller, more conservative bet sizes, while a larger multiplier increases the potential for gains (and also the risk of losses). Essentially, it's a way to tune the Kelly Criterion to your risk tolerance.
+The `method` is explicitly set to "kelly-criterion" to indicate you're using this specific sizing technique. 
+
+The `kellyMultiplier` controls how aggressively you're applying the Kelly Criterion – a lower value like 0.25 represents a more conservative approach (often called "quarter Kelly"), while a higher value risks more of your capital per trade. You can adjust this multiplier to suit your risk tolerance.
+
 
 ## Interface ISizingSchemaFixedPercentage
 
-This schema defines a simple way to size your trades – you'll always risk a fixed percentage of your capital on each trade. 
+This schema defines a simple way to size your trades, always using a fixed percentage of your available capital. 
 
-The `method` property is set to "fixed-percentage" to identify this sizing approach. 
+You specify a `riskPercentage`, which represents the maximum percentage of your capital you're willing to risk on a single trade.  For example, a `riskPercentage` of 2 would risk 2% of your capital for each trade. 
 
-The `riskPercentage` property tells the system what percentage of your available funds you're comfortable risking per trade; for example, a value of 1% means you'll risk 1% of your capital on each trade. This value should be between 0 and 100.
+The schema identifies itself with the method "fixed-percentage".
+
 
 ## Interface ISizingSchemaBase
 
-This interface, `ISizingSchemaBase`, forms the foundation for how your trading strategies determine position sizes. It provides a set of core properties that define sizing configurations.
+This interface defines the fundamental structure for sizing strategies within the backtest-kit framework. It provides a way to uniquely identify each sizing configuration with a `sizingName`. 
 
-Each sizing configuration has a unique `sizingName` for identification and an optional `note` field for developers to add explanatory information. You can also set limits on position sizes using `maxPositionPercentage` (as a percentage of your account), and define absolute minimum and maximum position sizes using `minPositionSize` and `maxPositionSize`. Finally, the `callbacks` property allows you to hook into specific points in the sizing calculation process for more advanced customization.
+You can add a `note` for documentation purposes, helping explain the sizing strategy's purpose. 
+
+It also includes constraints on position sizing: `maxPositionPercentage` limits the size based on a percentage of your account, while `minPositionSize` and `maxPositionSize` set absolute minimum and maximum position sizes. Finally, `callbacks` allow for custom logic to be triggered at different points in the sizing process.
+
 
 ## Interface ISizingSchemaATR
 
-This schema defines how to size trades based on the Average True Range (ATR), a measure of volatility. 
+This schema defines a sizing strategy based on the Average True Range (ATR). 
 
-It uses an "atr-based" method.
+It's designed for traders who want to adjust their position sizes based on market volatility, as measured by the ATR.
 
-You'll specify a `riskPercentage`, which represents the portion of your capital you’re willing to risk on each trade, expressed as a percentage (between 0 and 100).
+The `method` is always set to "atr-based" to identify this specific approach.
 
-The `atrMultiplier` controls how far your stop-loss is placed based on the current ATR value; a higher number means a wider stop.
+You'll need to specify a `riskPercentage`, which dictates what portion of your trading capital you're willing to risk on each trade – typically a value between 0 and 100.
+
+Finally, the `atrMultiplier` determines how the ATR value influences the stop-loss distance, controlling how far your stop-loss is placed from the entry price based on volatility.
 
 
 ## Interface ISizingParamsKelly
 
-This interface defines the parameters needed for sizing trades using the Kelly Criterion, a method for determining optimal bet sizes. It includes a `logger` property, which is used to record debugging information during the backtesting process. Think of the logger as a way to keep track of what’s happening behind the scenes, helping you understand and troubleshoot your trading strategy. Essentially, you’ll use this to provide a way for the system to communicate important details about the sizing calculations.
-
+This interface defines the parameters used when calculating trade sizes using the Kelly Criterion method. It includes a way to specify a logger for tracking debugging information during the sizing process. Essentially, it allows you to control how trade sizes are determined and get insights into what’s happening behind the scenes. The logger helps monitor the sizing calculations and spot any potential issues.
 
 ## Interface ISizingParamsFixedPercentage
 
-This interface defines the parameters needed when you want your trading strategy to size its positions using a fixed percentage of available capital. It requires a logger, which is useful for tracking what's happening behind the scenes and helping you debug any issues. Think of the logger as a way to get feedback from the backtest-kit as it runs.
+This interface defines the parameters used when you want your trading strategy to use a fixed percentage of your capital for each trade. It requires a logger, which is a tool for recording information and debugging your backtest. Think of it as a way to keep track of what's happening during your simulation.
+
 
 ## Interface ISizingParamsATR
 
-This interface defines how to control trade sizing when using an ATR (Average True Range) based approach. 
+This interface defines the settings you'll use when determining how much of an asset to trade based on the Average True Range (ATR). It's all about controlling your position size with ATR.
 
-It primarily focuses on providing a way to log any relevant debugging information during the sizing process, through the `logger` property. This logger allows you to observe how the ATR calculations influence the trade size.
-
+The `logger` property lets you hook in a logging system—think of it as a way to get helpful messages and track what's happening during the sizing calculations, which can be valuable for debugging and understanding your trading strategy.
 
 ## Interface ISizingCallbacks
 
-This interface provides a way to respond to events that happen when determining how much of an asset to trade. Specifically, `onCalculate` lets you react when the framework figures out the size of a trade, allowing you to log details or ensure the size is what you expect. You can use this to keep track of sizing decisions or catch any unexpected calculations.
+The `ISizingCallbacks` interface allows you to hook into the sizing process of your trading strategy. Specifically, the `onCalculate` callback is triggered right after the framework determines how much to trade. This gives you a chance to observe the calculated trade size, log it for analysis, or even perform checks to ensure the sizing logic is behaving as expected. It receives the calculated quantity and additional parameters related to the sizing calculation.
 
 
 ## Interface ISizingCalculateParamsKelly
 
-This interface defines the information needed to calculate your trade size using the Kelly Criterion. It essentially tells the backtest framework how to determine the optimal amount to risk based on your strategy's performance.
+To calculate your trade sizes using the Kelly Criterion, you'll need to provide some information about your trading strategy. This set of parameters defines exactly what’s needed.
 
-You'll provide your win rate, expressed as a number between 0 and 1 (e.g., 0.6 for a 60% win rate), and your average win/loss ratio (how much you win on average for each winning trade compared to how much you lose on each losing trade). 
+You’ll specify the calculation method as "kelly-criterion." 
 
-These two values are crucial for the Kelly Criterion to determine a fraction of your capital to allocate to each trade.
-
+Then you need to tell the system your strategy's win rate, expressed as a decimal between 0 and 1.  Finally, you need to define the average win/loss ratio that your strategy has historically produced. These three pieces of data are used to determine the optimal amount to risk on each trade.
 
 ## Interface ISizingCalculateParamsFixedPercentage
 
-This interface defines the parameters needed to calculate trade sizing using a fixed percentage approach. It requires you to specify the method as "fixed-percentage" to indicate you're using this sizing strategy. You also need to provide a `priceStopLoss` value, which represents the price at which a stop-loss order would be triggered. Essentially, these parameters tell the system how much of your capital to allocate and where to place a stop-loss based on a pre-determined percentage.
+This interface defines the data needed to calculate trade sizes using a fixed percentage of your account balance. 
+
+Essentially, it tells the backtest kit to size your trades based on a pre-determined percentage of your available capital, using a specific stop-loss price. 
+
+You'll provide a `method` value of "fixed-percentage" to indicate the sizing approach and a `priceStopLoss` value which represents the price at which to place your stop-loss order.
 
 ## Interface ISizingCalculateParamsBase
 
-This interface defines the foundational information needed when figuring out how much of an asset to trade. It includes the symbol of the trading pair, like "BTCUSDT," the current balance of your account, and the anticipated price at which you plan to enter a trade. Think of it as a set of building blocks that all sizing calculations will rely on. You’ll provide this information so the system knows what resources are available and what the intended entry point is.
+This interface defines the essential information needed to calculate the size of a trade. It includes the symbol of the trading pair, like BTCUSDT, so the system knows what assets are involved. You'll also find the current account balance, which is crucial for determining how much capital you have to work with. Finally, it provides the anticipated entry price for the trade, which impacts the potential risk and reward. These three pieces of data form the foundation for any sizing calculation.
 
 ## Interface ISizingCalculateParamsATR
 
-This interface defines the settings you'll use when determining the size of your trades based on the Average True Range (ATR).  You'll see the `method` property set to "atr-based" to indicate you're using this specific sizing approach.  The `atr` property holds the actual ATR value that will be incorporated into the sizing calculation; it represents the average of price fluctuations over a specific period. This value is essential for adjusting your position size according to market volatility.
+This interface defines the settings you’ll use when determining position size based on the Average True Range (ATR) indicator.  It essentially tells the backtest kit to use an ATR-based sizing approach.  You'll need to provide an `atr` value, which represents the current ATR reading, to guide the size calculation. Think of the `atr` value as a key piece of data the system uses to figure out how much of an asset to trade.
+
 
 ## Interface ISizing
 
-The `ISizing` interface is all about determining how much of an asset to trade. Think of it as the engine that decides your position size. It's a core component used behind the scenes during strategy execution.
+The `ISizing` interface is the core component responsible for determining how much of an asset to trade in each scenario. Think of it as the risk management engine of your backtest. 
 
-The `calculate` property is the heart of this interface. It's a function you provide that takes some input data (`ISizingCalculateParams`) and then figures out the size of the position you should take, returning that value as a promise. Essentially, it's where you implement your sizing logic, taking into account factors like risk tolerance and account balance.
+It provides a single method, `calculate`, which takes a set of parameters – like your risk tolerance, account balance, and the potential reward of a trade – and returns the size of the position as a number. 
 
+This calculation happens behind the scenes, within the strategy's execution process. You, as the strategy developer, implement this interface to define your specific sizing logic.
 
 ## Interface ISignalRow
 
-This `ISignalRow` interface represents a complete trading signal within the backtesting framework. Think of it as a standardized record of a signal that's ready to be executed, containing all the necessary information. Each signal gets a unique ID to easily track it throughout the process.
+This interface, `ISignalRow`, represents a complete trading signal used within the backtest-kit framework. Each signal has a unique identifier, like a UUID, and contains all the necessary information for execution. It includes details like the cost of the position, entry price, the expected duration, and which exchange and strategy are associated with it.
 
-It holds details about the trade, like the cost, entry price, expected duration, which exchange and strategy it belongs to, and the symbol being traded. There's also a timestamp to mark when the signal was initially created and when it went live.
+You’ll also find information regarding when the signal was created and when it became active (`scheduledAt` and `pendingAt`). Key identifiers like the trading pair (`symbol`), the frame identifier, and internal flags (`_isScheduled`) are also included.
 
-Beyond the basics, the `ISignalRow` keeps track of more complex details. It includes a history of partial closes (profit or loss) to precisely calculate overall P&L, and manages trailing stop-loss and take-profit prices that dynamically adjust based on the trade's performance. DCA entries are also recorded, providing a history of the price at which the asset was purchased. Lastly, it monitors the highest profitable and lowest lossing prices seen during the trade's lifespan. This rich data set allows for detailed performance analysis and optimization of trading strategies.
+Beyond the basic details, this structure tracks partial closes with profit and loss data, allowing for more accurate Profit and Loss (PNL) calculations. It also handles dynamic Take Profit and Stop Loss adjustments through trailing prices (`_trailingPriceStopLoss` and `_trailingPriceTakeProfit`). 
+
+A history of DCA (Dollar Cost Averaging) entries is stored in `_entry`, while `_peak` and `_fall` record the highest and lowest prices seen during the trade’s lifespan, further aiding in performance analysis. Finally, a timestamp is provided for tracking when the signal was first generated.
 
 ## Interface ISignalIntervalDto
 
-This data structure lets you request signals at specific intervals, useful when you need to retrieve multiple signals together. Think of it as a way to batch your signal requests to improve efficiency.  Each signal request gets a unique ID to help track it.
+This data structure helps manage signals that need to be delivered in intervals. It’s designed to be used with a utility function that allows you to request several signals at once. Think of it as a way to group related signals together and ensure they're released at specific times. 
+
+Each signal within this structure has a unique identifier, which is a standard UUID. This ID is automatically generated and helps distinguish each signal.
 
 ## Interface ISignalDto
 
-The `ISignalDto` represents a trading signal, essentially a set of instructions for a trade. It contains all the necessary information to execute a trade, like which asset to trade (`symbol`), whether to buy (`long`) or sell (`short`), and the intended entry price (`priceOpen`).
+This interface, `ISignalDto`, represents the data structure for a trading signal. Think of it as a standardized way to communicate what a signal *is* – what asset to trade, in what direction, and at what prices. Each signal will have a unique identifier, and you can optionally provide your own, though one will be automatically assigned if you don't. 
 
-You’ll also find details about where to set your profit target (`priceTakeProfit`) and how to limit potential losses with a stop-loss (`priceStopLoss`). 
-
-A human-readable note (`note`) lets you record the reasoning behind the signal.
-
-The system automatically assigns a unique identifier (`id`) to each signal.
-
-You can specify how long the signal should remain active (`minuteEstimatedTime`), or leave it open indefinitely. A cost value (`cost`) is also included, representing the financial commitment of the trade.
+The signal includes key information: the ticker symbol, whether you're going long (buying) or short (selling), a descriptive note explaining the reasoning behind the signal, and the entry price.  It also specifies the take profit and stop loss prices to manage risk and potential gains.  You can set an estimated duration for the signal – if you don’t specify a time limit, the position remains open until the take profit or stop loss is triggered. Finally, there’s a field to record the cost associated with entering the position.
 
 ## Interface ISignalCloseRow
 
-This interface, `ISignalCloseRow`, builds upon the existing `ISignalRow` to handle situations where a trading signal is closed manually by a user. It introduces two new properties: `closeId` and `closeNote`. The `closeId` specifically identifies the user-initiated close event, providing a unique reference.  `closeNote` allows for adding a descriptive note about the reason or details of the user's closing action. These additions are only relevant when a user directly manages the closing of a trading signal.
+This interface, `ISignalCloseRow`, builds upon the existing `ISignalRow` to handle situations where a signal is closed by a user action. It adds two key pieces of information: `closeId` which uniquely identifies the user-initiated close, and `closeNote`, allowing users to provide a brief explanation or reason for the closure. Think of it as a way to track and annotate user-driven signal terminations within your backtesting system. This is particularly useful for understanding and analyzing why a signal was closed outside of the automated trading logic.
+
 
 ## Interface ISessionInstance
 
-This interface defines a way to manage temporary data during a backtesting run. Think of it as a place to store information that’s specific to a particular trading strategy, symbol, and timeframe. 
+The `ISessionInstance` acts as a shared space for data that's specific to a particular trading setup - a combination of a symbol, strategy, exchange, and timeframe. Think of it as a temporary holding area to store information needed during a single backtesting run.
 
-It's designed to hold things like cached results from AI models, intermediate calculations for indicators, or values that need to be tracked across multiple candles. 
+It allows you to store things like the results of complex calculations (perhaps from a large language model), intermediate results from indicators, or other data that needs to be passed between different parts of your strategy.
 
-The `waitForInit` method sets up the session. `setData` lets you write new data and associate it with a specific point in time. `getData` retrieves that data, ensuring you're not looking into the future. Finally, `dispose` cleans up any resources used by the session when it's no longer needed.
+This interface provides methods to initialize the session, write new data with a timestamp, read data based on a timestamp to prevent looking into the future, and clean up any resources when the session is done. It helps keep your backtesting runs organized and efficient by centralizing important data.
 
 ## Interface IScheduledSignalRow
 
-The `IScheduledSignalRow` represents a signal that's designed to be triggered when a specific price level is reached. Think of it as a signal on hold, waiting for a particular price to occur. 
+The `IScheduledSignalRow` represents a trading signal that’s set to activate when a specific price is reached. Think of it as a signal on hold, waiting for a price trigger. 
 
-It's closely related to a regular signal, but with an added delay – it won't activate until the market price hits the `priceOpen` level. 
+It builds upon the basic `ISignalRow`, adding the element of delayed execution until the market hits the `priceOpen` you’ve specified.
 
-Essentially, this lets you create trading strategies where you want to enter a position *after* a price target is reached, providing a delayed execution.
+Once the market price equals your `priceOpen`, this scheduled signal transforms into a regular, active signal.
 
-The `priceOpen` property defines that target price. Once the market reaches this price, the `IScheduledSignalRow` transforms into a standard pending signal and the order is placed.
-
+The `priceOpen` property holds the price level that must be hit before the signal becomes active. The scheduled time is tracked, and initially the time when it was scheduled is set as the pending time, which later gets updated.
 
 ## Interface IScheduledSignalCancelRow
 
-This interface represents a scheduled signal that might have been cancelled by a user. It builds upon the standard scheduled signal information by adding details specifically related to cancellations. If a user cancels a signal, a unique cancellation ID and any notes they provided will be stored here. Think of it as a way to track and understand why a scheduled signal didn't execute as planned – because someone manually cancelled it. The `cancelId` identifies the cancellation event, and `cancelNote` contains any explanation the user provided.
+This interface, `IScheduledSignalCancelRow`, represents a scheduled trading signal that might have been cancelled by the user. It builds upon the basic `IScheduledSignalRow` and adds information specifically for cancellations that were triggered directly by the user. If a user cancels a scheduled signal, this interface allows us to track that cancellation with a unique `cancelId` and a `cancelNote` – a brief explanation from the user about why they cancelled it. Think of it as a way to record the details of a user-requested cancellation of a planned trade.
 
 ## Interface IScheduledSignalActivateRow
 
-This interface describes a row of data related to a scheduled trading signal, but with an important addition: it allows for activations that are triggered by a user. Think of it as a regular scheduled signal, but with the ability for a person to manually kick it off.  The `activateId` property holds a unique identifier associated with that manual activation, and the `activateNote` lets you store any notes or context the user provided when they initiated the activation. This is particularly useful when you need to track who started a trade and why.
+This interface defines a row of data for scheduled signals, but with a key addition: the ability to track when a user manually triggered the activation. It builds upon the standard scheduled signal data, adding details about the activation process. Specifically, it includes an `activateId` to uniquely identify the user-initiated activation and an `activateNote` to record any notes the user might have provided during activation. Think of it as a way to log who and why a scheduled signal was activated outside of the system’s automatic timing.
 
 ## Interface IRuntimeRange
 
-This interface, `IRuntimeRange`, simply describes the timeframe your backtest will cover. It has two key pieces of information: a starting date (`from`) and an ending date (`to`). Think of it as setting the boundaries for your historical data – it tells the backtesting engine exactly which dates to pull data for and run your strategy against. Essentially, it defines the period you're simulating.
+This interface, `IRuntimeRange`, simply describes the period of time your backtest will cover. It's like setting the start and end dates for your historical data analysis. You’ll use it to specify the timeframe your trading strategy will be evaluated against, ensuring it operates within a defined and consistent period. The `from` property represents the beginning of that time range, while the `to` property marks the end.
 
 ## Interface IRuntimeInfo
 
-This interface provides essential details about the environment your trading strategy is operating in. It gives you access to the trading symbol, like "BTCUSDT", and the time period being analyzed if you're running a backtest. 
+The `IRuntimeInfo` interface provides key details about the current state of a trading run, whether it's a backtest or live execution. It tells you what symbol you're trading, the time period being analyzed (if it’s a backtest), and any custom data your strategy has added for its own needs. You’ll also find information about the exchange, strategy, and frame being used, along with the exact time of the current candle or tick and its corresponding price. Finally, it clearly indicates whether the run is a backtest, allowing your code to adapt accordingly.
 
-You can also retrieve extra, custom data that your strategy itself might be providing. 
-
-Beyond that, it supplies information about the exchange, strategy, and timeframe being used, as well as the precise timestamp for the current data point and the current market price. Finally, it tells you definitively whether you are in backtest mode or running live.
 
 ## Interface IRunContext
 
-The `IRunContext` object acts as a central hub, providing everything a function needs to operate within the backtest-kit framework. It bundles together information about the overall testing setup – like which exchange and strategy are being used – alongside the immediate runtime conditions, such as the symbol being analyzed and the current timestamp. Think of it as a package containing all the details needed to execute a piece of code within the backtesting environment, allowing for a clear separation of concerns between the broader system and the current operation. The framework then unpacks this comprehensive context and distributes its components for efficient use.
+The `IRunContext` acts as a central hub for information needed when running code within the backtest-kit framework. It bundles together two key pieces of data: how your strategy is configured (like which exchange and strategy it's connected to) and the runtime state of the backtest itself (such as the current symbol and timestamp). Think of it as a single, complete package of everything a function needs to know to execute properly during a backtest. This context is given to the system and then divided into separate components for managing strategy routing and runtime state.
 
 ## Interface IRiskValidationPayload
 
-This data structure holds the information needed to assess risk during trading. It combines the details of the signal being evaluated with a snapshot of your portfolio's current state. You'll find the signal itself, represented by `currentSignal`, which always includes the price at which the trade was initiated. 
+This object holds the information needed when checking if a trade is risky. It builds upon the base arguments used for risk checks, adding details about your portfolio's current state. 
 
-The payload also includes information about your open positions, specifically the total number of active positions (`activePositionCount`) and a list of those positions (`activePositions`). This allows validation functions to make informed decisions based on the overall portfolio exposure.
-
+Specifically, it includes the signal that triggered the potential trade – you can be sure the price data is available within that signal. You’ll also find the total number of positions currently open and a complete list of those active positions, which helps assess overall exposure.
 
 ## Interface IRiskValidationFn
 
-This defines how you'll check if a trade is safe to make. It's a function that examines a potential trade and decides whether to allow it or not. If the trade looks good, the function doesn’t do anything – it simply lets the trade proceed. However, if there’s a risk or problem with the trade, the function either returns a specific rejection message, or throws an error, so the system knows to stop the trade and understand why.
+This function type defines how you check if a trade or order meets your risk management rules. Think of it as a gatekeeper – it decides whether a trade should proceed or not. If everything looks good, the function simply does nothing (returns null or void). However, if something triggers a risk concern – like exceeding a limit or violating a rule – it either throws an error or returns a specific rejection result detailing why the trade was blocked. This allows you to clearly understand and react to any risk-related issues.
 
 ## Interface IRiskValidation
 
-This interface helps you define rules to check if your trading risks are acceptable. It's essentially a way to ensure your trading strategy doesn't take on more risk than you're comfortable with.
-
-You provide a `validate` function that performs the actual risk assessment, taking in parameters to evaluate.  A `note` field lets you add a description, like explaining *why* a particular validation is important or what it's checking for – this makes your code easier to understand and maintain.
+This interface helps you define and document rules for validating risk parameters in your trading strategy. Think of it as a way to ensure your risk checks are behaving as expected.  You'll provide a `validate` function – this is the core logic that performs the actual validation.  Alongside that, you can add a `note` to explain what the validation is checking and why. This makes your code more readable and easier to maintain.
 
 ## Interface IRiskSignalRow
 
-This interface, IRiskSignalRow, helps manage risk during trading. It builds upon the existing ISignalDto, adding crucial details about the trade's beginning. You'll find the entry price (`priceOpen`), the initial stop-loss price (`originalPriceStopLoss`), and the initial take-profit price (`originalPriceTakeProfit`) all included here. These values are essential for verifying and controlling risk associated with a trade, especially when assessing potential losses or gains.
+This interface, IRiskSignalRow, helps with managing risk during trading. It builds upon existing signal data by adding crucial information about the initial trade setup. Specifically, it includes the entry price of the position, along with the original stop-loss and take-profit prices that were set when the signal was first generated. This data is especially useful when validating and controlling risk exposure.
 
 ## Interface IRiskSchema
 
-This defines a way to create custom rules for managing risk within your trading portfolio. Think of it as setting up guardrails to ensure your portfolio behaves as expected.
+The IRiskSchema lets you define and register custom risk controls for your portfolio. Think of it as a way to put rules in place to manage risk at a portfolio level.
 
-Each risk profile, identified by a unique `riskName`, lets you add notes for yourself and optionally specify callback functions to trigger actions at certain points in the process.
+Each risk schema has a unique identifier, a `riskName`, so you can easily recognize it. You can also add a note to document the purpose of the risk control.
 
-The core of a risk profile is its `validations`, where you’ll define the actual checks and balances. You can provide these validations as functions or pre-defined objects, which allows for a flexible way to implement your specific risk management strategies.
+You can optionally provide callbacks – `onRejected` and `onAllowed` – which act as triggers for specific actions when a risk check is performed. 
+
+The heart of the schema is the `validations` array. This is where you put the custom logic that determines whether a trade or portfolio state is acceptable based on your defined risk rules. These validations can be functions or pre-defined validation objects.
 
 ## Interface IRiskRejectionResult
 
-When your risk validation fails, this object provides details about why. It includes a unique ID to track the specific rejection and a clear explanation, in plain language, of what went wrong. Think of it as a friendly message telling you exactly what needs fixing in your setup.
+This interface describes the outcome when a risk check fails during your trading strategy's validation. It provides information to help you understand why the rejection happened. Each rejection has a unique ID, and a clear, easy-to-understand explanation of the problem is included in the "note" property. This helps pinpoint and fix issues in your trading logic.
 
 ## Interface IRiskParams
 
-This interface defines the settings passed to the ClientRisk component, which helps manage trading risks. It includes essential information like the name of the exchange you're trading on and a logger to help with debugging. You'll also need to provide a time service to ensure accurate, bias-free calculations, especially during backtesting. 
+This interface defines the configuration needed for managing risk within the trading system. It includes details like the exchange being used, a logger for tracking activity, a time service to ensure accurate data handling, and a flag to indicate whether the system is in backtesting or live trading mode. 
 
-The `backtest` flag distinguishes between running tests on historical data and live trading. Most importantly, the `onRejected` callback allows you to react when a trading signal is blocked due to risk constraints – it's a way to customize how risk rejections are handled and reported.
+You can also specify a callback function that's triggered when a trading signal is blocked due to risk constraints. This callback lets you handle these situations, potentially emitting events or performing other actions before the system proceeds. Essentially, it provides a way to react to and manage risk-related rejections.
 
 ## Interface IRiskCheckOptions
 
-The `IRiskCheckOptions` interface helps manage how risk checks are performed, especially when multiple processes are involved. It has a property called `reserve`.
-
-If you set `reserve` to `true`, the system ensures that when a risk check happens, it temporarily marks a position as being used. This is crucial to prevent issues that can occur when multiple processes try to use the same position at the same time, ensuring a more reliable and predictable trading environment. This way, other checks will see the updated position size before any changes are officially applied.
+The `IRiskCheckOptions` interface helps manage potential conflicts when multiple parts of your trading system are trying to use the same position at the same time. Specifically, the `reserve` option provides a way to temporarily mark a position as being used. This ensures that if other parts of your code are checking the size of the position, they see the updated value *before* the position is actually fully committed, preventing unexpected behavior in concurrent scenarios. Think of it as a little reservation to keep things orderly.
 
 ## Interface IRiskCheckArgs
 
-The `IRiskCheckArgs` interface provides the data needed to assess whether a new trade should be allowed. Think of it as a set of checks run *before* a trading signal is actually generated. It bundles together essential information about the potential trade, including the trading pair's symbol, the signal itself, the strategy initiating the trade, and details about the exchange and risk management setup. You'll find information like the current price, a timestamp, and identifiers like the strategy and risk names all included to allow for robust risk evaluation. Essentially, it's a snapshot of the context surrounding a trade request.
+This interface, `IRiskCheckArgs`, provides the information needed to perform a risk check before a trading signal is generated. Think of it as a set of validations to make sure it's a good time to open a new position. It’s given to your risk management logic before a signal is created, essentially to double-check if the conditions are right.
+
+The arguments include details about the trading pair (`symbol`), the signal itself (`currentSignal`), which strategy is requesting the trade (`strategyName`), the exchange being used (`exchangeName`), and a specific risk profile identifier (`riskName`). It also provides the timeframe being considered (`frameName`), the current price (`currentPrice`), and a timestamp (`timestamp`) for accurate validation. All of these arguments come directly from the `ClientStrategy` context.
 
 ## Interface IRiskCallbacks
 
-This interface defines optional functions that your backtesting strategy can use to respond to risk management events. Think of them as notifications your strategy receives when the system assesses a trade's risk. The `onRejected` function gets called if a trade is blocked because it exceeds a defined risk threshold. Conversely, `onAllowed` is triggered when a trade passes all the risk checks and is permitted to proceed. These callbacks give you a way to monitor and react to the system’s risk assessments within your trading logic.
+This section describes callbacks related to risk management within the trading framework. You can use these to react to situations where a trading signal is either blocked due to risk limits or approved to proceed. The `onRejected` callback gets triggered when a signal fails a risk check, letting you know a trade won’t be executed. Conversely, the `onAllowed` callback informs you when a signal successfully passes all risk evaluations and is ready for execution. These callbacks help you monitor and potentially adjust risk parameters based on real-time trading signals.
 
 ## Interface IRiskActivePosition
 
-This interface describes an active trading position that's being monitored for risk analysis. It holds all the key details about a position, like which strategy created it, the exchange it's on, and the trading symbol involved (like BTCUSDT). You’ll find information about the direction of the trade – whether it's a long or short position – along with the entry price and any stop-loss or take-profit levels.  There's also data about how long the position is expected to last and a record of exactly when the trade was initiated. Essentially, it's a snapshot of everything important related to an open position.
+This interface describes an active trading position that's being monitored for risk management across different strategies. It holds all the key details about a position, like which strategy owns it, the exchange it's on, and the trading symbol involved. 
+
+You'll find information like the direction of the trade (long or short), the entry price, and any stop-loss or take-profit levels set.  It also tracks how long the position is expected to last, and when it was initially opened. Think of it as a snapshot of a trade, capturing all the critical data needed to understand and manage risk.
+
 
 ## Interface IRisk
 
-The `IRisk` interface is your gatekeeper for managing risk while trading. It allows you to ensure your trading signals adhere to pre-defined risk limits and keeps track of your positions.
+The `IRisk` interface manages risk controls and tracks positions in your trading strategies. It's responsible for ensuring that trades align with pre-defined risk limits and that you’re not exceeding those boundaries.
 
-The `checkSignal` method evaluates whether a specific trading signal is permissible based on your defined risk parameters. A safer, more robust option is `checkSignalAndReserve`, which simultaneously verifies the signal and makes a preliminary "reservation" for the position within a protected area – this prevents multiple strategies from simultaneously exceeding limits.  It’s crucial to follow this up with either adding the actual signal data (`addSignal`) or canceling the reservation (`removeSignal`) to keep your risk tracking accurate.
+The `checkSignal` method evaluates whether a signal is safe to execute based on your risk settings.  There’s also a `checkSignalAndReserve` method which offers a safer way to do this, especially when multiple strategies are running simultaneously. It verifies the signal *and* immediately sets aside a placeholder for the potential position, preventing other strategies from exceeding limits in between the check and the actual trade placement. Remember, if `checkSignalAndReserve` succeeds, you *must* either finalize the trade with `addSignal` or cancel it with `removeSignal` to avoid incorrect tracking.
 
-`addSignal` is used to formally register a newly opened trading position in the system.  Finally, `removeSignal` is how you clean up when a position is closed, ensuring that your risk calculations remain correct.
+The `addSignal` method records a newly opened position, officially adding it to the active position count. Conversely, `removeSignal` cleans up a closed position, ensuring accurate tracking of remaining risk exposure.
 
 ## Interface IReportTarget
 
-This interface lets you fine-tune what information gets recorded during your trading tests. Think of it as a way to control the level of detail in your reports.
-
-You can selectively turn on or off logging for different aspects of the trading process, such as strategy performance, risk management, breakeven points, partial order fills, data analysis, schedule events, and more. Each property represents a specific type of event you might want to track.
-
-For example, if you're primarily interested in how your trading strategy is performing, you can enable the `strategy` property. If you want to monitor the risk aspects, you can enable `risk`.  This gives you control over the report's contents and helps keep it focused on what's most important for your analysis.
+This interface lets you pick and choose which types of events you want to log during your trading backtests. Think of it as a way to control the level of detail in your reports. Each property, like `strategy` or `risk`, corresponds to a specific category of events – for example, enabling `risk` logging captures events related to risk management.  You can enable or disable these categories individually to focus on the information most relevant to your analysis, keeping your logs manageable and highlighting key aspects of the trading process.  By toggling these boolean values, you fine-tune the reports that are generated, ultimately giving you a tailored view of your backtest results.
 
 ## Interface IReportDumpOptions
 
-This interface defines the details you can specify when writing out report data. It's a way to tag your data with important information like which trading pair (symbol) the data relates to, the name of the trading strategy used, the exchange it came from, and the timeframe (frameName). You can also include a unique identifier for the signal and the name of the walker used for optimization. Essentially, it lets you organize and filter your backtest results based on these key characteristics.
+This interface lets you specify details when exporting report data, like the symbol being traded (e.g., BTCUSDT), the name of the trading strategy used, and the exchange it ran on. You can also include the timeframe (like a 1-minute or 1-hour chart) and a unique identifier for the signal that triggered the trade. Lastly, it allows you to record the name of the walker used for optimization purposes. Providing these details helps organize and analyze your backtesting results.
 
 ## Interface IRecentUtils
 
-This interface defines how different systems can store and access recent trading signals. It provides methods for responding to "ping" events that indicate new signals are available, for fetching the most recent signal for a specific trading setup, and for determining how long ago that signal was generated. The `handleActivePing` method is used to save these new signals. The `getLatestSignal` method retrieves the most recent signal, carefully ensuring it doesn’t accidentally look into the future. Finally, `getMinutesSinceLatestSignalCreated` tells you how much time has passed since the latest signal was recorded, useful for validating your backtesting and trading logic.
+This interface defines how different systems can store and access recent trading signals. It provides a way to manage and retrieve the most up-to-date signal information for a particular trading setup. 
+
+The `handleActivePing` method allows systems to record new signal events, ensuring the storage stays current.  `getLatestSignal` fetches the most recent signal for a specific symbol, strategy, and timeframe, while also preventing looking into the future by returning null if the signal is too recent.  Finally, `getMinutesSinceLatestSignalCreated` calculates how long ago the most recent signal was generated, useful for understanding signal frequency and timing.
 
 ## Interface IPublicSignalRow
 
-This interface, `IPublicSignalRow`, is designed to provide a clear and complete view of a trading signal, especially for external users or reporting. It builds upon the core signal information but adds crucial details about the initial settings.  You'll find here the original stop-loss and take-profit prices that were set when the signal was created – these values don't change even if you're using trailing stop-loss or take-profit techniques.
+This interface, IPublicSignalRow, provides a way to share detailed information about a trading signal with external systems or users. It builds upon the existing ISignalRow to include the original stop-loss and take-profit prices that were initially set when the signal was generated.  Even if those stop-loss and take-profit levels are adjusted later by strategies like trailing stops, this interface ensures that the original values remain visible.
 
-The `cost` property tells you the initial investment required for the position. The `originalPriceStopLoss` and `originalPriceTakeProfit` values let you track the initial risk management parameters.  `partialExecuted` shows you what percentage of the position has been closed using partial exits. `totalEntries` indicates if the position was a single entry or a series of averaged entries.  `totalPartials` represents the number of times partial exits have been triggered.
+You'll find key details here like the cost of entering the trade, the number of entries and partial closes executed, and the original entry price.  It also includes profit and loss information, showing the unrealized P&L, the peak profit reached, and the maximum drawdown experienced by the trade. The `partialExecuted` property shows what percentage of the position has been closed through partial exits, which is helpful to understand the position's lifecycle. The `totalEntries` and `totalPartials` properties quantify the extent of the position’s DCA and partial exit strategy. 
 
-It also includes information about the position's performance, like the `originalPriceOpen` which is the initial entry price, and key metrics like `pnl`, `peakProfit`, and `maxDrawdown` that reflect the profit and loss history up to the signal's creation time. These metrics help you understand the position's overall health and potential.
+Essentially, IPublicSignalRow allows you to transparently show users the initial parameters and performance metrics of a trading signal.
 
 ## Interface IPublicCandleData
 
-This interface describes a single candlestick, a common way to represent price data over a period of time. Each candlestick holds several pieces of information about the price action during that time. You'll find the exact time the candlestick started (timestamp), the price when it opened (open), the highest and lowest prices it reached (high and low), and the price when it closed (close). Finally, the volume property tells you how much trading activity occurred during that same period.
+This interface defines the standard structure for candle data used throughout the backtest-kit framework. Each candle represents a specific time interval and contains key price points and volume information. 
+
+You'll find properties like `timestamp` to mark when the candle began, `open` for the initial price, `high` and `low` for the extremes, `close` to indicate the final price, and `volume` representing the trading activity within that time period. This consistent data format allows for easy integration of different data sources into your backtesting strategies.
 
 ## Interface IPositionSizeKellyParams
 
-This interface defines the parameters needed to calculate position sizes using the Kelly Criterion. It's all about determining how much to bet or trade based on your expected win rate and the average amount you win compared to what you lose.  You’ll specify a `winRate`, representing the proportion of time you expect to be profitable, and a `winLossRatio`, which describes the average profit for each losing trade. Together, these values help determine the optimal position size to maximize long-term growth.
+This interface defines the parameters used to calculate position sizes based on the Kelly Criterion. Think of it as setting the rules for how much of your capital you'll risk on each trade.
+
+You'll specify a `winRate`, representing the percentage of winning trades you expect, and a `winLossRatio`, which reflects the average profit you make on a winning trade compared to the average loss on a losing trade. These values help determine an optimal bet size, aiming to maximize long-term growth.
 
 ## Interface IPositionSizeFixedPercentageParams
 
-This describes the settings you use when determining how much of an asset to trade using a fixed percentage of your capital. 
+This section describes the parameters used for a trading strategy that sizes positions based on a fixed percentage of your available capital, and includes a stop-loss order. 
 
-Specifically, `priceStopLoss` tells the system at what price to place a stop-loss order to limit potential losses. This value is crucial for risk management within your trading strategy.
+The `priceStopLoss` property specifies the price at which a stop-loss order will be triggered to limit potential losses. It's a critical value to define how your risk management will operate.
 
 ## Interface IPositionSizeATRParams
 
-The `IPositionSizeATRParams` interface holds the information needed to calculate a position size based on the Average True Range (ATR). 
+The `IPositionSizeATRParams` interface holds the information needed to calculate your position size using the Average True Range (ATR). It's a straightforward way to determine how much to trade based on market volatility.
 
-It's designed for use when you want to determine how much to trade based on market volatility, as measured by the ATR.
+The most important part is the `atr` property, which represents the current ATR value. This value directly influences the size of your trade – a higher ATR generally means a larger position size to account for increased volatility.
 
-Currently, it only contains one piece of information: `atr`, which represents the current ATR value. This value is essential for calculating the size of your position.
 
 ## Interface IPositionOverlapLadder
 
-This defines how to detect overlapping positions when using dollar-cost averaging (DCA). It essentially sets up a "buffer zone" around each of your DCA levels. 
+This interface defines how to control the detection of overlapping positions when using dollar-cost averaging (DCA). It helps you specify a zone around each DCA level to look for potential overlaps.
 
-The `upperPercent` property controls how much above each DCA level is considered an overlap – think of it as a safety margin to prevent unintended trades.  The `lowerPercent` property does the same but for below the DCA levels.
+The `upperPercent` property sets the upper boundary of this zone as a percentage; values above this point are considered overlaps. 
 
-Both percentages are expressed as values between 0 and 100, so a value of 5 represents 5%. By adjusting these values, you can fine-tune how aggressively your backtest kit identifies potential overlap issues.
+The `lowerPercent` property sets the lower boundary of the zone, similarly marking values below it as overlaps. You'll use these percentages to fine-tune the sensitivity of the overlap detection system.
 
 ## Interface IPersistStrategyInstance
 
-This interface helps you manage how a trading strategy's data is saved and loaded, particularly when dealing with delayed execution or needing to preserve information between sessions. It’s designed to work with a specific combination of a trading symbol, the strategy's name, and the exchange being used. 
+This interface helps you customize how trading strategies store and retrieve their data across different trading contexts. Think of it as a way to manage the memory of a strategy, allowing it to remember its state even after it's been paused or stopped.
 
-If you want to change the way strategy data is stored—perhaps using a database instead of a file—you can create a custom adapter that implements this interface. 
+It's designed for specific combinations of a trading symbol, strategy name, and exchange.
 
-The `waitForInit` method prepares the storage area for the strategy’s data.  The `readStrategyData` method retrieves any previously saved data. Finally, `writeStrategyData` allows you to save the current state of the strategy, or to clear out any existing data by setting it to null.
+If you need more control over how this data is saved – perhaps you want to use a database instead of a file – you can build a custom adapter that implements this interface.
+
+The `waitForInit` method sets up the storage for a particular strategy instance. 
+`readStrategyData` fetches any existing saved data for that instance.
+Finally, `writeStrategyData` lets you save the current state of the strategy, or clear it entirely if needed.
+
 
 ## Interface IPersistStorageInstance
 
-This interface defines how your custom storage solutions can interact with the backtest-kit framework. Think of it as a way to replace the default file storage with something else, like a database or an in-memory store.
+This interface defines how to manage and persist signal data for backtesting or live trading. Think of it as a way to save and load your trading signals so you don’t lose them between sessions.
 
-There's one instance of this storage adapter used during backtesting and another during live trading, ensuring isolation between the two.
+Essentially, it lets you customize how your signals are stored – instead of relying on the default file-based storage, you can create your own solution.
 
-The `waitForInit` method lets you prepare the storage before anything else happens in the context.
-
-`readStorageData` retrieves all previously saved signals, looping through the storage to find them. They're identified by their unique signal IDs.
-
-Finally, `writeStorageData` lets you save the current state of your signals, again using the signal ID as the key for each signal.
+The `waitForInit` method sets up the storage when a backtest or live trading session begins.  The `readStorageData` method retrieves all saved signals and presents them as a list. Finally, `writeStorageData` is responsible for saving the signals back to the chosen storage location, organizing them by their unique signal IDs.
 
 ## Interface IPersistStateInstance
 
-This interface defines how a specific piece of a trading strategy's state can be safely stored and retrieved. Think of it as a way to save important information for a particular calculation or decision, making sure it's not lost even if there's a problem.
+This interface defines how to manage persistent storage for strategy states. Think of it as a way to save and load the important information your trading strategy needs to remember, specifically for a particular signal and bucket combination.
 
-It's particularly helpful when building strategies that need to remember things between runs or in case the system crashes. 
+If your strategy needs to reliably recover from interruptions, like crashes or restarts, you can create a custom adapter that implements this interface.
 
-If you're building a custom way to store strategy state (like using a database instead of a file), you would implement this interface.
+The `waitForInit` method allows you to prepare the storage space. `readStateData` retrieves the saved state. `writeStateData` is used to save the latest state, and `dispose` is for cleaning up when the storage is no longer needed – although it might not always be required to do anything.
 
-Here's what you'll need to do:
-
-*   `waitForInit`:  A way to prepare the storage when it first starts.
-*   `readStateData`: Loads the saved state from wherever it's stored.
-*   `writeStateData`: Saves the current state to the storage. This includes specifying when the data was saved.
-*   `dispose`:  Clean up any resources that were used. This might not be necessary in all cases.
 
 ## Interface IPersistSignalInstance
 
-This interface defines how a backtest kit trading system can store and retrieve signals related to a specific trading strategy and symbol. Think of it as a way to save the signals generated by your strategy so you can load them again later.
+This interface helps you manage how trading signals are saved and loaded for a particular setup. Think of it as a way to customize where and how signal data is stored. 
 
-If you want to customize where and how your signals are saved – perhaps using a database instead of a file – you can create a class that implements this interface.
+It's designed to work with a specific combination of a symbol, a strategy name, and an exchange. 
 
-The `waitForInit` method allows you to set up the storage space before signals are saved. `readSignalData` fetches previously saved signals, and `writeSignalData` is used to store new or updated signal information; setting the data to null clears the stored signal.
+If you want to go beyond the default file-based storage, you can create your own adapter that implements this interface.
+
+The `waitForInit` method prepares the storage space for the signals. The `readSignalData` method retrieves previously saved signal data. And the `writeSignalData` method allows you to save new or updated signal data, or clear the data entirely by setting it to null.
 
 ## Interface IPersistSessionInstance
 
-This interface defines how to manage persistent session data for a specific trading setup—think of it as a way to save and load information related to a particular strategy, exchange, and timeframe. It's designed to help prevent data loss if your backtesting system crashes.
+This interface defines how to manage session data specifically for a particular trading strategy, exchange, and frame combination. Think of it as a way to save and load important information about a running trading setup so you can pick up where you left off, even if things crash.
 
-If you need to customize how this data is stored (perhaps using a database instead of a file), you can build your own adapter that implements this interface.
+If you want to customize how this data is stored – perhaps using a database instead of a file – you can create your own implementation of this interface.
 
-The `waitForInit` method prepares the storage for the session. `readSessionData` retrieves previously saved data. `writeSessionData` saves the current data, including a timestamp. Finally, `dispose` cleans up any resources used, although this may be optional in some cases.
+The `waitForInit` method sets up the storage for a session. The `readSessionData` method retrieves previously saved data.  `writeSessionData` is used to save the current state.  Finally, `dispose` cleans up any resources when the session is no longer needed.
 
 ## Interface IPersistScheduleInstance
 
-This interface helps backtest-kit remember the signals it generates for a specific trading strategy on a particular symbol and exchange. Think of it as a way to save and load the signals so you can resume a backtest where you left off, or analyze past performance.
+This interface lets you customize how backtest-kit saves and loads signals for specific trading setups. Think of it as a way to control where and how information about scheduled signals is stored, rather than relying on the default system. It's designed for situations where you might want to use a different storage method, like a database or an in-memory cache, instead of a simple file.
 
-If you're building a custom solution for how signals are stored – maybe using a database instead of files – you'll need to implement this interface.
-
-The `waitForInit` method is used to prepare the storage when a backtest starts. `readScheduleData` retrieves any previously saved signal information. Finally, `writeScheduleData` allows you to store a new signal or clear existing data when needed.
+Implementing this interface involves three key actions: initializing the storage, retrieving existing signal data, and writing new or updated signal data. Each of these actions is handled through promises, allowing for asynchronous operations like fetching data from a remote server.  The interface is specific to a particular symbol, strategy, and exchange, ensuring that persistence is correctly managed for each distinct scenario. If you need to persist scheduled signals in a more tailored fashion, this is the interface to work with.
 
 ## Interface IPersistRiskInstance
 
-This interface lets you customize how backtest-kit stores and retrieves risk positions – essentially, the details of active trades for a specific risk profile and exchange combination. If you want to use a database or another storage method instead of the default file storage, you can build a custom adapter that implements this. 
+This interface defines how a trading system remembers risk positions for a specific combination of risk name and exchange. Think of it as a way to customize where and how that information is saved – potentially moving away from the default file storage. 
 
-The `waitForInit` method is called to prepare the storage when a new risk context is created, allowing you to set up your custom storage mechanism. `readPositionData` retrieves the historical positions, allowing you to access previous state. Finally, `writePositionData` is how you'd save the current positions to your custom storage, ensuring they're preserved for future calculations.
+If you need to build your own system for managing risk data, you’ll implement this interface. 
+
+The `waitForInit` method prepares the storage area. The `readPositionData` method retrieves previously saved risk position data for a given time. Finally, `writePositionData` saves the current risk positions for that time.
+
 
 ## Interface IPersistRecentInstance
 
-This interface defines how to store and retrieve the most recent signal for a specific trading setup. Think of it as a way to remember what signal was active last time you ran a backtest or were live trading. 
+This interface helps keep track of the most recent trading signal used in a specific scenario. Think of it as a way to remember what signal was active for a particular symbol, trading strategy, exchange, and timeframe – all within a backtest or live trading environment. 
 
-Each storage instance is tied to a particular combination of symbol, strategy name, exchange, and timeframe.
+It allows you to customize how this information is saved and retrieved, potentially moving away from the default file-based storage. If you need to manage recent signals in a unique way, you can build your own adapter that implements this interface.
 
-If you want to customize how this "remembered" signal is saved—perhaps using a database instead of a file—you'll create a class that implements this interface.
-
-The `waitForInit` method sets up the storage when needed. `readRecentData` loads the previously saved signal, and `writeRecentData` saves the current signal.
-
+The `waitForInit` method sets up the storage for a specific context. `readRecentData` retrieves the last saved signal, and `writeRecentData` saves a new signal along with the date and time it occurred.
 
 ## Interface IPersistPartialInstance
 
-This interface defines how to save and load partial profit and loss information for a specific trading setup. Think of it as a way to remember where a trade stands, even if the program restarts. 
+This interface defines how to manage temporary data related to profit and loss for a particular trading setup. Think of it as a way to save and load intermediate results – specifically, how much profit or loss has been made at certain points in time – for a specific symbol, trading strategy, and exchange.
 
-It focuses on a particular combination of asset (symbol), the trading strategy used (strategyName), and the exchange involved (exchangeName). 
+It allows you to customize how this data is stored, rather than relying on the default file-based method.
 
-The data for each individual trade signal is stored separately, identified by a unique signal ID. 
+To work with this, you’d create a custom adapter that implements these methods:
 
-If you want to customize how this information is saved, like using a database instead of a file, you can create an adapter that implements this interface.
+*   `waitForInit` sets up the storage area when needed.
+*   `readPartialData` retrieves stored data for a signal at a given time.
+*   `writePartialData` saves new data for a signal.
 
-The `waitForInit` method sets up the storage area for a new trading context.
-
-`readPartialData` retrieves the saved progress of a trade.
-
-`writePartialData` saves the current progress of a trade.
-
+Essentially, it's about controlling how the framework remembers partial trading results.
 
 ## Interface IPersistNotificationInstance
 
-This interface lets you customize how trading notifications are saved and loaded. Think of notifications as important messages your trading system generates – things like order confirmations or errors. 
+This interface lets you customize how notifications are saved and loaded during backtesting or live trading. Think of it as a way to replace the default file storage with your own solution, like a database or in-memory cache.
 
-This interface provides a way for you to control where and how those notifications are stored, rather than relying on the default file-based storage. There's a separate storage instance for backtesting and for live trading.
+There's a separate instance of this for backtesting and live trading.
 
-The `waitForInit` method prepares the storage when needed. The `readNotificationData` method retrieves all previously saved notifications. Finally, `writeNotificationData` saves new or updated notifications to the storage, associating each notification with a unique identifier.
-
+When you implement this, you'll be responsible for initializing the storage, reading all existing notifications, and writing new or updated notifications.  Notifications are identified by their unique IDs, and reading pulls all of them.
 
 ## Interface IPersistMemoryInstance
 
-This interface defines how memory data is stored and retrieved for a specific part of your trading system. Think of it as a way to manage the information associated with a particular signal and a designated storage area. 
+This interface defines how memory data is stored and retrieved for a specific context within the backtest-kit framework. Think of it as a way to manage pieces of information related to a particular trading signal and a designated bucket. 
 
-It allows you to read, write, and list memory entries—pieces of data—and even soft-delete them, meaning they're removed from active use but remain on disk. 
+It allows for persisting memory entries, meaning data can be saved to disk and later reloaded. 
+A key feature is the ability to "soft-delete" entries – marking them as removed but keeping them on disk.  This is useful when you want to remove data from active use but preserve it for potential analysis or recovery.
 
-If you need a different way to store memory data beyond the default file-based method, you can create a custom implementation of this interface. 
+If you're creating a custom way to store this memory data, such as using a database instead of files, you'll need to implement this interface.
 
-Here's a breakdown of what you can do:
+Here's a quick breakdown of the actions it supports:
 
-*   **waitForInit:** Sets up the storage area for memory.
-*   **readMemoryData:** Retrieves a specific memory entry by its unique ID.
-*   **hasMemoryData:** Checks if a memory entry with a given ID exists.
-*   **writeMemoryData:** Creates or updates a memory entry, including a timestamp.
-*   **removeMemoryData:** Marks a memory entry for deletion (soft-delete).
-*   **listMemoryData:** Retrieves a list of all memory entries that haven't been marked for deletion.
-*   **dispose:** Cleans up any resources used by the storage.
+*   **Initialization:**  Ensuring the storage is ready to use.
+*   **Reading:**  Fetching a specific memory entry by its ID.
+*   **Checking Existence:** Verifying if a memory entry with a given ID exists.
+*   **Writing:** Saving a new memory entry or updating an existing one.
+*   **Soft-Deleting:** Marking a memory entry as removed without actually deleting it from disk.
+*   **Listing:** Retrieving all available memory entries (excluding those that have been soft-deleted).
+*   **Cleanup:** Releasing any resources held by the storage system.
 
 ## Interface IPersistMeasureInstance
 
-This interface defines how to store and retrieve cached data for a specific trading strategy bucket. Think of it as a way to save results from external sources so you don't have to repeatedly fetch them.
+This interface defines how to store and retrieve cached data for backtest measures, often used when fetching data from external sources. 
 
-It allows for a feature called "soft delete" – when data is removed, it isn't actually erased from disk, but marked as such, allowing for easy recovery if needed.
+It allows you to customize how this cached data is managed – for example, you might store it in a database instead of a file.
 
-If you want to customize how this cached data is stored – perhaps using a database instead of a file – you can create a custom adapter that implements this interface.
+The cache supports a "soft delete" feature, which means removing data doesn’t erase it completely from disk; instead, it's marked as removed, allowing for recovery if needed.
 
-Here’s what the interface methods do:
+Here's what you can do with this interface:
 
-*   `waitForInit`:  Prepares the storage area for the bucket.
-*   `readMeasureData`:  Retrieves a cached data entry based on its key.
-*   `writeMeasureData`:  Saves a new data entry to the cache, along with a timestamp.
-*   `removeMeasureData`:  Marks an entry as deleted, keeping the file but excluding it from regular searches.
-*   `listMeasureData`:  Provides a way to see a list of all available cached entries (excluding the marked deleted ones).
+*   **`waitForInit`**: Prepare the storage area for a specific measure.
+*   **`readMeasureData`**: Get a cached data entry based on its key.
+*   **`writeMeasureData`**: Save new data or update existing data within the cache.
+*   **`removeMeasureData`**: Mark a data entry as deleted, keeping the file but excluding it from typical searches.
+*   **`listMeasureData`**: Get a list of all the keys of available (non-deleted) entries.
 
 ## Interface IPersistLogInstance
 
-This interface defines how to manage persistent log data across your backtest-kit application. Think of it as a way to store log entries so they aren't lost when your backtest finishes or the application restarts.
+This interface defines how your application can manage and store log data persistently, acting as a central place for all logs within the running process. It’s designed to be a single, global storage location, different from how other data might be handled.
 
-Instead of being tied to a specific trading strategy or system, these logs are global, meaning they're stored and accessed in one central place.
+If you want to customize how logs are saved—perhaps to a database instead of a file—you'll implement this interface.
 
-If you want to change how logs are saved – for example, to store them in a database instead of a file, you can create a custom adapter that implements this interface.
+The `waitForInit` method allows you to ensure log storage is ready before you start writing data.
 
-The `waitForInit` method allows you to prepare the logging system for use.
+`readLogData` retrieves all of your stored log entries, essentially reading the entire log history.
 
-`readLogData` allows you to retrieve all the saved log entries for review or further processing.
-
-Finally, `writeLogData` provides the mechanism to save new log entries, ensuring that entries aren’t overwritten and the log remains an append-only record.
+Finally, `writeLogData` is responsible for saving new log entries, ensuring that each entry is uniquely identified and that you don’t accidentally overwrite existing data—it’s an append-only system.
 
 ## Interface IPersistIntervalInstance
 
-This interface helps manage how information about when an interval has run is stored for a specific time bucket. Think of it as a way to remember that a particular task has already been done for a given period. 
+This interface defines how your custom storage system interacts with the backtest-kit framework to manage when specific trading intervals have already run. Think of it as a way to keep track of which intervals have "fired" for a particular time period and asset.
 
-It's designed for scenarios where you need to control precisely how that "done" status is tracked – maybe you want to store this data in a custom database or a different file format than the default.
+It allows you to customize how the backtest-kit knows whether to re-trigger an interval's function.  The framework uses this to avoid running the same function multiple times within the same interval. 
 
-The `waitForInit` method prepares the storage for a bucket, `readIntervalData` retrieves existing marker information, and `writeIntervalData` saves new information about interval runs.  If you need to re-run something, you can "soft-delete" a marker using `removeIntervalData`—essentially making it disappear for the system's purposes until the next run cycle. Finally, `listIntervalData` allows you to see all the intervals that haven’t been removed.
+You can use it to persist this information to a file, database, or other custom storage.  If a record is "soft-deleted," it's as if it doesn’t exist, so the interval function will run again.
+
+Here's a breakdown of the key functions:
+
+*   `waitForInit` sets up the storage for each interval.
+*   `readIntervalData` retrieves information about a specific interval marker.
+*   `writeIntervalData` records that an interval has occurred.
+*   `removeIntervalData` marks an interval as needing to be re-run.
+*   `listIntervalData` provides a way to iterate through all interval markers that haven't been removed.
 
 ## Interface IPersistCandleInstance
 
-This interface defines how to manage and store candle data for a specific trading symbol, timeframe (interval), and exchange. Think of it as a way to save and load historical price data.
+This interface defines how to store and retrieve historical candle data for a specific trading instrument, timeframe, and exchange. Think of it as a way to manage a local copy of market data.
 
-The `waitForInit` method prepares the storage space for this particular data set.
+The `waitForInit` method allows you to prepare the storage area when needed.
 
-`readCandlesData` is used to retrieve a range of historical candles, and crucially, it will return `null` if even a single candle is missing from the saved data.  This signals to the system that it needs to go back and fetch that missing piece of data from the original source.
+The `readCandlesData` method fetches a batch of candles from the storage based on a specified time range. Importantly, if any candle within that range is missing, it returns null, signaling that the data needs to be fetched from the original source.
 
-`writeCandlesData` allows you to save newly fetched or calculated candles to the storage.  When saving, you might want to skip candles that are incomplete or that already exist to prevent accidentally replacing complete data. 
-
-Essentially, it's a persistent store for candle data, ensuring that missing data triggers a refresh from the source and that existing data isn't overwritten unnecessarily.
+Finally, the `writeCandlesData` method is used to save newly downloaded or recalculated candles into the storage. Implementations have the flexibility to skip candles that are incomplete or already present to maintain data integrity.
 
 ## Interface IPersistBreakevenInstance
 
-This interface lets you manage how breakeven data – the information needed to know when a trade is profitable – is saved and loaded. Think of it as a way to customize where and how this vital information is stored. 
+This interface helps manage where your trading strategy's breakeven data is saved. Think of it as a way to customize how that information is stored.
 
-It's specific to a particular combination of symbol (the asset being traded), strategy name, and exchange – meaning each trading setup gets its own dedicated storage space.
+It's tied to a very specific combination: a trading symbol, the name of the strategy you're using, and the exchange it's on.
 
-The `waitForInit` method prepares the storage area for a new context.
-The `readBreakevenData` method retrieves saved breakeven data for a particular trade signal.
-The `writeBreakevenData` method saves the breakeven data for a trade signal.
+Each signal – a discrete trading instruction – has its own little area for storing this breakeven data, organized by a unique signal ID.
 
-You can build your own adapters that implement this interface to replace the default file storage with something else, like a database or an in-memory solution.
+If you want to store this data somewhere other than the default (like a database instead of a file), you can create your own version of this interface.
+
+The `waitForInit` method is used to set up the storage space.  `readBreakevenData` retrieves saved information.  And `writeBreakevenData` saves new or updated information about a signal’s breakeven point.
 
 ## Interface IPersistBase
 
-This interface, `IPersistBase`, is designed to let you build your own ways to save and load data for your backtesting system. It lays out the basic building blocks: initializing persistence, reading data, checking for its existence, writing data safely, and listing all available data keys. Think of it as a standard way for different storage methods – like files, databases, or even in-memory stores – to interact with the backtesting framework. 
+This interface outlines the fundamental operations for any custom persistence adapter you might create for backtest-kit. Think of it as the core contract your adapter needs to fulfill to handle saving and retrieving data.
 
-The `waitForInit` method ensures everything is set up correctly once, before any data is loaded. `readValue` and `hasValue` are used to retrieve and verify data. `writeValue` writes data reliably. Finally, `keys` gives you a way to get a sorted list of all the data identifiers, useful for checks or looping through everything. 
+It defines five essential methods: `waitForInit` to set up and check your persistence directory on startup; `readValue` to fetch a specific entity; `hasValue` to quickly check if an entity exists; `writeValue` to securely save an entity; and `keys` to provide a way to list all entities. 
 
-The framework provides a default implementation called `PersistBase`, but you can create your own custom adapters that meet the requirements of `IPersistBase`.
+The `keys` method is particularly important as it’s used for both iterating through all your persisted data and for ensuring data integrity. By implementing this interface, you can build flexible persistence solutions tailored to your specific needs, like saving data to a database or a file system.
 
 ## Interface IPartialProfitCommitRow
 
-This interface represents a single instruction to take a partial profit on a trade. Think of it as a row in a queue telling the backtest system to sell a portion of your position. 
+This object represents a partial profit taking action that's been queued up in your backtest. 
 
-Each instruction specifies the percentage of the position to close, and the price at which that partial sale actually occurred.  The `action` property simply identifies this as a partial profit action.
+It tells the backtest system to close a portion of your position. 
 
+The `action` property confirms it’s a partial profit action, and `percentToClose` specifies what percentage of the position should be closed. Finally, `currentPrice` records the price at which this partial profit was actually executed.
 
 ## Interface IPartialLossCommitRow
 
-This represents a request to partially close a position, essentially selling a portion of it. 
-
-It includes details like confirmation that the action is a "partial-loss", the percentage of the position being closed, and the price at which that partial sale occurred. Think of it as a record of a partial sale order being processed.
-
+This represents a record of a partial loss order that has been queued for execution. It contains essential details about the action being taken – specifically, a partial loss. You'll find the percentage of the position being closed in the `percentToClose` field, and the price at which the partial loss transaction occurred, recorded in the `currentPrice` field. This information helps track and verify the specifics of your trading strategy's partial loss executions.
 
 ## Interface IPartialData
 
-This data structure, called `IPartialData`, is designed to save and load a snapshot of your trading signal's progress. It focuses on the key information needed to resume where you left off.
+IPartialData helps save and load progress for your trading signals. It's like a snapshot of key information.
 
-Think of it as a simplified version of your trading state, specifically storing the profit and loss levels achieved so far.
+It focuses on storing the profit and loss levels you've hit during a trade.
 
-The `profitLevels` property holds an array representing the successful profit levels reached, and `lossLevels` similarly tracks the loss levels encountered. This makes it easy to save progress and pick up later without losing your hard-earned gains or learning from your losses. The data is structured as arrays to ensure it can be saved as JSON.
+Think of it as converting sets of levels into simple arrays so they can be easily saved, like in a database. 
+
+When you start a backtest, this data can be loaded to continue from where you left off, allowing you to pick up right where you stopped. 
+
+It essentially holds the `profitLevels` and `lossLevels` as arrays, representing the levels reached during the trading process.
 
 ## Interface IPartial
 
-The `IPartial` interface is responsible for keeping track of how well your trading signals are performing, specifically looking at milestones like reaching 10%, 20%, or 30% profit or loss.
+The `IPartial` interface manages how profit and loss is tracked for trading signals. It's used by components like `ClientPartial` and `PartialConnectionService` to keep track of milestones.
 
-It's used by components like `ClientPartial` and `PartialConnectionService` to monitor signals and notify you when important profit/loss levels are hit.
+When a signal makes money, the `profit` method calculates if the signal has reached profit levels like 10%, 20%, or 30%, and reports those milestones. Similarly, the `loss` method does the same for losses, recognizing levels like 10%, 20%, or 30% loss. It avoids sending duplicate notifications.
 
-The `profit` method handles situations where a signal is making money. It figures out which profit levels have been reached and sends out notifications for *new* levels.
-
-The `loss` method does the same, but for when a signal is losing money.  It tracks loss levels and sends notifications for new ones.
-
-Finally, the `clear` method is used to reset the profit/loss tracking when a signal finishes – whether it hits a target, a stop-loss, or expires. This cleanup process also involves saving the changes and releasing resources.
+Finally, the `clear` method cleans up the profit/loss record when a signal is finished, removing it from memory and saving any changes, while also cleaning up related internal data.
 
 ## Interface IParseArgsResult
 
-The `IParseArgsResult` object holds the results after processing command-line arguments, especially those related to trading modes. It essentially combines the original input parameters with flags that tell the system whether to run in backtest mode (using historical data to test strategies), paper trading mode (simulated trading with live data), or live trading mode (actual trading with real money). 
+The `IParseArgsResult` object holds the outcome of parsing command-line arguments. 
 
-Here’s what it contains:
+It essentially combines the original input parameters with flags that determine the trading environment.
 
-*   `backtest`: A true/false value indicating if the backtest mode is enabled.
-*   `paper`: A true/false value indicating if the paper trading mode is enabled.
-*   `live`: A true/false value indicating if the live trading mode is enabled.
+Specifically, it tells you if the system should operate in backtest mode (using historical data), paper trading mode (simulated trading with live data), or live trading mode (actual trading with real funds).
+
 
 ## Interface IParseArgsParams
 
-This interface describes the information needed to run a trading strategy from the command line. It specifies the essential details like which cryptocurrency pair to trade (symbol), what trading strategy to use (strategyName), which exchange to connect to (exchangeName), and the timeframe for the data (frameName). Think of it as a blueprint for how the command line arguments are structured to tell the backtest-kit exactly what to do. It provides default values, making sure all the necessary pieces are in place to start the backtest.
+This interface describes the information needed to run a trading strategy. Think of it as a way to tell the system *what* to trade, *where* to trade it, and with what kind of data. You’ll specify things like the trading pair (like BTCUSDT), the name of the strategy you want to use, which exchange you're connected to (Binance, Bybit, etc.), and the timeframe for the candles (like hourly or 15-minute intervals). It essentially sets up the basic parameters for a backtesting run.
+
 
 ## Interface IOrderBookData
 
-The `IOrderBookData` interface describes the structure of order book information. It holds the symbol of the trading pair, along with lists of bids and asks. Bids represent buy orders, and asks represent sell orders. Each bid and ask is structured with the `IBidData` interface.
+This interface describes the structure of order book data. It holds information about the bids (buy orders) and asks (sell orders) available for a specific trading pair.
+
+The `symbol` property tells you which trading pair the order book data represents, like 'BTCUSDT'.
+
+The `bids` property is a list of buy orders, and the `asks` property is a list of sell orders. Each of these lists contains details about individual orders within the book.
 
 ## Interface INotificationUtils
 
-This interface serves as a foundation for systems that send notifications about trading activity. Any component that wants to deliver notifications – like sending alerts to a user or logging events – needs to follow this blueprint.
+This interface defines how different notification systems should work within the backtest-kit framework. It’s a blueprint for adapters that can send notifications about what's happening during a backtest or live trading.
 
-It defines a set of methods to handle different types of trading events. You'll find methods for reacting to signals (when a trade is opened, closed, or altered), as well as events related to profit taking, loss management, and strategy adjustments. 
+Each method represents a different type of notification event that the system might generate, like when a trade is opened, partially profits are available, or errors occur.  The `handleSignal` method covers general trade signals, while others like `handlePartialProfit` and `handleBreakeven` deal with more specific profit-taking opportunities.
 
-There are also methods to deal with errors and validation issues. 
+The `handleSync` and `handleCheck` methods manage signal synchronization and pinging.  `handleRisk` deals with situations where a trade is rejected based on risk rules.  Various `handleError` methods manage errors of different severity.
 
-Finally, the interface provides functions to retrieve and clear all stored notifications, allowing for reporting and cleanup.
+Finally, `getData` lets you retrieve all stored notifications, and `dispose` is used to clear those notifications when you're finished.  Essentially, it’s the standard for sending alerts and updates about the trading process.
 
 ## Interface INotificationTarget
 
-This interface lets you finely control which notifications your backtest or live trading system receives. Think of it as a way to subscribe only to the alerts you actually need, rather than being bombarded with everything. If you don't provide this interface, you'll get all notifications by default.
+This interface lets you finely control which notifications your backtest or live trading system sends to you. Think of it as a way to subscribe only to the information you really need, preventing unnecessary noise. If you don't specify this interface, you'll receive *all* notifications, which can be overwhelming.
 
-Here's a breakdown of the different notification types you can choose to enable:
+Here's a breakdown of what each property represents:
 
-*   **Signal events:** Notifications about signal lifecycle events like when a signal is opened, scheduled, closed, or canceled.
-*   **Partial profit/loss:** Alerts when the price hits a partial profit or loss level defined in your strategy.
-*   **Breakeven:** Notifications when the price reaches the breakeven point.
-*   **Strategy commits:** Confirmations that a strategy action (like a partial profit take or trailing stop) has been executed.
-*   **Signal synchronization:** Events related to order confirmations, such as when an order is filled or a position is exited.
-*   **Risk rejections:** Notifications when the risk manager prevents a signal from opening.
-*   **Informational signals:** Manual or strategy-generated messages providing additional information about an active signal.
-*   **Common errors:** Alerts for recoverable runtime errors that are logged but don't stop the process.
-*   **Critical errors:** Notifications for unrecoverable errors that terminate the backtest or live session.
-*   **Validation errors:** Alerts for issues found when validating the strategy configuration or input data.
+*   **signal:** Notifications related to signal lifecycle – when signals are opened, scheduled, closed, or canceled.
+*   **partial\_profit:** Alerts when the price hits a pre-defined partial profit level.
+*   **partial\_loss:** Notifications when the price reaches a pre-defined partial loss level.
+*   **breakeven:** Alerts when the price reaches the breakeven point.
+*   **strategy\_commit:** Confirms when different commit actions happen in your strategy (partial profits, loss, etc.).
+*   **order\_sync:** Keeps you informed about the synchronization of orders in live trading situations, like when an order is filled or a scheduled order is placed.
+*   **order\_check:** Used in live trading to verify if orders are still active on the exchange, helping prevent issues.
+*   **risk:** Notifies you when the risk manager prevents a new signal from being opened.
+*   **info:** Lets you receive manual or strategy-generated messages attached to active signals.
+*   **common\_error:**  Handles and logs non-fatal errors that don't stop the backtest or live session.
+*   **critical\_error:**  Signals severe, unrecoverable errors that will end the session.
+*   **validation\_error:**  Alerts you when there are problems with your strategy's configuration or the data you're using.
 
 ## Interface IMethodContext
 
-The `IMethodContext` interface acts as a container, holding crucial information about the trading environment a particular operation is running within. Think of it as a little package that travels alongside your code, telling it *where* to find the right components. It holds the names of the schemas used for the exchange, the strategy, and the frame – essentially, the identifiers that pinpoint the specific trading system being utilized. If you’re running a live trading session, the frame name will be blank, indicating that it’s not part of a historical backtest. This context is automatically passed around by the `MethodContextService` to ensure everything operates on the correct data and configurations.
+The `IMethodContext` provides essential information to the backtest-kit framework about the specific trading environment being used. Think of it as a set of labels that tell the system which strategy, exchange, and data frame are relevant for a particular calculation or action. This context ensures that the right pieces of the puzzle are connected during the backtesting process. It includes the names of the strategy, the exchange it’s operating on, and the data frame being used; the data frame name is blank when operating in live mode. The `IMethodContext` is automatically passed around by the framework, so you typically don't need to handle it directly.
 
 ## Interface IMemoryInstance
 
-The `IMemoryInstance` interface sets the rules for how memory is managed within the backtest-kit framework. Think of it as a blueprint for different ways to store and retrieve trading data – whether that's in local storage, a persistent database, or even just a temporary "dummy" setup for testing.
+The `IMemoryInstance` interface outlines how different memory storage systems – whether they’re local, persistent, or even just dummy data – should behave.
 
-It provides methods for interacting with this memory:
+It provides methods for interacting with memory. 
 
-*   `waitForInit` ensures the memory is ready to go before anything else happens.
-*   `writeMemory` lets you save data with a unique ID, a description, and a timestamp.
-*   `searchMemory` helps you find specific data using keywords, ranking results by relevance, and only showing entries up to a certain point in time.
-*   `listMemory` retrieves all data entries up to a particular timestamp.
-*   `removeMemory` deletes a specific data entry, again respecting a timestamp boundary.
-*   `readMemory` fetches a single data entry, and won’t return results if the data is too recent.
-*   Finally, `dispose` cleans up any resources used by the memory setup when it's no longer needed.
+You can initialize the instance with `waitForInit`.  `writeMemory` lets you store data associated with a unique ID, along with a description and timestamp. The `searchMemory` function helps you find relevant data using full-text search, only showing entries created up to a specific time. `listMemory` retrieves all entries, also respecting that time limit.
+
+To delete specific data, use `removeMemory`, and `readMemory` allows you to retrieve a single entry, but will not return it if it’s newer than the specified time. Finally, `dispose` helps release any resources the instance is using when you’re finished with it.
 
 ## Interface IMarkdownTarget
 
-This interface lets you pick and choose which reports you want to see when using the backtest-kit framework. Think of it as a way to control the level of detail in your analysis.
-
-You can turn on reports for things like strategy signals (entry and exit points), risk management events (signals blocked by limits), or even track milestones like the highest profit achieved and maximum drawdown experienced.
-
-There are options to analyze overall portfolio performance, compare different strategies, and monitor signals waiting to be triggered.
-
-You can also enable reports for live trading events or detailed backtest results with the entire trade history.
-
-Ultimately, this interface gives you granular control over the reporting features, so you only see what’s most relevant to your trading analysis.
+This interface lets you pick and choose which detailed reports you want to see when running backtests. Think of it like customizing your dashboard. You can turn on reports for things like strategy signals (entry and exit), risk rejections, breakeven events, partial profits, portfolio heatmaps, strategy comparisons, performance bottlenecks, scheduled signals, live trading activity, overall backtest results, signal lifecycle events, tracking your highest profits, and monitoring maximum drawdowns. By toggling these flags, you control exactly what level of detail you receive about your backtest.
 
 ## Interface IMarkdownDumpOptions
 
-This interface defines the options used when generating markdown documentation, especially for backtest results. Think of it as a way to organize and label the different components of your trading strategies and data. It includes information like the directory where the documentation will be placed, the specific file name, the trading pair involved (like BTCUSDT), the name of the strategy being used, the exchange platform, the timeframe (e.g., 1m, 1h), and a unique identifier for any trading signals. Using these properties ensures your documentation is clearly categorized and easy to find.
+This interface defines the options used when generating markdown documentation, providing details about where the information originates. It allows you to specify the location of a file, like the directory path and filename, along with context like the trading pair (symbol), the strategy being used, the exchange platform, the timeframe, and a unique identifier for the signal. Essentially, it gives you a way to pinpoint exactly which data the documentation represents, enabling organized and targeted output.
 
 ## Interface ILogger
 
-The `ILogger` interface defines a standard way for different parts of the backtest-kit framework to record information. Think of it as a central hub for keeping track of what's happening inside the system.
+The `ILogger` interface defines how different parts of the backtest-kit framework communicate about what's happening. It’s a way to keep track of important events, diagnostic details, and any potential issues that arise.
 
-You can use it to log various messages, categorized by severity.
+You can use it to record general events, such as agents starting up or sessions connecting.
 
-Here's a breakdown of the logging levels available:
+The `debug` method is for more detailed information helpful during development or when troubleshooting.
 
-*   **log():** This is your go-to method for recording important events and state changes, like when an agent starts working or data is saved.
+`info` logs standard updates about successes and validations, giving you a general overview of how things are progressing.
 
-*   **debug():** Use this for really detailed information, mainly for developers to diagnose issues. It’s helpful to see the steps involved in something, like a tool call or how the system is navigating.
-
-*   **info():** This captures significant updates and confirmations - for example, if a policy check passes or data is successfully saved.  It’s a more concise view of what’s happening.
-
-*   **warn():**  This is for situations that aren’t critical errors, but are worth noting - maybe there's some missing data or you're using a feature that will be replaced soon.
+`warn` is for situations that might need a closer look, even if they don’t stop the system from working.
 
 ## Interface ILogEntry
 
-This describes a single entry in the system's log history, like a record of what happened during a backtest. 
+The `ILogEntry` interface represents a single entry in the backtest kit's log history. Each log entry has a unique identifier, a level indicating its severity (like "log", "debug", "info", or "warn"), and a timestamp marking when it was created.  You'll also find a date for better readability.
 
-Each entry has a unique ID, a type indicating its severity (log, debug, info, or warn), and a timestamp for efficient management of the log. 
-
-It also stores the date and time the log was created, alongside information about where the log originated from – the specific method and execution environment. Finally, you'll find any additional arguments that were passed when the log was generated.
+To help pinpoint the origin of the log, it includes information about the execution environment, such as the method context and execution context.  Finally, any additional arguments passed when creating the log are also included, giving you a full picture of what happened.
 
 ## Interface ILog
 
-The `ILog` interface helps you keep track of what's happening during your backtests. It’s like having a detailed record of all the events – trades, data updates, errors – that occur.
+The `ILog` interface provides a way to keep track of what’s happening during your backtesting or trading simulations. It's designed to let you see a complete history of the events and messages generated by your strategies and the backtest kit itself.
 
-The `getList` method is your way to view this record; it retrieves all the logged entries, allowing you to examine the sequence of events and debug any issues. Think of it as downloading the entire history of your backtest's activities.
+Specifically, the `getList` method allows you to retrieve all the log entries that have been recorded, giving you a full picture of the simulation’s progress and any important details or warnings that occurred. This is incredibly useful for debugging, understanding strategy behavior, and analyzing performance.
 
 ## Interface IHeatmapRow
 
-This describes a detailed breakdown of performance metrics for a specific trading symbol within a backtest. Think of it as a report card for how a strategy performed on a particular asset like BTCUSDT. It covers everything from basic profitability (total profit/loss) to more advanced risk-adjusted measures like Sharpe and Sortino ratios, which consider how much risk you took to achieve those returns.
+This describes a single row of data within a heatmap used to analyze trading performance for a specific asset. It provides a comprehensive set of statistics, breaking down how a strategy performed on that particular trading pair.
 
-You'll find information about trade frequency, win/loss rates, average profits and losses, and even streak lengths (how many wins or losses in a row). There's a lot of data about the size of price movements and how buyers and sellers are influencing the price. Finally, a trend analysis attempts to classify the overall direction of the asset. Overall, this data set allows for a comprehensive assessment of a trading strategy's performance for a given symbol.
+You'll find key metrics like total profit/loss, risk-adjusted returns (Sharpe and Sortino ratios), drawdown information, and the number of trades won and lost. It also dives into details like average win/loss amounts and durations, and streak analysis.
+
+Beyond basic performance, the heatmap row offers insights into market dynamics, such as buyer and seller pressure and trend strength, ultimately helping you understand the strategy's behavior and potential. A lot of these numbers help evaluate not just *if* a strategy is profitable, but *how consistently* it's profitable and how risky it is.
 
 ## Interface IFrameSchema
 
-This `IFrameSchema` defines a reusable building block for your backtesting setup. Think of it as a template that tells the backtest-kit how to create and manage specific time periods for your simulations. 
+The IFrameSchema defines a specific time period and frequency for your backtesting. Think of it as setting up a window in time that your trading strategy will be tested against. 
 
-Each schema has a unique name to identify it, and you can add a note to explain what it's for.  
+Each schema has a unique name for identification, and you can add notes to describe it. You'll specify the interval – like every minute ("1m"), hour ("1h"), or day ("1d") – which determines how often timestamps are generated.
 
-Crucially, it defines the *interval* – like "1m" for one-minute intervals or "1d" for daily – and the start and end dates that mark the timeframe you want to analyze. You can also specify optional callbacks to trigger specific actions at different points in the frame lifecycle. This allows you to customize how data is processed and used during the backtest.
+You also define the start and end dates for the backtest period, marking the beginning and end of the window. Finally, you can include callbacks to hook into different stages of the frame's lifecycle.
+
 
 ## Interface IFrameParams
 
-The `IFrameParams` object holds the settings needed when setting up a frame within the backtest-kit framework. Think of it as a configuration bundle for a specific trading frame. It includes a `logger` which is vital for keeping track of what's happening and diagnosing any issues. 
-
-You'll also specify an `interval`, like "1m" for one-minute data, which clearly labels the type of data this frame will be processing. Essentially, it defines the frame's identity and how it will report its activity.
+The `IFrameParams` object holds the essential information needed to set up a frame within the backtest-kit framework. Think of it as a container for configuration details. It includes a `logger` which is a tool for recording debugging information, helping you understand what's happening inside the frame. You also specify an `interval` which is a descriptive name to easily identify the frame during the backtesting process.
 
 ## Interface IFrameCallbacks
 
-This section describes how to react to the creation of timeframes within the backtest framework. Specifically, `onTimeframe` allows you to execute a function whenever a set of timeframes is generated. This is handy for checking the accuracy of the timeframes or for simply recording the process. The function receives the array of dates making up the timeframe, the start and end dates for the entire test, and the interval used to create those timeframes. You can use it to log data or perform other validations as needed.
+The `IFrameCallbacks` interface lets you hook into key moments in the timeframe generation process. Specifically, you can provide a function that's triggered after a new set of timeframes is created.
+
+This allows you to observe what timeframes were generated, when they started and ended, and what interval was used.
+
+It's a handy way to verify the timeframe generation is working as expected or to keep a record of the timeframes used in your backtest. You can also use it to validate the timeframes before they’re used in further calculations.
 
 
 ## Interface IFrame
 
-The `IFrame` interface is a core part of backtest-kit, responsible for creating the timeline your trading strategies will be tested against. Think of it as defining *when* your strategy will run – specifying the dates and times for each bar in your backtest.
+The `IFrame` interface is a core component for setting up the timeline of your backtesting process. It's responsible for creating the sequence of dates and times that your trading strategy will be evaluated against.
 
-The `getTimeframe` function is the key here. It takes a ticker symbol (like "AAPL") and a frame name (like "daily" or "hourly") and returns a promise that resolves to an array of timestamps. These timestamps are evenly spaced apart, reflecting the interval of the timeframe you've chosen. This essentially builds the sequence of historical data your backtest will use.
+Essentially, it provides a way to generate a list of timestamps—think of them as specific points in time—for each symbol you're trading, based on a chosen timeframe like daily, weekly, or hourly.
+
+The `getTimeframe` method is the key here.  You give it a symbol (like "BTCUSDT") and a frame name (like "D" for daily), and it returns a promise that resolves to an array of those timestamps, spaced consistently according to your selected timeframe. This array acts as the backbone for iterating through your historical data during the backtest.
 
 ## Interface IExecutionContext
 
-The `IExecutionContext` provides the essential information your trading strategies and exchange interactions need to function correctly. Think of it as a package of details passed along during execution.
+The `IExecutionContext` object is like a little package of information passed around to your trading strategies and exchange interactions. Think of it as the current state of things.
 
-It tells your code what asset is being traded, represented by the `symbol` property – for example, "BTCUSDT".  The `when` property indicates the current timestamp, so your code knows precisely when an event is happening. Finally, the `backtest` property clearly flags whether the code is running in a simulated environment (backtest) or live, real-time trading. This lets your strategy adjust its behavior accordingly.
+It tells your code what trading pair you're working with, like "BTCUSDT," and precisely when the operation is happening – what the current timestamp is.
+
+Crucially, it also indicates whether you're running a test (backtest mode) or a real-time trade. This helps your code behave differently depending on the environment.
 
 ## Interface IExchangeSchema
 
-This schema defines how backtest-kit interacts with a specific cryptocurrency exchange. It's essentially a blueprint for connecting to and retrieving data from an exchange.
+This schema describes how backtest-kit interacts with a specific cryptocurrency exchange. It’s essentially a blueprint for connecting to and retrieving data from an exchange.
 
-Each exchange you use needs to register a schema like this, giving it a unique name for identification. You can also add a note for yourself to document anything specific about the exchange's setup.
+Each exchange needs a unique identifier – the `exchangeName` – to be recognized within the system.  You can also add a `note` to provide extra context for developers.
 
-The core of the schema is the `getCandles` function, which is responsible for fetching historical price data (candles) for a given trading pair and time range. You’ll also likely use `formatQuantity` and `formatPrice` to ensure that trade sizes and prices conform to the exchange's specific rules – otherwise, defaults are provided.
+The core of the schema is the `getCandles` function.  This is how backtest-kit pulls historical price data (candles) for a trading pair from the exchange. It specifies the symbols, time intervals, start dates, and the number of candles needed.
 
-If you need more advanced functionality, you can also implement optional methods like `getOrderBook` to retrieve order book data, `getAggregatedTrades` to get trade history, or `callbacks` for lifecycle events. If those optional methods aren't provided, the system will raise an error when they're called.
+`formatQuantity` and `formatPrice` handle the exchange's specific rules for how to display the quantities of assets and their prices, making sure they’re correct for the exchange. If you don't define these, a default precision is applied.
+
+There are also optional functions for retrieving order books (`getOrderBook`) and aggregated trades (`getAggregatedTrades`), allowing for more detailed analysis.  If these are not provided, calling them will result in an error.
+
+Finally, `callbacks` lets you hook into certain events happening during data retrieval for custom actions or logging.
 
 ## Interface IExchangeParams
 
-The `IExchangeParams` interface defines the configuration needed to connect to and interact with a cryptocurrency exchange. It essentially bundles all the necessary functions your backtesting system needs to simulate trading on a specific exchange.
+This interface defines the configuration needed for a connection to an exchange within the backtest-kit framework. Think of it as the blueprint for how your backtest interacts with a simulated exchange.
 
-You'll need to provide a logger to handle debugging and informative output during the backtesting process.
+It requires several essential functions to retrieve data and format orders. You'll need to provide methods to fetch historical candles, format trade quantities and prices to match the exchange’s rules, retrieve order books, and access aggregated trade data.
 
-Crucially, it requires methods for fetching historical candle data, formatting order quantities and prices to match the exchange's rules, retrieving order books, and obtaining aggregated trade data.  These functions will be used to simulate market conditions and execute trades during backtesting.  Default implementations are often available, but you’ll need to customize them if you’re integrating with a less common exchange. The `execution` context provides information like the trading symbol, the current time, and whether the process is a backtest.
+Each of these functions must handle the 'backtest' flag, which is crucial for distinguishing between real-time and historical data. The `logger` and `execution` properties provide context for debugging and tracking your backtest’s progress.
+
 
 ## Interface IExchangeCallbacks
 
-This lets you react to incoming candle data from an exchange. 
+The `IExchangeCallbacks` interface lets you register functions that will be called by the backtest-kit framework when it receives data from an exchange.
 
-You can define a function that gets triggered whenever new candlestick data arrives for a specific trading symbol and time interval. 
-
-The function receives details like the symbol, interval, starting date, the number of candles requested, and an array of candlestick data points. This is useful for displaying real-time charts or performing immediate analysis.
-
+Specifically, the `onCandleData` property allows you to define a function to be executed whenever new candlestick data becomes available. This function receives details like the symbol, the candlestick interval (e.g., 1 minute, 1 hour), the timestamp of the earliest data, the number of data points retrieved, and an array containing the actual candlestick data. You can use this to react to new market data in your backtest.
 
 ## Interface IExchange
 
-The `IExchange` interface defines how your backtesting environment interacts with an exchange. It provides essential functions for retrieving market data, formatting order quantities and prices, and calculating key indicators.
+The `IExchange` interface defines how your backtesting environment interacts with an exchange's data. It allows you to retrieve historical and future candle data, essential for simulating trades. You can request candles from the past or look ahead to future data, which is important for backtesting scenarios.
 
-You can fetch historical candle data (`getCandles`), simulate fetching future candles (`getNextCandles` - useful for backtesting), and format quantities and prices to match the exchange's specific requirements. The framework also offers a way to calculate the VWAP (Volume Weighted Average Price) based on recent candle data (`getAveragePrice`).
+The framework provides tools to handle the specific formatting requirements of different exchanges, ensuring orders and prices are correctly represented. It also offers a way to calculate the VWAP (Volume Weighted Average Price) – a common metric for understanding price trends – based on recent trading activity.
 
-For real-time insights, you can retrieve the latest order book (`getOrderBook`) and aggregated trades (`getAggregatedTrades`). The `getClosePrice` function gives you the closing price from the most recent completed candle for a chosen time interval.
-
-The `getRawCandles` method allows for very flexible retrieval of candle data, letting you specify start and end dates, and a limit, or rely on the current context time for reference. Importantly, all data retrieval respects the backtest context to prevent issues like looking into the future.
+You can also retrieve current order book information and aggregated trade data for a trading pair to understand market depth and recent activity.  The `getRawCandles` method provides a very flexible way to retrieve candle data, letting you specify start and end dates, or just a number of candles. This is all designed to help prevent look-ahead bias and ensure accurate backtesting results, respecting the current time of your backtest simulation.
 
 ## Interface IEntity
 
-This interface serves as the foundation for any data that's saved and retrieved from storage within the backtest-kit framework. Think of it as the parent for all your persistent objects, ensuring they all share a common structure. If you're defining a class representing something that needs to be saved (like a trade or an account balance), it should probably implement this interface. It establishes a base level of consistency for how your data is handled.
+This interface serves as the foundation for any data that’s stored and retrieved persistently within the backtest-kit framework. Think of it as the parent for all your trading-related data objects, ensuring they all have a consistent structure for interacting with the system. It's a blueprint guaranteeing that entities like trades, orders, or account snapshots share a common foundation.
 
 ## Interface IDumpInstance
 
-This interface defines how a component can save data related to a backtest run. Think of it as a way to record important information at different stages. 
+The `IDumpInstance` interface defines how a component saves data during a backtest or trading simulation. Think of it as a way to capture snapshots of what's happening—messages, records, tables, errors, and more—and store them for later analysis. Each instance focuses on a specific combination of a signal and a storage location, keeping things organized.
 
-Each dump instance is linked to a specific signal and bucket, and it has several methods for saving different types of data:
+The interface provides several methods for different types of data:
 
-*   `dumpAgentAnswer`: Stores the complete conversation history for a specific agent.
-*   `dumpRecord`:  Allows saving data as a simple set of key-value pairs.
-*   `dumpTable`: Presents data in a structured table format, automatically figuring out the column headers.
-*   `dumpText`:  Saves raw text, which could be plain text or markdown.
-*   `dumpError`: Records details about any errors that occurred.
-*   `dumpJson`: Stores complex data structures as formatted JSON.
+*   `dumpAgentAnswer` saves the entire conversation history from an agent.
+*   `dumpRecord` handles simple key-value data.
+*   `dumpTable` stores data in a structured table format, automatically figuring out the column headers.
+*   `dumpText` allows saving raw text or Markdown content.
+*   `dumpError` logs error descriptions.
+*   `dumpJson` saves complex data as a JSON block.
 
-Finally, the `dispose` method is used to clean up and release any resources the instance is using when it's no longer needed.
+Finally, `dispose` cleans up and releases any resources used by the instance, making sure everything is tidy when you're done.
 
 ## Interface IDumpContext
 
-The `IDumpContext` helps track where data is coming from when saving information during a trading process. It's essentially a package of information that identifies a specific data point. 
+The IDumpContext helps organize and identify data being recorded during a trading process. It's like a little package of information given to a component that handles dumping data. 
 
-You'll find details like the signal that triggered the trade (`signalId`), the name of the strategy or agent that generated it (`bucketName`), and a unique ID for that data point (`dumpId`). 
-
-There's also a description field for a human-friendly label – think of it as a short explanation of what the data represents. Finally, a flag indicates whether the data originates from a backtest or a live trading scenario. This context is used to organize and identify data entries.
+This context includes things like a unique signal identifier to track which trade the data relates to, a bucket name for grouping data by strategy or agent, and a unique ID for the dump entry itself. There's also a description field for a human-readable label, useful for understanding what the data represents, and a flag to indicate whether the data comes from a backtest or a live trading session. It's primarily used behind the scenes to manage and categorize data.
 
 ## Interface ICommitRowBase
 
-This interface defines the basic information available for a commit event—essentially a record of something that needs to be registered during a trading process. It contains the trading pair's symbol, so you know which asset is involved, and a flag to indicate whether the operation is part of a backtesting simulation. Think of it as a way to collect details about events that happen during a trade, ensuring they are handled correctly later on, especially when the system needs a stable environment to process them.
+This interface, `ICommitRowBase`, serves as a foundational structure for handling events related to commits within the backtest-kit framework. Think of it as a way to hold information about a trade or action that needs to be recorded, but not immediately processed. It ensures these events are handled at the right time, particularly when the system needs to be sure it's operating within a suitable environment. 
+
+The `symbol` property simply tells you which trading pair is involved (like BTC-USDT). The `backtest` property is a flag that indicates whether the action happened during a simulated backtest, which is useful for analysis and validation.
 
 ## Interface ICheckCandlesParams
 
-ICheckCandlesParams defines the information needed to verify if your trading data (candles) are correctly stored and available. It's essentially a way to quickly check if your backtest-kit has all the data it needs for a specific trading pair, exchange, and timeframe without having to perform a full scan of the storage.
+This interface defines the information needed to check if candle data already exists in storage. It's used to quickly verify if your historical data is available without having to search through files.
 
-You’ll specify the trading symbol like "BTCUSDT", the name of the exchange you’re using, the candle timeframe (e.g., 1 minute, 4 hours), and the date range you want to check. This lets you confirm that the correct historical data is present for your backtesting or analysis.
+You'll specify the trading symbol like "BTCUSDT", the name of the exchange providing the data, the timeframe of the candles (e.g., 1-minute candles, 4-hour candles), and a date range to check. 
+
+Essentially, it's a structured way to ask, "Do I have the candle data for this specific symbol, exchange, timeframe, and date range?"
 
 ## Interface ICandleData
 
-The `ICandleData` interface represents a single candlestick, providing a snapshot of price action and trading volume over a specific time interval. Each candle includes the timestamp – the moment it began – along with its opening price, the highest and lowest prices reached, the closing price, and the total volume of trades that occurred during that period. This data is crucial for tasks like calculating moving averages, and for running backtests to evaluate trading strategies. Essentially, it's a standardized way to represent price data for analysis and automated trading.
+This interface defines the structure of a single candlestick, which is a common way to represent price data over time. Each candlestick holds information about the opening price, the highest and lowest prices reached, the closing price, and the volume of trades that occurred during that time period. The `timestamp` tells you exactly when that candlestick's time interval began. This data is essential for tasks like calculating moving averages or running backtests to evaluate trading strategies.
 
 ## Interface ICacheCandlesParams
 
-This interface defines the settings you can use to control how your backtest kit manages historical price data. It's all about ensuring you have the right data available for your trading strategies, and it lets you hook into key moments in that process. 
-
-Think of it as a way to prepare your data – first, it checks if the data exists, and if not, it warms up the cache with more data. 
-
-The `onWarmStart` callback lets you run code before the data warming process begins for a specific trading symbol and timeframe. 
-Similarly, the `onCheckStart` callback triggers before the warming up phase starts when the data validation fails, allowing you to perform actions or logging. 
-
+This interface helps manage how your backtesting system handles historical data caching. It lets you define callbacks—special functions—that run at key moments during the data loading process. Specifically, you can set functions to be triggered *before* the validation phase begins and *before* the warm-up phase kicks in after a validation failure. These callbacks allow you to monitor or log data loading events as your backtest prepares.
 
 ## Interface IBroker
 
-This interface defines how your trading framework connects to a real broker or exchange. Think of it as the bridge between the backtesting engine and the live market.
+This interface defines how your code connects to a real brokerage or exchange, acting as a bridge between the backtesting framework and live trading. It's all about executing orders and receiving updates.
 
-Here's a breakdown of the key parts:
+The `waitForInit` method is your handshake – use it to connect to the exchange, load credentials, and prepare everything for live trading.
 
-*   **`waitForInit`**: This is your initial setup. It’s where you connect to the exchange, load API keys, and get everything ready.
-*   **`onSignalCloseCommit`**:  This handles closing positions (take-profit, stop-loss, manual close).  It's a critical gate—if something goes wrong here (an error), the framework *doesn't* close the position, it tries again.
-*   **`onSignalOpenCommit`**: This is where new positions are opened.  Like `onSignalCloseCommit`, it’s a gate; a failure here means the order isn't placed, and the framework retries.  It handles both immediate orders and orders placed on a schedule.
-*   **`onOrderCheck`**: This is called frequently to verify orders are still valid. A thrown error here means the position or schedule is closed/cancelled. It's a way to react to potential order issues, but it's designed to be resilient to temporary network problems – don't throw on transient errors.
-*   **`onSignalActivePing`**:  This runs constantly for open positions. It's your opportunity to reconcile the framework's view of the market with the actual state on the exchange – catching things like a gap through a stop-loss.
-*   **`onSignalSchedulePing`**:  Similar to `onSignalActivePing`, but for scheduled orders waiting to be triggered.
-*   **`onSignalIdlePing`**: A heartbeat for when there's no trading activity.
-*   **`onSignalScheduleOpen`**:  This function triggers when placing the initial resting order for a scheduled signal.
-*   **`onSignalScheduleCancelled`**: This signal is emitted when a scheduled signal is cancelled, and the corresponding order needs to be cancelled on the exchange.
-*   **`onSignalPendingOpen`**: A lifecycle hook for when a new position is opened.
-*   **`onSignalPendingClose`**: Similar to `onSignalPendingOpen`, but for when a position is closed.
-*   **`onPartialProfitCommit`, `onPartialLossCommit`, `onTrailingStopCommit`, `onTrailingTakeCommit`, `onBreakevenCommit`, `onAverageBuyCommit`**: These hooks are called when respective actions are committed.
+When a signal needs to be closed (take-profit, stop-loss, or manual close), the `onOrderCloseCommit` method is called. This is your chance to place the real exit order and record profit/loss.  If anything goes wrong (throws an error), the framework tries again on the next tick, giving you a chance to retry.
 
-The framework is designed to be exception-based, meaning errors in these methods prevent actions from happening and trigger retries.  For live trading, you’ll implement these methods to interact with your chosen broker. During backtesting, these calls are skipped.
+Similarly, `onOrderOpenCommit` handles opening new positions. It’s called before the framework changes its internal state.  If an error occurs here (throws an error), the framework rolls back any changes, as if the order never happened, and retries.
+
+`onOrderActiveCheck` monitors open positions to ensure the order still exists on the exchange.  Throwing an error here means the framework closes the position. It's important to handle network issues gracefully and *not* throw an error in those cases.  This method is the exception-based alternative to event-driven approach via `onSignalActivePing`.
+
+`onOrderScheduleCheck` works like `onOrderActiveCheck` but for scheduled (resting) orders, checking for order cancellations.
+
+`onSignalActivePing` is a purely informational hook for open positions – it's your chance to reconcile your VWAP view with the actual exchange data (e.g., handle gapped prices).  Unlike `onOrderActiveCheck`, throwing here *doesn't* close the position.
+
+`onSignalSchedulePing` is similar to `onSignalActivePing` but for scheduled orders.
+
+`onSignalIdlePing` runs when the strategy is idle, useful for housekeeping tasks.
+
+The `onSignalScheduleOpen` method is invoked when a scheduled order is created; you'll place the resting order here, tagging it for later monitoring.
+
+`onSignalScheduleCancelled` handles scenarios where a scheduled order is cancelled, and you should cancel the related real order.
+
+Finally, several `on...Commit` methods (`onPartialProfitCommit`, `onPartialLossCommit`, `onTrailingStopCommit`, etc.) are called when specific actions are committed, allowing for real-time confirmation and adjustments. These generally involve placing real orders or updating existing ones.
+
+
+
+The whole design emphasizes that these methods are gatekeepers, protecting the framework’s internal state during live execution. Errors during execution cause retries instead of abrupt failures.
 
 ## Interface IBreakevenData
 
-This interface defines the data used to store whether a breakeven point has been reached for a particular trading signal. It's a simple representation, just a boolean value indicating if the breakeven has been achieved. Think of it as a snapshot of the breakeven state that can be easily saved and loaded, like when the trading system needs to remember where it left off. It's used internally to keep track of breakeven progress and is converted from the more detailed breakeven state.
+This interface defines the data needed to save and load information about whether a breakeven point has been achieved for a specific trading signal. It's designed for easy storage, typically as a simple boolean value, and allows the system to remember the breakeven status even when restarting. Think of it as a snapshot of whether the trading strategy has met its initial profit target. It's used to persist the state of a trading strategy, ensuring that the system can recall important milestones.
 
 ## Interface IBreakevenCommitRow
 
-This represents a single instruction for adjusting a trade's breakeven point. It tells the system to recalculate the breakeven level.
+This object represents a commitment related to a breakeven calculation within the backtest. It signals that a breakeven point has been reached and needs to be recorded. 
 
-The `action` property will always be "breakeven," indicating this is a breakeven adjustment.
+The `action` property confirms that this is a breakeven action. 
 
-The `currentPrice` is the price used to calculate the new breakeven level – essentially, the price the system observed when this adjustment was triggered.
+The `currentPrice` represents the price level at which the breakeven calculation was performed, providing context for the breakeven event.
 
 ## Interface IBreakeven
 
-The IBreakeven interface helps manage a system that automatically adjusts a trade's stop-loss to the entry price once it has reached a certain profit level. It's used by components that track and react to these breakeven events.
+The `IBreakeven` interface helps manage a strategy's breakeven point—the price level where losses are covered. It's used by components that track and react to this crucial milestone.
 
-The `check` method is the core of this process, regularly evaluating whether a signal's price movement has made it safe to move the stop-loss to breakeven, taking into account transaction costs. If the conditions are right, it records that breakeven has been achieved and triggers a notification to other parts of the system.
+Essentially, it monitors a signal’s stop-loss. When the price moves favorably enough to offset transaction costs, the stop-loss is automatically adjusted to the entry price. This is a way to protect profits and reduce risk.
 
-The `clear` method is used to reset the breakeven status when a trade is closed, ensuring that the system is ready for the next trade. It removes the trade's information from active memory and saves the changes.
+The `check` method performs this assessment, looking to see if breakeven has been achieved.  It considers whether the price has moved sufficiently, and if so, it triggers an event, remembers the event’s details, and saves this information.
+
+The `clear` method is used to reset the breakeven state when a trade is finished, like when a take-profit or stop-loss is hit or the trade expires. It cleans up all related data to prepare for the next trade.
 
 ## Interface IBidData
 
-This interface describes a single bid or ask price point found within an order book. It contains two pieces of essential information: the price at which the order is placed, and the quantity of orders available at that price. Both the price and the quantity are represented as strings.
+This interface represents a single bid or ask price point within an order book. It holds the price at that level, which is stored as a string, and the quantity of the asset available at that price, also stored as a string. Essentially, it defines a single line on the buy or sell side of the market.
 
 ## Interface IAverageBuyCommitRow
 
-This interface represents a single step in a queued average-buy (also known as Dollar-Cost Averaging or DCA) process. It holds information about a specific buy action taken as part of a larger DCA strategy.
+This interface describes a single step within a queued average-buy strategy, sometimes called a DCA (Dollar-Cost Averaging) commit. It represents one purchase made as part of the overall averaging process.
 
-Each `IAverageBuyCommitRow` tells you the price at which a new averaging entry was purchased, how much that purchase cost in USD, and the total number of averaging entries that will exist in the queue after this action is completed. Think of it as a record of one particular buy within a series of buys intended to build up an average price. The `action` property simply confirms that this record relates to an average-buy action.
+Each commit has a specific action – always "average-buy" – to identify it.
+
+The `currentPrice` tells you the price paid for this particular purchase.  You’ll also see the `cost` of that individual purchase, representing the USD amount spent. Finally, `totalEntries` tracks how many averaging entries have been made up to this point in the strategy.
 
 ## Interface IAggregatedTradeData
 
-This data structure represents a single trade that happened, offering key details for analysis and backtesting. Each trade is uniquely identified by an `id`, and we know the `price` at which it took place, the `qty` (quantity) involved, and the exact `timestamp` – recorded in milliseconds since the Unix epoch.  Finally, `isBuyerMaker` tells you if the buyer was acting as the market maker, which helps determine the trade's direction.
+IAggregatedTradeData holds information about a single trade that took place. Think of it as a record of a transaction, containing key details like the price and quantity involved. Each trade has a unique ID and a timestamp to indicate exactly when it happened.  You'll also find out if the buyer was acting as a market maker, which helps in understanding the trade's direction within the market.
 
 ## Interface IActivityEntry
 
-An `IActivityEntry` represents a single, ongoing trading activity, whether it's a backtest or a live trade. Think of it as a record of what's currently happening.
+An `IActivityEntry` represents a single instance of a backtest or a live trading run that's currently happening. Think of it as a record keeping track of what's running and where. 
 
-These entries are automatically created when a trading activity begins and removed when it finishes, either successfully or with an error.
+These entries are created when a task starts, like when a backtest begins or a strategy is launched, and then they're removed when the task finishes successfully or encounters an error. 
 
-The system uses these entries to keep track of and manage multiple trading activities, especially to avoid conflicts when several activities run at the same time.
+The system uses these entries to monitor what's happening and to ensure that multiple tasks aren't trying to do the same thing at the same time, avoiding conflicts.
 
-Each entry contains the symbol being traded, details about the strategy and exchange involved, and whether it’s a backtest or live execution.
+Each entry includes the trading symbol (like "BTCUSDT"), details about the strategy and exchange involved (like the strategy's name), and whether it's a backtest or a live run.
 
 ## Interface IActivateScheduledCommitRow
 
-This interface represents a message that signals an activation of a previously scheduled commitment. Think of it as a notification that something planned is now happening.
+This interface represents a message that's placed in a queue to trigger the activation of a previously scheduled commitment. Think of it as a notification telling the system to proceed with an action that was planned ahead of time.
 
-It includes the type of action, which is always "activate-scheduled". 
-
-You’ll also find the `signalId`, which identifies the specific signal being activated.  If the activation was initiated by a user, there's an optional `activateId` to specify which action triggered it.
+It includes the action type, which is always "activate-scheduled," along with a signal ID, which uniquely identifies the signal being activated.  You can also optionally provide an activation ID if the activation is initiated directly by a user. This helps track the origin of the activation request.
 
 ## Interface IActionStrategy
 
-This interface gives action handlers a way to peek at the trading signal status without actually executing anything. Think of it as a way to check if there's a pending order or a signal scheduled to happen.
+The `IActionStrategy` interface gives your action handlers a way to peek at whether a trading signal is waiting to be acted upon. Think of it as a way to check if something is about to happen before your custom code runs.
 
-It’s primarily used by the ActionProxy to decide whether certain actions, like adjusting stop-loss levels or taking partial profits, should even be considered.
+It lets you safely decide if certain actions, like adjusting stop losses or taking partial profits, should be skipped if no signal is currently active. 
 
-Specifically, it helps determine if actions related to break-even, partial profits/losses, pings, and scheduled events should proceed.
-
-The `hasPendingSignal` method lets you see if there's an open position currently waiting for a signal.
-
-The `hasScheduledSignal` method lets you check if a signal is waiting to be triggered in the future. You'll need to provide details like whether it’s a backtest and the symbol involved.
+Specifically, it provides two key methods: `hasPendingSignal` which tells you if there's an open position and `hasScheduledSignal` which tells you if a future signal is queued up. These checks help prevent actions from running unexpectedly when there's nothing to act on.
 
 ## Interface IActionSchema
 
-This defines how you can extend a trading strategy with custom actions. Think of actions as hooks that let you inject code into the strategy's execution flow. 
+This defines a blueprint for custom actions you can attach to your trading strategies. Think of actions as hooks that let you inject extra functionality into your backtesting process.
 
-These actions can be used for all sorts of things – managing the strategy’s internal state, recording events for later analysis, sending out notifications, or even triggering other business processes. 
+They’re designed to help you connect your strategy to external systems like state management libraries (like Redux) or for things like logging events, sending notifications, and collecting data.
 
-You register these actions with a unique name and a short description. Each action has a handler, which is essentially a piece of code that gets run for every "frame" of the strategy's execution. You can also add callbacks for specific moments in the action’s lifecycle, giving you even more control.  Multiple actions can be linked to a single strategy, allowing for a layered approach to customization.
+Each action gets its own instance for every strategy run, giving it access to all the events happening during that run. You can add multiple actions to a single strategy.
 
+Here's what's involved:
+
+*   **actionName:** A unique name to identify your action when you register it.
+*   **note:** A helpful note to explain what the action does – good for your own documentation.
+*   **handler:**  This is the core of your action – the code that gets executed. You can provide a constructor, or a set of functions that mimic an action.
+*   **callbacks:** These are optional functions you can use to control when your action runs, like before or after certain events.
 
 ## Interface IActionParams
 
-The `IActionParams` object holds all the crucial information needed when an action is executed within the backtest-kit framework. Think of it as a package containing everything an action needs to know about its environment. 
+This interface, `IActionParams`, defines the information an action receives when it's created. Think of it as a package containing everything an action needs to function properly.
 
-It builds upon a base schema and incorporates runtime details like a logger to help track and debug what's happening. You'll also find information like the strategy and timeframe the action belongs to.
+It includes a logger to help you track what's happening and identify any problems.  You’ll also find details like the strategy and timeframe the action belongs to.
 
-Key pieces of information included are:
-
-*   A logger for sending messages and tracking execution.
-*   The strategy's name and the timeframe it's associated with.
-*   Details about the exchange being used.
-*   Whether the action is part of a backtest simulation.
-*   The current state of the strategy, including its signal and position information.
+It tells you whether the action is running in a backtesting environment, and importantly, gives you access to the current signal and position information for the strategy. This context is essential for making informed decisions within your trading actions.
 
 ## Interface IActionCallbacks
 
-This document describes the lifecycle callbacks you can use when building actions within the backtest-kit framework. These callbacks provide a way to react to various events and perform tasks like resource management, logging, and interacting with external systems.
+The `IActionCallbacks` interface lets you customize how your trading actions behave during different phases, offering hooks for initialization, cleanup, and event handling. Think of it as a way to inject your own logic into the trading process.
 
-**Initialization and Disposal:**
+You can use these callbacks for things like connecting to databases, initializing services, saving state, or even logging and monitoring activity. Importantly, these callbacks are all optional and work both synchronously and asynchronously.
 
-*   `onInit`: This callback is triggered when an action handler starts up. It's a good place to initialize connections, load data, or set up subscriptions.
-*   `onDispose`: This callback runs when an action handler is shut down, allowing you to clean up resources like closing connections and flushing buffers.
+Here's a breakdown of the specific events and what you can do with them:
 
-**Signal Handling:**
+*   **`onInit`**: This runs when an action handler starts up. Use it to set up resources like database connections or load any necessary data.
+*   **`onDispose`**: This is called when the action handler is finished. It's ideal for closing connections, flushing data, or saving the current state.
+*   **`onSignal`**: This gets triggered whenever a signal arrives from the strategy, regardless of whether you're in backtest or live trading.
+*   **`onSignalLive`**: Specifically for live trading, this provides signal events.
+*   **`onSignalBacktest`**: Just for backtesting, this callback handles signal events.
+*   **`onBreakevenAvailable`**:  Called when the stop-loss moves to the entry price.
+*   **`onPartialProfitAvailable`**: Fires when a partial profit level is reached.
+*   **`onPartialLossAvailable`**: Triggered when a partial loss level is reached.
+*   **`onPingScheduled`**: Gets called periodically while a scheduled signal is waiting to activate.
+*   **`onScheduleEvent`**: Handles events related to scheduled signals, like when a signal is scheduled or cancelled.
+*   **`onPendingEvent`**: Lets you respond to when a pending position is opened or closed.
+*   **`onPingActive`**:  Triggered regularly while a pending position is open.
+*   **`onPingIdle`**: Fired every tick when there are no active signals.
+*   **`onRiskRejection`**:  Called when a signal is rejected by the risk management system.
+*   **`onOrderSync`**: Used for manually confirming order openings and closings—throw an error to reject the operation, which will be retried.
+*   **`onOrderCheck`**:  Checks if pending orders are still valid on the exchange and can throw an error if the order isn't found, causing the position to close.
 
-The framework offers several callbacks based on the signal source and trading mode:
 
-*   `onSignal`: A general callback triggered by signals from all modes (live and backtest).
-*   `onSignalLive`: Specifically called for signals in live trading mode.
-*   `onSignalBacktest`: Specifically called for signals during backtesting.
 
-**Profit & Loss Management:**
-
-*   `onBreakevenAvailable`: Gets called when a breakeven point is reached.
-*   `onPartialProfitAvailable`: Triggered when a partial profit level is achieved.
-*   `onPartialLossAvailable`:  Called when a partial loss level is reached.
-
-**Scheduled Events:**
-
-*   `onPingScheduled`:  Runs periodically while a scheduled signal is awaiting activation.
-*   `onScheduleEvent`: Notifies you about lifecycle events related to scheduled signals, like creation or cancellation.
-
-**Pending Signals:**
-
-*   `onPendingEvent`: This callback deals with pending signal events, both when a position is opened and when it is closed. You can use it to manually manage order placement.
-*   `onPingActive`: Runs periodically while a pending position is active.
-*   `onPingIdle`:  Runs every tick when there are no active signals.
-
-**Risk Management and Order Management:**
-
-*   `onRiskRejection`:  Called when a signal is rejected by the risk management system.
-*   `onOrderSync`:  Lets you synchronize order actions, potentially rejecting them and retrying on the next tick.  Throwing an error here will retry the operation.
-*   `onOrderCheck`:  Used to verify that orders are still pending on the exchange and react appropriately if they're missing.  Throwing an error here will cause the system to retry.
-
-**Important Notes:**
-
-*   Many of these callbacks are event-driven, letting you hook into specific actions within the framework.
-*   Manual wiring is required for certain events, allowing you to take direct control over exchange interactions.
-*   For order-related actions (`onOrderSync`, `onOrderCheck`), carefully handle exceptions or return false to avoid unintended consequences.
+The `onScheduleEvent`, `onPendingEvent`, `onPingActive`, and `onOrderCheck` events provide manual wiring points to directly control exchange interactions, offering an alternative to using a Broker adapter. These callbacks allow you to customize and fine-tune your trading actions for specific scenarios.
 
 ## Interface IAction
 
-This interface, `IAction`, is your central hub for connecting your custom logic to the backtest-kit's trading engine. Think of it as a set of event listeners that let you react to what's happening during a backtest or live trade.
+This interface, `IAction`, acts as a central hub for your custom logic within the backtesting framework. Think of it as a place to plug in your own systems – like a Redux store, logging tools, or even a real-time dashboard – to react to what's happening during trading.
 
-Each method within `IAction` corresponds to a specific event, like a signal being generated, a partial profit level being reached, or a risk check failing. You can use these to do things like log events, update a dashboard, or manage your own custom trading logic.
+The framework will notify you of various events through these methods: `signal` (for general trading updates), `signalLive` and `signalBacktest` (for live and backtest modes respectively), and more specific events like breakeven, partial profit/loss adjustments, and scheduled signal milestones.
 
-The `signal`, `signalLive`, and `signalBacktest` methods are the core for receiving trading signals, with distinctions based on whether the signal comes from a live or backtest environment.  Specialized methods handle milestones like reaching a breakeven point, hitting profit or loss targets, and monitoring scheduled signals.
+Beyond standard trading signals, you'll receive notifications regarding ping events (monitoring signal status), schedule events (signal creation and cancellation), pending signals, order synchronization, and risk rejections.
 
-Beyond core trading events, methods like `orderSync` and `orderCheck` let you intervene in the order execution process—for example, rejecting an order or ensuring it's still active—which is crucial for managing risk. Finally, `dispose` provides a way to clean up resources when your custom logic is no longer needed.  Essentially, `IAction` is a flexible way to extend the framework's functionality and tailor it to your specific needs.
+The `orderSync` and `orderCheck` methods are particularly powerful, letting you influence order placement and confirmations – but remember that exceptions here have specific behaviors.
+
+Finally, `dispose` provides a chance to clean up any resources you’ve used when the testing is complete.  By implementing these methods, you can tailor the framework to your exact needs.
 
 ## Interface HighestProfitStatisticsModel
 
-This model keeps track of the events that resulted in the highest profit during a trading simulation. It essentially gives you a complete record of those profitable moments, presented in chronological order with the most recent event first. You can see exactly how many profitable events were recorded overall, and access a detailed list of each one, allowing you to analyze what factors contributed to those successes. It's a handy tool for understanding and replicating high-profit scenarios.
+This model holds information about the most profitable trading events that occurred during a backtest. 
+
+It essentially stores a complete history of these high-profit moments, with the most recent ones appearing first in the `eventList`. You can also easily see the total number of profitable events that were recorded overall through the `totalEvents` property. Think of it as a scorecard highlighting the best performing trades.
 
 ## Interface HighestProfitEvent
 
-This data structure represents the single best profit event observed for a particular trading position. It holds all the key details about when and how that peak profit was achieved. You'll find information like the exact timestamp, the trading pair involved, the strategy and signal that triggered the trade, and whether it was a long or short position.
+This represents a single instance where a position reached its highest profit. It holds all the details about that peak performance moment. You'll find information like the precise time it happened, the trading pair involved, the name of the strategy that generated the trade, and a unique ID for the signal that triggered it. 
 
-Crucially, it includes not only the final profit and loss (PNL) but also the highest profit point reached during the trade's lifespan, along with the maximum drawdown experienced.  The open price, take profit, and stop-loss prices are also recorded. Finally, a flag indicates if this event occurred during a backtesting simulation.
+It also includes details about the position itself—whether it was a long or short trade—along with the total profit and loss realized. Crucially, it tracks the highest profit achieved during the position's entire life, the maximum drawdown experienced, and the price points at which the position was opened, targeted for take profit, and set for a stop loss. Finally, it indicates whether this event occurred during a backtesting simulation.
 
 ## Interface HighestProfitContract
 
-The `HighestProfitContract` provides information when a trading strategy reaches a new peak profit level. It bundles key details about the trade, including the symbol being traded, the current price, and the exact time the highest profit was achieved. You'll also find the strategy name, exchange, and timeframe involved, along with the signal that triggered the trade. Critically, it also specifies whether this update is from a historical backtest or a live trading scenario. This allows you to build custom actions based on those profit milestones, such as adjusting stop-loss orders or taking partial profits.
+This interface describes the information you'll receive when a trading strategy hits a new peak profit level. It provides details such as the trading symbol involved (like "BTC/USDT"), the current price at that moment, and the exact time of the update. You’ll also get context about the strategy's name, the exchange being used, and the timeframe being analyzed (for example, a 1-minute chart).
+
+The included signal data gives you specifics about the trade itself, and a flag tells you whether this update came from a historical backtest or a live trading session. 
+
+This data allows you to build custom responses to those profit milestones, potentially triggering actions like adjusting stop-loss orders or taking partial profits.
 
 ## Interface HeatmapStatisticsModel
 
-This structure holds a comprehensive set of statistics for your entire portfolio, giving you a high-level view of performance. It breaks down key metrics across all the symbols you're trading, rather than just looking at individual assets.
+This model summarizes the overall performance of your entire trading portfolio, providing a broad view across all the assets you're trading. It breaks down key metrics like total profit and loss, Sharpe Ratio, and total number of trades for the whole portfolio.
 
-You'll find aggregated data like the total profit and loss, Sharpe and Sortino ratios, and the total number of trades executed.  It also provides insight into risk management, including measures of drawdown and volatility.
+You'll find aggregated data for each individual symbol represented in the `symbols` array, allowing you to understand how each asset contributes to the overall portfolio performance.
 
-The framework calculates trade-weighted averages for peak profit and fall profit, giving a more accurate representation of typical performance than simple averages. Duration metrics show how long trades are typically held.  
-
-Several key performance indicators are annualized or geometrically extrapolated, allowing you to estimate potential yearly returns and compare results across different timeframes and strategies. It even includes a measure of expectancy, representing the expected return per trade. Finally, it gives the number of trades if extrapolated to a year.
-
+The model also includes metrics that offer a more nuanced perspective, such as the trade-count-weighted average peak and fall profit/loss, which smooth out extreme results and give a better picture of typical performance. Other calculated metrics such as average trade duration, median profit percentage, consecutive win/loss streaks, and various risk-adjusted return ratios (Sharpe, Sortino, Calmar) are included as well. Finally, a look at the overall expectancy and expected yearly returns provides additional context for evaluating your portfolio’s potential.
 
 ## Interface DoneContract
 
-This interface lets you know when a background process, either a backtest or a live trading session, has finished running. 
+This interface describes what happens when a background process finishes, whether it's a backtest or a live trading session. It gives you information about the completed process, like which exchange was used, what strategy ran, and whether it was a backtest or live trade. You'll see this information when a background task, initiated by `Live.background()` or `Backtest.background()`, is done. 
 
-It provides key details about what just completed, like the exchange it used, the name of the trading strategy, and whether it was a backtest or a live execution. 
-
-You’ll also find the trading symbol involved, such as "BTCUSDT," and the name of the frame if it was part of a backtest. Think of it as a notification with important context about a completed trading operation.
+It tells you things like the exchange name, strategy name, and symbol being traded. If it’s a backtest, the `backtest` property will be true; otherwise, it's a live trade.  The `frameName` property will be empty if running in live mode.
 
 
 ## Interface CronHandle
 
-This object lets you cancel a scheduled task you previously registered with the Cron system. Think of it as an unsubscribe button for your automated trading functions. When you’re done with a task or want to stop it from running, simply call the method on this handle. It's a clean way to remove your registered functions without having to manually track and call the unregistration function directly.
+This object, returned when you schedule a task with the Cron system, lets you easily cancel that scheduled task. Think of it as a simple way to say "I don't need this task to run anymore" – it effectively removes the scheduled job without needing to remember the exact command you used to schedule it. It’s a clean way to undo a scheduled task registration.
 
 ## Interface CronEntry
 
-A CronEntry defines when and how a specific piece of code will run within the backtest framework. 
+A CronEntry defines when and how a particular function should be executed within your backtesting environment. It’s essentially a schedule for your code.
 
-Each entry needs a unique name, used to identify it and prevent duplicates. It also requires a candle interval – like "1m" or "1h" – which dictates how often the code executes based on the timing of candle data.
+Each entry needs a unique name to identify it, and that name can't contain colons.
 
-You can also specify a list of symbols; if left empty, the code runs once for all backtests, whereas listing symbols makes it run once per symbol within the list. 
+You also specify a candle interval—like every minute, five minutes, or hourly—to determine the timing of execution. If you skip defining an interval, the entry becomes a "fire-once" entry, running just once at the very beginning.
 
-Finally, there's a handler, which is the actual function that will be executed according to the defined schedule and symbol selection. If the handler fails, the system will retry it.
+The `symbols` property allows you to control the scope of execution. If left empty, the function runs just once for all backtests. However, if you provide a list of symbols, it runs once for each symbol within that list.
+
+Finally, the `handler` property is the function that actually gets executed according to the defined schedule and scope.
 
 ## Interface CriticalErrorNotification
 
-This notification signals a critical error within the backtest framework, demanding immediate attention and process termination. 
+This notification signals a critical error that requires the backtest process to stop immediately. 
 
-It carries essential details about the error, including a unique identifier, a clear human-readable message explaining the issue, and a full stack trace with related data. 
+It carries important details about the error, including a unique identifier, a human-readable message explaining what went wrong, and the full error object with its stack trace and any associated data. 
 
-The `type` property confirms this is a critical error notification, allowing for safe and reliable error handling. 
-
-Notably, the `backtest` flag will always be false, because these errors originate from a live context rather than a simulation.
+You’ll notice the `backtest` property is always false because these errors originate from the live trading context, not the backtesting environment itself. This notification provides vital information for debugging and addressing serious issues.
 
 ## Interface ColumnModel
 
-The `ColumnModel` interface helps you customize how data is displayed in tables. Think of it as a blueprint for each column you want to show.
+This interface helps you define how data should be presented in a table. Think of it as a blueprint for each column.
 
-Each column gets a unique `key` to identify it, and a `label` that users see as the column header.
+Each column gets a unique identifier (`key`) so you can refer to it, and a friendly name (`label`) to show in the table header.
 
-The `format` function lets you transform the raw data into a nicely formatted string—maybe you want to display dates or currency in a specific way.
+The `format` property lets you customize how the actual data is displayed—you can use it to transform numbers, dates, or anything else. 
 
-Finally, the `isVisible` function gives you control over whether a column is shown at all, potentially based on some condition.
+You can also control column visibility with `isVisible`, allowing you to dynamically show or hide columns based on certain conditions.
 
 ## Interface ClosePendingCommitNotification
 
-This notification signals that a pending signal has been closed before a full position was activated. It provides detailed information about the closure, including a unique identifier, the time it happened, and whether it occurred during backtesting or live trading. You'll find details like the trading symbol, the strategy involved, and the exchange used.
+This notification is sent when a pending trading signal is closed before it fully activates. It provides a wealth of information about the closed position, useful for understanding why the signal was closed and its performance. You’ll find details like a unique identifier for the notification, a timestamp, and whether it originated from a backtest or live trading environment. 
 
-The notification also includes comprehensive performance metrics for the closed position, such as total profit and loss (PNL), peak profit, maximum drawdown, and their associated prices and percentages.  Crucially, it breaks down the PNL by entry and considers slippage and fees. Furthermore, it gives insight into the closing reason via an optional note and records the creation timestamp of the notification itself. This detailed information helps to understand why a signal was closed and how the position performed.
+The notification includes key metrics like the total number of entries (potentially from a dollar-cost averaging strategy), partial closes performed, the original entry price, and extensive profit and loss (PNL) data. This includes peak profit achieved, maximum drawdown, and corresponding prices and costs. Furthermore, you get details about the signal itself, the strategy that generated it, and an optional note explaining the reason for the closure. Lastly, a timestamp indicating when the notification was created is also available. This comprehensive data allows for detailed analysis of signal performance and the reasons behind its closure.
+
 
 ## Interface ClosePendingCommit
 
-This signal signifies the completion of a previously opened position, indicating it has been closed. 
-It provides details about the trade's performance, including its total profit and loss (PNL).
-You'll also find information about the highest profit reached during the position's lifetime and the largest drawdown experienced. 
-
-The `action` field confirms this is a closing signal, while `closeId` lets you optionally add a custom identifier to explain why the position was closed.
+This event signals that a previously opened position has been closed. It includes details about the closure, such as a unique identifier for the reason behind it. You’ll also find information about the position's profit and loss (PNL), the highest profit it reached, and the largest drawdown it experienced throughout its lifetime. Essentially, this event provides a snapshot of the closed position's performance history.
 
 ## Interface CancelScheduledCommitNotification
 
-This notification signals that a previously scheduled trading signal has been cancelled before it was activated. It provides comprehensive details about the cancelled signal, including its unique identifier, when the cancellation happened, and whether it occurred during a backtest or live trading environment. The notification contains a wealth of information about the intended trade, such as the trading pair, strategy name, exchange, signal ID, and details about any planned DCA (Dollar Cost Averaging) or partial closing actions.
-
-You’ll find details about the potential trade’s performance, including P&L (profit and loss), peak profit, maximum drawdown, and relevant prices – all adjusted to account for potential slippage and fees.  It also includes details like the initial entry price, the total amount invested, and a user-provided note explaining the reason for the cancellation. Finally, timestamps are included to track the creation and cancellation times of the notification.
-
+This notification lets you know a previously scheduled trading signal has been cancelled before it was activated. It provides detailed information about the cancelled signal, including a unique identifier, when the cancellation occurred, and whether it happened during backtesting or live trading. You'll find specifics about the trading pair, the strategy that generated the signal, and details like the original entry price, the total number of entries and partial closes, and comprehensive performance metrics such as peak profit, maximum drawdown, and profit/loss figures, all presented with considerations for slippage and fees. The note property allows for a custom description explaining the cancellation reason, and a creation timestamp confirms when the notification was generated.
 
 ## Interface CancelScheduledCommit
 
-This interface lets you signal a cancellation of a previously scheduled event. Think of it as telling the system, "Hey, something that was supposed to happen isn't going to anymore."
+This interface lets you cancel a scheduled signal event. It's used when you want to stop a signal that's been planned for later execution.
 
-You’ll specify that you're cancelling with the `action` property.
+You'll specify the action as "cancel-scheduled" to indicate what you're doing.  You can also include a `cancelId` to provide a reason for the cancellation, which is helpful for tracking and debugging.
 
-To help track why you're cancelling, you can include a `cancelId` – a user-defined identifier to explain the reason.
-
-Along with the cancellation, you'll also provide performance data about the position related to this event. That includes the total profit and loss (`pnl`), the highest profit ever reached (`peakProfit`), and the biggest loss incurred (`maxDrawdown`). These values reflect the position's history up to the point the cancellation signal is sent.
-
+The interface also includes information about the performance of the related strategy, providing the total Profit & Loss (`pnl`), the highest profit reached (`peakProfit`), and the largest loss experienced (`maxDrawdown`) throughout the strategy's activity leading up to the signal’s creation. This gives you insight into the strategy's performance at the time of cancellation.
 
 ## Interface BreakevenStatisticsModel
 
-This model holds information about breakeven points reached during a trading simulation. 
-
-It keeps track of individual breakeven events, storing details for each one in the `eventList`. 
-
-You can also see the overall count of breakeven events with the `totalEvents` property. Think of it as a way to understand how frequently your strategy reaches a breakeven state.
-
+The `BreakevenStatisticsModel` helps you understand how often breakeven points are reached during a backtest. It keeps track of all the times a breakeven event occurred, providing a detailed list of each event. You can also quickly see the total number of times a breakeven was achieved, giving you a simple overview of how consistently breakeven points are being hit. This model is useful for assessing the risk and performance related to breakeven milestones in your trading strategy.
 
 ## Interface BreakevenEvent
 
-This data structure holds all the key information about when a trading signal hits its breakeven point. It’s designed to make creating reports and analyzing performance easier. 
+This data structure holds all the key details whenever a trading signal reaches its breakeven point. It's like a snapshot of what happened at that moment, providing a comprehensive record for analysis and reporting.
 
-You’ll find details like the exact time it happened, the trading pair involved, the name of the strategy used, and the signal's unique ID. 
+You'll find the exact time of the event, the trading symbol involved, the name of the strategy used, and a unique identifier for the signal itself. It also includes details about whether it was a long or short position, the current market price, and the entry price that marks breakeven.
 
-It also includes crucial price points: the entry price, the take profit target, and the stop loss level, along with their original values when the signal was first created.
-
-If the strategy used dollar-cost averaging (DCA), you'll see information about the number of entries and partial closes. It tracks how much profit has been made so far and provides a human-readable explanation of the signal. Finally, it indicates whether the trade occurred in backtest or live mode and when it was first created and became active.
+Information about the original take profit and stop loss levels, along with details about any dollar-cost averaging (DCA) or partial closes performed, are also included. Finally, it captures performance metrics like unrealized profit and loss, and any notes or explanations associated with the signal. It also tracks the signal's lifecycle, noting when it became active and when it was initially scheduled.
 
 ## Interface BreakevenContract
 
-This object represents a specific event: when a trading signal's stop-loss order has moved back to the original entry price, essentially eliminating the initial risk. It's a signal that the strategy is reducing its risk, a positive milestone.
+The `BreakevenContract` represents a specific event: when a trading signal's stop-loss is moved back to the original entry price. This usually signifies the trade has moved into profit enough to cover initial costs and reduce risk.
 
-Each event includes details like the trading symbol (e.g., BTCUSDT), the name of the strategy that generated the signal, and the exchange and frame used. You'll also find all the original data associated with that signal, along with the current market price at the time of the event, and whether it originated from a backtest or live trading. The timestamp helps pinpoint exactly when this breakeven event happened, either at the moment it occurred in live trading or at the specific historical candle during a backtest.
+It's a valuable signal for keeping tabs on your strategy's safety and milestones – essentially, when your risk is being actively managed. These events are designed to be reliable; each signal generates this notification only once.
+
+Here's a breakdown of the information included with each `BreakevenContract`:
+
+*   **symbol**: The trading pair involved, like BTCUSDT.
+*   **strategyName**: The name of the strategy that created the signal.
+*   **exchangeName**: The exchange where the trade is happening.
+*   **frameName**:  The timeframe being used (like a 5-minute chart; an empty string means live trading).
+*   **data**: The full original data of the trading signal.
+*   **currentPrice**: The price at which the breakeven was reached.
+*   **backtest**: A flag indicating if this event came from a historical test or live trading.
+*   **timestamp**:  The precise time the event occurred (live trading) or the candle’s time (backtesting).
+
+Consumers of these events include services that create reports and users who want to be notified directly.
 
 ## Interface BreakevenCommitNotification
 
-This notification lets you know when a breakeven point has been reached and acted upon in a trade. It provides a comprehensive snapshot of the trade's performance up to that point.
+This notification signals that a breakeven point has been reached and a trading action has been executed. It provides a wealth of information about the trade, including a unique identifier, when it happened (timestamp), and whether it occurred during a backtest or live trading.
 
-Here's what you'll find in this notification:
+You’ll find details about the traded asset (symbol), the strategy responsible for the signal, and the exchange used. It also includes the entry and take profit/stop loss prices, both original and adjusted for trailing, alongside details about any DCA (Dollar Cost Averaging) or partial closes that occurred.
 
-*   **Identification:** A unique ID, timestamp, and whether it's from a backtest or live trading.
-*   **Trade Details:** The symbol being traded, the strategy used, the exchange involved, and a unique signal identifier.
-*   **Price Information:** Key prices like the current market price, the entry price, and any take profit or stop-loss levels (both original and adjusted for trailing).
-*   **DCA and Partial Closings:** Details about any dollar-cost averaging (DCA) used, the total number of entries, and any partial position closures.
-*   **Performance Metrics:**
-    *   Total profit and loss (PNL) including all entries and partials.
-    *   Peak profit and maximum drawdown, along with the prices and PNL at those points.
-    *   Percentage-based profit/loss and related metrics.
-*   **Additional Information:** A note providing context or explanation for the signal, along with timestamps for signal creation, pending status, and notification creation.
-
-
-
-It’s designed to offer a complete record of a breakeven event, including how the trade performed leading up to it.
+The notification goes further, offering a comprehensive view of the trade's financial performance – including profit/loss (pnl) figures, peak profit, and maximum drawdown metrics. You can see how the trade performed relative to the original entry price and understand the overall financial impact of the position with details like total investment and profit/loss percentages. Finally, there's an optional note field for added context about why the breakeven action was triggered.
 
 ## Interface BreakevenCommit
 
-This event signifies that a breakeven adjustment has been triggered for a trading position. It provides detailed information about the position's performance and price levels at the time of the adjustment. You’ll find key data points like the current market price and the overall profit/loss (PNL) achieved up to this point. 
+The BreakevenCommit event signals that a position has reached a breakeven point, essentially meaning the strategy has adjusted the position to protect profits and limit potential losses. It provides a snapshot of the position's performance at the time of this adjustment, including the current market price.
 
-The event also includes metrics reflecting the position’s journey – the highest profit attained (peakProfit) and the largest drawdown. The trade direction (long or short) is clearly indicated, along with the original entry price and the prices for take profit and stop loss, as well as their adjusted values if trailing stops were used.
+You’ll find details about the position’s overall profit and loss (PNL), as well as key metrics like the highest profit achieved (peak profit) and the largest drawdown experienced.
 
-Timestamps are included for when the signal was created and when the position initially activated, giving you a timeline of the trading event. The `action` property confirms that the event type is a breakeven.
+The event also clarifies the initial entry price, original take profit and stop loss prices, and how they may have changed due to trailing strategies.  Finally, it includes timestamps marking when the signal was created and when the position was initially activated. This information allows you to understand the circumstances surrounding the breakeven adjustment and the position's history.
+
 
 ## Interface BreakevenAvailableNotification
 
-This notification signals that your trading position's stop-loss can now be moved to your entry price, essentially reaching a breakeven point. It provides a wealth of information about the trade, including a unique ID, the exact time this opportunity arose, and whether it's happening in a backtest or live environment.
+This notification signals that your trading position now has the opportunity to break even – meaning the stop-loss order can be adjusted to your original entry price. It provides a wealth of information about the trade, including a unique identifier, the exact time it occurred, and whether it's from a backtest or live trading.
 
-You’ll find details on the trading pair involved (like BTCUSDT), the strategy that generated the signal, and the exchange being used. The notification also provides a snapshot of the current market price, the initial entry price, and the trade direction (long or short).
+You'll find details like the trading pair (e.g., BTCUSDT), the strategy used, and the exchange involved. The notification also gives you the current market price, the entry price, and the trade direction (long or short).
 
-Beyond the basics, you get insights into the position's performance, like peak profit, maximum drawdown, and overall profit/loss, complete with percentages and associated prices.  It even breaks down details like slippage and fees that influenced the position's financial performance. Finally, there’s an optional note field that could offer a human-readable explanation for why the signal was generated.
+Beyond the basics, it includes crucial performance metrics like peak profit, maximum drawdown, and detailed profit/loss breakdowns. You'll see the original prices, the number of entries and partial closes, and how slippage and fees have impacted the P&L.  Finally, it can include a note providing context about why this breakeven opportunity arose.
 
 ## Interface BeforeStartContract
 
-This event signals the start of a new trading simulation or live trading session for a specific asset. Think of it as a preparation signal before the strategy begins analyzing data and potentially placing trades. It's a guaranteed checkpoint – if this event happens, you're guaranteed to receive a corresponding event marking the end of that trading period.
+This interface, `BeforeStartContract`, lets you hook into the very beginning of a trading strategy run. It's a signal that's sent right before the strategy starts processing data, giving you a chance to do setup tasks like opening log files or resetting counters. It's guaranteed to fire only once per run and is always followed by an `AfterEndContract` signal, ensuring a clean lifecycle even if things go wrong.
 
-You can use this event to set up essential tasks, such as initializing log files, resetting counters that track performance, or sending notifications that the trading run has begun. It fires only once at the very beginning of each run, before any trading signals are generated.
-
-The information provided includes the trading symbol, the name of the strategy being used, the exchange providing data, the timeframe (if applicable), and whether it’s a backtest or live run. A current price and a timestamp are also included for convenience, allowing you to avoid additional queries or date manipulations. Remember that in backtest mode, the timestamp indicates the intended start time, while in live mode it represents the actual current time.
+The signal provides crucial information about the run, including the trading symbol (like "BTCUSDT"), the name of the strategy, the exchange providing data, and whether it’s a backtest or live run. You'll also find the current price and the event’s timestamp as a `Date` object and its milliseconds representation, saving you time and simplifying data handling. If it’s a backtest, the `when` property represents the intended start time of the historical data, while in live mode, it's the current time.
 
 ## Interface BacktestStatisticsModel
 
-This model provides a detailed breakdown of your backtesting results, offering a comprehensive view of your strategy's performance. It contains a wealth of data, from individual trade details to overall statistical summaries. You'll find information on the number of winning and losing trades, win rate, average profit and loss, and various risk-adjusted return metrics like Sharpe and Sortino ratios. 
+This model provides a detailed breakdown of your backtesting results, offering a wealth of information to evaluate your trading strategy. It organizes data into key performance indicators, like the total number of trades, win rate, and overall profit. You'll find metrics covering profitability (average P&L, total P&L), risk (standard deviation, Sharpe Ratio), and trade characteristics (average duration, step size).
 
-It also digs into the specifics of trade duration, drawdown, and consecutive win/loss streaks. Furthermore, it analyzes market pressure and trend characteristics, indicating whether buyers or sellers are dominating and the strength of the underlying trend. Many of these values will be null if the calculation isn't reliable due to data inconsistencies. 
-
-The `signalList` property gives you access to the raw data for each closed trade, allowing for granular analysis. Analyzing these metrics will help you understand your strategy's strengths and weaknesses and how it behaves under different market conditions.
+Several important ratios help assess risk-adjusted returns and potential future performance, such as the Calmar Ratio and Expectancy. Furthermore, the model analyzes trade sequences with metrics like average consecutive win/loss P&L, and examines market pressures with buyer/seller strength indicators. Finally, it classifies the overall trend and provides a confidence level for that assessment, based on historical price data. Remember, any numeric value marked as "null" signifies that the calculation was considered unreliable or unrepresentative due to data limitations.
 
 ## Interface AverageBuyCommitNotification
 
-This notification signals that a new portion of your dollar-cost averaging (DCA) strategy has been executed. It provides a wealth of information about this specific averaging entry, including when it happened, whether it's from a backtest or live trading, and the trading pair involved. You'll find details like the current price, total cost, and how the averaged entry price changes your overall position.
+This notification lets you know when a new portion has been bought in a position using a dollar-cost averaging (DCA) strategy. It provides a ton of details about this specific averaging purchase, including the exact time it happened, whether it's part of a backtest or a live trade, and which exchange it occurred on. You'll find key information like the current price, the total cost of this purchase, the calculated effective average entry price, and the total number of DCA entries made so far.
 
-The notification also contains a comprehensive overview of the entire position, including the total number of averaging entries and partial closes, the current position direction (long or short), and vital performance metrics like peak profit, maximum drawdown, and profit/loss percentages, all calculated up to this point. Furthermore, it offers insight into the original signal parameters, slippage and fee adjustments, and even a human-readable note explaining the reason behind the signal. Finally, timestamps provide a record of the signal’s lifecycle, from initial creation to its active pending state.
+Beyond the immediate details of the purchase, the notification also includes a comprehensive snapshot of the position's performance. This includes metrics like peak profit, maximum drawdown, and profit/loss percentages. Essentially, it gives you a complete picture of how the DCA strategy is impacting the position's overall health and potential.  You can also see details like the original entry price, take profit and stop loss levels, and signal creation timestamps for more in-depth analysis. It’s like a detailed report card for each DCA step.
 
 ## Interface AverageBuyCommit
 
-This interface represents an average-buy event, which happens when a new buy order is placed to gradually lower the average entry price of a position.
+This interface represents an average-buy event within a trading strategy, signaling that a new averaging entry has been added to an existing position. The `action` property definitively marks this as an average-buy event. It provides a snapshot of the position's state at the moment the averaging buy occurred, including the `currentPrice` at which the buy executed and the `cost` of that specific buy. 
 
-It provides details about the event, including the price at which the new averaging buy was executed, the cost of that buy, and the updated effective (averaged) entry price. 
+You'll also find the `effectivePriceOpen`, which reflects the updated average entry price after incorporating the new buy.  The information includes profitability metrics: `pnl` (current unrealized profit and loss), `peakProfit` (the highest profit seen so far for this position), and `maxDrawdown` (the largest loss experienced). 
 
-You'll also find information about the current profit and loss (PNL), the highest profit achieved, and the maximum drawdown experienced by the position so far.
-
-The interface includes the original entry price, the current take profit and stop loss prices (which might have been adjusted through trailing), the original take profit and stop loss prices, and timestamps related to the signal's scheduling and activation. It clarifies the trade direction (long or short) to ensure clarity on the position being managed.
+Details about the original trade setup like `priceOpen`, `priceTakeProfit`, and `priceStopLoss` are included, along with their original, untrailed values (`originalPriceTakeProfit` and `originalPriceStopLoss`). Timestamps, `scheduledAt` and `pendingAt`, track the signal creation and position activation times, respectively.
 
 ## Interface AfterEndContract
 
-This interface signals the end of a trading strategy's execution, whether it finished normally, encountered an error, or was stopped prematurely. It’s designed to ensure certain cleanup tasks happen reliably once per run, like flushing data buffers or sending notifications.
+This interface signals the end of a strategy run, whether it finished normally, encountered an error, or was cancelled. It's a critical point for cleanup tasks that need to happen once per run, such as saving data, closing connections, or sending notifications. You can rely on receiving this event exactly once for each strategy run, paired with a corresponding "start" event.
 
-You'll receive this event paired with a `BeforeStartContract` event for the same run, and these events are guaranteed to always be matched. The `when` property tells you precisely when the strategy finished: in backtesting, it's the time of the last processed candle, or the frame’s start date if nothing was processed; in live trading, it's the current time rounded to the nearest minute.
+The `when` property indicates the time of completion: in backtesting, it's the historical time of the last processed candle, or the frame's start date if nothing was processed; in live trading, it's the current wall-clock time rounded to the nearest minute.  This property, along with `timestamp` (which is the same value but in milliseconds), gives you a reliable reference for when the run concluded.
 
-The event also provides essential details like the trading symbol (`symbol`), the strategy's name (`strategyName`), the data source (`exchangeName`), and the timeframe used (`frameName`). You'll also find out if the run was a backtest (`backtest`) and a convenient average price (`currentPrice`) to avoid needing to fetch it from the exchange yourself. Finally, `timestamp` offers the same time information as `when` but as a simple number for easy logging or communication.
+The event also provides key details like the trading symbol, strategy name, exchange, and frame name, allowing you to identify the specific run that ended.  You’ll also find a `backtest` flag to distinguish between simulated and live runs, and `currentPrice` for a convenient, readily available price at the completion time.
 
 ## Interface ActivePingContract
 
-The ActivePingContract defines a way to receive updates about active, pending signals within your trading strategies. Think of it as a heartbeat signal, sent every minute while a pending signal is still open.
+This defines what happens when a trading strategy is actively waiting for a signal to trigger – essentially, it's a regular heartbeat. Every minute while a pending signal is active, this event is sent out. It provides information like the trading pair (e.g., BTCUSDT), the name of the strategy using it, the exchange involved, and the timeframe being monitored.
 
-This allows you to track the lifecycle of your signals and build custom logic to manage them. For example, you might want to adjust stop-loss orders or dynamically adjust parameters based on price movement.
+You also get all the details of the pending signal itself, like the take profit and stop loss prices. Importantly, the current price of the asset is included, letting you build custom logic that reacts to price movements.
 
-Each ping event contains key information:
-
-*   The trading pair (symbol) involved, like BTCUSDT.
-*   The name of the strategy that created the signal.
-*   The exchange where the signal is active.
-*   The timeframe or date range being analyzed (or empty if it’s live trading).
-*   All the original data of the pending signal itself, including entry price, stop-loss, and take-profit levels.
-*   The current market price at the time of the ping.
-*   Whether the signal is from a backtest or live trading.
-*   A timestamp indicating when the ping occurred, reflecting either the live trading moment or the historical candle being processed.
-
-You can listen for these pings to react to changes in your active signals and implement custom management strategies.
+Finally, it tells you whether this ping is part of a backtest (historical data) or live trading.  The timestamp represents the time of the ping—either the real-time moment for live trading or the candle timestamp during backtesting. Developers can use this information to monitor signals and customize how their strategies behave.
 
 ## Interface ActivateScheduledCommitNotification
 
-This notification tells you when a scheduled trading signal has been activated, meaning the system has begun executing the trade. It provides a wealth of information about the trade, including a unique identifier, the exact time it was activated, and whether it's happening in a simulated backtest or live trading environment.
+This notification signals that a scheduled trading signal has been activated, meaning a trade is about to be executed. It's triggered when a user manually initiates a scheduled signal, regardless of the current market price.
 
-You'll find details about the specific trading strategy, the exchange it's using, and the trade direction (long or short). The notification also includes the entry price, take profit, and stop-loss levels, as well as how they might have been adjusted.
+The notification provides a wealth of information about the upcoming trade, including a unique identifier, the exact time of activation, and whether it's happening in a test or live environment. You'll find details about the trading pair (like BTCUSDT), the strategy that generated the signal, and the exchange being used.
 
-Beyond the basic trade details, you'll get performance metrics like potential profit and loss (both in absolute and percentage terms), peak profit achieved, and maximum drawdown experienced. Several other details about the trade lifecycle, such as when it was originally scheduled, when it entered a pending state, and how many entries or partial closes were involved, are also included. Finally, there's space for an optional note explaining why the signal was activated.
+It dives deep into the specifics of the trade itself, outlining the trade direction (long or short), the entry price, take profit and stop-loss levels, and any adjustments made to those prices. There’s also a breakdown of how the trade was built, including any dollar-cost averaging (DCA) involved and any partial closes that have occurred.
+
+Crucially, it includes comprehensive profit and loss (PNL) data, like total profit/loss, peak profit achieved, and maximum drawdown experienced so far.  You'll also find information about when the signal was initially scheduled and the current market price at the time of activation. Finally, there's an optional note field for providing context or explaining the rationale behind the signal.
 
 ## Interface ActivateScheduledCommit
 
-This describes what happens when a previously scheduled signal is now being put into action. It essentially tells you the details of that activation event.
-
-You'll find information about why the signal was activated – it's specifically marked as an "activate-scheduled" action. There's also an optional identifier that might have been provided by the user to explain *why* they chose to activate it.
-
-The data includes key performance metrics like total profit and loss (PNL), the highest profit achieved, and the maximum drawdown experienced by this trade. You'll also see the direction of the trade (long or short), the entry price, and both the final take profit and stop loss prices, as well as the initial values before any adjustments were made.
-
-Finally, it records the timestamps—when the signal was initially created and when it actually started to be executed.
+This data structure represents an event triggered when a scheduled signal is activated. It contains a wealth of information about the trade being executed, including whether it's a long or short position, the entry and exit prices (original and adjusted), and the current market price at the time of activation. You’ll also find key performance metrics tied to the position, such as total profit and loss (PNL), peak profit, and maximum drawdown – all calculated up to the moment the signal was generated.  A unique identifier for the activation reason can be provided by the user, and timestamps indicate when the signal was created and when the activation occurred. This allows you to track and analyze the performance and behavior of your automated trading strategies.
