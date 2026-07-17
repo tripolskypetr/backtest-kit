@@ -1,3 +1,79 @@
+# 🔒 Connection-loss protection (v16.0.0, 17/07/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/16.0.0)
+
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+A dropped connection must never cost a position — or buy one twice. This major makes every broker conversation (order open, order close, liveness check) **adaptive**: the adapter states the *kind* of failure by throwing one of **three typed error classes**, and the engine routes each kind differently — bounded retry, instant terminal action, or tolerance. The trigger was a live incident: a market buy **filled** on the exchange, the HTTP response was lost, the engine treated the attempt as failed and retried the purchase every tick for four hours (saved from a double-buy only by `InsufficientFunds`). That entire failure class is now closed at the engine level.
+
+**Identity-stable open retry — exchange-side idempotency.** A transiently rejected open no longer regenerates a fresh signal: the *same* signal row with the *same* `signalId` is re-submitted on the next tick, and the armed retry (slot + per-signalId counter) is **persisted**, surviving crashes and restarts. Tag exchange orders with `clientOrderId = payload.signalId` and a retry after a lost response resolves to "duplicate order" on the exchange — query the order by that id, confirm the fill, done. No orphan position, no double-buy:
+
+```
+tick N:   POST(clientOrderId=sig_X) → order FILLED, response lost → throw (transient)
+tick N+1: retry of the SAME sig_X → exchange: "duplicate" → getOrderByClientId → FILLED
+          → return normally → the engine commits the open, position under TP/SL
+```
+
+**Bounded everything, with a visible counter.** Every gate/check payload (and the `listenSync` / `listenCheck` contracts) now carries `attempt` — consecutive prior failures, `0` = first try, reset on success. Opens retry up to `CC_ORDER_OPEN_RETRY_ATTEMPTS` (then the signal is dropped loudly), closes up to `CC_ORDER_CLOSE_RETRY_ATTEMPTS` (then the engine **force-closes** its state with the original `closeReason` — no more eternally rejected closes burning the risk slot and flooding logs), checks tolerate `CC_ORDER_CHECK_RETRY_ATTEMPTS` consecutive failures (a connectivity blip no longer kills a live position on the first ping). All three default to `5`; `0` restores the exact legacy behavior. Exhausting a transient budget is the one **fatal** path: `errorEmitter` → `exitEmitter` (`listenExit` for supervisor alerts). Typed terminal outcomes are loud but never exit the process.
+
+```typescript
+import { Broker, OrderRejectedError, OrderDeletedError, OrderTransientError } from "backtest-kit";
+
+Broker.useBrokerAdapter({
+  async onOrderOpenCommit(p) {
+    try {
+      await exchange.createOrder(p.symbol, { clientOrderId: p.signalId, side: p.position, cost: p.cost });
+    } catch (e) {
+      if (isDuplicateClientOrderId(e)) {                       // retry after a lost response
+        const real = await exchange.getOrderByClientId(p.signalId);
+        if (real?.filled) return;                              // already filled -> confirm the open
+      }
+      if (isDefinitiveRejection(e)) throw new OrderRejectedError(e.message); // terminal, no retry
+      throw OrderTransientError.fromError(e);                  // bounded identity-stable retry
+    }
+  },
+  async onOrderActiveCheck(p) {
+    let order;
+    try { order = await exchange.getOrderById(p.signalId); }
+    catch (e) { throw OrderTransientError.fromError(e); }      // tolerated — position stays alive
+    if (!order) throw new OrderDeletedError(`${p.signalId} gone`); // confirmed -> close "closed" at once
+  },
+});
+Broker.enable();
+```
+
+**The three classes** (recognized by a `Symbol.for` runtime brand, never `instanceof` — survives duplicated package copies):
+
+- `OrderTransientError` — "temporary, retry me". Declarative sugar: any plain `Error` behaves identically, the framework never pattern-matches it. `fromError(e)` wraps a caught error keeping its message.
+- `OrderRejectedError` — terminal business refusal, for the **gates** (`onOrderOpenCommit` / `onOrderCloseCommit`): open dropped without arming the retry, close force-closed immediately (the close lifecycle event still reaches the adapter for reconciliation).
+- `OrderDeletedError` — confirmed order-not-found, for the **checks** (`onOrderActiveCheck` / `onOrderScheduleCheck`): instant close `"closed"` / cancel `"user"`, bypassing tolerance. A **filled** order is not a deleted order — confirm fills via `commitActivateScheduled` / `commitCreateTakeProfit` / `commitCreateStopLoss`.
+
+Cross-throwing a typed error in the wrong channel is a userspace protocol violation and intentionally **degrades to transient** (bounded, loud) rather than being honored as terminal. Internally every throw resolves into the exported `IBrokerOrderVerdict` union — an object discriminated by `reason` and branded with `BROKER_ORDER_VERDICT`, so no boolean-style `if (!verdict)` check can ever mistake a failure for a confirmation. The full model applies identically across all three integration channels: Broker adapter, action callbacks (`onOrderSync` / `onOrderCheck`), and `listenSync` / `listenCheck` listeners.
+
+## Breaking Changes
+
+1. **A failed order check no longer closes the position on the spot.** Transient check failures (plain throw / `OrderTransientError`) are tolerated for `CC_ORDER_CHECK_RETRY_ATTEMPTS` (default 5) consecutive ticks before the terminal close/cancel. Adapters that relied on "one throw = terminal" must either throw `OrderDeletedError` (the correct signal for a confirmed not-found) or set `CC_ORDER_CHECK_RETRY_ATTEMPTS: 0`. The old "swallow network errors or you kill the position" rule is obsolete — throwing them is now the *recommended* way to report a blip.
+2. **A rejected close no longer retries forever.** After `CC_ORDER_CLOSE_RETRY_ATTEMPTS` (default 5) consecutive transient rejections the engine force-closes its own state with the original `closeReason`, emits `errorEmitter` + `exitEmitter`, and fires the standard close lifecycle event; reconciling the real exchange position is the adapter's job. `CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0` restores retry-forever.
+3. **A rejected open no longer regenerates a fresh signal id.** The retry carries the SAME `signalId` (up to `CC_ORDER_OPEN_RETRY_ATTEMPTS`, default 5, persisted across restarts). Adapters keying dedup/logging on "new id per attempt" must key on `(signalId, attempt)` instead. `CC_ORDER_OPEN_RETRY_ATTEMPTS: 0` restores drop-and-regenerate.
+4. **`onOrderSync` / `onOrderCheck` internal callback contracts return `IBrokerOrderVerdict`.** Affects only code that mocked `params.onOrderSync` / `params.onOrderCheck` directly — legacy boolean returns are still normalized (`true`/void → confirmed, `false` → transient), so listener-level and adapter-level code is unaffected.
+5. **`StrategyData` (persist snapshot) gained `retryOpenSignal` + `retryOpenCount`.** Custom `IPersistStrategyInstance` adapters must round-trip the new fields; snapshots written by older versions read back fine (missing fields default to `null`/`0`).
+
+## New Public API
+
+- `OrderTransientError`, `OrderRejectedError`, `OrderDeletedError` — typed gate/check outcomes with `is*` nominal guards and `fromError(e)` wrappers.
+- `IBrokerOrderVerdict` + `BROKER_ORDER_VERDICT` — the framework-side verdict union (`"confirmed" | "transient" | "rejected" | "deleted"`) and its runtime brand.
+- `attempt: number` on `BrokerOrderOpenPayload`, `BrokerOrderClosePayload`, `BrokerOrderCheckPayload` and on the `OrderSyncContract` / `OrderCheckContract` listener contracts.
+- Config: `CC_ORDER_OPEN_RETRY_ATTEMPTS`, `CC_ORDER_CLOSE_RETRY_ATTEMPTS`, `CC_ORDER_CHECK_RETRY_ATTEMPTS` (all default `5`, `0` = legacy).
+- `exitEmitter` now fires on transient-budget exhaustion in any of the three channels (subscribe via `listenExit`).
+
+## Testing
+
+Test count crossed **975+**. Twenty-two new e2e scenarios in three suites: `retry.test.mjs` (identity-stable retry, exhaustion, legacy `0`, crash-survival of the persisted retry slot), `verdict.test.mjs` (attempt sequences per channel, force-close, tolerance + streak reset, typed errors through the sync/check listeners AND the action channel, fatal-exit assertions — exactly one on exhaustion, zero on business outcomes), `broker_attempt.test.mjs` (the same matrix driven through `Broker.useBrokerAdapter` payloads: attempts `0,1,2` with a stable id for active opens and resting-order placements, close force-close, check tolerance `0,1,2,0`, instant `OrderDeletedError`, schedule-check exhaustion). Nine legacy tests pinned to the old semantics via scoped `setConfig(..., true)` overrides.
+
+
+
+
 # 🇧🇷 🇨🇳 🇮🇳 Internationalization (v15.3.0, 12/07/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/15.3.0)
