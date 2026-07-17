@@ -48,6 +48,7 @@ import "./e2e/reconcile.test.mjs";
 import "./e2e/broker_channel.test.mjs";
 import "./e2e/broker_multi.test.mjs";
 import "./e2e/broker_edge.test.mjs";
+import "./e2e/behavior.test.mjs";
 import "./e2e/stopped.test.mjs";
 import "./e2e/live.test.mjs";
 import "./e2e/broker_cancel.test.mjs";
