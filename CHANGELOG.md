@@ -7,11 +7,11 @@
 
 A dropped connection must never cost a position — or buy one twice. This major makes every broker conversation (order open, order close, liveness check) **adaptive**: the adapter states the *kind* of failure by throwing one of **three typed error classes**, and the engine routes each kind differently — bounded retry, instant terminal action, or tolerance. The trigger was a live incident: a market buy **filled** on the exchange, the HTTP response was lost, the engine treated the attempt as failed and retried the purchase every tick for four hours (saved from a double-buy only by `InsufficientFunds`). That entire failure class is now closed at the engine level.
 
-**Identity-stable open retry — exchange-side idempotency.** A transiently rejected open no longer regenerates a fresh signal: the *same* signal row with the *same* `signalId` is re-submitted on the next tick, and the armed retry (slot + per-signalId counter) is **persisted**, surviving crashes and restarts. Tag exchange orders with `clientOrderId = payload.signalId` and a retry after a lost response resolves to "duplicate order" on the exchange — query the order by that id, confirm the fill, done. No orphan position, no double-buy:
+**Identity-stable open retry — exchange-side idempotency.** A transiently rejected open no longer regenerates a fresh signal: the *same* signal row with the *same* `signalId` is re-submitted on the next tick. Every attempt is **pre-armed** — the retry slot and the started-attempts counter persist BEFORE the gate call, so even a crash *mid-attempt* (order POSTed, verdict never returned) resumes with the same id and `attempt >= 1`. The adapter contract is three lines: tag orders with `clientOrderId = payload.signalId`, and at `attempt > 0` **reconcile before re-sending** — query the prior order by that id and confirm the open if it filled. (Do NOT rely on catching a "duplicate" error: on Binance the duplicate-clientOrderId guard only covers OPEN orders — an instantly-filled market order will not dup.) No orphan position, no double-buy:
 
 ```
 tick N:   POST(clientOrderId=sig_X) → order FILLED, response lost → throw (transient)
-tick N+1: retry of the SAME sig_X → exchange: "duplicate" → getOrderByClientId → FILLED
+tick N+1: retry of the SAME sig_X, attempt=1 → getOrderByClientId(sig_X) → FILLED
           → return normally → the engine commits the open, position under TP/SL
 ```
 
@@ -22,13 +22,16 @@ import { Broker, OrderRejectedError, OrderDeletedError, OrderTransientError } fr
 
 Broker.useBrokerAdapter({
   async onOrderOpenCommit(p) {
+    if (p.attempt > 0) {
+      // A prior POST may have reached the exchange (incl. across a crash) —
+      // reconcile BEFORE re-sending: Binance's duplicate guard only covers OPEN
+      // orders, an instantly-filled market order would NOT dup on re-send.
+      const prior = await exchange.getOrderByClientId(p.signalId);
+      if (prior?.filled) return;                               // already filled -> confirm the open
+    }
     try {
       await exchange.createOrder(p.symbol, { clientOrderId: p.signalId, side: p.position, cost: p.cost });
     } catch (e) {
-      if (isDuplicateClientOrderId(e)) {                       // retry after a lost response
-        const real = await exchange.getOrderByClientId(p.signalId);
-        if (real?.filled) return;                              // already filled -> confirm the open
-      }
       if (isDefinitiveRejection(e)) throw new OrderRejectedError(e.message); // terminal, no retry
       throw OrderTransientError.fromError(e);                  // bounded identity-stable retry
     }
@@ -57,7 +60,7 @@ Cross-throwing a typed error in the wrong channel is a userspace protocol violat
 2. **A rejected close no longer retries forever.** After `CC_ORDER_CLOSE_RETRY_ATTEMPTS` (default 5) consecutive transient rejections the engine force-closes its own state with the original `closeReason`, emits `errorEmitter` + `exitEmitter`, and fires the standard close lifecycle event; reconciling the real exchange position is the adapter's job. `CC_ORDER_CLOSE_RETRY_ATTEMPTS: 0` restores retry-forever.
 3. **A rejected open no longer regenerates a fresh signal id.** The retry carries the SAME `signalId` (up to `CC_ORDER_OPEN_RETRY_ATTEMPTS`, default 5, persisted across restarts). Adapters keying dedup/logging on "new id per attempt" must key on `(signalId, attempt)` instead. `CC_ORDER_OPEN_RETRY_ATTEMPTS: 0` restores drop-and-regenerate.
 4. **`onOrderSync` / `onOrderCheck` internal callback contracts return `IBrokerOrderVerdict`.** Affects only code that mocked `params.onOrderSync` / `params.onOrderCheck` directly — legacy boolean returns are still normalized (`true`/void → confirmed, `false` → transient), so listener-level and adapter-level code is unaffected.
-5. **`StrategyData` (persist snapshot) gained `retryOpenSignal` + `retryOpenCount`.** Custom `IPersistStrategyInstance` adapters must round-trip the new fields; snapshots written by older versions read back fine (missing fields default to `null`/`0`).
+5. **`StrategyData` (persist snapshot) gained `retryOpenSignal`, `retryOpenCount` and `closeAttempt`.** Open and close attempts are pre-armed — the counters persist BEFORE each gate call, so `attempt > 0` holds even across a crash mid-attempt (`closeAttempt` is restored only for its own position, gated by `pendingSignalId` match / a pending user-close drain). Custom `IPersistStrategyInstance` adapters must round-trip the new fields; snapshots written by older versions read back fine (missing fields default to `null`/`0`).
 
 ## New Public API
 

@@ -961,9 +961,13 @@ export interface IBroker {
    *   idle; type "schedule": scheduled not registered, risk reservation released) and
    *   retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
    *   on the next tick with `payload.attempt` incremented, up to
-   *   CC_ORDER_OPEN_RETRY_ATTEMPTS. Because the id is stable, a duplicate POST with the
-   *   same clientOrderId lets the exchange deduplicate a lost-response fill instead of
-   *   double-buying. Exhaustion drops the signal and signals a fatal exit (exitEmitter).
+   *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The attempt is PRE-ARMED (persisted before this hook
+   *   runs), so even a crash mid-attempt resumes with `attempt >= 1`. Because the id is
+   *   stable, the adapter MUST reconcile at `attempt > 0`: query the prior order by
+   *   clientOrderId BEFORE re-sending and confirm the open if it filled. Do NOT rely on
+   *   catching a "duplicate" error on re-send — on Binance the duplicate-clientOrderId
+   *   guard only covers OPEN orders, an instantly-filled market order will not dup.
+   *   Exhaustion drops the signal and signals a fatal exit (exitEmitter).
    *   With the config at 0 the retry slot is disabled: the next tick regenerates a FRESH id.
    * - OrderRejectedError ("the exchange definitively refused, retrying is pointless") →
    *   "rejected", TERMINAL: the open is dropped at once, no retry armed, an already-armed
@@ -2645,11 +2649,13 @@ class BrokerBase implements IBroker {
    *
    * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state.
    * Throw semantics: a plain Error / OrderTransientError rolls back the open and retries
-   * identity-stably (same signalId, `payload.attempt` increments) up to
-   * CC_ORDER_OPEN_RETRY_ATTEMPTS — tag orders with `clientOrderId = payload.signalId` so
-   * a lost-response retry deduplicates on the exchange; OrderRejectedError drops the open
-   * terminally without arming the retry. Return normally to let it open. Live-only
-   * (backtest short-circuits). See {@link IBroker.onOrderOpenCommit} for the full semantics.
+   * identity-stably (same signalId, `payload.attempt` increments, pre-armed so a crash
+   * mid-attempt still counts) up to CC_ORDER_OPEN_RETRY_ATTEMPTS; OrderRejectedError
+   * drops the open terminally without arming the retry. Return normally to let it open.
+   * Tag orders with `clientOrderId = payload.signalId` and RECONCILE at `attempt > 0`
+   * (query the prior order BEFORE re-sending — Binance's duplicate guard does not cover
+   * instantly-filled orders). Live-only (backtest short-circuits). See
+   * {@link IBroker.onOrderOpenCommit} for the full semantics.
    *
    * @param payload - Signal open details: symbol, cost, position, priceOpen, priceTakeProfit, priceStopLoss, attempt, context, backtest
    *
@@ -2657,6 +2663,11 @@ class BrokerBase implements IBroker {
    * ```typescript
    * async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
    *   super.onOrderOpenCommit(payload); // Keep parent logging
+   *   if (payload.attempt > 0) {
+   *     // A prior POST may have reached the exchange — reconcile BEFORE re-sending
+   *     const prior = await this.exchange.getOrderByClientId(payload.signalId);
+   *     if (prior?.filled) return; // already filled -> confirm the open
+   *   }
    *   const order = await this.exchange.placeMarketOrder({
    *     clientOrderId: payload.signalId, // idempotency key across retries
    *     symbol: payload.symbol,

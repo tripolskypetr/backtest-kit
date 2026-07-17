@@ -3678,8 +3678,8 @@ Default `false` for the three `*_EVERYWHERE` (conservative); the DCA/PPPL/traili
 | Key | Consumed by | Effect |
 | --- | --- | --- |
 | `CC_GET_CANDLES_RETRY_COUNT`, `CC_GET_CANDLES_RETRY_DELAY_MS` | candle fetch path | Retry policy for `getCandles` failures. |
-| `CC_ORDER_OPEN_RETRY_ATTEMPTS` | `ClientStrategy` open gate (`STASH_RETRY_OPEN_SIGNAL_FN`) | Cap on identity-stable open retries; slot + per-signalId counter persisted in `StrategyData`. |
-| `CC_ORDER_CLOSE_RETRY_ATTEMPTS` | `ClientStrategy` close gate (`RESOLVE_CLOSE_GATE_FN`) | Cap on consecutive close rejections before force-close (in-memory counter). |
+| `CC_ORDER_OPEN_RETRY_ATTEMPTS` | `ClientStrategy` open gate (`ARM_RETRY_OPEN_SIGNAL_FN`, pre-armed before each attempt) | Cap on identity-stable open retries; slot + per-signalId counter persisted in `StrategyData`, crash mid-attempt still counted. |
+| `CC_ORDER_CLOSE_RETRY_ATTEMPTS` | `ClientStrategy` close gate (pre-armed in `CALL_ORDER_SYNC_CLOSE_FN`, resolved in `RESOLVE_CLOSE_GATE_FN`) | Cap on started close attempts before force-close; counter persisted in `StrategyData` (restored by `pendingSignalId` match). |
 | `CC_ORDER_CHECK_RETRY_ATTEMPTS` | `ClientStrategy` tick order-check tolerance | Cap on consecutive failed checks before the terminal close/cancel (in-memory counter). |
 | `CC_MAX_CANDLES_PER_REQUEST` | candle fetch / cache (5 sites) | Pagination chunk size when a request exceeds it. |
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`, `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `validateCandles` | Anomaly rejection (price ≫ factor below median) + median-vs-average switch ([§7.6](#76-candle-data-validation)). |
@@ -3859,9 +3859,10 @@ Key rules:
 
 Semantics worth knowing:
 
-- **Identity-stable open retry = exchange-side idempotency.** Tag exchange orders with `clientOrderId = payload.signalId`; a retry after a lost response hits "duplicate order" on the exchange — query the order by that id and return normally if filled, instead of double-buying.
-- Counters count **consecutive failures, not ticks**: checks ping every live tick (literal streak); the close counter advances only when a close actually triggers and gets rejected — quiet gaps don't touch it. Reset by a confirmed operation or a position transition.
-- Only the open retry (slot + per-signalId counter) is **persisted** (`StrategyData`); close/check counters are in-memory — a restart resets them in the safe direction (fresh attempts before the dangerous force action).
+- **Identity-stable open retry = exchange-side idempotency.** Tag exchange orders with `clientOrderId = payload.signalId` and RECONCILE at `attempt > 0`: query the prior order by that id BEFORE re-sending and confirm the open if it filled. Do NOT rely on catching "duplicate" on re-send — Binance's duplicate-clientOrderId guard only covers OPEN orders; an instantly-filled market order will not dup.
+- **Open and close attempts are PRE-ARMED**: the counter increments and persists BEFORE the gate call, so a crash after the POST but before the verdict still counts the attempt — after a restart the gate fires with `attempt >= 1` and the reconcile rule above kicks in. `attempt > 0 ⇒ a prior order may have reached the exchange` is a hard invariant even across crashes.
+- Counters count **started attempts, not ticks**: checks ping every live tick (literal streak, reset by a success); the close counter advances only when a close actually triggers — quiet gaps don't touch it. Reset by a confirmed operation or a position transition.
+- The open retry (slot + per-signalId counter) and the close counter are **persisted** (`StrategyData`, the close counter restored only for its own position by `pendingSignalId` match); the check counter is in-memory — a restart resets the tolerance window in the safe direction.
 - **Exhaustion of transient failures is the one FATAL path**: `errorEmitter` then `exitEmitter` (subscribe via `listenExit` for supervisor alerts). Typed terminal errors (`OrderRejectedError` / `OrderDeletedError`) are business outcomes — loud, but never a process exit.
 - Backtest short-circuits gates to "confirmed" and never fires checks — the whole model is live-only.
 
@@ -3875,13 +3876,16 @@ import {
 
 Broker.useBrokerAdapter({
   async onOrderOpenCommit(p) {
+    if (p.attempt > 0) {
+      // A prior POST may have reached the exchange (incl. across a crash) —
+      // reconcile BEFORE re-sending. Binance's duplicate guard only covers OPEN
+      // orders: an instantly-filled market order would NOT dup on re-send.
+      const prior = await exchange.getOrderByClientId(p.signalId);
+      if (prior?.filled) return;                               // already filled -> confirm the open
+    }
     try {
       await exchange.createOrder(p.symbol, { clientOrderId: p.signalId, side: p.position, cost: p.cost });
     } catch (e) {
-      if (isDuplicateClientOrderId(e)) {                       // retry after a lost response
-        const real = await exchange.getOrderByClientId(p.signalId);
-        if (real?.filled) return;                              // already filled -> confirm the open
-      }
       if (isDefinitiveRejection(e)) throw new OrderRejectedError(e.message); // terminal
       throw OrderTransientError.fromError(e);                  // bounded identity-stable retry
     }

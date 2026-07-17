@@ -1582,11 +1582,21 @@ export type StrategyData = {
    */
   retryOpenSignal: ISignalRow | IScheduledSignalRow | null;
   /**
-   * Number of broker-gate rejections recorded for retryOpenSignal's signalId. Incremented on
-   * every rejection of the same id; once it exceeds CC_ORDER_OPEN_RETRY_ATTEMPTS the retry row
-   * is dropped loudly and signal generation resumes. Reset on successful open or id change.
+   * Number of gate attempts STARTED for retryOpenSignal's signalId (pre-armed BEFORE each
+   * gate call, so a crash mid-attempt still counts it). The gate event carries
+   * `attempt = retryOpenCount - 1`; once the started-attempts budget (1 initial + CC retries) is spent, the
+   * retry row is dropped loudly and signal generation resumes. Reset on successful open.
    */
   retryOpenCount: number;
+  /**
+   * Number of close-gate attempts STARTED for the current pending signal (pre-armed BEFORE
+   * each gate call — a crash mid-close-attempt still counts it, so after a restart the next
+   * close event carries `attempt > 0` and the adapter knows a prior exit order MAY have
+   * reached the exchange). Restored only when the snapshot belongs to the restored pending
+   * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present).
+   * Reset on a confirmed close and on any pending-signal transition.
+   */
+  closeAttempt: number;
 };
 
 /**

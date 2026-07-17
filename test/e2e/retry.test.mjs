@@ -344,11 +344,13 @@ test("RETRY: armed slot and per-signalId counter survive a crash and clear on su
         stopLossSignal: null,
         retryOpenSignal: null,
         retryOpenCount: 0,
+        closeAttempt: 0,
       },
       "BTCUSDT", context.strategyName, context.exchangeName,
     );
 
     const gateIds = [];
+    const gateAttempts = [];
     let getSignalCalls = 0;
 
     makeExchange(context.exchangeName, () => basePrice);
@@ -361,6 +363,7 @@ test("RETRY: armed slot and per-signalId counter survive a crash and clear on su
         onOrderSync: (event) => {
           if (event.action !== "signal-open" || event.type !== "active") return;
           gateIds.push(event.signalId);
+          gateAttempts.push(event.attempt);
           if (gateIds.length === 1) {
             throw new Error("retry-persist: broker lost the response");
           }
@@ -424,6 +427,13 @@ test("RETRY: armed slot and per-signalId counter survive a crash and clear on su
       fail(`REGRESSION: restored retry must carry the same id, gate saw [${gateIds.join(", ")}]`);
       return;
     }
+    // Pre-arm инвариант: после крэша attempt >= 1 — адаптер ОБЯЗАН сверить прошлую
+    // попытку по clientOrderId до отправки (Binance: duplicate-guard не покрывает
+    // мгновенно исполненные ордера)
+    if (gateAttempts.join(",") !== "0,1") {
+      fail(`gate attempts across the crash must be "0,1", got "${gateAttempts.join(",")}"`);
+      return;
+    }
     if (getSignalCalls !== 1) {
       fail(`getSignal must not regenerate after the crash (restored slot wins), got ${getSignalCalls} calls`);
       return;
@@ -436,6 +446,138 @@ test("RETRY: armed slot and per-signalId counter survive a crash and clear on su
     }
 
     pass(`armed slot persisted (id=${gateIds[0]}, count=1), survived the crash, opened with the same id, wiped on success`);
+  } finally {
+    PersistSignalAdapter.useDummy();
+    PersistStrategyAdapter.useDummy();
+    PersistScheduleAdapter.useDummy();
+    PersistRecentAdapter.useDummy();
+  }
+});
+
+/**
+ * RETRY: pre-arm счётчика закрытия — старт close-попытки персистится ДО гейта,
+ * крэш посреди попытки восстанавливает attempt >= 1 (адаптер обязан сверить
+ * позицию перед повторной отправкой exit-ордера), подтверждение закрывает.
+ */
+test("RETRY: started close attempt survives a crash and resumes with attempt 1", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "retry-close-persist-strategy",
+    exchangeName: "binance-retry-close-persist",
+    frameName: "",
+  };
+
+  PersistSignalAdapter.useJson();
+  PersistStrategyAdapter.useJson();
+  PersistScheduleAdapter.useJson();
+  PersistRecentAdapter.useJson();
+
+  try {
+    // Сброс остатков прошлых прогонов сьюта (json-файлы живут на диске)
+    await PersistSignalAdapter.writeSignalData(null, "BTCUSDT", context.strategyName, context.exchangeName);
+    await PersistScheduleAdapter.writeScheduleData(null, "BTCUSDT", context.strategyName, context.exchangeName);
+    await PersistStrategyAdapter.writeStrategyData(
+      {
+        pendingSignalId: null,
+        createdSignal: null,
+        commitQueue: [],
+        closedSignal: null,
+        cancelledSignal: null,
+        activatedSignal: null,
+        takeProfitSignal: null,
+        stopLossSignal: null,
+        retryOpenSignal: null,
+        retryOpenCount: 0,
+        closeAttempt: 0,
+      },
+      "BTCUSDT", context.strategyName, context.exchangeName,
+    );
+
+    const closeAttempts = [];
+    let issued = false;
+
+    makeExchange(context.exchangeName, () => basePrice);
+
+    class EmptyAction {}
+    addActionSchema({
+      actionName: "retry-close-persist-action",
+      handler: EmptyAction,
+      callbacks: {
+        onOrderSync: (event) => {
+          if (event.action !== "signal-close") return;
+          closeAttempts.push(event.attempt);
+          if (closeAttempts.length === 1) {
+            throw new Error("retry-close-persist: broker lost the exit response");
+          }
+        },
+      },
+    });
+
+    addStrategySchema({
+      strategyName: context.strategyName,
+      interval: "1m",
+      actions: ["retry-close-persist-action"],
+      getSignal: async () => {
+        if (issued) return null;
+        issued = true;
+        return {
+          position: "long",
+          note: "retry close persist",
+          priceTakeProfit: basePrice + 15000,
+          priceStopLoss: basePrice - 15000,
+          minuteEstimatedTime: 1,
+        };
+      },
+    });
+
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+    const openedId = tick1.signal.id;
+
+    // time_expired → close-гейт: pre-arm персистит СТАРТ до вердикта, отказ
+    const tick2 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick2.action !== "active") {
+      fail(`tick #2 expected "active" (close rejected, position kept), got "${tick2.action}"`);
+      return;
+    }
+
+    const armed = await PersistStrategyAdapter.readStrategyData("BTCUSDT", context.strategyName, context.exchangeName);
+    if (armed?.closeAttempt !== 1 || armed?.pendingSignalId !== openedId) {
+      fail(`persisted snapshot must carry closeAttempt=1 for the pending id, got closeAttempt=${armed?.closeAttempt} pendingSignalId=${armed?.pendingSignalId}`);
+      return;
+    }
+
+    // «Крэш» посреди серии попыток закрытия
+    await lib.strategyConnectionService.clear({
+      symbol: "BTCUSDT",
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest: false,
+    });
+
+    const tick3 = await runTick(new Date(t0 + 3 * MIN));
+    if (tick3.action !== "closed" || tick3.closeReason !== "time_expired") {
+      fail(`tick #3 after crash expected closed/time_expired, got "${tick3.action}"/"${tick3.closeReason}"`);
+      return;
+    }
+    if (tick3.signal.id !== openedId) {
+      fail(`closed id "${tick3.signal.id}" must equal the opened id "${openedId}"`);
+      return;
+    }
+    // Pre-arm инвариант: после крэша attempt = 1 — прошлый exit МОГ дойти до биржи
+    if (closeAttempts.join(",") !== "0,1") {
+      fail(`close attempts across the crash must be "0,1", got "${closeAttempts.join(",")}"`);
+      return;
+    }
+
+    pass(`close attempt pre-armed (persisted closeAttempt=1), survived the crash, closed with attempt 1`);
   } finally {
     PersistSignalAdapter.useDummy();
     PersistStrategyAdapter.useDummy();

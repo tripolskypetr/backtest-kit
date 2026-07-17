@@ -226,9 +226,13 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
       type: "active",
-      // Consecutive prior gate rejections for THIS id: non-zero only when the
-      // attempt comes from the armed retry slot (identity-stable retry).
-      attempt: self._retryOpenSignal?.id === pendingSignal.id ? self._retryOpenCount : 0,
+      // Prior STARTED attempts for THIS id (counter is pre-armed before this call,
+      // so count-1 = attempts that may have reached the exchange; >= 1 means the
+      // adapter MUST reconcile by clientOrderId before re-sending). Activation
+      // paths (id not in the retry slot) always report 0.
+      attempt: self._retryOpenSignal?.id === pendingSignal.id
+        ? Math.max(self._retryOpenCount - 1, 0)
+        : 0,
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -296,8 +300,11 @@ const CALL_ORDER_SYNC_SCHEDULE_OPEN_FN = trycatch(
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
       type: "schedule",
-      // Consecutive prior gate rejections for THIS id (identity-stable retry slot)
-      attempt: self._retryOpenSignal?.id === scheduledSignal.id ? self._retryOpenCount : 0,
+      // Prior STARTED placement attempts for THIS id (counter pre-armed before this
+      // call; >= 1 means a prior placement may have reached the exchange)
+      attempt: self._retryOpenSignal?.id === scheduledSignal.id
+        ? Math.max(self._retryOpenCount - 1, 0)
+        : 0,
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -360,12 +367,18 @@ const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
     signal: ISignalRow,
     self: ClientStrategy
   ): Promise<IBrokerOrderVerdict> => {
+    // PRE-ARM: count the STARTED close attempt and persist BEFORE the gate call —
+    // a crash after the exit order was POSTed but before the verdict restores
+    // attempt >= 1, telling the adapter to verify the position before re-sending.
+    self._closeAttempt += 1;
+    await PERSIST_STRATEGY_FN(self);
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-close",
       type: "active",
-      // Consecutive prior close-gate rejections for the current position
-      attempt: self._closeAttempt,
+      // Prior STARTED close attempts (counter pre-armed above; >= 1 means a prior
+      // exit order may have reached the exchange)
+      attempt: self._closeAttempt - 1,
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -961,18 +974,42 @@ const GET_SIGNAL_FN = trycatch(
     // signal returned by getSignal would.
     let signal: ISignalDto | null | symbol;
 
-    // PRIORITY 0: гейт-отклонённый open, ждущий ретрая (CC_ORDER_OPEN_RETRY_ATTEMPTS).
-    // Row повторяется с ОРИГИНАЛЬНЫМ id, чтобы адаптер размещал ордер идемпотентно
-    // (clientOrderId = signalId): ретрай после потерянного ответа разрешается на бирже
-    // как "duplicate order" и реконсилируется вместо повторной покупки (REPORT №10).
-    // Слот НЕ очищается при потреблении (write-ahead): его снимает успешный open
-    // (OPEN_NEW_*_FN), исчерпание попыток (STASH_RETRY_OPEN_SIGNAL_FN) или провал
-    // consumption-ревалидации ниже — до дюрабельного исхода крэш реиграет тот же id.
-    // Ревалидация против ТЕКУЩЕЙ цены — как у user-DTO: уплывшая цена убивает ретрай
-    // громко (warn + errorEmitter), и генерация возобновляется на следующем тике.
-    const retrySignal = GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS > 0
+    // PRIORITY 0: взведённый open-ретрай (CC_ORDER_OPEN_RETRY_ATTEMPTS). Row
+    // повторяется с ОРИГИНАЛЬНЫМ id, чтобы адаптер размещал ордер идемпотентно:
+    // clientOrderId = signalId, а при attempt > 0 адаптер обязан сверить прошлую
+    // попытку по этому id ДО отправки (Binance-нюанс: duplicate-guard действует
+    // только среди ОТКРЫТЫХ ордеров — мгновенно исполненный дубликатом не станет).
+    // Слот взводится ДО каждого гейт-вызова (ARM_RETRY_OPEN_SIGNAL_FN, write-ahead
+    // самой попытки): его снимает успешный open, исчерпание бюджета стартов ниже
+    // или провал consumption-ревалидации — до дюрабельного исхода крэш реиграет
+    // тот же id, включая крэш ПОСРЕДИ первой попытки.
+    let retrySignal = GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS > 0
       ? self._retryOpenSignal
       : null;
+    // Исчерпание бюджета: count стартов уже покрыл 1 исходную + CC ретраев —
+    // следующий старт был бы лишним. Громкий дроп (сеть не дала открыться —
+    // фатальный сигнал ПОСЛЕ errorEmitter-лога) и fall-through к обычной
+    // генерации ТЕМ ЖЕ тиком (свежий сигнал с новым id).
+    if (retrySignal && self._retryOpenCount > GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS) {
+      const message = "ClientStrategy GET_SIGNAL_FN: open retry attempts exhausted, dropping signal";
+      const payload = {
+        symbol: self.params.execution.context.symbol,
+        strategyName: self.params.strategyName,
+        signalId: retrySignal.id,
+        note: retrySignal.note,
+        attempts: self._retryOpenCount,
+        maxAttempts: GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS,
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      const error = new Error(message);
+      errorEmitter.next(error);
+      exitEmitter.next(error);
+      self._retryOpenSignal = null;
+      self._retryOpenCount = 0;
+      await PERSIST_STRATEGY_FN(self);
+      retrySignal = null;
+    }
     if (retrySignal) {
       if (!validateSignal(retrySignal, currentPrice)) {
         const message = "ClientStrategy GET_SIGNAL_FN: open-retry signal failed consumption re-validation (price moved since the rejected attempt), dropped";
@@ -1336,6 +1373,10 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // queue: those ops are void (see the orphaned-queue recovery test).
     if (strategyData.closedSignal) {
       self._commitQueue = strategyData.commitQueue ?? [];
+      // Restore the started-close-attempts counter for the deferred user-close drain:
+      // a crash mid-close-attempt (exit order possibly POSTed) must resume with
+      // attempt >= 1 so the adapter verifies the position before re-sending.
+      self._closeAttempt = strategyData.closeAttempt ?? 0;
     }
 
     // Restore the armed open-retry slot (gate-rejected open awaiting an
@@ -1412,6 +1453,11 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // the queue is dropped to avoid replaying ops against the wrong position.
     if (strategyData && strategyData.pendingSignalId === pendingSignal.id) {
       self._commitQueue = strategyData.commitQueue ?? [];
+      // Same id-gated rule for the started-close-attempts counter: it belongs to
+      // exactly this position; a stale counter from a previous position must never
+      // shorten a new one's retry budget (NOTE: the restore below overrides the
+      // in-memory reset done by setPendingSignal-style transitions during restore).
+      self._closeAttempt = strategyData.closeAttempt ?? 0;
     }
 
     // Call onActive callback for restored signal.
@@ -1578,6 +1624,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
       stopLossSignal: self._stopLossSignal,
       retryOpenSignal: self._retryOpenSignal,
       retryOpenCount: self._retryOpenCount,
+      closeAttempt: self._closeAttempt,
     },
     self.params.symbol,
     self.params.strategyName,
@@ -1586,52 +1633,33 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
 };
 
 /**
- * Records a broker-gate rejection of a signal-open and arms the identity-stable retry.
+ * PRE-ARMS the identity-stable open retry BEFORE the gate call (write-ahead of the
+ * attempt itself, not of its rejection).
  *
- * Called from the sync-reject branches of OPEN_NEW_PENDING_SIGNAL_FN and
- * OPEN_NEW_SCHEDULED_SIGNAL_FN. Increments the per-signalId rejection counter and stores
- * the rejected row in _retryOpenSignal so the next GET_SIGNAL_FN re-submits it with the
- * SAME id (clientOrderId idempotency on the adapter side — see REPORT №10: a lost response
- * to a filled order must reconcile on retry, not double-buy). Once the counter exceeds
- * CC_ORDER_OPEN_RETRY_ATTEMPTS the row is dropped loudly and generation resumes with a
- * fresh signal. No-op when CC_ORDER_OPEN_RETRY_ATTEMPTS is 0 (legacy drop-and-regenerate).
+ * Called from OPEN_NEW_PENDING_SIGNAL_FN / OPEN_NEW_SCHEDULED_SIGNAL_FN right before
+ * CALL_ORDER_SYNC_OPEN_FN / CALL_ORDER_SYNC_SCHEDULE_OPEN_FN. The counter tracks
+ * attempts STARTED (not rejections): it increments here and persists together with the
+ * signal row, so a crash AFTER the order was POSTed but BEFORE the gate verdict still
+ * leaves the armed slot on disk — the restart re-submits the SAME signalId with
+ * `attempt = count - 1 >= 1`, and an idempotent adapter reconciles the possibly-filled
+ * order (query by clientOrderId BEFORE re-sending; on Binance the duplicate guard only
+ * covers OPEN orders, an instantly-filled one would NOT dup) instead of double-buying.
+ *
+ * A transient rejection does NOT touch the counter (the start was already counted);
+ * exhaustion is checked at consumption in GET_SIGNAL_FN. No-op when
+ * CC_ORDER_OPEN_RETRY_ATTEMPTS is 0 (legacy drop-and-regenerate, attempt stays 0).
  */
-const STASH_RETRY_OPEN_SIGNAL_FN = async (
+const ARM_RETRY_OPEN_SIGNAL_FN = async (
   self: ClientStrategy,
   signal: ISignalRow | IScheduledSignalRow
 ): Promise<void> => {
   if (GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS <= 0) {
     return;
   }
-  const count = self._retryOpenSignal?.id === signal.id ? self._retryOpenCount + 1 : 1;
-  if (count > GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS) {
-    const message = "ClientStrategy STASH_RETRY_OPEN_SIGNAL_FN: open retry attempts exhausted, dropping signal";
-    const payload = {
-      symbol: self.params.execution.context.symbol,
-      strategyName: self.params.strategyName,
-      signalId: signal.id,
-      note: signal.note,
-      attempts: count - 1,
-      maxAttempts: GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS,
-    };
-    self.params.logger.warn(message, payload);
-    console.warn(message, payload);
-    const error = new Error(message);
-    errorEmitter.next(error);
-    // Только транзиентные (сетевые) отказы попадают в STASH — терминальные идут в
-    // DROP_RETRY_OPEN_SIGNAL_FN. Исчерпание = сеть/брокер не дают работать:
-    // фатальный сигнал ПОСЛЕ errorEmitter-лога (Live/Backtest завершаются,
-    // Notification алертит, listenExit — операторский хук).
-    exitEmitter.next(error);
-    self._retryOpenSignal = null;
-    self._retryOpenCount = 0;
-    await PERSIST_STRATEGY_FN(self);
-    return;
-  }
+  self._retryOpenCount = self._retryOpenSignal?.id === signal.id ? self._retryOpenCount + 1 : 1;
   self._retryOpenSignal = signal;
-  self._retryOpenCount = count;
-  // Write-ahead: persist the armed retry BEFORE the next tick so a crash in between
-  // restores the same signalId instead of regenerating a fresh one (orphan-order risk).
+  // Write-ahead: persist the armed attempt BEFORE the gate call so ANY crash from this
+  // point on restores the same signalId (orphan-order risk closed for the whole attempt).
   await PERSIST_STRATEGY_FN(self);
 };
 
@@ -1691,7 +1719,8 @@ const RESOLVE_CLOSE_GATE_FN = (
     self._closeAttempt = 0;
     return "allow";
   }
-  self._closeAttempt += 1;
+  // The started attempt was already counted by the PRE-ARM inside
+  // CALL_ORDER_SYNC_CLOSE_FN — no increment here.
   const terminal = verdict.reason !== "transient";
   const exhausted = terminal
     || (GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS > 0
@@ -3739,6 +3768,11 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
 
   const currentTime = self.params.execution.context.when.getTime();
 
+  // PRE-ARM the identity-stable retry BEFORE the gate: the placement attempt is
+  // write-ahead persisted, so a crash after the POST but before the verdict still
+  // replays the SAME signalId with attempt >= 1 (adapter reconciles by clientOrderId).
+  await ARM_RETRY_OPEN_SIGNAL_FN(self, signal);
+
   // Order sync (type "schedule"): confirm the resting entry order was PLACED on
   // the exchange BEFORE registering the scheduled signal — mirrors the type
   // "active" open gate in OPEN_NEW_PENDING_SIGNAL_FN (register/persist only
@@ -3765,10 +3799,10 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
       self.params.execution.context.backtest
     );
     if (syncOpenAllowed.reason === "transient") {
-      // Arm the identity-stable retry: the next tick re-submits this row with the SAME
-      // signalId so an idempotent adapter (clientOrderId = signalId) reconciles a
+      // The retry is ALREADY armed (pre-armed before the gate) — the next tick
+      // re-submits this row with the SAME signalId so an idempotent adapter
+      // (clientOrderId = signalId, reconcile-before-send at attempt > 0) resolves a
       // lost-response placement instead of double-placing the resting order.
-      await STASH_RETRY_OPEN_SIGNAL_FN(self, signal);
     } else {
       // Terminal rejection (OrderRejectedError): retrying is pointless — drop the
       // trade attempt for good and wipe an already-armed retry slot for this id.
@@ -3879,6 +3913,11 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   // this signal within the same tick. Re-checking here would run user risk
   // validations twice per open.
 
+  // PRE-ARM the identity-stable retry BEFORE the gate: the attempt itself is
+  // write-ahead persisted, so a crash after the POST but before the verdict still
+  // replays the SAME signalId with attempt >= 1 (adapter reconciles by clientOrderId).
+  await ARM_RETRY_OPEN_SIGNAL_FN(self, signal);
+
   // Sync open: if external system rejects — skip open, retry on the next tick
   // (the interval throttle is rolled back below).
   const syncOpenAllowed = await CALL_ORDER_SYNC_OPEN_FN(
@@ -3903,13 +3942,14 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
       self.params.execution.context.backtest
     );
     if (syncOpenAllowed.reason === "transient") {
-      // Arm the identity-stable retry: the next tick re-submits this row with the SAME
-      // signalId so an idempotent adapter (clientOrderId = signalId) reconciles a
-      // lost-response fill instead of double-buying (no-op when retries are disabled).
-      await STASH_RETRY_OPEN_SIGNAL_FN(self, signal);
+      // The retry is ALREADY armed (pre-armed before the gate) — the next tick
+      // re-submits this row with the SAME signalId so an idempotent adapter
+      // (clientOrderId = signalId, reconcile-before-send at attempt > 0) resolves a
+      // lost-response fill instead of double-buying. Exhaustion of the started-attempts
+      // budget is checked at consumption in GET_SIGNAL_FN.
     } else {
       // Terminal rejection (OrderRejectedError): retrying is pointless — drop the
-      // trade attempt for good and wipe an already-armed retry slot for this id.
+      // trade attempt for good and wipe the pre-armed retry slot for this id.
       await DROP_RETRY_OPEN_SIGNAL_FN(self, signal);
     }
     // Roll back the interval throttle consumed in GET_SIGNAL_FN so the strategy
@@ -6219,12 +6259,18 @@ export class ClientStrategy implements IStrategy {
   _retryOpenCount = 0;
 
   /**
-   * Number of CONSECUTIVE close-gate rejections for the current pending signal. Carried
-   * into the next signal-close event as `attempt`; reset to 0 on a confirmed close and on
-   * any pending-signal transition. Once it exceeds CC_ORDER_CLOSE_RETRY_ATTEMPTS (or the
-   * gate returns the terminal "rejected" verdict) the engine FORCE-CLOSES its state with
-   * the original closeReason, loudly — see RESOLVE_CLOSE_GATE_FN. In-memory only: a
-   * restart resets the tolerance window (safe direction — more retries, never fewer).
+   * Number of close-gate attempts STARTED for the current pending signal. PRE-ARMED:
+   * incremented and PERSISTED inside CALL_ORDER_SYNC_CLOSE_FN BEFORE the gate call, so a
+   * crash after the exit order was POSTed but before the verdict still counts the attempt —
+   * after a restart the next close event carries `attempt = count - 1 >= 1` and the adapter
+   * knows a prior exit MAY have reached the exchange (verify the position before
+   * re-sending). Restored only when the persisted snapshot belongs to the restored pending
+   * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present)
+   * — a stale counter from a previous position must never shorten a new one's budget.
+   * Reset to 0 on a confirmed close, on force-close and on any pending-signal transition.
+   * Once starts exceed CC_ORDER_CLOSE_RETRY_ATTEMPTS (or the gate returns the terminal
+   * "rejected" verdict) the engine FORCE-CLOSES its state with the original closeReason,
+   * loudly — see RESOLVE_CLOSE_GATE_FN.
    */
   _closeAttempt = 0;
 
@@ -9005,6 +9051,7 @@ export class ClientStrategy implements IStrategy {
       stopLossSignal: this._stopLossSignal,
       retryOpenSignal: this._retryOpenSignal,
       retryOpenCount: this._retryOpenCount,
+      closeAttempt: this._closeAttempt,
     };
   }
 
