@@ -514,6 +514,13 @@ export class StrategyCoreService implements TStrategy {
    * Wraps strategy tick() with execution context containing symbol, timestamp,
    * and backtest mode flag.
    *
+   * CALLER CONTRACT: ticks for the same (symbol, strategy, exchange) MUST NOT
+   * overlap — there is deliberately no internal mutex. `Live.run` satisfies this
+   * (strict `await tick` loop); manual callers must serialize too. Two concurrent
+   * ticks race the retry slot (the slot bypasses the generation throttle): both
+   * consume it, the open gate fires twice CONCURRENTLY with the same signalId,
+   * and two "opened" results are emitted for one position.
+   *
    * @param symbol - Trading pair symbol
    * @param when - Timestamp for tick evaluation
    * @param backtest - Whether running in backtest mode
