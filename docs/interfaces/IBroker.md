@@ -24,6 +24,17 @@ waitForInit: () => Promise<void>
 
 Called once before first use. Connect to exchange, load credentials, etc.
 
+RECOMMENDED: run an ORPHAN SWEEP here. After a fatal exit (transient-budget
+exhaustion — see OrderTransientError) the exchange may hold artifacts the engine
+has already forgotten: a FILLED entry order under `clientOrderId = signalId`
+whose open was never confirmed (dropped signal), or a still-open position the
+engine force-closed on its side. `waitForInit` runs before the first event of a
+fresh process — the one moment to reconcile: list open orders/positions, match
+clientOrderIds against the engine state (`getStrategyStatus` / `getPendingSignal`),
+then either flatten the orphans on the exchange or re-adopt a live position via
+`commitCreateSignal` so it comes back under TP/SL management. Skipping the sweep
+risks trading a fresh signal ON TOP of an unmanaged orphan position.
+
 ### onOrderCloseCommit
 
 ```ts
@@ -74,9 +85,13 @@ semantics (resolved into IBrokerOrderVerdict):
   idle; type "schedule": scheduled not registered, risk reservation released) and
   retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
   on the next tick with `payload.attempt` incremented, up to
-  CC_ORDER_OPEN_RETRY_ATTEMPTS. Because the id is stable, a duplicate POST with the
-  same clientOrderId lets the exchange deduplicate a lost-response fill instead of
-  double-buying. Exhaustion drops the signal and signals a fatal exit (exitEmitter).
+  CC_ORDER_OPEN_RETRY_ATTEMPTS. The attempt is PRE-ARMED (persisted before this hook
+  runs), so even a crash mid-attempt resumes with `attempt &gt;= 1`. Because the id is
+  stable, the adapter MUST reconcile at `attempt &gt; 0`: query the prior order by
+  clientOrderId BEFORE re-sending and confirm the open if it filled. Do NOT rely on
+  catching a "duplicate" error on re-send — on Binance the duplicate-clientOrderId
+  guard only covers OPEN orders, an instantly-filled market order will not dup.
+  Exhaustion drops the signal and signals a fatal exit (exitEmitter).
   With the config at 0 the retry slot is disabled: the next tick regenerates a FRESH id.
 - OrderRejectedError ("the exchange definitively refused, retrying is pointless") →
   "rejected", TERMINAL: the open is dropped at once, no retry armed, an already-armed

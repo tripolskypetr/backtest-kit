@@ -31,10 +31,13 @@ Resolved as `IBrokerOrderVerdict` `{ reason: "transient" }`
 - **Open gate** (`onOrderOpenCommit` type "active"/"schedule",
   `callbacks.onOrderSync`, `listenSync`): the open is retried IDENTITY-STABLY —
   the same signal row with the SAME signalId is re-submitted on the next tick
-  (`event.attempt` increments; the armed retry survives a crash via persistence),
-  up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Tag exchange orders with
-  `clientOrderId = signalId` and a retry after a LOST RESPONSE resolves to
-  "duplicate order" on the exchange and reconciles instead of double-buying.
+  (`event.attempt` increments; the attempt is PRE-ARMED — persisted before the gate
+  call, so even a crash mid-attempt resumes with attempt &gt;= 1), up to
+  CC_ORDER_OPEN_RETRY_ATTEMPTS. Tag exchange orders with `clientOrderId = signalId`
+  and RECONCILE at attempt &gt; 0: query the prior order by that id BEFORE re-sending
+  and confirm the open if it filled. Do NOT rely on catching "duplicate" on re-send —
+  Binance's duplicate-clientOrderId guard only covers OPEN orders; an
+  instantly-filled market order will not dup.
   Exhaustion drops the signal loudly AND signals `exitEmitter` (fatal: the network
   would not let the engine work). With the config at 0 the retry slot is disabled:
   a rejected open is dropped at once and the next tick regenerates a FRESH id.
@@ -62,10 +65,13 @@ Resolved as `IBrokerOrderVerdict` `{ reason: "transient" }`
 - **Exhaustion of transient failures is FATAL** (`exitEmitter` after the
   `errorEmitter` log) — unlike the typed terminal errors above, which are business
   outcomes and never signal a process exit.
-- **In-memory close/check counters.** They reset on restart (safe direction: the
-  broker gets fresh attempts before the dangerous force action); only the OPEN
-  retry identity/count is persisted, because losing it would break clientOrderId
-  idempotency.
+- **Open and close counters are persisted (pre-armed before each gate call);** the
+  check counter is in-memory (a restart resets the tolerance window in the safe
+  direction). For open/close, `attempt &gt; 0` is therefore a HARD invariant even
+  across crashes: a prior order MAY have reached the exchange — reconcile first.
+  On restore the persisted counters are CLAMPED to 1: the reconcile bit survives,
+  the streak resets — a pre-crash outage never exhausts the budget on the first
+  post-restart attempt.
 - **Nominal brand for symmetry.** `__type__ === Symbol.for("OrderTransientError")`
   and the static guard exist for consistency with the other two errors (useful in
   the application's own logging/metrics); the framework itself never checks it.

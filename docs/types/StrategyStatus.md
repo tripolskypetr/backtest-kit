@@ -17,6 +17,7 @@ type StrategyStatus = {
     stopLossSignal: ISignalCloseRow | null;
     retryOpenSignal: ISignalRow | IScheduledSignalRow | null;
     retryOpenCount: number;
+    retryCloseCount: number;
 };
 ```
 

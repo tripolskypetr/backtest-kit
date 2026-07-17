@@ -58,6 +58,13 @@ Performs async initialization before the broker starts receiving events.
 Called once by BrokerProxy via `waitForInit()` (singleshot) before the first event.
 Override to establish exchange connections, authenticate API clients, load configuration.
 
+RECOMMENDED: run an ORPHAN SWEEP here (see {@link IBroker.waitForInit}). A prior
+run that died on transient-budget exhaustion may have left a filled-but-unconfirmed
+entry order (the engine dropped the signal) or a real position the engine already
+force-closed. Reconcile before the first tick: cancel/flatten orphans, or re-adopt
+a live position via `commitCreateSignal` to bring it back under TP/SL management —
+otherwise a fresh signal may open ON TOP of an unmanaged orphan.
+
 Default implementation: Logs initialization event.
 
 ### onOrderOpenCommit
@@ -75,11 +82,13 @@ Default implementation: Logs signal-open event.
 
 Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state.
 Throw semantics: a plain Error / OrderTransientError rolls back the open and retries
-identity-stably (same signalId, `payload.attempt` increments) up to
-CC_ORDER_OPEN_RETRY_ATTEMPTS — tag orders with `clientOrderId = payload.signalId` so
-a lost-response retry deduplicates on the exchange; OrderRejectedError drops the open
-terminally without arming the retry. Return normally to let it open. Live-only
-(backtest short-circuits). See {@link IBroker.onOrderOpenCommit} for the full semantics.
+identity-stably (same signalId, `payload.attempt` increments, pre-armed so a crash
+mid-attempt still counts) up to CC_ORDER_OPEN_RETRY_ATTEMPTS; OrderRejectedError
+drops the open terminally without arming the retry. Return normally to let it open.
+Tag orders with `clientOrderId = payload.signalId` and RECONCILE at `attempt &gt; 0`
+(query the prior order BEFORE re-sending — Binance's duplicate guard does not cover
+instantly-filled orders). Live-only (backtest short-circuits). See
+{@link IBroker.onOrderOpenCommit} for the full semantics.
 
 ### onOrderActiveCheck
 

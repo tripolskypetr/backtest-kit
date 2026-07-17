@@ -188,8 +188,10 @@ OrderRejectedError = "rejected", terminal at once (open dropped / close force-cl
 
 MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
 `onOrderOpenCommit` / `onOrderCloseCommit`. Same `syncSubject` emission as the Broker
-commit hooks — identical verdict semantics. `event.attempt` = consecutive prior
-rejections. Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
+commit hooks — identical verdict semantics. `event.attempt` = prior STARTED attempts
+(pre-armed into persistence before the gate fires, holds across a crash mid-attempt —
+at attempt &gt; 0 reconcile with the exchange BEFORE re-sending). Live-only. Implement
+via the {@link IActionCallbacks.onOrderSync} callback.
 
 ### orderCheck
 

@@ -226,7 +226,12 @@ IBrokerOrderVerdict (see interfaces/Broker.interface):
 MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
 `onOrderOpenCommit` / `onOrderCloseCommit` gate. Rides the same `syncSubject` emission
 as the Broker commit hooks — the verdict semantics are identical for both channels.
-`event.attempt` carries the number of consecutive prior rejections (0 = first try).
+`event.attempt` carries the number of prior STARTED attempts (0 = first try). The
+counter is PRE-ARMED — persisted before the gate fires — so `attempt &gt; 0` holds even
+across a crash mid-attempt: a prior order MAY have reached the exchange, reconcile by
+clientOrderId (open) / position state (close) BEFORE re-sending. Do NOT rely on
+catching "duplicate" on re-send — Binance's duplicate-clientOrderId guard only covers
+OPEN orders; an instantly-filled one will not dup.
 Backtest short-circuits the gate to "confirmed" (live-only).
 
 ### onOrderCheck
