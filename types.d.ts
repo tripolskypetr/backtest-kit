@@ -30735,7 +30735,20 @@ type BrokerAverageBuyPayload = {
  * ```
  */
 interface IBroker {
-    /** Called once before first use. Connect to exchange, load credentials, etc. */
+    /**
+     * Called once before first use. Connect to exchange, load credentials, etc.
+     *
+     * RECOMMENDED: run an ORPHAN SWEEP here. After a fatal exit (transient-budget
+     * exhaustion — see OrderTransientError) the exchange may hold artifacts the engine
+     * has already forgotten: a FILLED entry order under `clientOrderId = signalId`
+     * whose open was never confirmed (dropped signal), or a still-open position the
+     * engine force-closed on its side. `waitForInit` runs before the first event of a
+     * fresh process — the one moment to reconcile: list open orders/positions, match
+     * clientOrderIds against the engine state (`getStrategyStatus` / `getPendingSignal`),
+     * then either flatten the orphans on the exchange or re-adopt a live position via
+     * `commitCreateSignal` so it comes back under TP/SL management. Skipping the sweep
+     * risks trading a fresh signal ON TOP of an unmanaged orphan position.
+     */
     waitForInit(): Promise<void>;
     /**
      * Called when a signal is being closed (take-profit, stop-loss, or manual close). Emitted via
@@ -31550,6 +31563,13 @@ declare class BrokerBase implements IBroker {
      * Called once by BrokerProxy via `waitForInit()` (singleshot) before the first event.
      * Override to establish exchange connections, authenticate API clients, load configuration.
      *
+     * RECOMMENDED: run an ORPHAN SWEEP here (see {@link IBroker.waitForInit}). A prior
+     * run that died on transient-budget exhaustion may have left a filled-but-unconfirmed
+     * entry order (the engine dropped the signal) or a real position the engine already
+     * force-closed. Reconcile before the first tick: cancel/flatten orphans, or re-adopt
+     * a live position via `commitCreateSignal` to bring it back under TP/SL management —
+     * otherwise a fresh signal may open ON TOP of an unmanaged orphan.
+     *
      * Default implementation: Logs initialization event.
      *
      * @example
@@ -31558,6 +31578,17 @@ declare class BrokerBase implements IBroker {
      *   super.waitForInit(); // Keep parent logging
      *   this.exchange = new ExchangeClient(process.env.API_KEY);
      *   await this.exchange.authenticate();
+     *
+     *   // Orphan sweep: the engine forgets dropped signals — the exchange does not.
+     *   for (const order of await this.exchange.getOpenOrders()) {
+     *     await this.exchange.cancelOrder(order.id); // resting entries of dropped signals
+     *   }
+     *   for (const pos of await this.exchange.getPositions()) {
+     *     const pending = await getPendingSignal(pos.symbol);
+     *     if (!pending) {
+     *       await this.exchange.flatten(pos.symbol); // or re-adopt via commitCreateSignal
+     *     }
+     *   }
      * }
      * ```
      */
