@@ -50,9 +50,7 @@ import validateScheduledSignal from "../validation/validateScheduledSignal";
 import validateSignal from "../validation/validateSignal";
 import OrderRejectedError from "../error/OrderRejectedError";
 import OrderDeletedError from "../error/OrderDeletedError";
-// Type-only: erased at runtime (a value import would close a runtime cycle
-// classes/Broker -> lib -> ... -> StrategyConnectionService -> this client).
-import type { BrokerOrderVerdict } from "../classes/Broker";
+import { BROKER_ORDER_VERDICT, type IBrokerOrderVerdict } from "../interfaces/Broker.interface";
 
 const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1m": 1,
@@ -114,21 +112,24 @@ const PARTIAL_CAP_TOLERANCE_FACTOR = 1 + 1e-9;
  */
 const PARTIAL_FULL_CLOSE_EPSILON = 1e-9;
 
-/** Shared immutable verdict instances (see BrokerOrderVerdict in classes/Broker) */
-const VERDICT_CONFIRMED: BrokerOrderVerdict = Object.freeze({ reason: "confirmed" as const });
-const VERDICT_TRANSIENT: BrokerOrderVerdict = Object.freeze({ reason: "transient" as const });
+/** Shared immutable verdict instances (see IBrokerOrderVerdict in interfaces/Broker.interface) */
+const VERDICT_CONFIRMED: IBrokerOrderVerdict = Object.freeze({ __type__: BROKER_ORDER_VERDICT, reason: "confirmed" as const });
+const VERDICT_TRANSIENT: IBrokerOrderVerdict = Object.freeze({ __type__: BROKER_ORDER_VERDICT, reason: "transient" as const });
 
 /**
- * Normalizes a raw onOrderSync/onOrderCheck result into a BrokerOrderVerdict.
+ * Normalizes a raw onOrderSync/onOrderCheck result into an IBrokerOrderVerdict.
  *
- * The production callbacks (StrategyConnectionService CREATE_SYNC_FN /
- * CREATE_SYNC_PENDING_FN) already return the discriminated union; legacy/mocked
- * callbacks (tests, monkey-patches) may still return plain booleans or nothing —
- * true/void collapse to "confirmed", false to "transient".
+ * A verdict is recognized STRICTLY by the runtime brand __type__ ===
+ * BROKER_ORDER_VERDICT (Symbol.for — survives duplicated module instances), never by
+ * shape: a userspace object that merely happens to carry a `reason` key must not be
+ * honored as a framework verdict. Everything unbranded falls back to the legacy
+ * boolean contract — true/void collapse to "confirmed", false to "transient"
+ * (production callbacks CREATE_SYNC_FN / CREATE_SYNC_PENDING_FN always return
+ * branded verdicts; booleans come from legacy/mocked callbacks in tests).
  */
-const TO_ORDER_VERDICT_FN = (raw: unknown): BrokerOrderVerdict => {
-  if (raw && typeof raw === "object" && "reason" in raw) {
-    return raw as BrokerOrderVerdict;
+const TO_ORDER_VERDICT_FN = (raw: unknown): IBrokerOrderVerdict => {
+  if (raw && typeof raw === "object" && Reflect.get(raw, "__type__") === BROKER_ORDER_VERDICT) {
+    return raw as IBrokerOrderVerdict;
   }
   return raw === false ? VERDICT_TRANSIENT : VERDICT_CONFIRMED;
 };
@@ -147,7 +148,7 @@ const TO_ORDER_VERDICT_FN = (raw: unknown): BrokerOrderVerdict => {
 const CALL_ORDER_SYNC_GUARDED_FN = async (
   self: ClientStrategy,
   event: Parameters<ClientStrategy["params"]["onOrderSync"]>[0]
-): Promise<BrokerOrderVerdict> => {
+): Promise<IBrokerOrderVerdict> => {
   try {
     return TO_ORDER_VERDICT_FN(await self.params.onOrderSync(event));
   } catch (error) {
@@ -163,7 +164,7 @@ const CALL_ORDER_SYNC_GUARDED_FN = async (
       self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error as Error);
-      return { reason: "rejected", error };
+      return { __type__: BROKER_ORDER_VERDICT, reason: "rejected", error };
     }
     throw error;
   }
@@ -181,7 +182,7 @@ const CALL_ORDER_SYNC_GUARDED_FN = async (
 const CALL_ORDER_CHECK_GUARDED_FN = async (
   self: ClientStrategy,
   event: Parameters<ClientStrategy["params"]["onOrderCheck"]>[0]
-): Promise<BrokerOrderVerdict> => {
+): Promise<IBrokerOrderVerdict> => {
   try {
     return TO_ORDER_VERDICT_FN(await self.params.onOrderCheck(event));
   } catch (error) {
@@ -196,7 +197,7 @@ const CALL_ORDER_CHECK_GUARDED_FN = async (
       self.params.logger.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error as Error);
-      return { reason: "deleted", error };
+      return { __type__: BROKER_ORDER_VERDICT, reason: "deleted", error };
     }
     throw error;
   }
@@ -220,7 +221,7 @@ const CALL_ORDER_SYNC_OPEN_FN = trycatch(
     currentPrice: number,
     pendingSignal: ISignalRow,
     self: ClientStrategy
-  ): Promise<BrokerOrderVerdict> => {
+  ): Promise<IBrokerOrderVerdict> => {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", pendingSignal, currentPrice);
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
@@ -290,7 +291,7 @@ const CALL_ORDER_SYNC_SCHEDULE_OPEN_FN = trycatch(
     currentPrice: number,
     scheduledSignal: IScheduledSignalRow,
     self: ClientStrategy
-  ): Promise<BrokerOrderVerdict> => {
+  ): Promise<IBrokerOrderVerdict> => {
     const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduledSignal, currentPrice);
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-open",
@@ -358,7 +359,7 @@ const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
     closeReason: "time_expired" | "take_profit" | "stop_loss" | "closed",
     signal: ISignalRow,
     self: ClientStrategy
-  ): Promise<BrokerOrderVerdict> => {
+  ): Promise<IBrokerOrderVerdict> => {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
       action: "signal-close",
@@ -430,7 +431,7 @@ const CALL_ORDER_CHECK_FN = trycatch(
     currentPrice: number,
     signal: ISignalRow,
     self: ClientStrategy
-  ): Promise<BrokerOrderVerdict> => {
+  ): Promise<IBrokerOrderVerdict> => {
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
     return await CALL_ORDER_CHECK_GUARDED_FN(self, {
       action: "signal-ping",
@@ -501,7 +502,7 @@ const CALL_SCHEDULED_ORDER_CHECK_FN = trycatch(
     currentPrice: number,
     scheduled: IScheduledSignalRow,
     self: ClientStrategy
-  ): Promise<BrokerOrderVerdict> => {
+  ): Promise<IBrokerOrderVerdict> => {
     const publicSignal = TO_PUBLIC_SIGNAL("scheduled", scheduled, currentPrice);
     return await CALL_ORDER_CHECK_GUARDED_FN(self, {
       action: "signal-ping",
@@ -1676,7 +1677,7 @@ const DROP_RETRY_OPEN_SIGNAL_FN = async (
  */
 const RESOLVE_CLOSE_GATE_FN = (
   self: ClientStrategy,
-  verdict: BrokerOrderVerdict,
+  verdict: IBrokerOrderVerdict,
   signal: ISignalRow,
   closeReason: string
 ): "allow" | "retry" | "force" => {

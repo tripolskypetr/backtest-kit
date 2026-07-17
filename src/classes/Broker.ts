@@ -54,54 +54,6 @@ const BROKER_BASE_METHOD_NAME_ON_BREAKEVEN = "BrokerBase.onBreakevenCommit";
 const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
 
 /**
- * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
- * discriminated by `reason`.
- *
- * Adapters/listeners do NOT construct this union — they signal via return/throw
- * (return normally or `true` = confirmed; throw a non-typed error = transient;
- * throw OrderRejectedError / OrderDeletedError = terminal). The framework collapses
- * those signals into this verdict and routes on it:
- *
- * - "confirmed" — the gate allowed the open/close, or the checked order is still open.
- * - "transient" — the operation FAILED with an unknown/temporary cause (network blip,
- *   lost response, exchange 5xx). Bounded retry: opens retry identity-stably up to
- *   CC_ORDER_OPEN_RETRY_ATTEMPTS, closes up to CC_ORDER_CLOSE_RETRY_ATTEMPTS, checks
- *   tolerate up to CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures.
- * - "rejected" — TERMINAL business rejection (OrderRejectedError: "no counterparty,
- *   retrying is pointless"). A rejected open is dropped without arming the retry; a
- *   rejected close is force-closed immediately.
- * - "deleted" — CONFIRMED order-not-found (OrderDeletedError: e.g. the user cancelled
- *   the order manually on the exchange). Checks act terminally at once (close "closed"
- *   / cancel "user"), bypassing the tolerance counter.
- *
- * Every consumer MUST branch on `reason` explicitly — the union is an object and is
- * always truthy, so boolean-style `if (!verdict)` checks are meaningless by design.
- */
-export type BrokerOrderVerdict =
-  | {
-      /** Gate confirmed / checked order is still alive */
-      reason: "confirmed";
-    }
-  | {
-      /** Unknown/temporary failure — bounded retry / tolerance window */
-      reason: "transient";
-      /** The failure that produced this verdict, when available */
-      error?: unknown;
-    }
-  | {
-      /** Terminal business rejection (OrderRejectedError) — no retry */
-      reason: "rejected";
-      /** The OrderRejectedError that produced this verdict */
-      error?: unknown;
-    }
-  | {
-      /** Confirmed order-not-found (OrderDeletedError) — checks act terminally */
-      reason: "deleted";
-      /** The OrderDeletedError that produced this verdict */
-      error?: unknown;
-    };
-
-/**
  * Payload for the signal-open broker event.
  *
  * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via

@@ -54,9 +54,7 @@ import OrderSyncContract from "../../../contract/OrderSync.contract";
 import OrderCheckContract from "../../../contract/OrderCheck.contract";
 import OrderRejectedError from "../../../error/OrderRejectedError";
 import OrderDeletedError from "../../../error/OrderDeletedError";
-// Type-only: erased at runtime (a value import would close a runtime cycle
-// classes/Broker -> lib -> ... -> this service).
-import type { BrokerOrderVerdict } from "../../../classes/Broker";
+import { BROKER_ORDER_VERDICT, type IBrokerOrderVerdict } from "../../../interfaces/Broker.interface";
 import ScheduleEventContract from "../../../contract/ScheduleEvent.contract";
 import SignalEventContract from "../../../contract/SignalEvent.contract";
 import TimeMetaService from "../meta/TimeMetaService";
@@ -84,9 +82,9 @@ const CREATE_SYNC_FN = (
   frameName: FrameName,
   backtest: boolean
 ) => trycatch(
-  async (event: OrderSyncContract): Promise<BrokerOrderVerdict> => {
+  async (event: OrderSyncContract): Promise<IBrokerOrderVerdict> => {
     if (event.backtest) {
-      return { reason: "confirmed" };
+      return { __type__: BROKER_ORDER_VERDICT, reason: "confirmed" };
     }
     try {
       await syncSubject.next(event);
@@ -104,11 +102,11 @@ const CREATE_SYNC_FN = (
         self.loggerService.warn(message, payload);
         console.error(message, payload);
         errorEmitter.next(error as Error);
-        return { reason: "rejected", error };
+        return { __type__: BROKER_ORDER_VERDICT, reason: "rejected", error };
       }
       throw error;
     }
-    return { reason: "confirmed" };
+    return { __type__: BROKER_ORDER_VERDICT, reason: "confirmed" };
   }, {
     fallback: (error) => {
       const message = "StrategyConnectionService CREATE_SYNC_FN thrown. Broker rejected order request";
@@ -120,7 +118,7 @@ const CREATE_SYNC_FN = (
       console.error(message, payload);
       errorEmitter.next(error);
     },
-    defaultValue: <BrokerOrderVerdict>{ reason: "transient" },
+    defaultValue: <IBrokerOrderVerdict>{ __type__: BROKER_ORDER_VERDICT, reason: "transient" },
   }
 );
 
@@ -141,9 +139,9 @@ const CREATE_SYNC_PENDING_FN = (
   frameName: FrameName,
   backtest: boolean
 ) => trycatch(
-  async (event: OrderCheckContract): Promise<BrokerOrderVerdict> => {
+  async (event: OrderCheckContract): Promise<IBrokerOrderVerdict> => {
     if (event.backtest) {
-      return { reason: "confirmed" };
+      return { __type__: BROKER_ORDER_VERDICT, reason: "confirmed" };
     }
     try {
       await syncPendingSubject.next(event);
@@ -160,11 +158,11 @@ const CREATE_SYNC_PENDING_FN = (
         self.loggerService.warn(message, payload);
         console.error(message, payload);
         errorEmitter.next(error as Error);
-        return { reason: "deleted", error };
+        return { __type__: BROKER_ORDER_VERDICT, reason: "deleted", error };
       }
       throw error;
     }
-    return { reason: "confirmed" };
+    return { __type__: BROKER_ORDER_VERDICT, reason: "confirmed" };
   }, {
     fallback: (error) => {
       const message = "StrategyConnectionService CREATE_SYNC_PENDING_FN thrown. Order check failed (transient unless attempts exhausted)";
@@ -176,7 +174,7 @@ const CREATE_SYNC_PENDING_FN = (
       console.error(message, payload);
       errorEmitter.next(error);
     },
-    defaultValue: <BrokerOrderVerdict>{ reason: "transient" },
+    defaultValue: <IBrokerOrderVerdict>{ __type__: BROKER_ORDER_VERDICT, reason: "transient" },
   }
 );
 

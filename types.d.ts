@@ -2890,6 +2890,88 @@ interface ActivateScheduledCommit extends SignalCommitBase {
  */
 type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | AverageBuyCommit | ActivateScheduledCommit;
 
+declare const BROKER_ORDER_VERDICT: unique symbol;
+/**
+ * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
+ * should not be discriminated by `reason`.
+ */
+interface IBrokerOrderVerdictBase {
+    /** Discriminator for BrokerOrderVerdict union */
+    __type__: typeof BROKER_ORDER_VERDICT;
+}
+/**
+ * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
+ * discriminated by `reason`.
+ *
+ * Adapters/listeners do NOT construct this union — they signal via return/throw
+ * (return normally or `true` = confirmed; throw a non-typed error = transient;
+ * throw OrderRejectedError / OrderDeletedError = terminal). The framework collapses
+ * those signals into this verdict and routes on it:
+ *
+ * - "confirmed" — the gate allowed the open/close, or the checked order is still open.
+ */
+interface IBrokerOrderVerdictConfirmed extends IBrokerOrderVerdictBase {
+    /** Gate confirmed / checked order is still alive */
+    reason: "confirmed";
+}
+/**
+ * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
+ * discriminated by `reason`.
+ *
+ * Adapters/listeners do NOT construct this union — they signal via return/throw
+ * (return normally or `true` = confirmed; throw a non-typed error = transient;
+ * throw OrderRejectedError / OrderDeletedError = terminal). The framework collapses
+ * those signals into this verdict and routes on it:
+ *
+ * - "transient" — the operation FAILED with an unknown/temporary cause (network blip,
+ *   lost response, exchange 5xx). Bounded retry: opens retry identity-stably up to
+ *   CC_ORDER_OPEN_RETRY_ATTEMPTS, closes up to CC_ORDER_CLOSE_RETRY_ATTEMPTS, checks
+ *   tolerate up to CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures.
+ */
+interface IBrokerOrderVerdictTransient extends IBrokerOrderVerdictBase {
+    /** Unknown/temporary failure — bounded retry / tolerance window */
+    reason: "transient";
+    /** The failure that produced this verdict, when available */
+    error?: unknown;
+}
+/**
+ * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
+ * discriminated by `reason`.
+ *
+ * Adapters/listeners do NOT construct this union — they signal via return/throw
+ * (return normally or `true` = confirmed; throw a non-typed error = transient;
+ * throw OrderRejectedError / OrderDeletedError = terminal). The framework collapses
+ * those signals into this verdict and routes on it:
+ *
+ * - "rejected" — TERMINAL business rejection (OrderRejectedError: "no counterparty,
+ *   retrying is pointless"). A rejected open is dropped without arming the retry; a
+ *   rejected close is force-closed immediately.
+ */
+interface IBrokerOrderVerdictRejected extends IBrokerOrderVerdictBase {
+    /** Terminal business rejection (OrderRejectedError) — no retry */
+    reason: "rejected";
+    /** The OrderRejectedError that produced this verdict */
+    error?: unknown;
+}
+/**
+ * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
+ * discriminated by `reason`.
+ *
+ * Adapters/listeners do NOT construct this union — they signal via return/throw
+ * (return normally or `true` = confirmed; throw a non-typed error = transient;
+ * throw OrderRejectedError / OrderDeletedError = terminal). The framework collapses
+ * those signals into this verdict and routes on it:
+ *
+ * - "deleted" — CONFIRMED order-not-found (OrderDeletedError: e.g. the user cancelled
+ *   the order manually on the exchange). Checks act terminally at once (close "closed"
+ *   / cancel "user"), bypassing the tolerance counter.
+ */
+interface IBrokerOrderVerdictDeleted extends IBrokerOrderVerdictBase {
+    /** Confirmed order-not-found (OrderDeletedError) — checks act terminally */
+    reason: "deleted";
+    /** The OrderDeletedError that produced this verdict */
+    error?: unknown;
+}
 /**
  * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
  * discriminated by `reason`.
@@ -2913,1987 +2995,14 @@ type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | Parti
  *
  * Every consumer MUST branch on `reason` explicitly — the union is an object and is
  * always truthy, so boolean-style `if (!verdict)` checks are meaningless by design.
+ *
+ * The typed errors are CONTEXT-SPECIFIC: OrderRejectedError belongs to the gates
+ * (onOrderOpenCommit/onOrderCloseCommit), OrderDeletedError to the checks
+ * (onOrderActiveCheck/onOrderScheduleCheck). Throwing one in the other's context is a
+ * userspace protocol violation and INTENTIONALLY degrades to "transient" (bounded
+ * retry + loud errorEmitter) instead of being honored as terminal.
  */
-type BrokerOrderVerdict = {
-    /** Gate confirmed / checked order is still alive */
-    reason: "confirmed";
-} | {
-    /** Unknown/temporary failure — bounded retry / tolerance window */
-    reason: "transient";
-    /** The failure that produced this verdict, when available */
-    error?: unknown;
-} | {
-    /** Terminal business rejection (OrderRejectedError) — no retry */
-    reason: "rejected";
-    /** The OrderRejectedError that produced this verdict */
-    error?: unknown;
-} | {
-    /** Confirmed order-not-found (OrderDeletedError) — checks act terminally */
-    reason: "deleted";
-    /** The OrderDeletedError that produced this verdict */
-    error?: unknown;
-};
-/**
- * Payload for the signal-open broker event.
- *
- * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
- * `onOrderOpenCommit`. Discriminated by `type`:
- * - "active" — a pending signal is being opened (immediate entry or activation fill of the
- *   resting order); throw = the exchange did not fill the entry, the framework rolls back the
- *   open and retries on the next tick;
- * - "schedule" — the resting entry order is being PLACED (scheduled signal creation); throw =
- *   the exchange did not accept the resting order, the scheduled signal is NOT registered and
- *   the placement retries on the next tick.
- *
- * @example
- * ```typescript
- * const payload: BrokerOrderOpenPayload = {
- *   symbol: "BTCUSDT",
- *   cost: 100,
- *   position: "long",
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerOrderOpenPayload = {
-    /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
-    type: "schedule" | "active";
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Dollar cost of the position entry (CC_POSITION_ENTRY_COST) */
-    cost: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Activation price — the price at which the signal became active */
-    priceOpen: number;
-    /** Original take-profit price from the signal */
-    priceTakeProfit: number;
-    /** Original stop-loss price from the signal */
-    priceStopLoss: number;
-    /** Market price at the moment of activation (VWAP or candle average) */
-    pnl: IStrategyPnL;
-    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
-    peakProfit: IStrategyPnL;
-    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
-    maxDrawdown: IStrategyPnL;
-    /**
-     * Consecutive prior rejections of this open by the gate (0 = first attempt). Managed by
-     * the framework: a rejected open increments the counter carried by the identity-stable
-     * retry (same signalId, bounded by CC_ORDER_OPEN_RETRY_ATTEMPTS); a confirmed open
-     * resets it. Lets the adapter distinguish a fresh placement from a retry of an order
-     * it may have already placed (reconcile by clientOrderId = signalId).
-     */
-    attempt: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the signal-close broker event.
- *
- * Emitted automatically via syncSubject when a pending signal is closed (SL/TP hit or manual close).
- * Forwarded to the registered IBroker adapter via `onOrderCloseCommit`.
- *
- * @example
- * ```typescript
- * const payload: BrokerOrderClosePayload = {
- *   symbol: "BTCUSDT",
- *   cost: 100,
- *   position: "long",
- *   currentPrice: 54000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   totalEntries: 2,
- *   totalPartials: 1,
- *   pnl: { profit: 80, loss: 0, volume: 100 },
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerOrderClosePayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Total dollar cost basis of the position at close */
-    cost: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Market price at the moment of close */
-    currentPrice: number;
-    /** Effective entry price at time of close (may differ from priceOpen after DCA averaging) */
-    priceOpen: number;
-    /** Original take-profit price from the signal */
-    priceTakeProfit: number;
-    /** Original stop-loss price from the signal */
-    priceStopLoss: number;
-    /** Total number of DCA entries (including initial open) */
-    totalEntries: number;
-    /** Total number of partial closes executed before final close */
-    totalPartials: number;
-    /** Realized PnL breakdown for the closed position */
-    pnl: IStrategyPnL;
-    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
-    peakProfit: IStrategyPnL;
-    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
-    maxDrawdown: IStrategyPnL;
-    /**
-     * Consecutive prior rejections of this close by the gate (0 = first attempt). Managed
-     * by the framework: a rejected close increments the counter carried by the next
-     * attempt (bounded by CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine force-closes);
-     * a confirmed close resets it.
-     */
-    attempt: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the order synchronization broker event.
- *
- * Emitted automatically via syncPendingSubject on every live tick while a signal is monitored,
- * BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter,
- * routed by `type` to the matching callback:
- * - `type: "active"` — pending signal (open position), before TP/SL/time evaluation —
- *   delivered to `onOrderActiveCheck`;
- * - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
- *   (the order in question is the resting entry order) — delivered to `onOrderScheduleCheck`.
- *
- * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
- * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
- * propagates to CREATE_SYNC_PENDING_FN, which makes the framework close the pending signal with
- * closeReason "closed" (type "active") or cancel the scheduled signal with reason "user"
- * (type "schedule"). Returning normally keeps the signal under normal monitoring.
- *
- * NOTE for type "schedule": if the resting entry order actually FILLED, confirm the fill via
- * `commitActivateScheduled` instead of throwing — a throw here is a terminal cancel, not an
- * activation.
- *
- * CRITICAL: transient/network errors (timeout, 5xx, rate limit, disconnect) must be SWALLOWED —
- * return normally instead of throwing. A thrown network error would wrongly close an open
- * position. Only a confirmed "order not found by id" response is a valid reason to throw.
- *
- * @example
- * ```typescript
- * const payload: BrokerOrderCheckPayload = {
- *   symbol: "BTCUSDT",
- *   position: "long",
- *   currentPrice: 50500,
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerOrderCheckPayload = {
-    /** Monitored state: "active" — open position order, "schedule" — resting entry order */
-    type: "schedule" | "active";
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Position direction */
-    position: "long" | "short";
-    /** Market price at the moment of the ping */
-    currentPrice: number;
-    /** Effective entry price (may differ from priceOpen after DCA averaging) */
-    priceOpen: number;
-    /** Effective take-profit price at the moment of the ping */
-    priceTakeProfit: number;
-    /** Effective stop-loss price at the moment of the ping */
-    priceStopLoss: number;
-    /** Unrealized PnL of the open position at the moment of the ping */
-    pnl: IStrategyPnL;
-    /** Peak profit achieved during the life of this position up to this event */
-    peakProfit: IStrategyPnL;
-    /** Maximum drawdown experienced during the life of this position up to this event */
-    maxDrawdown: IStrategyPnL;
-    /** Total number of DCA entries (including initial open) */
-    totalEntries: number;
-    /** Total number of partial closes executed */
-    totalPartials: number;
-    /**
-     * Consecutive prior FAILED checks for this signal (0 = first check / healthy).
-     * Managed by the framework: a failed check increments the counter carried by the
-     * next ping while the failure is tolerated as transient
-     * (CC_ORDER_CHECK_RETRY_ATTEMPTS); a successful check resets it to 0.
-     */
-    attempt: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the active-ping broker event.
- *
- * Emitted automatically via activePingSubject on every live tick while a pending (open) signal is
- * monitored. Forwarded to the registered IBroker adapter via `onSignalActivePing`. Purely
- * informational — unlike `onOrderActiveCheck` a throw here does NOT close the position.
- *
- * @example
- * ```typescript
- * const payload: BrokerActivePingPayload = {
- *   symbol: "BTCUSDT",
- *   position: "long",
- *   currentPrice: 50500,
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerActivePingPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) of the monitored position */
-    signalId: string;
-    /** Position direction */
-    position: "long" | "short";
-    /** Market price at the moment of the ping */
-    currentPrice: number;
-    /** Effective entry price (may differ from priceOpen after DCA averaging) */
-    priceOpen: number;
-    /** Effective take-profit price at the moment of the ping */
-    priceTakeProfit: number;
-    /** Effective stop-loss price at the moment of the ping */
-    priceStopLoss: number;
-    /** Unrealized PnL of the open position at the moment of the ping */
-    pnl: IStrategyPnL;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the schedule-ping broker event.
- *
- * Emitted automatically via schedulePingSubject on every live tick while a scheduled signal is
- * monitored (waiting for priceOpen activation). Forwarded to the registered IBroker adapter via
- * `onSignalSchedulePing`. Purely informational.
- *
- * @example
- * ```typescript
- * const payload: BrokerSchedulePingPayload = {
- *   symbol: "BTCUSDT",
- *   position: "long",
- *   currentPrice: 49800,
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerSchedulePingPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) of the scheduled signal */
-    signalId: string;
-    /** Position direction */
-    position: "long" | "short";
-    /** Market price at the moment of the ping */
-    currentPrice: number;
-    /** Pending entry price the scheduled signal is waiting for */
-    priceOpen: number;
-    /** Take-profit price configured for the scheduled signal */
-    priceTakeProfit: number;
-    /** Stop-loss price configured for the scheduled signal */
-    priceStopLoss: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the idle-ping broker event.
- *
- * Emitted automatically via idlePingSubject on every live tick while the strategy has no pending or
- * scheduled signal. Forwarded to the registered IBroker adapter via `onSignalIdlePing`. Purely
- * informational — carries no signal because none is active.
- *
- * @example
- * ```typescript
- * const payload: BrokerIdlePingPayload = {
- *   symbol: "BTCUSDT",
- *   currentPrice: 50500,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerIdlePingPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Market price at the moment of the ping */
-    currentPrice: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the scheduled-signal-open broker event.
- *
- * Emitted automatically via scheduleEventSubject (action "scheduled") when a new scheduled signal is
- * created and starts waiting for priceOpen activation. Forwarded to the registered IBroker adapter
- * via `onSignalScheduleOpen`. The scheduled -> active transition is NOT reported here — activation
- * arrives through `onOrderOpenCommit`.
- *
- * @example
- * ```typescript
- * const payload: BrokerScheduleOpenPayload = {
- *   symbol: "BTCUSDT",
- *   position: "long",
- *   currentPrice: 49800,
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerScheduleOpenPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) of the scheduled signal */
-    signalId: string;
-    /** Position direction */
-    position: "long" | "short";
-    /** Market price at the moment the scheduled signal was created */
-    currentPrice: number;
-    /** Pending entry price the scheduled signal waits for */
-    priceOpen: number;
-    /** Take-profit price configured for the scheduled signal */
-    priceTakeProfit: number;
-    /** Stop-loss price configured for the scheduled signal */
-    priceStopLoss: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the scheduled-signal-cancelled broker event.
- *
- * Emitted automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
- * removed before it ever activated. Forwarded to the registered IBroker adapter via
- * `onSignalScheduleCancelled`. The `reason` distinguishes timeout / price reject / user cancel.
- *
- * @example
- * ```typescript
- * const payload: BrokerScheduleCancelledPayload = {
- *   symbol: "BTCUSDT",
- *   position: "long",
- *   currentPrice: 47500,
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   reason: "price_reject",
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerScheduleCancelledPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) of the cancelled scheduled signal */
-    signalId: string;
-    /** Position direction */
-    position: "long" | "short";
-    /** Market price at the moment of cancellation */
-    currentPrice: number;
-    /** Pending entry price the scheduled signal had been waiting for */
-    priceOpen: number;
-    /** Take-profit price that had been configured for the scheduled signal */
-    priceTakeProfit: number;
-    /** Stop-loss price that had been configured for the scheduled signal */
-    priceStopLoss: number;
-    /** Why the scheduled signal was cancelled: "timeout" / "price_reject" / "user" */
-    reason?: StrategyCancelReason;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the pending-signal-open broker event.
- *
- * Emitted automatically via signalEventSubject (action "opened") when a pending position is opened
- * (new signal / immediate entry / scheduled or user activation). Forwarded to the registered IBroker
- * adapter via `onSignalPendingOpen`.
- *
- * @example
- * ```typescript
- * const payload: BrokerPendingOpenPayload = {
- *   symbol: "BTCUSDT",
- *   position: "long",
- *   currentPrice: 50000,
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerPendingOpenPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) of the opened position */
-    signalId: string;
-    /** Position direction */
-    position: "long" | "short";
-    /** Effective entry price at the moment the position opened */
-    currentPrice: number;
-    /** Effective entry price (may differ from currentPrice after DCA averaging) */
-    priceOpen: number;
-    /** Take-profit price configured for the position */
-    priceTakeProfit: number;
-    /** Stop-loss price configured for the position */
-    priceStopLoss: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for the pending-signal-close broker event.
- *
- * Emitted automatically via signalEventSubject (action "closed") when a pending position is closed.
- * Forwarded to the registered IBroker adapter via `onSignalPendingClose`. The `closeReason`
- * distinguishes take_profit / stop_loss / time_expired / user-close / broker fill / order gone.
- *
- * @example
- * ```typescript
- * const payload: BrokerPendingClosePayload = {
- *   symbol: "BTCUSDT",
- *   position: "long",
- *   currentPrice: 55000,
- *   priceOpen: 50000,
- *   priceTakeProfit: 55000,
- *   priceStopLoss: 48000,
- *   closeReason: "take_profit",
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerPendingClosePayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) of the closed position */
-    signalId: string;
-    /** Position direction */
-    position: "long" | "short";
-    /** Market price at the moment of close */
-    currentPrice: number;
-    /** Effective entry price of the closed position */
-    priceOpen: number;
-    /** Effective take-profit price of the closed position */
-    priceTakeProfit: number;
-    /** Effective stop-loss price of the closed position */
-    priceStopLoss: number;
-    /** Why the position closed: "take_profit" / "stop_loss" / "time_expired" / "closed" */
-    closeReason?: StrategyCloseReason;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for a partial-profit close broker event.
- *
- * Forwarded to the registered IBroker adapter via `onPartialProfitCommit`.
- * Called explicitly after all validations pass, before `strategyCoreService.partialProfit()`.
- *
- * @example
- * ```typescript
- * const payload: BrokerPartialProfitPayload = {
- *   symbol: "BTCUSDT",
- *   percentToClose: 30,
- *   cost: 30,
- *   currentPrice: 52000,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerPartialProfitPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Percentage of the position to close (0–100) */
-    percentToClose: number;
-    /** Dollar value of the portion being closed */
-    cost: number;
-    /** Current market price at which the partial close executes */
-    currentPrice: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Active take profit price at the time of the partial close */
-    priceTakeProfit: number;
-    /** Active stop loss price at the time of the partial close */
-    priceStopLoss: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for a partial-loss close broker event.
- *
- * Forwarded to the registered IBroker adapter via `onPartialLossCommit`.
- * Called explicitly after all validations pass, before `strategyCoreService.partialLoss()`.
- *
- * @example
- * ```typescript
- * const payload: BrokerPartialLossPayload = {
- *   symbol: "BTCUSDT",
- *   percentToClose: 40,
- *   cost: 40,
- *   currentPrice: 48500,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerPartialLossPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Percentage of the position to close (0–100) */
-    percentToClose: number;
-    /** Dollar value of the portion being closed */
-    cost: number;
-    /** Current market price at which the partial close executes */
-    currentPrice: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Active take profit price at the time of the partial close */
-    priceTakeProfit: number;
-    /** Active stop loss price at the time of the partial close */
-    priceStopLoss: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for a trailing stop-loss update broker event.
- *
- * Forwarded to the registered IBroker adapter via `onTrailingStopCommit`.
- * Called explicitly after all validations pass, before `strategyCoreService.trailingStop()`.
- * `newStopLossPrice` is the absolute SL price computed from percentShift + original SL + effectivePriceOpen.
- *
- * @example
- * ```typescript
- * // LONG: entry=100, originalSL=90, percentShift=-5 → newSL=95
- * const payload: BrokerTrailingStopPayload = {
- *   symbol: "BTCUSDT",
- *   percentShift: -5,
- *   currentPrice: 102,
- *   newStopLossPrice: 95,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerTrailingStopPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Percentage shift applied to the ORIGINAL SL distance (-100 to 100) */
-    percentShift: number;
-    /** Current market price used for intrusion validation */
-    currentPrice: number;
-    /** Absolute stop-loss price after applying percentShift */
-    newStopLossPrice: number;
-    /** Active take profit price at the time of the trailing update */
-    takeProfitPrice: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for a trailing take-profit update broker event.
- *
- * Forwarded to the registered IBroker adapter via `onTrailingTakeCommit`.
- * Called explicitly after all validations pass, before `strategyCoreService.trailingTake()`.
- * `newTakeProfitPrice` is the absolute TP price computed from percentShift + original TP + effectivePriceOpen.
- *
- * @example
- * ```typescript
- * // LONG: entry=100, originalTP=110, percentShift=-3 → newTP=107
- * const payload: BrokerTrailingTakePayload = {
- *   symbol: "BTCUSDT",
- *   percentShift: -3,
- *   currentPrice: 102,
- *   newTakeProfitPrice: 107,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerTrailingTakePayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Percentage shift applied to the ORIGINAL TP distance (-100 to 100) */
-    percentShift: number;
-    /** Current market price used for intrusion validation */
-    currentPrice: number;
-    /** Absolute take-profit price after applying percentShift */
-    newTakeProfitPrice: number;
-    /** Active take profit price at the time of the trailing update */
-    takeProfitPrice: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for a breakeven operation broker event.
- *
- * Forwarded to the registered IBroker adapter via `onBreakevenCommit`.
- * Called explicitly after all validations pass, before `strategyCoreService.breakeven()`.
- * `newStopLossPrice` equals `effectivePriceOpen` (entry price).
- * `newTakeProfitPrice` equals `_trailingPriceTakeProfit ?? priceTakeProfit` (TP is unchanged).
- *
- * @example
- * ```typescript
- * // LONG: entry=100, currentPrice=100.5, newSL=100 (entry), newTP=110 (unchanged)
- * const payload: BrokerBreakevenPayload = {
- *   symbol: "BTCUSDT",
- *   currentPrice: 100.5,
- *   newStopLossPrice: 100,
- *   newTakeProfitPrice: 110,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerBreakevenPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Current market price at the moment breakeven is triggered */
-    currentPrice: number;
-    /** New stop-loss price = effectivePriceOpen (the position's effective entry price) */
-    newStopLossPrice: number;
-    /** Effective take-profit price = _trailingPriceTakeProfit ?? priceTakeProfit (unchanged by breakeven) */
-    newTakeProfitPrice: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Payload for a DCA average-buy entry broker event.
- *
- * Forwarded to the registered IBroker adapter via `onAverageBuyCommit`.
- * Called explicitly after all validations pass, before `strategyCoreService.averageBuy()`.
- * `currentPrice` is the market price at which the new DCA entry is added.
- *
- * @example
- * ```typescript
- * const payload: BrokerAverageBuyPayload = {
- *   symbol: "BTCUSDT",
- *   currentPrice: 42000,
- *   cost: 100,
- *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
- *   backtest: false,
- * };
- * ```
- */
-type BrokerAverageBuyPayload = {
-    /** Trading pair symbol, e.g. "BTCUSDT" */
-    symbol: string;
-    /** Unique signal identifier (UUID v4) the order belongs to */
-    signalId: string;
-    /** Market price at which the DCA entry is placed */
-    currentPrice: number;
-    /** Dollar amount of the new DCA entry (default: CC_POSITION_ENTRY_COST) */
-    cost: number;
-    /** Position direction */
-    position: "long" | "short";
-    /** Active take profit price at the time of the DCA entry */
-    priceTakeProfit: number;
-    /** Active stop loss price at the time of the DCA entry */
-    priceStopLoss: number;
-    /** Strategy/exchange/frame routing context */
-    context: {
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName?: FrameName;
-    };
-    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
-    when: Date;
-    /** true when called during a backtest run — adapter should skip exchange calls */
-    backtest: boolean;
-};
-/**
- * Broker adapter interface for live order execution.
- *
- * Implement this interface to connect the framework to a real exchange or broker.
- * All methods are called BEFORE the corresponding DI-core state mutation, so if any
- * method throws, the internal state remains unchanged (transaction semantics).
- *
- * In backtest mode all calls are silently skipped by BrokerAdapter — the adapter
- * never receives backtest traffic.
- *
- * @example
- * ```typescript
- * class MyBroker implements IBroker {
- *   async waitForInit() {
- *     await this.exchange.connect();
- *   }
- *   async onOrderOpenCommit(payload) {
- *     await this.exchange.placeOrder({ symbol: payload.symbol, side: payload.position });
- *   }
- *   // ... other methods
- * }
- *
- * Broker.useBrokerAdapter(MyBroker);
- * ```
- */
-interface IBroker {
-    /** Called once before first use. Connect to exchange, load credentials, etc. */
-    waitForInit(): Promise<void>;
-    /**
-     * Called when a signal is being closed (take-profit, stop-loss, or manual close). Emitted via
-     * syncSubject BEFORE the framework mutates strategy state, so it is also the close **gate**.
-     *
-     * MANUAL WIRING — EXCEPTION-BASED: place the real exit order here (tag/look up by `payload.signalId`)
-     * and record final PnL. This is the confirmed-close commit; like `onOrderSync` (signal-close) it
-     * shares the gate semantics — a THROW means "the exchange did not close the position" and the
-     * framework SKIPS the close, leaving the position open and retrying on the next tick. Return
-     * normally to let the close proceed. Backtest short-circuits this (no live exchange), so the gate is
-     * live-only.
-     *
-     * This differs from `onSignalPendingClose`, which is the informational lifecycle hook that fires
-     * AFTER the close is committed (and cannot veto it).
-     */
-    onOrderCloseCommit(payload: BrokerOrderClosePayload): Promise<void>;
-    /**
-     * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
-     * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
-     * - "active" — position entry (immediate open or activation fill of the resting order);
-     * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
-     *
-     * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
-     * `payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
-     * (signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
-     * order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
-     * scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
-     * and the risk reservation is released. Both retry on the next tick. Return normally to let the
-     * open proceed. Backtest short-circuits this, so the gate is live-only.
-     *
-     * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
-     * AFTER the open is committed (and cannot veto it).
-     */
-    onOrderOpenCommit(payload: BrokerOrderOpenPayload): Promise<void>;
-    /**
-     * Called on every live tick while a pending signal (open position) is monitored,
-     * BEFORE TP/SL/time evaluation (`payload.type` is always "active").
-     *
-     * Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
-     * — the framework will then close the position with closeReason "closed". Return normally to
-     * keep monitoring.
-     *
-     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-     * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
-     * position. Throw exclusively on a confirmed "order not found by id" result.
-     *
-     * Manual wiring — EXCEPTION-BASED VARIANT
-     *
-     * This is the throw-driven **alternative** to the imperative commit-function wiring in
-     * `onSignalActivePing`:
-     * - **Exception-based (here):** THROW → framework closes the position with closeReason "closed".
-     *   One binary gate, no reason distinction. Good when "order gone" is the only condition you handle.
-     * - **Imperative (`onSignalActivePing` + `src/function/strategy.ts`):** call
-     *   `commitClosePending` / `commitCreateTakeProfit` / `commitCreateStopLoss` to close with the
-     *   correct reason and handle TP vs SL vs no-counterparty separately.
-     *
-     * Pick ONE per condition — do not both throw here AND `commitClosePending` in the active-ping for
-     * the same "order gone" event.
-     *
-     * @example
-     * ```typescript
-     * async onOrderActiveCheck(payload: BrokerOrderCheckPayload) {
-     *   let order: Order | null;
-     *   try {
-     *     order = await this.exchange.getOrderById(payload.signalId);
-     *   } catch (networkError) {
-     *     return; // transient — keep the position open, retry next tick
-     *   }
-     *   if (!order) {
-     *     throw new Error(`Order ${payload.signalId} not found`); // confirmed gone -> close "closed"
-     *   }
-     * }
-     * ```
-     */
-    onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void>;
-    /**
-     * Called on every live tick while a scheduled signal (resting entry order) is monitored,
-     * BEFORE timeout/price-activation evaluation (`payload.type` is always "schedule").
-     *
-     * Query the exchange by `payload.signalId` and THROW ONLY when the resting order is NOT FOUND
-     * by that id — the framework will then cancel the scheduled signal with reason "user". Return
-     * normally to keep monitoring. A FILLED resting order must be confirmed via
-     * `commitActivateScheduled`, not by throwing here (a throw is a terminal cancel, not an
-     * activation).
-     *
-     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-     * normally instead of throwing, otherwise a connectivity blip would wrongly cancel the resting
-     * order. Throw exclusively on a confirmed "order not found by id" result.
-     *
-     * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
-     * commit-function wiring in `onSignalSchedulePing` (`commitActivateScheduled` /
-     * `commitCancelScheduled`). Pick ONE per condition.
-     *
-     * @example
-     * ```typescript
-     * async onOrderScheduleCheck(payload: BrokerOrderCheckPayload) {
-     *   let order: Order | null;
-     *   try {
-     *     order = await this.exchange.getOrderById(payload.signalId);
-     *   } catch (networkError) {
-     *     return; // transient — keep the resting order monitored, retry next tick
-     *   }
-     *   if (!order) {
-     *     throw new Error(`Order ${payload.signalId} not found`); // confirmed gone -> cancel "user"
-     *   }
-     * }
-     * ```
-     */
-    onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void>;
-    /**
-     * Called on every live tick while a pending (open) signal is monitored.
-     * Purely informational mirror of the active-ping lifecycle — a throw here does NOT close the
-     * position (unlike `onOrderActiveCheck`).
-     *
-     * Manual wiring — EVENT-BASED (driving an open position from real exchange state)
-     *
-     * Primary per-tick **event-based** hook for an open position (a throw does NOT close it — react to
-     * the event and decide imperatively). This is where you reconcile the framework's VWAP view with
-     * real fills: catch a **SL that gapped through** the level, or a **TP that filled before VWAP**
-     * reached it. Poll your real order and translate its state into strategy state via the
-     * commit-functions from `src/function/strategy.ts` (callable here because the ping is emitted inside
-     * the strategy tick; effects are deferred to the next tick):
-     * - `commitCreateTakeProfit(symbol, { id })` — real TP order filled (possibly before VWAP reached
-     *   the level) → force close, reason "take_profit".
-     * - `commitCreateStopLoss(symbol, { id })` — real SL order filled (e.g. price gapped through SL) →
-     *   force close, reason "stop_loss".
-     * - `commitClosePending(symbol, { id })` — no counterparty (no buyer/seller, liquidity gap) → close
-     *   now with reason "closed", instead of throwing.
-     *
-     * @example
-     * ```typescript
-     * import { commitCreateTakeProfit, commitCreateStopLoss, commitClosePending } from "backtest-kit";
-     *
-     * async onSignalActivePing(payload: BrokerActivePingPayload) {
-     *   const order = await this.exchange.getOrderById(payload.signalId);
-     *   if (order?.status === "filled" && order.kind === "take_profit") {
-     *     await commitCreateTakeProfit(payload.symbol, { id: order.id });
-     *   } else if (order?.status === "filled" && order.kind === "stop_loss") {
-     *     await commitCreateStopLoss(payload.symbol, { id: order.id });
-     *   } else if (order?.status === "no_counterparty") {
-     *     await commitClosePending(payload.symbol, { id: order.id });
-     *   }
-     * }
-     * ```
-     */
-    onSignalActivePing(payload: BrokerActivePingPayload): Promise<void>;
-    /**
-     * Called on every live tick while a scheduled signal is monitored (waiting for priceOpen
-     * activation). Purely informational.
-     *
-     * Manual wiring — EVENT-BASED (driving the scheduled phase from real exchange state)
-     *
-     * Per-tick **event-based** hook (a throw does NOT veto anything — react and decide imperatively).
-     * Poll your real resting/limit order and translate it via the commit-functions from
-     * `src/function/strategy.ts` (deferred to the next tick):
-     * - `commitActivateScheduled(symbol, { id })` — resting order filled/resolved → activate now,
-     *   without waiting for VWAP to reach priceOpen (surfaces as `onOrderOpenCommit` next tick).
-     * - `commitCancelScheduled(symbol, { id })` — resting order cancelled/rejected externally → drop it.
-     *
-     * @example
-     * ```typescript
-     * import { commitActivateScheduled, commitCancelScheduled } from "backtest-kit";
-     *
-     * async onSignalSchedulePing(payload: BrokerSchedulePingPayload) {
-     *   const order = await this.exchange.getOrderById(payload.signalId);
-     *   if (order?.status === "filled" || order?.status === "resolved") {
-     *     await commitActivateScheduled(payload.symbol, { id: order.id });
-     *   } else if (order?.status === "cancelled" || order?.status === "rejected") {
-     *     await commitCancelScheduled(payload.symbol, { id: order.id });
-     *   }
-     * }
-     * ```
-     */
-    onSignalSchedulePing(payload: BrokerSchedulePingPayload): Promise<void>;
-    /**
-     * Called on every live tick while the strategy is idle (no pending or scheduled signal).
-     * Purely informational.
-     *
-     * MANUAL WIRING — EVENT-BASED: no signal is active, so there is nothing to commit; use it for idle
-     * heartbeats / housekeeping. A throw does not affect strategy state.
-     */
-    onSignalIdlePing(payload: BrokerIdlePingPayload): Promise<void>;
-    /**
-     * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
-     * The scheduled -> active transition is reported via `onOrderOpenCommit`, not here.
-     *
-     * Manual wiring — EVENT-BASED (placing the resting order)
-     *
-     * Fires ONCE at creation — place the real resting/limit order (tag it with `payload.signalId` so
-     * `onSignalSchedulePing` can poll it later). If it resolves immediately, promote it with
-     * `commitActivateScheduled(symbol, { id })`; if rejected, drop it with
-     * `commitCancelScheduled(symbol, { id })`. Use `onSignalSchedulePing` for ongoing polling.
-     *
-     * @example
-     * ```typescript
-     * import { commitActivateScheduled, commitCancelScheduled } from "backtest-kit";
-     *
-     * async onSignalScheduleOpen(payload: BrokerScheduleOpenPayload) {
-     *   const order = await this.exchange.placeLimitOrder({
-     *     id: payload.signalId,
-     *     symbol: payload.symbol,
-     *     side: payload.position,
-     *     price: payload.priceOpen,
-     *   });
-     *   if (order.status === "filled") await commitActivateScheduled(payload.symbol, { id: order.id });
-     *   else if (order.status === "rejected") await commitCancelScheduled(payload.symbol, { id: order.id });
-     * }
-     * ```
-     */
-    onSignalScheduleOpen(payload: BrokerScheduleOpenPayload): Promise<void>;
-    /**
-     * Called when a scheduled signal is cancelled before it ever activated
-     * (reason: timeout / price_reject / user).
-     *
-     * Manual wiring — EVENT-BASED (tearing down the resting order)
-     *
-     * Outbound side — the framework has already dropped the scheduled signal, so there is nothing to
-     * `commitCancelScheduled` here; instead cancel the real resting order you placed in
-     * `onSignalScheduleOpen` (look it up by `payload.signalId`). `payload.reason` tells you why.
-     *
-     * @example
-     * ```typescript
-     * async onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload) {
-     *   await this.exchange.cancelOrderById(payload.signalId);
-     * }
-     * ```
-     */
-    onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void>;
-    /**
-     * Called when a pending position is opened (new signal / immediate / scheduled or user
-     * activation). Purely informational lifecycle hook for the active phase of a signal.
-     *
-     * Manual wiring — EVENT-BASED (placing entry + protective orders)
-     *
-     * Fires ONCE at open — place the real entry confirmation and protective TP/SL orders (tag them with
-     * `payload.signalId`). Drive the rest per-tick from `onSignalActivePing`. This hook does not gate
-     * the position; for a true entry gate use `onOrderSync` (signal-open).
-     */
-    onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
-    /**
-     * Called when a pending position is closed
-     * (reason: take_profit / stop_loss / time_expired / closed).
-     *
-     * Manual wiring — EVENT-BASED (tearing down the position)
-     *
-     * Outbound side — the framework has already removed the pending signal, so there is nothing to
-     * `commitClosePending` here; instead flatten the real position and cancel leftover TP/SL orders by
-     * `payload.signalId`, and record final PnL. `payload.closeReason` says which path closed it. If you
-     * need to FORCE the close yourself (e.g. no counterparty), do it earlier in `onSignalActivePing`.
-     *
-     * @example
-     * ```typescript
-     * async onSignalPendingClose(payload: BrokerPendingClosePayload) {
-     *   await this.exchange.flatten(payload.symbol);
-     *   await this.exchange.cancelProtectiveOrders(payload.signalId);
-     * }
-     * ```
-     */
-    onSignalPendingClose(payload: BrokerPendingClosePayload): Promise<void>;
-    /** Called when a partial profit close is committed. */
-    onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
-    /** Called when a partial loss close is committed. */
-    onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
-    /** Called when a trailing stop update is committed. */
-    onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
-    /** Called when a trailing take-profit update is committed. */
-    onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
-    /** Called when a breakeven stop is committed (stop loss moved to entry price). */
-    onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
-    /** Called when a DCA (average-buy) entry is committed. */
-    onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
-}
-/**
- * Constructor type for a broker adapter class.
- *
- * Used by `BrokerAdapter.useBrokerAdapter` to accept a class (not an instance).
- * All `IBroker` methods are optional — implement only what the adapter needs.
- *
- * @example
- * ```typescript
- * class MyBroker implements Partial<IBroker> {
- *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) { ... }
- * }
- *
- * Broker.useBrokerAdapter(MyBroker); // MyBroker satisfies TBrokerCtor
- * ```
- */
-type TBrokerCtor = new () => Partial<IBroker>;
-/**
- * Facade for broker integration — intercepts all commit* operations before DI-core mutations.
- *
- * Acts as a transaction control point: if any commit* method throws, the DI-core mutation
- * is never reached and the state remains unchanged.
- *
- * In backtest mode all commit* calls are silently skipped (payload.backtest === true).
- * In live mode the call is forwarded to the registered IBroker adapter via BrokerProxy.
- *
- * signal-open and signal-close events are routed automatically via syncSubject subscription
- * (activated on `enable()`). All other commit* methods are called explicitly from
- * Live.ts / Backtest.ts / strategy.ts before the corresponding strategyCoreService call.
- *
- * @example
- * ```typescript
- * import { Broker } from "backtest-kit";
- *
- * // Register a custom broker adapter
- * Broker.useBrokerAdapter(MyBrokerAdapter);
- *
- * // Activate syncSubject subscription (signal-open / signal-close routing)
- * const dispose = Broker.enable();
- *
- * // ... run strategy ...
- *
- * // Deactivate when done
- * Broker.disable();
- * ```
- */
-declare class BrokerAdapter {
-    /** Factory producing the active `BrokerProxy` instance */
-    private _brokerFactory;
-    /**
-     * Lazily constructs the `BrokerProxy` from the registered factory and
-     * memoizes the result via `singleshot`.
-     *
-     * The proxy is built on the first call and cached for all subsequent calls.
-     * Returns `null` when no adapter has been registered via `useBrokerAdapter()`.
-     *
-     * Reset via `clear()` so the next call rebuilds from the current factory
-     * (e.g. when `process.cwd()` changes between strategy iterations).
-     */
-    private getInstance;
-    /**
-     * Forwards a signal-open event to the registered broker adapter.
-     *
-     * Called automatically via syncSubject when `enable()` is active.
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Signal open details: symbol, cost, position, prices, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * await Broker.commitOrderOpen({
-     *   symbol: "BTCUSDT",
-     *   cost: 100,
-     *   position: "long",
-     *   priceOpen: 50000,
-     *   priceTakeProfit: 55000,
-     *   priceStopLoss: 48000,
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitOrderOpen: (payload: BrokerOrderOpenPayload) => Promise<void>;
-    /**
-     * Forwards a signal-close event to the registered broker adapter.
-     *
-     * Called automatically via syncSubject when `enable()` is active.
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * await Broker.commitOrderClose({
-     *   symbol: "BTCUSDT",
-     *   cost: 100,
-     *   position: "long",
-     *   currentPrice: 54000,
-     *   priceTakeProfit: 55000,
-     *   priceStopLoss: 48000,
-     *   totalEntries: 2,
-     *   totalPartials: 1,
-     *   pnl: { profit: 80, loss: 0, volume: 100 },
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitOrderClose: (payload: BrokerOrderClosePayload) => Promise<void>;
-    /**
-     * Forwards an order ping to the registered broker adapter.
-     *
-     * Called automatically via syncPendingSubject when `enable()` is active, on every live tick
-     * while a pending signal (payload.type "active") or a scheduled signal (payload.type
-     * "schedule") is monitored — routed to `onOrderActiveCheck` / `onOrderScheduleCheck`
-     * respectively. Skipped silently in backtest mode or when no adapter is registered.
-     * Exceptions are NOT swallowed: a throw from the adapter propagates up to
-     * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
-     * (type "active") or cancels the scheduled signal with reason "user" (type "schedule").
-     *
-     * @param payload - Order ping details: type, symbol, position, prices, pnl, context, backtest flag
-     */
-    commitOrderCheck: (payload: BrokerOrderCheckPayload) => Promise<void>;
-    /**
-     * Forwards an active-ping to the registered broker adapter.
-     *
-     * Called automatically via activePingSubject when `enable()` is active, on every live tick while a
-     * pending signal is monitored. Skipped silently in backtest mode or when no adapter is registered.
-     * Purely informational — a throw does NOT close the position.
-     *
-     * @param payload - Active ping details: symbol, signalId, position, prices, pnl, context, backtest
-     */
-    commitActivePing: (payload: BrokerActivePingPayload) => Promise<void>;
-    /**
-     * Forwards a schedule-ping to the registered broker adapter.
-     *
-     * Called automatically via schedulePingSubject when `enable()` is active, on every live tick while
-     * a scheduled signal is monitored. Skipped silently in backtest mode or when no adapter is
-     * registered. Purely informational.
-     *
-     * @param payload - Schedule ping details: symbol, signalId, position, prices, context, backtest
-     */
-    commitSchedulePing: (payload: BrokerSchedulePingPayload) => Promise<void>;
-    /**
-     * Forwards an idle-ping to the registered broker adapter.
-     *
-     * Called automatically via idlePingSubject when `enable()` is active, on every live tick while the
-     * strategy has no pending or scheduled signal. Skipped silently in backtest mode or when no adapter
-     * is registered. Purely informational.
-     *
-     * @param payload - Idle ping details: symbol, currentPrice, context, backtest
-     */
-    commitIdlePing: (payload: BrokerIdlePingPayload) => Promise<void>;
-    /**
-     * Forwards a scheduled-signal-open to the registered broker adapter.
-     *
-     * Called automatically via scheduleEventSubject (action "scheduled") when a scheduled signal is
-     * created. Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Scheduled open details: symbol, signalId, position, prices, context, backtest
-     */
-    commitScheduleOpen: (payload: BrokerScheduleOpenPayload) => Promise<void>;
-    /**
-     * Forwards a scheduled-signal-cancelled to the registered broker adapter.
-     *
-     * Called automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
-     * removed before activation. Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * IMPORTANT (adapter responsibility): the cancel may race the real fill. The framework decides
-     * to drop the scheduled signal from ITS view (risk reject at activation, sync reject, stop,
-     * timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
-     * arrives. The adapter MUST check the actual order status before cancelling: if the order is
-     * filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
-     * (close it or reconcile via onOrderActiveCheck / onSignalActivePing). The framework cannot model
-     * this case — from its side the signal is terminally cancelled.
-     *
-     * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
-     */
-    commitScheduleCancelled: (payload: BrokerScheduleCancelledPayload) => Promise<void>;
-    /**
-     * Forwards a pending-signal-open to the registered broker adapter.
-     *
-     * Called automatically via signalEventSubject (action "opened") when a pending position is opened.
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Pending open details: symbol, signalId, position, prices, context, backtest
-     */
-    commitPendingOpen: (payload: BrokerPendingOpenPayload) => Promise<void>;
-    /**
-     * Forwards a pending-signal-close to the registered broker adapter.
-     *
-     * Called automatically via signalEventSubject (action "closed") when a pending position is closed.
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Pending close details: symbol, signalId, position, prices, closeReason, context, backtest
-     */
-    commitPendingClose: (payload: BrokerPendingClosePayload) => Promise<void>;
-    /**
-     * Intercepts a partial-profit close before DI-core mutation.
-     *
-     * Called explicitly from Live.ts / Backtest.ts / strategy.ts after all validations pass,
-     * but before `strategyCoreService.partialProfit()`. If this method throws, the DI mutation
-     * is skipped and state remains unchanged.
-     *
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Partial profit details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * await Broker.commitPartialProfit({
-     *   symbol: "BTCUSDT",
-     *   percentToClose: 30,
-     *   cost: 30,
-     *   currentPrice: 52000,
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitPartialProfit: (payload: BrokerPartialProfitPayload) => Promise<void>;
-    /**
-     * Intercepts a partial-loss close before DI-core mutation.
-     *
-     * Called explicitly from Live.ts / Backtest.ts / strategy.ts after all validations pass,
-     * but before `strategyCoreService.partialLoss()`. If this method throws, the DI mutation
-     * is skipped and state remains unchanged.
-     *
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Partial loss details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * await Broker.commitPartialLoss({
-     *   symbol: "BTCUSDT",
-     *   percentToClose: 40,
-     *   cost: 40,
-     *   currentPrice: 48500,
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitPartialLoss: (payload: BrokerPartialLossPayload) => Promise<void>;
-    /**
-     * Intercepts a trailing stop-loss update before DI-core mutation.
-     *
-     * Called explicitly after all validations pass, but before `strategyCoreService.trailingStop()`.
-     * `newStopLossPrice` is the absolute price computed from percentShift + original SL + effectivePriceOpen.
-     *
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * // LONG: entry=100, originalSL=90, percentShift=-5 → newSL=95
-     * await Broker.commitTrailingStop({
-     *   symbol: "BTCUSDT",
-     *   percentShift: -5,
-     *   currentPrice: 102,
-     *   newStopLossPrice: 95,
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitTrailingStop: (payload: BrokerTrailingStopPayload) => Promise<void>;
-    /**
-     * Intercepts a trailing take-profit update before DI-core mutation.
-     *
-     * Called explicitly after all validations pass, but before `strategyCoreService.trailingTake()`.
-     * `newTakeProfitPrice` is the absolute price computed from percentShift + original TP + effectivePriceOpen.
-     *
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * // LONG: entry=100, originalTP=110, percentShift=-3 → newTP=107
-     * await Broker.commitTrailingTake({
-     *   symbol: "BTCUSDT",
-     *   percentShift: -3,
-     *   currentPrice: 102,
-     *   newTakeProfitPrice: 107,
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitTrailingTake: (payload: BrokerTrailingTakePayload) => Promise<void>;
-    /**
-     * Intercepts a breakeven operation before DI-core mutation.
-     *
-     * Called explicitly after all validations pass, but before `strategyCoreService.breakeven()`.
-     * `newStopLossPrice` equals effectivePriceOpen (entry price).
-     * `newTakeProfitPrice` equals `_trailingPriceTakeProfit ?? priceTakeProfit` (TP is unchanged by breakeven).
-     *
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice, newTakeProfitPrice, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * // LONG: entry=100, currentPrice=100.5, newSL=100 (entry), newTP=110 (unchanged)
-     * await Broker.commitBreakeven({
-     *   symbol: "BTCUSDT",
-     *   currentPrice: 100.5,
-     *   newStopLossPrice: 100,
-     *   newTakeProfitPrice: 110,
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitBreakeven: (payload: BrokerBreakevenPayload) => Promise<void>;
-    /**
-     * Intercepts a DCA average-buy entry before DI-core mutation.
-     *
-     * Called explicitly after all validations pass, but before `strategyCoreService.averageBuy()`.
-     * `currentPrice` is the market price at which the new DCA entry is added.
-     * `cost` is the dollar amount of the new entry (default: CC_POSITION_ENTRY_COST).
-     *
-     * Skipped silently in backtest mode or when no adapter is registered.
-     *
-     * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest flag
-     *
-     * @example
-     * ```typescript
-     * // Add DCA entry at current market price
-     * await Broker.commitAverageBuy({
-     *   symbol: "BTCUSDT",
-     *   currentPrice: 42000,
-     *   cost: 100,
-     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
-     *   backtest: false,
-     * });
-     * ```
-     */
-    commitAverageBuy: (payload: BrokerAverageBuyPayload) => Promise<void>;
-    /**
-     * Registers a broker adapter instance or constructor to receive commit* callbacks.
-     *
-     * Must be called before `enable()`. Accepts either a class constructor (called with `new`)
-     * or an already-instantiated object implementing `Partial<IBroker>`.
-     *
-     * @param broker - IBroker constructor or instance
-     *
-     * @example
-     * ```typescript
-     * import { Broker } from "backtest-kit";
-     *
-     * // Register via constructor
-     * Broker.useBrokerAdapter(MyBrokerAdapter);
-     *
-     * // Register via instance
-     * Broker.useBrokerAdapter(new MyBrokerAdapter());
-     * ```
-     */
-    useBrokerAdapter: (broker: TBrokerCtor | Partial<IBroker>) => void;
-    /**
-     * Activates the broker: subscribes to syncSubject for signal-open / signal-close routing.
-     *
-     * Must be called after `useBrokerAdapter()`. Returns a dispose function that unsubscribes
-     * from syncSubject (equivalent to calling `disable()`).
-     *
-     * Calling `enable()` without a registered adapter throws immediately.
-     * Calling `enable()` more than once is idempotent (singleshot guard).
-     *
-     * @returns Dispose function — call it to deactivate the broker subscription
-     *
-     * @example
-     * ```typescript
-     * import { Broker } from "backtest-kit";
-     *
-     * Broker.useBrokerAdapter(MyBrokerAdapter);
-     * const dispose = Broker.enable();
-     *
-     * // ... run backtest or live session ...
-     *
-     * dispose(); // or Broker.disable()
-     * ```
-     */
-    enable: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
-    /**
-     * Deactivates the broker: unsubscribes from syncSubject and resets the singleshot guard.
-     *
-     * Idempotent — safe to call even if `enable()` was never called.
-     * After `disable()`, `enable()` can be called again to reactivate.
-     *
-     * @example
-     * ```typescript
-     * import { Broker } from "backtest-kit";
-     *
-     * Broker.useBrokerAdapter(MyBrokerAdapter);
-     * Broker.enable();
-     *
-     * // Stop receiving events
-     * Broker.disable();
-     * ```
-     */
-    disable: () => void;
-    /**
-     * Clears the cached broker instance and resets the enable singleshot.
-     * Call this when process.cwd() changes between strategy iterations
-     * so a new broker instance is created with the updated base path.
-     */
-    clear: () => void;
-}
-/**
- * Base class for custom broker adapter implementations.
- *
- * Provides default no-op implementations for all IBroker methods that log events.
- * Extend this class to implement a real exchange adapter for:
- * - Placing and canceling limit/market orders
- * - Updating stop-loss and take-profit levels on exchange
- * - Tracking position state in an external system
- * - Sending trade notifications (Telegram, Discord, Email)
- * - Recording trades to a database or analytics service
- *
- * Key features:
- * - All methods have default implementations (no need to override unused methods)
- * - Automatic logging of all events via bt.loggerService
- * - Implements the full IBroker interface
- * - `makeExtendable` applied for correct subclass instantiation
- *
- * Lifecycle:
- * 1. Constructor called (no arguments)
- * 2. `waitForInit()` called once for async initialization (e.g. exchange login)
- * 3. Event methods called as strategy executes
- * 4. No explicit dispose — clean up in `waitForInit` teardown or externally
- *
- * Event flow (called only in live mode, skipped in backtest):
- * - `onOrderOpenCommit` — new position opened
- * - `onOrderCloseCommit` — position closed (SL/TP hit or manual close)
- * - `onPartialProfitCommit` — partial close at profit executed
- * - `onPartialLossCommit` — partial close at loss executed
- * - `onTrailingStopCommit` — trailing stop-loss updated
- * - `onTrailingTakeCommit` — trailing take-profit updated
- * - `onBreakevenCommit` — stop-loss moved to entry price
- * - `onAverageBuyCommit` — new DCA entry added to position
- *
- * @example
- * ```typescript
- * import { BrokerBase, Broker } from "backtest-kit";
- *
- * // Extend BrokerBase and override only needed methods
- * class BinanceBroker extends BrokerBase {
- *   private client: BinanceClient | null = null;
- *
- *   async waitForInit() {
- *     super.waitForInit(); // Call parent for logging
- *     this.client = new BinanceClient(process.env.API_KEY, process.env.SECRET);
- *     await this.client.connect();
- *   }
- *
- *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
- *     super.onOrderOpenCommit(payload); // Call parent for logging
- *     await this.client!.placeOrder({
- *       symbol: payload.symbol,
- *       side: payload.position === "long" ? "BUY" : "SELL",
- *       quantity: payload.cost / payload.priceOpen,
- *     });
- *   }
- *
- *   async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
- *     super.onOrderCloseCommit(payload); // Call parent for logging
- *     await this.client!.closePosition(payload.symbol);
- *   }
- * }
- *
- * // Register the adapter
- * Broker.useBrokerAdapter(BinanceBroker);
- * Broker.enable();
- * ```
- *
- * @example
- * ```typescript
- * // Minimal implementation — only handle opens and closes
- * class NotifyBroker extends BrokerBase {
- *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
- *     await sendTelegram(`Opened ${payload.position} on ${payload.symbol}`);
- *   }
- *
- *   async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
- *     const pnl = payload.pnl.profit - payload.pnl.loss;
- *     await sendTelegram(`Closed ${payload.symbol}: PnL $${pnl.toFixed(2)}`);
- *   }
- * }
- * ```
- */
-declare class BrokerBase implements IBroker {
-    /**
-     * Performs async initialization before the broker starts receiving events.
-     *
-     * Called once by BrokerProxy via `waitForInit()` (singleshot) before the first event.
-     * Override to establish exchange connections, authenticate API clients, load configuration.
-     *
-     * Default implementation: Logs initialization event.
-     *
-     * @example
-     * ```typescript
-     * async waitForInit() {
-     *   super.waitForInit(); // Keep parent logging
-     *   this.exchange = new ExchangeClient(process.env.API_KEY);
-     *   await this.exchange.authenticate();
-     * }
-     * ```
-     */
-    waitForInit(): Promise<void>;
-    /**
-     * Called when a position is being opened (signal activated).
-     *
-     * Triggered automatically via syncSubject when a scheduled signal's priceOpen is hit.
-     * Use to place the actual entry order on the exchange.
-     *
-     * Default implementation: Logs signal-open event.
-     *
-     * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
-     * (e.g. limit order rejected) rolls back the open — the pending signal returns to idle and retries
-     * next tick; return normally to let it open. Live-only (backtest short-circuits). See
-     * {@link IBroker.onOrderOpenCommit} for the full semantics.
-     *
-     * @param payload - Signal open details: symbol, cost, position, priceOpen, priceTakeProfit, priceStopLoss, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
-     *   super.onOrderOpenCommit(payload); // Keep parent logging
-     *   const order = await this.exchange.placeMarketOrder({
-     *     symbol: payload.symbol,
-     *     side: payload.position === "long" ? "BUY" : "SELL",
-     *     quantity: payload.cost / payload.priceOpen,
-     *   });
-     *   if (!order.filled) {
-     *     throw new Error(`Entry not filled for ${payload.symbol}`); // -> roll back the open, retry next tick
-     *   }
-     * }
-     * ```
-     */
-    onOrderOpenCommit(payload: BrokerOrderOpenPayload): Promise<void>;
-    /**
-     * Called on every live tick while a pending signal (open position) is monitored, BEFORE
-     * TP/SL/time evaluation.
-     *
-     * Override to query the exchange for the order by `payload.signalId` and THROW ONLY when it is
-     * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally) — the framework
-     * then closes the position with closeReason "closed". The default implementation logs and returns
-     * normally, which keeps the position under normal TP/SL monitoring.
-     *
-     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-     * normally instead of throwing. A thrown network error would wrongly close an open position; only
-     * a confirmed "order not found by id" response is a valid reason to throw.
-     *
-     * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
-     * commit-function wiring in `onSignalActivePing`. See {@link IBroker.onOrderActiveCheck} for the
-     * full comparison and example.
-     *
-     * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest
-     */
-    onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void>;
-    /**
-     * Called on every live tick while a scheduled signal (resting entry order) is monitored, BEFORE
-     * timeout/price-activation evaluation.
-     *
-     * Override to query the exchange for the resting order by `payload.signalId` and THROW ONLY when
-     * it is definitively NOT FOUND by that id — the framework then cancels the scheduled signal with
-     * reason "user". The default implementation logs and returns normally. A FILLED resting order
-     * must be confirmed via `commitActivateScheduled`, not by throwing here.
-     *
-     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-     * normally instead of throwing; only a confirmed "order not found by id" response is a valid
-     * reason to throw.
-     *
-     * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
-     * commit-function wiring in `onSignalSchedulePing`. See {@link IBroker.onOrderScheduleCheck} for
-     * the full comparison and example.
-     *
-     * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest
-     */
-    onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void>;
-    /**
-     * Called on every live tick while a pending (open) signal is monitored.
-     *
-     * Purely informational mirror of the active-ping lifecycle — unlike `onOrderActiveCheck`, a throw here
-     * does NOT close the position. Override to mirror live monitoring state into your own systems.
-     * The default implementation logs.
-     *
-     * Manual wiring — EVENT-BASED: this is the primary per-tick hook to drive an open position from real exchange
-     * state (`commitCreateTakeProfit` / `commitCreateStopLoss` / `commitClosePending`). See the
-     * {@link IBroker.onSignalActivePing} contract docs for the full guidance and example.
-     *
-     * @param payload - Active ping details: symbol, signalId, position, prices, pnl, context, backtest
-     */
-    onSignalActivePing(payload: BrokerActivePingPayload): Promise<void>;
-    /**
-     * Called on every live tick while a scheduled signal is monitored (waiting for priceOpen).
-     *
-     * Purely informational. Override to mirror scheduled-monitoring state. The default logs.
-     *
-     * Manual wiring — EVENT-BASED: per-tick hook to drive a scheduled (resting) order from real exchange state
-     * (`commitActivateScheduled` / `commitCancelScheduled`). See {@link IBroker.onSignalSchedulePing}
-     * for full guidance and example.
-     *
-     * @param payload - Schedule ping details: symbol, signalId, position, prices, context, backtest
-     */
-    onSignalSchedulePing(payload: BrokerSchedulePingPayload): Promise<void>;
-    /**
-     * Called on every live tick while the strategy is idle (no pending or scheduled signal).
-     *
-     * Purely informational. Override to track idle heartbeats. The default logs.
-     *
-     * @param payload - Idle ping details: symbol, currentPrice, context, backtest
-     */
-    onSignalIdlePing(payload: BrokerIdlePingPayload): Promise<void>;
-    /**
-     * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
-     *
-     * The scheduled -> active transition is reported via `onOrderOpenCommit`, not here. Override to
-     * place a resting/limit order on the exchange. The default logs.
-     *
-     * Manual wiring — EVENT-BASED: fires ONCE at creation — place the real resting order (tag it with
-     * `payload.signalId`) and optionally `commitActivateScheduled` / `commitCancelScheduled`. See
-     * {@link IBroker.onSignalScheduleOpen} for full guidance and example.
-     *
-     * @param payload - Scheduled open details: symbol, signalId, position, prices, context, backtest
-     */
-    onSignalScheduleOpen(payload: BrokerScheduleOpenPayload): Promise<void>;
-    /**
-     * Called when a scheduled signal is cancelled before activation (timeout / price_reject / user).
-     *
-     * Override to cancel the resting/limit order on the exchange. The default logs.
-     *
-     * Manual wiring — EVENT-BASED (outbound): the strategy already dropped the scheduled signal — cancel the matching
-     * exchange order by `payload.signalId`. See {@link IBroker.onSignalScheduleCancelled}.
-     *
-     * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
-     */
-    onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void>;
-    /**
-     * Called when a pending position is opened (new signal / immediate / scheduled or user activation).
-     *
-     * Informational lifecycle hook. Override to mirror the open into your own systems. The default logs.
-     *
-     * Manual wiring — EVENT-BASED: fires ONCE at open — place entry + protective TP/SL orders (tag with
-     * `payload.signalId`), then drive per-tick from `onSignalActivePing`. See
-     * {@link IBroker.onSignalPendingOpen}.
-     *
-     * @param payload - Pending open details: symbol, signalId, position, prices, context, backtest
-     */
-    onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
-    /**
-     * Called when a pending position is closed (take_profit / stop_loss / time_expired / closed).
-     *
-     * Informational lifecycle hook. Override to mirror the close into your own systems. The default logs.
-     *
-     * Manual wiring — EVENT-BASED (outbound): the strategy already removed the pending signal — flatten the real
-     * position and cancel leftover TP/SL orders by `payload.signalId`. See
-     * {@link IBroker.onSignalPendingClose}.
-     *
-     * @param payload - Pending close details: symbol, signalId, position, prices, closeReason, context, backtest
-     */
-    onSignalPendingClose(payload: BrokerPendingClosePayload): Promise<void>;
-    /**
-     * Called when a position is being closed (SL/TP hit or manual close).
-     *
-     * Triggered automatically via syncSubject when a pending signal is closed.
-     * Use to place the exit order and record final PnL.
-     *
-     * Default implementation: Logs signal-close event.
-     *
-     * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
-     * (e.g. exit order failed) SKIPS the close — the position stays open and the close retries next
-     * tick; return normally to let it close. Live-only (backtest short-circuits). See
-     * {@link IBroker.onOrderCloseCommit} for the full semantics.
-     *
-     * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, totalEntries, totalPartials, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
-     *   super.onOrderCloseCommit(payload); // Keep parent logging
-     *   const ok = await this.exchange.closePosition(payload.symbol);
-     *   if (!ok) {
-     *     throw new Error(`Exit not filled for ${payload.symbol}`); // -> keep position open, retry next tick
-     *   }
-     *   await this.db.recordTrade({ symbol: payload.symbol, pnl: payload.pnl });
-     * }
-     * ```
-     */
-    onOrderCloseCommit(payload: BrokerOrderClosePayload): Promise<void>;
-    /**
-     * Called when a partial close at profit is executed.
-     *
-     * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
-     * before `strategyCoreService.partialProfit()`. If this method throws, the DI mutation is skipped.
-     * Use to partially close the position on the exchange at the profit level.
-     *
-     * Default implementation: Logs partial profit event.
-     *
-     * @param payload - Partial profit details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onPartialProfitCommit(payload: BrokerPartialProfitPayload) {
-     *   super.onPartialProfitCommit(payload); // Keep parent logging
-     *   await this.exchange.reducePosition({
-     *     symbol: payload.symbol,
-     *     dollarAmount: payload.cost,
-     *     price: payload.currentPrice,
-     *   });
-     * }
-     * ```
-     */
-    onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
-    /**
-     * Called when a partial close at loss is executed.
-     *
-     * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
-     * before `strategyCoreService.partialLoss()`. If this method throws, the DI mutation is skipped.
-     * Use to partially close the position on the exchange at the loss level.
-     *
-     * Default implementation: Logs partial loss event.
-     *
-     * @param payload - Partial loss details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onPartialLossCommit(payload: BrokerPartialLossPayload) {
-     *   super.onPartialLossCommit(payload); // Keep parent logging
-     *   await this.exchange.reducePosition({
-     *     symbol: payload.symbol,
-     *     dollarAmount: payload.cost,
-     *     price: payload.currentPrice,
-     *   });
-     * }
-     * ```
-     */
-    onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
-    /**
-     * Called when the trailing stop-loss level is updated.
-     *
-     * Triggered explicitly after all validations pass, before `strategyCoreService.trailingStop()`.
-     * `newStopLossPrice` is the absolute SL price — use it to update the exchange order directly.
-     *
-     * Default implementation: Logs trailing stop event.
-     *
-     * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onTrailingStopCommit(payload: BrokerTrailingStopPayload) {
-     *   super.onTrailingStopCommit(payload); // Keep parent logging
-     *   await this.exchange.updateStopLoss({
-     *     symbol: payload.symbol,
-     *     price: payload.newStopLossPrice,
-     *   });
-     * }
-     * ```
-     */
-    onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
-    /**
-     * Called when the trailing take-profit level is updated.
-     *
-     * Triggered explicitly after all validations pass, before `strategyCoreService.trailingTake()`.
-     * `newTakeProfitPrice` is the absolute TP price — use it to update the exchange order directly.
-     *
-     * Default implementation: Logs trailing take event.
-     *
-     * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onTrailingTakeCommit(payload: BrokerTrailingTakePayload) {
-     *   super.onTrailingTakeCommit(payload); // Keep parent logging
-     *   await this.exchange.updateTakeProfit({
-     *     symbol: payload.symbol,
-     *     price: payload.newTakeProfitPrice,
-     *   });
-     * }
-     * ```
-     */
-    onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
-    /**
-     * Called when the stop-loss is moved to breakeven (entry price).
-     *
-     * Triggered explicitly after all validations pass, before `strategyCoreService.breakeven()`.
-     * `newStopLossPrice` equals `effectivePriceOpen` — the position's effective entry price.
-     * `newTakeProfitPrice` is unchanged by breakeven.
-     *
-     * Default implementation: Logs breakeven event.
-     *
-     * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice, newTakeProfitPrice, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onBreakevenCommit(payload: BrokerBreakevenPayload) {
-     *   super.onBreakevenCommit(payload); // Keep parent logging
-     *   await this.exchange.updateStopLoss({
-     *     symbol: payload.symbol,
-     *     price: payload.newStopLossPrice, // = entry price
-     *   });
-     * }
-     * ```
-     */
-    onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
-    /**
-     * Called when a new DCA entry is added to the active position.
-     *
-     * Triggered explicitly after all validations pass, before `strategyCoreService.averageBuy()`.
-     * `currentPrice` is the market price at which the new averaging entry is placed.
-     * `cost` is the dollar amount of the new DCA entry.
-     *
-     * Default implementation: Logs average buy event.
-     *
-     * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest
-     *
-     * @example
-     * ```typescript
-     * async onAverageBuyCommit(payload: BrokerAverageBuyPayload) {
-     *   super.onAverageBuyCommit(payload); // Keep parent logging
-     *   await this.exchange.placeMarketOrder({
-     *     symbol: payload.symbol,
-     *     side: "BUY",
-     *     quantity: payload.cost / payload.currentPrice,
-     *   });
-     * }
-     * ```
-     */
-    onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
-}
-/**
- * Global singleton instance of BrokerAdapter.
- * Provides static-like access to all broker commit methods and lifecycle controls.
- *
- * @example
- * ```typescript
- * import { Broker } from "backtest-kit";
- *
- * Broker.useBrokerAdapter(MyBrokerAdapter);
- * const dispose = Broker.enable();
- * ```
- */
-declare const Broker: BrokerAdapter;
+type IBrokerOrderVerdict = IBrokerOrderVerdictConfirmed | IBrokerOrderVerdictTransient | IBrokerOrderVerdictRejected | IBrokerOrderVerdictDeleted;
 
 /**
  * Generic key-value type for strategy runtime data.
@@ -31686,6 +29795,1968 @@ declare class ActionBase implements IPublicAction {
 }
 
 /**
+ * Payload for the signal-open broker event.
+ *
+ * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
+ * `onOrderOpenCommit`. Discriminated by `type`:
+ * - "active" — a pending signal is being opened (immediate entry or activation fill of the
+ *   resting order); throw = the exchange did not fill the entry, the framework rolls back the
+ *   open and retries on the next tick;
+ * - "schedule" — the resting entry order is being PLACED (scheduled signal creation); throw =
+ *   the exchange did not accept the resting order, the scheduled signal is NOT registered and
+ *   the placement retries on the next tick.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerOrderOpenPayload = {
+ *   symbol: "BTCUSDT",
+ *   cost: 100,
+ *   position: "long",
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerOrderOpenPayload = {
+    /** Which order is being opened: "active" — position entry, "schedule" — resting entry order placement */
+    type: "schedule" | "active";
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Dollar cost of the position entry (CC_POSITION_ENTRY_COST) */
+    cost: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Activation price — the price at which the signal became active */
+    priceOpen: number;
+    /** Original take-profit price from the signal */
+    priceTakeProfit: number;
+    /** Original stop-loss price from the signal */
+    priceStopLoss: number;
+    /** Market price at the moment of activation (VWAP or candle average) */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /**
+     * Consecutive prior rejections of this open by the gate (0 = first attempt). Managed by
+     * the framework: a rejected open increments the counter carried by the identity-stable
+     * retry (same signalId, bounded by CC_ORDER_OPEN_RETRY_ATTEMPTS); a confirmed open
+     * resets it. Lets the adapter distinguish a fresh placement from a retry of an order
+     * it may have already placed (reconcile by clientOrderId = signalId).
+     */
+    attempt: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the signal-close broker event.
+ *
+ * Emitted automatically via syncSubject when a pending signal is closed (SL/TP hit or manual close).
+ * Forwarded to the registered IBroker adapter via `onOrderCloseCommit`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerOrderClosePayload = {
+ *   symbol: "BTCUSDT",
+ *   cost: 100,
+ *   position: "long",
+ *   currentPrice: 54000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   totalEntries: 2,
+ *   totalPartials: 1,
+ *   pnl: { profit: 80, loss: 0, volume: 100 },
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerOrderClosePayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Total dollar cost basis of the position at close */
+    cost: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Market price at the moment of close */
+    currentPrice: number;
+    /** Effective entry price at time of close (may differ from priceOpen after DCA averaging) */
+    priceOpen: number;
+    /** Original take-profit price from the signal */
+    priceTakeProfit: number;
+    /** Original stop-loss price from the signal */
+    priceStopLoss: number;
+    /** Total number of DCA entries (including initial open) */
+    totalEntries: number;
+    /** Total number of partial closes executed before final close */
+    totalPartials: number;
+    /** Realized PnL breakdown for the closed position */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /**
+     * Consecutive prior rejections of this close by the gate (0 = first attempt). Managed
+     * by the framework: a rejected close increments the counter carried by the next
+     * attempt (bounded by CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine force-closes);
+     * a confirmed close resets it.
+     */
+    attempt: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the order synchronization broker event.
+ *
+ * Emitted automatically via syncPendingSubject on every live tick while a signal is monitored,
+ * BEFORE the framework evaluates completion. Forwarded to the registered IBroker adapter,
+ * routed by `type` to the matching callback:
+ * - `type: "active"` — pending signal (open position), before TP/SL/time evaluation —
+ *   delivered to `onOrderActiveCheck`;
+ * - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
+ *   (the order in question is the resting entry order) — delivered to `onOrderScheduleCheck`.
+ *
+ * The adapter should query the exchange by `signalId` and THROW ONLY when the order is
+ * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
+ * propagates to CREATE_SYNC_PENDING_FN, which makes the framework close the pending signal with
+ * closeReason "closed" (type "active") or cancel the scheduled signal with reason "user"
+ * (type "schedule"). Returning normally keeps the signal under normal monitoring.
+ *
+ * NOTE for type "schedule": if the resting entry order actually FILLED, confirm the fill via
+ * `commitActivateScheduled` instead of throwing — a throw here is a terminal cancel, not an
+ * activation.
+ *
+ * CRITICAL: transient/network errors (timeout, 5xx, rate limit, disconnect) must be SWALLOWED —
+ * return normally instead of throwing. A thrown network error would wrongly close an open
+ * position. Only a confirmed "order not found by id" response is a valid reason to throw.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerOrderCheckPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 50500,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerOrderCheckPayload = {
+    /** Monitored state: "active" — open position order, "schedule" — resting entry order */
+    type: "schedule" | "active";
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Position direction */
+    position: "long" | "short";
+    /** Market price at the moment of the ping */
+    currentPrice: number;
+    /** Effective entry price (may differ from priceOpen after DCA averaging) */
+    priceOpen: number;
+    /** Effective take-profit price at the moment of the ping */
+    priceTakeProfit: number;
+    /** Effective stop-loss price at the moment of the ping */
+    priceStopLoss: number;
+    /** Unrealized PnL of the open position at the moment of the ping */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to this event */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to this event */
+    maxDrawdown: IStrategyPnL;
+    /** Total number of DCA entries (including initial open) */
+    totalEntries: number;
+    /** Total number of partial closes executed */
+    totalPartials: number;
+    /**
+     * Consecutive prior FAILED checks for this signal (0 = first check / healthy).
+     * Managed by the framework: a failed check increments the counter carried by the
+     * next ping while the failure is tolerated as transient
+     * (CC_ORDER_CHECK_RETRY_ATTEMPTS); a successful check resets it to 0.
+     */
+    attempt: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the active-ping broker event.
+ *
+ * Emitted automatically via activePingSubject on every live tick while a pending (open) signal is
+ * monitored. Forwarded to the registered IBroker adapter via `onSignalActivePing`. Purely
+ * informational — unlike `onOrderActiveCheck` a throw here does NOT close the position.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerActivePingPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 50500,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerActivePingPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) of the monitored position */
+    signalId: string;
+    /** Position direction */
+    position: "long" | "short";
+    /** Market price at the moment of the ping */
+    currentPrice: number;
+    /** Effective entry price (may differ from priceOpen after DCA averaging) */
+    priceOpen: number;
+    /** Effective take-profit price at the moment of the ping */
+    priceTakeProfit: number;
+    /** Effective stop-loss price at the moment of the ping */
+    priceStopLoss: number;
+    /** Unrealized PnL of the open position at the moment of the ping */
+    pnl: IStrategyPnL;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the schedule-ping broker event.
+ *
+ * Emitted automatically via schedulePingSubject on every live tick while a scheduled signal is
+ * monitored (waiting for priceOpen activation). Forwarded to the registered IBroker adapter via
+ * `onSignalSchedulePing`. Purely informational.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerSchedulePingPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 49800,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerSchedulePingPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) of the scheduled signal */
+    signalId: string;
+    /** Position direction */
+    position: "long" | "short";
+    /** Market price at the moment of the ping */
+    currentPrice: number;
+    /** Pending entry price the scheduled signal is waiting for */
+    priceOpen: number;
+    /** Take-profit price configured for the scheduled signal */
+    priceTakeProfit: number;
+    /** Stop-loss price configured for the scheduled signal */
+    priceStopLoss: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the idle-ping broker event.
+ *
+ * Emitted automatically via idlePingSubject on every live tick while the strategy has no pending or
+ * scheduled signal. Forwarded to the registered IBroker adapter via `onSignalIdlePing`. Purely
+ * informational — carries no signal because none is active.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerIdlePingPayload = {
+ *   symbol: "BTCUSDT",
+ *   currentPrice: 50500,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerIdlePingPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Market price at the moment of the ping */
+    currentPrice: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the scheduled-signal-open broker event.
+ *
+ * Emitted automatically via scheduleEventSubject (action "scheduled") when a new scheduled signal is
+ * created and starts waiting for priceOpen activation. Forwarded to the registered IBroker adapter
+ * via `onSignalScheduleOpen`. The scheduled -> active transition is NOT reported here — activation
+ * arrives through `onOrderOpenCommit`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerScheduleOpenPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 49800,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerScheduleOpenPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) of the scheduled signal */
+    signalId: string;
+    /** Position direction */
+    position: "long" | "short";
+    /** Market price at the moment the scheduled signal was created */
+    currentPrice: number;
+    /** Pending entry price the scheduled signal waits for */
+    priceOpen: number;
+    /** Take-profit price configured for the scheduled signal */
+    priceTakeProfit: number;
+    /** Stop-loss price configured for the scheduled signal */
+    priceStopLoss: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the scheduled-signal-cancelled broker event.
+ *
+ * Emitted automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
+ * removed before it ever activated. Forwarded to the registered IBroker adapter via
+ * `onSignalScheduleCancelled`. The `reason` distinguishes timeout / price reject / user cancel.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerScheduleCancelledPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 47500,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   reason: "price_reject",
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerScheduleCancelledPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) of the cancelled scheduled signal */
+    signalId: string;
+    /** Position direction */
+    position: "long" | "short";
+    /** Market price at the moment of cancellation */
+    currentPrice: number;
+    /** Pending entry price the scheduled signal had been waiting for */
+    priceOpen: number;
+    /** Take-profit price that had been configured for the scheduled signal */
+    priceTakeProfit: number;
+    /** Stop-loss price that had been configured for the scheduled signal */
+    priceStopLoss: number;
+    /** Why the scheduled signal was cancelled: "timeout" / "price_reject" / "user" */
+    reason?: StrategyCancelReason;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the pending-signal-open broker event.
+ *
+ * Emitted automatically via signalEventSubject (action "opened") when a pending position is opened
+ * (new signal / immediate entry / scheduled or user activation). Forwarded to the registered IBroker
+ * adapter via `onSignalPendingOpen`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPendingOpenPayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 50000,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerPendingOpenPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) of the opened position */
+    signalId: string;
+    /** Position direction */
+    position: "long" | "short";
+    /** Effective entry price at the moment the position opened */
+    currentPrice: number;
+    /** Effective entry price (may differ from currentPrice after DCA averaging) */
+    priceOpen: number;
+    /** Take-profit price configured for the position */
+    priceTakeProfit: number;
+    /** Stop-loss price configured for the position */
+    priceStopLoss: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for the pending-signal-close broker event.
+ *
+ * Emitted automatically via signalEventSubject (action "closed") when a pending position is closed.
+ * Forwarded to the registered IBroker adapter via `onSignalPendingClose`. The `closeReason`
+ * distinguishes take_profit / stop_loss / time_expired / user-close / broker fill / order gone.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPendingClosePayload = {
+ *   symbol: "BTCUSDT",
+ *   position: "long",
+ *   currentPrice: 55000,
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   closeReason: "take_profit",
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerPendingClosePayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) of the closed position */
+    signalId: string;
+    /** Position direction */
+    position: "long" | "short";
+    /** Market price at the moment of close */
+    currentPrice: number;
+    /** Effective entry price of the closed position */
+    priceOpen: number;
+    /** Effective take-profit price of the closed position */
+    priceTakeProfit: number;
+    /** Effective stop-loss price of the closed position */
+    priceStopLoss: number;
+    /** Why the position closed: "take_profit" / "stop_loss" / "time_expired" / "closed" */
+    closeReason?: StrategyCloseReason;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for a partial-profit close broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onPartialProfitCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.partialProfit()`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPartialProfitPayload = {
+ *   symbol: "BTCUSDT",
+ *   percentToClose: 30,
+ *   cost: 30,
+ *   currentPrice: 52000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerPartialProfitPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Percentage of the position to close (0–100) */
+    percentToClose: number;
+    /** Dollar value of the portion being closed */
+    cost: number;
+    /** Current market price at which the partial close executes */
+    currentPrice: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Active take profit price at the time of the partial close */
+    priceTakeProfit: number;
+    /** Active stop loss price at the time of the partial close */
+    priceStopLoss: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for a partial-loss close broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onPartialLossCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.partialLoss()`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPartialLossPayload = {
+ *   symbol: "BTCUSDT",
+ *   percentToClose: 40,
+ *   cost: 40,
+ *   currentPrice: 48500,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerPartialLossPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Percentage of the position to close (0–100) */
+    percentToClose: number;
+    /** Dollar value of the portion being closed */
+    cost: number;
+    /** Current market price at which the partial close executes */
+    currentPrice: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Active take profit price at the time of the partial close */
+    priceTakeProfit: number;
+    /** Active stop loss price at the time of the partial close */
+    priceStopLoss: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for a trailing stop-loss update broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onTrailingStopCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.trailingStop()`.
+ * `newStopLossPrice` is the absolute SL price computed from percentShift + original SL + effectivePriceOpen.
+ *
+ * @example
+ * ```typescript
+ * // LONG: entry=100, originalSL=90, percentShift=-5 → newSL=95
+ * const payload: BrokerTrailingStopPayload = {
+ *   symbol: "BTCUSDT",
+ *   percentShift: -5,
+ *   currentPrice: 102,
+ *   newStopLossPrice: 95,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerTrailingStopPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Percentage shift applied to the ORIGINAL SL distance (-100 to 100) */
+    percentShift: number;
+    /** Current market price used for intrusion validation */
+    currentPrice: number;
+    /** Absolute stop-loss price after applying percentShift */
+    newStopLossPrice: number;
+    /** Active take profit price at the time of the trailing update */
+    takeProfitPrice: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for a trailing take-profit update broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onTrailingTakeCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.trailingTake()`.
+ * `newTakeProfitPrice` is the absolute TP price computed from percentShift + original TP + effectivePriceOpen.
+ *
+ * @example
+ * ```typescript
+ * // LONG: entry=100, originalTP=110, percentShift=-3 → newTP=107
+ * const payload: BrokerTrailingTakePayload = {
+ *   symbol: "BTCUSDT",
+ *   percentShift: -3,
+ *   currentPrice: 102,
+ *   newTakeProfitPrice: 107,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerTrailingTakePayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Percentage shift applied to the ORIGINAL TP distance (-100 to 100) */
+    percentShift: number;
+    /** Current market price used for intrusion validation */
+    currentPrice: number;
+    /** Absolute take-profit price after applying percentShift */
+    newTakeProfitPrice: number;
+    /** Active take profit price at the time of the trailing update */
+    takeProfitPrice: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for a breakeven operation broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onBreakevenCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.breakeven()`.
+ * `newStopLossPrice` equals `effectivePriceOpen` (entry price).
+ * `newTakeProfitPrice` equals `_trailingPriceTakeProfit ?? priceTakeProfit` (TP is unchanged).
+ *
+ * @example
+ * ```typescript
+ * // LONG: entry=100, currentPrice=100.5, newSL=100 (entry), newTP=110 (unchanged)
+ * const payload: BrokerBreakevenPayload = {
+ *   symbol: "BTCUSDT",
+ *   currentPrice: 100.5,
+ *   newStopLossPrice: 100,
+ *   newTakeProfitPrice: 110,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerBreakevenPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Current market price at the moment breakeven is triggered */
+    currentPrice: number;
+    /** New stop-loss price = effectivePriceOpen (the position's effective entry price) */
+    newStopLossPrice: number;
+    /** Effective take-profit price = _trailingPriceTakeProfit ?? priceTakeProfit (unchanged by breakeven) */
+    newTakeProfitPrice: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Payload for a DCA average-buy entry broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onAverageBuyCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.averageBuy()`.
+ * `currentPrice` is the market price at which the new DCA entry is added.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerAverageBuyPayload = {
+ *   symbol: "BTCUSDT",
+ *   currentPrice: 42000,
+ *   cost: 100,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
+type BrokerAverageBuyPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
+    symbol: string;
+    /** Unique signal identifier (UUID v4) the order belongs to */
+    signalId: string;
+    /** Market price at which the DCA entry is placed */
+    currentPrice: number;
+    /** Dollar amount of the new DCA entry (default: CC_POSITION_ENTRY_COST) */
+    cost: number;
+    /** Position direction */
+    position: "long" | "short";
+    /** Active take profit price at the time of the DCA entry */
+    priceTakeProfit: number;
+    /** Active stop loss price at the time of the DCA entry */
+    priceStopLoss: number;
+    /** Strategy/exchange/frame routing context */
+    context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName?: FrameName;
+    };
+    /** Virtual time of the event: candle timestamp in backtest, wall-clock tick time in live */
+    when: Date;
+    /** true when called during a backtest run — adapter should skip exchange calls */
+    backtest: boolean;
+};
+/**
+ * Broker adapter interface for live order execution.
+ *
+ * Implement this interface to connect the framework to a real exchange or broker.
+ * All methods are called BEFORE the corresponding DI-core state mutation, so if any
+ * method throws, the internal state remains unchanged (transaction semantics).
+ *
+ * In backtest mode all calls are silently skipped by BrokerAdapter — the adapter
+ * never receives backtest traffic.
+ *
+ * @example
+ * ```typescript
+ * class MyBroker implements IBroker {
+ *   async waitForInit() {
+ *     await this.exchange.connect();
+ *   }
+ *   async onOrderOpenCommit(payload) {
+ *     await this.exchange.placeOrder({ symbol: payload.symbol, side: payload.position });
+ *   }
+ *   // ... other methods
+ * }
+ *
+ * Broker.useBrokerAdapter(MyBroker);
+ * ```
+ */
+interface IBroker {
+    /** Called once before first use. Connect to exchange, load credentials, etc. */
+    waitForInit(): Promise<void>;
+    /**
+     * Called when a signal is being closed (take-profit, stop-loss, or manual close). Emitted via
+     * syncSubject BEFORE the framework mutates strategy state, so it is also the close **gate**.
+     *
+     * MANUAL WIRING — EXCEPTION-BASED: place the real exit order here (tag/look up by `payload.signalId`)
+     * and record final PnL. This is the confirmed-close commit; like `onOrderSync` (signal-close) it
+     * shares the gate semantics — a THROW means "the exchange did not close the position" and the
+     * framework SKIPS the close, leaving the position open and retrying on the next tick. Return
+     * normally to let the close proceed. Backtest short-circuits this (no live exchange), so the gate is
+     * live-only.
+     *
+     * This differs from `onSignalPendingClose`, which is the informational lifecycle hook that fires
+     * AFTER the close is committed (and cannot veto it).
+     */
+    onOrderCloseCommit(payload: BrokerOrderClosePayload): Promise<void>;
+    /**
+     * Called when an order is being opened. Emitted via syncSubject BEFORE the framework mutates
+     * strategy state, so it is also the open **gate**. Discriminated by `payload.type`:
+     * - "active" — position entry (immediate open or activation fill of the resting order);
+     * - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
+     *
+     * MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
+     * `payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
+     * (signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
+     * order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
+     * scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
+     * and the risk reservation is released. Both retry on the next tick. Return normally to let the
+     * open proceed. Backtest short-circuits this, so the gate is live-only.
+     *
+     * This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
+     * AFTER the open is committed (and cannot veto it).
+     */
+    onOrderOpenCommit(payload: BrokerOrderOpenPayload): Promise<void>;
+    /**
+     * Called on every live tick while a pending signal (open position) is monitored,
+     * BEFORE TP/SL/time evaluation (`payload.type` is always "active").
+     *
+     * Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
+     * — the framework will then close the position with closeReason "closed". Return normally to
+     * keep monitoring.
+     *
+     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+     * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
+     * position. Throw exclusively on a confirmed "order not found by id" result.
+     *
+     * Manual wiring — EXCEPTION-BASED VARIANT
+     *
+     * This is the throw-driven **alternative** to the imperative commit-function wiring in
+     * `onSignalActivePing`:
+     * - **Exception-based (here):** THROW → framework closes the position with closeReason "closed".
+     *   One binary gate, no reason distinction. Good when "order gone" is the only condition you handle.
+     * - **Imperative (`onSignalActivePing` + `src/function/strategy.ts`):** call
+     *   `commitClosePending` / `commitCreateTakeProfit` / `commitCreateStopLoss` to close with the
+     *   correct reason and handle TP vs SL vs no-counterparty separately.
+     *
+     * Pick ONE per condition — do not both throw here AND `commitClosePending` in the active-ping for
+     * the same "order gone" event.
+     *
+     * @example
+     * ```typescript
+     * async onOrderActiveCheck(payload: BrokerOrderCheckPayload) {
+     *   let order: Order | null;
+     *   try {
+     *     order = await this.exchange.getOrderById(payload.signalId);
+     *   } catch (networkError) {
+     *     return; // transient — keep the position open, retry next tick
+     *   }
+     *   if (!order) {
+     *     throw new Error(`Order ${payload.signalId} not found`); // confirmed gone -> close "closed"
+     *   }
+     * }
+     * ```
+     */
+    onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void>;
+    /**
+     * Called on every live tick while a scheduled signal (resting entry order) is monitored,
+     * BEFORE timeout/price-activation evaluation (`payload.type` is always "schedule").
+     *
+     * Query the exchange by `payload.signalId` and THROW ONLY when the resting order is NOT FOUND
+     * by that id — the framework will then cancel the scheduled signal with reason "user". Return
+     * normally to keep monitoring. A FILLED resting order must be confirmed via
+     * `commitActivateScheduled`, not by throwing here (a throw is a terminal cancel, not an
+     * activation).
+     *
+     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+     * normally instead of throwing, otherwise a connectivity blip would wrongly cancel the resting
+     * order. Throw exclusively on a confirmed "order not found by id" result.
+     *
+     * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
+     * commit-function wiring in `onSignalSchedulePing` (`commitActivateScheduled` /
+     * `commitCancelScheduled`). Pick ONE per condition.
+     *
+     * @example
+     * ```typescript
+     * async onOrderScheduleCheck(payload: BrokerOrderCheckPayload) {
+     *   let order: Order | null;
+     *   try {
+     *     order = await this.exchange.getOrderById(payload.signalId);
+     *   } catch (networkError) {
+     *     return; // transient — keep the resting order monitored, retry next tick
+     *   }
+     *   if (!order) {
+     *     throw new Error(`Order ${payload.signalId} not found`); // confirmed gone -> cancel "user"
+     *   }
+     * }
+     * ```
+     */
+    onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void>;
+    /**
+     * Called on every live tick while a pending (open) signal is monitored.
+     * Purely informational mirror of the active-ping lifecycle — a throw here does NOT close the
+     * position (unlike `onOrderActiveCheck`).
+     *
+     * Manual wiring — EVENT-BASED (driving an open position from real exchange state)
+     *
+     * Primary per-tick **event-based** hook for an open position (a throw does NOT close it — react to
+     * the event and decide imperatively). This is where you reconcile the framework's VWAP view with
+     * real fills: catch a **SL that gapped through** the level, or a **TP that filled before VWAP**
+     * reached it. Poll your real order and translate its state into strategy state via the
+     * commit-functions from `src/function/strategy.ts` (callable here because the ping is emitted inside
+     * the strategy tick; effects are deferred to the next tick):
+     * - `commitCreateTakeProfit(symbol, { id })` — real TP order filled (possibly before VWAP reached
+     *   the level) → force close, reason "take_profit".
+     * - `commitCreateStopLoss(symbol, { id })` — real SL order filled (e.g. price gapped through SL) →
+     *   force close, reason "stop_loss".
+     * - `commitClosePending(symbol, { id })` — no counterparty (no buyer/seller, liquidity gap) → close
+     *   now with reason "closed", instead of throwing.
+     *
+     * @example
+     * ```typescript
+     * import { commitCreateTakeProfit, commitCreateStopLoss, commitClosePending } from "backtest-kit";
+     *
+     * async onSignalActivePing(payload: BrokerActivePingPayload) {
+     *   const order = await this.exchange.getOrderById(payload.signalId);
+     *   if (order?.status === "filled" && order.kind === "take_profit") {
+     *     await commitCreateTakeProfit(payload.symbol, { id: order.id });
+     *   } else if (order?.status === "filled" && order.kind === "stop_loss") {
+     *     await commitCreateStopLoss(payload.symbol, { id: order.id });
+     *   } else if (order?.status === "no_counterparty") {
+     *     await commitClosePending(payload.symbol, { id: order.id });
+     *   }
+     * }
+     * ```
+     */
+    onSignalActivePing(payload: BrokerActivePingPayload): Promise<void>;
+    /**
+     * Called on every live tick while a scheduled signal is monitored (waiting for priceOpen
+     * activation). Purely informational.
+     *
+     * Manual wiring — EVENT-BASED (driving the scheduled phase from real exchange state)
+     *
+     * Per-tick **event-based** hook (a throw does NOT veto anything — react and decide imperatively).
+     * Poll your real resting/limit order and translate it via the commit-functions from
+     * `src/function/strategy.ts` (deferred to the next tick):
+     * - `commitActivateScheduled(symbol, { id })` — resting order filled/resolved → activate now,
+     *   without waiting for VWAP to reach priceOpen (surfaces as `onOrderOpenCommit` next tick).
+     * - `commitCancelScheduled(symbol, { id })` — resting order cancelled/rejected externally → drop it.
+     *
+     * @example
+     * ```typescript
+     * import { commitActivateScheduled, commitCancelScheduled } from "backtest-kit";
+     *
+     * async onSignalSchedulePing(payload: BrokerSchedulePingPayload) {
+     *   const order = await this.exchange.getOrderById(payload.signalId);
+     *   if (order?.status === "filled" || order?.status === "resolved") {
+     *     await commitActivateScheduled(payload.symbol, { id: order.id });
+     *   } else if (order?.status === "cancelled" || order?.status === "rejected") {
+     *     await commitCancelScheduled(payload.symbol, { id: order.id });
+     *   }
+     * }
+     * ```
+     */
+    onSignalSchedulePing(payload: BrokerSchedulePingPayload): Promise<void>;
+    /**
+     * Called on every live tick while the strategy is idle (no pending or scheduled signal).
+     * Purely informational.
+     *
+     * MANUAL WIRING — EVENT-BASED: no signal is active, so there is nothing to commit; use it for idle
+     * heartbeats / housekeeping. A throw does not affect strategy state.
+     */
+    onSignalIdlePing(payload: BrokerIdlePingPayload): Promise<void>;
+    /**
+     * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
+     * The scheduled -> active transition is reported via `onOrderOpenCommit`, not here.
+     *
+     * Manual wiring — EVENT-BASED (placing the resting order)
+     *
+     * Fires ONCE at creation — place the real resting/limit order (tag it with `payload.signalId` so
+     * `onSignalSchedulePing` can poll it later). If it resolves immediately, promote it with
+     * `commitActivateScheduled(symbol, { id })`; if rejected, drop it with
+     * `commitCancelScheduled(symbol, { id })`. Use `onSignalSchedulePing` for ongoing polling.
+     *
+     * @example
+     * ```typescript
+     * import { commitActivateScheduled, commitCancelScheduled } from "backtest-kit";
+     *
+     * async onSignalScheduleOpen(payload: BrokerScheduleOpenPayload) {
+     *   const order = await this.exchange.placeLimitOrder({
+     *     id: payload.signalId,
+     *     symbol: payload.symbol,
+     *     side: payload.position,
+     *     price: payload.priceOpen,
+     *   });
+     *   if (order.status === "filled") await commitActivateScheduled(payload.symbol, { id: order.id });
+     *   else if (order.status === "rejected") await commitCancelScheduled(payload.symbol, { id: order.id });
+     * }
+     * ```
+     */
+    onSignalScheduleOpen(payload: BrokerScheduleOpenPayload): Promise<void>;
+    /**
+     * Called when a scheduled signal is cancelled before it ever activated
+     * (reason: timeout / price_reject / user).
+     *
+     * Manual wiring — EVENT-BASED (tearing down the resting order)
+     *
+     * Outbound side — the framework has already dropped the scheduled signal, so there is nothing to
+     * `commitCancelScheduled` here; instead cancel the real resting order you placed in
+     * `onSignalScheduleOpen` (look it up by `payload.signalId`). `payload.reason` tells you why.
+     *
+     * @example
+     * ```typescript
+     * async onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload) {
+     *   await this.exchange.cancelOrderById(payload.signalId);
+     * }
+     * ```
+     */
+    onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void>;
+    /**
+     * Called when a pending position is opened (new signal / immediate / scheduled or user
+     * activation). Purely informational lifecycle hook for the active phase of a signal.
+     *
+     * Manual wiring — EVENT-BASED (placing entry + protective orders)
+     *
+     * Fires ONCE at open — place the real entry confirmation and protective TP/SL orders (tag them with
+     * `payload.signalId`). Drive the rest per-tick from `onSignalActivePing`. This hook does not gate
+     * the position; for a true entry gate use `onOrderSync` (signal-open).
+     */
+    onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
+    /**
+     * Called when a pending position is closed
+     * (reason: take_profit / stop_loss / time_expired / closed).
+     *
+     * Manual wiring — EVENT-BASED (tearing down the position)
+     *
+     * Outbound side — the framework has already removed the pending signal, so there is nothing to
+     * `commitClosePending` here; instead flatten the real position and cancel leftover TP/SL orders by
+     * `payload.signalId`, and record final PnL. `payload.closeReason` says which path closed it. If you
+     * need to FORCE the close yourself (e.g. no counterparty), do it earlier in `onSignalActivePing`.
+     *
+     * @example
+     * ```typescript
+     * async onSignalPendingClose(payload: BrokerPendingClosePayload) {
+     *   await this.exchange.flatten(payload.symbol);
+     *   await this.exchange.cancelProtectiveOrders(payload.signalId);
+     * }
+     * ```
+     */
+    onSignalPendingClose(payload: BrokerPendingClosePayload): Promise<void>;
+    /** Called when a partial profit close is committed. */
+    onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
+    /** Called when a partial loss close is committed. */
+    onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
+    /** Called when a trailing stop update is committed. */
+    onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
+    /** Called when a trailing take-profit update is committed. */
+    onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
+    /** Called when a breakeven stop is committed (stop loss moved to entry price). */
+    onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
+    /** Called when a DCA (average-buy) entry is committed. */
+    onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
+}
+/**
+ * Constructor type for a broker adapter class.
+ *
+ * Used by `BrokerAdapter.useBrokerAdapter` to accept a class (not an instance).
+ * All `IBroker` methods are optional — implement only what the adapter needs.
+ *
+ * @example
+ * ```typescript
+ * class MyBroker implements Partial<IBroker> {
+ *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) { ... }
+ * }
+ *
+ * Broker.useBrokerAdapter(MyBroker); // MyBroker satisfies TBrokerCtor
+ * ```
+ */
+type TBrokerCtor = new () => Partial<IBroker>;
+/**
+ * Facade for broker integration — intercepts all commit* operations before DI-core mutations.
+ *
+ * Acts as a transaction control point: if any commit* method throws, the DI-core mutation
+ * is never reached and the state remains unchanged.
+ *
+ * In backtest mode all commit* calls are silently skipped (payload.backtest === true).
+ * In live mode the call is forwarded to the registered IBroker adapter via BrokerProxy.
+ *
+ * signal-open and signal-close events are routed automatically via syncSubject subscription
+ * (activated on `enable()`). All other commit* methods are called explicitly from
+ * Live.ts / Backtest.ts / strategy.ts before the corresponding strategyCoreService call.
+ *
+ * @example
+ * ```typescript
+ * import { Broker } from "backtest-kit";
+ *
+ * // Register a custom broker adapter
+ * Broker.useBrokerAdapter(MyBrokerAdapter);
+ *
+ * // Activate syncSubject subscription (signal-open / signal-close routing)
+ * const dispose = Broker.enable();
+ *
+ * // ... run strategy ...
+ *
+ * // Deactivate when done
+ * Broker.disable();
+ * ```
+ */
+declare class BrokerAdapter {
+    /** Factory producing the active `BrokerProxy` instance */
+    private _brokerFactory;
+    /**
+     * Lazily constructs the `BrokerProxy` from the registered factory and
+     * memoizes the result via `singleshot`.
+     *
+     * The proxy is built on the first call and cached for all subsequent calls.
+     * Returns `null` when no adapter has been registered via `useBrokerAdapter()`.
+     *
+     * Reset via `clear()` so the next call rebuilds from the current factory
+     * (e.g. when `process.cwd()` changes between strategy iterations).
+     */
+    private getInstance;
+    /**
+     * Forwards a signal-open event to the registered broker adapter.
+     *
+     * Called automatically via syncSubject when `enable()` is active.
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Signal open details: symbol, cost, position, prices, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitOrderOpen({
+     *   symbol: "BTCUSDT",
+     *   cost: 100,
+     *   position: "long",
+     *   priceOpen: 50000,
+     *   priceTakeProfit: 55000,
+     *   priceStopLoss: 48000,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitOrderOpen: (payload: BrokerOrderOpenPayload) => Promise<void>;
+    /**
+     * Forwards a signal-close event to the registered broker adapter.
+     *
+     * Called automatically via syncSubject when `enable()` is active.
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitOrderClose({
+     *   symbol: "BTCUSDT",
+     *   cost: 100,
+     *   position: "long",
+     *   currentPrice: 54000,
+     *   priceTakeProfit: 55000,
+     *   priceStopLoss: 48000,
+     *   totalEntries: 2,
+     *   totalPartials: 1,
+     *   pnl: { profit: 80, loss: 0, volume: 100 },
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitOrderClose: (payload: BrokerOrderClosePayload) => Promise<void>;
+    /**
+     * Forwards an order ping to the registered broker adapter.
+     *
+     * Called automatically via syncPendingSubject when `enable()` is active, on every live tick
+     * while a pending signal (payload.type "active") or a scheduled signal (payload.type
+     * "schedule") is monitored — routed to `onOrderActiveCheck` / `onOrderScheduleCheck`
+     * respectively. Skipped silently in backtest mode or when no adapter is registered.
+     * Exceptions are NOT swallowed: a throw from the adapter propagates up to
+     * syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
+     * (type "active") or cancels the scheduled signal with reason "user" (type "schedule").
+     *
+     * @param payload - Order ping details: type, symbol, position, prices, pnl, context, backtest flag
+     */
+    commitOrderCheck: (payload: BrokerOrderCheckPayload) => Promise<void>;
+    /**
+     * Forwards an active-ping to the registered broker adapter.
+     *
+     * Called automatically via activePingSubject when `enable()` is active, on every live tick while a
+     * pending signal is monitored. Skipped silently in backtest mode or when no adapter is registered.
+     * Purely informational — a throw does NOT close the position.
+     *
+     * @param payload - Active ping details: symbol, signalId, position, prices, pnl, context, backtest
+     */
+    commitActivePing: (payload: BrokerActivePingPayload) => Promise<void>;
+    /**
+     * Forwards a schedule-ping to the registered broker adapter.
+     *
+     * Called automatically via schedulePingSubject when `enable()` is active, on every live tick while
+     * a scheduled signal is monitored. Skipped silently in backtest mode or when no adapter is
+     * registered. Purely informational.
+     *
+     * @param payload - Schedule ping details: symbol, signalId, position, prices, context, backtest
+     */
+    commitSchedulePing: (payload: BrokerSchedulePingPayload) => Promise<void>;
+    /**
+     * Forwards an idle-ping to the registered broker adapter.
+     *
+     * Called automatically via idlePingSubject when `enable()` is active, on every live tick while the
+     * strategy has no pending or scheduled signal. Skipped silently in backtest mode or when no adapter
+     * is registered. Purely informational.
+     *
+     * @param payload - Idle ping details: symbol, currentPrice, context, backtest
+     */
+    commitIdlePing: (payload: BrokerIdlePingPayload) => Promise<void>;
+    /**
+     * Forwards a scheduled-signal-open to the registered broker adapter.
+     *
+     * Called automatically via scheduleEventSubject (action "scheduled") when a scheduled signal is
+     * created. Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Scheduled open details: symbol, signalId, position, prices, context, backtest
+     */
+    commitScheduleOpen: (payload: BrokerScheduleOpenPayload) => Promise<void>;
+    /**
+     * Forwards a scheduled-signal-cancelled to the registered broker adapter.
+     *
+     * Called automatically via scheduleEventSubject (action "cancelled") when a scheduled signal is
+     * removed before activation. Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * IMPORTANT (adapter responsibility): the cancel may race the real fill. The framework decides
+     * to drop the scheduled signal from ITS view (risk reject at activation, sync reject, stop,
+     * timeout), but the resting limit order on the exchange may have ALREADY filled by the time this
+     * arrives. The adapter MUST check the actual order status before cancelling: if the order is
+     * filled, cancelling is a no-op on the exchange and the adapter owns the resulting position
+     * (close it or reconcile via onOrderActiveCheck / onSignalActivePing). The framework cannot model
+     * this case — from its side the signal is terminally cancelled.
+     *
+     * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
+     */
+    commitScheduleCancelled: (payload: BrokerScheduleCancelledPayload) => Promise<void>;
+    /**
+     * Forwards a pending-signal-open to the registered broker adapter.
+     *
+     * Called automatically via signalEventSubject (action "opened") when a pending position is opened.
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Pending open details: symbol, signalId, position, prices, context, backtest
+     */
+    commitPendingOpen: (payload: BrokerPendingOpenPayload) => Promise<void>;
+    /**
+     * Forwards a pending-signal-close to the registered broker adapter.
+     *
+     * Called automatically via signalEventSubject (action "closed") when a pending position is closed.
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Pending close details: symbol, signalId, position, prices, closeReason, context, backtest
+     */
+    commitPendingClose: (payload: BrokerPendingClosePayload) => Promise<void>;
+    /**
+     * Intercepts a partial-profit close before DI-core mutation.
+     *
+     * Called explicitly from Live.ts / Backtest.ts / strategy.ts after all validations pass,
+     * but before `strategyCoreService.partialProfit()`. If this method throws, the DI mutation
+     * is skipped and state remains unchanged.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Partial profit details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitPartialProfit({
+     *   symbol: "BTCUSDT",
+     *   percentToClose: 30,
+     *   cost: 30,
+     *   currentPrice: 52000,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitPartialProfit: (payload: BrokerPartialProfitPayload) => Promise<void>;
+    /**
+     * Intercepts a partial-loss close before DI-core mutation.
+     *
+     * Called explicitly from Live.ts / Backtest.ts / strategy.ts after all validations pass,
+     * but before `strategyCoreService.partialLoss()`. If this method throws, the DI mutation
+     * is skipped and state remains unchanged.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Partial loss details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitPartialLoss({
+     *   symbol: "BTCUSDT",
+     *   percentToClose: 40,
+     *   cost: 40,
+     *   currentPrice: 48500,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitPartialLoss: (payload: BrokerPartialLossPayload) => Promise<void>;
+    /**
+     * Intercepts a trailing stop-loss update before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.trailingStop()`.
+     * `newStopLossPrice` is the absolute price computed from percentShift + original SL + effectivePriceOpen.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, percentShift=-5 → newSL=95
+     * await Broker.commitTrailingStop({
+     *   symbol: "BTCUSDT",
+     *   percentShift: -5,
+     *   currentPrice: 102,
+     *   newStopLossPrice: 95,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitTrailingStop: (payload: BrokerTrailingStopPayload) => Promise<void>;
+    /**
+     * Intercepts a trailing take-profit update before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.trailingTake()`.
+     * `newTakeProfitPrice` is the absolute price computed from percentShift + original TP + effectivePriceOpen.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, percentShift=-3 → newTP=107
+     * await Broker.commitTrailingTake({
+     *   symbol: "BTCUSDT",
+     *   percentShift: -3,
+     *   currentPrice: 102,
+     *   newTakeProfitPrice: 107,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitTrailingTake: (payload: BrokerTrailingTakePayload) => Promise<void>;
+    /**
+     * Intercepts a breakeven operation before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.breakeven()`.
+     * `newStopLossPrice` equals effectivePriceOpen (entry price).
+     * `newTakeProfitPrice` equals `_trailingPriceTakeProfit ?? priceTakeProfit` (TP is unchanged by breakeven).
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice, newTakeProfitPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, currentPrice=100.5, newSL=100 (entry), newTP=110 (unchanged)
+     * await Broker.commitBreakeven({
+     *   symbol: "BTCUSDT",
+     *   currentPrice: 100.5,
+     *   newStopLossPrice: 100,
+     *   newTakeProfitPrice: 110,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitBreakeven: (payload: BrokerBreakevenPayload) => Promise<void>;
+    /**
+     * Intercepts a DCA average-buy entry before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.averageBuy()`.
+     * `currentPrice` is the market price at which the new DCA entry is added.
+     * `cost` is the dollar amount of the new entry (default: CC_POSITION_ENTRY_COST).
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // Add DCA entry at current market price
+     * await Broker.commitAverageBuy({
+     *   symbol: "BTCUSDT",
+     *   currentPrice: 42000,
+     *   cost: 100,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
+    commitAverageBuy: (payload: BrokerAverageBuyPayload) => Promise<void>;
+    /**
+     * Registers a broker adapter instance or constructor to receive commit* callbacks.
+     *
+     * Must be called before `enable()`. Accepts either a class constructor (called with `new`)
+     * or an already-instantiated object implementing `Partial<IBroker>`.
+     *
+     * @param broker - IBroker constructor or instance
+     *
+     * @example
+     * ```typescript
+     * import { Broker } from "backtest-kit";
+     *
+     * // Register via constructor
+     * Broker.useBrokerAdapter(MyBrokerAdapter);
+     *
+     * // Register via instance
+     * Broker.useBrokerAdapter(new MyBrokerAdapter());
+     * ```
+     */
+    useBrokerAdapter: (broker: TBrokerCtor | Partial<IBroker>) => void;
+    /**
+     * Activates the broker: subscribes to syncSubject for signal-open / signal-close routing.
+     *
+     * Must be called after `useBrokerAdapter()`. Returns a dispose function that unsubscribes
+     * from syncSubject (equivalent to calling `disable()`).
+     *
+     * Calling `enable()` without a registered adapter throws immediately.
+     * Calling `enable()` more than once is idempotent (singleshot guard).
+     *
+     * @returns Dispose function — call it to deactivate the broker subscription
+     *
+     * @example
+     * ```typescript
+     * import { Broker } from "backtest-kit";
+     *
+     * Broker.useBrokerAdapter(MyBrokerAdapter);
+     * const dispose = Broker.enable();
+     *
+     * // ... run backtest or live session ...
+     *
+     * dispose(); // or Broker.disable()
+     * ```
+     */
+    enable: (() => () => void) & functools_kit.ISingleshotClearable<() => () => void>;
+    /**
+     * Deactivates the broker: unsubscribes from syncSubject and resets the singleshot guard.
+     *
+     * Idempotent — safe to call even if `enable()` was never called.
+     * After `disable()`, `enable()` can be called again to reactivate.
+     *
+     * @example
+     * ```typescript
+     * import { Broker } from "backtest-kit";
+     *
+     * Broker.useBrokerAdapter(MyBrokerAdapter);
+     * Broker.enable();
+     *
+     * // Stop receiving events
+     * Broker.disable();
+     * ```
+     */
+    disable: () => void;
+    /**
+     * Clears the cached broker instance and resets the enable singleshot.
+     * Call this when process.cwd() changes between strategy iterations
+     * so a new broker instance is created with the updated base path.
+     */
+    clear: () => void;
+}
+/**
+ * Base class for custom broker adapter implementations.
+ *
+ * Provides default no-op implementations for all IBroker methods that log events.
+ * Extend this class to implement a real exchange adapter for:
+ * - Placing and canceling limit/market orders
+ * - Updating stop-loss and take-profit levels on exchange
+ * - Tracking position state in an external system
+ * - Sending trade notifications (Telegram, Discord, Email)
+ * - Recording trades to a database or analytics service
+ *
+ * Key features:
+ * - All methods have default implementations (no need to override unused methods)
+ * - Automatic logging of all events via bt.loggerService
+ * - Implements the full IBroker interface
+ * - `makeExtendable` applied for correct subclass instantiation
+ *
+ * Lifecycle:
+ * 1. Constructor called (no arguments)
+ * 2. `waitForInit()` called once for async initialization (e.g. exchange login)
+ * 3. Event methods called as strategy executes
+ * 4. No explicit dispose — clean up in `waitForInit` teardown or externally
+ *
+ * Event flow (called only in live mode, skipped in backtest):
+ * - `onOrderOpenCommit` — new position opened
+ * - `onOrderCloseCommit` — position closed (SL/TP hit or manual close)
+ * - `onPartialProfitCommit` — partial close at profit executed
+ * - `onPartialLossCommit` — partial close at loss executed
+ * - `onTrailingStopCommit` — trailing stop-loss updated
+ * - `onTrailingTakeCommit` — trailing take-profit updated
+ * - `onBreakevenCommit` — stop-loss moved to entry price
+ * - `onAverageBuyCommit` — new DCA entry added to position
+ *
+ * @example
+ * ```typescript
+ * import { BrokerBase, Broker } from "backtest-kit";
+ *
+ * // Extend BrokerBase and override only needed methods
+ * class BinanceBroker extends BrokerBase {
+ *   private client: BinanceClient | null = null;
+ *
+ *   async waitForInit() {
+ *     super.waitForInit(); // Call parent for logging
+ *     this.client = new BinanceClient(process.env.API_KEY, process.env.SECRET);
+ *     await this.client.connect();
+ *   }
+ *
+ *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
+ *     super.onOrderOpenCommit(payload); // Call parent for logging
+ *     await this.client!.placeOrder({
+ *       symbol: payload.symbol,
+ *       side: payload.position === "long" ? "BUY" : "SELL",
+ *       quantity: payload.cost / payload.priceOpen,
+ *     });
+ *   }
+ *
+ *   async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
+ *     super.onOrderCloseCommit(payload); // Call parent for logging
+ *     await this.client!.closePosition(payload.symbol);
+ *   }
+ * }
+ *
+ * // Register the adapter
+ * Broker.useBrokerAdapter(BinanceBroker);
+ * Broker.enable();
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Minimal implementation — only handle opens and closes
+ * class NotifyBroker extends BrokerBase {
+ *   async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
+ *     await sendTelegram(`Opened ${payload.position} on ${payload.symbol}`);
+ *   }
+ *
+ *   async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
+ *     const pnl = payload.pnl.profit - payload.pnl.loss;
+ *     await sendTelegram(`Closed ${payload.symbol}: PnL $${pnl.toFixed(2)}`);
+ *   }
+ * }
+ * ```
+ */
+declare class BrokerBase implements IBroker {
+    /**
+     * Performs async initialization before the broker starts receiving events.
+     *
+     * Called once by BrokerProxy via `waitForInit()` (singleshot) before the first event.
+     * Override to establish exchange connections, authenticate API clients, load configuration.
+     *
+     * Default implementation: Logs initialization event.
+     *
+     * @example
+     * ```typescript
+     * async waitForInit() {
+     *   super.waitForInit(); // Keep parent logging
+     *   this.exchange = new ExchangeClient(process.env.API_KEY);
+     *   await this.exchange.authenticate();
+     * }
+     * ```
+     */
+    waitForInit(): Promise<void>;
+    /**
+     * Called when a position is being opened (signal activated).
+     *
+     * Triggered automatically via syncSubject when a scheduled signal's priceOpen is hit.
+     * Use to place the actual entry order on the exchange.
+     *
+     * Default implementation: Logs signal-open event.
+     *
+     * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
+     * (e.g. limit order rejected) rolls back the open — the pending signal returns to idle and retries
+     * next tick; return normally to let it open. Live-only (backtest short-circuits). See
+     * {@link IBroker.onOrderOpenCommit} for the full semantics.
+     *
+     * @param payload - Signal open details: symbol, cost, position, priceOpen, priceTakeProfit, priceStopLoss, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
+     *   super.onOrderOpenCommit(payload); // Keep parent logging
+     *   const order = await this.exchange.placeMarketOrder({
+     *     symbol: payload.symbol,
+     *     side: payload.position === "long" ? "BUY" : "SELL",
+     *     quantity: payload.cost / payload.priceOpen,
+     *   });
+     *   if (!order.filled) {
+     *     throw new Error(`Entry not filled for ${payload.symbol}`); // -> roll back the open, retry next tick
+     *   }
+     * }
+     * ```
+     */
+    onOrderOpenCommit(payload: BrokerOrderOpenPayload): Promise<void>;
+    /**
+     * Called on every live tick while a pending signal (open position) is monitored, BEFORE
+     * TP/SL/time evaluation.
+     *
+     * Override to query the exchange for the order by `payload.signalId` and THROW ONLY when it is
+     * definitively NOT FOUND by that id (filled, cancelled, or liquidated externally) — the framework
+     * then closes the position with closeReason "closed". The default implementation logs and returns
+     * normally, which keeps the position under normal TP/SL monitoring.
+     *
+     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+     * normally instead of throwing. A thrown network error would wrongly close an open position; only
+     * a confirmed "order not found by id" response is a valid reason to throw.
+     *
+     * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
+     * commit-function wiring in `onSignalActivePing`. See {@link IBroker.onOrderActiveCheck} for the
+     * full comparison and example.
+     *
+     * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest
+     */
+    onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void>;
+    /**
+     * Called on every live tick while a scheduled signal (resting entry order) is monitored, BEFORE
+     * timeout/price-activation evaluation.
+     *
+     * Override to query the exchange for the resting order by `payload.signalId` and THROW ONLY when
+     * it is definitively NOT FOUND by that id — the framework then cancels the scheduled signal with
+     * reason "user". The default implementation logs and returns normally. A FILLED resting order
+     * must be confirmed via `commitActivateScheduled`, not by throwing here.
+     *
+     * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
+     * normally instead of throwing; only a confirmed "order not found by id" response is a valid
+     * reason to throw.
+     *
+     * Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
+     * commit-function wiring in `onSignalSchedulePing`. See {@link IBroker.onOrderScheduleCheck} for
+     * the full comparison and example.
+     *
+     * @param payload - Pending ping details: symbol, signalId, position, prices, pnl, context, backtest
+     */
+    onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void>;
+    /**
+     * Called on every live tick while a pending (open) signal is monitored.
+     *
+     * Purely informational mirror of the active-ping lifecycle — unlike `onOrderActiveCheck`, a throw here
+     * does NOT close the position. Override to mirror live monitoring state into your own systems.
+     * The default implementation logs.
+     *
+     * Manual wiring — EVENT-BASED: this is the primary per-tick hook to drive an open position from real exchange
+     * state (`commitCreateTakeProfit` / `commitCreateStopLoss` / `commitClosePending`). See the
+     * {@link IBroker.onSignalActivePing} contract docs for the full guidance and example.
+     *
+     * @param payload - Active ping details: symbol, signalId, position, prices, pnl, context, backtest
+     */
+    onSignalActivePing(payload: BrokerActivePingPayload): Promise<void>;
+    /**
+     * Called on every live tick while a scheduled signal is monitored (waiting for priceOpen).
+     *
+     * Purely informational. Override to mirror scheduled-monitoring state. The default logs.
+     *
+     * Manual wiring — EVENT-BASED: per-tick hook to drive a scheduled (resting) order from real exchange state
+     * (`commitActivateScheduled` / `commitCancelScheduled`). See {@link IBroker.onSignalSchedulePing}
+     * for full guidance and example.
+     *
+     * @param payload - Schedule ping details: symbol, signalId, position, prices, context, backtest
+     */
+    onSignalSchedulePing(payload: BrokerSchedulePingPayload): Promise<void>;
+    /**
+     * Called on every live tick while the strategy is idle (no pending or scheduled signal).
+     *
+     * Purely informational. Override to track idle heartbeats. The default logs.
+     *
+     * @param payload - Idle ping details: symbol, currentPrice, context, backtest
+     */
+    onSignalIdlePing(payload: BrokerIdlePingPayload): Promise<void>;
+    /**
+     * Called when a new scheduled signal is created and starts waiting for priceOpen activation.
+     *
+     * The scheduled -> active transition is reported via `onOrderOpenCommit`, not here. Override to
+     * place a resting/limit order on the exchange. The default logs.
+     *
+     * Manual wiring — EVENT-BASED: fires ONCE at creation — place the real resting order (tag it with
+     * `payload.signalId`) and optionally `commitActivateScheduled` / `commitCancelScheduled`. See
+     * {@link IBroker.onSignalScheduleOpen} for full guidance and example.
+     *
+     * @param payload - Scheduled open details: symbol, signalId, position, prices, context, backtest
+     */
+    onSignalScheduleOpen(payload: BrokerScheduleOpenPayload): Promise<void>;
+    /**
+     * Called when a scheduled signal is cancelled before activation (timeout / price_reject / user).
+     *
+     * Override to cancel the resting/limit order on the exchange. The default logs.
+     *
+     * Manual wiring — EVENT-BASED (outbound): the strategy already dropped the scheduled signal — cancel the matching
+     * exchange order by `payload.signalId`. See {@link IBroker.onSignalScheduleCancelled}.
+     *
+     * @param payload - Scheduled cancel details: symbol, signalId, position, prices, reason, context, backtest
+     */
+    onSignalScheduleCancelled(payload: BrokerScheduleCancelledPayload): Promise<void>;
+    /**
+     * Called when a pending position is opened (new signal / immediate / scheduled or user activation).
+     *
+     * Informational lifecycle hook. Override to mirror the open into your own systems. The default logs.
+     *
+     * Manual wiring — EVENT-BASED: fires ONCE at open — place entry + protective TP/SL orders (tag with
+     * `payload.signalId`), then drive per-tick from `onSignalActivePing`. See
+     * {@link IBroker.onSignalPendingOpen}.
+     *
+     * @param payload - Pending open details: symbol, signalId, position, prices, context, backtest
+     */
+    onSignalPendingOpen(payload: BrokerPendingOpenPayload): Promise<void>;
+    /**
+     * Called when a pending position is closed (take_profit / stop_loss / time_expired / closed).
+     *
+     * Informational lifecycle hook. Override to mirror the close into your own systems. The default logs.
+     *
+     * Manual wiring — EVENT-BASED (outbound): the strategy already removed the pending signal — flatten the real
+     * position and cancel leftover TP/SL orders by `payload.signalId`. See
+     * {@link IBroker.onSignalPendingClose}.
+     *
+     * @param payload - Pending close details: symbol, signalId, position, prices, closeReason, context, backtest
+     */
+    onSignalPendingClose(payload: BrokerPendingClosePayload): Promise<void>;
+    /**
+     * Called when a position is being closed (SL/TP hit or manual close).
+     *
+     * Triggered automatically via syncSubject when a pending signal is closed.
+     * Use to place the exit order and record final PnL.
+     *
+     * Default implementation: Logs signal-close event.
+     *
+     * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
+     * (e.g. exit order failed) SKIPS the close — the position stays open and the close retries next
+     * tick; return normally to let it close. Live-only (backtest short-circuits). See
+     * {@link IBroker.onOrderCloseCommit} for the full semantics.
+     *
+     * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, totalEntries, totalPartials, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onOrderCloseCommit(payload: BrokerOrderClosePayload) {
+     *   super.onOrderCloseCommit(payload); // Keep parent logging
+     *   const ok = await this.exchange.closePosition(payload.symbol);
+     *   if (!ok) {
+     *     throw new Error(`Exit not filled for ${payload.symbol}`); // -> keep position open, retry next tick
+     *   }
+     *   await this.db.recordTrade({ symbol: payload.symbol, pnl: payload.pnl });
+     * }
+     * ```
+     */
+    onOrderCloseCommit(payload: BrokerOrderClosePayload): Promise<void>;
+    /**
+     * Called when a partial close at profit is executed.
+     *
+     * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
+     * before `strategyCoreService.partialProfit()`. If this method throws, the DI mutation is skipped.
+     * Use to partially close the position on the exchange at the profit level.
+     *
+     * Default implementation: Logs partial profit event.
+     *
+     * @param payload - Partial profit details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onPartialProfitCommit(payload: BrokerPartialProfitPayload) {
+     *   super.onPartialProfitCommit(payload); // Keep parent logging
+     *   await this.exchange.reducePosition({
+     *     symbol: payload.symbol,
+     *     dollarAmount: payload.cost,
+     *     price: payload.currentPrice,
+     *   });
+     * }
+     * ```
+     */
+    onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
+    /**
+     * Called when a partial close at loss is executed.
+     *
+     * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
+     * before `strategyCoreService.partialLoss()`. If this method throws, the DI mutation is skipped.
+     * Use to partially close the position on the exchange at the loss level.
+     *
+     * Default implementation: Logs partial loss event.
+     *
+     * @param payload - Partial loss details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onPartialLossCommit(payload: BrokerPartialLossPayload) {
+     *   super.onPartialLossCommit(payload); // Keep parent logging
+     *   await this.exchange.reducePosition({
+     *     symbol: payload.symbol,
+     *     dollarAmount: payload.cost,
+     *     price: payload.currentPrice,
+     *   });
+     * }
+     * ```
+     */
+    onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
+    /**
+     * Called when the trailing stop-loss level is updated.
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.trailingStop()`.
+     * `newStopLossPrice` is the absolute SL price — use it to update the exchange order directly.
+     *
+     * Default implementation: Logs trailing stop event.
+     *
+     * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onTrailingStopCommit(payload: BrokerTrailingStopPayload) {
+     *   super.onTrailingStopCommit(payload); // Keep parent logging
+     *   await this.exchange.updateStopLoss({
+     *     symbol: payload.symbol,
+     *     price: payload.newStopLossPrice,
+     *   });
+     * }
+     * ```
+     */
+    onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
+    /**
+     * Called when the trailing take-profit level is updated.
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.trailingTake()`.
+     * `newTakeProfitPrice` is the absolute TP price — use it to update the exchange order directly.
+     *
+     * Default implementation: Logs trailing take event.
+     *
+     * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onTrailingTakeCommit(payload: BrokerTrailingTakePayload) {
+     *   super.onTrailingTakeCommit(payload); // Keep parent logging
+     *   await this.exchange.updateTakeProfit({
+     *     symbol: payload.symbol,
+     *     price: payload.newTakeProfitPrice,
+     *   });
+     * }
+     * ```
+     */
+    onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
+    /**
+     * Called when the stop-loss is moved to breakeven (entry price).
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.breakeven()`.
+     * `newStopLossPrice` equals `effectivePriceOpen` — the position's effective entry price.
+     * `newTakeProfitPrice` is unchanged by breakeven.
+     *
+     * Default implementation: Logs breakeven event.
+     *
+     * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice, newTakeProfitPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onBreakevenCommit(payload: BrokerBreakevenPayload) {
+     *   super.onBreakevenCommit(payload); // Keep parent logging
+     *   await this.exchange.updateStopLoss({
+     *     symbol: payload.symbol,
+     *     price: payload.newStopLossPrice, // = entry price
+     *   });
+     * }
+     * ```
+     */
+    onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
+    /**
+     * Called when a new DCA entry is added to the active position.
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.averageBuy()`.
+     * `currentPrice` is the market price at which the new averaging entry is placed.
+     * `cost` is the dollar amount of the new DCA entry.
+     *
+     * Default implementation: Logs average buy event.
+     *
+     * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onAverageBuyCommit(payload: BrokerAverageBuyPayload) {
+     *   super.onAverageBuyCommit(payload); // Keep parent logging
+     *   await this.exchange.placeMarketOrder({
+     *     symbol: payload.symbol,
+     *     side: "BUY",
+     *     quantity: payload.cost / payload.currentPrice,
+     *   });
+     * }
+     * ```
+     */
+    onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
+}
+/**
+ * Global singleton instance of BrokerAdapter.
+ * Provides static-like access to all broker commit methods and lifecycle controls.
+ *
+ * @example
+ * ```typescript
+ * import { Broker } from "backtest-kit";
+ *
+ * Broker.useBrokerAdapter(MyBrokerAdapter);
+ * const dispose = Broker.enable();
+ * ```
+ */
+declare const Broker: BrokerAdapter;
+
+/**
  * Contract for walker stop signal events.
  *
  * Emitted when Walker.stop() is called to interrupt a running walker.
@@ -40243,4 +40314,4 @@ declare class OrderDeletedError extends Error {
     static isOrderDeletedError(error: object): boolean;
 }
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerOrderVerdict, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, OrderDeletedError, type OrderOpenContract, OrderRejectedError, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, OrderDeletedError, type OrderOpenContract, OrderRejectedError, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
