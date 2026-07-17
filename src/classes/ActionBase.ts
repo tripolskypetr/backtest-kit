@@ -53,6 +53,12 @@ const LOGGER_SERVICE = new LoggerService();
  * - Access to strategy context (strategyName, frameName, actionName)
  * - Implements full IPublicAction interface
  *
+ * NOTE: the deprecated order gates (orderSync / orderCheck) deliberately have NO
+ * default implementation here — ActionProxy fires its loud warning only when a user
+ * handler defines them explicitly. Their throw semantics follow IBrokerOrderVerdict:
+ * non-typed throw = "transient" (bounded retry / tolerance), OrderRejectedError
+ * (gates) / OrderDeletedError (checks) = terminal. Prefer Broker.useBrokerAdapter.
+ *
  * Lifecycle:
  * 1. Constructor called with (strategyName, frameName, actionName)
  * 2. init() called once for async initialization

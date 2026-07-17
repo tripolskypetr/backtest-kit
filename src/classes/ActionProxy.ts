@@ -704,7 +704,7 @@ export class ActionProxy implements IPublicAction {
     if (this._target.orderSync) {
       console.error("Action::orderSync is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
       console.error("If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive()");
-      console.error("If Action::orderSync throws the exchange will not execute the order!");
+      console.error("If Action::orderSync throws the exchange will not execute the order: a non-typed throw retries bounded (CC_ORDER_OPEN_RETRY_ATTEMPTS / CC_ORDER_CLOSE_RETRY_ATTEMPTS, force-close on exhaustion), OrderRejectedError is terminal at once!");
       console.error("");
       console.error("You have been warned!");
       await this._target.orderSync(event);
@@ -723,7 +723,7 @@ export class ActionProxy implements IPublicAction {
     if (this._target.orderCheck) {
       console.error("Action::orderCheck is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
       console.error("If you need to check whether the order is still open on the exchange, please use Broker.useBrokerAdapter with onOrderActiveCheck / onOrderScheduleCheck");
-      console.error("If Action::orderCheck throws the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
+      console.error("If Action::orderCheck throws OrderDeletedError (or a non-typed error exhausts CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures) the framework will close the position with closeReason \"closed\" (type \"active\") or cancel the scheduled signal (type \"schedule\")!");
       console.error("");
       console.error("You have been warned!");
       await this._target.orderCheck(event);

@@ -351,7 +351,9 @@ const CALL_RISK_REJECTION_CALLBACK_FN = trycatch(
 
 /**
  * Calls onOrderSync callback WITHOUT trycatch — exceptions must propagate
- * up to CREATE_SYNC_FN in StrategyConnectionService (which returns false on error).
+ * up to CREATE_SYNC_FN in StrategyConnectionService UNWRAPPED, preserving the
+ * __type__ brand of typed errors: OrderRejectedError resolves to the terminal
+ * "rejected" verdict, any other throw to "transient" (bounded retry).
  */
 const CALL_ORDER_SYNC_CALLBACK_FN = async (
   self: ClientAction,
@@ -367,7 +369,10 @@ const CALL_ORDER_SYNC_CALLBACK_FN = async (
 
 /**
  * Calls onOrderCheck callback WITHOUT trycatch — exceptions must propagate
- * up to CREATE_SYNC_PENDING_FN in StrategyConnectionService (which returns false on error).
+ * up to CREATE_SYNC_PENDING_FN in StrategyConnectionService UNWRAPPED, preserving
+ * the __type__ brand of typed errors: OrderDeletedError resolves to the terminal
+ * "deleted" verdict, any other throw to "transient" (tolerated up to
+ * CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures).
  */
 const CALL_ORDER_PING_CALLBACK_FN = async (
   self: ClientAction,

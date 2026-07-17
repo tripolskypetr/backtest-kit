@@ -3,6 +3,7 @@ import { test } from "worker-testbed";
 import {
   addExchangeSchema,
   addStrategySchema,
+  addActionSchema,
   setConfig,
   listenSync,
   listenCheck,
@@ -353,6 +354,141 @@ test("VERDICT: OrderRejectedError on open drops the attempt without arming the r
   } finally {
     unsubscribe();
   }
+});
+
+/**
+ * VERDICT: типизированная ошибка доезжает до вердикта и через ACTION-канал —
+ * OrderRejectedError из callbacks.onOrderSync (ClientAction → ActionProxy →
+ * connection → core → CREATE_SYNC_FN) терминально дропает open без ретрая.
+ */
+test("VERDICT: OrderRejectedError thrown from action onOrderSync is terminal through the action channel", async ({ pass, fail }) => {
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "verdict-action-terminal-strategy",
+    exchangeName: "binance-verdict-action-terminal",
+    frameName: "",
+  };
+
+  const openIds = [];
+
+  makeExchange(context.exchangeName, () => 50000);
+
+  class EmptyAction {}
+  addActionSchema({
+    actionName: "verdict-action-terminal-action",
+    handler: EmptyAction,
+    callbacks: {
+      onOrderSync: (event) => {
+        if (event.action !== "signal-open" || event.type !== "active") return;
+        openIds.push(event.signalId);
+        if (openIds.length === 1) {
+          throw new OrderRejectedError("verdict: action says the order can never be placed");
+        }
+      },
+    },
+  });
+
+  const basePrice = 50000;
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    actions: ["verdict-action-terminal-action"],
+    getSignal: async () => ({
+      position: "long",
+      note: "verdict action terminal",
+      priceTakeProfit: basePrice + 15000,
+      priceStopLoss: basePrice - 15000,
+      minuteEstimatedTime: 120,
+    }),
+  });
+
+  const runTick = makeRunTick(context);
+
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "idle") {
+    fail(`tick #1 expected "idle" (terminal rejection via action), got "${tick1.action}"`);
+    return;
+  }
+
+  const tick2 = await runTick(new Date(t0 + 1 * MIN));
+  if (tick2.action !== "opened") {
+    fail(`tick #2 expected "opened" (fresh signal), got "${tick2.action}"`);
+    return;
+  }
+  if (openIds.length !== 2 || openIds[0] === openIds[1]) {
+    fail(`REGRESSION: typed error lost its brand through the action channel — expected a FRESH id (no armed retry), got ${JSON.stringify(openIds)}`);
+    return;
+  }
+
+  pass(`OrderRejectedError survived the action channel: dropped ${openIds[0]}, opened fresh ${openIds[1]}`);
+});
+
+/**
+ * VERDICT: OrderDeletedError из callbacks.onOrderCheck (action-канал) —
+ * немедленное терминальное закрытие, минуя толерантность (дефолт 5).
+ */
+test("VERDICT: OrderDeletedError thrown from action onOrderCheck closes immediately through the action channel", async ({ pass, fail }) => {
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "verdict-action-deleted-strategy",
+    exchangeName: "binance-verdict-action-deleted",
+    frameName: "",
+  };
+
+  let checkCalls = 0;
+
+  makeExchange(context.exchangeName, () => 50000);
+
+  class EmptyAction {}
+  addActionSchema({
+    actionName: "verdict-action-deleted-action",
+    handler: EmptyAction,
+    callbacks: {
+      onOrderCheck: () => {
+        checkCalls += 1;
+        throw new OrderDeletedError("verdict: action confirms the order is gone");
+      },
+    },
+  });
+
+  const basePrice = 50000;
+  let issued = false;
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    actions: ["verdict-action-deleted-action"],
+    getSignal: async () => {
+      if (issued) return null;
+      issued = true;
+      return {
+        position: "long",
+        note: "verdict action deleted",
+        priceTakeProfit: basePrice + 15000,
+        priceStopLoss: basePrice - 15000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  const runTick = makeRunTick(context);
+
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "opened") {
+    fail(`tick #1 expected "opened", got "${tick1.action}"`);
+    return;
+  }
+
+  const tick2 = await runTick(new Date(t0 + 1 * MIN));
+  if (tick2.action !== "closed" || tick2.closeReason !== "closed") {
+    fail(`tick #2 expected IMMEDIATE closed/"closed" (deleted via action, tolerance bypassed), got "${tick2.action}"/"${tick2.closeReason}"`);
+    return;
+  }
+  if (checkCalls !== 1) {
+    fail(`expected exactly 1 check call, got ${checkCalls}`);
+    return;
+  }
+
+  pass(`OrderDeletedError survived the action channel: closed on the first check (calls=${checkCalls})`);
 });
 
 /**

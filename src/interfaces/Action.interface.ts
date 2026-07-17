@@ -413,18 +413,23 @@ export interface IActionCallbacks {
 
   /**
    * Called when framework attempts to open or close a position via limit order.
-   * Return false (or throw) to reject the operation — framework will retry on next tick.
+   * THROW to reject the operation — the return value is IGNORED (only a throw gates).
    *
    * NOTE: Unlike other callbacks, exceptions from this method are NOT swallowed.
-   * They propagate up to CREATE_SYNC_FN which catches them and returns false.
-   * Throw to reject the operation — framework will retry on next tick.
+   * They propagate up to CREATE_SYNC_FN which resolves them into an
+   * IBrokerOrderVerdict (see interfaces/Broker.interface):
+   * - non-typed throw → "transient": the open retries identity-stably (same signalId,
+   *   `event.attempt` incremented) up to CC_ORDER_OPEN_RETRY_ATTEMPTS, then is dropped;
+   *   the close retries up to CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine
+   *   FORCE-CLOSES its state with the original closeReason (loud errorEmitter);
+   * - throw OrderRejectedError → "rejected", TERMINAL: the open is dropped at once
+   *   without arming the retry; the close is force-closed at once.
    *
    * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
-   * `onOrderOpenCommit` / `onOrderCloseCommit` gate. Throwing (or returning false) on
-   * `event.action === "signal-open"` rolls the open back to idle (a scheduled activation is
-   * cancelled); on `"signal-close"` it skips the close and leaves the position open — retried next
-   * tick. Rides the same `syncSubject` emission as the Broker commit hooks, so a throw from either is
-   * collapsed to false by `CREATE_SYNC_FN`. Backtest short-circuits the gate to true (live-only).
+   * `onOrderOpenCommit` / `onOrderCloseCommit` gate. Rides the same `syncSubject` emission
+   * as the Broker commit hooks — the verdict semantics are identical for both channels.
+   * `event.attempt` carries the number of consecutive prior rejections (0 = first try).
+   * Backtest short-circuits the gate to "confirmed" (live-only).
    *
    * @param event - Sync event with action "signal-open" or "signal-close"
    * @param actionName - Action identifier
@@ -441,26 +446,27 @@ export interface IActionCallbacks {
    * Fires for both monitored states, discriminated by `event.type`: "active" — pending signal
    * (open position); "schedule" — scheduled signal (resting entry order awaiting activation).
    *
-   * Query the exchange by `event.signalId` and THROW ONLY when the order is NOT FOUND by that id
-   * (filled, cancelled, or liquidated externally) — the framework then closes the position with
-   * closeReason "closed" (type "active") or cancels the scheduled signal with reason "user"
-   * (type "schedule").
+   * Exceptions are NOT swallowed — they propagate up to CREATE_SYNC_PENDING_FN which resolves
+   * them into an IBrokerOrderVerdict (see interfaces/Broker.interface):
+   * - non-typed throw → "transient": the failed check is TOLERATED (order assumed still open,
+   *   monitoring continues, `event.attempt` incremented) up to CC_ORDER_CHECK_RETRY_ATTEMPTS
+   *   consecutive failures; exhaustion acts terminally — close with closeReason "closed"
+   *   (type "active") / cancel with reason "user" (type "schedule"). A network blip no longer
+   *   kills a live position on the spot;
+   * - throw OrderDeletedError → "deleted", TERMINAL at once, bypassing the tolerance counter —
+   *   the adapter's CONFIRMED "order not found by id" (filled, cancelled, or liquidated
+   *   externally; e.g. the user deleted the order manually).
+   * A successful check resets `event.attempt` to 0.
    *
-   * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-   * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
-   * position. Throw exclusively on a confirmed "order not found by id" result.
-   *
-   * NOTE: Like onOrderSync, exceptions from this method are NOT swallowed. They propagate up to
-   * CREATE_SYNC_PENDING_FN which catches them and returns false.
-   *
-   * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker `onOrderCheck`.
-   * A THROW on a confirmed "order not found by id" closes the position with closeReason "closed"
-   * (retried via CREATE_SYNC_PENDING_FN). This is the throw-driven alternative to the imperative
-   * `commitClosePending` (call it from `pingActive` instead) — pick one, not both, for the same
-   * "order gone" condition. Backtest short-circuits the gate (live-only).
+   * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
+   * `onOrderActiveCheck` / `onOrderScheduleCheck` — the verdict semantics are identical for both
+   * channels. Throw-driven alternative to the imperative `commitClosePending` (call it from
+   * `pingActive` instead) — pick one, not both, for the same "order gone" condition.
+   * Backtest short-circuits the gate (live-only).
    *
    * @deprecated This callback is not recommended for use. Exchange integration should be implemented
-   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
+   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderActiveCheck /
+   * onOrderScheduleCheck instead.
    * @param event - Pending-ping event with action "signal-ping"
    * @param actionName - Action identifier
    * @param strategyName - Strategy identifier
@@ -772,15 +778,18 @@ export interface IAction {
 
   /**
    * Called when framework attempts to open or close a position via limit order.
-   * Throw to reject — framework will retry on next tick.
+   * Throw to reject (the return value is IGNORED).
    *
-   * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_FN.
+   * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_FN and resolve
+   * into an IBrokerOrderVerdict: non-typed throw = "transient" (bounded retry — opens
+   * identity-stably up to CC_ORDER_OPEN_RETRY_ATTEMPTS, closes up to
+   * CC_ORDER_CLOSE_RETRY_ATTEMPTS with force-close on exhaustion); throw
+   * OrderRejectedError = "rejected", terminal at once (open dropped / close force-closed).
    *
    * MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
-   * `onOrderOpenCommit` / `onOrderCloseCommit`. Throw on "signal-open" → open rolls back to idle
-   * (scheduled activation cancelled); throw on "signal-close" → close skipped, position stays open;
-   * retried next tick. Same `syncSubject` emission as the Broker commit hooks (collapsed to false by
-   * CREATE_SYNC_FN). Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
+   * `onOrderOpenCommit` / `onOrderCloseCommit`. Same `syncSubject` emission as the Broker
+   * commit hooks — identical verdict semantics. `event.attempt` = consecutive prior
+   * rejections. Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
    *
    * @deprecated This method is not recommended for use. Implement custom logic in signal(), signalLive(), or signalBacktest() instead.
    * If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() instead.
@@ -793,26 +802,23 @@ export interface IAction {
    * Called on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation,
    * to confirm the order is still pending (open) on the exchange.
    *
-   * Query the exchange by `event.signalId` and THROW ONLY when the order is NOT FOUND by that id
-   * (filled, cancelled, or liquidated externally) — the framework then closes the position with
-   * closeReason "closed".
+   * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_PENDING_FN and
+   * resolve into an IBrokerOrderVerdict: non-typed throw = "transient" (tolerated, order
+   * assumed still open, up to CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures — then the
+   * terminal action fires); throw OrderDeletedError = "deleted", terminal AT ONCE, bypassing
+   * the tolerance counter — the CONFIRMED "order not found by `event.signalId`" (filled,
+   * cancelled, or liquidated externally). Terminal action: close with closeReason "closed"
+   * (event.type "active") or cancel with reason "user" (event.type "schedule").
+   * `event.attempt` = consecutive prior failed checks; a successful check resets it to 0.
    *
-   * CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-   * normally instead of throwing, otherwise a connectivity blip would wrongly close an open
-   * position. Throw exclusively on a confirmed "order not found by id" result.
-   *
-   * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_PENDING_FN.
-   *
-   * MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker `onOrderCheck`. A
-   * throw on a confirmed "order not found by id" closes the position with closeReason "closed"
-   * (retried via CREATE_SYNC_PENDING_FN). Throw-driven alternative to the imperative
-   * `commitClosePending` (call it from `pingActive`) — pick one, not both. Live-only. Implement via
-   * the {@link IActionCallbacks.onOrderCheck} callback.
+   * MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
+   * `onOrderActiveCheck` / `onOrderScheduleCheck` — identical verdict semantics. Throw-driven
+   * alternative to the imperative `commitClosePending` (call it from `pingActive`) — pick one,
+   * not both. Live-only. Implement via the {@link IActionCallbacks.onOrderCheck} callback.
    *
    * @deprecated This method is not recommended for use. Exchange integration should be implemented
-   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderCheck instead.
-   * If Action::orderCheck throws the framework will close the position with closeReason "closed"
-   * (event.type "active") or cancel the scheduled signal (event.type "schedule")!
+   * in Broker.useBrokerAdapter (the infrastructure domain layer) via onOrderActiveCheck /
+   * onOrderScheduleCheck instead.
    * @param event - Order-ping event with action "signal-ping" and type "schedule" | "active"
    */
   orderCheck(event: OrderCheckContract): void | Promise<void>;
