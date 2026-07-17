@@ -5,6 +5,7 @@ import {
   addStrategySchema,
   addActionSchema,
   setConfig,
+  listenExit,
   PersistSignalAdapter,
   PersistStrategyAdapter,
   PersistScheduleAdapter,
@@ -158,8 +159,11 @@ test("RETRY: exhausted attempts drop the row and generation resumes with a fresh
 
   const gateIds = [];
   let getSignalCalls = 0;
+  let exitCount = 0;
 
   makeExchange(context.exchangeName, () => basePrice);
+
+  const unsubscribeExit = listenExit(() => { exitCount += 1; });
 
   class EmptyAction {}
   addActionSchema({
@@ -221,7 +225,15 @@ test("RETRY: exhausted attempts drop the row and generation resumes with a fresh
     return;
   }
 
-  pass(`same id for 1+2 attempts, fresh id after exhaustion: [${gateIds.join(", ")}]`);
+  // Исчерпание open-ретраев id A — сетевой фатал, ровно один (свежий id B ещё в пределах попыток)
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  unsubscribeExit();
+  if (exitCount !== 1) {
+    fail(`network exhaustion of the open must signal fatal exit exactly once, got ${exitCount}`);
+    return;
+  }
+
+  pass(`same id for 1+2 attempts, fresh id after exhaustion: [${gateIds.join(", ")}], fatal exit signaled`);
 });
 
 /**

@@ -39,7 +39,7 @@ import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/ge
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, PersistStrategyAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
-import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
+import { errorEmitter, exitEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
@@ -1616,7 +1616,13 @@ const STASH_RETRY_OPEN_SIGNAL_FN = async (
     };
     self.params.logger.warn(message, payload);
     console.warn(message, payload);
-    errorEmitter.next(new Error(message));
+    const error = new Error(message);
+    errorEmitter.next(error);
+    // Только транзиентные (сетевые) отказы попадают в STASH — терминальные идут в
+    // DROP_RETRY_OPEN_SIGNAL_FN. Исчерпание = сеть/брокер не дают работать:
+    // фатальный сигнал ПОСЛЕ errorEmitter-лога (Live/Backtest завершаются,
+    // Notification алертит, listenExit — операторский хук).
+    exitEmitter.next(error);
     self._retryOpenSignal = null;
     self._retryOpenCount = 0;
     await PERSIST_STRATEGY_FN(self);
@@ -1704,7 +1710,16 @@ const RESOLVE_CLOSE_GATE_FN = (
   };
   self.params.logger.warn(message, payload);
   console.warn(message, payload);
-  errorEmitter.next(new Error(message));
+  const error = new Error(message);
+  errorEmitter.next(error);
+  if (!terminal) {
+    // Исчерпание ТРАНЗИЕНТНЫХ отказов = сеть/брокер не дают закрыть позицию —
+    // продолжать работу нельзя: фатальный сигнал ПОСЛЕ errorEmitter-лога (движок
+    // уже force-close'нул своё состояние, реальную позицию обязан выверить
+    // оператор/адаптер). Терминальный OrderRejectedError — бизнес-исход, не сеть:
+    // без exit.
+    exitEmitter.next(error);
+  }
   self._closeAttempt = 0;
   return "force";
 };
@@ -7809,6 +7824,25 @@ export class ClientStrategy implements IStrategy {
             || GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS <= 0
             || this._orderCheckAttempt > GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS;
           if (terminal) {
+            // Исчерпание толерантности ТРАНЗИЕНТНЫМИ сбоями = сеть не даёт проверить
+            // resting-ордер — продолжать работу нельзя: фатальный сигнал ПОСЛЕ
+            // errorEmitter-лога. "deleted" (подтверждённый not-found) и legacy CC=0 —
+            // не сетевые кейсы, без exit.
+            if (stillScheduled.reason === "transient" && GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS > 0) {
+              const message = "ClientStrategy tick: scheduled-order check attempts exhausted (network), cancelling scheduled signal and signaling fatal exit";
+              const payload = {
+                symbol: this.params.execution.context.symbol,
+                strategyName: this.params.strategyName,
+                signalId: this._scheduledSignal.id,
+                attempts: this._orderCheckAttempt,
+                maxAttempts: GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS,
+              };
+              this.params.logger.warn(message, payload);
+              console.warn(message, payload);
+              const error = new Error(message);
+              errorEmitter.next(error);
+              exitEmitter.next(error);
+            }
             this._orderCheckAttempt = 0;
             return await CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN(
               this,
@@ -7948,6 +7982,25 @@ export class ClientStrategy implements IStrategy {
           || GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS <= 0
           || this._orderCheckAttempt > GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS;
         if (terminal) {
+          // Исчерпание толерантности ТРАНЗИЕНТНЫМИ сбоями = сеть не даёт проверить
+          // ордер позиции — продолжать работу нельзя: фатальный сигнал ПОСЛЕ
+          // errorEmitter-лога. "deleted" (подтверждённый not-found) и legacy CC=0 —
+          // не сетевые кейсы, без exit.
+          if (stillPending.reason === "transient" && GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS > 0) {
+            const message = "ClientStrategy tick: pending-order check attempts exhausted (network), closing position and signaling fatal exit";
+            const payload = {
+              symbol: this.params.execution.context.symbol,
+              strategyName: this.params.strategyName,
+              signalId: this._pendingSignal.id,
+              attempts: this._orderCheckAttempt,
+              maxAttempts: GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS,
+            };
+            this.params.logger.warn(message, payload);
+            console.warn(message, payload);
+            const error = new Error(message);
+            errorEmitter.next(error);
+            exitEmitter.next(error);
+          }
           this._orderCheckAttempt = 0;
           return await CLOSE_PENDING_SIGNAL_AS_CLOSED_FN(
             this,

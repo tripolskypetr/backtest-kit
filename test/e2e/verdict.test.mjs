@@ -7,11 +7,15 @@ import {
   setConfig,
   listenSync,
   listenCheck,
+  listenExit,
   OrderRejectedError,
   OrderDeletedError,
   lib,
   MethodContextService,
 } from "../../build/index.mjs";
+
+/** listenExit-хендлер queued-асинхронный — даём ему такт перед ассертом */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
 // Вердикты гейтов/чеков (BrokerOrderVerdict) и счётчики attempt:
 // - attempt в payload: 0 на первой попытке, +1 на каждом сбое, сброс в 0 на успехе;
@@ -207,10 +211,12 @@ test("VERDICT: exhausted close attempts force-close the engine state with the or
   };
 
   const closeAttempts = [];
+  let exitCount = 0;
 
   makeExchange(context.exchangeName, () => 50000);
   makeStrategy(context, { minuteEstimatedTime: 1, once: true });
 
+  const unsubscribeExit = listenExit(() => { exitCount += 1; });
   const unsubscribe = listenSync((event) => {
     if (event.strategyName !== context.strategyName) return;
     if (event.action !== "signal-close") return;
@@ -246,9 +252,16 @@ test("VERDICT: exhausted close attempts force-close the engine state with the or
       return;
     }
 
-    pass(`close force-closed after exhausting 2 retries (attempts ${closeAttempts.join(",")})`);
+    await settle();
+    if (exitCount !== 1) {
+      fail(`network exhaustion of the close must signal fatal exit exactly once, got ${exitCount}`);
+      return;
+    }
+
+    pass(`close force-closed after exhausting 2 retries (attempts ${closeAttempts.join(",")}), fatal exit signaled`);
   } finally {
     unsubscribe();
+    unsubscribeExit();
   }
 });
 
@@ -265,10 +278,12 @@ test("VERDICT: OrderRejectedError on close force-closes immediately bypassing th
   };
 
   let closeCalls = 0;
+  let exitCount = 0;
 
   makeExchange(context.exchangeName, () => 50000);
   makeStrategy(context, { minuteEstimatedTime: 1, once: true });
 
+  const unsubscribeExit = listenExit(() => { exitCount += 1; });
   const unsubscribe = listenSync((event) => {
     if (event.strategyName !== context.strategyName) return;
     if (event.action !== "signal-close") return;
@@ -295,9 +310,16 @@ test("VERDICT: OrderRejectedError on close force-closes immediately bypassing th
       return;
     }
 
-    pass(`OrderRejectedError force-closed on the first attempt (calls=${closeCalls})`);
+    await settle();
+    if (exitCount !== 0) {
+      fail(`terminal business rejection must NOT signal fatal exit (not a network failure), got ${exitCount}`);
+      return;
+    }
+
+    pass(`OrderRejectedError force-closed on the first attempt (calls=${closeCalls}), no fatal exit`);
   } finally {
     unsubscribe();
+    unsubscribeExit();
   }
 });
 
@@ -561,10 +583,12 @@ test("VERDICT: exhausted check attempts close the position with reason closed", 
   };
 
   const checkAttempts = [];
+  let exitCount = 0;
 
   makeExchange(context.exchangeName, () => 50000);
   makeStrategy(context, { minuteEstimatedTime: 120, once: true });
 
+  const unsubscribeExit = listenExit(() => { exitCount += 1; });
   const unsubscribe = listenCheck((event) => {
     if (event.strategyName !== context.strategyName) return;
     checkAttempts.push(event.attempt);
@@ -599,9 +623,16 @@ test("VERDICT: exhausted check attempts close the position with reason closed", 
       return;
     }
 
-    pass(`position closed after exhausting 2 tolerated check failures (attempts ${checkAttempts.join(",")})`);
+    await settle();
+    if (exitCount !== 1) {
+      fail(`network exhaustion of the check must signal fatal exit exactly once, got ${exitCount}`);
+      return;
+    }
+
+    pass(`position closed after exhausting 2 tolerated check failures (attempts ${checkAttempts.join(",")}), fatal exit signaled`);
   } finally {
     unsubscribe();
+    unsubscribeExit();
   }
 });
 
@@ -618,10 +649,12 @@ test("VERDICT: OrderDeletedError on check closes immediately bypassing tolerance
   };
 
   let checkCalls = 0;
+  let exitCount = 0;
 
   makeExchange(context.exchangeName, () => 50000);
   makeStrategy(context, { minuteEstimatedTime: 120, once: true });
 
+  const unsubscribeExit = listenExit(() => { exitCount += 1; });
   const unsubscribe = listenCheck((event) => {
     if (event.strategyName !== context.strategyName) return;
     checkCalls += 1;
@@ -647,8 +680,15 @@ test("VERDICT: OrderDeletedError on check closes immediately bypassing tolerance
       return;
     }
 
-    pass(`OrderDeletedError closed the position on the first check (calls=${checkCalls})`);
+    await settle();
+    if (exitCount !== 0) {
+      fail(`confirmed not-found must NOT signal fatal exit (not a network failure), got ${exitCount}`);
+      return;
+    }
+
+    pass(`OrderDeletedError closed the position on the first check (calls=${checkCalls}), no fatal exit`);
   } finally {
     unsubscribe();
+    unsubscribeExit();
   }
 });
