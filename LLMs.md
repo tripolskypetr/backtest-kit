@@ -3679,7 +3679,7 @@ Default `false` for the three `*_EVERYWHERE` (conservative); the DCA/PPPL/traili
 | --- | --- | --- |
 | `CC_GET_CANDLES_RETRY_COUNT`, `CC_GET_CANDLES_RETRY_DELAY_MS` | candle fetch path | Retry policy for `getCandles` failures. |
 | `CC_ORDER_OPEN_RETRY_ATTEMPTS` | `ClientStrategy` open gate (`ARM_RETRY_OPEN_SIGNAL_FN`, pre-armed before each attempt) | Cap on identity-stable open retries; slot + per-signalId counter persisted in `StrategyData`, crash mid-attempt still counted. |
-| `CC_ORDER_CLOSE_RETRY_ATTEMPTS` | `ClientStrategy` close gate (pre-armed in `CALL_ORDER_SYNC_CLOSE_FN`, resolved in `RESOLVE_CLOSE_GATE_FN`) | Cap on started close attempts before force-close; counter persisted in `StrategyData` (restored by `pendingSignalId` match). |
+| `CC_ORDER_CLOSE_RETRY_ATTEMPTS` | `ClientStrategy` close gate (pre-armed in `CALL_ORDER_SYNC_CLOSE_FN`, resolved in `RESOLVE_CLOSE_GATE_FN`) | Cap on started close attempts before force-close; `retryCloseCount` persisted in `StrategyData` (restored by `pendingSignalId` match, clamped to 1 — the streak resets, the reconcile bit survives). |
 | `CC_ORDER_CHECK_RETRY_ATTEMPTS` | `ClientStrategy` tick order-check tolerance | Cap on consecutive failed checks before the terminal close/cancel (in-memory counter). |
 | `CC_MAX_CANDLES_PER_REQUEST` | candle fetch / cache (5 sites) | Pagination chunk size when a request exceeds it. |
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`, `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `validateCandles` | Anomaly rejection (price ≫ factor below median) + median-vs-average switch ([§7.6](#76-candle-data-validation)). |
