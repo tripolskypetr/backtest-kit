@@ -82,9 +82,11 @@ Called automatically via syncPendingSubject when `enable()` is active, on every 
 while a pending signal (payload.type "active") or a scheduled signal (payload.type
 "schedule") is monitored — routed to `onOrderActiveCheck` / `onOrderScheduleCheck`
 respectively. Skipped silently in backtest mode or when no adapter is registered.
-Exceptions are NOT swallowed: a throw from the adapter propagates up to
-syncPendingSubject.next() → CREATE_SYNC_PENDING_FN, which closes the position with "closed"
-(type "active") or cancels the scheduled signal with reason "user" (type "schedule").
+Exceptions are NOT swallowed: a throw propagates up to syncPendingSubject.next() →
+CREATE_SYNC_PENDING_FN and resolves into an IBrokerOrderVerdict — OrderDeletedError acts
+terminally at once (close "closed" / cancel "user"), any other throw (incl.
+OrderTransientError) is tolerated up to CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive
+failures before the terminal action fires.
 
 ### commitActivePing
 

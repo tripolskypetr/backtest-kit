@@ -171,6 +171,9 @@ group: docs
 - [SyncReportService](classes/SyncReportService.md)
 - [HighestProfitReportService](classes/HighestProfitReportService.md)
 - [MaxDrawdownReportService](classes/MaxDrawdownReportService.md)
+- [OrderDeletedError](classes/OrderDeletedError.md)
+- [OrderRejectedError](classes/OrderRejectedError.md)
+- [OrderTransientError](classes/OrderTransientError.md)
 
 ## Enums
 
@@ -419,6 +422,11 @@ group: docs
 - [BreakevenCommit](interfaces/BreakevenCommit.md)
 - [AverageBuyCommit](interfaces/AverageBuyCommit.md)
 - [ActivateScheduledCommit](interfaces/ActivateScheduledCommit.md)
+- [IBrokerOrderVerdictBase](interfaces/IBrokerOrderVerdictBase.md)
+- [IBrokerOrderVerdictConfirmed](interfaces/IBrokerOrderVerdictConfirmed.md)
+- [IBrokerOrderVerdictTransient](interfaces/IBrokerOrderVerdictTransient.md)
+- [IBrokerOrderVerdictRejected](interfaces/IBrokerOrderVerdictRejected.md)
+- [IBrokerOrderVerdictDeleted](interfaces/IBrokerOrderVerdictDeleted.md)
 - [ISignalDto](interfaces/ISignalDto.md)
 - [ISignalIntervalDto](interfaces/ISignalIntervalDto.md)
 - [ISignalRow](interfaces/ISignalRow.md)
@@ -612,6 +620,7 @@ group: docs
 - [IPublicAction](types/IPublicAction.md)
 - [ActionName](types/ActionName.md)
 - [StrategyCommitContract](types/StrategyCommitContract.md)
+- [IBrokerOrderVerdict](types/IBrokerOrderVerdict.md)
 - [RuntimeData](types/RuntimeData.md)
 - [StrategyStatus](types/StrategyStatus.md)
 - [CommitPayload](types/CommitPayload.md)

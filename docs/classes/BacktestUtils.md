@@ -748,7 +748,7 @@ Saves strategy report to disk.
 ### list
 
 ```ts
-list: () => Promise<{ id: string; symbol: string; strategyName: string; exchangeName: string; frameName: string; status: "pending" | "fulfilled" | "rejected" | "ready"; }[]>
+list: () => Promise<{ id: string; symbol: string; strategyName: string; exchangeName: string; frameName: string; status: "rejected" | "pending" | "fulfilled" | "ready"; }[]>
 ```
 
 Lists all active backtest instances with their current status.

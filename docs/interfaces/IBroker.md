@@ -34,11 +34,22 @@ Called when a signal is being closed (take-profit, stop-loss, or manual close). 
 syncSubject BEFORE the framework mutates strategy state, so it is also the close **gate**.
 
 MANUAL WIRING — EXCEPTION-BASED: place the real exit order here (tag/look up by `payload.signalId`)
-and record final PnL. This is the confirmed-close commit; like `onOrderSync` (signal-close) it
-shares the gate semantics — a THROW means "the exchange did not close the position" and the
-framework SKIPS the close, leaving the position open and retrying on the next tick. Return
-normally to let the close proceed. Backtest short-circuits this (no live exchange), so the gate is
-live-only.
+and record final PnL. Return normally to let the close proceed. THROW semantics
+(resolved into IBrokerOrderVerdict):
+- plain Error or OrderTransientError ("the network/exchange failed temporarily") →
+  "transient": the close is SKIPPED, the position stays open and the close retries on
+  the next tick with `payload.attempt` incremented, up to CC_ORDER_CLOSE_RETRY_ATTEMPTS
+  consecutive rejections. On exhaustion the engine FORCE-CLOSES its own state with the
+  ORIGINAL closeReason and signals a fatal exit (exitEmitter) — the real exchange
+  position must then be reconciled by the adapter/operator (the close lifecycle event
+  still reaches `onSignalPendingClose`). With the config at 0 the cap is disabled and
+  a rejected close retries forever (legacy).
+- OrderRejectedError ("no counterparty, retrying is pointless") → "rejected",
+  TERMINAL: the engine force-closes immediately, bypassing the retry counter. No fatal
+  exit (business outcome, not a network failure).
+- OrderDeletedError here is a userspace protocol violation (it belongs to the check
+  hooks) and intentionally degrades to "transient".
+Backtest short-circuits this (no live exchange), so the gate is live-only.
 
 This differs from `onSignalPendingClose`, which is the informational lifecycle hook that fires
 AFTER the close is committed (and cannot veto it).
@@ -55,12 +66,24 @@ strategy state, so it is also the open **gate**. Discriminated by `payload.type`
 - "schedule" — PLACEMENT of the resting entry order at scheduled-signal creation.
 
 MANUAL WIRING — EXCEPTION-BASED: place the real order here (tag the exchange order with
-`payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` / `onSignalActivePing` can find it). Like `onOrderSync`
-(signal-open) it shares the gate semantics — a THROW means "the exchange did not accept/fill the
-order" and the framework ROLLS BACK: for type "active" the pending signal returns to idle (a
-scheduled activation is cancelled); for type "schedule" the scheduled signal is NOT registered
-and the risk reservation is released. Both retry on the next tick. Return normally to let the
-open proceed. Backtest short-circuits this, so the gate is live-only.
+`clientOrderId = payload.signalId` so later `onOrderActiveCheck` / `onOrderScheduleCheck` /
+`onSignalActivePing` can find it). Return normally to let the open proceed. THROW
+semantics (resolved into IBrokerOrderVerdict):
+- plain Error or OrderTransientError ("the network/exchange failed temporarily, outcome
+  unknown") → "transient": the framework ROLLS BACK (type "active": pending returns to
+  idle; type "schedule": scheduled not registered, risk reservation released) and
+  retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
+  on the next tick with `payload.attempt` incremented, up to
+  CC_ORDER_OPEN_RETRY_ATTEMPTS. Because the id is stable, a duplicate POST with the
+  same clientOrderId lets the exchange deduplicate a lost-response fill instead of
+  double-buying. Exhaustion drops the signal and signals a fatal exit (exitEmitter).
+  With the config at 0 the retry slot is disabled: the next tick regenerates a FRESH id.
+- OrderRejectedError ("the exchange definitively refused, retrying is pointless") →
+  "rejected", TERMINAL: the open is dropped at once, no retry armed, an already-armed
+  retry for this id is wiped. No fatal exit (business outcome).
+- OrderDeletedError here is a userspace protocol violation (it belongs to the check
+  hooks) and intentionally degrades to "transient".
+Backtest short-circuits this, so the gate is live-only.
 
 This differs from `onSignalPendingOpen`, which is the informational lifecycle hook that fires
 AFTER the open is committed (and cannot veto it).
@@ -74,13 +97,19 @@ onOrderActiveCheck: (payload: BrokerOrderCheckPayload) => Promise<void>
 Called on every live tick while a pending signal (open position) is monitored,
 BEFORE TP/SL/time evaluation (`payload.type` is always "active").
 
-Query the exchange by `payload.signalId` and THROW ONLY when the order is NOT FOUND by that id
-— the framework will then close the position with closeReason "closed". Return normally to
-keep monitoring.
-
-CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-normally instead of throwing, otherwise a connectivity blip would wrongly close an open
-position. Throw exclusively on a confirmed "order not found by id" result.
+Query the exchange by `payload.signalId`. Return normally to keep monitoring.
+THROW semantics (resolved into IBrokerOrderVerdict):
+- OrderDeletedError — the CONFIRMED "order not found by id": the framework closes the
+  position with closeReason "closed" AT ONCE, bypassing the tolerance counter.
+- plain Error or OrderTransientError (timeout, 5xx, rate limit, disconnect) →
+  "transient": the failed check is TOLERATED — the order is assumed still open,
+  monitoring continues and the next ping carries `payload.attempt` incremented, up to
+  CC_ORDER_CHECK_RETRY_ATTEMPTS CONSECUTIVE failures (a successful check resets the
+  streak to 0). A connectivity blip no longer closes a live position on the spot.
+  Exhaustion acts terminally (close "closed") and signals a fatal exit (exitEmitter).
+  With the config at 0 any failure is terminal immediately (legacy).
+- OrderRejectedError here is a userspace protocol violation (it belongs to the
+  open/close gates) and intentionally degrades to "transient".
 
 Manual wiring — EXCEPTION-BASED VARIANT
 
@@ -104,15 +133,21 @@ onOrderScheduleCheck: (payload: BrokerOrderCheckPayload) => Promise<void>
 Called on every live tick while a scheduled signal (resting entry order) is monitored,
 BEFORE timeout/price-activation evaluation (`payload.type` is always "schedule").
 
-Query the exchange by `payload.signalId` and THROW ONLY when the resting order is NOT FOUND
-by that id — the framework will then cancel the scheduled signal with reason "user". Return
-normally to keep monitoring. A FILLED resting order must be confirmed via
-`commitActivateScheduled`, not by throwing here (a throw is a terminal cancel, not an
-activation).
-
-CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-normally instead of throwing, otherwise a connectivity blip would wrongly cancel the resting
-order. Throw exclusively on a confirmed "order not found by id" result.
+Query the exchange by `payload.signalId`. Return normally to keep monitoring.
+THROW semantics (resolved into IBrokerOrderVerdict):
+- OrderDeletedError — the CONFIRMED "resting order not found by id": the framework
+  cancels the scheduled signal with reason "user" AT ONCE, bypassing the tolerance
+  counter. A FILLED resting order is NOT a deleted order — confirm the fill via
+  `commitActivateScheduled` instead (a throw here is a terminal cancel, not an
+  activation).
+- plain Error or OrderTransientError (timeout, 5xx, rate limit, disconnect) →
+  "transient": the failed check is TOLERATED — the resting order is assumed still
+  open, the next ping carries `payload.attempt` incremented, up to
+  CC_ORDER_CHECK_RETRY_ATTEMPTS CONSECUTIVE failures (a successful check resets the
+  streak). Exhaustion cancels the scheduled signal (reason "user") and signals a fatal
+  exit (exitEmitter). With the config at 0 any failure is terminal immediately (legacy).
+- OrderRejectedError here is a userspace protocol violation (it belongs to the
+  open/close gates) and intentionally degrades to "transient".
 
 Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
 commit-function wiring in `onSignalSchedulePing` (`commitActivateScheduled` /

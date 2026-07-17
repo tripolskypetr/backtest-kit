@@ -73,10 +73,13 @@ Use to place the actual entry order on the exchange.
 
 Default implementation: Logs signal-open event.
 
-Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
-(e.g. limit order rejected) rolls back the open — the pending signal returns to idle and retries
-next tick; return normally to let it open. Live-only (backtest short-circuits). See
-{@link IBroker.onOrderOpenCommit} for the full semantics.
+Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state.
+Throw semantics: a plain Error / OrderTransientError rolls back the open and retries
+identity-stably (same signalId, `payload.attempt` increments) up to
+CC_ORDER_OPEN_RETRY_ATTEMPTS — tag orders with `clientOrderId = payload.signalId` so
+a lost-response retry deduplicates on the exchange; OrderRejectedError drops the open
+terminally without arming the retry. Return normally to let it open. Live-only
+(backtest short-circuits). See {@link IBroker.onOrderOpenCommit} for the full semantics.
 
 ### onOrderActiveCheck
 
@@ -87,14 +90,15 @@ onOrderActiveCheck(payload: BrokerOrderCheckPayload): Promise<void>;
 Called on every live tick while a pending signal (open position) is monitored, BEFORE
 TP/SL/time evaluation.
 
-Override to query the exchange for the order by `payload.signalId` and THROW ONLY when it is
-definitively NOT FOUND by that id (filled, cancelled, or liquidated externally) — the framework
-then closes the position with closeReason "closed". The default implementation logs and returns
-normally, which keeps the position under normal TP/SL monitoring.
-
-CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-normally instead of throwing. A thrown network error would wrongly close an open position; only
-a confirmed "order not found by id" response is a valid reason to throw.
+Override to query the exchange for the order by `payload.signalId`. The default
+implementation logs and returns normally, which keeps the position under normal TP/SL
+monitoring. Throw semantics: OrderDeletedError = confirmed "order not found by id"
+(filled, cancelled, or liquidated externally) — the framework closes the position with
+closeReason "closed" at once; a plain Error / OrderTransientError (timeout, 5xx, rate
+limit, disconnect) is TOLERATED as a transient failure up to
+CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive times (`payload.attempt` increments, a
+successful check resets it) before the framework acts terminally — a connectivity blip
+no longer closes a live position on the spot.
 
 Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
 commit-function wiring in `onSignalActivePing`. See {@link IBroker.onOrderActiveCheck} for the
@@ -109,14 +113,14 @@ onOrderScheduleCheck(payload: BrokerOrderCheckPayload): Promise<void>;
 Called on every live tick while a scheduled signal (resting entry order) is monitored, BEFORE
 timeout/price-activation evaluation.
 
-Override to query the exchange for the resting order by `payload.signalId` and THROW ONLY when
-it is definitively NOT FOUND by that id — the framework then cancels the scheduled signal with
-reason "user". The default implementation logs and returns normally. A FILLED resting order
-must be confirmed via `commitActivateScheduled`, not by throwing here.
-
-CRITICAL: swallow transient/network errors (timeout, 5xx, rate limit, disconnect) — return
-normally instead of throwing; only a confirmed "order not found by id" response is a valid
-reason to throw.
+Override to query the exchange for the resting order by `payload.signalId`. The default
+implementation logs and returns normally. Throw semantics: OrderDeletedError =
+confirmed "order not found by id" — the framework cancels the scheduled signal with
+reason "user" at once (a FILLED resting order must be confirmed via
+`commitActivateScheduled`, not by throwing); a plain Error / OrderTransientError
+(timeout, 5xx, rate limit, disconnect) is TOLERATED as a transient failure up to
+CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive times (`payload.attempt` increments, a
+successful check resets it) before the framework acts terminally.
 
 Manual wiring — EXCEPTION-BASED VARIANT: the throw-driven alternative to the imperative
 commit-function wiring in `onSignalSchedulePing`. See {@link IBroker.onOrderScheduleCheck} for
@@ -231,9 +235,12 @@ Use to place the exit order and record final PnL.
 
 Default implementation: Logs signal-close event.
 
-Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state, so a THROW here
-(e.g. exit order failed) SKIPS the close — the position stays open and the close retries next
-tick; return normally to let it close. Live-only (backtest short-circuits). See
+Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state.
+Throw semantics: a plain Error / OrderTransientError SKIPS the close — the position
+stays open and the close retries next tick (`payload.attempt` increments) up to
+CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine force-closes its state with the
+original closeReason; OrderRejectedError force-closes terminally at once. Return
+normally to let it close. Live-only (backtest short-circuits). See
 {@link IBroker.onOrderCloseCommit} for the full semantics.
 
 ### onPartialProfitCommit

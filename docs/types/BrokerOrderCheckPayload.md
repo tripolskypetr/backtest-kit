@@ -20,6 +20,7 @@ type BrokerOrderCheckPayload = {
     maxDrawdown: IStrategyPnL;
     totalEntries: number;
     totalPartials: number;
+    attempt: number;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -40,16 +41,18 @@ routed by `type` to the matching callback:
 - `type: "schedule"` — scheduled signal, before timeout/price-activation evaluation
   (the order in question is the resting entry order) — delivered to `onOrderScheduleCheck`.
 
-The adapter should query the exchange by `signalId` and THROW ONLY when the order is
-definitively NOT FOUND by that id (filled, cancelled, or liquidated externally). A throw
-propagates to CREATE_SYNC_PENDING_FN, which makes the framework close the pending signal with
-closeReason "closed" (type "active") or cancel the scheduled signal with reason "user"
-(type "schedule"). Returning normally keeps the signal under normal monitoring.
+The adapter should query the exchange by `signalId`. Returning normally keeps the signal
+under normal monitoring. Throw semantics (see IBrokerOrderVerdict):
+- OrderDeletedError — the CONFIRMED "order not found by id" (filled, cancelled, or
+  liquidated externally): terminal AT ONCE — close the pending signal with closeReason
+  "closed" (type "active") or cancel the scheduled signal with reason "user"
+  (type "schedule"), bypassing the tolerance counter.
+- plain Error / OrderTransientError (timeout, 5xx, rate limit, disconnect) — TOLERATED
+  as a transient failure: the order is assumed still open, the next ping carries
+  `attempt` incremented, up to CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures
+  before the framework acts terminally (a successful check resets the streak).
+- OrderRejectedError — protocol violation in this channel, degrades to transient.
 
 NOTE for type "schedule": if the resting entry order actually FILLED, confirm the fill via
 `commitActivateScheduled` instead of throwing — a throw here is a terminal cancel, not an
 activation.
-
-CRITICAL: transient/network errors (timeout, 5xx, rate limit, disconnect) must be SWALLOWED —
-return normally instead of throwing. A thrown network error would wrongly close an open
-position. Only a confirmed "order not found by id" response is a valid reason to throw.

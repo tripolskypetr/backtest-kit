@@ -18,6 +18,7 @@ type BrokerOrderOpenPayload = {
     pnl: IStrategyPnL;
     peakProfit: IStrategyPnL;
     maxDrawdown: IStrategyPnL;
+    attempt: number;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -33,8 +34,10 @@ Payload for the signal-open broker event.
 Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
 `onOrderOpenCommit`. Discriminated by `type`:
 - "active" — a pending signal is being opened (immediate entry or activation fill of the
-  resting order); throw = the exchange did not fill the entry, the framework rolls back the
-  open and retries on the next tick;
-- "schedule" — the resting entry order is being PLACED (scheduled signal creation); throw =
-  the exchange did not accept the resting order, the scheduled signal is NOT registered and
-  the placement retries on the next tick.
+  resting order);
+- "schedule" — the resting entry order is being PLACED (scheduled signal creation).
+
+Throw semantics (see IBrokerOrderVerdict): a plain Error / OrderTransientError rolls the
+open back and retries identity-stably (same signalId, `attempt` increments) up to
+CC_ORDER_OPEN_RETRY_ATTEMPTS; OrderRejectedError drops the open terminally without
+arming the retry.

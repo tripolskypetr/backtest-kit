@@ -20,6 +20,7 @@ type BrokerOrderClosePayload = {
     pnl: IStrategyPnL;
     peakProfit: IStrategyPnL;
     maxDrawdown: IStrategyPnL;
+    attempt: number;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

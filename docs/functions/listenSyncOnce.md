@@ -10,7 +10,10 @@ declare function listenSyncOnce(filterFn: (event: OrderSyncContract) => boolean,
 ```
 
 Subscribes to filtered signal synchronization events with one-time execution.
-If throws position is not being opened/closed until the async function completes. Useful for synchronizing with external systems.
+This is an order GATE: a throw from the listener rejects the open/close — see
+{@link listenSync} for the full throw semantics (plain Error /
+{@link OrderTransientError} = bounded "transient" retry, {@link OrderRejectedError}
+= terminal at once, {@link OrderDeletedError} = protocol violation → transient).
 
 ## Parameters
 

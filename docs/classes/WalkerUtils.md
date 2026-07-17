@@ -92,7 +92,7 @@ Saves walker report to disk.
 ### list
 
 ```ts
-list: () => Promise<{ id: string; symbol: string; walkerName: string; status: "pending" | "fulfilled" | "rejected" | "ready"; }[]>
+list: () => Promise<{ id: string; symbol: string; walkerName: string; status: "rejected" | "pending" | "fulfilled" | "ready"; }[]>
 ```
 
 Lists all active walker instances with their current status.

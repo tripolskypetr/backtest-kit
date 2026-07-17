@@ -51,6 +51,9 @@ declare function getDefaultConfig(): Readonly<{
     CC_ENABLE_SHORT_SIGNAL: boolean;
     CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
+    CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
+    CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
+    CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
 }>;
 ```
 

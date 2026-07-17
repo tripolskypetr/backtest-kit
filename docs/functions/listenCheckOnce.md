@@ -10,8 +10,11 @@ declare function listenCheckOnce(filterFn: (event: OrderCheckContract) => boolea
 ```
 
 Subscribes to filtered order-check ping events with one-time execution.
-If throws, the order behind the monitored signal is treated as no longer open on the
-exchange until the async function completes. Useful for synchronizing with external systems.
+This is the order CHECK channel — see {@link listenCheck} for the full throw
+semantics (plain Error / {@link OrderTransientError} = tolerated "transient"
+failure bounded by CC_ORDER_CHECK_RETRY_ATTEMPTS, {@link OrderDeletedError} =
+confirmed not-found terminal at once, {@link OrderRejectedError} = protocol
+violation → transient).
 
 ## Parameters
 
