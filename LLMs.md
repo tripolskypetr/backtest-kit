@@ -3861,20 +3861,33 @@ Semantics worth knowing:
 
 - **Identity-stable open retry = exchange-side idempotency.** Tag exchange orders with `clientOrderId = payload.signalId` and RECONCILE at `attempt > 0`: query the prior order by that id BEFORE re-sending and confirm the open if it filled. Do NOT rely on catching "duplicate" on re-send — Binance's duplicate-clientOrderId guard only covers OPEN orders; an instantly-filled market order will not dup.
 - **Open and close attempts are PRE-ARMED**: the counter increments and persists BEFORE the gate call, so a crash after the POST but before the verdict still counts the attempt — after a restart the gate fires with `attempt >= 1` and the reconcile rule above kicks in. `attempt > 0 ⇒ a prior order may have reached the exchange` is a hard invariant even across crashes.
+- **The retry keeps the row's PRICE identity, not just its id.** The armed row carries its concrete `priceOpen`; if the market runs away from it between attempts (long example: rejected at 50000, price now 56000), the retry does NOT chase the market and does NOT drop the row — the same slot re-routes to a **resting-order placement at the original `priceOpen`** (gate fires with `type: "schedule"`, same `signalId`, slot accounting uninterrupted: `schedule` sees the incremented `attempt`). A pullback to `priceOpen` fills it at the original basis via the normal activation gate (`type: "active"`, `attempt: 0`). Net effect: a lost response can delay an entry, never worsen its price.
 - Counters count **started attempts, not ticks**: checks ping every live tick (literal streak, reset by a success); the close counter advances only when a close actually triggers — quiet gaps don't touch it. Reset by a confirmed operation or a position transition.
 - The open retry (slot + `retryOpenCount`) and the close counter (`retryCloseCount`) are **persisted** (`StrategyData`; the close counter restored only for its own position by `pendingSignalId` match). On restore both counters are **CLAMPED to 1**: the `attempt >= 1` reconcile bit survives a restart, the retry budget refreshes — a pre-crash streak never drops/force-closes on the first post-restart attempt. The check counter is in-memory — a restart resets the tolerance window in the safe direction.
 - **Exhaustion of transient failures is the one FATAL path**: `errorEmitter` then `exitEmitter` (subscribe via `listenExit` for supervisor alerts). Typed terminal errors (`OrderRejectedError` / `OrderDeletedError`) are business outcomes — loud, but never a process exit.
+- **Orphan-sweep timing (`waitForInit`)**: after a fatal exit the exchange may hold artifacts the engine forgot (a filled order of a dropped signal, a position force-closed engine-side) — sweep them in the adapter's `waitForInit`. Two caveats: (1) `waitForInit` is LAZY — awaited before the FIRST proxied hook call, not at `enable()`; when the strategy trades on its first tick, the sweep runs INSIDE the open gate whose retry slot is already pre-armed, and `commitCreateSignal` throws. (2) An idle tick is NOT proof the engine is empty: rejected opens (armed slot) and rejected user-close drains (live position) also return idle and fire idle pings. Re-adopt via `commitCreateSignal` ONLY when `getStrategyStatus` shows `pendingSignalId` / `retryOpenSignal` / `closedSignal` / `createdSignal` all clear; otherwise restrict the sweep to exchange-side cleanup.
 - Backtest short-circuits gates to "confirmed" and never fires checks — the whole model is live-only.
 
 ### 42.3 Canonical adapter skeleton
 
 ```typescript
 import {
-  Broker, listenExit,
+  Broker, listenExit, getStrategyStatus, commitCreateSignal,
   OrderRejectedError, OrderDeletedError, OrderTransientError,
 } from "backtest-kit";
 
 Broker.useBrokerAdapter({
+  async waitForInit() {                                        // LAZY: runs before the FIRST hook call
+    await exchange.authenticate();
+    // ORPHAN SWEEP: the engine forgets dropped signals — the exchange does not
+    for (const order of await exchange.getOpenOrders()) await exchange.cancelOrder(order.id);
+    const s = await getStrategyStatus("BTCUSDT");
+    const engineClean = !s.pendingSignalId && !s.retryOpenSignal && !s.closedSignal && !s.createdSignal;
+    for (const pos of await exchange.getPositions()) {
+      if (engineClean) { /* re-adopt: commitCreateSignal({ id: pos.clientOrderId, ... }) */ }
+      else await exchange.flatten(pos.symbol);                 // engine busy — exchange-side cleanup only
+    }
+  },
   async onOrderOpenCommit(p) {
     if (p.attempt > 0) {
       // A prior POST may have reached the exchange (incl. across a crash) —
