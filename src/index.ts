@@ -710,3 +710,6 @@ export { toPlainString } from "./helpers/toPlainString";
 export { getEffectivePriceOpen } from "./helpers/getEffectivePriceOpen";
 export { getTotalClosed } from "./helpers/getTotalClosed";
 export { getPriceScale } from "./helpers/getPriceScale";
+
+export { OrderRejectedError } from "./error/OrderRejectedError";
+export { OrderDeletedError } from "./error/OrderDeletedError";

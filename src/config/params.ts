@@ -358,6 +358,25 @@ export const GLOBAL_CONFIG = {
    * Default: $100 per position
    */
   CC_POSITION_ENTRY_COST: 100,
+
+  /**
+   * Maximum number of open retries after the broker gate (onOrderSync / onOrderOpenCommit)
+   * rejected a signal-open. Each retry re-submits the SAME signal row with the SAME signalId
+   * on the next tick, so a broker adapter that tags exchange orders with
+   * clientOrderId = signalId gets idempotent placement: a retry after a LOST RESPONSE
+   * (order actually filled, confirmation never arrived) resolves to "duplicate order" on
+   * the exchange and reconciles into a confirmed open instead of buying twice.
+   *
+   * The retried row is re-validated against the current price on every consumption and is
+   * dropped loudly (errorEmitter) when the price has drifted out of its TP/SL bounds or
+   * when the attempts are exhausted — generation then resumes with a fresh signal.
+   *
+   * Set to 0 to disable: a rejected open is dropped immediately and the next tick
+   * regenerates a fresh signal with a NEW id (legacy behavior).
+   *
+   * Default: 5 retries (1 initial attempt + up to 5 identity-stable retries)
+   */
+  CC_ORDER_OPEN_RETRY_ATTEMPTS: 5,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

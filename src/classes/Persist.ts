@@ -1572,6 +1572,21 @@ export type StrategyData = {
    * independent of the VWAP-based SL check. Drained on the next tick to close with "stop_loss".
    */
   stopLossSignal: ISignalCloseRow | null;
+  /**
+   * Gate-rejected open awaiting an identity-stable retry (CC_ORDER_OPEN_RETRY_ATTEMPTS), or
+   * null if none. The row is re-submitted with its ORIGINAL signalId so an idempotent broker
+   * adapter (clientOrderId = signalId) reconciles a lost-response fill instead of double-buying.
+   * Write-ahead: stays persisted until the open outcome (success / exhaustion / failed
+   * re-validation) is durably recorded — a crash right after the broker confirmed the open
+   * replays the same id and resolves on the exchange side.
+   */
+  retryOpenSignal: ISignalRow | IScheduledSignalRow | null;
+  /**
+   * Number of broker-gate rejections recorded for retryOpenSignal's signalId. Incremented on
+   * every rejection of the same id; once it exceeds CC_ORDER_OPEN_RETRY_ATTEMPTS the retry row
+   * is dropped loudly and signal generation resumes. Reset on successful open or id change.
+   */
+  retryOpenCount: number;
 };
 
 /**
