@@ -418,7 +418,7 @@ export interface IActionCallbacks {
    * NOTE: Unlike other callbacks, exceptions from this method are NOT swallowed.
    * They propagate up to CREATE_SYNC_FN which resolves them into an
    * IBrokerOrderVerdict (see interfaces/Broker.interface):
-   * - non-typed throw → "transient": the open retries identity-stably (same signalId,
+   * - non-typed throw (or explicit OrderTransientError) → "transient": the open retries identity-stably (same signalId,
    *   `event.attempt` incremented) up to CC_ORDER_OPEN_RETRY_ATTEMPTS, then is dropped;
    *   the close retries up to CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine
    *   FORCE-CLOSES its state with the original closeReason (loud errorEmitter);
@@ -448,7 +448,7 @@ export interface IActionCallbacks {
    *
    * Exceptions are NOT swallowed — they propagate up to CREATE_SYNC_PENDING_FN which resolves
    * them into an IBrokerOrderVerdict (see interfaces/Broker.interface):
-   * - non-typed throw → "transient": the failed check is TOLERATED (order assumed still open,
+   * - non-typed throw (or explicit OrderTransientError) → "transient": the failed check is TOLERATED (order assumed still open,
    *   monitoring continues, `event.attempt` incremented) up to CC_ORDER_CHECK_RETRY_ATTEMPTS
    *   consecutive failures; exhaustion acts terminally — close with closeReason "closed"
    *   (type "active") / cancel with reason "user" (type "schedule"). A network blip no longer
@@ -781,7 +781,7 @@ export interface IAction {
    * Throw to reject (the return value is IGNORED).
    *
    * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_FN and resolve
-   * into an IBrokerOrderVerdict: non-typed throw = "transient" (bounded retry — opens
+   * into an IBrokerOrderVerdict: non-typed throw or OrderTransientError = "transient" (bounded retry — opens
    * identity-stably up to CC_ORDER_OPEN_RETRY_ATTEMPTS, closes up to
    * CC_ORDER_CLOSE_RETRY_ATTEMPTS with force-close on exhaustion); throw
    * OrderRejectedError = "rejected", terminal at once (open dropped / close force-closed).
@@ -803,7 +803,7 @@ export interface IAction {
    * to confirm the order is still pending (open) on the exchange.
    *
    * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_PENDING_FN and
-   * resolve into an IBrokerOrderVerdict: non-typed throw = "transient" (tolerated, order
+   * resolve into an IBrokerOrderVerdict: non-typed throw or OrderTransientError = "transient" (tolerated, order
    * assumed still open, up to CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures — then the
    * terminal action fires); throw OrderDeletedError = "deleted", terminal AT ONCE, bypassing
    * the tolerance counter — the CONFIRMED "order not found by `event.signalId`" (filled,

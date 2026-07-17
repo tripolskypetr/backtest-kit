@@ -1736,10 +1736,23 @@ export function listenStrategyCommitOnce(
 
 /**
  * Subscribes to signal synchronization events with queued async processing.
- * If throws position is not being opened/closed until the async function completes. Useful for synchronizing with external systems.
+ * This is an order GATE: a throw from the listener rejects the open/close.
  *
  * Emits when signals are being synchronized (e.g. pending signal being opened/closed).
- * 
+ *
+ * Throw semantics (resolved into IBrokerOrderVerdict, identical to the Broker
+ * `onOrderOpenCommit` / `onOrderCloseCommit` channel):
+ * - plain Error or {@link OrderTransientError} → "transient": the open retries
+ *   identity-stably (same signalId, `event.attempt` increments) up to
+ *   CC_ORDER_OPEN_RETRY_ATTEMPTS; the close retries up to
+ *   CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine FORCE-CLOSES its state with the
+ *   original closeReason. Exhaustion of either signals a fatal exit (exitEmitter).
+ * - {@link OrderRejectedError} → "rejected", TERMINAL at once: the open is dropped
+ *   without arming the retry; the close is force-closed immediately. No exit signal
+ *   (business outcome).
+ * - {@link OrderDeletedError} here is a userspace protocol violation (it belongs to
+ *   the CHECK channel) and intentionally degrades to "transient".
+ *
  * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to stop listening
  */
@@ -1759,8 +1772,11 @@ export function listenSync(fn: (event: OrderSyncContract) => void, warned = fals
 
 /**
  * Subscribes to filtered signal synchronization events with one-time execution.
- * If throws position is not being opened/closed until the async function completes. Useful for synchronizing with external systems.
- * 
+ * This is an order GATE: a throw from the listener rejects the open/close — see
+ * {@link listenSync} for the full throw semantics (plain Error /
+ * {@link OrderTransientError} = bounded "transient" retry, {@link OrderRejectedError}
+ * = terminal at once, {@link OrderDeletedError} = protocol violation → transient).
+ *
  * @param filterFn - Predicate to filter which events trigger the callback
  * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to cancel the listener before it fires
@@ -1794,12 +1810,27 @@ export function listenSyncOnce(
 
 /**
  * Subscribes to order-check ping events with queued async processing.
- * If throws, the order behind the monitored signal is treated as no longer open on the
- * exchange until the async function completes. Useful for synchronizing with external systems.
+ * This is the order CHECK channel: it decides whether the order behind the monitored
+ * signal is still open on the exchange.
  *
  * Emits on every live tick while a signal is monitored, BEFORE completion evaluation,
  * discriminated by `event.type`: "active" — pending signal (open position), "schedule" —
  * scheduled signal (resting entry order). Backtest never emits this event.
+ *
+ * Throw semantics (resolved into IBrokerOrderVerdict, identical to the Broker
+ * `onOrderActiveCheck` / `onOrderScheduleCheck` channel):
+ * - plain Error or {@link OrderTransientError} → "transient": the failed check is
+ *   TOLERATED (order assumed still open, monitoring continues, `event.attempt`
+ *   increments) up to CC_ORDER_CHECK_RETRY_ATTEMPTS CONSECUTIVE failures — a network
+ *   blip no longer kills a live position; a successful check resets the streak.
+ *   Exhaustion acts terminally (close "closed" / cancel "user") and signals a fatal
+ *   exit (exitEmitter).
+ * - {@link OrderDeletedError} → "deleted", TERMINAL at once, bypassing the tolerance:
+ *   the CONFIRMED "order not found by `event.signalId`". A FILLED resting order is
+ *   NOT a deleted order — confirm fills via commitActivateScheduled /
+ *   commitCreateTakeProfit / commitCreateStopLoss instead.
+ * - {@link OrderRejectedError} here is a userspace protocol violation (it belongs to
+ *   the GATE channel) and intentionally degrades to "transient".
  *
  * @param fn - Callback function to handle check events. If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to stop listening
@@ -1820,8 +1851,11 @@ export function listenCheck(fn: (event: OrderCheckContract) => void, warned = fa
 
 /**
  * Subscribes to filtered order-check ping events with one-time execution.
- * If throws, the order behind the monitored signal is treated as no longer open on the
- * exchange until the async function completes. Useful for synchronizing with external systems.
+ * This is the order CHECK channel — see {@link listenCheck} for the full throw
+ * semantics (plain Error / {@link OrderTransientError} = tolerated "transient"
+ * failure bounded by CC_ORDER_CHECK_RETRY_ATTEMPTS, {@link OrderDeletedError} =
+ * confirmed not-found terminal at once, {@link OrderRejectedError} = protocol
+ * violation → transient).
  *
  * @param filterFn - Predicate to filter which events trigger the callback
  * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.

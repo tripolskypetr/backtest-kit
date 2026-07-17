@@ -12,11 +12,19 @@ import { FrameName } from "../interfaces/Frame.interface";
  * - `type: "active"` — a pending signal (open position); the order backing the position.
  * - `type: "schedule"` — a scheduled signal; the resting entry order awaiting activation.
  *
- * Listener contract (mirrors syncSubject semantics):
- * - Return true (or do nothing) — the order is still open on the exchange, keep monitoring.
- * - Return false OR throw — the order is no longer open on the exchange (filled, cancelled,
- *   liquidated externally). For "active" the framework closes the pending signal with
- *   closeReason "closed"; for "schedule" it cancels the scheduled signal (reason "user").
+ * Listener contract (resolved into IBrokerOrderVerdict):
+ * - Return true (or do nothing) — the order is still open on the exchange, keep monitoring;
+ *   the consecutive-failure counter (`attempt`) resets to 0.
+ * - Throw OrderDeletedError — the CONFIRMED "order not found by id" (filled, cancelled,
+ *   liquidated externally): terminal AT ONCE, bypassing the tolerance counter. For "active"
+ *   the framework closes the pending signal with closeReason "closed"; for "schedule" it
+ *   cancels the scheduled signal (reason "user").
+ * - Return false OR throw a plain Error / OrderTransientError — the check FAILED
+ *   transiently (network blip, exchange 5xx): TOLERATED, the order is assumed still open
+ *   and the next ping carries `attempt` incremented, up to CC_ORDER_CHECK_RETRY_ATTEMPTS
+ *   consecutive failures before the terminal action above fires (with the config at 0 any
+ *   failure is terminal on the spot — legacy).
+ * - Throw OrderRejectedError — protocol violation in this channel, degrades to transient.
  *   NOTE for "schedule": if the resting order actually FILLED, confirm it via
  *   activateScheduled/commitActivateScheduled instead of failing the ping — a failed ping
  *   is a terminal cancel, not an activation.

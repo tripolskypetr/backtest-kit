@@ -9,12 +9,17 @@ interface OrderSyncBase {
   /**
    * Which order the sync gate is about:
    * - "active" — the position order: immediate open, activation fill of a resting
-   *   order, and every close. Reject (false/throw) skips the open/close; a rejected
-   *   fresh open rolls back the interval throttle and retries on the next tick.
+   *   order, and every close.
    * - "schedule" — the resting entry order being PLACED when a scheduled signal is
-   *   created (action "signal-open" only). Reject means the exchange did not accept
-   *   the resting order: the scheduled signal is NOT registered, the risk
-   *   reservation is released and the placement retries on the next tick.
+   *   created (action "signal-open" only).
+   *
+   * Listener throw semantics (resolved into IBrokerOrderVerdict): a plain Error or
+   * OrderTransientError = "transient" — the open rolls back and retries
+   * identity-stably (same signalId, `attempt` increments) up to
+   * CC_ORDER_OPEN_RETRY_ATTEMPTS, the close is skipped and retries up to
+   * CC_ORDER_CLOSE_RETRY_ATTEMPTS (then force-close); OrderRejectedError =
+   * "rejected", terminal at once (open dropped without retry / close force-closed);
+   * OrderDeletedError here is a protocol violation and degrades to "transient".
    */
   type: "schedule" | "active";
   /** Trading pair symbol (e.g., "BTCUSDT") */
