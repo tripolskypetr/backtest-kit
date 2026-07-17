@@ -1,4 +1,4 @@
-const ORDER_Deleted_ERROR_TYPE = Symbol.for("OrderDeletedError");
+const ORDER_DELETED_ERROR_TYPE = Symbol.for("OrderDeletedError");
 
 const ERROR_MESSAGE_DEFAULT = "OrderDeletedError";
 
@@ -10,7 +10,7 @@ const ERROR_MESSAGE_DEFAULT = "OrderDeletedError";
  * пользователь удалил ордер руками
  */
 export class OrderDeletedError extends Error {
-  public readonly __type__ = ORDER_Deleted_ERROR_TYPE;
+  public readonly __type__ = ORDER_DELETED_ERROR_TYPE;
 
   constructor(message = ERROR_MESSAGE_DEFAULT) {
     super(message);
@@ -18,7 +18,7 @@ export class OrderDeletedError extends Error {
   }
 
   static isOrderDeletedError(error: object): boolean {
-    if (Reflect.get(error, "__type__") === ORDER_Deleted_ERROR_TYPE) {
+    if (Reflect.get(error, "__type__") === ORDER_DELETED_ERROR_TYPE) {
       return true;
     }
     return false;
