@@ -81,7 +81,9 @@ const MARKET_DTO = { position: "long", priceTakeProfit: 52000, priceStopLoss: 46
 //    scheduled отменяется, адаптер получает onSignalScheduleCancelled
 test("broker onOrderScheduleCheck throw cancels resting order and notifies adapter", async (t) => {
   useMemoryPersist();
-  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  // Legacy-инвариант «один сбой чека = терминально»: толерантность выключена
+  // (её собственные сценарии — в verdict.test.mjs)
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60, CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
   makePriceExchange("bc1-ex", () => 50000);
 
   const CTX = { strategyName: "bc1-strat", exchangeName: "bc1-ex", frameName: "" };
@@ -135,7 +137,9 @@ test("broker onOrderScheduleCheck throw cancels resting order and notifies adapt
 //    close "closed", адаптер получает onOrderCloseCommit
 test("broker onOrderActiveCheck throw closes the position as externally closed", async (t) => {
   useMemoryPersist();
-  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  // Legacy-инвариант «один сбой чека = терминально»: толерантность выключена
+  // (её собственные сценарии — в verdict.test.mjs)
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60, CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
   makePriceExchange("bc2-ex", () => 50000);
 
   const CTX = { strategyName: "bc2-strat", exchangeName: "bc2-ex", frameName: "" };

@@ -2,6 +2,7 @@ import { test } from "worker-testbed";
 
 import {
   addExchangeSchema,
+  setConfig,
   addFrameSchema,
   addStrategySchema,
   addRiskSchema,
@@ -2129,6 +2130,10 @@ test("AUDIT: risk-rejected open retries on next tick, not next interval", async 
  * scheduled-сигнал (reason "user") и уведомить брокерский канал.
  */
 test("AUDIT: order ping fires for scheduled signal (type schedule) and cancels on failure", async ({ pass, fail }) => {
+  // Legacy-инвариант «один сбой чека = терминально»: толерантность выключена
+  // (её собственные сценарии — в verdict.test.mjs)
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
+
   const basePrice = 50000;
   const priceOpen = 40000;
   const t0 = new Date("2024-01-01T00:00:00Z").getTime();
@@ -2446,6 +2451,10 @@ test("AUDIT: scheduled placement sync-reject rolls back and retries on next tick
  * scheduled-сигнал — та же семантика, что у Broker.onOrderScheduleCheck.
  */
 test("AUDIT: listenCheck receives order pings and gates scheduled signal", async ({ pass, fail }) => {
+  // Legacy-инвариант «один сбой чека = терминально»: толерантность выключена
+  // (её собственные сценарии — в verdict.test.mjs)
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
+
   const { listenCheck } = await import("../../build/index.mjs");
   const basePrice = 50000;
   const priceOpen = 40000;

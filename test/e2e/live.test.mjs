@@ -82,7 +82,9 @@ const MARKET_DTO = { position: "long", priceTakeProfit: 52000, priceStopLoss: 46
 //    пропал с биржи -> scheduled отменяется через cancel-пайплайн
 test("live schedule-ping rejection cancels the scheduled signal", async (t) => {
   useMemoryPersist();
-  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 }, true);
+  // Legacy-инвариант «один сбой чека = терминально»: толерантность выключена
+  // (её собственные сценарии — в verdict.test.mjs)
+  setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60, CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
   makePriceExchange("l1-ex", () => 50000);
 
   const CTX = { strategyName: "l1-strat", exchangeName: "l1-ex", frameName: "" };

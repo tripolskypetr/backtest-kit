@@ -2,6 +2,7 @@ import { test } from "worker-testbed";
 
 import {
   addExchangeSchema,
+  setConfig,
   addFrameSchema,
   addStrategySchema,
   addRiskSchema,
@@ -457,6 +458,10 @@ test("GAUNTLET: backtest continues after activation risk-reject and completes ne
  * whipsaw не блокирует (новый id), состояние partial/breakeven очищено.
  */
 test("GAUNTLET: failed active order-check closes position and releases state for the next open", async ({ pass, fail }) => {
+  // Legacy-инвариант «один сбой чека = терминально»: толерантность выключена
+  // (её собственные сценарии — в verdict.test.mjs)
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
+
   const basePrice = 50000;
   const t0 = new Date("2024-01-01T00:00:00Z").getTime();
   const MIN = 60_000;

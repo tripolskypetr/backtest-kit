@@ -2,6 +2,7 @@ import { test } from "worker-testbed";
 
 import {
   addExchangeSchema,
+  setConfig,
   addFrameSchema,
   addStrategySchema,
   Backtest,
@@ -172,6 +173,10 @@ test("BROKER: full scheduled lifecycle routes every stage to the adapter in orde
  * и сам адаптер получает onSignalScheduleCancelled (reason "user").
  */
 test("BROKER: adapter throw gates placement and order-check cancels back into the adapter", async ({ pass, fail }) => {
+  // Legacy-инвариант «один сбой чека = терминально»: толерантность выключена
+  // (её собственные сценарии — в verdict.test.mjs)
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
+
   const basePrice = 50000;
   const priceOpen = 40000;
   const t0 = new Date("2024-01-01T00:00:00Z").getTime();

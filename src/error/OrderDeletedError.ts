@@ -3,7 +3,7 @@ const ORDER_DELETED_ERROR_TYPE = Symbol.for("OrderDeletedError");
 const ERROR_MESSAGE_DEFAULT = "OrderDeletedError";
 
 /**
- * Типизированная ошибка чтобы различить сетевую ошибку от кейса
+ * Типизированная ошибка чтобы различить бизнес ошибку от кейса
  * когда интернет не работает из-за блокировок
  * 
  * Использовать в onOrderActiveCheck/onOrderScheduleCheck когда
