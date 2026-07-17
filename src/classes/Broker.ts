@@ -929,6 +929,17 @@ export interface IBroker {
    * then either flatten the orphans on the exchange or re-adopt a live position via
    * `commitCreateSignal` so it comes back under TP/SL management. Skipping the sweep
    * risks trading a fresh signal ON TOP of an unmanaged orphan position.
+   *
+   * TIMING CAVEATS for the re-adoption branch (`commitCreateSignal`):
+   * - `waitForInit` is LAZY — it is awaited before the FIRST proxied hook call, not at
+   *   `enable()`. If the strategy emits a signal on its very first tick, that first call
+   *   is the open gate with the retry slot already PRE-ARMED, and `commitCreateSignal`
+   *   throws "a rejected open is awaiting retry".
+   * - an idle tick does NOT mean the engine is empty: rejected opens (armed retry slot)
+   *   and rejected user-close drains (position still live) also return idle. Always
+   *   check `getStrategyStatus` first — adopt only when `pendingSignalId`,
+   *   `retryOpenSignal`, `closedSignal` and `createdSignal` are all clear; otherwise
+   *   restrict the sweep to flattening exchange-side orphans.
    */
   waitForInit(): Promise<void>;
 
@@ -2644,6 +2655,15 @@ class BrokerBase implements IBroker {
    * a live position via `commitCreateSignal` to bring it back under TP/SL management —
    * otherwise a fresh signal may open ON TOP of an unmanaged orphan.
    *
+   * TIMING CAVEATS for re-adoption: `waitForInit` is LAZY (awaited before the first
+   * proxied hook call, not at `enable()`) — when the strategy trades on its first tick,
+   * the sweep runs INSIDE the open gate with the retry slot already pre-armed, and
+   * `commitCreateSignal` throws "a rejected open is awaiting retry". An idle tick is
+   * no guarantee either: rejected opens and rejected user-close drains also emit idle
+   * pings while state is live. Check `getStrategyStatus` and adopt ONLY when
+   * `pendingSignalId` / `retryOpenSignal` / `closedSignal` / `createdSignal` are all
+   * clear; otherwise limit the sweep to exchange-side cleanup.
+   *
    * Default implementation: Logs initialization event.
    *
    * @example
@@ -2657,10 +2677,14 @@ class BrokerBase implements IBroker {
    *   for (const order of await this.exchange.getOpenOrders()) {
    *     await this.exchange.cancelOrder(order.id); // resting entries of dropped signals
    *   }
+   *   const status = await getStrategyStatus("BTCUSDT");
+   *   const engineClean = !status.pendingSignalId && !status.retryOpenSignal
+   *     && !status.closedSignal && !status.createdSignal;
    *   for (const pos of await this.exchange.getPositions()) {
-   *     const pending = await getPendingSignal(pos.symbol);
-   *     if (!pending) {
-   *       await this.exchange.flatten(pos.symbol); // or re-adopt via commitCreateSignal
+   *     if (engineClean) {
+   *       // re-adopt via commitCreateSignal (id = pos.clientOrderId) — back under TP/SL
+   *     } else {
+   *       await this.exchange.flatten(pos.symbol); // engine busy — exchange-side cleanup only
    *     }
    *   }
    * }

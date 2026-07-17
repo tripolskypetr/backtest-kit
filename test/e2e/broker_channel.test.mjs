@@ -5,6 +5,7 @@ import {
   addStrategySchema,
   addFrameSchema,
   commitCreateSignal,
+  getStrategyStatus,
   runInMockContext,
   Backtest,
   Broker,
@@ -361,15 +362,20 @@ test("CHANNEL: waitForInit completes before the first hook call and runs exactly
 /**
  * CHANNEL: ORPHAN SWEEP из waitForInit — усыновление биржевой позиции на
  * BOOTSTRAP'е: движок стартует idle (getSignal=null), первый idle-пинг лениво
- * триггерит waitForInit, sweep находит сироту и подсовывает усыновляющий DTO
- * через commitCreateSignal; следующий tick открывает позицию с БИРЖЕВЫМ id,
- * open-гейт реконсилирует (attempt 0, confirm).
+ * триггерит waitForInit, sweep сверяет getStrategyStatus (движок чист) и
+ * подсовывает усыновляющий DTO через commitCreateSignal; следующий tick
+ * открывает позицию с БИРЖЕВЫМ id, open-гейт реконсилирует (attempt 0, confirm).
  *
- * НЮАНС (проверен отдельной попыткой): усыновлять из waitForInit, когда движок
- * УЖЕ гонит собственный сигнал, нельзя — ленивый waitForInit бежит внутри
- * первого open-гейта, чей слот к этому моменту pre-arm'лен, и createSignal
- * кидает "a rejected open is awaiting retry". Sweep обязан успевать ДО торговли
- * (idle-фаза бутстрапа) — что этот тест и воспроизводит.
+ * ДВА НЮАНСА (проверены отдельными попытками):
+ * 1. waitForInit ленивый — если стратегия гонит сигнал первым же tick'ом, он
+ *    бежит ВНУТРИ open-гейта с уже pre-arm'ленным слотом, и createSignal кидает
+ *    "a rejected open is awaiting retry".
+ * 2. idle-тик ≠ пустой движок: RETURN_IDLE_FN (единственный эмиттер
+ *    idlePingSubject) вызывается и из окон отказов — отвергнутый open (слот
+ *    взведён) и отвергнутый user-close drain (позиция ЖИВА) тоже возвращают
+ *    idle. Поэтому канонический sweep обязан сверяться с getStrategyStatus
+ *    (pendingSignalId / retryOpenSignal / closedSignal), а не полагаться на
+ *    сам факт idle-пинга — что адаптер этого теста и делает.
  */
 test("CHANNEL: waitForInit orphan sweep re-adopts an exchange position via commitCreateSignal", async ({ pass, fail }) => {
   const t0 = new Date("2024-01-01T00:00:00Z").getTime();
@@ -396,6 +402,12 @@ test("CHANNEL: waitForInit orphan sweep re-adopts an exchange position via commi
   Broker.useBrokerAdapter({
     waitForInit: async () => {
       initCalls += 1;
+      // КАНОН: сперва убедиться, что движок действительно чист — idle-пинг сам
+      // по себе этого НЕ гарантирует (см. нюанс №2 в докстринге)
+      const status = await inMock(() => getStrategyStatus("BTCUSDT"), t0, context);
+      if (status.pendingSignalId || status.retryOpenSignal || status.closedSignal || status.createdSignal) {
+        throw new Error(`ch-adopt: engine is NOT clean, adoption is unsafe: ${JSON.stringify(status)}`);
+      }
       // ORPHAN SWEEP по рецепту из JSDoc: нашли филл без позиции в движке — усыновляем
       const [orphanId] = [...fakeOrders.keys()];
       await inMock(
