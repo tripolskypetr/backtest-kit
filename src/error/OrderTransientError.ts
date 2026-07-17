@@ -67,6 +67,9 @@ const ERROR_MESSAGE_DEFAULT = "OrderTransientError";
  *   check counter is in-memory (a restart resets the tolerance window in the safe
  *   direction). For open/close, `attempt > 0` is therefore a HARD invariant even
  *   across crashes: a prior order MAY have reached the exchange — reconcile first.
+ *   On restore the persisted counters are CLAMPED to 1: the reconcile bit survives,
+ *   the streak resets — a pre-crash outage never exhausts the budget on the first
+ *   post-restart attempt.
  * - **Nominal brand for symmetry.** `__type__ === Symbol.for("OrderTransientError")`
  *   and the static guard exist for consistency with the other two errors (useful in
  *   the application's own logging/metrics); the framework itself never checks it.

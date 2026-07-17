@@ -76,6 +76,8 @@ export type StrategyStatus = {
    * gate call, so a crash mid-attempt still counts it). The gate event carries
    * `attempt = retryOpenCount - 1`; once the started-attempts budget (1 initial + CC retries) is spent, the
    * retry row is dropped loudly and signal generation resumes. Reset on successful open.
+   * Restored CLAMPED to 1 after a restart: only the `attempt >= 1` reconcile bit
+   * survives — a stale pre-crash streak must not burn the fresh retry budget.
    */
   retryOpenCount: number;
   /**
@@ -83,10 +85,12 @@ export type StrategyStatus = {
    * each gate call — a crash mid-close-attempt still counts it, so after a restart the next
    * close event carries `attempt > 0` and the adapter knows a prior exit order MAY have
    * reached the exchange). Restored only when the snapshot belongs to the restored pending
-   * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present).
+   * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present),
+   * and CLAMPED to 1 — a stale pre-crash streak must not force-close on the first
+   * post-restart rejection; only the reconcile bit survives.
    * Reset on a confirmed close and on any pending-signal transition.
    */
-  closeAttempt: number;
+  retryCloseCount: number;
 };
 
 /**

@@ -370,7 +370,7 @@ const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
     // PRE-ARM: count the STARTED close attempt and persist BEFORE the gate call —
     // a crash after the exit order was POSTed but before the verdict restores
     // attempt >= 1, telling the adapter to verify the position before re-sending.
-    self._closeAttempt += 1;
+    self._retryCloseCount += 1;
     await PERSIST_STRATEGY_FN(self);
     const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
     return await CALL_ORDER_SYNC_GUARDED_FN(self, {
@@ -378,7 +378,7 @@ const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
       type: "active",
       // Prior STARTED close attempts (counter pre-armed above; >= 1 means a prior
       // exit order may have reached the exchange)
-      attempt: self._closeAttempt - 1,
+      attempt: self._retryCloseCount - 1,
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
       exchangeName: self.params.exchangeName,
@@ -1373,10 +1373,12 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // queue: those ops are void (see the orphaned-queue recovery test).
     if (strategyData.closedSignal) {
       self._commitQueue = strategyData.commitQueue ?? [];
-      // Restore the started-close-attempts counter for the deferred user-close drain:
-      // a crash mid-close-attempt (exit order possibly POSTed) must resume with
-      // attempt >= 1 so the adapter verifies the position before re-sending.
-      self._closeAttempt = strategyData.closeAttempt ?? 0;
+      // Restore the started-close-attempts counter for the deferred user-close drain,
+      // CLAMPED to 1: through a restart only the `attempt >= 1` bit matters ("a prior
+      // exit order MAY have reached the exchange — reconcile before re-sending").
+      // Carrying the full pre-crash streak would let yesterday's network outage burn
+      // today's retry budget and force-close on the first post-restart rejection.
+      self._retryCloseCount = Math.min(strategyData.retryCloseCount ?? 0, 1);
     }
 
     // Restore the armed open-retry slot (gate-rejected open awaiting an
@@ -1389,7 +1391,11 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // snapshot armed under an older config is dropped on the next persist).
     if (GLOBAL_CONFIG.CC_ORDER_OPEN_RETRY_ATTEMPTS > 0) {
       self._retryOpenSignal = strategyData.retryOpenSignal ?? null;
-      self._retryOpenCount = strategyData.retryOpenCount ?? 0;
+      // CLAMPED to 1: through a restart only the `attempt >= 1` reconcile bit matters
+      // ("a prior order MAY have reached the exchange"); the full pre-crash streak
+      // must not burn the fresh retry budget — a stale streak from a long outage
+      // would otherwise drop the signal on the first post-restart rejection.
+      self._retryOpenCount = Math.min(strategyData.retryOpenCount ?? 0, 1);
       // JSON serializes Infinity as null: restore eternal-hold rows the same way
       // as the pending/scheduled snapshots below.
       if (self._retryOpenSignal && self._retryOpenSignal.minuteEstimatedTime == null) {
@@ -1454,10 +1460,11 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     if (strategyData && strategyData.pendingSignalId === pendingSignal.id) {
       self._commitQueue = strategyData.commitQueue ?? [];
       // Same id-gated rule for the started-close-attempts counter: it belongs to
-      // exactly this position; a stale counter from a previous position must never
-      // shorten a new one's retry budget (NOTE: the restore below overrides the
-      // in-memory reset done by setPendingSignal-style transitions during restore).
-      self._closeAttempt = strategyData.closeAttempt ?? 0;
+      // exactly this position. CLAMPED to 1 — through a restart only the
+      // `attempt >= 1` reconcile bit matters; the full pre-crash streak must not
+      // burn the fresh budget (a day-old outage would force-close on the first
+      // post-restart rejection otherwise).
+      self._retryCloseCount = Math.min(strategyData.retryCloseCount ?? 0, 1);
     }
 
     // Call onActive callback for restored signal.
@@ -1624,7 +1631,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
       stopLossSignal: self._stopLossSignal,
       retryOpenSignal: self._retryOpenSignal,
       retryOpenCount: self._retryOpenCount,
-      closeAttempt: self._closeAttempt,
+      retryCloseCount: self._retryCloseCount,
     },
     self.params.symbol,
     self.params.strategyName,
@@ -1716,7 +1723,7 @@ const RESOLVE_CLOSE_GATE_FN = (
   closeReason: string
 ): "allow" | "retry" | "force" => {
   if (verdict.reason === "confirmed") {
-    self._closeAttempt = 0;
+    self._retryCloseCount = 0;
     return "allow";
   }
   // The started attempt was already counted by the PRE-ARM inside
@@ -1724,7 +1731,7 @@ const RESOLVE_CLOSE_GATE_FN = (
   const terminal = verdict.reason !== "transient";
   const exhausted = terminal
     || (GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS > 0
-      && self._closeAttempt > GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS);
+      && self._retryCloseCount > GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS);
   if (!exhausted) {
     return "retry";
   }
@@ -1734,7 +1741,7 @@ const RESOLVE_CLOSE_GATE_FN = (
     strategyName: self.params.strategyName,
     signalId: signal.id,
     closeReason,
-    attempts: self._closeAttempt,
+    attempts: self._retryCloseCount,
     terminal,
   };
   self.params.logger.warn(message, payload);
@@ -1749,7 +1756,7 @@ const RESOLVE_CLOSE_GATE_FN = (
     // без exit.
     exitEmitter.next(error);
   }
-  self._closeAttempt = 0;
+  self._retryCloseCount = 0;
   return "force";
 };
 
@@ -4108,7 +4115,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: signal.id,
       closeReason,
-      attempt: self._closeAttempt,
+      attempt: self._retryCloseCount,
     });
     return null;
   }
@@ -4945,7 +4952,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: signal.id,
       closeReason,
-      attempt: self._closeAttempt,
+      attempt: self._retryCloseCount,
     });
     return null;
   }
@@ -5068,7 +5075,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self.params.logger.info("ClientStrategy backtest: user-closed signal rejected by sync, will retry on next candle", {
       symbol: self.params.execution.context.symbol,
       signalId: closedSignal.id,
-      attempt: self._closeAttempt,
+      attempt: self._retryCloseCount,
     });
     return null;
   }
@@ -6266,13 +6273,15 @@ export class ClientStrategy implements IStrategy {
    * knows a prior exit MAY have reached the exchange (verify the position before
    * re-sending). Restored only when the persisted snapshot belongs to the restored pending
    * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present)
-   * — a stale counter from a previous position must never shorten a new one's budget.
+   * — a stale counter from a previous position must never shorten a new one's budget —
+   * and CLAMPED to 1: through a restart only the `attempt >= 1` reconcile bit survives,
+   * a pre-crash streak must not force-close on the first post-restart rejection.
    * Reset to 0 on a confirmed close, on force-close and on any pending-signal transition.
    * Once starts exceed CC_ORDER_CLOSE_RETRY_ATTEMPTS (or the gate returns the terminal
    * "rejected" verdict) the engine FORCE-CLOSES its state with the original closeReason,
    * loudly — see RESOLVE_CLOSE_GATE_FN.
    */
-  _closeAttempt = 0;
+  _retryCloseCount = 0;
 
   /**
    * Number of CONSECUTIVE failed order-check pings (active OR scheduled — the states are
@@ -6281,7 +6290,7 @@ export class ClientStrategy implements IStrategy {
    * stays within CC_ORDER_CHECK_RETRY_ATTEMPTS a failed check is tolerated as transient
    * (order assumed still open); exhaustion (or the terminal "deleted" verdict) triggers
    * the terminal action (close "closed" / cancel "user"). In-memory only, same rationale
-   * as _closeAttempt.
+   * as _retryCloseCount.
    */
   _orderCheckAttempt = 0;
 
@@ -6354,7 +6363,7 @@ export class ClientStrategy implements IStrategy {
 
     // Счётчики последовательных сбоев close-гейта/чеков привязаны к позиции —
     // новая (или закрытая) позиция не должна наследовать чужую историю отказов.
-    this._closeAttempt = 0;
+    this._retryCloseCount = 0;
     this._orderCheckAttempt = 0;
 
     // ЗАЩИТА ИНВАРИАНТА: При установке нового pending сигнала очищаем scheduled
@@ -7426,7 +7435,7 @@ export class ClientStrategy implements IStrategy {
         this.params.logger.info("ClientStrategy tick: user-closed signal rejected by sync, will retry", {
           symbol: this.params.execution.context.symbol,
           signalId: closedSignal.id,
-          attempt: this._closeAttempt,
+          attempt: this._retryCloseCount,
         });
         // Do NOT clear _closedSignal — retry on next tick (bounded by
         // CC_ORDER_CLOSE_RETRY_ATTEMPTS; exhaustion falls through and force-closes)
@@ -8244,7 +8253,7 @@ export class ClientStrategy implements IStrategy {
         this.params.logger.info("ClientStrategy backtest: user-closed signal rejected by sync, will retry in candle loop", {
           symbol: this.params.execution.context.symbol,
           signalId: closedSignal.id,
-          attempt: this._closeAttempt,
+          attempt: this._retryCloseCount,
         });
         // Restore _pendingSignal so the candle loop processes the position normally;
         // _closedSignal is kept so the loop re-attempts the close on each candle
@@ -9051,7 +9060,7 @@ export class ClientStrategy implements IStrategy {
       stopLossSignal: this._stopLossSignal,
       retryOpenSignal: this._retryOpenSignal,
       retryOpenCount: this._retryOpenCount,
-      closeAttempt: this._closeAttempt,
+      retryCloseCount: this._retryCloseCount,
     };
   }
 

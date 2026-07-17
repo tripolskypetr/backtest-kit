@@ -2205,7 +2205,12 @@ interface IActionCallbacks {
      * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
      * `onOrderOpenCommit` / `onOrderCloseCommit` gate. Rides the same `syncSubject` emission
      * as the Broker commit hooks — the verdict semantics are identical for both channels.
-     * `event.attempt` carries the number of consecutive prior rejections (0 = first try).
+     * `event.attempt` carries the number of prior STARTED attempts (0 = first try). The
+     * counter is PRE-ARMED — persisted before the gate fires — so `attempt > 0` holds even
+     * across a crash mid-attempt: a prior order MAY have reached the exchange, reconcile by
+     * clientOrderId (open) / position state (close) BEFORE re-sending. Do NOT rely on
+     * catching "duplicate" on re-send — Binance's duplicate-clientOrderId guard only covers
+     * OPEN orders; an instantly-filled one will not dup.
      * Backtest short-circuits the gate to "confirmed" (live-only).
      *
      * @param event - Sync event with action "signal-open" or "signal-close"
@@ -2551,8 +2556,10 @@ interface IAction {
      *
      * MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
      * `onOrderOpenCommit` / `onOrderCloseCommit`. Same `syncSubject` emission as the Broker
-     * commit hooks — identical verdict semantics. `event.attempt` = consecutive prior
-     * rejections. Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
+     * commit hooks — identical verdict semantics. `event.attempt` = prior STARTED attempts
+     * (pre-armed into persistence before the gate fires, holds across a crash mid-attempt —
+     * at attempt > 0 reconcile with the exchange BEFORE re-sending). Live-only. Implement
+     * via the {@link IActionCallbacks.onOrderSync} callback.
      *
      * @deprecated This method is not recommended for use. Implement custom logic in signal(), signalLive(), or signalBacktest() instead.
      * If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() instead.
@@ -3086,6 +3093,8 @@ type StrategyStatus = {
      * gate call, so a crash mid-attempt still counts it). The gate event carries
      * `attempt = retryOpenCount - 1`; once the started-attempts budget (1 initial + CC retries) is spent, the
      * retry row is dropped loudly and signal generation resumes. Reset on successful open.
+     * Restored CLAMPED to 1 after a restart: only the `attempt >= 1` reconcile bit
+     * survives — a stale pre-crash streak must not burn the fresh retry budget.
      */
     retryOpenCount: number;
     /**
@@ -3093,10 +3102,12 @@ type StrategyStatus = {
      * each gate call — a crash mid-close-attempt still counts it, so after a restart the next
      * close event carries `attempt > 0` and the adapter knows a prior exit order MAY have
      * reached the exchange). Restored only when the snapshot belongs to the restored pending
-     * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present).
+     * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present),
+     * and CLAMPED to 1 — a stale pre-crash streak must not force-close on the first
+     * post-restart rejection; only the reconcile bit survives.
      * Reset on a confirmed close and on any pending-signal transition.
      */
-    closeAttempt: number;
+    retryCloseCount: number;
 };
 /**
  * Commit payload for strategy commits.
@@ -15379,6 +15390,8 @@ type StrategyData = {
      * gate call, so a crash mid-attempt still counts it). The gate event carries
      * `attempt = retryOpenCount - 1`; once the started-attempts budget (1 initial + CC retries) is spent, the
      * retry row is dropped loudly and signal generation resumes. Reset on successful open.
+     * Restored CLAMPED to 1 after a restart: only the `attempt >= 1` reconcile bit
+     * survives — a stale pre-crash streak must not burn the fresh retry budget.
      */
     retryOpenCount: number;
     /**
@@ -15386,10 +15399,12 @@ type StrategyData = {
      * each gate call — a crash mid-close-attempt still counts it, so after a restart the next
      * close event carries `attempt > 0` and the adapter knows a prior exit order MAY have
      * reached the exchange). Restored only when the snapshot belongs to the restored pending
-     * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present).
+     * signal (pendingSignalId match) or to a deferred user-close drain (closedSignal present),
+     * and CLAMPED to 1 — a stale pre-crash streak must not force-close on the first
+     * post-restart rejection; only the reconcile bit survives.
      * Reset on a confirmed close and on any pending-signal transition.
      */
-    closeAttempt: number;
+    retryCloseCount: number;
 };
 /**
  * Per-context deferred strategy state persistence instance interface.
@@ -30763,9 +30778,13 @@ interface IBroker {
      *   idle; type "schedule": scheduled not registered, risk reservation released) and
      *   retries IDENTITY-STABLY — the SAME signal row with the SAME signalId is re-submitted
      *   on the next tick with `payload.attempt` incremented, up to
-     *   CC_ORDER_OPEN_RETRY_ATTEMPTS. Because the id is stable, a duplicate POST with the
-     *   same clientOrderId lets the exchange deduplicate a lost-response fill instead of
-     *   double-buying. Exhaustion drops the signal and signals a fatal exit (exitEmitter).
+     *   CC_ORDER_OPEN_RETRY_ATTEMPTS. The attempt is PRE-ARMED (persisted before this hook
+     *   runs), so even a crash mid-attempt resumes with `attempt >= 1`. Because the id is
+     *   stable, the adapter MUST reconcile at `attempt > 0`: query the prior order by
+     *   clientOrderId BEFORE re-sending and confirm the open if it filled. Do NOT rely on
+     *   catching a "duplicate" error on re-send — on Binance the duplicate-clientOrderId
+     *   guard only covers OPEN orders, an instantly-filled market order will not dup.
+     *   Exhaustion drops the signal and signals a fatal exit (exitEmitter).
      *   With the config at 0 the retry slot is disabled: the next tick regenerates a FRESH id.
      * - OrderRejectedError ("the exchange definitively refused, retrying is pointless") →
      *   "rejected", TERMINAL: the open is dropped at once, no retry armed, an already-armed
@@ -31553,11 +31572,13 @@ declare class BrokerBase implements IBroker {
      *
      * Manual wiring — EXCEPTION-BASED GATE: emitted BEFORE the framework mutates state.
      * Throw semantics: a plain Error / OrderTransientError rolls back the open and retries
-     * identity-stably (same signalId, `payload.attempt` increments) up to
-     * CC_ORDER_OPEN_RETRY_ATTEMPTS — tag orders with `clientOrderId = payload.signalId` so
-     * a lost-response retry deduplicates on the exchange; OrderRejectedError drops the open
-     * terminally without arming the retry. Return normally to let it open. Live-only
-     * (backtest short-circuits). See {@link IBroker.onOrderOpenCommit} for the full semantics.
+     * identity-stably (same signalId, `payload.attempt` increments, pre-armed so a crash
+     * mid-attempt still counts) up to CC_ORDER_OPEN_RETRY_ATTEMPTS; OrderRejectedError
+     * drops the open terminally without arming the retry. Return normally to let it open.
+     * Tag orders with `clientOrderId = payload.signalId` and RECONCILE at `attempt > 0`
+     * (query the prior order BEFORE re-sending — Binance's duplicate guard does not cover
+     * instantly-filled orders). Live-only (backtest short-circuits). See
+     * {@link IBroker.onOrderOpenCommit} for the full semantics.
      *
      * @param payload - Signal open details: symbol, cost, position, priceOpen, priceTakeProfit, priceStopLoss, attempt, context, backtest
      *
@@ -31565,6 +31586,11 @@ declare class BrokerBase implements IBroker {
      * ```typescript
      * async onOrderOpenCommit(payload: BrokerOrderOpenPayload) {
      *   super.onOrderOpenCommit(payload); // Keep parent logging
+     *   if (payload.attempt > 0) {
+     *     // A prior POST may have reached the exchange — reconcile BEFORE re-sending
+     *     const prior = await this.exchange.getOrderByClientId(payload.signalId);
+     *     if (prior?.filled) return; // already filled -> confirm the open
+     *   }
      *   const order = await this.exchange.placeMarketOrder({
      *     clientOrderId: payload.signalId, // idempotency key across retries
      *     symbol: payload.symbol,
@@ -36025,7 +36051,9 @@ declare class ActionConnectionService implements TAction {
      * @param event - Sync event with action "signal-open" or "signal-close"
      * @param backtest - Whether running in backtest mode
      * @param context - Execution context
-     * @returns true to allow, false to reject
+     * @returns Resolves when routing completes; the gate verdict is conveyed by throwing
+     *          (typed errors propagate UNWRAPPED to CREATE_SYNC_FN, which resolves them
+     *          into an IBrokerOrderVerdict — see interfaces/Broker.interface)
      */
     orderSync: (event: OrderSyncContract, backtest: boolean, context: {
         actionName: ActionName;
@@ -40662,10 +40690,13 @@ declare class OrderRejectedError extends Error {
  * - **Open gate** (`onOrderOpenCommit` type "active"/"schedule",
  *   `callbacks.onOrderSync`, `listenSync`): the open is retried IDENTITY-STABLY —
  *   the same signal row with the SAME signalId is re-submitted on the next tick
- *   (`event.attempt` increments; the armed retry survives a crash via persistence),
- *   up to CC_ORDER_OPEN_RETRY_ATTEMPTS. Tag exchange orders with
- *   `clientOrderId = signalId` and a retry after a LOST RESPONSE resolves to
- *   "duplicate order" on the exchange and reconciles instead of double-buying.
+ *   (`event.attempt` increments; the attempt is PRE-ARMED — persisted before the gate
+ *   call, so even a crash mid-attempt resumes with attempt >= 1), up to
+ *   CC_ORDER_OPEN_RETRY_ATTEMPTS. Tag exchange orders with `clientOrderId = signalId`
+ *   and RECONCILE at attempt > 0: query the prior order by that id BEFORE re-sending
+ *   and confirm the open if it filled. Do NOT rely on catching "duplicate" on re-send —
+ *   Binance's duplicate-clientOrderId guard only covers OPEN orders; an
+ *   instantly-filled market order will not dup.
  *   Exhaustion drops the signal loudly AND signals `exitEmitter` (fatal: the network
  *   would not let the engine work). With the config at 0 the retry slot is disabled:
  *   a rejected open is dropped at once and the next tick regenerates a FRESH id.
@@ -40693,10 +40724,13 @@ declare class OrderRejectedError extends Error {
  * - **Exhaustion of transient failures is FATAL** (`exitEmitter` after the
  *   `errorEmitter` log) — unlike the typed terminal errors above, which are business
  *   outcomes and never signal a process exit.
- * - **In-memory close/check counters.** They reset on restart (safe direction: the
- *   broker gets fresh attempts before the dangerous force action); only the OPEN
- *   retry identity/count is persisted, because losing it would break clientOrderId
- *   idempotency.
+ * - **Open and close counters are persisted (pre-armed before each gate call);** the
+ *   check counter is in-memory (a restart resets the tolerance window in the safe
+ *   direction). For open/close, `attempt > 0` is therefore a HARD invariant even
+ *   across crashes: a prior order MAY have reached the exchange — reconcile first.
+ *   On restore the persisted counters are CLAMPED to 1: the reconcile bit survives,
+ *   the streak resets — a pre-crash outage never exhausts the budget on the first
+ *   post-restart attempt.
  * - **Nominal brand for symmetry.** `__type__ === Symbol.for("OrderTransientError")`
  *   and the static guard exist for consistency with the other two errors (useful in
  *   the application's own logging/metrics); the framework itself never checks it.
