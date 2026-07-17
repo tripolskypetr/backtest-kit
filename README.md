@@ -830,6 +830,25 @@ The `@backtest-kit/ui` dashboard ships in **7 languages**: English, Русски
 
 ---
 
+## 🔒 Connection-loss protection
+
+A dropped connection must never cost you a position — or buy one twice. Every broker conversation (order open, order close, liveness check) carries a bounded retry counter delivered to your adapter as `payload.attempt`: rejected opens retry with the **same signalId**
+
+<details>
+<summary>The three typed errors</summary>
+
+Tagging exchange orders with `clientOrderId = signalId` lets the exchange deduplicate a lost response instead of double-buying (see `CC_ORDER_OPEN_RETRY_ATTEMPTS`); rejected closes retry up to `CC_ORDER_CLOSE_RETRY_ATTEMPTS` and then force-close the engine state with the original reason; failed checks are tolerated for `CC_ORDER_CHECK_RETRY_ATTEMPTS` consecutive ticks instead of killing a live position on the first blip. When the network truly won't let the engine work, it exits loudly (`listenExit`) rather than churning forever. Your adapter states intent by throwing one of three typed errors — anything untyped is treated as transient.
+
+- 🌩️ **`OrderTransientError`** — "temporary failure, retry me" (timeout, 5xx, rate limit, lost response). Pure declarative sugar: any plain `Error` behaves identically, the framework never pattern-matches this class. Opens retry identity-stably with the same `signalId`, closes retry next tick, checks keep the order alive — each bounded by its `CC_ORDER_*_RETRY_ATTEMPTS` config (default 5, `0` = legacy behavior). Exhausting the budget is the one path that signals a fatal exit. `OrderTransientError.fromError(e)` wraps a caught error while keeping its message.
+
+- ⛔ **`OrderRejectedError`** — terminal business refusal, for the **gates** (`onOrderOpenCommit` / `onOrderCloseCommit`): "the exchange definitively said no — retrying is pointless" (min-notional, delisted symbol, no counterparty). An open is dropped at once without arming the retry; a close force-closes the engine state immediately with the original reason — the close lifecycle event still reaches the adapter so the real position can be reconciled. No fatal exit: a business outcome keeps the process alive. Thrown from a check instead, it is a protocol violation and intentionally degrades to transient.
+
+- 🗑️ **`OrderDeletedError`** — confirmed order-not-found, for the **checks** (`onOrderActiveCheck` / `onOrderScheduleCheck`): "the exchange reports no order under this id" (cancelled manually, liquidated externally). Acts terminally at once, bypassing the tolerance counter: an open position closes with reason `closed`, a resting order cancels with reason `user`. A **filled** order is not a deleted order — confirm fills via `commitActivateScheduled` / `commitCreateTakeProfit` / `commitCreateStopLoss` so the close carries its true reason. Thrown from a gate instead, it degrades to transient.
+
+</details>
+
+---
+
 ## 💯 Tested
 
 950+ unit and integration tests cover exchange helpers, the event-listener system, signal validation (valid long/short, inverted TP/SL, negative prices, future timestamps), PnL accuracy with 0.1% fees + 0.1% slippage, the full lifecycle and every close reason, strategy callbacks, and report generation. Tests use unique schema names per case (no cross-contamination), a forward-progressing mock candle generator, and event-driven completion detection.
