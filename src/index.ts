@@ -659,6 +659,7 @@ export {
   BrokerScheduleCancelledPayload,
   BrokerPendingOpenPayload,
   BrokerPendingClosePayload,
+  BrokerOrderVerdict,
 } from "./classes/Broker";
 
 export { type TickEvent } from "./model/LiveStatistics.model";

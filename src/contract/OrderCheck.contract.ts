@@ -48,6 +48,13 @@ export interface OrderCheckContract {
   timestamp: number;
   /** Complete public signal row at the moment of this event */
   signal: IPublicSignalRow;
+  /**
+   * Number of CONSECUTIVE prior failed checks for this signal (0 = first check /
+   * healthy). Managed by the framework: a failed check (false/non-typed throw)
+   * increments the counter carried by the next ping while the failure is tolerated
+   * as transient (CC_ORDER_CHECK_RETRY_ATTEMPTS); a successful check resets it to 0.
+   */
+  attempt: number;
   /** Market price at the moment of the ping (VWAP) */
   currentPrice: number;
   /** Unrealized PNL of the open position at the moment of the ping */

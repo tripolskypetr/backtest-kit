@@ -52,6 +52,11 @@ import ActionCoreService from "../core/ActionCoreService";
 import beginTime from "../../../utils/beginTime";
 import OrderSyncContract from "../../../contract/OrderSync.contract";
 import OrderCheckContract from "../../../contract/OrderCheck.contract";
+import OrderRejectedError from "../../../error/OrderRejectedError";
+import OrderDeletedError from "../../../error/OrderDeletedError";
+// Type-only: erased at runtime (a value import would close a runtime cycle
+// classes/Broker -> lib -> ... -> this service).
+import type { BrokerOrderVerdict } from "../../../classes/Broker";
 import ScheduleEventContract from "../../../contract/ScheduleEvent.contract";
 import SignalEventContract from "../../../contract/SignalEvent.contract";
 import TimeMetaService from "../meta/TimeMetaService";
@@ -66,7 +71,11 @@ const STRATEGY_DEFAULT_SIGNAL = () => null;
 /**
  * If syncSubject listener or any registered action throws, it means the signal was not properly synchronized
  * to the exchange (e.g. limit order failed to fill).
- * ClientStrategy will skip position open/close and will try again on the next tick until successful synchronization.
+ * A non-typed throw resolves to the "transient" verdict: ClientStrategy skips the open/close and
+ * retries on the next tick (bounded by CC_ORDER_OPEN_RETRY_ATTEMPTS / CC_ORDER_CLOSE_RETRY_ATTEMPTS).
+ * A thrown OrderRejectedError is a TERMINAL business rejection ("no counterparty, retrying is
+ * pointless") — resolved to the "rejected" verdict, so ClientStrategy skips the retry loop
+ * entirely (drops the open / force-closes immediately).
  */
 const CREATE_SYNC_FN = (
   self: StrategyConnectionService,
@@ -75,13 +84,31 @@ const CREATE_SYNC_FN = (
   frameName: FrameName,
   backtest: boolean
 ) => trycatch(
-  async (event: OrderSyncContract) => {
+  async (event: OrderSyncContract): Promise<BrokerOrderVerdict> => {
     if (event.backtest) {
-      return true;
+      return { reason: "confirmed" };
     }
-    await syncSubject.next(event);
-    await self.actionCoreService.orderSync(backtest, event, { strategyName, exchangeName, frameName });
-    return true;
+    try {
+      await syncSubject.next(event);
+      await self.actionCoreService.orderSync(backtest, event, { strategyName, exchangeName, frameName });
+    } catch (error) {
+      if (OrderRejectedError.isOrderRejectedError(error as object)) {
+        const message = "StrategyConnectionService CREATE_SYNC_FN: OrderRejectedError — terminal business rejection, retry skipped";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+          signalId: event.signalId,
+          action: event.action,
+          type: event.type,
+        };
+        self.loggerService.warn(message, payload);
+        console.error(message, payload);
+        errorEmitter.next(error as Error);
+        return { reason: "rejected", error };
+      }
+      throw error;
+    }
+    return { reason: "confirmed" };
   }, {
     fallback: (error) => {
       const message = "StrategyConnectionService CREATE_SYNC_FN thrown. Broker rejected order request";
@@ -93,17 +120,18 @@ const CREATE_SYNC_FN = (
       console.error(message, payload);
       errorEmitter.next(error);
     },
-    defaultValue: false,
+    defaultValue: <BrokerOrderVerdict>{ reason: "transient" },
   }
 );
 
 /**
- * If the syncPendingSubject listener or any registered action throws, it means the order behind the
- * monitored signal is no longer open on the exchange (filled/cancelled/liquidated externally).
+ * If the syncPendingSubject listener or any registered action throws, the order-check FAILED.
  * Fires for both monitored states, discriminated by event.type: "active" — the order backing the
- * open position (ClientStrategy closes the pending signal with closeReason "closed"); "schedule" —
- * the resting entry order of a scheduled signal (ClientStrategy cancels it with reason "user").
- * The trycatch wrapper collapses a throw OR an explicit false into false.
+ * open position; "schedule" — the resting entry order of a scheduled signal.
+ * A non-typed throw resolves to the "transient" verdict — tolerated by ClientStrategy up to
+ * CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive times before acting terminally (close "closed" /
+ * cancel "user"). A thrown OrderDeletedError is the adapter's CONFIRMED "order not found by id"
+ * — resolved to the "deleted" verdict, terminal immediately, bypassing the tolerance counter.
  * Skipped in backtest — there is no live exchange.
  */
 const CREATE_SYNC_PENDING_FN = (
@@ -113,16 +141,33 @@ const CREATE_SYNC_PENDING_FN = (
   frameName: FrameName,
   backtest: boolean
 ) => trycatch(
-  async (event: OrderCheckContract) => {
+  async (event: OrderCheckContract): Promise<BrokerOrderVerdict> => {
     if (event.backtest) {
-      return true;
+      return { reason: "confirmed" };
     }
-    await syncPendingSubject.next(event);
-    await self.actionCoreService.orderCheck(backtest, event, { strategyName, exchangeName, frameName });
-    return true;
+    try {
+      await syncPendingSubject.next(event);
+      await self.actionCoreService.orderCheck(backtest, event, { strategyName, exchangeName, frameName });
+    } catch (error) {
+      if (OrderDeletedError.isOrderDeletedError(error as object)) {
+        const message = "StrategyConnectionService CREATE_SYNC_PENDING_FN: OrderDeletedError — confirmed order-not-found, acting terminally";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+          signalId: event.signalId,
+          type: event.type,
+        };
+        self.loggerService.warn(message, payload);
+        console.error(message, payload);
+        errorEmitter.next(error as Error);
+        return { reason: "deleted", error };
+      }
+      throw error;
+    }
+    return { reason: "confirmed" };
   }, {
     fallback: (error) => {
-      const message = "StrategyConnectionService CREATE_SYNC_PENDING_FN thrown. Order no longer pending on exchange";
+      const message = "StrategyConnectionService CREATE_SYNC_PENDING_FN thrown. Order check failed (transient unless attempts exhausted)";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -131,7 +176,7 @@ const CREATE_SYNC_PENDING_FN = (
       console.error(message, payload);
       errorEmitter.next(error);
     },
-    defaultValue: false,
+    defaultValue: <BrokerOrderVerdict>{ reason: "transient" },
   }
 );
 

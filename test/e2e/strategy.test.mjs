@@ -997,6 +997,11 @@ test("STRATEGY BACKTEST: monkey-patched onOrderSync observes and gates orders in
  * НЕ мешают мониторингу (позиция живёт), а счёт проверок точный.
  */
 test("STRATEGY LIVE: active order-check closes the position on the fifth check after activation", async ({ pass, fail }) => {
+  // Тест закодирован под legacy «один сбой чека = терминальное закрытие».
+  // Толерантность к транзиентным сбоям (CC_ORDER_CHECK_RETRY_ATTEMPTS) выключаем —
+  // её собственные инварианты покрывает verdict.test.mjs.
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 0 }, true);
+
   const { listenCheck } = await import("../../build/index.mjs");
   const basePrice = 50000;
   const priceOpen = 40000;

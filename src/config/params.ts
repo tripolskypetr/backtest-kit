@@ -377,6 +377,46 @@ export const GLOBAL_CONFIG = {
    * Default: 5 retries (1 initial attempt + up to 5 identity-stable retries)
    */
   CC_ORDER_OPEN_RETRY_ATTEMPTS: 5,
+
+  /**
+   * Number of CONSECUTIVE failed order-check pings (onOrderActiveCheck /
+   * onOrderScheduleCheck returned false or threw a non-typed error) tolerated before
+   * the framework acts terminally (closes the pending signal with closeReason "closed"
+   * / cancels the scheduled signal with reason "user").
+   *
+   * While attempts remain, a failed ping is treated as TRANSIENT (network blip,
+   * exchange blocked) — the order is assumed still open and monitoring continues; the
+   * next ping carries the incremented `attempt`. A successful ping resets the counter
+   * to 0. Throwing OrderDeletedError acts terminally IMMEDIATELY, bypassing the
+   * counter — it is the adapter's confirmed "order not found by id".
+   *
+   * Set to 0 to disable tolerance: any failed ping is terminal on the spot
+   * (legacy behavior).
+   *
+   * Default: 5 consecutive failures tolerated
+   */
+  CC_ORDER_CHECK_RETRY_ATTEMPTS: 5,
+
+  /**
+   * Number of CONSECUTIVE close-gate rejections (onOrderSync signal-close /
+   * onOrderCloseCommit returned false or threw a non-typed error) tolerated before
+   * the framework FORCE-CLOSES its position state without broker confirmation.
+   *
+   * While attempts remain, a rejected close keeps the position open and retries on
+   * the next tick/candle (the next gate call carries the incremented `attempt`); a
+   * confirmed close resets the counter. On exhaustion the engine closes the position
+   * with the ORIGINAL closeReason, emits a loud error (errorEmitter) and the standard
+   * signal-close lifecycle event — the adapter/operator must reconcile the real
+   * exchange position. Rationale: an eternally rejected close blocks the risk slot
+   * and floods logs forever (a stuck spot-short rejection burned 492 log lines in 2h).
+   * Throwing OrderRejectedError ("no counterparty, retrying is pointless")
+   * force-closes IMMEDIATELY, bypassing the counter.
+   *
+   * Set to 0 to disable the cap: a rejected close retries forever (legacy behavior).
+   *
+   * Default: 5 consecutive rejections tolerated
+   */
+  CC_ORDER_CLOSE_RETRY_ATTEMPTS: 5,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

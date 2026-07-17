@@ -54,6 +54,54 @@ const BROKER_BASE_METHOD_NAME_ON_BREAKEVEN = "BrokerBase.onBreakevenCommit";
 const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
 
 /**
+ * Framework-side resolution of an order gate (onOrderSync) or order check (onOrderCheck),
+ * discriminated by `reason`.
+ *
+ * Adapters/listeners do NOT construct this union — they signal via return/throw
+ * (return normally or `true` = confirmed; throw a non-typed error = transient;
+ * throw OrderRejectedError / OrderDeletedError = terminal). The framework collapses
+ * those signals into this verdict and routes on it:
+ *
+ * - "confirmed" — the gate allowed the open/close, or the checked order is still open.
+ * - "transient" — the operation FAILED with an unknown/temporary cause (network blip,
+ *   lost response, exchange 5xx). Bounded retry: opens retry identity-stably up to
+ *   CC_ORDER_OPEN_RETRY_ATTEMPTS, closes up to CC_ORDER_CLOSE_RETRY_ATTEMPTS, checks
+ *   tolerate up to CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive failures.
+ * - "rejected" — TERMINAL business rejection (OrderRejectedError: "no counterparty,
+ *   retrying is pointless"). A rejected open is dropped without arming the retry; a
+ *   rejected close is force-closed immediately.
+ * - "deleted" — CONFIRMED order-not-found (OrderDeletedError: e.g. the user cancelled
+ *   the order manually on the exchange). Checks act terminally at once (close "closed"
+ *   / cancel "user"), bypassing the tolerance counter.
+ *
+ * Every consumer MUST branch on `reason` explicitly — the union is an object and is
+ * always truthy, so boolean-style `if (!verdict)` checks are meaningless by design.
+ */
+export type BrokerOrderVerdict =
+  | {
+      /** Gate confirmed / checked order is still alive */
+      reason: "confirmed";
+    }
+  | {
+      /** Unknown/temporary failure — bounded retry / tolerance window */
+      reason: "transient";
+      /** The failure that produced this verdict, when available */
+      error?: unknown;
+    }
+  | {
+      /** Terminal business rejection (OrderRejectedError) — no retry */
+      reason: "rejected";
+      /** The OrderRejectedError that produced this verdict */
+      error?: unknown;
+    }
+  | {
+      /** Confirmed order-not-found (OrderDeletedError) — checks act terminally */
+      reason: "deleted";
+      /** The OrderDeletedError that produced this verdict */
+      error?: unknown;
+    };
+
+/**
  * Payload for the signal-open broker event.
  *
  * Emitted automatically via syncSubject and forwarded to the registered IBroker adapter via
@@ -102,6 +150,14 @@ export type BrokerOrderOpenPayload = {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /**
+   * Consecutive prior rejections of this open by the gate (0 = first attempt). Managed by
+   * the framework: a rejected open increments the counter carried by the identity-stable
+   * retry (same signalId, bounded by CC_ORDER_OPEN_RETRY_ATTEMPTS); a confirmed open
+   * resets it. Lets the adapter distinguish a fresh placement from a retry of an order
+   * it may have already placed (reconcile by clientOrderId = signalId).
+   */
+  attempt: number;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -164,6 +220,13 @@ export type BrokerOrderClosePayload = {
   peakProfit: IStrategyPnL;
   /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
   maxDrawdown: IStrategyPnL;
+  /**
+   * Consecutive prior rejections of this close by the gate (0 = first attempt). Managed
+   * by the framework: a rejected close increments the counter carried by the next
+   * attempt (bounded by CC_ORDER_CLOSE_RETRY_ATTEMPTS, then the engine force-closes);
+   * a confirmed close resets it.
+   */
+  attempt: number;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -242,6 +305,13 @@ export type BrokerOrderCheckPayload = {
   totalEntries: number;
   /** Total number of partial closes executed */
   totalPartials: number;
+  /**
+   * Consecutive prior FAILED checks for this signal (0 = first check / healthy).
+   * Managed by the framework: a failed check increments the counter carried by the
+   * next ping while the failure is tolerated as transient
+   * (CC_ORDER_CHECK_RETRY_ATTEMPTS); a successful check resets it to 0.
+   */
+  attempt: number;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -2239,6 +2309,7 @@ export class BrokerAdapter {
         cost: event.signal.cost,
         symbol: event.symbol,
         signalId: event.signalId,
+        attempt: event.attempt,
         priceTakeProfit: event.signal.priceTakeProfit,
         priceStopLoss: event.signal.priceStopLoss,
         priceOpen: event.signal.priceOpen,
@@ -2265,6 +2336,7 @@ export class BrokerAdapter {
         cost: event.signal.cost,
         symbol: event.symbol,
         signalId: event.signalId,
+        attempt: event.attempt,
         pnl: event.signal.pnl,
         priceOpen: event.signal.priceOpen,
         peakProfit: event.signal.peakProfit,
@@ -2290,6 +2362,7 @@ export class BrokerAdapter {
         currentPrice: event.currentPrice,
         symbol: event.symbol,
         signalId: event.signalId,
+        attempt: event.attempt,
         priceOpen: event.priceOpen,
         priceTakeProfit: event.priceTakeProfit,
         priceStopLoss: event.priceStopLoss,

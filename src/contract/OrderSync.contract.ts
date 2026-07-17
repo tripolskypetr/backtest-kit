@@ -33,6 +33,14 @@ interface OrderSyncBase {
   timestamp: number;
   /** Complete public signal row at the moment of this event */
   signal: IPublicSignalRow;
+  /**
+   * Number of CONSECUTIVE prior failures of this gate for this signal (0 = first
+   * attempt / healthy). Managed by the framework: a rejected gate increments the
+   * counter carried by the next attempt; a confirmed gate resets it to 0. Bounded by
+   * CC_ORDER_OPEN_RETRY_ATTEMPTS (signal-open) / CC_ORDER_CLOSE_RETRY_ATTEMPTS
+   * (signal-close).
+   */
+  attempt: number;
 }
 
 /**
