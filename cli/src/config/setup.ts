@@ -1,4 +1,6 @@
-import { setConfig } from "backtest-kit";
+import { listenExit, setConfig } from "backtest-kit";
+import { errorData, getErrorMessage } from "functools-kit";
+import { kill } from "../utils/notifyKill";
 
 setConfig({
   CC_MAX_NOTIFICATIONS: 5_000,
@@ -41,3 +43,10 @@ setConfig({
   CC_WALKER_MARKDOWN_TOP_N: 10,
 })
 
+listenExit((error) => {
+  console.error("Exiting due to error:", {
+    errorMessage: getErrorMessage(error),
+    errorData: errorData(error),
+  });
+  kill();
+});
