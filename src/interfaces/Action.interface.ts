@@ -428,7 +428,12 @@ export interface IActionCallbacks {
    * MANUAL WIRING — EXCEPTION-BASED GATE: the action-side equivalent of the Broker
    * `onOrderOpenCommit` / `onOrderCloseCommit` gate. Rides the same `syncSubject` emission
    * as the Broker commit hooks — the verdict semantics are identical for both channels.
-   * `event.attempt` carries the number of consecutive prior rejections (0 = first try).
+   * `event.attempt` carries the number of prior STARTED attempts (0 = first try). The
+   * counter is PRE-ARMED — persisted before the gate fires — so `attempt > 0` holds even
+   * across a crash mid-attempt: a prior order MAY have reached the exchange, reconcile by
+   * clientOrderId (open) / position state (close) BEFORE re-sending. Do NOT rely on
+   * catching "duplicate" on re-send — Binance's duplicate-clientOrderId guard only covers
+   * OPEN orders; an instantly-filled one will not dup.
    * Backtest short-circuits the gate to "confirmed" (live-only).
    *
    * @param event - Sync event with action "signal-open" or "signal-close"
@@ -788,8 +793,10 @@ export interface IAction {
    *
    * MANUAL WIRING — EXCEPTION-BASED GATE: action-side equivalent of the Broker
    * `onOrderOpenCommit` / `onOrderCloseCommit`. Same `syncSubject` emission as the Broker
-   * commit hooks — identical verdict semantics. `event.attempt` = consecutive prior
-   * rejections. Live-only. Implement via the {@link IActionCallbacks.onOrderSync} callback.
+   * commit hooks — identical verdict semantics. `event.attempt` = prior STARTED attempts
+   * (pre-armed into persistence before the gate fires, holds across a crash mid-attempt —
+   * at attempt > 0 reconcile with the exchange BEFORE re-sending). Live-only. Implement
+   * via the {@link IActionCallbacks.onOrderSync} callback.
    *
    * @deprecated This method is not recommended for use. Implement custom logic in signal(), signalLive(), or signalBacktest() instead.
    * If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive() instead.

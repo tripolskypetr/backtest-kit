@@ -388,7 +388,9 @@ export class ActionConnectionService implements TAction {
    * @param event - Sync event with action "signal-open" or "signal-close"
    * @param backtest - Whether running in backtest mode
    * @param context - Execution context
-   * @returns true to allow, false to reject
+   * @returns Resolves when routing completes; the gate verdict is conveyed by throwing
+   *          (typed errors propagate UNWRAPPED to CREATE_SYNC_FN, which resolves them
+   *          into an IBrokerOrderVerdict — see interfaces/Broker.interface)
    */
   public orderSync = async (
     event: OrderSyncContract,
