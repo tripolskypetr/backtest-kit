@@ -216,6 +216,19 @@ class ReportStorage {
   /** Internal list of all closed signals for this strategy */
   private _signalList: IStrategyTickResultClosed[] = [];
 
+  /**
+   * Ids taken from the persisted-history replay, each consumed AT MOST ONCE by a
+   * subsequent addSignal. Closes the phantom-duplicate window: this service and
+   * the Storage capture share the same emitter, so with Storage.enable() called
+   * before Markdown.enable() the close row is persisted BEFORE this service's
+   * tick — the close that lazily triggers waitForInit finds ITSELF already in
+   * history, the replay adds it, and without this set the triggering addSignal
+   * would add it a second time (+1 trade per run, REPORT.md). Consume-once
+   * (delete on hit): only the one delivery already counted from history is
+   * swallowed; deliberate repeats of an id keep counting.
+   */
+  private replayedIds: Set<string> = new Set();
+
   constructor(
     readonly symbol: string,
     readonly strategyName: StrategyName,
@@ -228,7 +241,9 @@ class ReportStorage {
    * adapters) into _signalList on first access. Guarded by singleshot so it runs
    * exactly once; every read/write path (addSignal, getData, getReport, dump)
    * awaits it first, so accumulated tick data is layered on top of history rather
-   * than racing it.
+   * than racing it. Every replayed id is remembered in replayedIds so the event
+   * that triggered this lazy init is not counted a second time by its own
+   * addSignal.
    */
   public waitForInit = singleshot(async () => {
     const persisted = await LOAD_PERSISTED_CLOSED_FN(
@@ -252,6 +267,7 @@ class ReportStorage {
       if (!seen.has(closed.signal.id)) {
         this._signalList.push(closed);
         seen.add(closed.signal.id);
+        this.replayedIds.add(closed.signal.id);
       }
     }
     if (this._signalList.length > GLOBAL_CONFIG.CC_MAX_BACKTEST_MARKDOWN_ROWS) {
@@ -262,9 +278,16 @@ class ReportStorage {
   /**
    * Adds a closed signal to the storage.
    *
+   * If this id was just loaded by the waitForInit history replay, this delivery
+   * is the very event that triggered the replay — it is already counted, so it
+   * is swallowed exactly once (consume-once, see replayedIds).
+   *
    * @param data - Closed signal data with PNL and close reason
    */
   public addSignal(data: IStrategyTickResultClosed) {
+    if (this.replayedIds.delete(data.signal.id)) {
+      return;
+    }
     this._signalList.unshift(data);
 
     // Trim queue if exceeded GLOBAL_CONFIG.CC_MAX_BACKTEST_MARKDOWN_ROWS

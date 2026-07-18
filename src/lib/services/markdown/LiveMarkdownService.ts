@@ -221,6 +221,20 @@ class ReportStorage {
   /** Internal list of all tick events for this strategy */
   private _eventList: TickEvent[] = [];
 
+  /**
+   * Ids taken from the persisted-history replay, each consumed AT MOST ONCE by a
+   * subsequent addClosedEvent. Closes the phantom-duplicate window: this service
+   * and the Storage capture share the same emitter, so with Storage.enable()
+   * called before Markdown.enable() the close row is persisted BEFORE this
+   * service's tick. The window opens when the FIRST event ever seen for a key is
+   * a close (e.g. a restarted process draining a restored position): that close
+   * lazily triggers waitForInit, finds ITSELF already in history, the replay adds
+   * it, and without this set the triggering addClosedEvent would add it a second
+   * time (+1 closed trade, REPORT.md). Consume-once (delete on hit): only the one
+   * delivery already counted from history is swallowed.
+   */
+  private replayedIds: Set<string> = new Set();
+
   constructor(
     readonly symbol: string,
     readonly strategyName: StrategyName,
@@ -235,7 +249,8 @@ class ReportStorage {
    * path (tick, getData, getReport, dump) awaits it first, so live tick events are
    * layered on top of history rather than racing it. Only "closed" rows exist in
    * storage, so only closed events are reconstructed (idle/active/etc. are runtime
-   * only).
+   * only). Every replayed id is remembered in replayedIds so the event that
+   * triggered this lazy init is not counted a second time.
    */
   public waitForInit = singleshot(async () => {
     const persisted = await LOAD_PERSISTED_CLOSED_FN(
@@ -254,6 +269,7 @@ class ReportStorage {
       if (!seen.has(closed.signal.id)) {
         this.addClosedEvent(closed);
         seen.add(closed.signal.id);
+        this.replayedIds.add(closed.signal.id);
       }
     }
   });
@@ -378,9 +394,17 @@ class ReportStorage {
   /**
    * Adds a closed event to the storage.
    *
+   * If this id was just loaded by the waitForInit history replay, this delivery
+   * is the very event that triggered the replay — it is already counted, so it
+   * is swallowed exactly once (consume-once, see replayedIds). The replay itself
+   * marks ids AFTER calling this method, so replayed history is never swallowed.
+   *
    * @param data - Closed tick result
    */
   public addClosedEvent(data: IStrategyTickResultClosed) {
+    if (this.replayedIds.delete(data.signal.id)) {
+      return;
+    }
     const durationMs = data.closeTimestamp - data.signal.pendingAt;
     // Keep fractional minutes — rounding to whole minutes zeroed out sub-30s
     // durations (same fix as ScheduleMarkdownService).
