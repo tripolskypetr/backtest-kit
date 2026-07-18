@@ -32284,6 +32284,15 @@ declare const intervalStepMs: (interval: CandleInterval) => number;
 
 /**
  * Waits for the next candle interval to start and returns the timestamp of the new candle.
+ *
+ * Holds the process alive for the DURATION OF THE AWAIT: the shared clock above is
+ * deliberately unref'd (a passive clock is no reason to live), but a caller awaiting
+ * the next candle IS — without this keepalive a headless live/paper run (no UI, no
+ * sockets) drains the event loop between ticks and silently exits with code 0
+ * ~30s after start, mid-await (observed as a supervisor crash-loop with thousands
+ * of clean "restarts"). The keepalive is scoped to the await and cleared on resolve,
+ * so a process that merely IMPORTED the clock still exits freely.
+ *
  * @param {CandleInterval} interval - The candle interval (e.g., "1m", "1h") to wait for.
  * @returns {Promise<number>} A promise that resolves with the timestamp (in milliseconds) of the next candle start.
  */

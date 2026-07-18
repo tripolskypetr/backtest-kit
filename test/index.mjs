@@ -50,6 +50,7 @@ import "./e2e/broker_multi.test.mjs";
 import "./e2e/broker_edge.test.mjs";
 import "./e2e/behavior.test.mjs";
 import "./e2e/heatmap.test.mjs";
+import "./e2e/liveloop.test.mjs";
 import "./e2e/stopped.test.mjs";
 import "./e2e/live.test.mjs";
 import "./e2e/broker_cancel.test.mjs";
