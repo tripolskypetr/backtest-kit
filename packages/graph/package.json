@@ -68,14 +68,14 @@
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
     "backtest-kit": "16.1.0",
-    "worker-testbed": "3.0.0"
+    "worker-testbed": "4.0.0"
   },
   "peerDependencies": {
     "backtest-kit": "^16.1.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "functools-kit": "^4.0.0"
+    "functools-kit": "^5.0.0"
   },
   "publishConfig": {
     "access": "public"

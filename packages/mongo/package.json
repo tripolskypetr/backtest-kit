@@ -68,7 +68,7 @@
     "backtest-kit": "16.1.0",
     "mongoose": "8.23.0",
     "ioredis": "5.6.1",
-    "worker-testbed": "3.0.0"
+    "worker-testbed": "4.0.0"
   },
   "peerDependencies": {
     "backtest-kit": "^16.1.0",
@@ -80,7 +80,7 @@
     "di-kit": "^1.1.1",
     "di-factory": "^1.0.9",
     "di-scoped": "^1.0.21",
-    "functools-kit": "^4.0.0",
+    "functools-kit": "^5.0.0",
     "get-moment-stamp": "^3.0.0"
   },
   "publishConfig": {

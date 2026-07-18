@@ -82,7 +82,7 @@
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
     "backtest-kit": "16.1.0",
-    "worker-testbed": "3.0.0"
+    "worker-testbed": "4.0.0"
   },
   "peerDependencies": {
     "@huggingface/inference": "^4.7.1",
@@ -96,11 +96,11 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "agent-swarm-kit": "^5.1.0",
+    "agent-swarm-kit": "^6.0.0",
     "lodash-es": "^4.17.21",
     "di-kit": "^1.1.1",
     "di-scoped": "^1.0.21",
-    "functools-kit": "^4.0.0",
+    "functools-kit": "^5.0.0",
     "get-moment-stamp": "^3.0.0",
     "jsonrepair": "^3.12.0",
     "markdown-it": "^14.1.0",
