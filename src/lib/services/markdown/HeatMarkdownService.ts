@@ -205,6 +205,22 @@ class HeatmapStorage {
   /** Internal storage of closed signals per symbol */
   private symbolData: Map<string, IStrategyTickResultClosed[]> = new Map();
 
+  /**
+   * Ids taken from the persisted-history replay, each consumed AT MOST ONCE by a
+   * subsequent addSignal. Closes the phantom-duplicate window of the FIRST close
+   * of a run: the emit order is signalBacktestEmitter/signalLiveEmitter (Storage
+   * writes the row) BEFORE signalEmitter (heat tick), so the tick that lazily
+   * triggers waitForInit finds ITSELF already persisted — the replay adds it,
+   * and without this set the triggering addSignal would add it a second time
+   * (+1 trade in portfolioTotalTrades/totalPnl per run, REPORT.md).
+   *
+   * Consume-once (delete on hit) is deliberate: ids are plain strings and the
+   * heatmap contract allows repeated ids in the event feed to count separately
+   * (see spec "same signalId across different symbols / duplicates count") — only
+   * the one delivery that was already counted from history may be swallowed.
+   */
+  private replayedIds: Set<string> = new Set();
+
   constructor(
     readonly exchangeName: ExchangeName,
     readonly frameName: FrameName,
@@ -217,6 +233,9 @@ class HeatmapStorage {
    * singleshot; every read/write path (tick/addSignal, getData, getReport, dump)
    * awaits it first, so live tick data layers on top of history rather than racing
    * it. Reads only the adapter matching this storage's backtest flag.
+   * Every replayed id is remembered in replayedIds so the event that triggered
+   * this lazy init (already present in the history it just loaded) is not
+   * counted a second time by its own addSignal.
    */
   public waitForInit = singleshot(async () => {
     const persisted = await LOAD_PERSISTED_CLOSED_FN(
@@ -233,14 +252,15 @@ class HeatmapStorage {
     }
     for (const closed of persisted) {
       if (!seen.has(closed.signal.id)) {
-        this.addSignal(closed);
+        this.pushSignal(closed);
         seen.add(closed.signal.id);
+        this.replayedIds.add(closed.signal.id);
       }
     }
   });
 
   /**
-   * Adds a closed signal to the per-symbol queue.
+   * Raw prepend into the per-symbol queue (no replay accounting).
    *
    * New signals are prepended (most recent first). Once the queue exceeds
    * `GLOBAL_CONFIG.CC_MAX_HEATMAP_MARKDOWN_ROWS` (250) entries for a given
@@ -248,7 +268,7 @@ class HeatmapStorage {
    *
    * @param data - Closed signal result containing `symbol` and `pnl.pnlPercentage`
    */
-  public addSignal(data: IStrategyTickResultClosed) {
+  private pushSignal(data: IStrategyTickResultClosed) {
     const { symbol } = data;
 
     if (!this.symbolData.has(symbol)) {
@@ -262,6 +282,23 @@ class HeatmapStorage {
     if (signals.length > GLOBAL_CONFIG.CC_MAX_HEATMAP_MARKDOWN_ROWS) {
       signals.pop();
     }
+  }
+
+  /**
+   * Adds a closed signal from the event feed to the per-symbol queue.
+   *
+   * If this id was just loaded by the waitForInit history replay, this delivery
+   * is the very event that triggered the replay — it is already counted, so it
+   * is swallowed exactly once (consume-once, see replayedIds). All other
+   * deliveries, including deliberate repeats of the same id, count as usual.
+   *
+   * @param data - Closed signal result containing `symbol` and `pnl.pnlPercentage`
+   */
+  public addSignal(data: IStrategyTickResultClosed) {
+    if (this.replayedIds.delete(data.signal.id)) {
+      return;
+    }
+    this.pushSignal(data);
   }
 
 
