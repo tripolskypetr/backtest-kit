@@ -6,7 +6,7 @@
     "start": "node ./src/index.mjs"
   },
   "dependencies": {
-    "backtest-kit": "16.1.0",
+    "backtest-kit": "16.2.0",
     "ccxt": "4.5.24",
     "functools-kit": "5.0.0",
     "garch": "2.0.0",
