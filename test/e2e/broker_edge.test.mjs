@@ -657,8 +657,8 @@ test("EDGE INIT: a throwing waitForInit degrades gates to transient and exhausts
   });
 
   const unsubscribeExit = listenExit(() => { exitCount += 1; });
-  // Подписка ДО enable(): listenSync-слушатель успевает записать событие до
-  // того, как бросок из broker-подписчика оборвёт цепочку
+  // Наблюдатель за событиями гейта: с functools-kit 5.x бросок из
+  // broker-подписчика не глушит остальных, порядок подписки не критичен
   const unsubscribe = listenSync((event) => {
     if (event.strategyName !== context.strategyName) return;
     if (event.action !== "signal-open" || event.type !== "active") return;

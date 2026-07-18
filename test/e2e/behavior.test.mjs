@@ -13,8 +13,9 @@ import {
 // закрепляет фактический, ранее недокументированный контракт движка):
 // - время жизни позиции/окно ожидания scheduled НЕ съедаются open-ретраями:
 //   pendingAt/scheduledAt = момент ПОДТВЕРЖДЁННОГО открытия/размещения;
-// - подписчики syncSubject зовутся в порядке подписки, бросок обрывает
-//   доставку ПОСЛЕДУЮЩИМ подписчикам (механика вердикта = short-circuit);
+// - подписчики syncSubject зовутся в порядке подписки; бросок НЕ глушит
+//   остальных подписчиков (functools-kit 5.x: все получают событие, первая
+//   ошибка пробрасывается эмитеру ПОСЛЕ всех — вето работает без затемнения);
 // - упавшая запись pre-arm НЕ пускает гейт (ни одного неучтённого ордера),
 //   тик пробрасывает ошибку наружу (Live-цикл ловит её и ретраит через свечу),
 //   после починки диска ретрай продолжает с attempt=1 (консервативный инвариант).
@@ -195,13 +196,18 @@ test("BEHAVIOR: placement retries do not shorten the schedule await window — s
 });
 
 /**
- * BEHAVIOR: подписчики syncSubject зовутся в порядке подписки, и бросок
- * обрывает доставку ПОСЛЕДУЮЩИМ подписчикам (это и есть механика вердикта —
- * short-circuit цепочки). Следствие для интеграций: слушатель-статистика,
- * подписанный ПОСЛЕ кидающего «гейта», не увидит отвергнутых событий —
- * наблюдателей подписывать РАНЬШЕ вето-логики.
+ * BEHAVIOR: подписчики syncSubject зовутся в порядке подписки, и бросок НЕ
+ * глушит остальных подписчиков — с functools-kit 5.x EventEmitter.emit
+ * прогоняет ВСЕХ слушателей и пробрасывает ПЕРВУЮ ошибку эмитеру после всех
+ * («one throwing listener must not starve the listeners after it»). Вето
+ * события работает (ошибка доезжает до вердикта → transient), но
+ * слушатели-наблюдатели видят событие независимо от места подписки.
+ *
+ * ИСТОРИЯ ПИННИНГА: на functools-kit 4.x бросок обрывал доставку последующим
+ * подписчикам (short-circuit) — этот тест зафиксировал смену контракта при
+ * апгрейде на 5.0.0.
  */
-test("BEHAVIOR: a throwing sync subscriber silences only LATER subscribers (subscription order = call order)", async ({ pass, fail }) => {
+test("BEHAVIOR: a throwing sync subscriber does not silence other subscribers (subscription order = call order)", async ({ pass, fail }) => {
   const t0 = new Date("2024-01-01T00:00:00Z").getTime();
 
   const makeStrategy = (context) => {
@@ -219,7 +225,7 @@ test("BEHAVIOR: a throwing sync subscriber silences only LATER subscribers (subs
     });
   };
 
-  // === Фаза A: кидает ПЕРВЫЙ подписчик — второй события НЕ видит ===
+  // === Фаза A: кидает ПЕРВЫЙ подписчик — второй ВСЁ РАВНО видит событие ===
   const contextA = { strategyName: "bhv-lstn-a-strategy", exchangeName: "binance-bhv-lstn-a", frameName: "" };
   makeStrategy(contextA);
 
@@ -241,8 +247,8 @@ test("BEHAVIOR: a throwing sync subscriber silences only LATER subscribers (subs
       fail(`phase A tick expected "idle" (vetoed by the first subscriber), got "${tickA.action}"`);
       return;
     }
-    if (laterSaw !== 0) {
-      fail(`a subscriber AFTER the throwing one must NOT see the event (short-circuit), got ${laterSaw}`);
+    if (laterSaw !== 1) {
+      fail(`a subscriber AFTER the throwing one must STILL see the event exactly once (functools-kit 5.x no-starvation), got ${laterSaw}`);
       return;
     }
   } finally {
@@ -281,7 +287,7 @@ test("BEHAVIOR: a throwing sync subscriber silences only LATER subscribers (subs
     unB2();
   }
 
-  pass(`subscription order = call order: the veto silenced the later subscriber (0) but not the earlier one (1)`);
+  pass(`subscription order = call order: both phases delivered to every subscriber (1/1) while the veto still resolved`);
 });
 
 /**
