@@ -34,6 +34,7 @@ import ioc from "../../../../lib";
 import { reloadSubject } from "../../../../config/emitters";
 import getPriceScale from "../../../../utils/getPriceScale";
 import { t } from "../../../../i18n";
+import PauseButton from "./PauseButton";
 
 interface IOperationLabelProps {
   payload: {
@@ -133,6 +134,7 @@ export const OperationLabel = ({ payload }: IOperationLabelProps) => {
           >
             {t("Close Position")}
           </ActionButton>
+          <PauseButton payload={payload} />
         </Stack>
       </ScrollView>
     </Box>

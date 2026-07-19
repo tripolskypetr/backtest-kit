@@ -536,6 +536,32 @@ declare class ControlMockService {
     }) => Promise<void>;
 }
 
+declare class PauseMockService {
+    private readonly loggerService;
+    _isPaused: boolean;
+    getPaused: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<boolean>;
+    setPaused: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, paused: boolean) => Promise<void>;
+}
+
+declare class PauseViewService {
+    private readonly loggerService;
+    private readonly pauseMockService;
+    getPaused: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<boolean>;
+    setPaused: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }, paused: boolean) => Promise<void>;
+}
+
 declare const ioc: {
     notificationViewService: NotificationViewService;
     storageViewService: StorageViewService;
@@ -551,6 +577,7 @@ declare const ioc: {
     setupViewService: SetupViewService;
     runtimeViewService: RuntimeViewService;
     controlViewService: ControlViewService;
+    pauseViewService: PauseViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
@@ -565,6 +592,7 @@ declare const ioc: {
     setupMockService: SetupMockService;
     runtimeMockService: RuntimeMockService;
     controlMockService: ControlMockService;
+    pauseMockService: PauseMockService;
     liveMetaService: LiveMetaService;
     symbolMetaService: SymbolMetaService;
     backtestMetaService: BacktestMetaService;
