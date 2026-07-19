@@ -38,6 +38,7 @@ import {
   syncPendingSubject,
   highestProfitSubject,
   maxDrawdownSubject,
+  pauseSubject,
   idlePingSubject,
 } from "../../../config/emitters";
 import { StrategyCommitContract } from "../../../contract/StrategyCommit.contract";
@@ -715,6 +716,53 @@ const CREATE_MAX_DRAWDOWN_FN = (self: StrategyConnectionService, strategyName: S
 );
 
 /**
+ * Creates a callback function for emitting pause state changes to pauseSubject.
+ * Called by ClientStrategy.setPaused when the pause flag actually flips.
+ * Emits PauseContract event to all subscribers with the new state and timestamp.
+ * Subscribe to pauseSubject to generate user-facing notifications about the
+ * pause/resume of automatic trading.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @param strategyName - Name of the strategy
+ * @param exchangeName - Name of the exchange
+ * @param frameName - Name of the frame
+ * @param isBacktest - Flag indicating if the operation is for backtesting
+ * @returns Callback function for pause state changes
+ */
+const CREATE_PAUSE_FN = (self: StrategyConnectionService, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, isBacktest: boolean) => trycatch(
+  async (symbol: string, paused: boolean, timestamp: number) => {
+    await ExecutionContextService.runInContext(async () => {
+      await pauseSubject.next({
+        symbol,
+        paused,
+        timestamp,
+        strategyName,
+        exchangeName,
+        frameName,
+        backtest: isBacktest,
+      });
+    }, {
+      backtest: isBacktest,
+      symbol: symbol,
+      when: new Date(timestamp),
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_PAUSE_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting dispose events.
  *
  * Called by ClientStrategy when it is being disposed.
@@ -866,6 +914,7 @@ export class StrategyConnectionService implements TStrategy {
         onOrderCheck: CREATE_SYNC_PENDING_FN(this, strategyName, exchangeName, frameName, backtest),
         onHighestProfit: CREATE_HIGHEST_PROFIT_FN(this, strategyName, exchangeName, frameName, backtest),
         onMaxDrawdown: CREATE_MAX_DRAWDOWN_FN(this, strategyName, exchangeName, frameName, backtest),
+        onPause: CREATE_PAUSE_FN(this, strategyName, exchangeName, frameName, backtest),
       });
     }
   );
@@ -1279,6 +1328,65 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.getStopped(symbol);
+  };
+
+  /**
+   * Retrieves the paused state of the strategy.
+   *
+   * Delegates to ClientStrategy.getPaused(). Synchronous in-memory read;
+   * works out of the async-hooks execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to true if strategy is paused, false otherwise
+   */
+  public getPaused = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyConnectionService getPaused", {
+      symbol,
+      context,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPaused(symbol);
+  };
+
+  /**
+   * Pauses or resumes the strategy's own signal generation.
+   *
+   * Resolves current timestamp via timeMetaService and delegates to
+   * ClientStrategy.setPaused(). While paused getSignal is not called and a
+   * queued createSignal DTO is held; existing signals keep being monitored and
+   * close normally. The flag is persisted and survives restarts and signal
+   * transitions until an explicit setPaused(false). When the flag actually
+   * flips, the onPause callback emits a PauseContract to pauseSubject for
+   * notification generation. Works out of the async-hooks execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param paused - New paused state
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when the flag is set (and persisted in live mode)
+   */
+  public setPaused = async (
+    backtest: boolean,
+    symbol: string,
+    paused: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService setPaused", {
+      symbol,
+      context,
+      paused,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    await strategy.setPaused(symbol, paused, timestamp);
   };
 
   /**

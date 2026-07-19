@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, highestProfitSubject, maxDrawdownSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -22,6 +22,7 @@ import OrderSyncContract from "../contract/OrderSync.contract";
 import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
+import { PauseContract } from "../contract/Pause.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import { AfterEndContract } from "../contract/AfterEnd.contract";
@@ -75,6 +76,8 @@ const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
 const LISTEN_HIGHEST_PROFIT_ONCE_METHOD_NAME = "event.listenHighestProfitOnce";
 const LISTEN_MAX_DRAWDOWN_METHOD_NAME = "event.listenMaxDrawdown";
 const LISTEN_MAX_DRAWDOWN_ONCE_METHOD_NAME = "event.listenMaxDrawdownOnce";
+const LISTEN_PAUSE_METHOD_NAME = "event.listenPause";
+const LISTEN_PAUSE_ONCE_METHOD_NAME = "event.listenPauseOnce";
 const LISTEN_SIGNAL_NOTIFY_METHOD_NAME = "event.listenSignalNotify";
 const LISTEN_SIGNAL_NOTIFY_ONCE_METHOD_NAME = "event.listenSignalNotifyOnce";
 const LISTEN_BEFORE_START_METHOD_NAME = "event.listenBeforeStart";
@@ -2031,6 +2034,54 @@ export function listenSignalNotify(fn: (event: SignalInfoContract) => void) {
   };
 
   return signalNotifySubject.subscribe(queued(wrappedFn));
+}
+
+/**
+ * Subscribes to strategy pause state changes with queued async processing.
+ * Emits when setPaused actually flips the pause flag of a strategy (new position
+ * opening suspended/resumed; existing signals keep closing normally).
+ * Use this to generate user-facing notifications about pause/resume.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle pause state change events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * const unsubscribe = listenPause((event) => {
+ *   console.log(`${event.symbol} ${event.strategyName}: ${event.paused ? "paused" : "resumed"}`);
+ * });
+ * ```
+ */
+export function listenPause(fn: (event: PauseContract) => void) {
+  backtest.loggerService.log(LISTEN_PAUSE_METHOD_NAME);
+  return pauseSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered pause state change events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+export function listenPauseOnce(
+  filterFn: (event: PauseContract) => boolean,
+  fn: (event: PauseContract) => void
+) {
+  backtest.loggerService.log(LISTEN_PAUSE_ONCE_METHOD_NAME);
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: PauseContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenPause(wrappedFn);
 }
 
 /**

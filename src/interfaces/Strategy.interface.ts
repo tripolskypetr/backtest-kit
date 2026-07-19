@@ -91,6 +91,15 @@ export type StrategyStatus = {
    * Reset on a confirmed close and on any pending-signal transition.
    */
   retryCloseCount: number;
+  /**
+   * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
+   * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
+   * an existing pending/scheduled signal keeps being monitored and closes normally.
+   * Unlike the deferred slots above this flag is NOT tied to any signalId — it is
+   * restored unconditionally on waitForInit and survives signal transitions until an
+   * explicit setPaused(false).
+   */
+  isPaused: boolean;
 };
 
 /**
@@ -678,6 +687,12 @@ export interface IStrategyParams extends IStrategySchema {
   onHighestProfit: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
   /** System callback for max drawdown updates (emits to maxDrawdownSubject) */
   onMaxDrawdown: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
+  /**
+   * System callback for pause state changes (emits to pauseSubject).
+   * Fired by setPaused only when the flag actually flips — used to generate
+   * user-facing notifications about the pause/resume of automatic trading.
+   */
+  onPause: (symbol: string, paused: boolean, timestamp: number) => Promise<void> | void;
 }
 
 /**
@@ -1085,6 +1100,35 @@ export interface IStrategy {
    * @returns Promise resolving to true if strategy is stopped, false otherwise
    */
   getStopped: (symbol: string) => Promise<boolean>;
+
+  /**
+   * Checks if the strategy is paused.
+   *
+   * While paused the strategy's own params.getSignal is not called;
+   * existing signals keep being monitored and close normally.
+   * Works out of the async-hooks execution context.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to true if strategy is paused, false otherwise
+   */
+  getPaused: (symbol: string) => Promise<boolean>;
+
+  /**
+   * Pauses or resumes new position opening.
+   *
+   * While paused params.getSignal is NOT called and a queued createSignal DTO
+   * is NOT consumed (it stays queued and drains after unpause); an existing
+   * pending/scheduled signal keeps being monitored and closes normally. The
+   * flag is persisted and restored on waitForInit regardless of the signalId —
+   * signal transitions do not reset it, only an explicit setPaused(false) does.
+   * Works out of the async-hooks execution context.
+   *
+   * @param symbol - Trading pair symbol
+   * @param paused - New paused state
+   * @param timestamp - Current Unix timestamp in milliseconds (attached to the onPause notification event)
+   * @returns Promise that resolves when the flag is set (and persisted in live mode)
+   */
+  setPaused: (symbol: string, paused: boolean, timestamp: number) => Promise<void>;
 
   /**
    * Returns how much of the position is still held, as a percentage of totalInvested.

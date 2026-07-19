@@ -1601,6 +1601,15 @@ export type StrategyData = {
    * Reset on a confirmed close and on any pending-signal transition.
    */
   retryCloseCount: number;
+  /**
+   * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
+   * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
+   * an existing pending/scheduled signal keeps being monitored and closes normally.
+   * Unlike the deferred slots above this flag is NOT tied to any signalId — it is
+   * restored unconditionally on waitForInit and survives signal transitions until an
+   * explicit setPaused(false).
+   */
+  isPaused: boolean;
 };
 
 /**

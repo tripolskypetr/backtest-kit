@@ -509,6 +509,63 @@ export class StrategyCoreService implements TStrategy {
   };
 
   /**
+   * Checks if the strategy is paused.
+   *
+   * Validates strategy existence and delegates to connection service
+   * to retrieve the paused state from the strategy instance.
+   * Works out of the async-hooks execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to true if strategy is paused, false otherwise
+   */
+  public getPaused = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService getPaused", {
+      symbol,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPaused(backtest, symbol, context);
+  };
+
+  /**
+   * Pauses or resumes the strategy's own signal generation.
+   *
+   * Validates strategy existence and delegates to connection service.
+   * While paused getSignal is not called; existing signals keep being monitored
+   * and close normally. The flag is persisted and survives restarts and signal
+   * transitions until an explicit setPaused(false).
+   * Works out of the async-hooks execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param paused - New paused state
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when the flag is set (and persisted in live mode)
+   */
+  public setPaused = async (
+    backtest: boolean,
+    symbol: string,
+    paused: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("strategyCoreService setPaused", {
+      symbol,
+      context,
+      paused,
+      backtest,
+    });
+    await this.validate(context);
+    await this.strategyConnectionService.setPaused(backtest, symbol, paused, context);
+  };
+
+  /**
    * Checks signal status at a specific timestamp.
    *
    * Wraps strategy tick() with execution context containing symbol, timestamp,

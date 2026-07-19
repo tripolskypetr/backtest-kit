@@ -1032,6 +1032,19 @@ const GET_SIGNAL_FN = trycatch(
       }
       signal = retrySignal;
     } else {
+      // Pause gate: while paused NO new position source runs — params.getSignal
+      // is not called and a queued createSignal DTO is NOT consumed either. The
+      // DTO stays queued (already persisted by createSignal) and drains on the
+      // first tick after setPaused(false). Only the armed open-retry slot
+      // (handled above) still drains: a real order may already exist on the
+      // exchange, freezing it would recreate the orphan-order risk the retry
+      // exists to prevent. Roll back the interval throttle consumed at the top
+      // of this function so unpausing reacts on the NEXT TICK, not on the next
+      // interval boundary.
+      if (self._isPaused) {
+        self._lastSignalTimestamp = null;
+        return null;
+      }
       if (!self._userSignal) {
         const timeoutMs = GLOBAL_CONFIG.CC_MAX_SIGNAL_GENERATION_SECONDS * 1_000;
         // Cancelable timeout instead of a plain sleep: Promise.race does not
@@ -1348,6 +1361,12 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     self.params.exchangeName,
   );
   if (strategyData) {
+    // The pause flag is restored UNCONDITIONALLY and FIRST: unlike the deferred
+    // slots it is not tied to any signalId (no pendingSignalId gate applies), so
+    // it survives restarts and signal transitions until an explicit
+    // setPaused(false). Old snapshots without the field read as not-paused.
+    self._isPaused = strategyData.isPaused ?? false;
+
     // Deferred user actions are restored unconditionally. They are persisted BEFORE
     // the pending/scheduled snapshot is wiped from disk (write-ahead order), so a
     // crash between those two writes can leave a stale pending/scheduled snapshot
@@ -1632,6 +1651,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
       retryOpenSignal: self._retryOpenSignal,
       retryOpenCount: self._retryOpenCount,
       retryCloseCount: self._retryCloseCount,
+      isPaused: self._isPaused,
     },
     self.params.symbol,
     self.params.strategyName,
@@ -6210,6 +6230,21 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 export class ClientStrategy implements IStrategy {
   _isStopped = false;
 
+  /**
+   * Pause flag: while true GET_SIGNAL_FN opens NOTHING new — params.getSignal
+   * is not called and a queued createSignal DTO is not consumed (it stays
+   * queued and drains after unpause). Everything else keeps working: an
+   * existing pending/scheduled signal is monitored and closes normally, and
+   * the armed open-retry slot still drains (a real order may already exist on
+   * the exchange).
+   *
+   * Unlike the deferred slots, the flag is NOT tied to any signalId: it is
+   * persisted in the strategy snapshot and restored UNCONDITIONALLY on
+   * waitForInit (signal transitions never reset it) — only an explicit
+   * setPaused(false) clears it.
+   */
+  _isPaused = false;
+
   _pendingSignal: ISignalRow | null = null;
   _lastSignalTimestamp: number | null = null;
   _lastPendingId: string | null = null;
@@ -6610,6 +6645,67 @@ export class ClientStrategy implements IStrategy {
       strategyName: this.params.strategyName,
     });
     return this._isStopped;
+  }
+
+  /**
+   * Returns the paused state of the strategy.
+   *
+   * Synchronous in-memory read of ctor-scoped state — requires neither the
+   * execution nor the method context.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to true if strategy is paused, false otherwise
+   */
+  public async getPaused(symbol: string): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy getPaused", {
+      symbol,
+      strategyName: this.params.strategyName,
+    });
+    return this._isPaused;
+  }
+
+  /**
+   * Pauses or resumes the strategy's own signal generation.
+   *
+   * While paused NOTHING new opens: params.getSignal is NOT called and a
+   * queued createSignal DTO is NOT consumed (it stays queued and drains on the
+   * first tick after unpause). An existing pending/scheduled signal keeps
+   * being monitored and closes normally (TP/SL/time/user commands); the armed
+   * open-retry slot still drains (a real order may already exist on the
+   * exchange).
+   *
+   * The flag is persisted in the strategy snapshot (live mode) and restored on
+   * waitForInit REGARDLESS of the signalId: opening/closing signals never
+   * resets it, only an explicit setPaused(false) does.
+   *
+   * Works OUT of the async-hooks execution context (uses ctor params only —
+   * PERSIST_STRATEGY_FN keys the snapshot by the same symbol/strategy/exchange
+   * triple the instance is memoized by; the timestamp is passed explicitly by
+   * the caller, resolved from TimeMetaService).
+   *
+   * A repeated call with the unchanged state is a no-op: nothing is persisted
+   * and onPause does NOT fire — the notification reports actual flips only.
+   *
+   * @param symbol - Trading pair symbol
+   * @param paused - New paused state
+   * @param timestamp - Current Unix timestamp in milliseconds (attached to the onPause event)
+   * @returns Promise that resolves when the flag is set (and persisted in live mode)
+   */
+  public async setPaused(symbol: string, paused: boolean, timestamp: number): Promise<void> {
+    this.params.logger.debug("ClientStrategy setPaused", {
+      symbol,
+      strategyName: this.params.strategyName,
+      paused,
+      timestamp,
+    });
+    if (this._isPaused === paused) {
+      return;
+    }
+    this._isPaused = paused;
+    await PERSIST_STRATEGY_FN(this);
+    // Notification hook: emitted AFTER the flag is durably persisted, so a
+    // subscriber never sees a pause/resume that a crash could roll back.
+    await this.params.onPause(symbol, paused, timestamp);
   }
 
   /**
@@ -9061,6 +9157,7 @@ export class ClientStrategy implements IStrategy {
       retryOpenSignal: this._retryOpenSignal,
       retryOpenCount: this._retryOpenCount,
       retryCloseCount: this._retryCloseCount,
+      isPaused: this._isPaused,
     };
   }
 

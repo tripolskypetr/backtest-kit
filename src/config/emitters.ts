@@ -21,6 +21,7 @@ import OrderSyncContract from "../contract/OrderSync.contract";
 import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
+import { PauseContract } from "../contract/Pause.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
 import { BeforeStartContract } from "../contract/BeforeStart.contract";
 import { AfterEndContract } from "../contract/AfterEnd.contract";
@@ -244,6 +245,14 @@ export const highestProfitSubject = new Subject<HighestProfitContract>();
  * Allows users to track drawdown levels and implement custom risk management logic based on drawdown thresholds.
  */
 export const maxDrawdownSubject = new Subject<MaxDrawdownContract>();
+
+/**
+ * Pause state emitter for strategy pause/resume tracking.
+ * Emits when setPaused toggles the pause flag of a strategy (new position
+ * opening suspended/resumed; existing signals keep closing normally).
+ * Subscribe to generate user-facing notifications about the state change.
+ */
+export const pauseSubject = new Subject<PauseContract>();
 
 /**
  * Signal info emitter for user-defined informational notes on open positions.
