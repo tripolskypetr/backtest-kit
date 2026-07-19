@@ -37,6 +37,8 @@ import RuntimeMockService from "./services/mock/RuntimeMockService";
 import RuntimeViewService from "./services/view/RuntimeViewService";
 import ControlViewService from "./services/view/ControlViewService";
 import ControlMockService from "./services/mock/ControlMockService";
+import PauseMockService from "./services/mock/PauseMockService";
+import PauseViewService from "./services/view/PauseViewService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -69,6 +71,7 @@ const mockServices = {
   setupMockService: inject<SetupMockService>(TYPES.setupMockService),
   runtimeMockService: inject<RuntimeMockService>(TYPES.runtimeMockService),
   controlMockService: inject<ControlMockService>(TYPES.controlMockService),
+  pauseMockService: inject<PauseMockService>(TYPES.pauseMockService),
 };
 
 const viewServices = {
@@ -86,6 +89,7 @@ const viewServices = {
   setupViewService: inject<SetupViewService>(TYPES.setupViewService),
   runtimeViewService: inject<RuntimeViewService>(TYPES.runtimeViewService),
   controlViewService: inject<ControlViewService>(TYPES.controlViewService),
+  pauseViewService: inject<PauseViewService>(TYPES.pauseViewService),
 };
 
 const ioc = {

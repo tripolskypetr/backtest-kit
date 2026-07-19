@@ -47,6 +47,9 @@ export class LayoutService {
     public readonly pickCancelScheduledSubject = new Subject<string>();
     public readonly pickClosePendingSubject = new Subject<string>();
 
+    // Strategy pause subject
+    public readonly pickStrategyPauseSubject = new Subject<string>();
+
     // Dump content subject
     public readonly pickDumpContentSubject = new Subject<string>();
 
@@ -234,6 +237,11 @@ export class LayoutService {
 
     pickClosePending = async (notificationId: string) => {
         await this.pickClosePendingSubject.next(notificationId);
+    };
+
+    // Strategy pause method
+    pickStrategyPause = async (notificationId: string) => {
+        await this.pickStrategyPauseSubject.next(notificationId);
     };
 
     // Dump content method

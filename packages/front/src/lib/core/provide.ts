@@ -35,6 +35,8 @@ import SetupViewService from "../services/view/SetupViewService";
 import RuntimeViewService from "../services/view/RuntimeViewService";
 import ControlMockService from "../services/mock/ControlMockService";
 import ControlViewService from "../services/view/ControlViewService";
+import PauseMockService from "../services/mock/PauseMockService";
+import PauseViewService from "../services/view/PauseViewService";
 
 {
   provide(TYPES.loggerService, () => new LoggerService());
@@ -67,6 +69,7 @@ import ControlViewService from "../services/view/ControlViewService";
   provide(TYPES.setupMockService, () => new SetupMockService());
   provide(TYPES.runtimeMockService, () => new RuntimeMockService());
   provide(TYPES.controlMockService, () => new ControlMockService());
+  provide(TYPES.pauseMockService, () => new PauseMockService());
 }
 
 {
@@ -84,4 +87,5 @@ import ControlViewService from "../services/view/ControlViewService";
  provide(TYPES.setupViewService, () => new SetupViewService());
  provide(TYPES.runtimeViewService, () => new RuntimeViewService());
  provide(TYPES.controlViewService, () => new ControlViewService());
+ provide(TYPES.pauseViewService, () => new PauseViewService());
 }

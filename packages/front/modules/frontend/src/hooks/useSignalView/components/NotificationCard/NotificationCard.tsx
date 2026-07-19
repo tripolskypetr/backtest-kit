@@ -24,6 +24,7 @@ import {
   SwapVert,
   Timeline,
   PlayArrow,
+  Pause,
   Sync,
   Warning as WarningIcon,
 } from "@mui/icons-material";
@@ -85,6 +86,8 @@ const getNotificationColor = (item: NotificationModel): string => {
       return "#D32F2F";
     case "signal.info":
       return "#9C27B0";
+    case "strategy.pause":
+      return item.paused ? "#795548" : "#009688";
     default:
       return "#9E9E9E";
   }
@@ -136,6 +139,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <ErrorIcon sx={sx} />;
     case "signal.info":
       return <NotificationImportant sx={sx} />;
+    case "strategy.pause":
+      return item.paused ? <Pause sx={sx} /> : <PlayArrow sx={sx} />;
     default:
       return <WarningIcon sx={sx} />;
   }
@@ -191,6 +196,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Critical")}: ${item.message}`;
     case "signal.info":
       return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "strategy.pause":
+      return `${t(item.paused ? "Trading paused" : "Trading resumed")} ${item.symbol}`;
     default:
       return t("Unknown");
   }
@@ -246,6 +253,8 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Critical Error");
     case "signal.info":
       return t("Signal Info");
+    case "strategy.pause":
+      return item.paused ? t("Strategy Paused") : t("Strategy Resumed");
     default:
       return t("Unknown");
   }
@@ -315,6 +324,9 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "signal.info":
       ioc.layoutService.pickSignalNotify(item.id);
+      break;
+    case "strategy.pause":
+      ioc.layoutService.pickStrategyPause(item.id);
       break;
   }
 };
@@ -405,6 +417,12 @@ const hasOrderType = (
   item: NotificationModel
 ): item is NotificationModel & { orderType: "schedule" | "active" } => {
   return (item.type === "order_sync.open" || item.type === "order_sync.check") && !!item.orderType;
+};
+
+const hasPausedState = (
+  item: NotificationModel
+): item is NotificationModel & { paused: boolean } => {
+  return item.type === "strategy.pause";
 };
 
 const hasNote = (
@@ -586,6 +604,15 @@ export const NotificationCard = forwardRef(
                       fontWeight: 500,
                     }}
                   />
+                  {hasPausedState(item) && (
+                    <Chip
+                      size="small"
+                      sx={{ mt: 1, mr: 1 }}
+                      label={item.paused ? t("Paused") : t("Resumed")}
+                      variant="outlined"
+                      color={item.paused ? "warning" : "success"}
+                    />
+                  )}
                   {hasSymbol(item) && (
                     <Chip size="small" sx={{ mt: 1, mr: 1 }} label={item.symbol} variant="outlined" />
                   )}

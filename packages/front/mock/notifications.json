@@ -1,5 +1,29 @@
 [
   {
+    "type": "strategy.pause",
+    "id": "f1a2b3c4-1111-4000-a1b2-c3d4e5f6a7b8",
+    "timestamp": 1708876940000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "frameName": "",
+    "paused": false,
+    "createdAt": 1708876940000
+  },
+  {
+    "type": "strategy.pause",
+    "id": "e0f1a2b3-2222-4000-b2c3-d4e5f6a7b8c9",
+    "timestamp": 1708876820000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "frameName": "",
+    "paused": true,
+    "createdAt": 1708876820000
+  },
+  {
     "type": "activate_scheduled.commit",
     "id": "c5d6e7f8-9999-4000-c4d5-e6f7a8b9c0d1",
     "timestamp": 1708876700000,

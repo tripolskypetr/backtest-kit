@@ -44,6 +44,7 @@ import {
   SwapVert,
   Timeline,
   PlayArrow,
+  Pause,
   Sync,
 } from "@mui/icons-material";
 import sanitize from "../../config/sanitize";
@@ -132,6 +133,8 @@ const getNotificationColor = (item: NotificationModel): string | undefined => {
       return "#D32F2F";
     case "signal.info":
       return "#9C27B0";
+    case "strategy.pause":
+      return item.paused ? "#795548" : "#009688";
     default:
       return undefined;
   }
@@ -183,6 +186,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <ErrorIcon sx={sx} />;
     case "signal.info":
       return <NotificationImportant sx={sx} />;
+    case "strategy.pause":
+      return item.paused ? <Pause sx={sx} /> : <PlayArrow sx={sx} />;
     default:
       return <WarningIcon sx={{ ...sx, mt: "-2px" }} />;
   }
@@ -238,6 +243,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Critical")}: ${item.message}`;
     case "signal.info":
       return `${t("Signal Info")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "strategy.pause":
+      return `${t(item.paused ? "Trading paused" : "Trading resumed")} ${item.symbol}`;
     default:
       return `${t("Unknown")} ${get(item, "type")}`;
   }
@@ -307,6 +314,9 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "signal.info":
       ioc.layoutService.pickSignalNotify(item.id);
+      break;
+    case "strategy.pause":
+      ioc.layoutService.pickStrategyPause(item.id);
       break;
   }
 };
