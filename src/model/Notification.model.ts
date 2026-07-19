@@ -1,6 +1,7 @@
 import { IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
 import { PartialLevel } from "../interfaces/Partial.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
+import { FrameName } from "../interfaces/Frame.interface";
 
 /**
  * Signal opened notification.
@@ -1593,6 +1594,36 @@ export interface ValidationErrorNotification {
 }
 
 /**
+ * Strategy pause state change notification.
+ * Emitted when setPaused actually flips the pause flag of a strategy: while paused
+ * the strategy opens nothing new (getSignal is not called and a queued createSignal
+ * DTO is held until resume); existing pending/scheduled signals keep being monitored
+ * and close normally.
+ */
+export interface StrategyPauseNotification {
+  /** Discriminator for type-safe union */
+  type: "strategy.pause";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the pause state changed */
+  timestamp: number;
+  /** Whether this notification is from backtest mode (true) or live mode (false) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name whose pause state changed */
+  strategyName: StrategyName;
+  /** Exchange name for context */
+  exchangeName: ExchangeName;
+  /** Frame name for context (empty string for live) */
+  frameName: FrameName;
+  /** New pause state: true — new position opening suspended, false — resumed */
+  paused: boolean;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
  * Cancel scheduled commit notification.
  * Emitted when a scheduled signal is cancelled before activation.
  */
@@ -1873,6 +1904,7 @@ export type NotificationModel =
   | InfoErrorNotification
   | CriticalErrorNotification
   | ValidationErrorNotification
+  | StrategyPauseNotification
   | SignalInfoNotification;
 
 export default NotificationModel;

@@ -15,6 +15,7 @@ import {
   signalEventSubject,
   scheduleEventSubject,
   signalNotifySubject,
+  pauseSubject,
 } from "../config/emitters";
 import { NotificationModel } from "../model/Notification.model";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
@@ -28,6 +29,7 @@ import { OrderCheckContract } from "../contract/OrderCheck.contract";
 import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
+import { PauseContract } from "../contract/Pause.contract";
 import backtest from "../lib";
 import { PersistNotificationAdapter } from "./Persist";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -43,7 +45,7 @@ import get from "../utils/get";
  * // Subscribe only to signal lifecycle and error events
  * notificationAdapter.enable({ signal: true, common_error: true, critical_error: true, validation_error: true,
  *   partial_profit: false, partial_loss: false, breakeven: false, strategy_commit: false, order_sync: false, order_check: false,
- *   risk: false, info: false });
+ *   risk: false, info: false, pause: false });
  */
 export interface INotificationTarget {
   /**
@@ -124,6 +126,15 @@ export interface INotificationTarget {
   info: boolean;
 
   /**
+   * Strategy pause state change notifications (`strategy.pause`).
+   * Fired when setPaused actually flips the pause flag: while paused the
+   * strategy opens nothing new (getSignal is not called, a queued createSignal
+   * DTO is held); existing signals keep closing normally.
+   * Source: `pauseSubject` (PauseContract).
+   */
+  pause: boolean;
+
+  /**
    * Non-fatal runtime errors (`error.info`).
    * Emitted by the global `errorEmitter` for recoverable errors that are
    * caught and logged but do not terminate the process.
@@ -159,6 +170,7 @@ const WILDCARD_TARGET: INotificationTarget = {
   order_check: true,
   risk: true,
   info: true,
+  pause: true,
   common_error: true,
   critical_error: true,
   validation_error: true,
@@ -1159,6 +1171,24 @@ const CREATE_SIGNAL_INFO_NOTIFICATION_FN = (data: SignalInfoContract): Notificat
   createdAt: data.timestamp,
 });
 
+/**
+ * Creates a notification model for strategy pause state changes.
+ * @param data - The pause contract data
+ * @returns NotificationModel for pause state change event
+ */
+const CREATE_PAUSE_NOTIFICATION_FN = (data: PauseContract): NotificationModel => ({
+  type: "strategy.pause",
+  id: CREATE_KEY_FN(),
+  timestamp: data.timestamp,
+  backtest: data.backtest,
+  symbol: data.symbol,
+  strategyName: data.strategyName,
+  exchangeName: data.exchangeName,
+  frameName: data.frameName,
+  paused: data.paused,
+  createdAt: data.timestamp,
+});
+
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SIGNAL = "NotificationMemoryBacktestUtils.handleSignal";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SIGNAL_NOTIFY = "NotificationMemoryBacktestUtils.handleSignalNotify";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "NotificationMemoryBacktestUtils.handlePartialProfit";
@@ -1168,6 +1198,7 @@ const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "Notific
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryBacktestUtils.handleSync";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CHECK = "NotificationMemoryBacktestUtils.handleCheck";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationMemoryBacktestUtils.handleRisk";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PAUSE = "NotificationMemoryBacktestUtils.handlePause";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryBacktestUtils.handleError";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationMemoryBacktestUtils.handleCriticalError";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_VALIDATION_ERROR = "NotificationMemoryBacktestUtils.handleValidationError";
@@ -1183,6 +1214,7 @@ const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "Notificatio
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryLiveUtils.handleSync";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CHECK = "NotificationMemoryLiveUtils.handleCheck";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationMemoryLiveUtils.handleRisk";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PAUSE = "NotificationMemoryLiveUtils.handlePause";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryLiveUtils.handleError";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationMemoryLiveUtils.handleCriticalError";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_VALIDATION_ERROR = "NotificationMemoryLiveUtils.handleValidationError";
@@ -1217,6 +1249,7 @@ const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "Notifi
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationPersistBacktestUtils.handleSync";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CHECK = "NotificationPersistBacktestUtils.handleCheck";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationPersistBacktestUtils.handleRisk";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PAUSE = "NotificationPersistBacktestUtils.handlePause";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationPersistBacktestUtils.handleError";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationPersistBacktestUtils.handleCriticalError";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_VALIDATION_ERROR = "NotificationPersistBacktestUtils.handleValidationError";
@@ -1234,6 +1267,7 @@ const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "Notificati
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationPersistLiveUtils.handleSync";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CHECK = "NotificationPersistLiveUtils.handleCheck";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationPersistLiveUtils.handleRisk";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PAUSE = "NotificationPersistLiveUtils.handlePause";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationPersistLiveUtils.handleError";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationPersistLiveUtils.handleCriticalError";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_VALIDATION_ERROR = "NotificationPersistLiveUtils.handleValidationError";
@@ -1286,6 +1320,11 @@ export interface INotificationUtils {
    * @param data - The risk contract data
    */
   handleRisk(data: RiskContract): Promise<void>;
+  /**
+   * Handles strategy pause state change event.
+   * @param data - The pause contract data
+   */
+  handlePause(data: PauseContract): Promise<void>;
   /**
    * Handles error event.
    * @param error - The error object
@@ -1460,6 +1499,18 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
   };
 
   /**
+   * Handles strategy pause state change event.
+   * @param data - The pause contract data
+   */
+  public handlePause = async (data: PauseContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PAUSE, {
+      symbol: data.symbol,
+      paused: data.paused,
+    });
+    this._addNotification(CREATE_PAUSE_NOTIFICATION_FN(data));
+  };
+
+  /**
    * Handles error event.
    * @param error - The error object
    */
@@ -1581,6 +1632,13 @@ export class NotificationDummyBacktestUtils implements INotificationUtils {
    * No-op handler for risk rejection event.
    */
   public handleRisk = async (): Promise<void> => {
+    void 0;
+  };
+
+  /**
+   * No-op handler for strategy pause state change event.
+   */
+  public handlePause = async (): Promise<void> => {
     void 0;
   };
 
@@ -1826,6 +1884,20 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
   };
 
   /**
+   * Handles strategy pause state change event.
+   * @param data - The pause contract data
+   */
+  public handlePause = async (data: PauseContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PAUSE, {
+      symbol: data.symbol,
+      paused: data.paused,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_PAUSE_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  /**
    * Handles error event.
    * Note: Error notifications are not persisted to disk.
    * @param error - The error object
@@ -2027,6 +2099,18 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
   };
 
   /**
+   * Handles strategy pause state change event.
+   * @param data - The pause contract data
+   */
+  public handlePause = async (data: PauseContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PAUSE, {
+      symbol: data.symbol,
+      paused: data.paused,
+    });
+    this._addNotification(CREATE_PAUSE_NOTIFICATION_FN(data));
+  };
+
+  /**
    * Handles error event.
    * @param error - The error object
    */
@@ -2148,6 +2232,13 @@ export class NotificationDummyLiveUtils implements INotificationUtils {
    * No-op handler for risk rejection event.
    */
   public handleRisk = async (): Promise<void> => {
+    void 0;
+  };
+
+  /**
+   * No-op handler for strategy pause state change event.
+   */
+  public handlePause = async (): Promise<void> => {
     void 0;
   };
 
@@ -2396,6 +2487,20 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
   };
 
   /**
+   * Handles strategy pause state change event.
+   * @param data - The pause contract data
+   */
+  public handlePause = async (data: PauseContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PAUSE, {
+      symbol: data.symbol,
+      paused: data.paused,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_PAUSE_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  /**
    * Handles error event.
    * Note: Error notifications are not persisted to disk.
    * @param error - The error object
@@ -2555,6 +2660,15 @@ export class NotificationBacktestAdapter implements INotificationUtils {
    */
   handleRisk = async (data: RiskContract): Promise<void> => {
     return await this.getInstance().handleRisk(data);
+  };
+
+  /**
+   * Handles strategy pause state change event.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The pause contract data
+   */
+  handlePause = async (data: PauseContract): Promise<void> => {
+    return await this.getInstance().handlePause(data);
   };
 
   /**
@@ -2757,6 +2871,15 @@ export class NotificationLiveAdapter implements INotificationUtils {
   };
 
   /**
+   * Handles strategy pause state change event.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The pause contract data
+   */
+  handlePause = async (data: PauseContract): Promise<void> => {
+    return await this.getInstance().handlePause(data);
+  };
+
+  /**
    * Handles error event.
    * Proxies call to the underlying notification adapter.
    * @param error - The error object
@@ -2879,6 +3002,7 @@ export class NotificationAdapter {
     order_sync = false,
     order_check = false,
     risk = false,
+    pause = false,
     common_error = false,
     critical_error = false,
     validation_error = false,
@@ -2982,6 +3106,14 @@ export class NotificationAdapter {
           }
         });
 
+      const unBacktestPause = pauseSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (data: PauseContract) => {
+          if (pause) {
+            await NotificationBacktest.handlePause(data);
+          }
+        });
+
       const unBacktestError = errorEmitter.subscribe(async (error: Error) => {
         if (common_error) {
           await NotificationBacktest.handleError(error);
@@ -3019,6 +3151,7 @@ export class NotificationAdapter {
         () => unBacktestSync(),
         () => unBacktestCheck(),
         () => unBacktestRisk(),
+        () => unBacktestPause(),
         () => unBacktestError(),
         () => unBacktestExit(),
         () => unBacktestValidation(),
@@ -3122,6 +3255,14 @@ export class NotificationAdapter {
           }
         });
 
+      const unLivePause = pauseSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (data: PauseContract) => {
+          if (pause) {
+            await NotificationLive.handlePause(data);
+          }
+        });
+
       const unLiveError = errorEmitter.subscribe(async (error: Error) => {
         if (common_error) {
           await NotificationLive.handleError(error);
@@ -3159,6 +3300,7 @@ export class NotificationAdapter {
         () => unLiveSync(),
         () => unLiveCheck(),
         () => unLiveRisk(),
+        () => unLivePause(),
         () => unLiveError(),
         () => unLiveExit(),
         () => unLiveValidation(),

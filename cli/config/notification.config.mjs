@@ -1,6 +1,7 @@
 export default {
   signal: true,
   risk: true,
+  pause: true,
   info: true,
   breakeven: true,
   common_error: true,

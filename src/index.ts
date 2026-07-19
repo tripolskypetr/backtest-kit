@@ -358,6 +358,7 @@ export {
   OrderSyncCheckNotification,
   CancelScheduledCommitNotification,
   ClosePendingCommitNotification,
+  StrategyPauseNotification,
   SignalInfoNotification,
 } from "./model/Notification.model";
 
