@@ -39,6 +39,8 @@ export {
   getScheduledSignal,
   getBreakeven,
   getStrategyStatus,
+  getStrategyPaused,
+  setStrategyPaused,
   getTotalPercentClosed,
   getTotalCostClosed,
   getTotalPercentHeld,

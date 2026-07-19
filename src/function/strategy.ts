@@ -78,6 +78,8 @@ const COMMIT_CREATE_SIGNAL_METHOD_NAME = "strategy.commitCreateSignal";
 const COMMIT_CREATE_TAKE_PROFIT_METHOD_NAME = "strategy.commitCreateTakeProfit";
 const COMMIT_CREATE_STOP_LOSS_METHOD_NAME = "strategy.commitCreateStopLoss";
 const GET_STRATEGY_STATUS_METHOD_NAME = "strategy.getStrategyStatus";
+const GET_STRATEGY_PAUSED_METHOD_NAME = "strategy.getStrategyPaused";
+const SET_STRATEGY_PAUSED_METHOD_NAME = "strategy.setStrategyPaused";
 
 /**
  * Cancels the scheduled signal without stopping the strategy.
@@ -2999,6 +3001,86 @@ export async function getStrategyStatus(symbol: string): Promise<StrategyStatus>
   return await backtest.strategyCoreService.getStatus(
     isBacktest,
     symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the paused state of the strategy.
+ *
+ * While paused the strategy opens nothing new: getSignal is not called and a queued
+ * createSignal DTO is held until resume. Existing pending/scheduled signals keep
+ * being monitored and close normally.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to true if strategy is paused, false otherwise
+ *
+ * @example
+ * ```typescript
+ * import { getStrategyPaused } from "backtest-kit";
+ *
+ * if (await getStrategyPaused("BTCUSDT")) {
+ *   console.log("generation suspended");
+ * }
+ * ```
+ */
+export async function getStrategyPaused(symbol: string): Promise<boolean> {
+  backtest.loggerService.info(GET_STRATEGY_PAUSED_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getStrategyPaused requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getStrategyPaused requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPaused(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Pauses or resumes new position opening for the strategy.
+ *
+ * While paused getSignal is NOT called and a queued createSignal DTO is NOT consumed
+ * (it stays queued and drains after resume); existing pending/scheduled signals keep
+ * being monitored and close normally. The flag is persisted and survives restarts and
+ * signal transitions until an explicit setStrategyPaused(symbol, false). When the flag
+ * actually flips, a PauseContract event is emitted (see listenPause) for notification
+ * generation.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param paused - New paused state
+ * @returns Promise that resolves when the flag is set (and persisted in live mode)
+ *
+ * @example
+ * ```typescript
+ * import { setStrategyPaused } from "backtest-kit";
+ *
+ * // Suspend automatic generation; open position keeps closing normally
+ * await setStrategyPaused("BTCUSDT", true);
+ * ```
+ */
+export async function setStrategyPaused(symbol: string, paused: boolean): Promise<void> {
+  backtest.loggerService.info(SET_STRATEGY_PAUSED_METHOD_NAME, { symbol, paused });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("setStrategyPaused requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("setStrategyPaused requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  await backtest.strategyCoreService.setPaused(
+    isBacktest,
+    symbol,
+    paused,
     { exchangeName, frameName, strategyName },
   );
 }

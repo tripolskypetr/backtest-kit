@@ -115,6 +115,8 @@ const BACKTEST_METHOD_NAME_COMMIT_CREATE_SIGNAL = "Backtest.commitCreateSignal";
 const BACKTEST_METHOD_NAME_COMMIT_CREATE_TAKE_PROFIT = "Backtest.commitCreateTakeProfit";
 const BACKTEST_METHOD_NAME_COMMIT_CREATE_STOP_LOSS = "Backtest.commitCreateStopLoss";
 const BACKTEST_METHOD_NAME_GET_STRATEGY_STATUS = "Backtest.getStrategyStatus";
+const BACKTEST_METHOD_NAME_GET_PAUSED = "Backtest.getPaused";
+const BACKTEST_METHOD_NAME_SET_PAUSED = "Backtest.setPaused";
 const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.commitPartialProfit";
 const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.commitPartialLoss";
 const BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST =
@@ -3668,6 +3670,124 @@ export class BacktestUtils {
     return await backtest.strategyCoreService.getStatus(
       true,
       symbol,
+      context,
+    );
+  };
+
+  /**
+   * Returns the paused state of the strategy.
+   *
+   * While paused the strategy opens nothing new: getSignal is not called and a
+   * queued createSignal DTO is held until resume. Existing pending/scheduled
+   * signals keep being monitored and close normally.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise resolving to true if strategy is paused, false otherwise
+   */
+  public getPaused = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ): Promise<boolean> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_PAUSED, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_PAUSED,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_PAUSED,
+    );
+    return await backtest.strategyCoreService.getPaused(
+      true,
+      symbol,
+      context,
+    );
+  };
+
+  /**
+   * Pauses or resumes new position opening for the strategy.
+   *
+   * While paused getSignal is NOT called and a queued createSignal DTO is NOT
+   * consumed (it stays queued and drains after resume); existing signals keep
+   * being monitored and close normally. The flag survives signal transitions
+   * until an explicit setPaused(false). When the flag actually flips, a
+   * PauseContract event is emitted (see listenPause) for notification
+   * generation.
+   *
+   * @param symbol - Trading pair symbol
+   * @param paused - New paused state
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise that resolves when the flag is set
+   *
+   * @example
+   * ```typescript
+   * // Suspend automatic generation; open position keeps closing normally
+   * await Backtest.setPaused("BTCUSDT", true, {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance",
+   *   frameName: "frame1",
+   * });
+   * ```
+   */
+  public setPaused = async (
+    symbol: string,
+    paused: boolean,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+  ): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_SET_PAUSED, {
+      symbol,
+      paused,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_SET_PAUSED,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_SET_PAUSED,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_SET_PAUSED,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_SET_PAUSED,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_SET_PAUSED,
+          ),
+        );
+    }
+
+    await backtest.strategyCoreService.setPaused(
+      true,
+      symbol,
+      paused,
       context,
     );
   };

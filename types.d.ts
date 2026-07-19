@@ -3108,6 +3108,15 @@ type StrategyStatus = {
      * Reset on a confirmed close and on any pending-signal transition.
      */
     retryCloseCount: number;
+    /**
+     * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
+     * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
+     * an existing pending/scheduled signal keeps being monitored and closes normally.
+     * Unlike the deferred slots above this flag is NOT tied to any signalId — it is
+     * restored unconditionally on waitForInit and survives signal transitions until an
+     * explicit setPaused(false).
+     */
+    isPaused: boolean;
 };
 /**
  * Commit payload for strategy commits.
@@ -3927,6 +3936,33 @@ interface IStrategy {
      * @returns Promise resolving to true if strategy is stopped, false otherwise
      */
     getStopped: (symbol: string) => Promise<boolean>;
+    /**
+     * Checks if the strategy is paused.
+     *
+     * While paused the strategy's own params.getSignal is not called;
+     * existing signals keep being monitored and close normally.
+     * Works out of the async-hooks execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to true if strategy is paused, false otherwise
+     */
+    getPaused: (symbol: string) => Promise<boolean>;
+    /**
+     * Pauses or resumes new position opening.
+     *
+     * While paused params.getSignal is NOT called and a queued createSignal DTO
+     * is NOT consumed (it stays queued and drains after unpause); an existing
+     * pending/scheduled signal keeps being monitored and closes normally. The
+     * flag is persisted and restored on waitForInit regardless of the signalId —
+     * signal transitions do not reset it, only an explicit setPaused(false) does.
+     * Works out of the async-hooks execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param paused - New paused state
+     * @param timestamp - Current Unix timestamp in milliseconds (attached to the onPause notification event)
+     * @returns Promise that resolves when the flag is set (and persisted in live mode)
+     */
+    setPaused: (symbol: string, paused: boolean, timestamp: number) => Promise<void>;
     /**
      * Returns how much of the position is still held, as a percentage of totalInvested.
      *
@@ -7325,6 +7361,53 @@ declare function commitCreateStopLoss(symbol: string, payload?: Partial<CommitPa
  * ```
  */
 declare function getStrategyStatus(symbol: string): Promise<StrategyStatus>;
+/**
+ * Returns the paused state of the strategy.
+ *
+ * While paused the strategy opens nothing new: getSignal is not called and a queued
+ * createSignal DTO is held until resume. Existing pending/scheduled signals keep
+ * being monitored and close normally.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to true if strategy is paused, false otherwise
+ *
+ * @example
+ * ```typescript
+ * import { getStrategyPaused } from "backtest-kit";
+ *
+ * if (await getStrategyPaused("BTCUSDT")) {
+ *   console.log("generation suspended");
+ * }
+ * ```
+ */
+declare function getStrategyPaused(symbol: string): Promise<boolean>;
+/**
+ * Pauses or resumes new position opening for the strategy.
+ *
+ * While paused getSignal is NOT called and a queued createSignal DTO is NOT consumed
+ * (it stays queued and drains after resume); existing pending/scheduled signals keep
+ * being monitored and close normally. The flag is persisted and survives restarts and
+ * signal transitions until an explicit setStrategyPaused(symbol, false). When the flag
+ * actually flips, a PauseContract event is emitted (see listenPause) for notification
+ * generation.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param paused - New paused state
+ * @returns Promise that resolves when the flag is set (and persisted in live mode)
+ *
+ * @example
+ * ```typescript
+ * import { setStrategyPaused } from "backtest-kit";
+ *
+ * // Suspend automatic generation; open position keeps closing normally
+ * await setStrategyPaused("BTCUSDT", true);
+ * ```
+ */
+declare function setStrategyPaused(symbol: string, paused: boolean): Promise<void>;
 
 /**
  * Stops the strategy from generating new signals.
@@ -9148,6 +9231,34 @@ interface MaxDrawdownContract {
 }
 
 /**
+ * Contract for strategy pause state changes emitted by the framework.
+ * Emitted when setPaused toggles the pause flag of a strategy: while paused the
+ * strategy opens nothing new (params.getSignal is not called, a queued createSignal
+ * DTO is held); an existing pending/scheduled signal keeps being monitored and
+ * closes normally.
+ * Consumers can use this event to generate user-facing notifications (e.g. Telegram)
+ * about the pause/resume of automatic trading.
+ * The backtest flag allows consumers to differentiate between live and backtest
+ * updates for appropriate handling.
+ */
+interface PauseContract {
+    /** Trading symbol (e.g. "BTC/USDT") */
+    symbol: string;
+    /** New pause state: true — generation suspended, false — resumed */
+    paused: boolean;
+    /** Timestamp of the pause state change (milliseconds since epoch) */
+    timestamp: number;
+    /** Strategy name for context */
+    strategyName: StrategyName;
+    /** Exchange name for context */
+    exchangeName: ExchangeName;
+    /** Frame name for context (e.g. "1m", "5m") */
+    frameName: FrameName;
+    /** Indicates if the update is from a backtest or live trading (true for backtest, false for live) */
+    backtest: boolean;
+}
+
+/**
  * Contract for signal info notification events.
  *
  * Emitted by signalNotifySubject when a strategy calls commitSignalInfo() to broadcast
@@ -10641,6 +10752,34 @@ declare function listenMaxDrawdownOnce(filterFn: (event: MaxDrawdownContract) =>
  * @return Unsubscribe function to stop listening to events
  */
 declare function listenSignalNotify(fn: (event: SignalInfoContract) => void): () => void;
+/**
+ * Subscribes to strategy pause state changes with queued async processing.
+ * Emits when setPaused actually flips the pause flag of a strategy (new position
+ * opening suspended/resumed; existing signals keep closing normally).
+ * Use this to generate user-facing notifications about pause/resume.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle pause state change events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * const unsubscribe = listenPause((event) => {
+ *   console.log(`${event.symbol} ${event.strategyName}: ${event.paused ? "paused" : "resumed"}`);
+ * });
+ * ```
+ */
+declare function listenPause(fn: (event: PauseContract) => void): () => void;
+/**
+ * Subscribes to filtered pause state change events with one-time execution.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes.
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @return Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenPauseOnce(filterFn: (event: PauseContract) => boolean, fn: (event: PauseContract) => void): () => void;
 /**
  * Subscribes to filtered signal info events with one-time execution.
  * Listens for events matching the filter predicate, then executes callback once
@@ -15405,6 +15544,15 @@ type StrategyData = {
      * Reset on a confirmed close and on any pending-signal transition.
      */
     retryCloseCount: number;
+    /**
+     * Pause flag: while true nothing new opens — params.getSignal is NOT called and a
+     * queued createSignal DTO is NOT consumed (it stays queued and drains after unpause);
+     * an existing pending/scheduled signal keeps being monitored and closes normally.
+     * Unlike the deferred slots above this flag is NOT tied to any signalId — it is
+     * restored unconditionally on waitForInit and survives signal transitions until an
+     * explicit setPaused(false).
+     */
+    isPaused: boolean;
 };
 /**
  * Per-context deferred strategy state persistence instance interface.
@@ -20121,6 +20269,52 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<StrategyStatus>;
     /**
+     * Returns the paused state of the strategy.
+     *
+     * While paused the strategy opens nothing new: getSignal is not called and a
+     * queued createSignal DTO is held until resume. Existing pending/scheduled
+     * signals keep being monitored and close normally.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Promise resolving to true if strategy is paused, false otherwise
+     */
+    getPaused: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Pauses or resumes new position opening for the strategy.
+     *
+     * While paused getSignal is NOT called and a queued createSignal DTO is NOT
+     * consumed (it stays queued and drains after resume); existing signals keep
+     * being monitored and close normally. The flag survives signal transitions
+     * until an explicit setPaused(false). When the flag actually flips, a
+     * PauseContract event is emitted (see listenPause) for notification
+     * generation.
+     *
+     * @param symbol - Trading pair symbol
+     * @param paused - New paused state
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Promise that resolves when the flag is set
+     *
+     * @example
+     * ```typescript
+     * // Suspend automatic generation; open position keeps closing normally
+     * await Backtest.setPaused("BTCUSDT", true, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     *   frameName: "frame1",
+     * });
+     * ```
+     */
+    setPaused: (symbol: string, paused: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
      * Executes partial close at profit level (moving toward TP).
      *
      * Closes a percentage of the active pending position at profit.
@@ -21663,6 +21857,49 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<StrategyStatus>;
+    /**
+     * Returns the paused state of the strategy.
+     *
+     * While paused the strategy opens nothing new: getSignal is not called and a
+     * queued createSignal DTO is held until resume. Existing pending/scheduled
+     * signals keep being monitored and close normally.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise resolving to true if strategy is paused, false otherwise
+     */
+    getPaused: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<boolean>;
+    /**
+     * Pauses or resumes new position opening for the strategy.
+     *
+     * While paused getSignal is NOT called and a queued createSignal DTO is NOT
+     * consumed (it stays queued and drains after resume); existing signals keep
+     * being monitored and close normally. The flag is persisted and survives
+     * restarts and signal transitions until an explicit setPaused(false). When
+     * the flag actually flips, a PauseContract event is emitted (see listenPause)
+     * for notification generation.
+     *
+     * @param symbol - Trading pair symbol
+     * @param paused - New paused state
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise that resolves when the flag is set and persisted
+     *
+     * @example
+     * ```typescript
+     * // Suspend automatic generation; open position keeps closing normally
+     * await Live.setPaused("BTCUSDT", true, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     * });
+     * ```
+     */
+    setPaused: (symbol: string, paused: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<void>;
     /**
      * Executes partial close at profit level (moving toward TP).
      *
@@ -32193,6 +32430,13 @@ declare const highestProfitSubject: Subject<HighestProfitContract>;
  */
 declare const maxDrawdownSubject: Subject<MaxDrawdownContract>;
 /**
+ * Pause state emitter for strategy pause/resume tracking.
+ * Emits when setPaused toggles the pause flag of a strategy (new position
+ * opening suspended/resumed; existing signals keep closing normally).
+ * Subscribe to generate user-facing notifications about the state change.
+ */
+declare const pauseSubject: Subject<PauseContract>;
+/**
  * Signal info emitter for user-defined informational notes on open positions.
  * Emits when a strategy calls commitSignalInfo() to broadcast a custom annotation.
  */
@@ -32231,6 +32475,7 @@ declare const emitters_idlePingSubject: typeof idlePingSubject;
 declare const emitters_maxDrawdownSubject: typeof maxDrawdownSubject;
 declare const emitters_partialLossSubject: typeof partialLossSubject;
 declare const emitters_partialProfitSubject: typeof partialProfitSubject;
+declare const emitters_pauseSubject: typeof pauseSubject;
 declare const emitters_performanceEmitter: typeof performanceEmitter;
 declare const emitters_progressBacktestEmitter: typeof progressBacktestEmitter;
 declare const emitters_progressWalkerEmitter: typeof progressWalkerEmitter;
@@ -32251,7 +32496,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_pauseSubject as pauseSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -34425,6 +34670,44 @@ declare class StrategyConnectionService implements TStrategy$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<boolean>;
+    /**
+     * Retrieves the paused state of the strategy.
+     *
+     * Delegates to ClientStrategy.getPaused(). Synchronous in-memory read;
+     * works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if strategy is paused, false otherwise
+     */
+    getPaused: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Pauses or resumes the strategy's own signal generation.
+     *
+     * Resolves current timestamp via timeMetaService and delegates to
+     * ClientStrategy.setPaused(). While paused getSignal is not called and a
+     * queued createSignal DTO is held; existing signals keep being monitored and
+     * close normally. The flag is persisted and survives restarts and signal
+     * transitions until an explicit setPaused(false). When the flag actually
+     * flips, the onPause callback emits a PauseContract to pauseSubject for
+     * notification generation. Works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param paused - New paused state
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when the flag is set (and persisted in live mode)
+     */
+    setPaused: (backtest: boolean, symbol: string, paused: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
     /**
      * Executes live trading tick for current strategy.
      *
@@ -36605,6 +36888,43 @@ declare class StrategyCoreService implements TStrategy {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<boolean>;
+    /**
+     * Checks if the strategy is paused.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to retrieve the paused state from the strategy instance.
+     * Works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise resolving to true if strategy is paused, false otherwise
+     */
+    getPaused: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Pauses or resumes the strategy's own signal generation.
+     *
+     * Validates strategy existence and delegates to connection service.
+     * While paused getSignal is not called; existing signals keep being monitored
+     * and close normally. The flag is persisted and survives restarts and signal
+     * transitions until an explicit setPaused(false).
+     * Works out of the async-hooks execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param paused - New paused state
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when the flag is set (and persisted in live mode)
+     */
+    setPaused: (backtest: boolean, symbol: string, paused: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
     /**
      * Checks signal status at a specific timestamp.
      *
@@ -40845,4 +41165,4 @@ declare class OrderTransientError extends Error {
     static fromError(error: object): OrderTransientError;
 }
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, OrderDeletedError, type OrderOpenContract, OrderRejectedError, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, OrderDeletedError, type OrderOpenContract, OrderRejectedError, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
