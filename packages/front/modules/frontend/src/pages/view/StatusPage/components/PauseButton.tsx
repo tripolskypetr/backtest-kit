@@ -3,6 +3,7 @@ import {
     ActionButton,
     Center,
     queued,
+    sleep,
     useAsyncValue,
     useOnce,
 } from "react-declarative";
@@ -28,6 +29,7 @@ const togglePause = queued(
         const paused = await ioc.pauseViewService.getPaused(dto.symbol, dto);
         await ioc.pauseViewService.setPaused(dto.symbol, dto, !paused);
         await reloadSubject.next();
+        await sleep(2_500);
     },
 );
 

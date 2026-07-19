@@ -18,6 +18,8 @@ export const LOCALE: Record<string, string> = {
   "Changed At": "变更时间",
   "Frame": "框架",
   "State": "状态",
+  "Right now is paused": "当前已暂停",
+  "Right now is running": "当前正在运行",
   "Trading paused": "交易已暂停",
   "Trading resumed": "交易已恢复",
   "Strategy Paused": "策略已暂停",
