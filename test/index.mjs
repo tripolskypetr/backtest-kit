@@ -52,6 +52,7 @@ import "./e2e/behavior.test.mjs";
 import "./e2e/heatmap.test.mjs";
 import "./e2e/liveloop.test.mjs";
 import "./e2e/stopped.test.mjs";
+import "./e2e/paused.test.mjs";
 import "./e2e/live.test.mjs";
 import "./e2e/broker_cancel.test.mjs";
 import "./e2e/strategy_fn.test.mjs";
