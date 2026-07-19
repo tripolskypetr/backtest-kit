@@ -320,6 +320,7 @@ declare class TelegramLogicService {
 interface NotificationConfig {
     signal: boolean;
     risk: boolean;
+    pause: boolean;
     info: boolean;
     breakeven: boolean;
     common_error: boolean;
