@@ -20,6 +20,8 @@ export const LOCALE: Record<string, string> = {
   "State": "Durum",
   "Right now is paused": "Şu anda duraklatıldı",
   "Right now is running": "Şu anda çalışıyor",
+  "Now is paused": "Şimdi duraklatıldı",
+  "Now is active": "Şimdi aktif",
   "Trading paused": "İşlem duraklatıldı",
   "Trading resumed": "İşlem devam ettirildi",
   "Strategy Paused": "Strateji Duraklatıldı",

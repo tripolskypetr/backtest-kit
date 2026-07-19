@@ -20,6 +20,8 @@ export const LOCALE: Record<string, string> = {
   "State": "State",
   "Right now is paused": "Right now is paused",
   "Right now is running": "Right now is running",
+  "Now is paused": "Now is paused",
+  "Now is active": "Now is active",
   "Trading paused": "Trading paused",
   "Trading resumed": "Trading resumed",
   "Strategy Paused": "Strategy Paused",

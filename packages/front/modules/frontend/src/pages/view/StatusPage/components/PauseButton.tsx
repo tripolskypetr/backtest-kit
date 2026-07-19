@@ -27,9 +27,11 @@ const togglePause = queued(
         exchangeName: string;
     }) => {
         const paused = await ioc.pauseViewService.getPaused(dto.symbol, dto);
-        await ioc.pauseViewService.setPaused(dto.symbol, dto, !paused);
+        const newPaused = !paused;
+        await ioc.pauseViewService.setPaused(dto.symbol, dto, newPaused);
+        await sleep(1_000);
+        ioc.alertService.notify(newPaused ? t("Now is paused") : t("Now is active"));
         await reloadSubject.next();
-        await sleep(2_500);
     },
 );
 

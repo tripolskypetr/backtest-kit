@@ -20,6 +20,8 @@ export const LOCALE: Record<string, string> = {
   "State": "Estado",
   "Right now is paused": "Ahora mismo está pausado",
   "Right now is running": "Ahora mismo está en ejecución",
+  "Now is paused": "Ahora está pausado",
+  "Now is active": "Ahora está activo",
   "Trading paused": "Trading pausado",
   "Trading resumed": "Trading reanudado",
   "Strategy Paused": "Estrategia pausada",
