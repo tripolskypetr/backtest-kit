@@ -226,6 +226,25 @@ interface ControlBreakevenRequest {
   context: { strategyName: string; exchangeName: string };
 }
 
+interface PauseStatusRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+}
+
+interface PauseSetRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+  paused: boolean;
+}
+
 // SetupMockService endpoints
 router.post("/api/v1/mock/setup_data", async (req, res) => {
   try {
@@ -942,6 +961,63 @@ router.post("/api/v1/mock/control_breakeven", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/mock/control_breakeven error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+// PauseMockService endpoints
+router.post("/api/v1/mock/pause_status", async (req, res) => {
+  try {
+    const request = <PauseStatusRequest>await micro.json(req);
+    const { symbol, context, requestId, serviceName } = request;
+    const data = await ioc.pauseMockService.getPaused(symbol, context);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/pause_status ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/pause_status error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/mock/pause_set", async (req, res) => {
+  try {
+    const request = <PauseSetRequest>await micro.json(req);
+    const { symbol, context, paused, requestId, serviceName } = request;
+    const data = await ioc.pauseMockService.setPaused(symbol, context, paused);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/pause_set ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/pause_set error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

@@ -50,6 +50,9 @@ import useOrderSyncCheckView from "../hooks/useOrderSyncCheckView";
 import useCancelScheduledView from "../hooks/useCancelScheduledView";
 import useClosePendingView from "../hooks/useClosePendingView";
 
+// Strategy pause hook
+import useStrategyPauseView from "../hooks/useStrategyPauseView";
+
 // Dump content hook
 import useDumpContentView from "../hooks/useDumpContentView";
 
@@ -138,6 +141,9 @@ export const LayoutModalProvider = ({
     const pickCancelScheduled = useCancelScheduledView();
     const pickClosePending = useClosePendingView();
 
+    // Strategy pause hook
+    const pickStrategyPause = useStrategyPauseView();
+
     // Dump content hook
     const pickDumpContent = useDumpContentView();
 
@@ -209,6 +215,9 @@ export const LayoutModalProvider = ({
     // Cancel scheduled / close pending subscriptions
     useOnce(() => ioc.layoutService.pickCancelScheduledSubject.subscribe(pickCancelScheduled));
     useOnce(() => ioc.layoutService.pickClosePendingSubject.subscribe(pickClosePending));
+
+    // Strategy pause subscription
+    useOnce(() => ioc.layoutService.pickStrategyPauseSubject.subscribe(pickStrategyPause));
 
     // Dump content subscription
     useOnce(() => ioc.layoutService.pickDumpContentSubject.subscribe(pickDumpContent));

@@ -226,6 +226,25 @@ interface ControlBreakevenRequest {
   context: { strategyName: string; exchangeName: string };
 }
 
+interface PauseStatusRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+}
+
+interface PauseSetRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  symbol: string;
+  context: { strategyName: string; exchangeName: string };
+  paused: boolean;
+}
+
 // SetupViewService endpoints
 router.post("/api/v1/view/setup_data", async (req, res) => {
   try {
@@ -941,6 +960,63 @@ router.post("/api/v1/view/control_breakeven", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/view/control_breakeven error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+// PauseViewService endpoints
+router.post("/api/v1/view/pause_status", async (req, res) => {
+  try {
+    const request = <PauseStatusRequest>await micro.json(req);
+    const { symbol, context, requestId, serviceName } = request;
+    const data = await ioc.pauseViewService.getPaused(symbol, context);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/pause_status ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/pause_status error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/pause_set", async (req, res) => {
+  try {
+    const request = <PauseSetRequest>await micro.json(req);
+    const { symbol, context, paused, requestId, serviceName } = request;
+    const data = await ioc.pauseViewService.setPaused(symbol, context, paused);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/pause_set ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/pause_set error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {
