@@ -18,6 +18,7 @@ type StrategyData = {
     retryOpenSignal: ISignalRow | IScheduledSignalRow | null;
     retryOpenCount: number;
     retryCloseCount: number;
+    isPaused: boolean;
 };
 ```
 

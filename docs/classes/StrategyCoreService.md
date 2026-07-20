@@ -253,6 +253,32 @@ Checks if the strategy has been stopped.
 Validates strategy existence and delegates to connection service
 to retrieve the stopped state from the strategy instance.
 
+### getPaused
+
+```ts
+getPaused: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Checks if the strategy is paused.
+
+Validates strategy existence and delegates to connection service
+to retrieve the paused state from the strategy instance.
+Works out of the async-hooks execution context.
+
+### setPaused
+
+```ts
+setPaused: (backtest: boolean, symbol: string, paused: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Pauses or resumes the strategy's own signal generation.
+
+Validates strategy existence and delegates to connection service.
+While paused getSignal is not called; existing signals keep being monitored
+and close normally. The flag is persisted and survives restarts and signal
+transitions until an explicit setPaused(false).
+Works out of the async-hooks execution context.
+
 ### tick
 
 ```ts
@@ -263,6 +289,13 @@ Checks signal status at a specific timestamp.
 
 Wraps strategy tick() with execution context containing symbol, timestamp,
 and backtest mode flag.
+
+CALLER CONTRACT: ticks for the same (symbol, strategy, exchange) MUST NOT
+overlap — there is deliberately no internal mutex. `Live.run` satisfies this
+(strict `await tick` loop); manual callers must serialize too. Two concurrent
+ticks race the retry slot (the slot bypasses the generation throttle): both
+consume it, the open gate fires twice CONCURRENTLY with the same signalId,
+and two "opened" results are emitted for one position.
 
 ### backtest
 

@@ -568,6 +568,33 @@ getStrategyStatus: (symbol: string, context: { strategyName: string; exchangeNam
 
 Returns the in-memory deferred strategy-state snapshot for the current backtest iteration.
 
+### getPaused
+
+```ts
+getPaused: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Returns the paused state of the strategy.
+
+While paused the strategy opens nothing new: getSignal is not called and a
+queued createSignal DTO is held until resume. Existing pending/scheduled
+signals keep being monitored and close normally.
+
+### setPaused
+
+```ts
+setPaused: (symbol: string, paused: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Pauses or resumes new position opening for the strategy.
+
+While paused getSignal is NOT called and a queued createSignal DTO is NOT
+consumed (it stays queued and drains after resume); existing signals keep
+being monitored and close normally. The flag survives signal transitions
+until an explicit setPaused(false). When the flag actually flips, a
+PauseContract event is emitted (see listenPause) for notification
+generation.
+
 ### commitPartialProfit
 
 ```ts

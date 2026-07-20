@@ -75,6 +75,33 @@ Checks if the strategy has been stopped.
 Returns the stopped state indicating whether the strategy should
 cease processing new ticks or signals.
 
+### getPaused
+
+```ts
+getPaused: (symbol: string) => Promise<boolean>
+```
+
+Checks if the strategy is paused.
+
+While paused the strategy's own params.getSignal is not called;
+existing signals keep being monitored and close normally.
+Works out of the async-hooks execution context.
+
+### setPaused
+
+```ts
+setPaused: (symbol: string, paused: boolean, timestamp: number) => Promise<void>
+```
+
+Pauses or resumes new position opening.
+
+While paused params.getSignal is NOT called and a queued createSignal DTO
+is NOT consumed (it stays queued and drains after unpause); an existing
+pending/scheduled signal keeps being monitored and closes normally. The
+flag is persisted and restored on waitForInit regardless of the signalId —
+signal transitions do not reset it, only an explicit setPaused(false) does.
+Works out of the async-hooks execution context.
+
 ### getTotalPercentClosed
 
 ```ts

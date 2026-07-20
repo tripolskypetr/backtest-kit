@@ -116,6 +116,18 @@ Manual or strategy-triggered messages attached to an active signal,
 carrying a `note` and optional `notificationId`.
 Source: `signalNotifySubject` (SignalInfoContract).
 
+### pause
+
+```ts
+pause: boolean
+```
+
+Strategy pause state change notifications (`strategy.pause`).
+Fired when setPaused actually flips the pause flag: while paused the
+strategy opens nothing new (getSignal is not called, a queued createSignal
+DTO is held); existing signals keep closing normally.
+Source: `pauseSubject` (PauseContract).
+
 ### common_error
 
 ```ts

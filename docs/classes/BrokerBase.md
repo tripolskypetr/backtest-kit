@@ -65,6 +65,15 @@ force-closed. Reconcile before the first tick: cancel/flatten orphans, or re-ado
 a live position via `commitCreateSignal` to bring it back under TP/SL management —
 otherwise a fresh signal may open ON TOP of an unmanaged orphan.
 
+TIMING CAVEATS for re-adoption: `waitForInit` is LAZY (awaited before the first
+proxied hook call, not at `enable()`) — when the strategy trades on its first tick,
+the sweep runs INSIDE the open gate with the retry slot already pre-armed, and
+`commitCreateSignal` throws "a rejected open is awaiting retry". An idle tick is
+no guarantee either: rejected opens and rejected user-close drains also emit idle
+pings while state is live. Check `getStrategyStatus` and adopt ONLY when
+`pendingSignalId` / `retryOpenSignal` / `closedSignal` / `createdSignal` are all
+clear; otherwise limit the sweep to exchange-side cleanup.
+
 Default implementation: Logs initialization event.
 
 ### onOrderOpenCommit

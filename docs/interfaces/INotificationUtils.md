@@ -80,6 +80,14 @@ handleRisk: (data: RiskContract) => Promise<void>
 
 Handles risk rejection event.
 
+### handlePause
+
+```ts
+handlePause: (data: PauseContract) => Promise<void>
+```
+
+Handles strategy pause state change event.
+
 ### handleError
 
 ```ts

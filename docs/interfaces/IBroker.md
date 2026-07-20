@@ -35,6 +35,17 @@ then either flatten the orphans on the exchange or re-adopt a live position via
 `commitCreateSignal` so it comes back under TP/SL management. Skipping the sweep
 risks trading a fresh signal ON TOP of an unmanaged orphan position.
 
+TIMING CAVEATS for the re-adoption branch (`commitCreateSignal`):
+- `waitForInit` is LAZY — it is awaited before the FIRST proxied hook call, not at
+  `enable()`. If the strategy emits a signal on its very first tick, that first call
+  is the open gate with the retry slot already PRE-ARMED, and `commitCreateSignal`
+  throws "a rejected open is awaiting retry".
+- an idle tick does NOT mean the engine is empty: rejected opens (armed retry slot)
+  and rejected user-close drains (position still live) also return idle. Always
+  check `getStrategyStatus` first — adopt only when `pendingSignalId`,
+  `retryOpenSignal`, `closedSignal` and `createdSignal` are all clear; otherwise
+  restrict the sweep to flattening exchange-side orphans.
+
 ### onOrderCloseCommit
 
 ```ts

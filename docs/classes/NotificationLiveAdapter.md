@@ -121,6 +121,15 @@ handleRisk: (data: RiskContract) => Promise<void>
 Handles risk rejection event.
 Proxies call to the underlying notification adapter.
 
+### handlePause
+
+```ts
+handlePause: (data: PauseContract) => Promise<void>
+```
+
+Handles strategy pause state change event.
+Proxies call to the underlying notification adapter.
+
 ### handleError
 
 ```ts

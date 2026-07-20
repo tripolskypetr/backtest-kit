@@ -276,6 +276,33 @@ Retrieves the stopped state of the strategy.
 Delegates to the underlying strategy instance to check if it has been
 marked as stopped and should cease operation.
 
+### getPaused
+
+```ts
+getPaused: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Retrieves the paused state of the strategy.
+
+Delegates to ClientStrategy.getPaused(). Synchronous in-memory read;
+works out of the async-hooks execution context.
+
+### setPaused
+
+```ts
+setPaused: (backtest: boolean, symbol: string, paused: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Pauses or resumes the strategy's own signal generation.
+
+Resolves current timestamp via timeMetaService and delegates to
+ClientStrategy.setPaused(). While paused getSignal is not called and a
+queued createSignal DTO is held; existing signals keep being monitored and
+close normally. The flag is persisted and survives restarts and signal
+transitions until an explicit setPaused(false). When the flag actually
+flips, the onPause callback emits a PauseContract to pauseSubject for
+notification generation. Works out of the async-hooks execution context.
+
 ### tick
 
 ```ts
