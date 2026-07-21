@@ -160,6 +160,7 @@ interface MeasureTracker {
   peakDistancePercent: number;
   maxPeakStalenessMinutes: number;
   minutesToPeak: number;
+  minutesToTrough: number;
 }
 
 const trackerMap = new Map<string, MeasureTracker>();
@@ -182,6 +183,7 @@ addStrategySchema({
       peakDistancePercent: 0,
       maxPeakStalenessMinutes: 0,
       minutesToPeak: 0,
+      minutesToTrough: 0,
     });
 
     Log.info("position open by window consensus", {
@@ -230,6 +232,10 @@ listenActivePing(async ({ symbol, timestamp }) => {
     tracker.minutesToPeak = await getPositionActiveMinutes(symbol);
   }
 
+  if (maxDrawdownPercent < tracker.maxDrawdownPercent) {
+    tracker.minutesToTrough = await getPositionActiveMinutes(symbol);
+  }
+
   tracker.peakPnlPercent = Math.max(tracker.peakPnlPercent, peakPnlPercent);
   tracker.maxDrawdownPercent = Math.min(
     tracker.maxDrawdownPercent,
@@ -276,6 +282,7 @@ listenSignal((event) => {
     peakDistanceAtClosePercent: tracker.peakDistancePercent,
     maxPeakStalenessMinutes: tracker.maxPeakStalenessMinutes,
     minutesToPeak: tracker.minutesToPeak,
+    minutesToTrough: tracker.minutesToTrough,
     observationMinutes: OBSERVATION_MINUTES,
   });
 });
