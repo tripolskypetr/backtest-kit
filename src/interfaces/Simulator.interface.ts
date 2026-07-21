@@ -39,10 +39,6 @@ export interface ISimulatorIdeaProfile {
   candles: ICandleData[];
   /** Unique aligned authors at entry minute (self included). */
   alignedAtEntry: number;
-  /** Same, counting only authors outside the trained ban list. */
-  alignedAtEntryFiltered: number;
-  /** Idea author is in the trained ban list. */
-  authorBanned: boolean;
   /** Idea correctness: horizon return in its direction is positive. */
   hit: boolean;
   /** Timestamp when the idea outcome becomes known (horizon end). */
@@ -63,7 +59,8 @@ export interface ISimulatorIdeaProfile {
 
 /**
  * Value lists per grid axis. The grid is the cartesian product of
- * all four axes; windows are swept the same way as stop and trailing.
+ * all axes; windows and author-ban thresholds are swept the same way
+ * as stop and trailing — rules are searched, not hardcoded.
  */
 export interface ISimulatorGridAxes {
   /** Hard stop levels to sweep, percent from entry. */
@@ -74,6 +71,16 @@ export interface ISimulatorGridAxes {
   holdMinutes: number[];
   /** Entry thresholds to sweep: minimum unique aligned authors. */
   minIdeasAligned: number[];
+  /**
+   * Author ban rule to sweep: minimum ideas with a known outcome an
+   * author needs before he can be allowed (fewer -> banned by default).
+   */
+  minAuthorTrack: number[];
+  /**
+   * Author ban rule to sweep: minimum hit rate (0..1) an author needs
+   * to be allowed (worse -> banned).
+   */
+  minAuthorHitRate: number[];
 }
 
 /**
@@ -88,6 +95,10 @@ export interface ISimulatorGridPoint {
   holdMinutes: number;
   /** Minimum unique aligned (unbanned) authors required to enter. */
   minIdeasAligned: number;
+  /** Author ban rule: minimum known-outcome ideas to be allowed. */
+  minAuthorTrack: number;
+  /** Author ban rule: minimum hit rate (0..1) to be allowed. */
+  minAuthorHitRate: number;
 }
 
 /**
@@ -170,7 +181,9 @@ export interface ISimulatorPointReport {
 /**
  * Trained per-author track record (train = the whole simulated range).
  * Ban is the default: an author is allowed only when his correctness
- * is unambiguously proven by enough fully observed ideas.
+ * is unambiguously proven by enough fully observed ideas. The ban
+ * thresholds are grid axes (minAuthorTrack, minAuthorHitRate) — the
+ * banned flag is relative to the rule of a concrete grid point.
  */
 export interface ISimulatorAuthorStat {
   /** Author login on the source platform. */
@@ -182,9 +195,10 @@ export interface ISimulatorAuthorStat {
   /** hits / ideas, 0..1; zero when the author has no known outcomes. */
   hitRate: number;
   /**
-   * Author is banned. True when the track is too short to judge
-   * (fewer known-outcome ideas than the minimum) OR the hit rate is
-   * worse than the threshold. Unproven correctness = banned.
+   * Author is banned under the ban rule these stats were computed
+   * with. True when the track is too short to judge (ideas <
+   * minAuthorTrack) OR the hit rate is below minAuthorHitRate.
+   * Unproven correctness = banned.
    */
   banned: boolean;
 }
@@ -221,12 +235,17 @@ export interface ISimulatorResult {
   profileCount: number;
   /** Profiles cut short by end of candle data. */
   truncatedCount: number;
-  /** Per-author track records (the trained artifact, full list). */
+  /**
+   * Per-author track records under the ban rule of the Sharpe
+   * winner's grid point (raw ideas/hits/hitRate are rule-independent;
+   * the banned flag follows the winning rule).
+   */
   authorStats: ISimulatorAuthorStat[];
   /**
-   * Logins of allowed authors — the production WHITELIST. With
-   * default-ban semantics this is the trained artifact to apply:
-   * in production only ideas of these authors count.
+   * Logins of allowed authors — the production WHITELIST under the
+   * Sharpe winner's ban rule. With default-ban semantics this is the
+   * trained artifact to apply: in production only ideas of these
+   * authors count.
    */
   allowedAuthors: string[];
   /** Logins of banned authors (complement of the whitelist). */
@@ -251,8 +270,11 @@ export interface ISimulatorSchema {
     simulatorName: SimulatorName;
     /** Exchange schema to fetch candles through. */
     exchangeName: ExchangeName;
-    /** Grid axes override; defaults are resolved at params creation. */
-    gridAxes?: ISimulatorGridAxes;
+    /**
+     * Grid axes override, merged per-axis over the defaults at params
+     * creation — a schema may override only the axes it cares about.
+     */
+    gridAxes?: Partial<ISimulatorGridAxes>;
     /** Lifecycle callbacks (all optional). */
     callbacks?: Partial<ISimulatorCallbacks>;
 }
@@ -274,8 +296,10 @@ export interface ISimulatorCallbacks {
     truncatedCount: number,
   ): void;
   /**
-   * Author ban list trained: per-author stats and how many ideas
-   * belong to banned authors.
+   * Author ban list trained for one ban-rule combination of the grid
+   * (fires once per unique minAuthorTrack x minAuthorHitRate pair):
+   * per-author stats under that rule and how many ideas belong to
+   * banned authors.
    */
   onAuthorsTrained(
     symbol: string,

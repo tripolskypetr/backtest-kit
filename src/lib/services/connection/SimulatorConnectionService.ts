@@ -7,16 +7,20 @@ import SimulatorSchemaService from "../schema/SimulatorSchemaService";
 import { ClientSimulator } from "../../../client/ClientSimulator";
 
 /**
- * Grid axes applied when the schema does not override gridAxes.
- * Values are trading parameters, not sentinels: hold durations are
- * bounded (no "hold forever" option), stop/trailing levels are
- * realistic — a schema wanting exotic axes overrides them explicitly.
+ * Grid axes applied per-axis when the schema omits them (schema
+ * gridAxes are merged over these defaults, so a schema may override
+ * only the axes it cares about). Values are trading parameters, not
+ * sentinels: hold durations are bounded (no "hold forever" option),
+ * stop/trailing levels are realistic. Author ban thresholds are axes
+ * too — the ban rule is searched, not hardcoded.
  */
 const DEFAULT_GRID_AXES = {
   hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
   trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
   holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
   minIdeasAligned: [1, 2, 3],
+  minAuthorTrack: [3],
+  minAuthorHitRate: [0.5],
 };
 
 /**
@@ -53,13 +57,13 @@ export class SimulatorConnectionService implements TSimulator {
   public getSimulator = memoize(
     ([simulatorName]) => `${simulatorName}`,
     (simulatorName: SimulatorName) => {
-      const { exchangeName, gridAxes = DEFAULT_GRID_AXES, callbacks } =
+      const { exchangeName, gridAxes, callbacks } =
         this.simulatorSchemaService.get(simulatorName);
       return new ClientSimulator({
         simulatorName,
         logger: this.loggerService,
         exchangeName,
-        gridAxes,
+        gridAxes: { ...DEFAULT_GRID_AXES, ...gridAxes },
         callbacks,
       });
     }

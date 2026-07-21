@@ -36,16 +36,6 @@ const IDEA_TRIM_MINUTES = IDEA_TRIM_DAYS * 24 * 60;
 const ALIGNED_LOOKBACK_MINUTES = 4 * 60;
 
 /**
- * Author ban thresholds (trained artifact, train = whole range).
- * Ban is the DEFAULT: an author is allowed only when his correctness
- * is unambiguously proven — at least AUTHOR_MIN_TRACK ideas with a
- * known outcome and a hit rate of AUTHOR_MIN_HITRATE or better.
- * Not enough evidence (few ideas, truncated horizons) -> banned.
- */
-const AUTHOR_MIN_TRACK = 3;
-const AUTHOR_MIN_HITRATE = 0.5;
-
-/**
  * Anti-flood window: an author may contribute at most one idea per
  * direction within this many minutes. A repeated post is a bump of
  * the same opinion, not new evidence — it must not inflate the
@@ -232,8 +222,6 @@ const BUILD_PROFILE_FN = async (
       idea.direction as "LONG" | "SHORT",
       entryTimestamp,
     ),
-    alignedAtEntryFiltered: 0,
-    authorBanned: false,
     hit: direction * (lastClose - entryPrice) > 0,
     outcomeKnownAt: entryTimestamp + candles.length * MINUTE_MS,
     truncated: candles.length < IDEA_TRIM_MINUTES,
@@ -246,23 +234,45 @@ const BUILD_PROFILE_FN = async (
 };
 
 /**
- * Trains the author ban list on the whole simulated range (lookahead
- * inside train is deliberate — honesty is provided by out-of-sample
- * validation, not by causality inside the train range) and fills the
- * ban-dependent profile fields.
+ * Ban-rule dependent filter context of one (minAuthorTrack,
+ * minAuthorHitRate) pair: the trained stats, the banned set and the
+ * per-profile aligned counts recomputed without banned authors.
+ * Built once per unique ban-rule combination of the grid.
+ */
+interface IAuthorFilterContext {
+  stats: ISimulatorAuthorStat[];
+  banned: Set<string>;
+  /** Ideas of banned authors among profiles. */
+  bannedIdeas: number;
+  /** authorBanned per profile index. */
+  profileBanned: boolean[];
+  /** Aligned unbanned authors at entry per profile index. */
+  alignedFiltered: number[];
+}
+
+/**
+ * Trains the author ban list on the whole simulated range for ONE
+ * ban-rule combination (lookahead inside train is deliberate —
+ * honesty is provided by out-of-sample validation, not by causality
+ * inside the train range).
  *
  * Ban is the default: when the author's correctness cannot be proven
- * unambiguously, he is banned. Only ideas with a fully observed
- * horizon count as evidence — truncated profiles prove nothing.
+ * unambiguously under the given rule, he is banned. Only ideas with
+ * a fully observed horizon count as evidence — truncated profiles
+ * prove nothing.
  *
  * @param profiles - Profiles of all directional ideas
  * @param ideas - All ideas of the symbol
- * @returns Per-author stats sorted by idea count (the trained artifact)
+ * @param minAuthorTrack - Minimum known-outcome ideas to be allowed
+ * @param minAuthorHitRate - Minimum hit rate (0..1) to be allowed
+ * @returns Filter context for the rule (stats sorted by idea count)
  */
 const TRAIN_AUTHOR_FILTER_FN = (
   profiles: ISimulatorIdeaProfile[],
   ideas: ISimulatorIdea[],
-): ISimulatorAuthorStat[] => {
+  minAuthorTrack: number,
+  minAuthorHitRate: number,
+): IAuthorFilterContext => {
   const byAuthor = new Map<string, { ideas: number; hits: number }>();
   for (const profile of profiles) {
     const stat = byAuthor.get(profile.idea.author) ?? { ideas: 0, hits: 0 };
@@ -280,22 +290,28 @@ const TRAIN_AUTHOR_FILTER_FN = (
     hits: stat.hits,
     hitRate: stat.ideas ? stat.hits / stat.ideas : 0,
     banned:
-      stat.ideas < AUTHOR_MIN_TRACK ||
-      stat.hits / stat.ideas < AUTHOR_MIN_HITRATE,
+      stat.ideas < minAuthorTrack ||
+      stat.hits / stat.ideas < minAuthorHitRate,
   }));
   const banned = new Set(
     stats.filter(({ banned }) => banned).map(({ author }) => author),
   );
-  for (const profile of profiles) {
-    profile.authorBanned = banned.has(profile.idea.author);
-    profile.alignedAtEntryFiltered = COUNT_ALIGNED_AUTHORS_FN(
+  const profileBanned = profiles.map(({ idea }) => banned.has(idea.author));
+  const alignedFiltered = profiles.map((profile) =>
+    COUNT_ALIGNED_AUTHORS_FN(
       ideas,
       profile.idea.direction as "LONG" | "SHORT",
       profile.entryTimestamp,
       (author) => !banned.has(author),
-    );
-  }
-  return stats.sort((a, b) => b.ideas - a.ideas);
+    ),
+  );
+  return {
+    stats: stats.sort((a, b) => b.ideas - a.ideas),
+    banned,
+    bannedIdeas: profileBanned.filter(Boolean).length,
+    profileBanned,
+    alignedFiltered,
+  };
 };
 
 /**
@@ -439,6 +455,7 @@ const COMPUTE_HOLD_STATS_FN = (
  *
  * @param profiles - Profiles sorted by entry timestamp
  * @param point - Grid point to evaluate
+ * @param filter - Author filter context of the point's ban rule
  * @param rangeStartTs - Start of the shared daily bucket window
  * @param rangeDays - Number of daily buckets in the shared window
  * @returns Aggregated report and the trade list
@@ -446,6 +463,7 @@ const COMPUTE_HOLD_STATS_FN = (
 const EVALUATE_POINT_FN = (
   profiles: ISimulatorIdeaProfile[],
   point: ISimulatorGridPoint,
+  filter: IAuthorFilterContext,
   rangeStartTs: number,
   rangeDays: number,
 ): { report: ISimulatorPointReport; trades: ISimulatorTrade[] } => {
@@ -461,11 +479,12 @@ const EVALUATE_POINT_FN = (
   // сделка, держащая слот сейчас, — ей приписываются поглощённые посты
   let holdingTrade: ISimulatorTrade | null = null;
 
-  for (const profile of profiles) {
-    if (profile.authorBanned) {
+  for (let index = 0; index < profiles.length; index++) {
+    const profile = profiles[index];
+    if (filter.profileBanned[index]) {
       continue;
     }
-    if (profile.alignedAtEntryFiltered < point.minIdeasAligned) {
+    if (filter.alignedFiltered[index] < point.minIdeasAligned) {
       continue;
     }
     if (profile.entryTimestamp < busyUntil) {
@@ -572,12 +591,18 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
   axes.hardStopPercent.flatMap((hardStopPercent) =>
     axes.trailingTakePercent.flatMap((trailingTakePercent) =>
       axes.holdMinutes.flatMap((holdMinutes) =>
-        axes.minIdeasAligned.map((minIdeasAligned) => ({
-          hardStopPercent,
-          trailingTakePercent,
-          holdMinutes,
-          minIdeasAligned,
-        })),
+        axes.minIdeasAligned.flatMap((minIdeasAligned) =>
+          axes.minAuthorTrack.flatMap((minAuthorTrack) =>
+            axes.minAuthorHitRate.map((minAuthorHitRate) => ({
+              hardStopPercent,
+              trailingTakePercent,
+              holdMinutes,
+              minIdeasAligned,
+              minAuthorTrack,
+              minAuthorHitRate,
+            })),
+          ),
+        ),
       ),
     ),
   );
@@ -661,13 +686,33 @@ const RUN_FN = async (
     self.params.callbacks?.onProfiles(symbol, profiles, truncatedCount);
   }
 
-  const authorStats = TRAIN_AUTHOR_FILTER_FN(profiles, directional);
-  const bannedIdeas = profiles.filter(
-    ({ authorBanned }) => authorBanned,
-  ).length;
-  if (self.params.callbacks?.onAuthorsTrained) {
-    self.params.callbacks?.onAuthorsTrained(symbol, authorStats, bannedIdeas);
-  }
+  // фильтр авторов обучается по разу на каждую уникальную комбинацию
+  // правила бана из сетки (пороги — такие же оси перебора, как окна)
+  const filterByRule = new Map<string, IAuthorFilterContext>();
+  const getFilter = (
+    minAuthorTrack: number,
+    minAuthorHitRate: number,
+  ): IAuthorFilterContext => {
+    const key = `${minAuthorTrack}:${minAuthorHitRate}`;
+    let filter = filterByRule.get(key);
+    if (!filter) {
+      filter = TRAIN_AUTHOR_FILTER_FN(
+        profiles,
+        directional,
+        minAuthorTrack,
+        minAuthorHitRate,
+      );
+      filterByRule.set(key, filter);
+      if (self.params.callbacks?.onAuthorsTrained) {
+        self.params.callbacks?.onAuthorsTrained(
+          symbol,
+          filter.stats,
+          filter.bannedIdeas,
+        );
+      }
+    }
+    return filter;
+  };
 
   // общее окно суточных корзин для time-based Sharpe/Sortino:
   // от первого входа до последнего известного исхода, одинаково
@@ -688,6 +733,7 @@ const RUN_FN = async (
     const { report, trades } = EVALUATE_POINT_FN(
       profiles,
       point,
+      getFilter(point.minAuthorTrack, point.minAuthorHitRate),
       rangeStartTs,
       rangeDays,
     );
@@ -739,6 +785,17 @@ const RUN_FN = async (
     }
   }
   reports.sort((a, b) => b.sharpe - a.sharpe);
+
+  // прод-артефакт (белый список авторов) — по правилу бана
+  // Sharpe-победителя; сырые ideas/hits/hitRate от правила не зависят
+  const winnerPoint =
+    best.find(({ criterion }) => criterion === "sharpe")?.report?.point ??
+    points[0] ??
+    null;
+  const winnerFilter = winnerPoint
+    ? getFilter(winnerPoint.minAuthorTrack, winnerPoint.minAuthorHitRate)
+    : null;
+  const authorStats = winnerFilter ? winnerFilter.stats : [];
 
   const result: ISimulatorResult = {
     symbol,
