@@ -217,8 +217,20 @@ export interface ISimulatorResult {
   truncatedCount: number;
   /** Per-author track records (the trained artifact, full list). */
   authorStats: ISimulatorAuthorStat[];
-  /** Logins of banned authors — apply in production/OOS as-is. */
+  /**
+   * Logins of allowed authors — the production WHITELIST. With
+   * default-ban semantics this is the trained artifact to apply:
+   * in production only ideas of these authors count.
+   */
+  allowedAuthors: string[];
+  /** Logins of banned authors (complement of the whitelist). */
   bannedAuthors: string[];
+  /** Mean holding time across all trades of every grid point, minutes. */
+  avgHoldMinutes: number;
+  /** 95th percentile of holding time across the whole grid, minutes. */
+  p95HoldMinutes: number;
+  /** 99th percentile of holding time across the whole grid, minutes — eternal holds are visible right in the run result. */
+  p99HoldMinutes: number;
   /** All grid point reports, sorted by Sharpe descending. */
   reports: ISimulatorPointReport[];
   /** Winners of the three rankings: sharpe, sortino, pnl. */

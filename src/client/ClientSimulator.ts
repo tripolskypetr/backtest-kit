@@ -354,6 +354,38 @@ const SIMULATE_TRADE_FN = (
 };
 
 /**
+ * Holding time distribution: mean and tail percentiles (nearest
+ * rank). Eternal holds are visible in the tail, not in the mean —
+ * a couple of dead trades barely move the average but instantly
+ * push p95/p99 to the hold cap.
+ *
+ * @param holdMinutes - Holding times of trades, minutes (any order)
+ * @returns Mean, p95 and p99 of the distribution (zeros when empty)
+ */
+const COMPUTE_HOLD_STATS_FN = (
+  holdMinutes: number[],
+): {
+  avgHoldMinutes: number;
+  p95HoldMinutes: number;
+  p99HoldMinutes: number;
+} => {
+  const holds = [...holdMinutes].sort((a, b) => a - b);
+  const percentile = (percent: number): number =>
+    holds.length
+      ? holds[
+          Math.min(holds.length - 1, Math.floor((percent / 100) * holds.length))
+        ]
+      : 0;
+  return {
+    avgHoldMinutes: holds.length
+      ? holds.reduce((acc, value) => acc + value, 0) / holds.length
+      : 0,
+    p95HoldMinutes: percentile(95),
+    p99HoldMinutes: percentile(99),
+  };
+};
+
+/**
  * Evaluates one grid point with production slot semantics: one
  * position per symbol, ideas arriving while the slot is busy are
  * skipped, entry requires minIdeasAligned unbanned aligned authors.
@@ -462,18 +494,9 @@ const EVALUATE_POINT_FN = (
         ? SORTINO_NO_LOSSES
         : 0;
 
-  // распределение времени удержания: вечный холд виден сразу по
-  // хвостовым перцентилям, не по среднему
-  const holds = trades
-    .map(({ holdMinutesActual }) => holdMinutesActual)
-    .sort((a, b) => a - b);
-  const holdPercentile = (percent: number): number =>
-    holds.length
-      ? holds[Math.min(holds.length - 1, Math.floor((percent / 100) * holds.length))]
-      : 0;
-  const avgHoldMinutes = holds.length
-    ? holds.reduce((acc, value) => acc + value, 0) / holds.length
-    : 0;
+  const holdStats = COMPUTE_HOLD_STATS_FN(
+    trades.map(({ holdMinutesActual }) => holdMinutesActual),
+  );
 
   return {
     report: {
@@ -485,9 +508,9 @@ const EVALUATE_POINT_FN = (
       winRate: trades.length ? wins / trades.length : 0,
       profitFactor: grossLoss > 0 ? grossProfit / grossLoss : Infinity,
       maxSeriesDrawdownPercent,
-      avgHoldMinutes,
-      p95HoldMinutes: holdPercentile(95),
-      p99HoldMinutes: holdPercentile(99),
+      avgHoldMinutes: holdStats.avgHoldMinutes,
+      p95HoldMinutes: holdStats.p95HoldMinutes,
+      p99HoldMinutes: holdStats.p99HoldMinutes,
       sharpe,
       sortino,
       exitReasons,
@@ -617,6 +640,7 @@ const RUN_FN = async (
   const points = BUILD_GRID_FN(self.params.gridAxes);
   const reports: ISimulatorPointReport[] = [];
   const tradesByReport = new Map<ISimulatorPointReport, ISimulatorTrade[]>();
+  const allHoldMinutes: number[] = [];
   for (const point of points) {
     const { report, trades } = EVALUATE_POINT_FN(
       profiles,
@@ -627,10 +651,14 @@ const RUN_FN = async (
     ASSERT_TRADE_INVARIANTS_FN(trades, point);
     reports.push(report);
     tradesByReport.set(report, trades);
+    for (const trade of trades) {
+      allHoldMinutes.push(trade.holdMinutesActual);
+    }
     if (self.params.callbacks.onGridPoint) {
       self.params.callbacks.onGridPoint(symbol, report, trades);
     }
   }
+  const holdStats = COMPUTE_HOLD_STATS_FN(allHoldMinutes);
 
   const rankings: {
     criterion: SimulatorRankingCriterion;
@@ -676,9 +704,15 @@ const RUN_FN = async (
     profileCount: profiles.length,
     truncatedCount,
     authorStats,
+    allowedAuthors: authorStats
+      .filter(({ banned }) => !banned)
+      .map(({ author }) => author),
     bannedAuthors: authorStats
       .filter(({ banned }) => banned)
       .map(({ author }) => author),
+    avgHoldMinutes: holdStats.avgHoldMinutes,
+    p95HoldMinutes: holdStats.p95HoldMinutes,
+    p99HoldMinutes: holdStats.p99HoldMinutes,
     reports,
     best,
   };
