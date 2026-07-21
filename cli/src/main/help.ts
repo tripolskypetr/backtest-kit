@@ -21,6 +21,7 @@ Modes:
   --dump                Fetch and save raw OHLCV candles
   --pnldebug            Simulate PnL per minute for a given entry price and direction
   --brokerdebug         Fire a single broker commit against the live broker adapter
+  --simulator <ideas.jsonl>  Sweep exit/entry parameters over crowd ideas, train author whitelist
   --flush  <entry...>   Delete report/log/markdown/agent folders from strategy dump dir
   --init                Scaffold a new project in the current directory
   --docker              Scaffold a Docker workspace for running strategies in a container
@@ -141,6 +142,33 @@ Broker debug flags (--brokerdebug):
   Loads ./live.module, fetches the last candle for --symbol/--timeframe, and calls
   the selected broker commit with synthetic payload values derived from current price.
 
+Simulator flags (--simulator):
+
+  --symbol      <string>   Trading pair to simulate (default: BTCUSDT)
+  --exchange    <string>   Exchange name (default: first registered)
+  --output      <string>   Output file base name (default: simulator_{SYMBOL}_{TIMESTAMP})
+  --json                   Save full ISimulatorResult to ./dump/<output>.json
+  --markdown               Save summary report to ./dump/<output>.md
+  --verbose                Log every simulator lifecycle callback to the console
+
+  Positional: path to an ideas .jsonl file — one idea per line with the exact shape
+  { "id": number, "ts": number, "symbol": string, "direction": "LONG"|"SHORT"|"NEUTRAL",
+  "author": string }. The file is validated BEFORE any work; a line that does not
+  match the structure aborts the run with an error.
+
+  Runs the backtest-kit Simulator entity: one 5-day candle pass per idea, flood
+  dedupe (one idea per author per direction per 8h), default-ban author filter
+  (ban thresholds are grid axes), grid evaluation with time-based Sharpe/Sortino,
+  three ranking winners. The report includes the production author whitelist.
+  Ideas of other symbols are filtered out — one shared feed serves any --symbol.
+
+  No output flag → print the Markdown summary to stdout. With --verbose every
+  simulator lifecycle callback (onIdeas, onProfiles, onAuthorsTrained, onGridPoint,
+  onRanking, onDone) is logged to the console as it fires.
+
+  Module file ./modules/simulator.module is loaded automatically if it exists
+  (register your exchange there); without it CCXT Binance is used by default.
+
 Flush flags (--flush):
 
   One or more positional entry points. For each entry point the following
@@ -174,6 +202,7 @@ Module hooks (loaded automatically by each mode):
   modules/dump.module       --dump       Exchange schema for candle dumps
   modules/pnldebug.module   --pnldebug      Exchange schema for PnL debug runs
   modules/brokerdebug.module  --brokerdebug   Broker adapter used for broker commit testing
+  modules/simulator.module  --simulator     Exchange schema for crowd-ideas simulation
 
   --flush has no associated module. It only removes dump subdirectories.
 
@@ -202,6 +231,8 @@ Examples:
   node ${ENTRY_PATH} --pnldebug --priceopen 67956.73 --direction long --when 1772064000000 --minutes 60 --markdown
   node ${ENTRY_PATH} --brokerdebug --commit signal-open --symbol BTCUSDT
   node ${ENTRY_PATH} --brokerdebug --commit partial-profit --symbol ETHUSDT
+  node ${ENTRY_PATH} --simulator --symbol BTCUSDT ./assets/ts-ideas.normalized.jsonl
+  node ${ENTRY_PATH} --simulator --symbol BTCUSDT --json --output jun_2026_sweep ./assets/ts-ideas.normalized.jsonl
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts ./content/feb_2026.strategy/feb_2026.test.ts
   node ${ENTRY_PATH} --init --output my-trading-bot
