@@ -645,8 +645,8 @@ const RUN_FN = async (
   const directional = DEDUPE_IDEAS_FN(
     ideas.filter(({ direction }) => direction !== "NEUTRAL"),
   );
-  if (self.params.callbacks.onIdeas) {
-    self.params.callbacks.onIdeas(symbol, ideas.length, directional.length);
+  if (self.params.callbacks?.onIdeas) {
+    self.params.callbacks?.onIdeas(symbol, ideas.length, directional.length);
   }
 
   const profiles: ISimulatorIdeaProfile[] = [];
@@ -657,16 +657,16 @@ const RUN_FN = async (
     }
   }
   const truncatedCount = profiles.filter(({ truncated }) => truncated).length;
-  if (self.params.callbacks.onProfiles) {
-    self.params.callbacks.onProfiles(symbol, profiles, truncatedCount);
+  if (self.params.callbacks?.onProfiles) {
+    self.params.callbacks?.onProfiles(symbol, profiles, truncatedCount);
   }
 
   const authorStats = TRAIN_AUTHOR_FILTER_FN(profiles, directional);
   const bannedIdeas = profiles.filter(
     ({ authorBanned }) => authorBanned,
   ).length;
-  if (self.params.callbacks.onAuthorsTrained) {
-    self.params.callbacks.onAuthorsTrained(symbol, authorStats, bannedIdeas);
+  if (self.params.callbacks?.onAuthorsTrained) {
+    self.params.callbacks?.onAuthorsTrained(symbol, authorStats, bannedIdeas);
   }
 
   // общее окно суточных корзин для time-based Sharpe/Sortino:
@@ -697,8 +697,8 @@ const RUN_FN = async (
     for (const trade of trades) {
       allHoldMinutes.push(trade.holdMinutesActual);
     }
-    if (self.params.callbacks.onGridPoint) {
-      self.params.callbacks.onGridPoint(symbol, report, trades);
+    if (self.params.callbacks?.onGridPoint) {
+      self.params.callbacks?.onGridPoint(symbol, report, trades);
     }
   }
   const holdStats = COMPUTE_HOLD_STATS_FN(allHoldMinutes);
@@ -729,8 +729,8 @@ const RUN_FN = async (
       trades: winner ? (tradesByReport.get(winner) ?? []) : [],
     };
     best.push(bestEntry);
-    if (self.params.callbacks.onRanking) {
-      self.params.callbacks.onRanking(
+    if (self.params.callbacks?.onRanking) {
+      self.params.callbacks?.onRanking(
         symbol,
         ranking.criterion,
         sorted,
@@ -759,8 +759,8 @@ const RUN_FN = async (
     reports,
     best,
   };
-  if (self.params.callbacks.onDone) {
-    self.params.callbacks.onDone(symbol, result);
+  if (self.params.callbacks?.onDone) {
+    self.params.callbacks?.onDone(symbol, result);
   }
   return result;
 };

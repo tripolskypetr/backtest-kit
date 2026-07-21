@@ -254,7 +254,7 @@ export interface ISimulatorSchema {
     /** Grid axes override; defaults are resolved at params creation. */
     gridAxes?: ISimulatorGridAxes;
     /** Lifecycle callbacks (all optional). */
-    callbacks: Partial<ISimulatorCallbacks>;
+    callbacks?: Partial<ISimulatorCallbacks>;
 }
 
 /**
