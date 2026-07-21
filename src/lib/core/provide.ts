@@ -78,6 +78,8 @@ import RuntimeMetaService from "../services/meta/RuntimeMetaService";
 import SimulatorSchemaService from "../services/schema/SimulatorSchemaService";
 import SimulatorValidationService from "../services/validation/SimulatorValidationService";
 import SimulatorConnectionService from "../services/connection/SimulatorConnectionService";
+import SimulatorCoreService from "../services/core/SimulatorCoreService";
+import SimulatorGlobalService from "../services/global/SimulatorGlobalService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -112,6 +114,7 @@ import SimulatorConnectionService from "../services/connection/SimulatorConnecti
 }
 
 {
+    provide(TYPES.simulatorCoreService, () => new SimulatorCoreService());
     provide(TYPES.exchangeCoreService, () => new ExchangeCoreService());
     provide(TYPES.strategyCoreService, () => new StrategyCoreService());
     provide(TYPES.actionCoreService, () => new ActionCoreService());
@@ -126,6 +129,7 @@ import SimulatorConnectionService from "../services/connection/SimulatorConnecti
 }
 
 {
+    provide(TYPES.simulatorGlobalService, () => new SimulatorGlobalService());
     provide(TYPES.sizingGlobalService, () => new SizingGlobalService());
     provide(TYPES.riskGlobalService, () => new RiskGlobalService());
     provide(TYPES.partialGlobalService, () => new PartialGlobalService());

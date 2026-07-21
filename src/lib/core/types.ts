@@ -31,6 +31,7 @@ const schemaServices = {
 }
 
 const coreServices = {
+    simulatorCoreService: Symbol('simulatorCoreService'),
     exchangeCoreService: Symbol('exchangeCoreService'),
     strategyCoreService: Symbol('strategyCoreService'),
     actionCoreService: Symbol('actionCoreService'),
@@ -45,6 +46,7 @@ const metaServices = {
 }
 
 const globalServices = {
+    simulatorGlobalService: Symbol('simulatorGlobalService'),
     sizingGlobalService: Symbol('sizingGlobalService'),
     riskGlobalService: Symbol('riskGlobalService'),
     partialGlobalService: Symbol('partialGlobalService'),

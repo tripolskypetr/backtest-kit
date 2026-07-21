@@ -12187,6 +12187,12 @@ interface ISimulatorTrade {
     holdMinutesActual: number;
     /** Trade PnL percent, net of fees on both legs. */
     pnlPercent: number;
+    /**
+     * Ideas that qualified for entry but were ABSORBED by this trade
+     * holding the slot. A long hold that eats foreign recommendations
+     * is visible here idea by idea.
+     */
+    absorbedIdeaIds: number[];
 }
 /**
  * Aggregated metrics of one grid point (production slot semantics).
@@ -12208,26 +12214,46 @@ interface ISimulatorPointReport {
     profitFactor: number;
     /** Maximum drawdown of the cumulative trade PnL curve, percent. */
     maxSeriesDrawdownPercent: number;
-    /** Monthly Sharpe of the trade series: mean/std * sqrt(n). */
+    /** Mean holding time per trade, minutes. */
+    avgHoldMinutes: number;
+    /** 95th percentile of holding time, minutes — spots eternal holds. */
+    p95HoldMinutes: number;
+    /** 99th percentile of holding time, minutes — spots eternal holds. */
+    p99HoldMinutes: number;
+    /**
+     * Time-based Sharpe: mean/std * sqrt(days) over DAILY equity
+     * increments of the whole simulated range (idle days included,
+     * realized PnL booked on the exit day). Penalizes dead holding
+     * time — frozen capital is not free.
+     */
     sharpe: number;
-    /** Monthly Sortino: mean/downsideDev * sqrt(n); 999 when no losses. */
+    /**
+     * Time-based Sortino: like sharpe but deviation is computed over
+     * negative daily increments only; 999 when no losing days.
+     */
     sortino: number;
     /** Trade counts per exit reason. */
     exitReasons: Record<SimulatorExitReason, number>;
 }
 /**
  * Trained per-author track record (train = the whole simulated range).
+ * Ban is the default: an author is allowed only when his correctness
+ * is unambiguously proven by enough fully observed ideas.
  */
 interface ISimulatorAuthorStat {
     /** Author login on the source platform. */
     author: string;
-    /** Number of directional ideas the author published in the range. */
+    /** Directional ideas with a KNOWN outcome (truncated ones excluded). */
     ideas: number;
     /** Number of correct ideas (horizon return in idea direction > 0). */
     hits: number;
-    /** hits / ideas, 0..1. */
+    /** hits / ideas, 0..1; zero when the author has no known outcomes. */
     hitRate: number;
-    /** Author is banned: enough ideas and a hit rate worse than a coin. */
+    /**
+     * Author is banned. True when the track is too short to judge
+     * (fewer known-outcome ideas than the minimum) OR the hit rate is
+     * worse than the threshold. Unproven correctness = banned.
+     */
     banned: boolean;
 }
 /**
@@ -12254,7 +12280,7 @@ interface ISimulatorResult {
     symbol: string;
     /** Total ideas of the symbol received (including NEUTRAL). */
     ideasTotal: number;
-    /** Directional ideas simulated (NEUTRAL excluded). */
+    /** Directional ideas simulated (NEUTRAL and flood duplicates excluded). */
     ideasDirectional: number;
     /** Number of idea profiles built (ideas with candle data). */
     profileCount: number;
@@ -12262,8 +12288,20 @@ interface ISimulatorResult {
     truncatedCount: number;
     /** Per-author track records (the trained artifact, full list). */
     authorStats: ISimulatorAuthorStat[];
-    /** Logins of banned authors — apply in production/OOS as-is. */
+    /**
+     * Logins of allowed authors — the production WHITELIST. With
+     * default-ban semantics this is the trained artifact to apply:
+     * in production only ideas of these authors count.
+     */
+    allowedAuthors: string[];
+    /** Logins of banned authors (complement of the whitelist). */
     bannedAuthors: string[];
+    /** Mean holding time across all trades of every grid point, minutes. */
+    avgHoldMinutes: number;
+    /** 95th percentile of holding time across the whole grid, minutes. */
+    p95HoldMinutes: number;
+    /** 99th percentile of holding time across the whole grid, minutes — eternal holds are visible right in the run result. */
+    p99HoldMinutes: number;
     /** All grid point reports, sorted by Sharpe descending. */
     reports: ISimulatorPointReport[];
     /** Winners of the three rankings: sharpe, sortino, pnl. */
@@ -12308,6 +12346,26 @@ interface ISimulatorCallbacks {
     onRanking(symbol: string, criterion: SimulatorRankingCriterion, sorted: ISimulatorPointReport[], best: ISimulatorBest): void;
     /** Simulation finished. */
     onDone(symbol: string, result: ISimulatorResult): void;
+}
+/**
+ * Runtime parameters of a simulator client: the schema with defaults
+ * resolved plus injected infrastructure dependencies.
+ */
+interface ISimulatorParams extends ISimulatorSchema {
+    /** Logger instance for debug output. */
+    logger: ILogger;
+    /** Grid axes with defaults applied (no longer optional). */
+    gridAxes: ISimulatorGridAxes;
+}
+/**
+ * Public surface of a simulator client.
+ */
+interface ISimulator {
+    /**
+     * Runs the full simulation for a symbol over the given ideas:
+     * profiles -> author filter -> grid evaluation -> rankings.
+     */
+    run(symbol: string, ideas: ISimulatorIdea[]): Promise<ISimulatorResult>;
 }
 /**
  * Unique simulator identifier.
@@ -40872,6 +40930,308 @@ declare class MaxDrawdownReportService {
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Existence and dependency validation of simulators.
+ *
+ * Tracks every registered simulator and verifies at use time that a
+ * referenced simulator exists and its exchange dependency is valid.
+ * Registration here is uniqueness-guarded, unlike the schema
+ * registry where re-registering replaces the record.
+ */
+declare class SimulatorValidationService {
+    private readonly loggerService;
+    private readonly exchangeValidationService;
+    private _simulatorMap;
+    /**
+     * Tracks a simulator for validation. Called on schema
+     * registration; duplicate names are rejected.
+     *
+     * @param simulatorName - Simulator name to track
+     * @param simulatorSchema - Schema stored for dependency checks
+     * @throws Error when the name is already tracked
+     */
+    addSimulator: (simulatorName: SimulatorName, simulatorSchema: ISimulatorSchema) => void;
+    /**
+     * Validates that a simulator is registered and its exchange
+     * dependency passes validation. Memoized by simulator name — the
+     * check runs once per name, later calls are no-ops.
+     *
+     * @param simulatorName - Simulator name to validate
+     * @param source - Caller tag included in error messages
+     * @throws Error when the simulator or its exchange is unknown
+     */
+    validate: (simulatorName: SimulatorName, source: string) => void;
+    /**
+     * Lists every tracked simulator schema.
+     *
+     * @returns All schemas registered for validation
+     */
+    list: () => Promise<ISimulatorSchema[]>;
+}
+
+/**
+ * Registry of simulator schemas.
+ *
+ * Stores ISimulatorSchema records by simulator name with shallow
+ * validation on registration. The connection service reads schemas
+ * from here when building ClientSimulator instances.
+ */
+declare class SimulatorSchemaService {
+    readonly loggerService: {
+        readonly methodContextService: {
+            readonly context: IMethodContext;
+        };
+        readonly executionContextService: {
+            readonly context: IExecutionContext;
+        };
+        _commonLogger: ILogger;
+        readonly _methodContext: {};
+        readonly _executionContext: {};
+        log: (topic: string, ...args: any[]) => Promise<void>;
+        debug: (topic: string, ...args: any[]) => Promise<void>;
+        info: (topic: string, ...args: any[]) => Promise<void>;
+        warn: (topic: string, ...args: any[]) => Promise<void>;
+        setLogger: (logger: ILogger) => void;
+    };
+    private _registry;
+    /**
+     * Registers a simulator schema under its name after shallow
+     * validation. Registering the same key twice replaces the record.
+     *
+     * @param key - Simulator name to register under
+     * @param value - Schema to store
+     */
+    register(key: SimulatorName, value: ISimulatorSchema): void;
+    /**
+     * Shallow structural validation of a schema: required string
+     * fields only, no deep checks — grid axes and callbacks are
+     * validated by their consumers.
+     *
+     * @param simulatorSchema - Schema to check
+     * @throws Error when simulatorName or exchangeName is missing
+     */
+    private validateShallow;
+    /**
+     * Partially overrides a registered schema and returns the merged
+     * record. Used by overrideSimulatorSchema-style public APIs.
+     *
+     * @param key - Simulator name to override
+     * @param value - Partial schema patch
+     * @returns The merged schema after override
+     */
+    override(key: SimulatorName, value: Partial<ISimulatorSchema>): ISimulatorSchema;
+    /**
+     * Returns the registered schema by simulator name.
+     *
+     * @param key - Simulator name to look up
+     * @returns The stored schema
+     * @throws Error when no schema is registered under the name
+     */
+    get(key: SimulatorName): ISimulatorSchema;
+}
+
+/**
+ * Parameter sweep engine over crowd trading ideas (the "Simulator").
+ *
+ * Finds production strategy parameters (hard stop, trailing take,
+ * hold duration, entry consensus threshold) by simulating every idea
+ * against every point of the grid — WITHOUT re-running a backtest per
+ * point. The root iteration is over IDEAS, not candles and not grid
+ * points:
+ *
+ * 1. Each idea gets ONE asynchronous forward candle pass from the
+ *    minute after its publication, capped by a static horizon
+ *    (IDEA_TRIM_DAYS). The pass produces a per-candle trajectory
+ *    profile (MFE/MAE extremes, whale shakeout depth, aligned-authors
+ *    count). Overlapping and sparse ideas are both supported: candle
+ *    chunks are fetched lazily through the Exchange (persist cache
+ *    first), gaps between ideas are never requested.
+ * 2. The author ban list is TRAINED on the whole range (lookahead
+ *    inside train is deliberate): authors with enough ideas and a hit
+ *    rate worse than a coin are excluded from triggers and votes.
+ *    The list is part of the result — apply it in production as-is.
+ * 3. The outcome of every grid point is derived arithmetically from
+ *    the profiles with production slot semantics (one position per
+ *    symbol, busy-slot ideas skipped). Honesty contracts: entry at
+ *    next-minute open, exits by candle wicks (never close-to-close),
+ *    stop wins inside an ambiguous candle, trailing arms only from
+ *    previous-candle peaks, fees and slippage from GLOBAL_CONFIG on
+ *    both legs.
+ * 4. Grid winners are picked by three rankings (Sharpe, Sortino,
+ *    total PnL) with an anti-fluke minimum-trades guard.
+ *
+ * Every stage emits an ISimulatorCallbacks hook; the client itself
+ * is stateless between runs — each run() call is independent.
+ *
+ * Validation of the chosen parameters MUST be done by a real engine
+ * backtest (Backtest.run): the simulator picks candidates, it does
+ * not replace the engine.
+ */
+declare class ClientSimulator implements ISimulator {
+    readonly params: ISimulatorParams;
+    constructor(params: ISimulatorParams);
+    /**
+     * Runs the full simulation pipeline for a symbol.
+     *
+     * Steps and emitted callbacks:
+     * 1. Filters the input array by symbol, sorts by publication time,
+     *    drops NEUTRAL ideas and flood duplicates (at most one idea
+     *    per author per direction per AUTHOR_DEDUPE_MINUTES)
+     *    -> onIdeas(symbol, total, directional).
+     * 2. Builds one trajectory profile per idea (lazy candle fetch
+     *    through the Exchange schema; ideas with no candle data are
+     *    dropped) -> onProfiles(symbol, profiles, truncatedCount).
+     * 3. Trains the author ban list on the whole range
+     *    -> onAuthorsTrained(symbol, stats, bannedIdeas).
+     * 4. Evaluates the cartesian grid of params.gridAxes over the
+     *    profiles, checking trade invariants on every point
+     *    -> onGridPoint(symbol, report, trades) per point.
+     * 5. Ranks all points by Sharpe, Sortino and total PnL
+     *    -> onRanking(symbol, criterion, sorted, best) per criterion.
+     * 6. Assembles the final result -> onDone(symbol, result).
+     *
+     * The ideas array may contain multiple symbols — foreign ones are
+     * filtered out before any computation, so one shared feed can be
+     * passed for every symbol.
+     *
+     * @param symbol - Trading pair symbol to simulate (e.g., "BTCUSDT")
+     * @param ideas - Ideas feed (other symbols are filtered out)
+     * @returns Final result: all grid point reports (sorted by Sharpe),
+     * winners of the three rankings with their trade lists, and the
+     * trained author filter artifact (stats + ban list)
+     * @throws Error when a grid point produces a trade violating the
+     * arithmetic invariants (PnL below the hard stop floor, trailing
+     * take locking a loss, exit before entry)
+     */
+    run: (symbol: string, ideas: ISimulatorIdea[]) => Promise<ISimulatorResult>;
+}
+
+/**
+ * Structural mirror of ISimulator: the connection service exposes the
+ * same public surface as the client it manages, with DI-level DTOs.
+ */
+type TSimulator$2 = {
+    [key in keyof ISimulator]: any;
+};
+/**
+ * Connection layer of the Simulator entity.
+ *
+ * Owns the ClientSimulator lifecycle: resolves the registered schema
+ * by simulatorName, applies grid axes defaults, injects the logger
+ * and memoizes one client instance per simulator name. Public
+ * methods accept flat DTOs and delegate to the memoized client.
+ */
+declare class SimulatorConnectionService implements TSimulator$2 {
+    private readonly loggerService;
+    private readonly simulatorSchemaService;
+    /**
+     * Returns the ClientSimulator for a simulator name, creating it on
+     * first access. Memoized by simulator name — one client instance
+     * per registered simulator; gridAxes fall back to
+     * DEFAULT_GRID_AXES when the schema omits them.
+     *
+     * @param simulatorName - Registered simulator name
+     * @returns Memoized ClientSimulator instance
+     */
+    getSimulator: ((simulatorName: SimulatorName) => ClientSimulator) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientSimulator>;
+    /**
+     * Runs the full simulation for a symbol through the memoized
+     * client: profiles -> author filter -> grid evaluation -> rankings.
+     *
+     * @param dto.symbol - Trading pair symbol to simulate
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Ideas feed (other symbols are filtered out by the client)
+     * @returns Final simulation result (reports, rankings, author artifact)
+     */
+    run: (dto: {
+        symbol: string;
+        simulatorName: SimulatorName;
+        ideas: ISimulatorIdea[];
+    }) => Promise<ISimulatorResult>;
+    /**
+     * Drops memoized client instances: a specific one by name or all
+     * of them when called without arguments. The next getSimulator
+     * call re-reads the schema and builds a fresh client.
+     *
+     * @param simulatorName - Simulator to drop; omit to drop all
+     */
+    clear: (simulatorName?: SimulatorName) => void;
+}
+
+/**
+ * Structural mirror of ISimulator: the global service exposes the
+ * same public surface as the client it fronts, with DI-level DTOs.
+ */
+type TSimulator$1 = {
+    [key in keyof ISimulator]: any;
+};
+/**
+ * Global entry point of the Simulator entity.
+ *
+ * The outermost service layer the public API talks to: validates the
+ * referenced simulator (existence + exchange dependency) and
+ * delegates to the connection layer, which owns the memoized
+ * ClientSimulator instances.
+ */
+declare class SimulatorGlobalService implements TSimulator$1 {
+    private readonly loggerService;
+    private readonly simulatorConnectionService;
+    private readonly simulatorValidationService;
+    /**
+     * Runs the full simulation for a symbol after validating the
+     * simulator reference: profiles -> author filter -> grid
+     * evaluation -> rankings.
+     *
+     * @param dto.symbol - Trading pair symbol to simulate
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Ideas feed (other symbols are filtered out by the client)
+     * @returns Final simulation result (reports, rankings, author artifact)
+     * @throws Error when the simulator or its exchange is not registered
+     */
+    run: (dto: {
+        symbol: string;
+        simulatorName: SimulatorName;
+        ideas: ISimulatorIdea[];
+    }) => Promise<ISimulatorResult>;
+}
+
+/**
+ * Structural mirror of ISimulator: the core service exposes the same
+ * public surface as the client it fronts, with DI-level DTOs.
+ */
+type TSimulator = {
+    [key in keyof ISimulator]: any;
+};
+/**
+ * Core layer of the Simulator entity.
+ *
+ * Validates the simulator reference (existence + exchange
+ * dependency) and delegates to the connection layer. Sits between
+ * the global entry point and the memoized ClientSimulator instances
+ * owned by SimulatorConnectionService.
+ */
+declare class SimulatorCoreService implements TSimulator {
+    private readonly loggerService;
+    private readonly simulatorConnectionService;
+    private readonly simulatorValidationService;
+    /**
+     * Runs the full simulation for a symbol after validating the
+     * simulator reference: profiles -> author filter -> grid
+     * evaluation -> rankings.
+     *
+     * @param dto.symbol - Trading pair symbol to simulate
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Ideas feed (other symbols are filtered out by the client)
+     * @returns Final simulation result (reports, rankings, author artifact)
+     * @throws Error when the simulator or its exchange is not registered
+     */
+    run: (dto: {
+        symbol: string;
+        simulatorName: SimulatorName;
+        ideas: ISimulatorIdea[];
+    }) => Promise<ISimulatorResult>;
+}
+
 declare const backtest: {
     notificationHelperService: NotificationHelperService;
     exchangeValidationService: ExchangeValidationService;
@@ -40883,6 +41243,7 @@ declare const backtest: {
     actionValidationService: ActionValidationService;
     configValidationService: ConfigValidationService;
     columnValidationService: ColumnValidationService;
+    simulatorValidationService: SimulatorValidationService;
     backtestReportService: BacktestReportService;
     liveReportService: LiveReportService;
     scheduleReportService: ScheduleReportService;
@@ -40918,6 +41279,7 @@ declare const backtest: {
     liveCommandService: LiveCommandService;
     backtestCommandService: BacktestCommandService;
     walkerCommandService: WalkerCommandService;
+    simulatorGlobalService: SimulatorGlobalService;
     sizingGlobalService: SizingGlobalService;
     riskGlobalService: RiskGlobalService;
     partialGlobalService: PartialGlobalService;
@@ -40983,6 +41345,7 @@ declare const backtest: {
             frameName: string;
         }, backtest: boolean) => Promise<IRuntimeInfo<Data>>;
     };
+    simulatorCoreService: SimulatorCoreService;
     exchangeCoreService: ExchangeCoreService;
     strategyCoreService: StrategyCoreService;
     actionCoreService: ActionCoreService;
@@ -40994,6 +41357,7 @@ declare const backtest: {
     sizingSchemaService: SizingSchemaService;
     riskSchemaService: RiskSchemaService;
     actionSchemaService: ActionSchemaService;
+    simulatorSchemaService: SimulatorSchemaService;
     exchangeConnectionService: ExchangeConnectionService;
     strategyConnectionService: StrategyConnectionService;
     frameConnectionService: FrameConnectionService;
@@ -41002,6 +41366,7 @@ declare const backtest: {
     actionConnectionService: ActionConnectionService;
     partialConnectionService: PartialConnectionService;
     breakevenConnectionService: BreakevenConnectionService;
+    simulatorConnectionService: SimulatorConnectionService;
     executionContextService: {
         readonly context: IExecutionContext;
     };

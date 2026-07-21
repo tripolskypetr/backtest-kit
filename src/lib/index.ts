@@ -83,6 +83,8 @@ import { TRuntimeMetaService } from "./services/meta/RuntimeMetaService";
 import SimulatorValidationService from "./services/validation/SimulatorValidationService";
 import SimulatorSchemaService from "./services/schema/SimulatorSchemaService";
 import SimulatorConnectionService from "./services/connection/SimulatorConnectionService";
+import SimulatorGlobalService from "./services/global/SimulatorGlobalService";
+import SimulatorCoreService from "./services/core/SimulatorCoreService";
 
 const baseServices = {
   loggerService: inject<TLoggerService>(TYPES.loggerService),
@@ -143,6 +145,7 @@ const schemaServices = {
 };
 
 const coreServices = {
+  simulatorCoreService: inject<SimulatorCoreService>(TYPES.simulatorCoreService),
   exchangeCoreService: inject<ExchangeCoreService>(TYPES.exchangeCoreService),
   strategyCoreService: inject<StrategyCoreService>(TYPES.strategyCoreService),
   actionCoreService: inject<ActionCoreService>(TYPES.actionCoreService),
@@ -157,6 +160,7 @@ const metaServices = {
 }
 
 const globalServices = {
+  simulatorGlobalService: inject<SimulatorGlobalService>(TYPES.simulatorGlobalService),
   sizingGlobalService: inject<SizingGlobalService>(TYPES.sizingGlobalService),
   riskGlobalService: inject<RiskGlobalService>(TYPES.riskGlobalService),
   partialGlobalService: inject<PartialGlobalService>(
