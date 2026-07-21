@@ -65,8 +65,9 @@ const reportPath = (symbol: string) => `./assets/sweep.report.${symbol}.json`;
 
 /** Оси сетки. Окна — такие же оси перебора, как стоп и трейлинг. */
 const GRID_AXES = {
-  hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
-  trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
+  // 100 = сентинель "выход отключён": бейзлайн чистого time-exit
+  hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7, 100],
+  trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4, 100],
   holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60, IDEA_TRIM_MINUTES],
   minAligned: [1, 2, 3],
 };
@@ -131,6 +132,12 @@ export interface SweepPointReport {
   winRate: number;
   profitFactor: number;
   maxSeriesDrawdownPercent: number;
+  /**
+   * Месячный Sharpe серии сделок: mean/std * sqrt(n).
+   * Критерий выбора победителя — не голый PnL: штрафует точки,
+   * чья прибыль сделана одной сделкой при разбросе остальных.
+   */
+  sharpe: number;
   exitReasons: Record<SweepExitReason, number>;
 }
 
@@ -494,6 +501,15 @@ const evaluatePoint = (
       equityPeak - equity,
     );
   }
+  const mean = trades.length ? totalPnlPercent / trades.length : 0;
+  const variance = trades.length
+    ? trades.reduce(
+        (acc, { pnlPercent }) => acc + (pnlPercent - mean) ** 2,
+        0,
+      ) / trades.length
+    : 0;
+  const std = Math.sqrt(variance);
+  const sharpe = std > 0 ? (mean / std) * Math.sqrt(trades.length) : 0;
 
   return {
     report: {
@@ -505,6 +521,7 @@ const evaluatePoint = (
       winRate: trades.length ? wins / trades.length : 0,
       profitFactor: grossLoss > 0 ? grossProfit / grossLoss : Infinity,
       maxSeriesDrawdownPercent,
+      sharpe,
       exitReasons,
     },
     trades,
@@ -622,7 +639,7 @@ const main = async () => {
     reports.push(report);
     tradesByPoint.set(report, trades);
   }
-  reports.sort((a, b) => b.totalPnlPercent - a.totalPnlPercent);
+  reports.sort((a, b) => b.sharpe - a.sharpe);
 
   const fmt = (report: SweepPointReport) => {
     const { point } = report;
@@ -630,6 +647,7 @@ const main = async () => {
       `H=${point.hardStopPercent} TT=${point.trailingTakePercent} ` +
       `hold=${point.holdMinutes / 60}h N=${point.minAligned} | ` +
       `trades=${report.trades} skip=${report.skippedBusy} ` +
+      `sharpe=${report.sharpe.toFixed(2)} ` +
       `pnl=${report.totalPnlPercent.toFixed(2)}% ` +
       `avg=${report.avgPnlPercent.toFixed(3)}% ` +
       `wr=${(report.winRate * 100).toFixed(0)}% ` +
@@ -640,7 +658,7 @@ const main = async () => {
     );
   };
 
-  console.log(`\n[sweep] топ-15 по totalPnl:`);
+  console.log(`\n[sweep] топ-15 по Sharpe:`);
   for (const report of reports.slice(0, 15)) {
     console.log("  " + fmt(report));
   }
@@ -654,7 +672,7 @@ const main = async () => {
       b.totalPnlPercent / Math.max(1, b.maxSeriesDrawdownPercent) -
       a.totalPnlPercent / Math.max(1, a.maxSeriesDrawdownPercent),
   )[0];
-  console.log(`\n[sweep] лучший (>=${MIN_TRADES_FOR_BEST} сделок):`);
+  console.log(`\n[sweep] лучший по Sharpe (>=${MIN_TRADES_FOR_BEST} сделок):`);
   console.log("  " + (best ? fmt(best) : "нет"));
   console.log(`[sweep] самый устойчивый (pnl/maxDD):`);
   console.log("  " + (robust ? fmt(robust) : "нет"));
