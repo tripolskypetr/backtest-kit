@@ -209,7 +209,7 @@ export interface ISimulatorResult {
   symbol: string;
   /** Total ideas of the symbol received (including NEUTRAL). */
   ideasTotal: number;
-  /** Directional ideas simulated (NEUTRAL excluded). */
+  /** Directional ideas simulated (NEUTRAL and flood duplicates excluded). */
   ideasDirectional: number;
   /** Number of idea profiles built (ideas with candle data). */
   profileCount: number;

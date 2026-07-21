@@ -46,6 +46,14 @@ const AUTHOR_MIN_TRACK = 3;
 const AUTHOR_MIN_HITRATE = 0.5;
 
 /**
+ * Anti-flood window: an author may contribute at most one idea per
+ * direction within this many minutes. A repeated post is a bump of
+ * the same opinion, not new evidence — it must not inflate the
+ * author track record, retrigger entries or refresh consensus votes.
+ */
+const AUTHOR_DEDUPE_MINUTES = 8 * 60;
+
+/**
  * Sortino sentinel for a series with profit and zero losing trades.
  */
 const SORTINO_NO_LOSSES = 999;
@@ -89,6 +97,34 @@ async function* ITERATE_CANDLES_FN(
       cursor += GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST * MINUTE_MS;
     }
 }
+
+/**
+ * Drops flood duplicates: for every author + direction pair only the
+ * first idea of each AUTHOR_DEDUPE_MINUTES window survives. A kept
+ * idea opens the window; posts inside it are discarded entirely —
+ * they get no profile (no track record inflation), no entry trigger
+ * and no consensus vote refresh.
+ *
+ * @param ideas - Ideas sorted by publication time ascending
+ * @returns Deduplicated ideas (order preserved)
+ */
+const DEDUPE_IDEAS_FN = (ideas: ISimulatorIdea[]): ISimulatorIdea[] => {
+  const lastKept = new Map<string, number>();
+  const result: ISimulatorIdea[] = [];
+  for (const idea of ideas) {
+    const key = `${idea.author}:${idea.direction}`;
+    const last = lastKept.get(key);
+    if (
+      last !== undefined &&
+      idea.ts - last < AUTHOR_DEDUPE_MINUTES * MINUTE_MS
+    ) {
+      continue;
+    }
+    lastKept.set(key, idea.ts);
+    result.push(idea);
+  }
+  return result;
+};
 
 /**
  * Counts unique same-direction authors within the rolling lookback
@@ -599,8 +635,8 @@ const RUN_FN = async (
   const ideas = allIdeas
     .filter((idea) => idea.symbol === symbol)
     .sort((a, b) => a.ts - b.ts);
-  const directional = ideas.filter(
-    ({ direction }) => direction !== "NEUTRAL",
+  const directional = DEDUPE_IDEAS_FN(
+    ideas.filter(({ direction }) => direction !== "NEUTRAL"),
   );
   if (self.params.callbacks.onIdeas) {
     self.params.callbacks.onIdeas(symbol, ideas.length, directional.length);
@@ -767,7 +803,9 @@ export class ClientSimulator implements ISimulator {
    *
    * Steps and emitted callbacks:
    * 1. Filters the input array by symbol, sorts by publication time,
-   *    drops NEUTRAL ideas -> onIdeas(symbol, total, directional).
+   *    drops NEUTRAL ideas and flood duplicates (at most one idea
+   *    per author per direction per AUTHOR_DEDUPE_MINUTES)
+   *    -> onIdeas(symbol, total, directional).
    * 2. Builds one trajectory profile per idea (lazy candle fetch
    *    through the Exchange schema; ideas with no candle data are
    *    dropped) -> onProfiles(symbol, profiles, truncatedCount).
