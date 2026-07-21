@@ -149,10 +149,15 @@ export interface SweepPointReport {
   maxSeriesDrawdownPercent: number;
   /**
    * Месячный Sharpe серии сделок: mean/std * sqrt(n).
-   * Критерий выбора победителя — не голый PnL: штрафует точки,
-   * чья прибыль сделана одной сделкой при разбросе остальных.
+   * Штрафует любой разброс — в том числе большие выигрыши.
    */
   sharpe: number;
+  /**
+   * Месячный Sortino: mean/downsideDev * sqrt(n), отклонение
+   * считается только по убыточным сделкам — большие победители
+   * не наказываются. Нет убытков -> сентинель 999.
+   */
+  sortino: number;
   exitReasons: Record<SweepExitReason, number>;
 }
 
@@ -600,6 +605,19 @@ const evaluatePoint = (
     : 0;
   const std = Math.sqrt(variance);
   const sharpe = std > 0 ? (mean / std) * Math.sqrt(trades.length) : 0;
+  const downsideVariance = trades.length
+    ? trades.reduce(
+        (acc, { pnlPercent }) => acc + Math.min(pnlPercent, 0) ** 2,
+        0,
+      ) / trades.length
+    : 0;
+  const downsideDev = Math.sqrt(downsideVariance);
+  const sortino =
+    downsideDev > 0
+      ? (mean / downsideDev) * Math.sqrt(trades.length)
+      : mean > 0
+        ? 999
+        : 0;
 
   return {
     report: {
@@ -612,6 +630,7 @@ const evaluatePoint = (
       profitFactor: grossLoss > 0 ? grossProfit / grossLoss : Infinity,
       maxSeriesDrawdownPercent,
       sharpe,
+      sortino,
       exitReasons,
     },
     trades,
@@ -742,8 +761,6 @@ const main = async () => {
     reports.push(report);
     tradesByPoint.set(report, trades);
   }
-  reports.sort((a, b) => b.sharpe - a.sharpe);
-
   const fmt = (report: SweepPointReport) => {
     const { point } = report;
     return (
@@ -752,6 +769,7 @@ const main = async () => {
       `AF=${point.authorFilter ? 1 : 0} | ` +
       `trades=${report.trades} skip=${report.skippedBusy} ` +
       `sharpe=${report.sharpe.toFixed(2)} ` +
+      `sortino=${report.sortino.toFixed(2)} ` +
       `pnl=${report.totalPnlPercent.toFixed(2)}% ` +
       `avg=${report.avgPnlPercent.toFixed(3)}% ` +
       `wr=${(report.winRate * 100).toFixed(0)}% ` +
@@ -762,28 +780,49 @@ const main = async () => {
     );
   };
 
-  console.log(`\n[sweep] топ-15 по Sharpe:`);
-  for (const report of reports.slice(0, 15)) {
-    console.log("  " + fmt(report));
-  }
+  /** Итог — три рейтинга: Sharpe, Sortino, PnL. */
+  const RANKINGS: {
+    key: "sharpe" | "sortino" | "pnl";
+    title: string;
+    value: (report: SweepPointReport) => number;
+  }[] = [
+    { key: "sharpe", title: "Sharpe", value: ({ sharpe }) => sharpe },
+    { key: "sortino", title: "Sortino", value: ({ sortino }) => sortino },
+    { key: "pnl", title: "PnL", value: ({ totalPnlPercent }) => totalPnlPercent },
+  ];
 
   const eligible = reports.filter(
     ({ trades }) => trades >= MIN_TRADES_FOR_BEST,
   );
-  const best = eligible[0] ?? reports[0];
-  const robust = [...eligible].sort(
-    (a, b) =>
-      b.totalPnlPercent / Math.max(1, b.maxSeriesDrawdownPercent) -
-      a.totalPnlPercent / Math.max(1, a.maxSeriesDrawdownPercent),
-  )[0];
-  console.log(`\n[sweep] лучший по Sharpe (>=${MIN_TRADES_FOR_BEST} сделок):`);
-  console.log("  " + (best ? fmt(best) : "нет"));
-  console.log(`[sweep] самый устойчивый (pnl/maxDD):`);
-  console.log("  " + (robust ? fmt(robust) : "нет"));
+  const bestByKey: Record<string, SweepPointReport | null> = {};
+  for (const ranking of RANKINGS) {
+    const sorted = [...reports].sort(
+      (a, b) => ranking.value(b) - ranking.value(a),
+    );
+    console.log(`\n[sweep] топ-10 по ${ranking.title}:`);
+    for (const report of sorted.slice(0, 10)) {
+      console.log("  " + fmt(report));
+    }
+    const best =
+      [...eligible].sort((a, b) => ranking.value(b) - ranking.value(a))[0] ??
+      sorted[0] ??
+      null;
+    bestByKey[ranking.key] = best;
+    console.log(
+      `[sweep] лучший по ${ranking.title} (>=${MIN_TRADES_FOR_BEST} сделок):`,
+    );
+    console.log("  " + (best ? fmt(best) : "нет"));
+  }
+  // общий порядок в отчёте — по Sharpe (полные три сортировки строятся из reports)
+  reports.sort((a, b) => b.sharpe - a.sharpe);
 
-  if (best) {
-    console.log(`\n[sweep] сделки лидера:`);
-    for (const trade of tradesByPoint.get(best) ?? []) {
+  for (const ranking of RANKINGS) {
+    const leader = bestByKey[ranking.key];
+    if (!leader) {
+      continue;
+    }
+    console.log(`\n[sweep] сделки лидера по ${ranking.title}:`);
+    for (const trade of tradesByPoint.get(leader) ?? []) {
       console.log(
         `  ${new Date(trade.entryTimestamp).toISOString().slice(0, 16)} ` +
           `${trade.direction.padEnd(5)} ${trade.exitReason.padEnd(13)} ` +
@@ -815,10 +854,18 @@ const main = async () => {
           .map(({ author }) => author),
         bannedAuthors: bannedStats.map(({ author }) => author),
         authorStats,
-        best: best ?? null,
-        bestTrades: best ? (tradesByPoint.get(best) ?? []) : [],
-        robust: robust ?? null,
-        robustTrades: robust ? (tradesByPoint.get(robust) ?? []) : [],
+        // три итоговых рейтинга: победитель каждого + его сделки
+        best: Object.fromEntries(
+          RANKINGS.map(({ key }) => {
+            const leader = bestByKey[key] ?? null;
+            return [
+              key,
+              leader
+                ? { ...leader, trades_list: tradesByPoint.get(leader) ?? [] }
+                : null,
+            ];
+          }),
+        ),
         reports,
       },
       null,
