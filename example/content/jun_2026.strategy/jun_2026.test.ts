@@ -54,7 +54,7 @@ interface Idea {
 const CONSENSUS_INTERVAL = "4h";
 const CONSENSUS_INTERVAL_MS = 4 * 60 * 60 * 1_000;
 
-const OBSERVATION_MINUTES = 24 * 60;
+const OBSERVATION_MINUTES = 2 * 24 * 60;
 const NEVER_HARD_STOP = 50;
 
 const getIdeas = singleshot(async () => {
