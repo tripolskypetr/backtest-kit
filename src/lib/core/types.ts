@@ -16,6 +16,7 @@ const connectionServices = {
     actionConnectionService: Symbol('actionConnectionService'),
     partialConnectionService: Symbol('partialConnectionService'),
     breakevenConnectionService: Symbol('breakevenConnectionService'),
+    simulatorConnectionService: Symbol('simulatorConnectionService'),
 };
 
 const schemaServices = {
@@ -26,6 +27,7 @@ const schemaServices = {
     sizingSchemaService: Symbol('sizingSchemaService'),
     riskSchemaService: Symbol('riskSchemaService'),
     actionSchemaService: Symbol('actionSchemaService'),
+    simulatorSchemaService: Symbol('simulatorSchemaService'),
 }
 
 const coreServices = {
@@ -114,6 +116,7 @@ const validationServices = {
     actionValidationService: Symbol('actionValidationService'),
     configValidationService: Symbol('configValidationService'),
     columnValidationService: Symbol('columnValidationService'),
+    simulatorValidationService: Symbol('simulatorValidationService'),
 }
 
 export const TYPES = {

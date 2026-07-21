@@ -386,6 +386,7 @@ const SIMULATE_TRADE_FN = (
     exitReason,
     holdMinutesActual: exitIndex + 1,
     pnlPercent,
+    absorbedIdeaIds: [],
   };
 };
 
@@ -457,6 +458,8 @@ const EVALUATE_POINT_FN = (
   };
   let skippedBusy = 0;
   let busyUntil = -Infinity;
+  // сделка, держащая слот сейчас, — ей приписываются поглощённые посты
+  let holdingTrade: ISimulatorTrade | null = null;
 
   for (const profile of profiles) {
     if (profile.authorBanned) {
@@ -467,12 +470,16 @@ const EVALUATE_POINT_FN = (
     }
     if (profile.entryTimestamp < busyUntil) {
       skippedBusy += 1;
+      if (holdingTrade) {
+        holdingTrade.absorbedIdeaIds.push(profile.idea.id);
+      }
       continue;
     }
     const trade = SIMULATE_TRADE_FN(profile, point);
     trades.push(trade);
     exitReasons[trade.exitReason] += 1;
     busyUntil = trade.exitTimestamp + MINUTE_MS;
+    holdingTrade = trade;
   }
 
   let totalPnlPercent = 0;

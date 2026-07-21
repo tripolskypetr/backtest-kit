@@ -117,6 +117,12 @@ export interface ISimulatorTrade {
   holdMinutesActual: number;
   /** Trade PnL percent, net of fees on both legs. */
   pnlPercent: number;
+  /**
+   * Ideas that qualified for entry but were ABSORBED by this trade
+   * holding the slot. A long hold that eats foreign recommendations
+   * is visible here idea by idea.
+   */
+  absorbedIdeaIds: number[];
 }
 
 /**

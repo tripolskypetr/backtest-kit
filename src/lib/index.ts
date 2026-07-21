@@ -80,6 +80,9 @@ import PriceMetaService from "./services/meta/PriceMetaService";
 import { TContextMetaService } from "./services/meta/ContextMetaService";
 import NotificationHelperService from "./services/helpers/NotificationHelperService";
 import { TRuntimeMetaService } from "./services/meta/RuntimeMetaService";
+import SimulatorValidationService from "./services/validation/SimulatorValidationService";
+import SimulatorSchemaService from "./services/schema/SimulatorSchemaService";
+import SimulatorConnectionService from "./services/connection/SimulatorConnectionService";
 
 const baseServices = {
   loggerService: inject<TLoggerService>(TYPES.loggerService),
@@ -119,6 +122,9 @@ const connectionServices = {
   breakevenConnectionService: inject<BreakevenConnectionService>(
     TYPES.breakevenConnectionService
   ),
+  simulatorConnectionService: inject<SimulatorConnectionService>(
+    TYPES.simulatorConnectionService,
+  ),
 };
 
 const schemaServices = {
@@ -133,6 +139,7 @@ const schemaServices = {
   sizingSchemaService: inject<SizingSchemaService>(TYPES.sizingSchemaService),
   riskSchemaService: inject<RiskSchemaService>(TYPES.riskSchemaService),
   actionSchemaService: inject<ActionSchemaService>(TYPES.actionSchemaService),
+  simulatorSchemaService: inject<SimulatorSchemaService>(TYPES.simulatorSchemaService),
 };
 
 const coreServices = {
@@ -281,6 +288,9 @@ const validationServices = {
   ),
   columnValidationService: inject<ColumnValidationService>(
     TYPES.columnValidationService
+  ),
+  simulatorValidationService: inject<SimulatorValidationService>(
+    TYPES.simulatorValidationService,
   ),
 };
 
