@@ -8,7 +8,7 @@ import {
   Position,
   getPositionActiveMinutes,
   getPositionHighestPnlPercentage,
-  getPositionHighestMaxDrawdownPnlPercentage,
+  getPositionMaxDrawdownPnlPercentage,
   getPositionHighestProfitDistancePnlPercentage,
   getPositionHighestProfitMinutes,
 } from "backtest-kit";
@@ -221,7 +221,7 @@ listenActivePing(async ({ symbol, timestamp }) => {
 
   const peakPnlPercent = await getPositionHighestPnlPercentage(symbol);
   const maxDrawdownPercent =
-    await getPositionHighestMaxDrawdownPnlPercentage(symbol);
+    await getPositionMaxDrawdownPnlPercentage(symbol);
   const peakDistancePercent =
     await getPositionHighestProfitDistancePnlPercentage(symbol);
   const peakStalenessMinutes = await getPositionHighestProfitMinutes(symbol);
