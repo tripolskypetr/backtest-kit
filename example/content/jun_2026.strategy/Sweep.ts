@@ -82,7 +82,6 @@ const GRID_AXES = {
   trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4, 100],
   holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60, IDEA_TRIM_MINUTES],
   minAligned: [1, 2, 3],
-  authorFilter: [false, true],
 };
 
 // ---------------------------------------------------------------- типы
@@ -118,8 +117,6 @@ export interface SweepPoint {
   trailingTakePercent: number;
   holdMinutes: number;
   minAligned: number;
-  /** Исключать рандомных авторов из триггера и подсчёта голосов. */
-  authorFilter: boolean;
 }
 
 export type SweepExitReason =
@@ -555,13 +552,11 @@ const evaluatePoint = (
   let busyUntil = -Infinity;
 
   for (const profile of profiles) {
-    if (point.authorFilter && profile.authorRandomAtEntry) {
+    // фильтр авторов — обученный препроцессинг, применяется всегда
+    if (profile.authorRandomAtEntry) {
       continue;
     }
-    const aligned = point.authorFilter
-      ? profile.alignedAtEntryFiltered
-      : profile.alignedAtEntry;
-    if (aligned < point.minAligned) {
+    if (profile.alignedAtEntryFiltered < point.minAligned) {
       continue;
     }
     if (profile.entryTimestamp < busyUntil) {
@@ -741,15 +736,12 @@ const main = async () => {
     (hardStopPercent) =>
       GRID_AXES.trailingTakePercent.flatMap((trailingTakePercent) =>
         GRID_AXES.holdMinutes.flatMap((holdMinutes) =>
-          GRID_AXES.minAligned.flatMap((minAligned) =>
-            GRID_AXES.authorFilter.map((authorFilter) => ({
-              hardStopPercent,
-              trailingTakePercent,
-              holdMinutes,
-              minAligned,
-              authorFilter,
-            })),
-          ),
+          GRID_AXES.minAligned.map((minAligned) => ({
+            hardStopPercent,
+            trailingTakePercent,
+            holdMinutes,
+            minAligned,
+          })),
         ),
       ),
   );
@@ -765,8 +757,7 @@ const main = async () => {
     const { point } = report;
     return (
       `H=${point.hardStopPercent} TT=${point.trailingTakePercent} ` +
-      `hold=${point.holdMinutes / 60}h N=${point.minAligned} ` +
-      `AF=${point.authorFilter ? 1 : 0} | ` +
+      `hold=${point.holdMinutes / 60}h N=${point.minAligned} | ` +
       `trades=${report.trades} skip=${report.skippedBusy} ` +
       `sharpe=${report.sharpe.toFixed(2)} ` +
       `sortino=${report.sortino.toFixed(2)} ` +

@@ -239,6 +239,14 @@ export {
 } from "./interfaces/Exchange.interface";
 
 export {
+  ISimulatorIdea,
+  ISimulatorGridAxes,
+  ISimulatorBest,
+  ISimulatorResult,
+  ISimulatorSchema,
+} from "./interfaces/Simulator.interface";
+
+export {
   IPublicAction,
   IActionSchema,
 } from "./interfaces/Action.interface";
@@ -688,6 +696,7 @@ export * as emitters from "./config/emitters";
 
 export { alignToInterval } from "./utils/alignToInterval";
 export { intervalStepMs } from "./utils/intervalStepMs";
+export { intervalStart } from "./utils/intervalStart";
 export { waitForCandle } from "./utils/waitForCandle";
 export { roundTicks } from "./utils/roundTicks";
 export { parseArgs } from "./utils/parseArgs";
