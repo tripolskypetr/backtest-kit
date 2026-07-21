@@ -6075,10 +6075,22 @@ interface ISimulatorSchema {
     callbacks?: Partial<ISimulatorCallbacks>;
 }
 /**
+ * Long-running stage of a simulation run reported by onProgress:
+ * "profiles" — one candle pass per idea (dominated by candle IO),
+ * "grid" — arithmetic evaluation of grid points.
+ */
+type SimulatorProgressStage = "profiles" | "grid";
+/**
  * Lifecycle callbacks of a simulation run. Every progress point the
  * reference Sweep script printed to console is exposed here instead.
  */
 interface ISimulatorCallbacks {
+    /**
+     * Progress of a long-running stage: fires after every processed
+     * item — idea (stage "profiles") or grid point (stage "grid").
+     * processed grows from 1 to total within a stage.
+     */
+    onProgress(symbol: string, stage: SimulatorProgressStage, processed: number, total: number): void;
     /** Ideas received: total vs directional (NEUTRAL excluded). */
     onIdeas(symbol: string, ideasTotal: number, ideasDirectional: number): void;
     /**

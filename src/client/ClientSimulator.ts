@@ -675,10 +675,23 @@ const RUN_FN = async (
   }
 
   const profiles: ISimulatorIdeaProfile[] = [];
-  for (const idea of directional) {
-    const profile = await BUILD_PROFILE_FN(self, symbol, idea, directional);
+  for (let index = 0; index < directional.length; index++) {
+    const profile = await BUILD_PROFILE_FN(
+      self,
+      symbol,
+      directional[index],
+      directional,
+    );
     if (profile) {
       profiles.push(profile);
+    }
+    if (self.params.callbacks?.onProgress) {
+      self.params.callbacks?.onProgress(
+        symbol,
+        "profiles",
+        index + 1,
+        directional.length,
+      );
     }
   }
   const truncatedCount = profiles.filter(({ truncated }) => truncated).length;
@@ -729,7 +742,8 @@ const RUN_FN = async (
   const reports: ISimulatorPointReport[] = [];
   const tradesByReport = new Map<ISimulatorPointReport, ISimulatorTrade[]>();
   const allHoldMinutes: number[] = [];
-  for (const point of points) {
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index];
     const { report, trades } = EVALUATE_POINT_FN(
       profiles,
       point,
@@ -745,6 +759,14 @@ const RUN_FN = async (
     }
     if (self.params.callbacks?.onGridPoint) {
       self.params.callbacks?.onGridPoint(symbol, report, trades);
+    }
+    if (self.params.callbacks?.onProgress) {
+      self.params.callbacks?.onProgress(
+        symbol,
+        "grid",
+        index + 1,
+        points.length,
+      );
     }
   }
   const holdStats = COMPUTE_HOLD_STATS_FN(allHoldMinutes);

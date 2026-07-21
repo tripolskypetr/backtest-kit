@@ -163,8 +163,8 @@ Simulator flags (--simulator):
   Ideas of other symbols are filtered out — one shared feed serves any --symbol.
 
   No output flag → print the Markdown summary to stdout. With --verbose every
-  simulator lifecycle callback (onIdeas, onProfiles, onAuthorsTrained, onGridPoint,
-  onRanking, onDone) is logged to the console as it fires.
+  simulator lifecycle callback (onProgress, onIdeas, onProfiles, onAuthorsTrained,
+  onGridPoint, onRanking, onDone) is logged to the console as it fires.
 
   Module file ./modules/simulator.module is loaded automatically if it exists
   (register your exchange there); without it CCXT Binance is used by default.

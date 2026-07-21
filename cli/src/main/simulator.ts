@@ -163,6 +163,11 @@ export const main = async () => {
     simulatorName: SIMULATOR_NAME,
     exchangeName,
     callbacks: {
+      onProgress: (symbol, stage, processed, total) => {
+        if (values.verbose) {
+          console.log("onProgress", { symbol, stage, processed, total });
+        }
+      },
       onIdeas: (symbol, ideasTotal, ideasDirectional) => {
         if (values.verbose) {
           console.log("onIdeas", { symbol, ideasTotal, ideasDirectional });
