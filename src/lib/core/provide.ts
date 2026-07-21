@@ -75,6 +75,11 @@ import { MaxDrawdownMarkdownService } from "../services/markdown/MaxDrawdownMark
 import ContextMetaService from "../services/meta/ContextMetaService";
 import NotificationHelperService from "../services/helpers/NotificationHelperService";
 import RuntimeMetaService from "../services/meta/RuntimeMetaService";
+import SimulatorSchemaService from "../services/schema/SimulatorSchemaService";
+import SimulatorValidationService from "../services/validation/SimulatorValidationService";
+import SimulatorConnectionService from "../services/connection/SimulatorConnectionService";
+import SimulatorCoreService from "../services/core/SimulatorCoreService";
+import SimulatorGlobalService from "../services/global/SimulatorGlobalService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -94,6 +99,7 @@ import RuntimeMetaService from "../services/meta/RuntimeMetaService";
     provide(TYPES.actionConnectionService, () => new ActionConnectionService());
     provide(TYPES.partialConnectionService, () => new PartialConnectionService());
     provide(TYPES.breakevenConnectionService, () => new BreakevenConnectionService());
+    provide(TYPES.simulatorConnectionService, () => new SimulatorConnectionService());
 }
 
 {
@@ -104,9 +110,11 @@ import RuntimeMetaService from "../services/meta/RuntimeMetaService";
     provide(TYPES.sizingSchemaService, () => new SizingSchemaService());
     provide(TYPES.riskSchemaService, () => new RiskSchemaService());
     provide(TYPES.actionSchemaService, () => new ActionSchemaService());
+    provide(TYPES.simulatorSchemaService, () => new SimulatorSchemaService());
 }
 
 {
+    provide(TYPES.simulatorCoreService, () => new SimulatorCoreService());
     provide(TYPES.exchangeCoreService, () => new ExchangeCoreService());
     provide(TYPES.strategyCoreService, () => new StrategyCoreService());
     provide(TYPES.actionCoreService, () => new ActionCoreService());
@@ -121,6 +129,7 @@ import RuntimeMetaService from "../services/meta/RuntimeMetaService";
 }
 
 {
+    provide(TYPES.simulatorGlobalService, () => new SimulatorGlobalService());
     provide(TYPES.sizingGlobalService, () => new SizingGlobalService());
     provide(TYPES.riskGlobalService, () => new RiskGlobalService());
     provide(TYPES.partialGlobalService, () => new PartialGlobalService());
@@ -191,4 +200,5 @@ import RuntimeMetaService from "../services/meta/RuntimeMetaService";
     provide(TYPES.actionValidationService, () => new ActionValidationService());
     provide(TYPES.configValidationService, () => new ConfigValidationService());
     provide(TYPES.columnValidationService, () => new ColumnValidationService());
+    provide(TYPES.simulatorValidationService, () => new SimulatorValidationService());
 }

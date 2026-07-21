@@ -6,6 +6,7 @@ import { IWalkerSchema } from "../interfaces/Walker.interface";
 import { ISizingSchema } from "../interfaces/Sizing.interface";
 import { IRiskSchema } from "../interfaces/Risk.interface";
 import { IActionSchema } from "../interfaces/Action.interface";
+import { ISimulatorSchema } from "../interfaces/Simulator.interface";
 
 const ADD_STRATEGY_METHOD_NAME = "add.addStrategySchema";
 const ADD_EXCHANGE_METHOD_NAME = "add.addExchangeSchema";
@@ -14,6 +15,7 @@ const ADD_WALKER_METHOD_NAME = "add.addWalkerSchema";
 const ADD_SIZING_METHOD_NAME = "add.addSizingSchema";
 const ADD_RISK_METHOD_NAME = "add.addRiskSchema";
 const ADD_ACTION_METHOD_NAME = "add.addActionSchema";
+const ADD_SIMULATOR_METHOD_NAME = "add.addSimulatorSchema";
 
 /**
  * Registers a trading strategy in the framework.
@@ -420,5 +422,47 @@ export function addActionSchema(actionSchema: IActionSchema) {
   backtest.actionSchemaService.register(
     actionSchema.actionName,
     actionSchema
+  );
+}
+
+/**
+ * Registers a simulator in the framework — a parameter sweep engine
+ * over crowd trading ideas (see Simulator.run).
+ *
+ * The simulator profiles every idea with one candle pass through the
+ * referenced exchange, trains the author whitelist/ban list on the
+ * simulated range and evaluates the grid of exit/entry parameters
+ * arithmetically from the profiles. Grid axes are optional — bounded
+ * defaults apply when omitted.
+ *
+ * @param simulatorSchema - Simulator configuration object
+ * @param simulatorSchema.simulatorName - Unique simulator identifier
+ * @param simulatorSchema.exchangeName - Exchange schema to fetch candles through
+ * @param simulatorSchema.gridAxes - Optional grid axes override (hard stop, trailing take, hold, consensus threshold)
+ * @param simulatorSchema.callbacks - Optional lifecycle callbacks (onIdeas, onProfiles, onAuthorsTrained, onGridPoint, onRanking, onDone)
+ *
+ * @example
+ * ```typescript
+ * addSimulatorSchema({
+ *   simulatorName: "tv-ideas-simulator",
+ *   exchangeName: "ccxt-exchange",
+ *   callbacks: {
+ *     onRanking: (symbol, criterion, sorted, best) =>
+ *       console.log(criterion, best.report?.point),
+ *   },
+ * });
+ * ```
+ */
+export function addSimulatorSchema(simulatorSchema: ISimulatorSchema) {
+  backtest.loggerService.info(ADD_SIMULATOR_METHOD_NAME, {
+    simulatorSchema,
+  });
+  backtest.simulatorValidationService.addSimulator(
+    simulatorSchema.simulatorName,
+    simulatorSchema
+  );
+  backtest.simulatorSchemaService.register(
+    simulatorSchema.simulatorName,
+    simulatorSchema
   );
 }

@@ -13,6 +13,7 @@ export {
   getSizingSchema,
   getRiskSchema,
   getActionSchema,
+  getSimulatorSchema,
 } from "./function/get";
 export {
   waitForReady,
@@ -99,6 +100,7 @@ export {
   addWalkerSchema,
   addSizingSchema,
   addRiskSchema,
+  addSimulatorSchema,
 } from "./function/add";
 export {
   overrideActionSchema,
@@ -108,6 +110,7 @@ export {
   overrideSizingSchema,
   overrideStrategySchema,
   overrideWalkerSchema,
+  overrideSimulatorSchema,
 } from "./function/override";
 export {
   listExchangeSchema,
@@ -116,6 +119,7 @@ export {
   listWalkerSchema,
   listSizingSchema,
   listRiskSchema,
+  listSimulatorSchema,
 } from "./function/list";
 export {
   listenSignal,
@@ -237,6 +241,14 @@ export {
   IExchangeSchema,
   IAggregatedTradeData,
 } from "./interfaces/Exchange.interface";
+
+export {
+  ISimulatorIdea,
+  ISimulatorGridAxes,
+  ISimulatorBest,
+  ISimulatorResult,
+  ISimulatorSchema,
+} from "./interfaces/Simulator.interface";
 
 export {
   IPublicAction,
@@ -520,6 +532,10 @@ export {
 } from "./classes/Persist";
 
 export {
+  Simulator,
+} from "./classes/Simulator";
+
+export {
   Report,
 } from "./classes/Report";
 
@@ -688,6 +704,7 @@ export * as emitters from "./config/emitters";
 
 export { alignToInterval } from "./utils/alignToInterval";
 export { intervalStepMs } from "./utils/intervalStepMs";
+export { intervalStart } from "./utils/intervalStart";
 export { waitForCandle } from "./utils/waitForCandle";
 export { roundTicks } from "./utils/roundTicks";
 export { parseArgs } from "./utils/parseArgs";

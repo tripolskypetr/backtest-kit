@@ -35,6 +35,7 @@ npm start -- --backtest --symbol TRXUSDT ./content/jan_2026.strategy/jan_2026.st
 | [BTCUSDT Feb 2026 — AI News Sentiment](./content/feb_2026.strategy/README.md) | BTCUSDT | Feb 2026 | LLM forecast on live news (Tavily + Ollama) | **+16.99%** | **0.25** |
 | [BTCUSDT Mar 2026 — SHORT DCA Ladder](./content/mar_2026.strategy/README.md) | BTCUSDT | Mar 2026 | Fixed SHORT gravebag signal + DCA ladder up (up to 10 rungs) | **+37.83%** | **0.35** |
 | [BTCUSDT Apr 2026 — DCA Ladder](./content/apr_2026.strategy/README.md) | BTCUSDT | Apr 2026 | Fixed LONG moonbag signal + DCA ladder down (up to 10 rungs) | **+67.85%** | **0.12** |
+| [BTCUSDT Jun 2026 — Crowd Liquidity](./content/jun_2026.strategy/README.md) | BTCUSDT | Jun 2026 | TradingView ideas, elite author whitelist trained by `Simulator` | **+19.80%** | **0.64** |
 
 ---
 
@@ -51,6 +52,19 @@ npm start -- --backtest --symbol TRXUSDT ./content/jan_2026.strategy/jan_2026.st
 1. Signals are loaded from `assets/entry.jsonl` — 11 real posts from the Crypto Yoda channel, exported verbatim.
 2. On each candle, `getSignal` checks if `publishedAt` matches the current minute and whether `closePrice` falls inside `entry.from..entry.to`.
 3. Counter trend entry with trailing take and no fixed TP. SL is set to -0.5%
+
+---
+
+### 📣 BTCUSDT June 2026 — Crowd Liquidity
+
+> **Hypothesis:** public TradingView ideas are mostly noise, but a handful of authors are consistently right — and their posts move enough crowd liquidity to ride. If you grid-search the author ban rule itself (minimum track record × minimum hit rate) instead of hardcoding it, the whitelist reduces to a provable elite whose every post is a tradable signal.
+
+#### How it works
+
+1. `scripts/simulator.mjs` runs the framework's `Simulator` entity over the June ideas feed: one 5-day candle pass per idea, a 3,456-point grid (stop × trailing × hold × consensus × **ban rule**), flood dedupe (one idea per author per direction per 8h), default-ban for unproven authors.
+2. All three rankings (time-based Sharpe, Sortino, PnL) converge on the strictest rule — ≥5 observed ideas at ≥60% hit rate — leaving **5 authors of 167**. The whitelist and winning parameters land in `assets/sweep.report.BTCUSDT.json`.
+3. `getSignal` enters on **any** post of a whitelisted author (N=1 — with an elite list, consensus is redundant: it fired only 4 times a month) via `Position.moonbag` with a 4% hard stop.
+4. Positions exit on a 2% trailing pullback from peak PnL (`listenActivePing` + `commitClosePending`) or the 5-day hold cap. Result: 10 trades, 90% WR, **+19.80%** on a month where BTC itself fell −20.4%.
 
 ---
 

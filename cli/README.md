@@ -104,6 +104,7 @@ Every invocation is **one mode** (a primary flag) + a positional strategy/entry 
 | **Candle Dump** | `--dump` | Fetch & save raw OHLCV candles to a file |
 | **PnL Debug** | `--pnldebug` | Simulate per-minute PnL for a given entry price & direction |
 | **Broker Debug** | `--brokerdebug` | Fire a single broker commit against the live adapter |
+| **Simulator** | `--simulator` | Sweep exit/entry parameters over a crowd-ideas feed, train an author whitelist |
 | **Flush** | `--flush` | Delete report/log/markdown/agent folders from a strategy dump dir |
 | **Init** | `--init` | Scaffold a new project |
 | **Docker** | `--docker` | Scaffold a self-contained Docker workspace |
@@ -266,12 +267,12 @@ The same shape works for `--live --entry` / `--paper --entry` (call `Live.backgr
 
 ## 🛠️ Tooling modes
 
-Five utilities that don't run a strategy. They share one convention, explained once here and referenced below.
+Six utilities that don't run a strategy. They share one convention, explained once here and referenced below.
 
 > **The `<mode>.module` convention.** By default the CLI auto-registers CCXT Binance. To use a different exchange (custom API keys, rate limits, a non-spot market), drop a `modules/<mode>.module.ts` that calls `addExchangeSchema` from `backtest-kit`. The CLI loads it automatically before running, trying `.ts`/`.mjs`/`.cjs`; it's searched **next to the target file first, then in the project root**. `.env` is loaded root-first then the target-file dir (override), so API keys stay out of code.
 
 <details>
-<summary>The shared <code>&lt;mode&gt;.module.ts</code> shape (pine / editor / dump / pnldebug / brokerdebug)</summary>
+<summary>The shared <code>&lt;mode&gt;.module.ts</code> shape (pine / editor / dump / pnldebug / brokerdebug / simulator)</summary>
 
 ```typescript
 // modules/pine.module.ts  (same shape for editor/dump/pnldebug.module; brokerdebug registers a Broker instead)
@@ -446,6 +447,34 @@ npx @backtest-kit/cli --brokerdebug --commit signal-open --symbol BTCUSDT
 `--commit` values → hook: `signal-open`→`onSignalOpenCommit`, `signal-close`→`onSignalCloseCommit`, `partial-profit`→`onPartialProfitCommit`, `partial-loss`→`onPartialLossCommit`, `average-buy`→`onAverageBuyCommit`, `trailing-stop`→`onTrailingStopCommit`, `trailing-take`→`onTrailingTakeCommit`, `breakeven`→`onBreakevenCommit`.
 
 The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--symbol`, derives a synthetic payload from `currentPrice` (TP = +2%, SL = −2%), and calls the selected hook once; exits `0` on success. The module registers a `Broker` adapter (`Broker.useBrokerAdapter(...)` + `Broker.enable()`), not an exchange.
+
+</details>
+
+### 🎛️ Simulator (`--simulator`)
+
+Sweep exit/entry parameters over a feed of crowd trading ideas using the `Simulator` entity — one candle pass per idea, a full parameter grid evaluated arithmetically, an author whitelist trained with default-ban semantics. Prints a Markdown report with three ranking winners (time-based Sharpe, Sortino, PnL) and the production whitelist.
+
+```bash
+npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/ts-ideas.normalized.jsonl
+# → summary to stdout; add --json / --markdown to save into ./dump/
+```
+
+<details>
+<summary>Simulator flags, input format & behavior</summary>
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--simulator` | boolean | Enable simulator mode |
+| `--symbol` | string | Trading pair to simulate (default `"BTCUSDT"`) |
+| `--exchange` | string | Exchange (default: first registered, falls back to CCXT Binance) |
+| `--output` | string | Output base name (default `simulator_{SYMBOL}_{TIMESTAMP}`) |
+| `--json` | boolean | Save the full `ISimulatorResult` to `./dump/<output>.json` |
+| `--markdown` | boolean | Save the summary report to `./dump/<output>.md` |
+| `--verbose` | boolean | Log every simulator lifecycle callback to the console |
+
+**Positional (required):** path to an ideas `.jsonl` file — one idea per line, exact shape `{ "id": number, "ts": number, "symbol": string, "direction": "LONG"|"SHORT"|"NEUTRAL", "author": string }`. The file is validated **before any work starts** — the first line that does not match the structure aborts the run with an error naming the line and the field. Ideas of other symbols are filtered out by the engine, so one shared feed serves any `--symbol`.
+
+Under the hood: 5-day candle horizon per idea (lazy chunked fetch through the exchange, persist cache first), flood dedupe (one idea per author per direction per 8h), author ban thresholds swept as grid axes (unproven author = banned by default), production slot semantics, time-based Sharpe/Sortino over daily equity buckets. With `--verbose` every lifecycle callback (`onIdeas`, `onProfiles`, `onAuthorsTrained`, `onGridPoint`, `onRanking`, `onDone`) is logged to the console as it fires, so long runs show progress. Exchange via `simulator.module` (see convention above).
 
 </details>
 

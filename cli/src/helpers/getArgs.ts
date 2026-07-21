@@ -157,6 +157,10 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      simulator: {
+        type: "boolean",
+        default: false,
+      },
       commit: {
         type: "string",
         default: "",
