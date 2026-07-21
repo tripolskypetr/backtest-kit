@@ -29,9 +29,6 @@ addSimulatorSchema({
     trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
     holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
     minIdeasAligned: [1, 2, 3],
-    // правило бана авторов — тоже оси перебора
-    minAuthorTrack: [2, 3, 5],
-    minAuthorHitRate: [0.5, 0.6],
   },
 });
 
