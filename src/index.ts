@@ -13,6 +13,7 @@ export {
   getSizingSchema,
   getRiskSchema,
   getActionSchema,
+  getSimulatorSchema,
 } from "./function/get";
 export {
   waitForReady,
@@ -99,6 +100,7 @@ export {
   addWalkerSchema,
   addSizingSchema,
   addRiskSchema,
+  addSimulatorSchema,
 } from "./function/add";
 export {
   overrideActionSchema,
@@ -108,6 +110,7 @@ export {
   overrideSizingSchema,
   overrideStrategySchema,
   overrideWalkerSchema,
+  overrideSimulatorSchema,
 } from "./function/override";
 export {
   listExchangeSchema,
@@ -116,6 +119,7 @@ export {
   listWalkerSchema,
   listSizingSchema,
   listRiskSchema,
+  listSimulatorSchema,
 } from "./function/list";
 export {
   listenSignal,
@@ -526,6 +530,10 @@ export {
   PersistSessionInstance,
   TPersistSessionInstanceCtor,
 } from "./classes/Persist";
+
+export {
+  Simulator,
+} from "./classes/Simulator";
 
 export {
   Report,

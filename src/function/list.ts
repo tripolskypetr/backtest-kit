@@ -5,6 +5,7 @@ import { IFrameSchema } from "../interfaces/Frame.interface";
 import { IWalkerSchema } from "../interfaces/Walker.interface";
 import { ISizingSchema } from "../interfaces/Sizing.interface";
 import { IRiskSchema } from "../interfaces/Risk.interface";
+import { ISimulatorSchema } from "../interfaces/Simulator.interface";
 
 const LIST_EXCHANGES_METHOD_NAME = "list.listExchangeSchema";
 const LIST_STRATEGIES_METHOD_NAME = "list.listStrategySchema";
@@ -12,6 +13,7 @@ const LIST_FRAMES_METHOD_NAME = "list.listFrameSchema";
 const LIST_WALKERS_METHOD_NAME = "list.listWalkerSchema";
 const LIST_SIZINGS_METHOD_NAME = "list.listSizingSchema";
 const LIST_RISKS_METHOD_NAME = "list.listRiskSchema";
+const LIST_SIMULATORS_METHOD_NAME = "list.listSimulatorSchema";
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -214,4 +216,32 @@ export async function listSizingSchema(): Promise<ISizingSchema[]> {
 export async function listRiskSchema(): Promise<IRiskSchema[]> {
   backtest.loggerService.log(LIST_RISKS_METHOD_NAME);
   return await backtest.riskValidationService.list();
+}
+
+/**
+ * Returns a list of all registered simulator schemas.
+ *
+ * Retrieves all simulators that have been registered via addSimulatorSchema().
+ * Useful for debugging, documentation, or building dynamic UIs.
+ *
+ * @returns Array of simulator schemas with their configurations
+ *
+ * @example
+ * ```typescript
+ * import { listSimulatorSchema, addSimulatorSchema } from "backtest-kit";
+ *
+ * addSimulatorSchema({
+ *   simulatorName: "tv-ideas-simulator",
+ *   exchangeName: "ccxt-exchange",
+ *   callbacks: {},
+ * });
+ *
+ * const simulators = await listSimulatorSchema();
+ * console.log(simulators);
+ * // [{ simulatorName: "tv-ideas-simulator", exchangeName: "ccxt-exchange", ... }]
+ * ```
+ */
+export async function listSimulatorSchema(): Promise<ISimulatorSchema[]> {
+  backtest.loggerService.log(LIST_SIMULATORS_METHOD_NAME);
+  return await backtest.simulatorValidationService.list();
 }

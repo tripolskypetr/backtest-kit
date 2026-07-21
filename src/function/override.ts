@@ -5,6 +5,7 @@ import { IWalkerSchema } from "../interfaces/Walker.interface";
 import { ISizingSchema } from "../interfaces/Sizing.interface";
 import { IRiskSchema } from "../interfaces/Risk.interface";
 import { IActionSchema } from "../interfaces/Action.interface";
+import { ISimulatorSchema } from "../interfaces/Simulator.interface";
 import backtest from "../lib/index";
 
 const METHOD_NAME_OVERRIDE_STRATEGY = "function.override.overrideStrategySchema";
@@ -14,6 +15,7 @@ const METHOD_NAME_OVERRIDE_WALKER = "function.override.overrideWalkerSchema";
 const METHOD_NAME_OVERRIDE_SIZING = "function.override.overrideSizingSchema";
 const METHOD_NAME_OVERRIDE_RISK = "function.override.overrideRiskSchema";
 const METHOD_NAME_OVERRIDE_ACTION = "function.override.overrideActionSchema";
+const METHOD_NAME_OVERRIDE_SIMULATOR = "function.override.overrideSimulatorSchema";
 
 /**
  * Partial strategy schema for override operations.
@@ -187,6 +189,34 @@ type TRiskSchema = {
 type TActionSchema = {
   actionName: IActionSchema["actionName"];
 } & Partial<IActionSchema>;
+
+/**
+ * Partial simulator schema for override operations.
+ *
+ * Requires only the simulator name identifier, all other fields are optional.
+ * Used by overrideSimulatorSchema() to perform partial updates without replacing entire configuration.
+ *
+ * @property simulatorName - Required: Unique simulator identifier (must exist in registry)
+ * @property exchangeName - Optional: New exchange to fetch candles through
+ * @property gridAxes - Optional: Updated grid axes (hard stop, trailing take, hold, consensus threshold)
+ * @property callbacks - Optional: Updated lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * const partialUpdate: TSimulatorSchema = {
+ *   simulatorName: "tv-ideas-simulator",
+ *   gridAxes: {
+ *     hardStopPercent: [3, 5, 7],
+ *     trailingTakePercent: [1.5, 2, 3],
+ *     holdMinutes: [24 * 60, 48 * 60],
+ *     minIdeasAligned: [2, 3],
+ *   }, // Only narrow the grid, keep exchange and callbacks
+ * };
+ * ```
+ */
+type TSimulatorSchema = {
+  simulatorName: ISimulatorSchema["simulatorName"];
+} & Partial<ISimulatorSchema>;
 
 /**
  * Overrides an existing trading strategy in the framework.
@@ -486,5 +516,50 @@ export async function overrideActionSchema(actionSchema: TActionSchema) {
   return backtest.actionSchemaService.override(
     actionSchema.actionName,
     actionSchema
+  );
+}
+
+/**
+ * Overrides an existing simulator configuration in the framework.
+ *
+ * This function partially updates a previously registered simulator with new configuration.
+ * Only the provided fields will be updated, other fields remain unchanged.
+ *
+ * Note: the connection layer memoizes ClientSimulator instances by
+ * simulator name — an override after the first run takes effect for
+ * new instances only (see SimulatorConnectionService.clear).
+ *
+ * @param simulatorSchema - Partial simulator configuration object
+ * @param simulatorSchema.simulatorName - Unique simulator identifier (must exist)
+ * @param simulatorSchema.exchangeName - Optional: Exchange to fetch candles through
+ * @param simulatorSchema.gridAxes - Optional: Grid axes override
+ * @param simulatorSchema.callbacks - Optional: Lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * overrideSimulatorSchema({
+ *   simulatorName: "tv-ideas-simulator",
+ *   gridAxes: {
+ *     hardStopPercent: [3, 5, 7],
+ *     trailingTakePercent: [1.5, 2, 3],
+ *     holdMinutes: [24 * 60, 48 * 60],
+ *     minIdeasAligned: [2, 3],
+ *   }, // Only narrow the grid
+ * });
+ * ```
+ */
+export async function overrideSimulatorSchema(simulatorSchema: TSimulatorSchema) {
+  backtest.loggerService.log(METHOD_NAME_OVERRIDE_SIMULATOR, {
+    simulatorSchema,
+  });
+
+  await backtest.simulatorValidationService.validate(
+    simulatorSchema.simulatorName,
+    METHOD_NAME_OVERRIDE_SIMULATOR
+  );
+
+  return backtest.simulatorSchemaService.override(
+    simulatorSchema.simulatorName,
+    simulatorSchema
   );
 }
