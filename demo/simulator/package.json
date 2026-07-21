@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node ./src/index.mjs"
+    "start": "node ./src/index.mjs",
+    "cli": "npx @backtest-kit/cli@latest --simulator ./assets/ts-ideas.normalized.jsonl --verbose --json"
   },
   "dependencies": {
     "backtest-kit": "16.4.0",
