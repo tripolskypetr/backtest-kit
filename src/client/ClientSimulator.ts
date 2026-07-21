@@ -21,6 +21,7 @@ import { intervalStart } from "../utils/intervalStart";
 import { GLOBAL_CONFIG } from "../config/params";
 
 const MINUTE_MS = 60 * 1_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
 
 /**
  * Horizon trim per idea, days. Every idea gets its own forward
@@ -358,13 +359,26 @@ const SIMULATE_TRADE_FN = (
  * skipped, entry requires minIdeasAligned unbanned aligned authors.
  * The trained author filter is preprocessing and is always applied.
  *
+ * Sharpe/Sortino are TIME-BASED: computed over daily equity
+ * increments across the whole simulated range (idle days included,
+ * realized PnL booked on the exit day). The bucket window is
+ * identical for every grid point, so the ratios are comparable and
+ * dead holding time is penalized: the same total PnL concentrated in
+ * rare chunky exits yields a higher daily variance — and a lower
+ * ratio — than PnL spread over frequent short trades. Capital frozen
+ * in a stale position is no longer free.
+ *
  * @param profiles - Profiles sorted by entry timestamp
  * @param point - Grid point to evaluate
+ * @param rangeStartTs - Start of the shared daily bucket window
+ * @param rangeDays - Number of daily buckets in the shared window
  * @returns Aggregated report and the trade list
  */
 const EVALUATE_POINT_FN = (
   profiles: ISimulatorIdeaProfile[],
   point: ISimulatorGridPoint,
+  rangeStartTs: number,
+  rangeDays: number,
 ): { report: ISimulatorPointReport; trades: ISimulatorTrade[] } => {
   const trades: ISimulatorTrade[] = [];
   const exitReasons: Record<SimulatorExitReason, number> = {
@@ -415,28 +429,51 @@ const EVALUATE_POINT_FN = (
       equityPeak - equity,
     );
   }
-  const mean = trades.length ? totalPnlPercent / trades.length : 0;
-  const variance = trades.length
-    ? trades.reduce(
-        (acc, { pnlPercent }) => acc + (pnlPercent - mean) ** 2,
-        0,
-      ) / trades.length
+  // суточная сетка приращений equity, общая для всех точек:
+  // pnl сделки бронируется в день выхода, дни ожидания = 0
+  const daily = new Array<number>(Math.max(rangeDays, 0)).fill(0);
+  for (const trade of trades) {
+    const bucket = Math.min(
+      daily.length - 1,
+      Math.max(0, Math.floor((trade.exitTimestamp - rangeStartTs) / DAY_MS)),
+    );
+    if (bucket >= 0 && bucket < daily.length) {
+      daily[bucket] += trade.pnlPercent;
+    }
+  }
+  const dayCount = daily.length;
+  const meanDaily = dayCount ? totalPnlPercent / dayCount : 0;
+  const varianceDaily = dayCount
+    ? daily.reduce((acc, value) => acc + (value - meanDaily) ** 2, 0) /
+      dayCount
     : 0;
-  const std = Math.sqrt(variance);
-  const sharpe = std > 0 ? (mean / std) * Math.sqrt(trades.length) : 0;
-  const downsideVariance = trades.length
-    ? trades.reduce(
-        (acc, { pnlPercent }) => acc + Math.min(pnlPercent, 0) ** 2,
-        0,
-      ) / trades.length
+  const stdDaily = Math.sqrt(varianceDaily);
+  const sharpe =
+    stdDaily > 0 ? (meanDaily / stdDaily) * Math.sqrt(dayCount) : 0;
+  const downsideVarianceDaily = dayCount
+    ? daily.reduce((acc, value) => acc + Math.min(value, 0) ** 2, 0) /
+      dayCount
     : 0;
-  const downsideDev = Math.sqrt(downsideVariance);
+  const downsideDevDaily = Math.sqrt(downsideVarianceDaily);
   const sortino =
-    downsideDev > 0
-      ? (mean / downsideDev) * Math.sqrt(trades.length)
-      : mean > 0
+    downsideDevDaily > 0
+      ? (meanDaily / downsideDevDaily) * Math.sqrt(dayCount)
+      : meanDaily > 0
         ? SORTINO_NO_LOSSES
         : 0;
+
+  // распределение времени удержания: вечный холд виден сразу по
+  // хвостовым перцентилям, не по среднему
+  const holds = trades
+    .map(({ holdMinutesActual }) => holdMinutesActual)
+    .sort((a, b) => a - b);
+  const holdPercentile = (percent: number): number =>
+    holds.length
+      ? holds[Math.min(holds.length - 1, Math.floor((percent / 100) * holds.length))]
+      : 0;
+  const avgHoldMinutes = holds.length
+    ? holds.reduce((acc, value) => acc + value, 0) / holds.length
+    : 0;
 
   return {
     report: {
@@ -444,10 +481,13 @@ const EVALUATE_POINT_FN = (
       trades: trades.length,
       skippedBusy,
       totalPnlPercent,
-      avgPnlPercent: mean,
+      avgPnlPercent: trades.length ? totalPnlPercent / trades.length : 0,
       winRate: trades.length ? wins / trades.length : 0,
       profitFactor: grossLoss > 0 ? grossProfit / grossLoss : Infinity,
       maxSeriesDrawdownPercent,
+      avgHoldMinutes,
+      p95HoldMinutes: holdPercentile(95),
+      p99HoldMinutes: holdPercentile(99),
       sharpe,
       sortino,
       exitReasons,
@@ -563,11 +603,27 @@ const RUN_FN = async (
     self.params.callbacks.onAuthorsTrained(symbol, authorStats, bannedIdeas);
   }
 
+  // общее окно суточных корзин для time-based Sharpe/Sortino:
+  // от первого входа до последнего известного исхода, одинаково
+  // для всех точек сетки — метрики сравнимы между точками
+  const rangeStartTs = profiles.length
+    ? Math.min(...profiles.map(({ entryTimestamp }) => entryTimestamp))
+    : 0;
+  const rangeEndTs = profiles.length
+    ? Math.max(...profiles.map(({ outcomeKnownAt }) => outcomeKnownAt))
+    : 0;
+  const rangeDays = Math.max(1, Math.ceil((rangeEndTs - rangeStartTs) / DAY_MS));
+
   const points = BUILD_GRID_FN(self.params.gridAxes);
   const reports: ISimulatorPointReport[] = [];
   const tradesByReport = new Map<ISimulatorPointReport, ISimulatorTrade[]>();
   for (const point of points) {
-    const { report, trades } = EVALUATE_POINT_FN(profiles, point);
+    const { report, trades } = EVALUATE_POINT_FN(
+      profiles,
+      point,
+      rangeStartTs,
+      rangeDays,
+    );
     ASSERT_TRADE_INVARIANTS_FN(trades, point);
     reports.push(report);
     tradesByReport.set(report, trades);

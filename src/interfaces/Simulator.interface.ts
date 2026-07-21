@@ -139,9 +139,23 @@ export interface ISimulatorPointReport {
   profitFactor: number;
   /** Maximum drawdown of the cumulative trade PnL curve, percent. */
   maxSeriesDrawdownPercent: number;
-  /** Monthly Sharpe of the trade series: mean/std * sqrt(n). */
+  /** Mean holding time per trade, minutes. */
+  avgHoldMinutes: number;
+  /** 95th percentile of holding time, minutes — spots eternal holds. */
+  p95HoldMinutes: number;
+  /** 99th percentile of holding time, minutes — spots eternal holds. */
+  p99HoldMinutes: number;
+  /**
+   * Time-based Sharpe: mean/std * sqrt(days) over DAILY equity
+   * increments of the whole simulated range (idle days included,
+   * realized PnL booked on the exit day). Penalizes dead holding
+   * time — frozen capital is not free.
+   */
   sharpe: number;
-  /** Monthly Sortino: mean/downsideDev * sqrt(n); 999 when no losses. */
+  /**
+   * Time-based Sortino: like sharpe but deviation is computed over
+   * negative daily increments only; 999 when no losing days.
+   */
   sortino: number;
   /** Trade counts per exit reason. */
   exitReasons: Record<SimulatorExitReason, number>;
