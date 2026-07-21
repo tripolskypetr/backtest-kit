@@ -57,6 +57,18 @@ const SLIPPAGE_PERCENT = 0.05;
 /** Минимум сделок, чтобы комбинация могла стать лидером (анти-флюк). */
 const MIN_TRADES_FOR_BEST = 8;
 
+/**
+ * Фильтр рандомных авторов — обучаемый артефакт (train = весь месяц,
+ * заглядывание вперёд ВНУТРИ train допустимо и намеренно):
+ * автор банится, если за месяц у него >= AUTHOR_MIN_TRACK идей
+ * и доля правых < AUTHOR_MIN_HITRATE. Результат обучения — список
+ * allowed/banned авторов в отчёте; проверка честности — только
+ * out-of-sample (июль), не June-метрики.
+ * Правота идеи = знак 5-дневного возврата в её сторону.
+ */
+const AUTHOR_MIN_TRACK = 3;
+const AUTHOR_MIN_HITRATE = 0.5;
+
 const MINUTE_MS = 60 * 1_000;
 const CHUNK_MINUTES = 1_000;
 const EXCHANGE_NAME = "ccxt-exchange";
@@ -70,6 +82,7 @@ const GRID_AXES = {
   trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4, 100],
   holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60, IDEA_TRIM_MINUTES],
   minAligned: [1, 2, 3],
+  authorFilter: [false, true],
 };
 
 // ---------------------------------------------------------------- типы
@@ -105,6 +118,8 @@ export interface SweepPoint {
   trailingTakePercent: number;
   holdMinutes: number;
   minAligned: number;
+  /** Исключать рандомных авторов из триггера и подсчёта голосов. */
+  authorFilter: boolean;
 }
 
 export type SweepExitReason =
@@ -151,6 +166,14 @@ interface IdeaProfile {
   candles: ICandleData[];
   /** Уникальных однонаправленных авторов на минуте входа (вкл. себя). */
   alignedAtEntry: number;
+  /** То же, но только по авторам из allowed-списка. */
+  alignedAtEntryFiltered: number;
+  /** Автор идеи в бан-листе (обучен по всему месяцу). */
+  authorRandomAtEntry: boolean;
+  /** Правота идеи: 5-дневный возврат в её сторону положителен. */
+  hit: boolean;
+  /** Момент, когда исход идеи становится известен (конец горизонта). */
+  outcomeKnownAt: number;
   /** Горизонт обрезан концом данных, а не IDEA_TRIM_DAYS. */
   truncated: boolean;
   // --- диагностика (для выбора осей и отчёта, не для оценки сетки)
@@ -291,6 +314,7 @@ const countAlignedAuthors = (
   ideas: IIdea[],
   direction: "LONG" | "SHORT",
   ts: number,
+  allowAuthor: (author: string, ts: number) => boolean = () => true,
 ): number => {
   const authors = new Set<string>();
   const from = ts - ALIGNED_LOOKBACK_MINUTES * MINUTE_MS;
@@ -300,6 +324,9 @@ const countAlignedAuthors = (
     }
     const ideaTs = alignToMinute(idea.ts) + MINUTE_MS;
     if (ideaTs > ts || ideaTs <= from) {
+      continue;
+    }
+    if (!allowAuthor(idea.author, ts)) {
       continue;
     }
     authors.add(idea.author);
@@ -346,6 +373,7 @@ const buildProfile = async (
     }
   }
 
+  const lastClose = candles[candles.length - 1].close;
   return {
     idea,
     entryTimestamp,
@@ -356,6 +384,11 @@ const buildProfile = async (
       idea.direction as "LONG" | "SHORT",
       entryTimestamp,
     ),
+    // заполняются вторым проходом, когда известны исходы всех авторов
+    alignedAtEntryFiltered: 0,
+    authorRandomAtEntry: false,
+    hit: direction * (lastClose - entryPrice) > 0,
+    outcomeKnownAt: entryTimestamp + candles.length * MINUTE_MS,
     truncated: candles.length < IDEA_TRIM_MINUTES,
     maxMfePercent,
     maxMaePercent,
@@ -363,6 +396,57 @@ const buildProfile = async (
     minutesToMae,
     shakeoutMaePercent,
   };
+};
+
+export interface AuthorStat {
+  author: string;
+  ideas: number;
+  hits: number;
+  hitRate: number;
+  banned: boolean;
+}
+
+/**
+ * Обучение фильтра авторов по всему train-месяцу (lookahead внутри
+ * train намеренный): hit-rate автора по всем его идеям, бан при
+ * достаточной выборке и правоте хуже монетки. Возвращает статистику
+ * для отчёта — allowed/banned список и есть результат обучения.
+ */
+const trainAuthorFilter = (
+  profiles: IdeaProfile[],
+  ideas: IIdea[],
+): AuthorStat[] => {
+  const byAuthor = new Map<string, { ideas: number; hits: number }>();
+  for (const profile of profiles) {
+    const stat = byAuthor.get(profile.idea.author) ?? { ideas: 0, hits: 0 };
+    stat.ideas += 1;
+    if (profile.hit) {
+      stat.hits += 1;
+    }
+    byAuthor.set(profile.idea.author, stat);
+  }
+  const stats: AuthorStat[] = [...byAuthor].map(([author, stat]) => ({
+    author,
+    ideas: stat.ideas,
+    hits: stat.hits,
+    hitRate: stat.hits / stat.ideas,
+    banned:
+      stat.ideas >= AUTHOR_MIN_TRACK &&
+      stat.hits / stat.ideas < AUTHOR_MIN_HITRATE,
+  }));
+  const banned = new Set(
+    stats.filter(({ banned }) => banned).map(({ author }) => author),
+  );
+  for (const profile of profiles) {
+    profile.authorRandomAtEntry = banned.has(profile.idea.author);
+    profile.alignedAtEntryFiltered = countAlignedAuthors(
+      ideas,
+      profile.idea.direction as "LONG" | "SHORT",
+      profile.entryTimestamp,
+      (author) => !banned.has(author),
+    );
+  }
+  return stats.sort((a, b) => b.ideas - a.ideas);
 };
 
 // ---------------------------------------------------------------- оценка
@@ -466,7 +550,13 @@ const evaluatePoint = (
   let busyUntil = -Infinity;
 
   for (const profile of profiles) {
-    if (profile.alignedAtEntry < point.minAligned) {
+    if (point.authorFilter && profile.authorRandomAtEntry) {
+      continue;
+    }
+    const aligned = point.authorFilter
+      ? profile.alignedAtEntryFiltered
+      : profile.alignedAtEntry;
+    if (aligned < point.minAligned) {
       continue;
     }
     if (profile.entryTimestamp < busyUntil) {
@@ -598,6 +688,16 @@ const main = async () => {
     );
   }
 
+  const authorStats = trainAuthorFilter(profiles, ideas);
+  const bannedStats = authorStats.filter(({ banned }) => banned);
+  const bannedIdeas = profiles.filter(
+    ({ authorRandomAtEntry }) => authorRandomAtEntry,
+  ).length;
+  console.log(
+    `[sweep] фильтр авторов: забанено ${bannedStats.length}/${authorStats.length} авторов ` +
+      `(${bannedIdeas}/${profiles.length} идей)`,
+  );
+
   // диагностика распределений — по ней видно осмысленность осей сетки
   const mfes = profiles.map(({ maxMfePercent }) => maxMfePercent).sort((a, b) => a - b);
   const maes = profiles.map(({ maxMaePercent }) => maxMaePercent).sort((a, b) => a - b);
@@ -622,12 +722,15 @@ const main = async () => {
     (hardStopPercent) =>
       GRID_AXES.trailingTakePercent.flatMap((trailingTakePercent) =>
         GRID_AXES.holdMinutes.flatMap((holdMinutes) =>
-          GRID_AXES.minAligned.map((minAligned) => ({
-            hardStopPercent,
-            trailingTakePercent,
-            holdMinutes,
-            minAligned,
-          })),
+          GRID_AXES.minAligned.flatMap((minAligned) =>
+            GRID_AXES.authorFilter.map((authorFilter) => ({
+              hardStopPercent,
+              trailingTakePercent,
+              holdMinutes,
+              minAligned,
+              authorFilter,
+            })),
+          ),
         ),
       ),
   );
@@ -645,7 +748,8 @@ const main = async () => {
     const { point } = report;
     return (
       `H=${point.hardStopPercent} TT=${point.trailingTakePercent} ` +
-      `hold=${point.holdMinutes / 60}h N=${point.minAligned} | ` +
+      `hold=${point.holdMinutes / 60}h N=${point.minAligned} ` +
+      `AF=${point.authorFilter ? 1 : 0} | ` +
       `trades=${report.trades} skip=${report.skippedBusy} ` +
       `sharpe=${report.sharpe.toFixed(2)} ` +
       `pnl=${report.totalPnlPercent.toFixed(2)}% ` +
@@ -705,6 +809,12 @@ const main = async () => {
         profileCount: profiles.length,
         gapsFilled: feed.gapsFilled,
         truncatedCount,
+        // результат обучения фильтра авторов: применять в проде/OOS
+        allowedAuthors: authorStats
+          .filter(({ banned }) => !banned)
+          .map(({ author }) => author),
+        bannedAuthors: bannedStats.map(({ author }) => author),
+        authorStats,
         best: best ?? null,
         bestTrades: best ? (tradesByPoint.get(best) ?? []) : [],
         robust: robust ?? null,
