@@ -35,9 +35,11 @@ const IDEA_TRIM_MINUTES = IDEA_TRIM_DAYS * 24 * 60;
 const ALIGNED_LOOKBACK_MINUTES = 4 * 60;
 
 /**
- * Author ban thresholds (trained artifact, train = whole range):
- * an author is banned when he has at least AUTHOR_MIN_TRACK ideas
- * and a hit rate below AUTHOR_MIN_HITRATE (worse than a coin).
+ * Author ban thresholds (trained artifact, train = whole range).
+ * Ban is the DEFAULT: an author is allowed only when his correctness
+ * is unambiguously proven — at least AUTHOR_MIN_TRACK ideas with a
+ * known outcome and a hit rate of AUTHOR_MIN_HITRATE or better.
+ * Not enough evidence (few ideas, truncated horizons) -> banned.
  */
 const AUTHOR_MIN_TRACK = 3;
 const AUTHOR_MIN_HITRATE = 0.5;
@@ -212,6 +214,10 @@ const BUILD_PROFILE_FN = async (
  * validation, not by causality inside the train range) and fills the
  * ban-dependent profile fields.
  *
+ * Ban is the default: when the author's correctness cannot be proven
+ * unambiguously, he is banned. Only ideas with a fully observed
+ * horizon count as evidence — truncated profiles prove nothing.
+ *
  * @param profiles - Profiles of all directional ideas
  * @param ideas - All ideas of the symbol
  * @returns Per-author stats sorted by idea count (the trained artifact)
@@ -223,9 +229,11 @@ const TRAIN_AUTHOR_FILTER_FN = (
   const byAuthor = new Map<string, { ideas: number; hits: number }>();
   for (const profile of profiles) {
     const stat = byAuthor.get(profile.idea.author) ?? { ideas: 0, hits: 0 };
-    stat.ideas += 1;
-    if (profile.hit) {
-      stat.hits += 1;
+    if (!profile.truncated) {
+      stat.ideas += 1;
+      if (profile.hit) {
+        stat.hits += 1;
+      }
     }
     byAuthor.set(profile.idea.author, stat);
   }
@@ -233,9 +241,9 @@ const TRAIN_AUTHOR_FILTER_FN = (
     author,
     ideas: stat.ideas,
     hits: stat.hits,
-    hitRate: stat.hits / stat.ideas,
+    hitRate: stat.ideas ? stat.hits / stat.ideas : 0,
     banned:
-      stat.ideas >= AUTHOR_MIN_TRACK &&
+      stat.ideas < AUTHOR_MIN_TRACK ||
       stat.hits / stat.ideas < AUTHOR_MIN_HITRATE,
   }));
   const banned = new Set(

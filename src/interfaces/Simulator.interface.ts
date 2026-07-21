@@ -149,17 +149,23 @@ export interface ISimulatorPointReport {
 
 /**
  * Trained per-author track record (train = the whole simulated range).
+ * Ban is the default: an author is allowed only when his correctness
+ * is unambiguously proven by enough fully observed ideas.
  */
 export interface ISimulatorAuthorStat {
   /** Author login on the source platform. */
   author: string;
-  /** Number of directional ideas the author published in the range. */
+  /** Directional ideas with a KNOWN outcome (truncated ones excluded). */
   ideas: number;
   /** Number of correct ideas (horizon return in idea direction > 0). */
   hits: number;
-  /** hits / ideas, 0..1. */
+  /** hits / ideas, 0..1; zero when the author has no known outcomes. */
   hitRate: number;
-  /** Author is banned: enough ideas and a hit rate worse than a coin. */
+  /**
+   * Author is banned. True when the track is too short to judge
+   * (fewer known-outcome ideas than the minimum) OR the hit rate is
+   * worse than the threshold. Unproven correctness = banned.
+   */
   banned: boolean;
 }
 
