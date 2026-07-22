@@ -23,6 +23,7 @@ import "./sim/weighted_consensus.test.mjs";
 import "./sim/out_of_sample.test.mjs";
 import "./sim/profit_lock.test.mjs";
 import "./sim/author_metric.test.mjs";
+import "./sim/author_metric_edges.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");
