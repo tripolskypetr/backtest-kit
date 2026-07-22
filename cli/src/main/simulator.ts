@@ -185,6 +185,7 @@ export const main = async () => {
       minWeightAligned: [0, 0.6, 1.2],
       profitLockPercent: [0, 1.5, 2.5],
       authorMetric: ["close", "reach"],
+      banCriteria: ["sharpe", "pnl"],
     },
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {

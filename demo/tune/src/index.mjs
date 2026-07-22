@@ -44,6 +44,7 @@ addSimulatorSchema({
         minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1.5, 2.5],
         authorMetric: ["close"],
+        banCriteria: ["sharpe"],
     }
 });
 
