@@ -84,6 +84,7 @@ test("SIM: jsonl feed end-to-end — eternal hold loses to normal entries", asyn
       minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
+      minWeightAligned: [0],
     },
     callbacks: {},
   });

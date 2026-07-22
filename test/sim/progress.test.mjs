@@ -44,6 +44,7 @@ test("SIM: onProgress streams both stages; foreign symbols and NEUTRAL are filte
       minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
+      minWeightAligned: [0],
     },
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {

@@ -10,18 +10,30 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
  * Grid axes applied per-axis when the schema omits them (schema
  * gridAxes are merged over these defaults, so a schema may override
  * only the axes it cares about). Values are trading parameters, not
- * sentinels: hold durations are bounded (no "hold forever" option),
- * stop/trailing levels are realistic. Author ban thresholds are axes
- * too — the ban rule is searched, not hardcoded.
+ * sentinels, and every rule dimension is actually SWEPT by default —
+ * no axis is a degenerate single value that silently disables its
+ * mechanism.
+ *
+ * Chosen from the empirical evidence of the reference runs:
+ * - stops below ~2% sit inside the median whale shakeout (p25 of
+ *   MAE-before-peak ≈ -2.7%) and kill future winners at entry;
+ * - 0.5% trailing is 1m-noise level and never won a ranking;
+ * - 72h/120h holds won nearly every ranking on real data, 24h was
+ *   systematically too short for peaks that ripen for days;
+ * - author QUALITY threshold (hit rate) mattered more than track
+ *   length on every criterion — both are swept;
+ * - weighted consensus: 0 keeps the unweighted baseline in the
+ *   sweep, 0.6 ~ a solo proven author (Laplace (hits+1)/(ideas+2)),
+ *   1.2 ~ a pair — the sweep itself decides whether weighting helps.
  */
 const DEFAULT_GRID_AXES = {
-  hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
-  trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
-  holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-  minIdeasAligned: [1, 2, 3],
-  minAuthorTrack: [3],
-  minAuthorHitRate: [0.5],
-  minWeightAligned: [0],
+  hardStopPercent: [2, 3, 5, 7],
+  trailingTakePercent: [1, 1.5, 2, 3, 4],
+  holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60, 5 * 24 * 60],
+  minIdeasAligned: [1, 2],
+  minAuthorTrack: [3, 5],
+  minAuthorHitRate: [0.5, 0.6],
+  minWeightAligned: [0, 0.6, 1.2],
 };
 
 /**

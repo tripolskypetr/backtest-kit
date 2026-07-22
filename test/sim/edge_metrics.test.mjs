@@ -62,6 +62,7 @@ test("SIM: profitable series with no losing day yields the Sortino sentinel 999"
       minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
+      minWeightAligned: [0],
     },
     callbacks: {},
   });
@@ -120,6 +121,7 @@ test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictl
       minIdeasAligned: [1],
       minAuthorTrack: [4],
       minAuthorHitRate: [0.5],
+      minWeightAligned: [0],
     },
     callbacks: {},
   });

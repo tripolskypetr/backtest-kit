@@ -36,6 +36,7 @@ const PERMISSIVE_FILTER = {
   minIdeasAligned: [1],
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
+  minWeightAligned: [0],
 };
 
 const singleIdea = () => [

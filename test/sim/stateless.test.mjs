@@ -54,6 +54,7 @@ test("SIM: repeated run on the memoized client is bit-for-bit identical", async 
       minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
+      minWeightAligned: [0],
     },
     callbacks: {},
   });
