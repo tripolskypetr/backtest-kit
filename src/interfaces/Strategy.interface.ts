@@ -10,6 +10,8 @@ import { ActionName } from "./Action.interface";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { OrderSyncContract } from "../contract/OrderSync.contract";
 import { OrderCheckContract } from "../contract/OrderCheck.contract";
+import { OrderContinueContract } from "../contract/OrderContinue.contract";
+import { OrderStopContract } from "../contract/OrderStop.contract";
 import type { IBrokerOrderVerdict } from "./Broker.interface";
 
 /**
@@ -693,6 +695,29 @@ export interface IStrategyParams extends IStrategySchema {
    * false → transient).
    */
   onOrderCheck: (event: OrderCheckContract) => Promise<IBrokerOrderVerdict | boolean> | IBrokerOrderVerdict | boolean;
+  /**
+   * System callback for the post-verdict order-check CONTINUE decision (emits to
+   * orderContinueSubject). Fired on every live tick when the check resolved
+   * NON-terminally — confirmed (attempt 0) or tolerated transient failure
+   * (attempt > 0) — and monitoring continues. Notification-only: the caller
+   * swallows listener exceptions, they never affect the monitoring decision.
+   */
+  onOrderContinue: (event: OrderContinueContract) => Promise<void>;
+  /**
+   * System callback for the post-verdict order-check STOP decision (emits to
+   * orderStopSubject). Fired exactly once per monitored signal when the check
+   * resolved TERMINALLY — "deleted" (OrderDeletedError) or "exhausted" (spent
+   * transient tolerance) — right before the teardown (close "closed" for active /
+   * cancel "user" for schedule). Notification-only: listener exceptions are
+   * swallowed by the caller and never affect the terminal decision.
+   */
+  onOrderStop: (event: OrderStopContract) => Promise<void>;
+  /**
+   * System callback for backtest scheduled-signal activations (emits to
+   * backtestScheduleOpenSubject). Fired when a scheduled signal activates inside
+   * the backtest candle loop, carrying the "opened" tick result. Notification-only.
+   */
+  onBacktestScheduleOpen: (event: IStrategyTickResultOpened) => Promise<void>;
   /** System callback for highest profit updates (emits to highestProfitSubject) */
   onHighestProfit: (signal: IPublicSignalRow, currentPrice: number, timestamp: number) => Promise<void> | void;
   /** System callback for max drawdown updates (emits to maxDrawdownSubject) */

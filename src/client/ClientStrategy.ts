@@ -39,7 +39,7 @@ import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/ge
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, PersistStrategyAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
-import { errorEmitter, exitEmitter, backtestScheduleOpenSubject, orderContinueSubject, orderStopSubject } from "../config/emitters";
+import { errorEmitter, exitEmitter } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
@@ -568,8 +568,9 @@ const CALL_SCHEDULED_ORDER_CHECK_FN = trycatch(
 );
 
 /**
- * Emits the post-verdict order-check CONTINUE event (orderContinueSubject): the
- * check resolved NON-terminally — confirmed (attempt 0) or tolerated transient
+ * Emits the post-verdict order-check CONTINUE event via params.onOrderContinue
+ * (StrategyConnectionService forwards it to orderContinueSubject): the check
+ * resolved NON-terminally — confirmed (attempt 0) or tolerated transient
  * failure (attempt > 0) — and monitoring continues. Called from the live tick
  * right after the decision, for both monitored states (type "active"/"schedule").
  * Notification-only: the trycatch fallback swallows a throwing listener so it
@@ -584,7 +585,7 @@ const CALL_ORDER_CONTINUE_EMIT_FN = trycatch(
     timestamp: number
   ): Promise<void> => {
     const publicSignal = TO_PUBLIC_SIGNAL(type === "active" ? "pending" : "scheduled", signal, currentPrice);
-    await orderContinueSubject.next({
+    await self.params.onOrderContinue({
       type,
       symbol: self.params.execution.context.symbol,
       strategyName: self.params.strategyName,
@@ -627,7 +628,8 @@ const CALL_ORDER_CONTINUE_EMIT_FN = trycatch(
 );
 
 /**
- * Emits the post-verdict order-check STOP event (orderStopSubject): the check
+ * Emits the post-verdict order-check STOP event via params.onOrderStop
+ * (StrategyConnectionService forwards it to orderStopSubject): the check
  * resolved TERMINALLY — OrderDeletedError ("deleted") or spent transient
  * tolerance ("exhausted") — right before the teardown (close "closed" for
  * "active" / cancel "user" for "schedule"). Called with the final failure
@@ -644,7 +646,7 @@ const CALL_ORDER_STOP_EMIT_FN = trycatch(
     timestamp: number
   ): Promise<void> => {
     const publicSignal = TO_PUBLIC_SIGNAL(type === "active" ? "pending" : "scheduled", signal, currentPrice);
-    await orderStopSubject.next({
+    await self.params.onOrderStop({
       type,
       reason,
       symbol: self.params.execution.context.symbol,
@@ -3866,7 +3868,9 @@ const CALL_BACKTEST_SCHEDULE_OPEN_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      backtestScheduleOpenSubject.next({
+      // Forwarded via params.onBacktestScheduleOpen — StrategyConnectionService
+      // emits it to backtestScheduleOpenSubject (mirrors the onOrder* callbacks)
+      await self.params.onBacktestScheduleOpen({
         action: "opened",
         signal: TO_PUBLIC_SIGNAL("pending", signal, signal.priceOpen),
         strategyName: self.params.method.context.strategyName,

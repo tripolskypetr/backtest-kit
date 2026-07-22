@@ -21,6 +21,7 @@ import {
   ISignalDto,
   StrategyCancelReason,
   StrategyCloseReason,
+  IStrategyTickResultOpened,
 } from "../../../interfaces/Strategy.interface";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
@@ -38,6 +39,9 @@ import {
   syncPendingSubject,
   orderFillSubject,
   orderRejectSubject,
+  orderContinueSubject,
+  orderStopSubject,
+  backtestScheduleOpenSubject,
   highestProfitSubject,
   maxDrawdownSubject,
   pauseSubject,
@@ -57,6 +61,8 @@ import OrderSyncContract from "../../../contract/OrderSync.contract";
 import OrderFillContract from "../../../contract/OrderFill.contract";
 import OrderRejectContract from "../../../contract/OrderReject.contract";
 import OrderCheckContract from "../../../contract/OrderCheck.contract";
+import OrderContinueContract from "../../../contract/OrderContinue.contract";
+import OrderStopContract from "../../../contract/OrderStop.contract";
 import OrderRejectedError from "../../../error/OrderRejectedError";
 import OrderDeletedError from "../../../error/OrderDeletedError";
 import { BROKER_ORDER_VERDICT, type IBrokerOrderVerdict } from "../../../interfaces/Broker.interface";
@@ -911,6 +917,95 @@ const CREATE_PAUSE_FN = (self: StrategyConnectionService, strategyName: Strategy
 );
 
 /**
+ * Creates a callback function forwarding the post-verdict order-check CONTINUE
+ * decision to orderContinueSubject. Called by ClientStrategy on every live tick
+ * when the check resolved NON-terminally (confirmed / tolerated transient failure).
+ * The event already carries the full identity (symbol/strategy/exchange/frame),
+ * built by ClientStrategy — forwarded as-is, mirroring CREATE_COMMIT_FN.
+ * Notification-only channel: a throwing listener is swallowed here and can never
+ * affect the already-made monitoring decision.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for order-check CONTINUE events
+ */
+const CREATE_ORDER_CONTINUE_FN = (self: StrategyConnectionService) => trycatch(
+  async (event: OrderContinueContract) => {
+    await orderContinueSubject.next(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_ORDER_CONTINUE_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
+ * Creates a callback function forwarding the post-verdict order-check STOP
+ * decision to orderStopSubject. Called by ClientStrategy exactly once per
+ * monitored signal when the check resolved TERMINALLY ("deleted" / "exhausted"),
+ * right before the teardown. Forwarded as-is (identity already in the event).
+ * Notification-only channel: a throwing listener is swallowed here and can never
+ * affect the terminal decision.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for order-check STOP events
+ */
+const CREATE_ORDER_STOP_FN = (self: StrategyConnectionService) => trycatch(
+  async (event: OrderStopContract) => {
+    await orderStopSubject.next(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_ORDER_STOP_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
+ * Creates a callback function forwarding backtest scheduled-signal activations
+ * to backtestScheduleOpenSubject. Called by ClientStrategy when a scheduled
+ * signal activates inside the backtest candle loop, carrying the "opened" tick
+ * result. Notification-only channel: a throwing listener is swallowed here.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for backtest schedule-open events
+ */
+const CREATE_BACKTEST_SCHEDULE_OPEN_FN = (self: StrategyConnectionService) => trycatch(
+  async (event: IStrategyTickResultOpened) => {
+    await backtestScheduleOpenSubject.next(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_BACKTEST_SCHEDULE_OPEN_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting dispose events.
  *
  * Called by ClientStrategy when it is being disposed.
@@ -1060,6 +1155,9 @@ export class StrategyConnectionService implements TStrategy {
         onCommit: CREATE_COMMIT_FN(this),
         onOrderSync: CREATE_SYNC_FN(this, strategyName, exchangeName, frameName, backtest),
         onOrderCheck: CREATE_SYNC_PENDING_FN(this, strategyName, exchangeName, frameName, backtest),
+        onOrderContinue: CREATE_ORDER_CONTINUE_FN(this),
+        onOrderStop: CREATE_ORDER_STOP_FN(this),
+        onBacktestScheduleOpen: CREATE_BACKTEST_SCHEDULE_OPEN_FN(this),
         onHighestProfit: CREATE_HIGHEST_PROFIT_FN(this, strategyName, exchangeName, frameName, backtest),
         onMaxDrawdown: CREATE_MAX_DRAWDOWN_FN(this, strategyName, exchangeName, frameName, backtest),
         onPause: CREATE_PAUSE_FN(this, strategyName, exchangeName, frameName, backtest),
