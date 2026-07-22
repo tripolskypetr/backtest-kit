@@ -31,6 +31,12 @@ import "./sim/reach_stop_dependence.test.mjs";
 import "./sim/weighted_reach.test.mjs";
 import "./sim/oos_reach.test.mjs";
 import "./sim/best_fallback.test.mjs";
+import "./sim/callbacks_done.test.mjs";
+import "./sim/input_normalization.test.mjs";
+import "./sim/hold_beyond_horizon.test.mjs";
+import "./sim/aligned_window_boundary.test.mjs";
+import "./sim/weight_sum_pair.test.mjs";
+import "./sim/entity_lifecycle.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");
