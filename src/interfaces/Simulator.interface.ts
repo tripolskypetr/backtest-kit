@@ -125,7 +125,11 @@ export interface ISimulatorGridAxes {
    * NOT a swept axis — run() aggregation config: ranking criteria
    * whose winners feed the run-level author artifact
    * (allowedAuthors = union of their whitelists, bannedAuthors =
-   * banned by every one of them). Backward compatibility knob:
+   * banned by every one of them). A winner elected by a NON-FINITE
+   * ranking value (Infinity sortino/recovery on a drawdown-free
+   * curve — a grid-order representative of a tie class, not a
+   * merit pick) never contributes to allowed: its authors join the
+   * pool and stay banned by default. Backward compatibility knob:
    * ["sharpe"] makes the run-level lists exactly the Sharpe
    * winner's artifact — the pre-union behavior. Per-winner
    * artifacts in best[] are always complete regardless of this

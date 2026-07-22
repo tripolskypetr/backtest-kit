@@ -1117,6 +1117,9 @@ const RUN_FN = async (
   // схема с banCriteria ["sharpe"] получает прежний артефакт ровно по
   // Sharpe-победителю. Полная разбивка — в best[].authorStats
   const banCriteria = new Set(self.params.gridAxes.banCriteria);
+  const valueByCriterion = new Map(
+    rankings.map(({ criterion, value }) => [criterion, value]),
+  );
   const allowedUnion = new Set<string>();
   const everyAuthor = new Set<string>();
   for (const bestEntry of best) {
@@ -1125,6 +1128,17 @@ const RUN_FN = async (
     }
     for (const { author } of bestEntry.authorStats) {
       everyAuthor.add(author);
+    }
+    // победитель с нефинитным значением рейтинга (Infinity у
+    // sortino/recovery на кривой без просадки, NaN) — представитель
+    // класса ничьих, выбранный порядком сетки, а не превосходством.
+    // Хуй-пойми-какое число — не основание раздавать допуски: его
+    // авторы учтены в пуле (дефолт-бан), но белый список не входит
+    const value = bestEntry.report
+      ? valueByCriterion.get(bestEntry.criterion)!(bestEntry.report)
+      : Number.NaN;
+    if (!Number.isFinite(value)) {
+      continue;
     }
     for (const author of bestEntry.allowedAuthors) {
       allowedUnion.add(author);

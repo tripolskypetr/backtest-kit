@@ -90,6 +90,11 @@ test("SIM: banCriteria gates the run-level author artifact — sharpe-only vs un
     exchangeName: "sim-bancrit-exchange",
     gridAxes: { ...AXES, banCriteria: ["sharpe", "pnl"] },
   });
+  addSimulatorSchema({
+    simulatorName: "sim_bancrit_infinity",
+    exchangeName: "sim-bancrit-exchange",
+    gridAxes: { ...AXES, banCriteria: ["recovery"] },
+  });
 
   const runSharpe = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_bancrit_sharpe", ideas: IDEAS });
 
@@ -133,9 +138,32 @@ test("SIM: banCriteria gates the run-level author artifact — sharpe-only vs un
     return;
   }
 
+  // 3) Infinity-гард: recovery-победитель здесь — STRICT без единого
+  // минуса (dd 0 -> recoveryFactor = Infinity, победа порядком ничьих).
+  // Хуй-пойми-какое число — не основание раздавать допуски: allowed
+  // пуст, а авторы пула остаются в бане по умолчанию
+  const bestRecovery = runSharpe.best.find(({ criterion }) => criterion === "recovery");
+  if (bestRecovery.report.maxSeriesDrawdownPercent !== 0 || Number.isFinite(bestRecovery.report.recoveryFactor)) {
+    fail(
+      `precondition: recovery winner must be the drawdown-free Infinity point, got dd=${bestRecovery.report.maxSeriesDrawdownPercent} ` +
+      `recovery=${bestRecovery.report.recoveryFactor}`
+    );
+    return;
+  }
+  const runInfinity = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_bancrit_infinity", ideas: IDEAS });
+  if (runInfinity.allowedAuthors.length !== 0) {
+    fail(`Infinity winner must grant NO allowances, got ${JSON.stringify(runInfinity.allowedAuthors)}`);
+    return;
+  }
+  const bannedByDefault = [...runInfinity.bannedAuthors].sort();
+  if (JSON.stringify(bannedByDefault) !== JSON.stringify(["coin", "prophet"])) {
+    fail(`Infinity winner's author pool must stay banned by default, got ${JSON.stringify(bannedByDefault)}`);
+    return;
+  }
+
   pass(
     `banCriteria works: winners split (sharpe->strict track9: ${bestSharpe.report.sharpe.toFixed(2)} vs pnl->soft track2: ` +
     `+${bestPnl.report.totalPnlPercent.toFixed(2)}%), ["sharpe"] mirrors the sharpe artifact (coin banned), ` +
-    `["sharpe","pnl"] unions coin back in`
+    `["sharpe","pnl"] unions coin back in, Infinity recovery winner grants nothing (all banned by default)`
   );
 });
