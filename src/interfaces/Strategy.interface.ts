@@ -35,6 +35,16 @@ export type StrategyStatus = {
    */
   pendingSignalId: string | null;
   /**
+   * Whipsaw-guard slot (_lastPendingId): the id of the last successfully OPENED signal
+   * or the last TERMINALLY REJECTED one (OrderRejectedError consumes the id). Persisted
+   * so the consumption survives restarts: a terminally rejected deterministic id must
+   * not re-hit the exchange with one more real order after every process restart
+   * (supervisor loops would otherwise recreate the per-attempt spam the consumption
+   * exists to prevent). Old snapshots without the field fall back to the
+   * PersistRecentAdapter-based restore (last successfully opened id only).
+   */
+  lastPendingId: string | null;
+  /**
    * User-supplied signal DTO scheduled to be consumed by the next getSignal tick instead
    * of params.getSignal (set via createPending / createScheduled), or null if none queued.
    * createPending and createScheduled overwrite the same slot, so only the latest wins.

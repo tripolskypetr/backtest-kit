@@ -1367,6 +1367,16 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // setPaused(false). Old snapshots without the field read as not-paused.
     self._isPaused = strategyData.isPaused ?? false;
 
+    // Whipsaw-guard restore: the snapshot value reflects the ACTUAL in-memory
+    // _lastPendingId at the last persist — including a TERMINALLY REJECTED id
+    // (consumed, never written to Recent). It supersedes the Recent-based
+    // fallback above; without this a terminally rejected deterministic id
+    // re-hit the exchange with one more real order after every restart.
+    // Old snapshots without the field keep the Recent-based value.
+    if (strategyData.lastPendingId) {
+      self._lastPendingId = strategyData.lastPendingId;
+    }
+
     // Deferred user actions are restored unconditionally. They are persisted BEFORE
     // the pending/scheduled snapshot is wiped from disk (write-ahead order), so a
     // crash between those two writes can leave a stale pending/scheduled snapshot
@@ -1641,6 +1651,7 @@ const PERSIST_STRATEGY_FN = async (self: ClientStrategy): Promise<void> => {
   await PersistStrategyAdapter.writeStrategyData(
     {
       pendingSignalId: self._pendingSignal?.id ?? null,
+      lastPendingId: self._lastPendingId,
       createdSignal: self._userSignal,
       commitQueue: self._commitQueue,
       closedSignal: self._closedSignal,
@@ -1697,6 +1708,11 @@ const ARM_RETRY_OPEN_SIGNAL_FN = async (
  * Unlike the transient branch (STASH_RETRY_OPEN_SIGNAL_FN) the open is dropped for
  * good: no retry is armed, and an already-armed retry slot for this id is wiped so
  * the exhausted trade attempt does not resurrect on the next tick or after a restart.
+ *
+ * The snapshot is persisted UNCONDITIONALLY (not only when the slot was armed): the
+ * callers consume the rejected id into _lastPendingId right before this call, and
+ * that consumption must reach disk even with CC_ORDER_OPEN_RETRY_ATTEMPTS = 0
+ * (no armed slot) — otherwise a restart replays one more real rejected order.
  */
 const DROP_RETRY_OPEN_SIGNAL_FN = async (
   self: ClientStrategy,
@@ -1715,8 +1731,8 @@ const DROP_RETRY_OPEN_SIGNAL_FN = async (
   if (self._retryOpenSignal?.id === signal.id) {
     self._retryOpenSignal = null;
     self._retryOpenCount = 0;
-    await PERSIST_STRATEGY_FN(self);
   }
+  await PERSIST_STRATEGY_FN(self);
 };
 
 /**
@@ -3831,13 +3847,15 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
       // (clientOrderId = signalId, reconcile-before-send at attempt > 0) resolves a
       // lost-response placement instead of double-placing the resting order.
     } else {
+      // Consume the id BEFORE the drop persists (mirrors OPEN_NEW_PENDING_SIGNAL_FN):
+      // a deterministic strategy re-emits the SAME id every tick — without the
+      // whipsaw block the terminal drop degenerates into one REAL rejected
+      // placement per tick, and without the persist (via the drop below) the
+      // consumption would not survive a restart.
+      self._lastPendingId = signal.id;
       // Terminal rejection (OrderRejectedError): retrying is pointless — drop the
       // trade attempt for good and wipe an already-armed retry slot for this id.
       await DROP_RETRY_OPEN_SIGNAL_FN(self, signal);
-      // Consume the id (mirrors OPEN_NEW_PENDING_SIGNAL_FN): a deterministic
-      // strategy re-emits the SAME id every tick — without the whipsaw block the
-      // terminal drop degenerates into one REAL rejected placement per tick.
-      self._lastPendingId = signal.id;
     }
     // Roll back the interval throttle consumed in GET_SIGNAL_FN so the strategy
     // reacts on the NEXT TICK, not on the next interval boundary.
@@ -3979,15 +3997,18 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
       // lost-response fill instead of double-buying. Exhaustion of the started-attempts
       // budget is checked at consumption in GET_SIGNAL_FN.
     } else {
+      // Consume the id BEFORE the drop persists: a deterministic strategy (e.g. a
+      // channel signal) re-emits the SAME id every tick, and with the throttle
+      // rolled back below "dropped for good" otherwise degenerates into one REAL
+      // rejected exchange order per tick until the signal condition passes. The
+      // whipsaw guard in GET_SIGNAL_FN filters the repeat before the risk check;
+      // a FRESH id is a new trade attempt. Set first so DROP_RETRY_OPEN_SIGNAL_FN
+      // writes it into the strategy snapshot — the consumption must survive a
+      // restart (one extra real order per supervisor restart otherwise).
+      self._lastPendingId = signal.id;
       // Terminal rejection (OrderRejectedError): retrying is pointless — drop the
       // trade attempt for good and wipe the pre-armed retry slot for this id.
       await DROP_RETRY_OPEN_SIGNAL_FN(self, signal);
-      // Consume the id: a deterministic strategy (e.g. a channel signal) re-emits
-      // the SAME id every tick, and with the throttle rolled back below "dropped
-      // for good" otherwise degenerates into one REAL rejected exchange order per
-      // tick until the signal condition passes. The whipsaw guard in GET_SIGNAL_FN
-      // filters the repeat before the risk check; a FRESH id is a new trade attempt.
-      self._lastPendingId = signal.id;
     }
     // Roll back the interval throttle consumed in GET_SIGNAL_FN so the strategy
     // reacts on the NEXT TICK (retry the same row / generate a fresh signal), not
@@ -9157,6 +9178,7 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy getStatus", { symbol });
     return {
       pendingSignalId: this._pendingSignal?.id ?? null,
+      lastPendingId: this._lastPendingId,
       createdSignal: this._userSignal,
       commitQueue: this._commitQueue,
       closedSignal: this._closedSignal,

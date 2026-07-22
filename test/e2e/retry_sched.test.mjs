@@ -522,3 +522,120 @@ test("SCHED RETRY: activation after placement retries carries attempt 0 (slot cl
     unsubscribe();
   }
 });
+
+/**
+ * SCHED RETRY: потреблённый терминальным реджектом id ПЕРЕЖИВАЕТ рестарт —
+ * lastPendingId персистится в strategy-снапшоте (DROP_RETRY_OPEN_SIGNAL_FN)
+ * и восстанавливается в waitForInit ПОВЕРХ Recent-фолбэка. Без персиста каждый
+ * рестарт процесса (супервизор после exitEmitter и т.п.) выдавал бы ещё один
+ * реальный отклонённый ордер на тот же детерминированный id.
+ */
+test("SCHED RETRY: a terminally consumed deterministic id survives a crash (no extra real order per restart)", async ({ pass, fail }) => {
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "sched-consume-persist-strategy",
+    exchangeName: "binance-sched-consume-persist",
+    frameName: "",
+  };
+
+  PersistSignalAdapter.useJson();
+  PersistStrategyAdapter.useJson();
+  PersistScheduleAdapter.useJson();
+  PersistRecentAdapter.useJson();
+
+  try {
+    // Сброс остатков прошлых прогонов сьюта (json-файлы живут на диске)
+    await PersistSignalAdapter.writeSignalData(null, "BTCUSDT", context.strategyName, context.exchangeName);
+    await PersistScheduleAdapter.writeScheduleData(null, "BTCUSDT", context.strategyName, context.exchangeName);
+    await PersistStrategyAdapter.writeStrategyData(
+      {
+        pendingSignalId: null,
+        lastPendingId: null,
+        createdSignal: null,
+        commitQueue: [],
+        closedSignal: null,
+        cancelledSignal: null,
+        activatedSignal: null,
+        takeProfitSignal: null,
+        stopLossSignal: null,
+        retryOpenSignal: null,
+        retryOpenCount: 0,
+        retryCloseCount: 0,
+      },
+      "BTCUSDT", context.strategyName, context.exchangeName,
+    );
+
+    const gateEvents = [];
+
+    makeExchange(context.exchangeName, () => BASE_PRICE);
+    addStrategySchema({
+      strategyName: context.strategyName,
+      interval: "1m",
+      getSignal: async () => ({
+        id: "sched-consume-persist-id",
+        position: "long",
+        note: "consume persist",
+        priceTakeProfit: BASE_PRICE + 5000,
+        priceStopLoss: BASE_PRICE - 5000,
+        minuteEstimatedTime: 120,
+      }),
+    });
+
+    const unsubscribe = listenSync((event) => {
+      if (event.strategyName !== context.strategyName) return;
+      if (event.action !== "signal-open" || event.type !== "active") return;
+      gateEvents.push({ id: event.signalId, attempt: event.attempt });
+      throw new OrderRejectedError("consume-persist: NOTIONAL — order can never be placed");
+    }, true);
+
+    try {
+      const runTick = makeRunTick(context);
+
+      const tick1 = await runTick(new Date(t0));
+      const tick2 = await runTick(new Date(t0 + 1 * MIN));
+      if (tick1.action !== "idle" || tick2.action !== "idle") {
+        fail(`ticks #1/#2 expected "idle" (terminal drop + consumed id), got "${tick1.action}"/"${tick2.action}"`);
+        return;
+      }
+      if (gateEvents.length !== 1) {
+        fail(`expected exactly 1 gate call before the crash, got ${gateEvents.length}`);
+        return;
+      }
+
+      const snapshot = await PersistStrategyAdapter.readStrategyData("BTCUSDT", context.strategyName, context.exchangeName);
+      if (snapshot?.lastPendingId !== "sched-consume-persist-id") {
+        fail(`persisted snapshot must carry the consumed id, got lastPendingId=${snapshot?.lastPendingId}`);
+        return;
+      }
+
+      // «Крэш» после терминального дропа — потребление должно пережить рестарт
+      await lib.strategyConnectionService.clear({
+        symbol: "BTCUSDT",
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        backtest: false,
+      });
+
+      const tick3 = await runTick(new Date(t0 + 2 * MIN));
+      const tick4 = await runTick(new Date(t0 + 3 * MIN));
+      if (tick3.action !== "idle" || tick4.action !== "idle") {
+        fail(`ticks #3/#4 after crash expected "idle" (restored consumption), got "${tick3.action}"/"${tick4.action}"`);
+        return;
+      }
+      if (gateEvents.length !== 1) {
+        fail(`REGRESSION: restart must NOT replay the consumed id to the exchange, got ${gateEvents.length} gate calls: ${JSON.stringify(gateEvents)}`);
+        return;
+      }
+
+      pass(`consumed id survived the crash: 1 gate call total, restored lastPendingId blocked the replay`);
+    } finally {
+      unsubscribe();
+    }
+  } finally {
+    PersistSignalAdapter.useDummy();
+    PersistStrategyAdapter.useDummy();
+    PersistScheduleAdapter.useDummy();
+    PersistRecentAdapter.useDummy();
+  }
+});
