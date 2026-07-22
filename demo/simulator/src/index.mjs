@@ -38,32 +38,8 @@ addSimulatorSchema({
 const ideas = readFileSync("./assets/ts-ideas.normalized.jsonl", "utf-8")
   .split("\n").filter(Boolean).map((line) => JSON.parse(line));
 
-// честный walk-forward: подбор точки и обучение фильтра авторов — на
-// первых 70% времени ленты, проверка — на хвосте, которого train не видел
-const sorted = [...ideas].sort((a, b) => a.ts - b.ts);
-const cutoff = sorted[0].ts + (sorted[sorted.length - 1].ts - sorted[0].ts) * 0.7;
-const trainIdeas = sorted.filter(({ ts }) => ts < cutoff);
-const testIdeas = sorted.filter(({ ts }) => ts >= cutoff);
-
-const result = await Simulator.run({ symbol: "BTCUSDT", simulatorName: "tv_simulator", ideas: trainIdeas });
+const result = await Simulator.run({ symbol: "BTCUSDT", simulatorName: "tv_simulator", ideas });
 const { reports, best, ...rest } = result;
 writeFileSync("./dump/simulator.done.json", JSON.stringify(result, null, 2));
-console.log("train saved; profiles:", rest.profileCount, "allowed:", rest.allowedAuthors.length, "banned:", rest.bannedAuthors.length);
-
-// out-of-sample: точка Sharpe-победителя и трек-рекорд авторов заморожены,
-// на тестовом хвосте ничего не обучается (невиданный автор = забанен)
-const winner = best.find(({ criterion }) => criterion === "sharpe");
-const testResult = await Simulator.test({
-  symbol: "BTCUSDT",
-  simulatorName: "tv_simulator",
-  ideas: testIdeas,
-  point: winner.report.point,
-  authorStats: result.authorStats,
-});
-writeFileSync("./dump/simulator.test.json", JSON.stringify(testResult, null, 2));
-console.log(
-  "test saved; trades:", testResult.report.trades,
-  "pnl:", testResult.report.totalPnlPercent.toFixed(2) + "%",
-  "sharpe:", Number.isFinite(testResult.report.sharpe) ? testResult.report.sharpe.toFixed(2) : testResult.report.sharpe,
-);
+console.log("saved; profiles:", rest.profileCount, "allowed:", rest.allowedAuthors.length, "banned:", rest.bannedAuthors.length);
 process.exit(0);

@@ -29,7 +29,6 @@ addSimulatorSchema({
     trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
     holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
     minIdeasAligned: [1, 2, 3],
-    minWeightAligned: [0],
   },
 });
 
