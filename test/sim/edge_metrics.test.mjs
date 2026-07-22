@@ -4,8 +4,10 @@ import { addExchangeSchema, addSimulatorSchema, Simulator } from "../../build/in
 
 /**
  * Граничные случаи метрик и правила бана:
- *  1) Sortino-сентинель: серия без единого убыточного ДНЯ даёт
- *     sortino = 999 при конечном положительном Sharpe;
+ *  1) Sortino без убыточных ДНЕЙ бесконечен (Infinity, как у
+ *     profitFactor) при конечном положительном Sharpe — конечный
+ *     сентинель вводил бы в заблуждение: реальные значения Sortino
+ *     могут превышать любую константу;
  *  2) hitRate ровно на пороге: правило банит СТРОГО ниже порога,
  *     автор с точным 0.5 при пороге 0.5 остаётся допущенным, а
  *     автор с 0.25 — банится.
@@ -23,7 +25,7 @@ const idea = (id, minute, direction, author) => ({
   author,
 });
 
-test("SIM: profitable series with no losing day yields the Sortino sentinel 999", async ({ pass, fail }) => {
+test("SIM: profitable series with no losing day yields infinite Sortino", async ({ pass, fail }) => {
   // пила из eternal_hold: всплеск +1% на минутах 2..61 каждого цикла
   const CYCLES = 10;
   const priceAt = (timestamp) => {
@@ -78,8 +80,8 @@ test("SIM: profitable series with no losing day yields the Sortino sentinel 999"
     fail(`expected ${CYCLES} profitable trades, got ${report.trades} / ${report.totalPnlPercent}`);
     return;
   }
-  if (report.sortino !== 999) {
-    fail(`no-losing-day series must hit the Sortino sentinel 999, got ${report.sortino}`);
+  if (report.sortino !== Number.POSITIVE_INFINITY) {
+    fail(`no-losing-day series must have infinite Sortino, got ${report.sortino}`);
     return;
   }
   if (!(Number.isFinite(report.sharpe) && report.sharpe > 0)) {
@@ -87,7 +89,7 @@ test("SIM: profitable series with no losing day yields the Sortino sentinel 999"
     return;
   }
 
-  pass(`sortino=999 sentinel with finite sharpe=${report.sharpe.toFixed(2)} on ${report.trades} clean trades`);
+  pass(`sortino=Infinity with finite sharpe=${report.sharpe.toFixed(2)} on ${report.trades} clean trades`);
 });
 
 test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictly below", async ({ pass, fail }) => {

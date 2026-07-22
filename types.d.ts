@@ -5986,7 +5986,10 @@ interface ISimulatorPointReport {
     sharpe: number;
     /**
      * Time-based Sortino: like sharpe but deviation is computed over
-     * negative daily increments only; 999 when no losing days.
+     * negative daily increments only. Infinity when the series has no
+     * losing day (consistent with profitFactor; a finite sentinel would
+     * mislead — real values can exceed any constant). NB: Infinity
+     * JSON-serializes to null in saved artifacts.
      */
     sortino: number;
     /** Trade counts per exit reason. */

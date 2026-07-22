@@ -45,9 +45,13 @@ const ALIGNED_LOOKBACK_MINUTES = 4 * 60;
 const AUTHOR_DEDUPE_MINUTES = 8 * 60;
 
 /**
- * Sortino sentinel for a series with profit and zero losing trades.
+ * Sortino of a profitable series with zero losing days is
+ * mathematically infinite. Infinity is used deliberately — a finite
+ * sentinel (e.g. 999) misleads because real Sortino values can
+ * exceed it. Consistent with profitFactor: Infinity when no losses.
+ * NB: JSON.stringify turns Infinity into null in saved artifacts.
  */
-const SORTINO_NO_LOSSES = 999;
+const SORTINO_NO_LOSSES = Number.POSITIVE_INFINITY;
 
 /**
  * Minimum trades for a grid point to become a ranking winner
@@ -878,12 +882,23 @@ const RUN_FN = async (
     ({ trades }) => trades >= MIN_TRADES_FOR_BEST,
   );
   const best: ISimulatorBest[] = [];
+  // равенство проверяется до вычитания: Infinity - Infinity = NaN
+  // ломает контракт компаратора (sortino/profitFactor бесконечны
+  // на сериях без убытков)
+  const byRankingDesc =
+    (value: (report: ISimulatorPointReport) => number) =>
+    (a: ISimulatorPointReport, b: ISimulatorPointReport) => {
+      const va = value(a);
+      const vb = value(b);
+      if (va === vb) {
+        return 0;
+      }
+      return vb - va;
+    };
   for (const ranking of rankings) {
-    const sorted = [...reports].sort(
-      (a, b) => ranking.value(b) - ranking.value(a),
-    );
+    const sorted = [...reports].sort(byRankingDesc(ranking.value));
     const winner =
-      [...eligible].sort((a, b) => ranking.value(b) - ranking.value(a))[0] ??
+      [...eligible].sort(byRankingDesc(ranking.value))[0] ??
       sorted[0] ??
       null;
     const bestEntry: ISimulatorBest = {
