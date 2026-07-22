@@ -10,6 +10,9 @@ import "./sim/mechanics.test.mjs";
 import "./sim/consensus.test.mjs";
 import "./sim/progress.test.mjs";
 import "./sim/no_good_authors.test.mjs";
+import "./sim/truncated.test.mjs";
+import "./sim/short_mechanics.test.mjs";
+import "./sim/edge_metrics.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

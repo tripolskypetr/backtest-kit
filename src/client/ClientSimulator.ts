@@ -1,3 +1,4 @@
+import { getErrorMessage } from "functools-kit";
 import { Exchange } from "../classes/Exchange";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import {
@@ -63,14 +64,32 @@ async function* ITERATE_CANDLES_FN(
     let emitted = 0;
     let cursor = intervalStart(fromTs, "1m");
     while (emitted < count) {
-      const chunk = await Exchange.getRawCandles(
-        symbol,
-        "1m",
-        { exchangeName: self.params.exchangeName },
-        GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST,
-        cursor,
-        cursor + GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST * MINUTE_MS,
-      );
+      let chunk: ICandleData[];
+      try {
+        chunk = await Exchange.getRawCandles(
+          symbol,
+          "1m",
+          { exchangeName: self.params.exchangeName },
+          GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST,
+          cursor,
+          cursor + GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST * MINUTE_MS,
+        );
+      } catch (error) {
+        // контракт Exchange строг: пропуски заблокированы, адаптер
+        // обязан вернуть ровно limit свечей — поэтому конец доступной
+        // истории приходит сюда ИСКЛЮЧЕНИЕМ (пустой или неполный
+        // чанк). Для симулятора это штатный случай: идея у края
+        // данных получает обрезанный профиль (truncated), а не валит
+        // весь прогон. Обрезка идёт по границе последнего полного
+        // чанка. Реальные транзиентные сбои сети гасятся ретраями
+        // Exchange до этой точки.
+        self.params.logger.debug("ClientSimulator candle feed exhausted", {
+          symbol,
+          cursor,
+          error: `${getErrorMessage(error)}`,
+        });
+        return;
+      }
       if (!chunk.length) {
         return;
       }
@@ -83,6 +102,13 @@ async function* ITERATE_CANDLES_FN(
         if (emitted >= count) {
           return;
         }
+      }
+      // частичный чанк = конец доступной истории: следующий запрос
+      // был бы полностью за краем данных, а пустой ответ адаптера —
+      // ошибка контракта Exchange (пропуски заблокированы на его
+      // уровне). Останавливаемся — профиль будет помечен truncated.
+      if (chunk.length < GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST) {
+        return;
       }
       cursor += GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST * MINUTE_MS;
     }
