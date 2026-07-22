@@ -27,7 +27,9 @@ addSimulatorSchema({
   exchangeName: "ccxt_exchange",
 });
 
-// точка Sharpe-победителя train-прогона (June 1-21, tune_wide)
+// точка, выявленная тренировкой (src/index.mjs, tune_default):
+// лучший sharpe всех конфигов 2.44, сходимость sharpe/sortino/recovery,
+// sortino 9.34, dd 1.31, 9 сделок, строжайшее правило авторов
 const POINT = {
   hardStopPercent: 5,
   trailingTakePercent: 2,
@@ -36,7 +38,7 @@ const POINT = {
   minAuthorTrack: 5,
   minAuthorHitRate: 0.5,
   minWeightAligned: 0,
-  profitLockPercent: 2,
+  profitLockPercent: 2.5,
 };
 
 // результат обучения: сырой трек-рекорд авторов train-окна.

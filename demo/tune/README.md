@@ -11,7 +11,11 @@ A two-step walk-forward protocol for tuning `Simulator` grid parameters over cro
 
 ## Step 1 — Training (`npm start`)
 
-`src/index.mjs` declares four simulator schemas — four grid-axis profiles, each an explicit `addSimulatorSchema` at the top of the file: `tune_default` (baseline axes), `tune_shorthold` (4h–48h holds), `tune_lockrich` (dense profit-lock sweep 0–3%), `tune_wide` (4h–72h holds compromise). Every config trains on the same `trainIdeas` and prints a flat list of rows: **one row per (config × ranking criterion)** — four winners tagged with the same `config` name, since different criteria may elect different points — plus one `authorStats` row per config with the raw track record:
+`src/index.mjs` declares four simulator schemas — four grid-axis profiles, each an explicit `addSimulatorSchema` at the top of the file: `tune_default` (baseline axes), `tune_shorthold` (4h–48h holds), `tune_lockrich` (dense profit-lock sweep 0–3%), `tune_wide` (4h–72h holds compromise). Every config trains on the same `trainIdeas` — the head of the feed.
+
+### Training output
+
+The result is a flat list of rows, saved to [`assets/ts-ideas.train.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune/assets/ts-ideas.train.json): **one row per (config × ranking criterion)** — four winners tagged with the same `config` name, since different criteria may elect different points — plus one `authorStats` row per config with the raw track record:
 
 ```json
 [
@@ -70,6 +74,30 @@ What to read out of this:
 - **Shortening the hold does not pay.** `tune_shorthold` is uniformly worse (sharpe 1.83, pnl 8.7) even with the weighted-consensus crutch W=0.6 — the 72h hold dominates every shorter window on this feed.
 - **A strict ban beats a soft ban with a weight gate.** Wherever track ≥ 5 is available, it wins with W=0; W=0.6 appears only in configs whose ban axes stop at track 2–3 — the weighted consensus compensates for the softer rule, not improves on the strict one.
 - **`authorStats` is the artifact to freeze.** Raw `author/ideas/hits` only — the whitelist is NOT part of the output on purpose: `Simulator.test` re-derives banned flags and consensus weights from these numbers under the rule of whatever point you freeze, and an author absent from the list is banned by default.
+
+### Selected candidate
+
+The sharpe winners of the four configs, side by side:
+
+| Config | Point | Sharpe | Sortino | PnL | DD |
+|---|---|---|---|---|---|
+| **tune_default** | H=5 TT=2 72h track5 **lock=2.5** | **2.44** | **9.34** | **12.22** | **1.31** |
+| tune_wide | same point, lock=2 | 2.31 | 7.05 | 9.21 | 1.31 |
+| tune_lockrich | H=5 TT=3, track3 W=0.6, lock=2.5 | 2.15 | 4.52 | 12.82 | 2.84 |
+| tune_shorthold | H=3 TT=1.5 48h, lock=2 | 1.83 | 3.76 | 8.70 | 1.92 |
+
+The training elects the `tune_default` sharpe winner — it dominates every risk-adjusted metric at once: the best sharpe, the best sortino, more PnL than the same family point at lock=2 (wide) at the identical 1.31 drawdown, a 3-of-4 criteria convergence (sharpe + sortino + recovery on this exact point), 9 trades (above the anti-fluke floor), and the strictest author rule available. The only bigger numbers anywhere are raw-PnL ones (12.82 lockrich, 17.4 the lock-free pnl winner) — both pay with a 2–4× deeper drawdown and a third worse sharpe. Its parameters, frozen into `src/test.mjs`:
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| `hardStopPercent` | **5** | hard stop 5% from entry |
+| `trailingTakePercent` | **2** | trailing take, 2% pullback from peak |
+| `holdMinutes` | **4320** (72h) | maximum hold |
+| `minIdeasAligned` | **1** | one unbanned aligned author is enough to enter |
+| `minAuthorTrack` | **5** | author needs ≥ 5 fully observed ideas |
+| `minAuthorHitRate` | **0.5** | ...at hit rate ≥ 0.5 to be allowed |
+| `minWeightAligned` | **0** | weighted consensus gate disabled |
+| `profitLockPercent` | **2.5** | profit lock: floor armed at +2.5%, exit on pullback to it |
 
 ## Step 2 — Out-of-sample (`npm test`)
 
