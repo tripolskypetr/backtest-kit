@@ -561,11 +561,17 @@ test("EDGE STALE: a retried row keeps its price identity — re-routed to a rest
 });
 
 /**
- * EDGE DETERMINISTIC: терминальный дроп детерминированного id не отравляет
- * повторную генерацию — getSignal возвращает ТОТ ЖЕ id, и он открывается со
- * свежим счётчиком (attempt 0): учёт попыток живёт в слоте, а не в истории id.
+ * EDGE DETERMINISTIC: терминальный дроп ПОТРЕБЛЯЕТ детерминированный id
+ * (whipsaw-гард — тот же id больше не долбит биржу; см. verdict.test), но НЕ
+ * отравляет учёт для СЛЕДУЮЩЕГО id: getSignal, сменивший id после дропа,
+ * открывается со свежим счётчиком (attempt 0) — учёт попыток живёт в слоте,
+ * а не в истории стратегии.
+ *
+ * ПЕРЕСМОТР КОНТРАКТА (2026-07-22): прежняя версия пиннила переоткрытие ТОГО ЖЕ
+ * id на следующем тике — в live это давало по реальному отклонённому ордеру на
+ * бирже каждую минуту для канального сигнала с фиксированным id (NOTIONAL-цикл).
  */
-test("EDGE DETERMINISTIC: a terminally dropped deterministic id regenerates with fresh accounting", async ({ pass, fail }) => {
+test("EDGE DETERMINISTIC: a terminal drop consumes the id; the NEXT id opens with fresh accounting", async ({ pass, fail }) => {
   const t0 = new Date("2024-01-01T00:00:00Z").getTime();
   const context = {
     strategyName: "edge-det-strategy",
@@ -574,13 +580,16 @@ test("EDGE DETERMINISTIC: a terminally dropped deterministic id regenerates with
   };
 
   const gateEvents = [];
+  let dropped = false;
 
   makeExchange(context.exchangeName, () => BASE_PRICE);
   addStrategySchema({
     strategyName: context.strategyName,
     interval: "1m",
     getSignal: async () => ({
-      id: "edge-det-fixed-id",
+      // После терминального дропа стратегия выпускает НОВЫЙ id — потреблённый
+      // первый id при этом продолжал бы фильтроваться whipsaw-гардом
+      id: dropped ? "edge-det-fixed-id-2" : "edge-det-fixed-id-1",
       position: "long",
       note: "edge deterministic",
       priceTakeProfit: BASE_PRICE + 5000,
@@ -594,6 +603,7 @@ test("EDGE DETERMINISTIC: a terminally dropped deterministic id regenerates with
     if (event.action !== "signal-open" || event.type !== "active") return;
     gateEvents.push({ id: event.signalId, attempt: event.attempt });
     if (gateEvents.length === 1) {
+      dropped = true;
       throw new OrderRejectedError("edge-det: rejected terminally once");
     }
   }, true);
@@ -608,17 +618,21 @@ test("EDGE DETERMINISTIC: a terminally dropped deterministic id regenerates with
     }
 
     const tick2 = await runTick(new Date(t0 + 1 * MIN));
-    if (tick2.action !== "opened" || tick2.signal.id !== "edge-det-fixed-id") {
-      fail(`tick #2 expected the SAME deterministic id to open, got "${tick2.action}"/"${tick2.signal?.id}"`);
+    if (tick2.action !== "opened" || tick2.signal.id !== "edge-det-fixed-id-2") {
+      fail(`tick #2 expected the NEXT deterministic id to open, got "${tick2.action}"/"${tick2.signal?.id}"`);
       return;
     }
-    // Дроп не был открытием — whipsaw-гард не блокирует, а счётчик стартует заново
-    if (gateEvents.length !== 2 || gateEvents[0].attempt !== 0 || gateEvents[1].attempt !== 0) {
-      fail(`both gate calls must carry attempt 0 (per-slot accounting, not per-id history), got ${JSON.stringify(gateEvents)}`);
+    if (gateEvents.length !== 2 || gateEvents[0].id !== "edge-det-fixed-id-1" || gateEvents[1].id !== "edge-det-fixed-id-2") {
+      fail(`expected gate calls for id-1 then id-2, got ${JSON.stringify(gateEvents)}`);
+      return;
+    }
+    // Дроп id-1 не тянет свою историю в id-2 — счётчик стартует заново
+    if (gateEvents[0].attempt !== 0 || gateEvents[1].attempt !== 0) {
+      fail(`both gate calls must carry attempt 0 (per-slot accounting, not per-strategy history), got ${JSON.stringify(gateEvents)}`);
       return;
     }
 
-    pass(`deterministic id dropped terminally and re-opened with fresh attempt 0 accounting`);
+    pass(`id-1 dropped terminally and consumed; id-2 opened with fresh attempt 0 accounting`);
   } finally {
     unsubscribe();
   }
