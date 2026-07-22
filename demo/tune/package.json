@@ -1,0 +1,20 @@
+{
+  "name": "tune",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./src/index.mjs",
+    "test": "node ./src/test.mjs"
+  },
+  "dependencies": {
+    "backtest-kit": "16.4.0",
+    "ccxt": "4.5.24"
+  },
+  "devDependencies": {
+    "dotenv-cli": "11.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
