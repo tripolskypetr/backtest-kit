@@ -170,6 +170,9 @@ const CALL_ORDER_REJECT_EMIT_FN = trycatch(
     event: OrderSyncContract,
     message: string
   ): Promise<void> => {
+    if (event.backtest) {
+      return;
+    }
     await orderRejectSubject.next(TO_ORDER_REJECT_FN(event, message));
   },
   {
@@ -196,6 +199,9 @@ const CALL_ORDER_FILL_EMIT_FN = trycatch(
     _self: StrategyConnectionService,
     event: OrderSyncContract
   ): Promise<void> => {
+    if (event.backtest) {
+      return;
+    }
     await orderFillSubject.next(TO_ORDER_FILL_FN(event));
   },
   {
@@ -930,6 +936,9 @@ const CREATE_PAUSE_FN = (self: StrategyConnectionService, strategyName: Strategy
  */
 const CREATE_ORDER_CONTINUE_FN = (self: StrategyConnectionService) => trycatch(
   async (event: OrderContinueContract) => {
+    if (event.backtest) {
+      return;
+    }
     await orderContinueSubject.next(event);
   },
   {
@@ -960,6 +969,9 @@ const CREATE_ORDER_CONTINUE_FN = (self: StrategyConnectionService) => trycatch(
  */
 const CREATE_ORDER_STOP_FN = (self: StrategyConnectionService) => trycatch(
   async (event: OrderStopContract) => {
+    if (event.backtest) {
+      return;
+    }
     await orderStopSubject.next(event);
   },
   {
