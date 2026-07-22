@@ -22,6 +22,11 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
  *   systematically too short for peaks that ripen for days;
  * - author QUALITY threshold (hit rate) mattered more than track
  *   length on every criterion — both are swept;
+ * - Wilson lower bound: an alternative ban arithmetic that prices
+ *   the track length into the quality estimate (3/3 newcomer ~0.44
+ *   vs 15/15 veteran ~0.80 at the same observed rate); 0 keeps the
+ *   pair-only baseline, 0.6 demands veteran-grade proof — the sweep
+ *   decides which arithmetic wins;
  * - weighted consensus: 0 keeps the unweighted baseline in the
  *   sweep, 0.6 ~ a solo proven author (Laplace (hits+1)/(ideas+2)),
  *   1.2 ~ a pair — the sweep itself decides whether weighting helps;
@@ -51,6 +56,7 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minIdeasAligned: [1, 2, 3],
   minAuthorTrack: [2, 3, 5],
   minAuthorHitRate: [0.5, 0.6],
+  minAuthorWilson: [0, 0.6],
   minWeightAligned: [0, 0.6, 1.2],
   profitLockPercent: [0, 1.5, 2.5],
   entryDelayMinutes: [0, 4 * 60, 8 * 60],

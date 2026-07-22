@@ -64,6 +64,7 @@ test("SIM: out-of-sample with a reach point — frozen reach stats, no recount, 
       minWeightAligned: [0],
       profitLockPercent: [2.5],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["reach"],
     },
   });

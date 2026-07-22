@@ -75,6 +75,7 @@ test("SIM: out-of-sample test freezes the point and the author track record", as
       minWeightAligned: [0],
       profitLockPercent: [0],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

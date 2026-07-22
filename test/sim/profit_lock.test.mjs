@@ -70,6 +70,7 @@ test("SIM: profit lock catches the +2.5%-then-dump bleed the trailing take never
       minWeightAligned: [0],
       profitLockPercent: [0, 2],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {
@@ -156,6 +157,7 @@ test("SIM: profit lock never cuts a runner — the trailing floor above it fills
       minWeightAligned: [0],
       profitLockPercent: [2],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {},

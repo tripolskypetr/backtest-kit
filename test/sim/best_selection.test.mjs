@@ -63,6 +63,7 @@ test("SIM: a monster single-trade point cannot win any ranking — the trades fl
       minWeightAligned: [0],
       profitLockPercent: [0],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

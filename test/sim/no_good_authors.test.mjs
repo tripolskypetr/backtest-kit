@@ -65,6 +65,7 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
       minWeightAligned: [0],
       profitLockPercent: [0],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

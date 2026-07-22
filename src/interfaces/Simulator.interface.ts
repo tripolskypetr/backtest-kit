@@ -90,6 +90,8 @@ export type SimulatorAuthorRule =
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
       minAuthorHitRate: number;
+      /** Minimum Wilson lower bound (0..1) to be allowed; 0 = off. */
+      minAuthorWilson: number;
     }
   | {
       /** Discriminator: grade authors by lock-reachability. */
@@ -98,6 +100,8 @@ export type SimulatorAuthorRule =
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
       minAuthorHitRate: number;
+      /** Minimum Wilson lower bound (0..1) to be allowed; 0 = off. */
+      minAuthorWilson: number;
       /** Lock level the reach hit is graded against (always > 0). */
       profitLockPercent: number;
       /** Stop level the pre-peak shakeout is graded against. */
@@ -175,6 +179,24 @@ export interface ISimulatorGridAxes {
    * follows authorMetric.
    */
   minAuthorHitRate: number[];
+  /**
+   * Author ban rule to sweep: minimum LOWER BOUND of the Wilson 95%
+   * confidence interval of the author's hit rate. Unlike the
+   * minAuthorTrack x minAuthorHitRate pair, the bound prices the
+   * track length INTO the quality estimate: a 3/3 newcomer (LB ~
+   * 0.44) is banned where a 15/15 veteran (LB ~ 0.80) passes — the
+   * pair cannot tell them apart at equal hit rates. An author with
+   * zero known outcomes has LB 0 (default-ban preserved).
+   * Tunes: how much PROVEN quality (not observed quality) an author
+   * needs; sweeping it against the pair lets the grid decide which
+   * ban arithmetic wins.
+   * Ignored: 0 DISABLES the bound entirely — the pair alone decides,
+   * bit-identical to the pre-Wilson behavior; keep 0 in the list to
+   * sweep the baseline. To ban by the bound ALONE, pin the pair to
+   * its inert values: minAuthorTrack: [0], minAuthorHitRate: [0].
+   * Hits inherit authorMetric, like the rest of the ban rule.
+   */
+  minAuthorWilson: number[];
   /**
    * Weighted consensus thresholds to sweep. An author's vote weight
    * is his Laplace-smoothed track record (hits+1)/(ideas+2) — a 2/2
@@ -275,6 +297,8 @@ export interface ISimulatorGridPoint {
   minAuthorTrack: number;
   /** Author ban rule: minimum hit rate (0..1) to be allowed. */
   minAuthorHitRate: number;
+  /** Author ban rule: minimum Wilson lower bound (0..1); 0 = off. */
+  minAuthorWilson: number;
   /**
    * Weighted consensus threshold: required sum of Laplace-smoothed
    * track-record weights of aligned unbanned authors; 0 = disabled.
@@ -418,8 +442,9 @@ export interface ISimulatorAuthorStat {
   /**
    * Author is banned under the ban rule these stats were computed
    * with. True when the track is too short to judge (ideas <
-   * minAuthorTrack) OR the hit rate is below minAuthorHitRate.
-   * Unproven correctness = banned.
+   * minAuthorTrack) OR the hit rate is below minAuthorHitRate OR the
+   * Wilson lower bound of the hit rate is below minAuthorWilson
+   * (when that bound is enabled). Unproven correctness = banned.
    */
   banned: boolean;
 }

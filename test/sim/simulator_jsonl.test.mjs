@@ -87,6 +87,7 @@ test("SIM: jsonl feed end-to-end — eternal hold loses to normal entries", asyn
       minWeightAligned: [0],
       profitLockPercent: [0],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {},

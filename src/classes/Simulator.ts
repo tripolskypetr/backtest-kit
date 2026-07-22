@@ -47,6 +47,10 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
+ * - minAuthorWilson — minimum Wilson 95% lower bound of the hit
+ *   rate: proven quality that prices the track length in; 0
+ *   disables (pair-only baseline), and with the pair pinned inert
+ *   (track [0], rate [0]) the bound bans alone.
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop; reach with

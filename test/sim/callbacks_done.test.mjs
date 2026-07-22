@@ -50,6 +50,7 @@ test("SIM: onDone fires once and carries the exact result object", async ({ pass
       minWeightAligned: [0],
       profitLockPercent: [0],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

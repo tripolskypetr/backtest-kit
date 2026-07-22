@@ -75,6 +75,7 @@ test("SIM: end-of-data truncation — data_truncated exit and no track credit fo
       minWeightAligned: [0],
       profitLockPercent: [0],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

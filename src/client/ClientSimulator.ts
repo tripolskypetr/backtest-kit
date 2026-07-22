@@ -61,6 +61,37 @@ const SORTINO_NO_LOSSES = Number.POSITIVE_INFINITY;
  */
 const MIN_TRADES_FOR_BEST = 8;
 
+/**
+ * z-score of the Wilson lower bound (95% confidence). A constant,
+ * not an axis: the CONFIDENCE of the estimate is a methodology
+ * choice, the required QUALITY is the swept threshold.
+ */
+const WILSON_Z = 1.96;
+
+/**
+ * Lower bound of the Wilson score interval for a hit rate: the
+ * proven-quality estimate that prices the track length in — a 3/3
+ * newcomer (~0.44) sits far below a 15/15 veteran (~0.80) even
+ * though both observe a 100% hit rate. Zero known outcomes -> 0
+ * (default-ban preserved).
+ *
+ * @param hits - Author hits under the rule's metric
+ * @param ideas - Author ideas with a known outcome
+ * @returns Lower bound of the 95% Wilson interval, 0..1
+ */
+const WILSON_LOWER_BOUND_FN = (hits: number, ideas: number): number => {
+  if (!ideas) {
+    return 0;
+  }
+  const p = hits / ideas;
+  const z2 = WILSON_Z * WILSON_Z;
+  const denominator = 1 + z2 / ideas;
+  const center = p + z2 / (2 * ideas);
+  const spread =
+    WILSON_Z * Math.sqrt((p * (1 - p)) / ideas + z2 / (4 * ideas * ideas));
+  return Math.max(0, (center - spread) / denominator);
+};
+
 async function* ITERATE_CANDLES_FN(
   self: ClientSimulator,
   symbol: string,
@@ -345,6 +376,7 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
       metric: "reach",
       minAuthorTrack: point.minAuthorTrack,
       minAuthorHitRate: point.minAuthorHitRate,
+      minAuthorWilson: point.minAuthorWilson ?? 0,
       profitLockPercent: point.profitLockPercent,
       hardStopPercent: point.hardStopPercent,
     };
@@ -353,6 +385,7 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
     metric: "close",
     minAuthorTrack: point.minAuthorTrack,
     minAuthorHitRate: point.minAuthorHitRate,
+    minAuthorWilson: point.minAuthorWilson ?? 0,
   };
 };
 
@@ -413,7 +446,7 @@ const TRAIN_AUTHOR_FILTER_FN = (
   ideas: ISimulatorIdea[],
   rule: SimulatorAuthorRule,
 ): IAuthorFilterContext => {
-  const { minAuthorTrack, minAuthorHitRate } = rule;
+  const { minAuthorTrack, minAuthorHitRate, minAuthorWilson } = rule;
   const byAuthor = new Map<string, { ideas: number; hits: number }>();
   for (const profile of profiles) {
     const stat = byAuthor.get(profile.idea.author) ?? { ideas: 0, hits: 0 };
@@ -432,7 +465,9 @@ const TRAIN_AUTHOR_FILTER_FN = (
     hitRate: stat.ideas ? stat.hits / stat.ideas : 0,
     banned:
       stat.ideas < minAuthorTrack ||
-      stat.hits / stat.ideas < minAuthorHitRate,
+      stat.hits / stat.ideas < minAuthorHitRate ||
+      (minAuthorWilson > 0 &&
+        WILSON_LOWER_BOUND_FN(stat.hits, stat.ideas) < minAuthorWilson),
   }));
   const banned = new Set(
     stats.filter(({ banned }) => banned).map(({ author }) => author),
@@ -488,6 +523,7 @@ const TRAIN_AUTHOR_FILTER_FN = (
  * @param authorStats - Frozen per-author track record from a train run
  * @param minAuthorTrack - Minimum known-outcome ideas to be allowed
  * @param minAuthorHitRate - Minimum hit rate (0..1) to be allowed
+ * @param minAuthorWilson - Minimum Wilson lower bound (0..1); 0 = off
  * @returns Filter context with frozen stats (sorted by idea count)
  */
 const FREEZE_AUTHOR_FILTER_FN = (
@@ -496,6 +532,7 @@ const FREEZE_AUTHOR_FILTER_FN = (
   authorStats: ISimulatorAuthorStat[],
   minAuthorTrack: number,
   minAuthorHitRate: number,
+  minAuthorWilson: number,
 ): IAuthorFilterContext => {
   const stats: ISimulatorAuthorStat[] = authorStats.map(
     ({ author, ideas: n, hits }) => ({
@@ -503,7 +540,11 @@ const FREEZE_AUTHOR_FILTER_FN = (
       ideas: n,
       hits,
       hitRate: n ? hits / n : 0,
-      banned: n < minAuthorTrack || hits / n < minAuthorHitRate,
+      banned:
+        n < minAuthorTrack ||
+        hits / n < minAuthorHitRate ||
+        (minAuthorWilson > 0 &&
+          WILSON_LOWER_BOUND_FN(hits, n) < minAuthorWilson),
     }),
   );
   const allowed = new Set(
@@ -916,21 +957,24 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
         axes.minIdeasAligned.flatMap((minIdeasAligned) =>
           axes.minAuthorTrack.flatMap((minAuthorTrack) =>
             axes.minAuthorHitRate.flatMap((minAuthorHitRate) =>
-              axes.minWeightAligned.flatMap((minWeightAligned) =>
-                axes.profitLockPercent.flatMap((profitLockPercent) =>
-                  axes.entryDelayMinutes.flatMap((entryDelayMinutes) =>
-                    axes.authorMetric.map((authorMetric) => ({
-                      hardStopPercent,
-                      trailingTakePercent,
-                      holdMinutes,
-                      minIdeasAligned,
-                      minAuthorTrack,
-                      minAuthorHitRate,
-                      minWeightAligned,
-                      profitLockPercent,
-                      entryDelayMinutes,
-                      authorMetric,
-                    })),
+              axes.minAuthorWilson.flatMap((minAuthorWilson) =>
+                axes.minWeightAligned.flatMap((minWeightAligned) =>
+                  axes.profitLockPercent.flatMap((profitLockPercent) =>
+                    axes.entryDelayMinutes.flatMap((entryDelayMinutes) =>
+                      axes.authorMetric.map((authorMetric) => ({
+                        hardStopPercent,
+                        trailingTakePercent,
+                        holdMinutes,
+                        minIdeasAligned,
+                        minAuthorTrack,
+                        minAuthorHitRate,
+                        minAuthorWilson,
+                        minWeightAligned,
+                        profitLockPercent,
+                        entryDelayMinutes,
+                        authorMetric,
+                      })),
+                    ),
                   ),
                 ),
               ),
@@ -1052,8 +1096,8 @@ const RUN_FN = async (
     const rule = AUTHOR_RULE_FN(point);
     const key =
       rule.metric === "reach"
-        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
-        : `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
+        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.minAuthorWilson}:${rule.profitLockPercent}:${rule.hardStopPercent}`
+        : `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.minAuthorWilson}`;
     let filter = filterByRule.get(key);
     if (!filter) {
       filter = TRAIN_AUTHOR_FILTER_FN(profiles, directional, rule);
@@ -1294,6 +1338,8 @@ const TEST_FN = async (
     authorStats,
     point.minAuthorTrack,
     point.minAuthorHitRate,
+    // замороженные точки старых артефактов не несут поля — 0 = выкл
+    point.minAuthorWilson ?? 0,
   );
 
   // окно суточных корзин — по тестовому диапазону: метрики отчёта

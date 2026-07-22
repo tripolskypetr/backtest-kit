@@ -55,6 +55,7 @@ test("SIM: profile MFE/MAE/shakeout are numerically exact and shakeout ignores p
       minWeightAligned: [0],
       profitLockPercent: [0],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

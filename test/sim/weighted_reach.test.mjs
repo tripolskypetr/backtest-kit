@@ -68,6 +68,7 @@ test("SIM: weighted consensus inherits the author metric — W gate cuts close w
       minWeightAligned: [0.5],
       profitLockPercent: [2.5],
       entryDelayMinutes: [0],
+      minAuthorWilson: [0],
       authorMetric: ["close", "reach"],
     },
     callbacks: {

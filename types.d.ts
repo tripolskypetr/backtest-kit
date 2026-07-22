@@ -6116,6 +6116,24 @@ interface ISimulatorGridAxes {
      */
     minAuthorHitRate: number[];
     /**
+     * Author ban rule to sweep: minimum LOWER BOUND of the Wilson 95%
+     * confidence interval of the author's hit rate. Unlike the
+     * minAuthorTrack x minAuthorHitRate pair, the bound prices the
+     * track length INTO the quality estimate: a 3/3 newcomer (LB ~
+     * 0.44) is banned where a 15/15 veteran (LB ~ 0.80) passes — the
+     * pair cannot tell them apart at equal hit rates. An author with
+     * zero known outcomes has LB 0 (default-ban preserved).
+     * Tunes: how much PROVEN quality (not observed quality) an author
+     * needs; sweeping it against the pair lets the grid decide which
+     * ban arithmetic wins.
+     * Ignored: 0 DISABLES the bound entirely — the pair alone decides,
+     * bit-identical to the pre-Wilson behavior; keep 0 in the list to
+     * sweep the baseline. To ban by the bound ALONE, pin the pair to
+     * its inert values: minAuthorTrack: [0], minAuthorHitRate: [0].
+     * Hits inherit authorMetric, like the rest of the ban rule.
+     */
+    minAuthorWilson: number[];
+    /**
      * Weighted consensus thresholds to sweep. An author's vote weight
      * is his Laplace-smoothed track record (hits+1)/(ideas+2) — a 2/2
      * newcomer weighs less than a 15/15 veteran. Entry requires the
@@ -6143,6 +6161,29 @@ interface ISimulatorGridAxes {
      * level never affects ban training — trading only.
      */
     profitLockPercent: number[];
+    /**
+     * Entry delays to sweep, minutes after the publication minute.
+     * Tunes: WHERE on the crowd-liquidity step the entry lands. The
+     * first-hour impulse of a posted idea retraces at 30-120 minutes
+     * (measured on the reference feed), so a delayed entry at 4-8
+     * hours buys the pullback: same or better PnL with a lower stop
+     * along the path. Entry fills at the open of candle[delay]; the
+     * delay is execution timing ONLY — the busy check anchors to the
+     * delayed entry minute, while consensus gates, profile MFE/MAE and
+     * ban training keep grading from the publication minute (the
+     * signal is the post; an author's correctness does not depend on
+     * when WE enter).
+     * Ignored: 0 DISABLES the mechanism (instant entry at the minute
+     * after publication) — keep 0 in the list to sweep the baseline.
+     * Never affects ban training. The delay consumes the tail of the
+     * fixed 5-day profile horizon: a delay + hold overshooting the
+     * horizon clamps to the horizon close (time_expired on a full
+     * profile; data_truncated stays reserved for profiles cut by the
+     * end of candle data), and an idea whose profile is shorter than
+     * the delay is skipped entirely (reported per point as
+     * skippedNoData).
+     */
+    entryDelayMinutes: number[];
     /**
      * Author-hit metrics to sweep for the ban filter — a rule
      * parameter like the thresholds.
@@ -6191,6 +6232,8 @@ interface ISimulatorGridPoint {
     minAuthorTrack: number;
     /** Author ban rule: minimum hit rate (0..1) to be allowed. */
     minAuthorHitRate: number;
+    /** Author ban rule: minimum Wilson lower bound (0..1); 0 = off. */
+    minAuthorWilson: number;
     /**
      * Weighted consensus threshold: required sum of Laplace-smoothed
      * track-record weights of aligned unbanned authors; 0 = disabled.
@@ -6201,6 +6244,8 @@ interface ISimulatorGridPoint {
      * entry, exit on pullback to the floor; 0 = disabled.
      */
     profitLockPercent: number;
+    /** Entry delay, minutes after the publication minute; 0 = instant. */
+    entryDelayMinutes: number;
     /** Author-hit metric of the ban filter for this point. */
     authorMetric: SimulatorAuthorMetric;
 }
@@ -6216,7 +6261,10 @@ interface ISimulatorTrade {
     ideaId: number;
     /** Position direction inherited from the idea. */
     direction: SimulatorIdeaDirection;
-    /** Unix timestamp in milliseconds of the trade entry minute. */
+    /**
+     * Unix timestamp in milliseconds of the trade entry minute: the
+     * minute after publication plus the point's entryDelayMinutes.
+     */
     entryTimestamp: number;
     /** Unix timestamp in milliseconds of the exit candle. */
     exitTimestamp: number;
@@ -6243,6 +6291,12 @@ interface ISimulatorPointReport {
     trades: number;
     /** Qualified ideas skipped because the position slot was busy. */
     skippedBusy: number;
+    /**
+     * Qualified ideas skipped because the profile has no candle at the
+     * delayed entry minute (the idea sits closer to the data edge than
+     * entryDelayMinutes). Always 0 with entryDelayMinutes = 0.
+     */
+    skippedNoData: number;
     /** Sum of trade PnL percents over the range. */
     totalPnlPercent: number;
     /** Mean trade PnL, percent. */
@@ -6314,8 +6368,9 @@ interface ISimulatorAuthorStat {
     /**
      * Author is banned under the ban rule these stats were computed
      * with. True when the track is too short to judge (ideas <
-     * minAuthorTrack) OR the hit rate is below minAuthorHitRate.
-     * Unproven correctness = banned.
+     * minAuthorTrack) OR the hit rate is below minAuthorHitRate OR the
+     * Wilson lower bound of the hit rate is below minAuthorWilson
+     * (when that bound is enabled). Unproven correctness = banned.
      */
     banned: boolean;
 }
@@ -6455,8 +6510,9 @@ interface ISimulatorTestResult {
  *   a single-value list freezes an axis. Pinning examples:
  *   authorMetric: ["close"] restores pre-reach ban training,
  *   banCriteria: ["sharpe"] restores the Sharpe-only run artifact,
- *   profitLockPercent: [0] disables the lock. Each axis documents
- *   its own tune/ignore conditions in ISimulatorGridAxes.
+ *   profitLockPercent: [0] disables the lock, entryDelayMinutes: [0]
+ *   pins instant entry. Each axis documents its own tune/ignore
+ *   conditions in ISimulatorGridAxes.
  * - callbacks — all optional; an omitted callback is simply never
  *   fired (silent run). onAuthorsTrained fires once per unique ban
  *   RULE (not per grid point) and never fires during test().
@@ -19934,10 +19990,24 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  * - minWeightAligned — sum of Laplace weights (hits+1)/(ideas+2) of
  *   those authors; 0 disables the weighted gate.
  *
+ * Entry timing:
+ * - entryDelayMinutes — entry fills at candle[delay] open, delay
+ *   minutes after the publication minute; 0 = instant. Execution
+ *   timing only: consensus gates and ban training stay anchored to
+ *   the publication minute, the busy check moves to the delayed
+ *   entry minute. The delay consumes the tail of the 5-day profile
+ *   horizon (an overshooting hold clamps to the horizon close; a
+ *   profile shorter than the delay is skipped and counted in
+ *   skippedNoData).
+ *
  * Ban rule (author filter, trained on the whole run range):
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
+ * - minAuthorWilson — minimum Wilson 95% lower bound of the hit
+ *   rate: proven quality that prices the track length in; 0
+ *   disables (pair-only baseline), and with the pair pinned inert
+ *   (track [0], rate [0]) the bound bans alone.
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop; reach with
@@ -42889,7 +42959,10 @@ declare class SimulatorSchemaService {
  * 3. The outcome of every grid point is derived arithmetically from
  *    the profiles with production slot semantics (one position per
  *    symbol, busy-slot ideas skipped). Honesty contracts: entry at
- *    next-minute open, exits by candle wicks (never close-to-close),
+ *    next-minute open plus the point's entryDelayMinutes (the busy
+ *    check anchors to the delayed entry minute; consensus and ban
+ *    training stay anchored to the publication minute), exits by
+ *    candle wicks (never close-to-close),
  *    stop wins inside an ambiguous candle, trailing arms only from
  *    previous-candle peaks, fees and slippage from GLOBAL_CONFIG on
  *    both legs.
