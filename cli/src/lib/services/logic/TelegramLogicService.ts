@@ -26,7 +26,8 @@ import {
   AverageBuyCommit,
   OrderFillOpenContract,
   OrderFillCloseContract,
-  OrderRejectContract,
+  OrderRejectOpenContract,
+  OrderRejectCloseContract,
   OrderContinueContract,
   OrderStopContract,
   SignalInfoContract,
@@ -221,11 +222,11 @@ export class TelegramLogicService {
     });
   };
 
-  private notifyOrderOpen = trycatch(async (event: OrderFillOpenContract) => {
-    this.loggerService.log("telegramLogicService notifyOrderOpen", {
+  private notifyOrderFillOpen = trycatch(async (event: OrderFillOpenContract) => {
+    this.loggerService.log("telegramLogicService notifyOrderFillOpen", {
       event,
     });
-    const markdown = await this.telegramTemplateService.getOrderOpenMarkdown(event);
+    const markdown = await this.telegramTemplateService.getOrderFillOpenMarkdown(event);
     if (!markdown) {
       return;
     }
@@ -235,11 +236,11 @@ export class TelegramLogicService {
     });
   });
 
-  private notifyOrderClose = trycatch(async (event: OrderFillCloseContract) => {
-    this.loggerService.log("telegramLogicService notifyOrderClose", {
+  private notifyOrderFillClose = trycatch(async (event: OrderFillCloseContract) => {
+    this.loggerService.log("telegramLogicService notifyOrderFillClose", {
       event,
     });
-    const markdown = await this.telegramTemplateService.getOrderCloseMarkdown(event);
+    const markdown = await this.telegramTemplateService.getOrderFillCloseMarkdown(event);
     if (!markdown) {
       return;
     }
@@ -249,11 +250,25 @@ export class TelegramLogicService {
     });
   });
 
-  private notifyOrderRejected = trycatch(async (event: OrderRejectContract) => {
-    this.loggerService.log("telegramLogicService notifyOrderRejected", {
+  private notifyOrderRejectOpen = trycatch(async (event: OrderRejectOpenContract) => {
+    this.loggerService.log("telegramLogicService notifyOrderRejectOpen", {
       event,
     });
-    const markdown = await this.telegramTemplateService.getOrderRejectedMarkdown(event);
+    const markdown = await this.telegramTemplateService.getOrderRejectOpenMarkdown(event);
+    if (!markdown) {
+      return;
+    }
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  });
+
+  private notifyOrderRejectClose = trycatch(async (event: OrderRejectCloseContract) => {
+    this.loggerService.log("telegramLogicService notifyOrderRejectClose", {
+      event,
+    });
+    const markdown = await this.telegramTemplateService.getOrderRejectCloseMarkdown(event);
     if (!markdown) {
       return;
     }
@@ -416,25 +431,38 @@ export class TelegramLogicService {
     // guaranteed truthful. The pre-verdict syncSubject is NOT consumed here.
     const unOrderFill = listenOrderFill(async (event) => {
       if (event.action === "signal-open") {
-        // type "schedule" is a resting-order PLACEMENT, not a position fill:
-        // the user already got the "scheduled" notification from listenSignal
+        // type "active" is the POSITION fill and covers BOTH open paths: an
+        // immediate open (no schedule phase at all) and the activation fill of
+        // a resting order — either way this is the moment the position really
+        // opened on the exchange. type "schedule" is only the resting-order
+        // PLACEMENT (not a fill yet; the "scheduled" notification from
+        // listenSignal already covered it) — the actual fill of that order
+        // arrives later as a separate type "active" event.
         if (event.type !== "active") {
           return;
         }
-        await this.notifyOrderOpen(event);
+        await this.notifyOrderFillOpen(event);
         return;
       }
       if (event.action === "signal-close") {
-        await this.notifyOrderClose(event);
+        await this.notifyOrderFillClose(event);
         return;
       }
     });
 
     // Terminal broker rejection (post-verdict orderRejectSubject): exactly one
     // event per dropped order attempt — the engine consumes the rejected signal
-    // id, so this cannot repeat per-tick for the same signal.
+    // id, so this cannot repeat per-tick for the same signal. Dispatched by
+    // action to the dedicated open/close notifications (single responsibility).
     const unOrderReject = listenOrderReject(async (event) => {
-      await this.notifyOrderRejected(event);
+      if (event.action === "signal-open") {
+        await this.notifyOrderRejectOpen(event);
+        return;
+      }
+      if (event.action === "signal-close") {
+        await this.notifyOrderRejectClose(event);
+        return;
+      }
     });
 
     // Post-verdict check decisions: CONTINUE fires every surviving tick and is

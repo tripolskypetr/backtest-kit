@@ -14,7 +14,8 @@ import {
   TrailingTakeCommit,
   OrderFillOpenContract,
   OrderFillCloseContract,
-  OrderRejectContract,
+  OrderRejectOpenContract,
+  OrderRejectCloseContract,
   OrderContinueContract,
   OrderStopContract,
   SignalInfoContract,
@@ -62,9 +63,10 @@ export interface TelegramConfig {
   getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string>;
   getRiskMarkdown(event: RiskContract): Promise<string>;
   getAverageBuyMarkdown(event: AverageBuyCommit): Promise<string>;
-  getOrderOpenMarkdown(event: OrderFillOpenContract): Promise<string>;
-  getOrderCloseMarkdown(event: OrderFillCloseContract): Promise<string>;
-  getOrderRejectedMarkdown(event: OrderRejectContract): Promise<string>;
+  getOrderFillOpenMarkdown(event: OrderFillOpenContract): Promise<string>;
+  getOrderFillCloseMarkdown(event: OrderFillCloseContract): Promise<string>;
+  getOrderRejectOpenMarkdown(event: OrderRejectOpenContract): Promise<string>;
+  getOrderRejectCloseMarkdown(event: OrderRejectCloseContract): Promise<string>;
   getOrderContinueMarkdown(event: OrderContinueContract): Promise<string>;
   getOrderStopMarkdown(event: OrderStopContract): Promise<string>;
   getCancelScheduledMarkdown(event: CancelScheduledCommit): Promise<string>;
