@@ -32,7 +32,7 @@ addSimulatorSchema({
   },
 });
 
-const ideas = readFileSync("./assets/ts-ideas.normalized.jsonl", "utf-8")
+const ideas = readFileSync("./assets/tv-ideas.normalized.jsonl", "utf-8")
   .split("\n").filter(Boolean).map((line) => JSON.parse(line));
 
 const result = await Simulator.run({ symbol: "BTCUSDT", simulatorName: "tv_simulator", ideas });

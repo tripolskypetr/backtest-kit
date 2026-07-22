@@ -22,7 +22,7 @@ addExchangeSchema({
   },
 });
 
-const ideas = readFileSync("./assets/ts-ideas.normalized.jsonl", "utf-8")
+const ideas = readFileSync("./assets/tv-ideas.normalized.jsonl", "utf-8")
   .split("\n").filter(Boolean).map((line) => JSON.parse(line));
 // обучение видит ТОЛЬКО голову ленты: первые 70% времени.
 // Хвост здесь не загружается вообще — он принадлежит src/test.mjs

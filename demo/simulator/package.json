@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node ./src/index.mjs",
-    "cli": "npx -y @backtest-kit/cli@latest --simulator ./assets/ts-ideas.normalized.jsonl --verbose --json"
+    "cli": "npx -y @backtest-kit/cli@latest --simulator ./assets/tv-ideas.normalized.jsonl --verbose --json"
   },
   "dependencies": {
     "backtest-kit": "16.4.0",
