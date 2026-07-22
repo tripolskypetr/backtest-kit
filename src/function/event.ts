@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -19,6 +19,8 @@ import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { not, queued } from "functools-kit";
 import OrderSyncContract from "../contract/OrderSync.contract";
+import OrderFillContract from "../contract/OrderFill.contract";
+import OrderRejectContract from "../contract/OrderReject.contract";
 import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
@@ -70,6 +72,10 @@ const LISTEN_STRATEGY_COMMIT_METHOD_NAME = "event.listenStrategyCommit";
 const LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME = "event.listenStrategyCommitOnce";
 const LISTEN_SYNC_METHOD_NAME = "event.listenSync";
 const LISTEN_SYNC_ONCE_METHOD_NAME = "event.listenSyncOnce";
+const LISTEN_ORDER_FILL_METHOD_NAME = "event.listenOrderFill";
+const LISTEN_ORDER_FILL_ONCE_METHOD_NAME = "event.listenOrderFillOnce";
+const LISTEN_ORDER_REJECT_METHOD_NAME = "event.listenOrderReject";
+const LISTEN_ORDER_REJECT_ONCE_METHOD_NAME = "event.listenOrderRejectOnce";
 const LISTEN_CHECK_METHOD_NAME = "event.listenCheck";
 const LISTEN_CHECK_ONCE_METHOD_NAME = "event.listenCheckOnce";
 const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
@@ -1809,6 +1815,115 @@ export function listenSyncOnce(
   };
 
   return disposeFn = listenSync(wrappedFn, true);
+}
+
+/**
+ * Subscribes to broker-CONFIRMED order fill events with queued async processing.
+ *
+ * Post-verdict mirror of {@link listenSync}: fires ONLY after the onOrderSync gate
+ * resolved into the "confirmed" IBrokerOrderVerdict — the broker adapter acknowledged
+ * the order really executed/placed on the exchange. A transient or terminal
+ * (OrderRejectedError) gate rejection does NOT fire here, and neither does a
+ * FORCE-close performed without broker confirmation.
+ *
+ * Discriminated exactly like OrderSyncContract:
+ * - action "signal-open", type "active" — the position order FILLED;
+ * - action "signal-open", type "schedule" — the resting entry order was PLACED;
+ * - action "signal-close" — the exit order executed.
+ *
+ * Live-only: backtest gates short-circuit to "confirmed" without an exchange, so
+ * nothing is emitted there.
+ *
+ * Unlike listenSync this is a NOTIFICATION channel, not a gate: a throw from the
+ * listener is swallowed at the emission site (logged + errorEmitter) and cannot
+ * affect the already-resolved verdict. Safe for telegram/webhook/audit consumers.
+ *
+ * @param fn - Callback function to handle confirmed fill events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenOrderFill(fn: (event: OrderFillContract) => void) {
+  backtest.loggerService.log(LISTEN_ORDER_FILL_METHOD_NAME);
+  return orderFillSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered broker-confirmed order fill events with one-time execution.
+ * See {@link listenOrderFill} for the emission semantics (confirmed verdicts only,
+ * live-only, listener throws swallowed).
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, processing waits until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenOrderFillOnce(
+  filterFn: (event: OrderFillContract) => boolean,
+  fn: (event: OrderFillContract) => void
+) {
+  backtest.loggerService.log(LISTEN_ORDER_FILL_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: OrderFillContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenOrderFill(wrappedFn);
+}
+
+/**
+ * Subscribes to TERMINAL order rejection events with queued async processing.
+ *
+ * Post-verdict mirror of the rejection branch: fires ONLY when the onOrderSync gate
+ * resolved into the "rejected" verdict — the broker adapter threw OrderRejectedError
+ * ("the exchange definitively refused this order, retrying is pointless"). Exactly
+ * once per dropped order attempt: an open consumes its signalId (the whipsaw guard
+ * blocks re-emission of the same id), a close force-closes with the original
+ * closeReason. Transient failures never fire here — they retry silently within the
+ * bounded budgets.
+ *
+ * Live-only: backtest gates short-circuit to "confirmed" without an exchange.
+ *
+ * Like {@link listenOrderFill} this is a NOTIFICATION channel, not a gate: a throw
+ * from the listener is swallowed at the emission site (logged + errorEmitter) and
+ * cannot affect the already-resolved verdict. Safe for telegram/webhook/audit
+ * consumers.
+ *
+ * @param fn - Callback function to handle terminal rejection events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenOrderReject(fn: (event: OrderRejectContract) => void) {
+  backtest.loggerService.log(LISTEN_ORDER_REJECT_METHOD_NAME);
+  return orderRejectSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered terminal order rejection events with one-time execution.
+ * See {@link listenOrderReject} for the emission semantics (terminal "rejected"
+ * verdicts only, live-only, listener throws swallowed).
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, processing waits until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenOrderRejectOnce(
+  filterFn: (event: OrderRejectContract) => boolean,
+  fn: (event: OrderRejectContract) => void
+) {
+  backtest.loggerService.log(LISTEN_ORDER_REJECT_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: OrderRejectContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenOrderReject(wrappedFn);
 }
 
 /**

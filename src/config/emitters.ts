@@ -18,6 +18,8 @@ import { ActivePingContract } from "../contract/ActivePing.contract";
 import { IdlePingContract } from "../contract/IdlePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import OrderSyncContract from "../contract/OrderSync.contract";
+import OrderFillContract from "../contract/OrderFill.contract";
+import OrderRejectContract from "../contract/OrderReject.contract";
 import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
@@ -35,6 +37,27 @@ import { AfterEndContract } from "../contract/AfterEnd.contract";
  * Consumers should implement retry logic in their listeners to handle transient synchronization failures.
  */
 export const syncSubject = new Subject<OrderSyncContract>();
+
+/**
+ * Broker-CONFIRMED order fill emitter (post-verdict mirror of syncSubject).
+ * Emitted ONLY after the onOrderSync gate resolved into the "confirmed" verdict —
+ * a rejected/transient attempt does NOT fire here (unlike syncSubject, which fires
+ * on every attempt BEFORE the broker adapter runs). Live-only: backtest gates
+ * short-circuit to "confirmed" without an exchange, so no fill exists to report.
+ * Notification-only channel: listener exceptions are swallowed at the emission
+ * site and never affect the already-resolved verdict.
+ */
+export const orderFillSubject = new Subject<OrderFillContract>();
+
+/**
+ * TERMINAL order rejection emitter (post-verdict mirror of the rejection branch).
+ * Emitted ONLY when the onOrderSync gate resolved into the "rejected" verdict
+ * (OrderRejectedError from the broker adapter) — exactly once per dropped order
+ * attempt: the open consumes its signalId, the close force-closes. Transient
+ * failures do NOT fire here (they retry silently). Live-only. Notification-only
+ * channel: listener exceptions are swallowed at the emission site.
+ */
+export const orderRejectSubject = new Subject<OrderRejectContract>();
 
 /**
  * Pending-order synchronization emitter.

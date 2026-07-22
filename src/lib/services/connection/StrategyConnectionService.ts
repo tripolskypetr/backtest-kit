@@ -36,6 +36,8 @@ import {
   strategyCommitSubject,
   syncSubject,
   syncPendingSubject,
+  orderFillSubject,
+  orderRejectSubject,
   highestProfitSubject,
   maxDrawdownSubject,
   pauseSubject,
@@ -52,6 +54,8 @@ import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import beginTime from "../../../utils/beginTime";
 import OrderSyncContract from "../../../contract/OrderSync.contract";
+import OrderFillContract from "../../../contract/OrderFill.contract";
+import OrderRejectContract from "../../../contract/OrderReject.contract";
 import OrderCheckContract from "../../../contract/OrderCheck.contract";
 import OrderRejectedError from "../../../error/OrderRejectedError";
 import OrderDeletedError from "../../../error/OrderDeletedError";
@@ -68,6 +72,141 @@ const STRATEGY_DEFAULT_INTERVAL = "1m";
 const STRATEGY_DEFAULT_SIGNAL = () => null;
 
 /**
+ * Builds the broker-confirmed OrderFillContract from the sync gate event.
+ *
+ * Explicit field mapping on purpose: the fill contract is INDEPENDENT from the sync
+ * contract — the sync event is a pre-verdict REQUEST (fires on every attempt, before
+ * the broker adapter runs) and must not leak as-is into the fill channel, which
+ * carries "the exchange really executed/placed this order" semantics.
+ */
+const TO_ORDER_FILL_FN = (event: OrderSyncContract): OrderFillContract => {
+  const base = {
+    type: event.type,
+    symbol: event.symbol,
+    strategyName: event.strategyName,
+    exchangeName: event.exchangeName,
+    frameName: event.frameName,
+    backtest: event.backtest,
+    signalId: event.signalId,
+    timestamp: event.timestamp,
+    signal: event.signal,
+    attempt: event.attempt,
+    currentPrice: event.currentPrice,
+    pnl: event.pnl,
+    peakProfit: event.peakProfit,
+    maxDrawdown: event.maxDrawdown,
+    position: event.position,
+    priceOpen: event.priceOpen,
+    priceTakeProfit: event.priceTakeProfit,
+    priceStopLoss: event.priceStopLoss,
+    originalPriceTakeProfit: event.originalPriceTakeProfit,
+    originalPriceStopLoss: event.originalPriceStopLoss,
+    originalPriceOpen: event.originalPriceOpen,
+    scheduledAt: event.scheduledAt,
+    pendingAt: event.pendingAt,
+    totalEntries: event.totalEntries,
+    totalPartials: event.totalPartials,
+  };
+  if (event.action === "signal-open") {
+    return { ...base, action: "signal-open", cost: event.cost };
+  }
+  return { ...base, action: "signal-close", closeReason: event.closeReason };
+};
+
+/**
+ * Builds the terminal OrderRejectContract from the sync gate event and the caught
+ * OrderRejectedError. Same explicit-mapping rationale as TO_ORDER_FILL_FN: the
+ * reject contract is independent from the pre-verdict sync contract.
+ */
+const TO_ORDER_REJECT_FN = (event: OrderSyncContract, message: string): OrderRejectContract => {
+  const base = {
+    type: event.type,
+    symbol: event.symbol,
+    strategyName: event.strategyName,
+    exchangeName: event.exchangeName,
+    frameName: event.frameName,
+    backtest: event.backtest,
+    signalId: event.signalId,
+    timestamp: event.timestamp,
+    signal: event.signal,
+    attempt: event.attempt,
+    currentPrice: event.currentPrice,
+    pnl: event.pnl,
+    peakProfit: event.peakProfit,
+    maxDrawdown: event.maxDrawdown,
+    position: event.position,
+    priceOpen: event.priceOpen,
+    priceTakeProfit: event.priceTakeProfit,
+    priceStopLoss: event.priceStopLoss,
+    originalPriceTakeProfit: event.originalPriceTakeProfit,
+    originalPriceStopLoss: event.originalPriceStopLoss,
+    originalPriceOpen: event.originalPriceOpen,
+    scheduledAt: event.scheduledAt,
+    pendingAt: event.pendingAt,
+    totalEntries: event.totalEntries,
+    totalPartials: event.totalPartials,
+    message,
+  };
+  if (event.action === "signal-open") {
+    return { ...base, action: "signal-open", cost: event.cost };
+  }
+  return { ...base, action: "signal-close", closeReason: event.closeReason };
+};
+
+/**
+ * Emits the terminal order rejection event (post-verdict orderRejectSubject).
+ * Notification-only channel: the trycatch fallback swallows a throwing listener
+ * so it can never affect the already-resolved "rejected" verdict of the gate.
+ */
+const CALL_ORDER_REJECT_EMIT_FN = trycatch(
+  async (
+    _self: StrategyConnectionService,
+    event: OrderSyncContract,
+    message: string
+  ): Promise<void> => {
+    await orderRejectSubject.next(TO_ORDER_REJECT_FN(event, message));
+  },
+  {
+    fallback: (error, self) => {
+      const message = "StrategyConnectionService CALL_ORDER_REJECT_EMIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
+ * Emits the broker-confirmed order fill event (post-verdict orderFillSubject).
+ * Notification-only channel: the trycatch fallback swallows a throwing listener
+ * so it can never flip the already-earned "confirmed" verdict of the gate.
+ */
+const CALL_ORDER_FILL_EMIT_FN = trycatch(
+  async (
+    _self: StrategyConnectionService,
+    event: OrderSyncContract
+  ): Promise<void> => {
+    await orderFillSubject.next(TO_ORDER_FILL_FN(event));
+  },
+  {
+    fallback: (error, self) => {
+      const message = "StrategyConnectionService CALL_ORDER_FILL_EMIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
  * If syncSubject listener or any registered action throws, it means the signal was not properly synchronized
  * to the exchange (e.g. limit order failed to fill).
  * A non-typed throw resolves to the "transient" verdict: ClientStrategy skips the open/close and
@@ -75,6 +214,11 @@ const STRATEGY_DEFAULT_SIGNAL = () => null;
  * A thrown OrderRejectedError is a TERMINAL business rejection ("no counterparty, retrying is
  * pointless") — resolved to the "rejected" verdict, so ClientStrategy skips the retry loop
  * entirely (drops the open / force-closes immediately).
+ *
+ * Once BOTH `syncSubject.next` (the Broker adapter runs through this subscription)
+ * and the action channel complete without throwing, the order is broker-CONFIRMED —
+ * the post-verdict orderFillSubject fires with the standalone OrderFillContract
+ * (via CALL_ORDER_FILL_EMIT_FN, so fill listeners cannot affect the verdict).
  */
 const CREATE_SYNC_FN = (
   self: StrategyConnectionService,
@@ -103,10 +247,14 @@ const CREATE_SYNC_FN = (
         self.loggerService.warn(message, payload);
         console.error(message, payload);
         errorEmitter.next(error as Error);
+        // Post-verdict terminal-rejection notification (counterpart of the
+        // confirmed-branch CALL_ORDER_FILL_EMIT_FN below)
+        await CALL_ORDER_REJECT_EMIT_FN(self, event, getErrorMessage(error));
         return { __type__: BROKER_ORDER_VERDICT, reason: "rejected", error };
       }
       throw error;
     }
+    await CALL_ORDER_FILL_EMIT_FN(self, event);
     return { __type__: BROKER_ORDER_VERDICT, reason: "confirmed" };
   }, {
     fallback: (error) => {

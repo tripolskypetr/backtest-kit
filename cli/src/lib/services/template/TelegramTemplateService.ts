@@ -16,8 +16,9 @@ import {
   RiskContract,
   TrailingStopCommit,
   TrailingTakeCommit,
-  OrderOpenContract,
-  OrderCloseContract,
+  OrderFillOpenContract,
+  OrderFillCloseContract,
+  OrderRejectContract,
   SignalInfoContract,
 } from "backtest-kit";
 import ResolveService from "../core/ResolveService";
@@ -42,8 +43,9 @@ type Data =
   | TrailingTakeCommit
   | AverageBuyCommit
   | RiskContract
-  | OrderOpenContract
-  | OrderCloseContract
+  | OrderFillOpenContract
+  | OrderFillCloseContract
+  | OrderRejectContract
   | SignalInfoContract;
 
 const READ_TEMPLATE_FN = memoize(
@@ -218,7 +220,7 @@ export class TelegramTemplateService implements TelegramConfig {
     return await RENDER_TEMPLATE_FN("average-buy.mustache", event, this);
   };
 
-  public getSignalOpenMarkdown = async (event: OrderOpenContract) => {
+  public getSignalOpenMarkdown = async (event: OrderFillOpenContract) => {
     this.loggerService.log("telegramTemplateService getSignalOpenMarkdown", {
       event,
     });
@@ -229,7 +231,7 @@ export class TelegramTemplateService implements TelegramConfig {
     return await RENDER_TEMPLATE_FN("signal-open.mustache", event, this);
   };
 
-  public getSignalCloseMarkdown = async (event: OrderCloseContract) => {
+  public getSignalCloseMarkdown = async (event: OrderFillCloseContract) => {
     this.loggerService.log("telegramTemplateService getSignalCloseMarkdown", {
       event,
     });
@@ -238,6 +240,17 @@ export class TelegramTemplateService implements TelegramConfig {
       return await adapter.getSignalCloseMarkdown(event);
     }
     return await RENDER_TEMPLATE_FN("signal-close.mustache", event, this);
+  };
+
+  public getOrderRejectedMarkdown = async (event: OrderRejectContract) => {
+    this.loggerService.log("telegramTemplateService getOrderRejectedMarkdown", {
+      event,
+    });
+    const adapter = await this.getTelegramAdapter();
+    if (adapter?.getOrderRejectedMarkdown) {
+      return await adapter.getOrderRejectedMarkdown(event);
+    }
+    return await RENDER_TEMPLATE_FN("order-rejected.mustache", event, this);
   };
 
   public getCancelScheduledMarkdown = async (event: CancelScheduledCommit) => {

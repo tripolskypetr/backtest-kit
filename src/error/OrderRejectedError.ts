@@ -25,8 +25,10 @@ const ERROR_MESSAGE_DEFAULT = "OrderRejectedError";
  *   The identity-stable retry (CC_ORDER_OPEN_RETRY_ATTEMPTS) is NOT armed, and an
  *   already-armed retry slot for this signalId is wiped from memory and persistence —
  *   the trade attempt will not resurrect on the next tick or after a restart. The
- *   interval throttle is rolled back, so the strategy may generate a FRESH signal
- *   (new id) on the very next tick.
+ *   rejected signalId is CONSUMED (recorded in the whipsaw guard): a deterministic
+ *   strategy that keeps re-emitting the SAME id will not re-hit the broker with it.
+ *   The interval throttle is rolled back, so the strategy may generate a FRESH
+ *   signal (new id) on the very next tick.
  * - **signal-close**: the engine FORCE-CLOSES its own position state immediately with
  *   the ORIGINAL closeReason (take_profit / stop_loss / time_expired / closed),
  *   bypassing the CC_ORDER_CLOSE_RETRY_ATTEMPTS retry loop. The standard signal-close

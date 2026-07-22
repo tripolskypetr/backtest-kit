@@ -14,15 +14,17 @@ import {
   listenRisk,
   listenSignal,
   listenStrategyCommit,
-  listenSync,
+  listenOrderFill,
+  listenOrderReject,
   PartialLossCommit,
   PartialProfitCommit,
   RiskContract,
   TrailingStopCommit,
   TrailingTakeCommit,
   AverageBuyCommit,
-  OrderOpenContract,
-  OrderCloseContract,
+  OrderFillOpenContract,
+  OrderFillCloseContract,
+  OrderRejectContract,
   SignalInfoContract,
   listenSignalNotify,
 } from "backtest-kit";
@@ -207,7 +209,7 @@ export class TelegramLogicService {
     });
   };
 
-  private notifySignalOpen = trycatch(async (event: OrderOpenContract) => {
+  private notifySignalOpen = trycatch(async (event: OrderFillOpenContract) => {
     this.loggerService.log("telegramLogicService notifySignalOpen", {
       event,
     });
@@ -221,11 +223,25 @@ export class TelegramLogicService {
     });
   });
 
-  private notifySignalClose = trycatch(async (event: OrderCloseContract) => {
+  private notifySignalClose = trycatch(async (event: OrderFillCloseContract) => {
     this.loggerService.log("telegramLogicService notifySignalClose", {
       event,
     });
     const markdown = await this.telegramTemplateService.getSignalCloseMarkdown(event);
+    if (!markdown) {
+      return;
+    }
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  });
+
+  private notifyOrderRejected = trycatch(async (event: OrderRejectContract) => {
+    this.loggerService.log("telegramLogicService notifyOrderRejected", {
+      event,
+    });
+    const markdown = await this.telegramTemplateService.getOrderRejectedMarkdown(event);
     if (!markdown) {
       return;
     }
@@ -338,9 +354,12 @@ export class TelegramLogicService {
       }
     });
 
-    const unSync = listenSync(async (event) => {
+    // Broker-CONFIRMED fills only (post-verdict orderFillSubject): a rejected or
+    // transient gate attempt never reaches this channel, so "Order Filled" is
+    // guaranteed truthful. The pre-verdict syncSubject is NOT consumed here.
+    const unOrderFill = listenOrderFill(async (event) => {
       if (event.action === "signal-open") {
-        // type "schedule" is a resting-order PLACEMENT, not a position open:
+        // type "schedule" is a resting-order PLACEMENT, not a position fill:
         // the user already got the "scheduled" notification from listenSignal
         if (event.type !== "active") {
           return;
@@ -354,6 +373,13 @@ export class TelegramLogicService {
       }
     });
 
+    // Terminal broker rejection (post-verdict orderRejectSubject): exactly one
+    // event per dropped order attempt — the engine consumes the rejected signal
+    // id, so this cannot repeat per-tick for the same signal.
+    const unOrderReject = listenOrderReject(async (event) => {
+      await this.notifyOrderRejected(event);
+    });
+
     const unSignalNotify = listenSignalNotify(async (event) => {
       await this.notifySignalInfo(event);
     });
@@ -364,7 +390,8 @@ export class TelegramLogicService {
       () => unRisk(),
       () => unSignal(),
       () => unCommit(),
-      () => unSync(),
+      () => unOrderFill(),
+      () => unOrderReject(),
       () => unSignalNotify(),
       () => unConnect(),
     );

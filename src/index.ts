@@ -165,6 +165,10 @@ export {
   listenStrategyCommitOnce,
   listenSync,
   listenSyncOnce,
+  listenOrderFill,
+  listenOrderFillOnce,
+  listenOrderReject,
+  listenOrderRejectOnce,
   listenCheck,
   listenCheckOnce,
   listenHighestProfit,
@@ -436,6 +440,18 @@ export {
   OrderOpenContract,
   OrderSyncContract
 } from "./contract/OrderSync.contract";
+
+export {
+  OrderFillContract,
+  OrderFillOpenContract,
+  OrderFillCloseContract
+} from "./contract/OrderFill.contract";
+
+export {
+  OrderRejectContract,
+  OrderRejectOpenContract,
+  OrderRejectCloseContract
+} from "./contract/OrderReject.contract";
 
 export {
   OrderCheckContract
