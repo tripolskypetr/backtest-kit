@@ -474,7 +474,7 @@ export class TelegramLogicService {
       await this.notifySignalInfo(event);
     });
 
-    const unGc = Source.fromInterval(1_000).connect(() => {
+    const unGc = Source.fromInterval(90_000).connect(() => {
         this.notifyOrderContinue.gc();
     });
 
