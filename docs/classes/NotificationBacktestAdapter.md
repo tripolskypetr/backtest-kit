@@ -112,6 +112,42 @@ handleCheck: (data: OrderCheckContract) => any
 Handles order-ping check event.
 Proxies call to the underlying notification adapter.
 
+### handleOrderFill
+
+```ts
+handleOrderFill: (data: OrderFillContract) => any
+```
+
+Handles broker-confirmed order fill events (signal-open, signal-close).
+Proxies call to the underlying notification adapter.
+
+### handleOrderReject
+
+```ts
+handleOrderReject: (data: OrderRejectContract) => any
+```
+
+Handles terminal order rejection events (signal-open, signal-close).
+Proxies call to the underlying notification adapter.
+
+### handleOrderContinue
+
+```ts
+handleOrderContinue: (data: OrderContinueContract) => any
+```
+
+Handles post-verdict order-check continue events.
+Proxies call to the underlying notification adapter.
+
+### handleOrderStop
+
+```ts
+handleOrderStop: (data: OrderStopContract) => any
+```
+
+Handles post-verdict order-check stop events.
+Proxies call to the underlying notification adapter.
+
 ### handleRisk
 
 ```ts

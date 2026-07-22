@@ -72,6 +72,38 @@ handleCheck: (data: OrderCheckContract) => Promise<void>
 
 Handles order-ping check event (signal-ping).
 
+### handleOrderFill
+
+```ts
+handleOrderFill: (data: OrderFillContract) => Promise<void>
+```
+
+Handles broker-confirmed order fill event (post-verdict, signal-open/signal-close).
+
+### handleOrderReject
+
+```ts
+handleOrderReject: (data: OrderRejectContract) => Promise<void>
+```
+
+Handles terminal order rejection event (post-verdict, signal-open/signal-close).
+
+### handleOrderContinue
+
+```ts
+handleOrderContinue: (data: OrderContinueContract) => Promise<void>
+```
+
+Handles post-verdict order-check continue event (order still open, monitoring continues).
+
+### handleOrderStop
+
+```ts
+handleOrderStop: (data: OrderStopContract) => Promise<void>
+```
+
+Handles post-verdict order-check stop event (terminal: order gone, teardown follows).
+
 ### handleRisk
 
 ```ts

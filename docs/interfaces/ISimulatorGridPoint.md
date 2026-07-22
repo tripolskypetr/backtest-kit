@@ -56,3 +56,21 @@ minAuthorHitRate: number
 ```
 
 Author ban rule: minimum hit rate (0..1) to be allowed.
+
+### minWeightAligned
+
+```ts
+minWeightAligned: number
+```
+
+Weighted consensus threshold: required sum of Laplace-smoothed
+track-record weights of aligned unbanned authors; 0 = disabled.
+
+### profitLockPercent
+
+```ts
+profitLockPercent: number
+```
+
+Profit lock: fixed floor armed when price touches +X% from
+entry, exit on pullback to the floor; 0 = disabled.

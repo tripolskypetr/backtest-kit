@@ -33,7 +33,7 @@ points:
    stop wins inside an ambiguous candle, trailing arms only from
    previous-candle peaks, fees and slippage from GLOBAL_CONFIG on
    both legs.
-4. Grid winners are picked by three rankings (Sharpe, Sortino,
+4. Grid winners are picked by four rankings (Sharpe, Sortino, PnL,
    total PnL) with an anti-fluke minimum-trades guard.
 
 Every stage emits an ISimulatorCallbacks hook; the client itself
@@ -85,3 +85,27 @@ Steps and emitted callbacks:
 The ideas array may contain multiple symbols — foreign ones are
 filtered out before any computation, so one shared feed can be
 passed for every symbol.
+
+### test
+
+```ts
+test: (symbol: string, ideas: ISimulatorIdea[], point: ISimulatorGridPoint, authorStats: ISimulatorAuthorStat[]) => Promise<ISimulatorTestResult>
+```
+
+Out-of-sample test: evaluates ONE frozen grid point over fresh
+ideas with a FROZEN author track record from a train run.
+
+Steps and emitted callbacks:
+1. Filters the input array by symbol, sorts by publication time,
+   drops NEUTRAL ideas and flood duplicates (same preprocessing
+   as run()) -&gt; onIdeas(symbol, total, directional).
+2. Builds one trajectory profile per test idea
+   -&gt; onProfiles(symbol, profiles, truncatedCount).
+3. FREEZES the author filter: the point's ban rule is applied to
+   the given train stats verbatim; authors unseen in the stats
+   are banned by default. onAuthorsTrained never fires — nothing
+   is trained on the test data.
+4. Evaluates the single point with production slot semantics and
+   the same metric math as run()
+   -&gt; onGridPoint(symbol, report, trades).
+5. Assembles the result -> onTestDone(symbol, result).

@@ -73,6 +73,27 @@ maxSeriesDrawdownPercent: number
 
 Maximum drawdown of the cumulative trade PnL curve, percent.
 
+### calmarRatio
+
+```ts
+calmarRatio: number
+```
+
+Calmar ratio: total PnL annualized over the shared daily bucket
+window (x 365/days) divided by maxSeriesDrawdownPercent.
+Infinity when the curve has no drawdown and PnL is positive
+(JSON-serializes to null, same as profitFactor/sortino).
+
+### recoveryFactor
+
+```ts
+recoveryFactor: number
+```
+
+Recovery factor: total PnL divided by maxSeriesDrawdownPercent.
+Infinity when the curve has no drawdown and PnL is positive
+(JSON-serializes to null, same as profitFactor/sortino).
+
 ### avgHoldMinutes
 
 ```ts
@@ -115,7 +136,10 @@ sortino: number
 ```
 
 Time-based Sortino: like sharpe but deviation is computed over
-negative daily increments only; 999 when no losing days.
+negative daily increments only. Infinity when the series has no
+losing day (consistent with profitFactor; a finite sentinel would
+mislead — real values can exceed any constant). NB: Infinity
+JSON-serializes to null in saved artifacts.
 
 ### exitReasons
 

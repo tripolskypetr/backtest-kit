@@ -94,6 +94,57 @@ exchange. Throttled to at most one notification per signalId per
 dropped when the signal is closed or cancelled.
 Source: `syncPendingSubject` (OrderCheckContract).
 
+### order_fill
+
+```ts
+order_fill: boolean
+```
+
+Broker-CONFIRMED order fill notifications (`order_fill.open`, `order_fill.close`).
+Post-verdict counterpart of `order_sync`: fired ONLY after the onOrderSync gate
+resolved into the "confirmed" verdict — a rejected or transient attempt never
+fires here. Live-only (backtest gates short-circuit without an exchange).
+Source: `orderFillSubject` (OrderFillContract).
+
+### order_reject
+
+```ts
+order_reject: boolean
+```
+
+TERMINAL order rejection notifications (`order_reject.open`, `order_reject.close`).
+Fired ONLY on the "rejected" verdict (OrderRejectedError from the broker adapter) —
+exactly once per dropped attempt (the open consumes its signalId, the close
+force-closes). Transient failures never fire here. Live-only.
+Source: `orderRejectSubject` (OrderRejectContract).
+
+### order_continue
+
+```ts
+order_continue: boolean
+```
+
+Post-verdict order-check CONTINUE notifications (`order_continue.check`).
+The resolved pair of `order_check`: the order is confirmed still open (attempt 0)
+or a transient failure was tolerated (attempt &gt; 0) — monitoring continues.
+Throttled like `order_check`: at most one notification per signalId per
+`CC_NOTIFICATION_ORDER_CHECK_TTL`; the throttle entry is dropped when the
+signal is closed or cancelled. Live-only.
+Source: `orderContinueSubject` (OrderContinueContract).
+
+### order_stop
+
+```ts
+order_stop: boolean
+```
+
+Post-verdict order-check STOP notifications (`order_stop.check`).
+Fired exactly once per monitored signal when the check resolved terminally —
+"deleted" (confirmed not-found) or "exhausted" (transient tolerance spent) —
+right before the teardown (close "closed" / cancel "user"). Not throttled.
+Live-only.
+Source: `orderStopSubject` (OrderStopContract).
+
 ### risk
 
 ```ts

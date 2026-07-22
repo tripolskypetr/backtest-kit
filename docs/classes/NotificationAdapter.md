@@ -24,7 +24,7 @@ constructor();
 ### enable
 
 ```ts
-enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, order_sync, order_check, risk, pause, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & ISingleshotClearable<({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, order_sync, order...
+enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, order_sync, order_check, order_fill, order_reject, order_continue, order_stop, risk, pause, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & ISingleshotClearable<({ signal, info, partial_profit, parti...
 ```
 
 Enables notification storage by subscribing to signal emitters.

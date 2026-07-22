@@ -72,3 +72,12 @@ onDone: (symbol: string, result: ISimulatorResult) => void
 ```
 
 Simulation finished.
+
+### onTestDone
+
+```ts
+onTestDone: (symbol: string, result: ISimulatorTestResult) => void
+```
+
+Out-of-sample test finished. onAuthorsTrained deliberately never
+fires during a test — nothing is trained on the test data.

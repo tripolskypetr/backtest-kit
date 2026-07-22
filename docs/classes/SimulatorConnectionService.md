@@ -54,6 +54,16 @@ run: (dto: { symbol: string; simulatorName: string; ideas: ISimulatorIdea[]; }) 
 Runs the full simulation for a symbol through the memoized
 client: profiles -&gt; author filter -&gt; grid evaluation -&gt; rankings.
 
+### test
+
+```ts
+test: (dto: { symbol: string; simulatorName: string; ideas: ISimulatorIdea[]; point: ISimulatorGridPoint; authorStats: ISimulatorAuthorStat[]; }) => Promise<...>
+```
+
+Out-of-sample test through the memoized client: evaluates one
+frozen grid point over fresh ideas with a frozen author track
+record from a train run — nothing is trained on the test data.
+
 ### clear
 
 ```ts

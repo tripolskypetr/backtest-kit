@@ -5,7 +5,7 @@ group: docs
 
 # ISimulatorResult
 
-Final result of a simulation run: grid reports, three ranking
+Final result of a simulation run: grid reports, four ranking
 winners and the trained author filter artifact.
 
 ## Properties
@@ -117,4 +117,4 @@ All grid point reports, sorted by Sharpe descending.
 best: ISimulatorBest[]
 ```
 
-Winners of the three rankings: sharpe, sortino, pnl.
+Winners of the rankings: sharpe, sortino, pnl, recovery.
