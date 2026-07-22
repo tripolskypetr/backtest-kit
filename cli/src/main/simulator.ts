@@ -1,4 +1,4 @@
-import { addSimulatorSchema, Simulator, listExchangeSchema } from "backtest-kit";
+import { addSimulatorSchema, Simulator, listExchangeSchema, overrideExchangeSchema } from "backtest-kit";
 import type { ISimulatorIdea, ISimulatorResult } from "backtest-kit";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
@@ -156,6 +156,19 @@ export const main = async () => {
 
   const exchangeName =
     <string>values.exchange || defaultExchangeName?.exchangeName;
+
+  if (values.verbose) {
+    overrideExchangeSchema({
+      exchangeName,
+      callbacks: {
+        onCandleData(symbol, interval, since) {
+          console.log(
+            `Received candle data for symbol: ${symbol}, interval: ${interval}, since: ${since.toUTCString()}`,
+          );
+        },
+      },
+    });
+  }
 
   const symbol = <string>values.symbol || "BTCUSDT";
 
