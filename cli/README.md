@@ -455,7 +455,7 @@ The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--sym
 Sweep exit/entry parameters over a feed of crowd trading ideas using the `Simulator` entity — one candle pass per idea, a full parameter grid evaluated arithmetically, an author whitelist trained with default-ban semantics. Prints a Markdown report with four ranking winners (time-based Sharpe, Sortino, PnL, recovery factor) and the production whitelist.
 
 ```bash
-npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/ts-ideas.normalized.jsonl
+npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
 # → summary to stdout; add --json / --markdown to save into ./dump/
 ```
 

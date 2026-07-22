@@ -58,7 +58,7 @@ const OBSERVATION_MINUTES = 2 * 24 * 60;
 const NEVER_HARD_STOP = 50;
 
 const getIdeas = singleshot(async () => {
-  const file = await readFile("./assets/ts-ideas.normalized.jsonl", "utf-8");
+  const file = await readFile("./assets/tv-ideas.normalized.jsonl", "utf-8");
   const lines = file
     .split("\n")
     .filter(Boolean)

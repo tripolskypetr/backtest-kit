@@ -1,0 +1,5 @@
+
+> tune@1.0.0 test
+> node ./src/test.mjs
+
+test saved; trades: 7 pnl: 6.98% sharpe: 1.65 allowed: TradingShot, Apex_Legends, Cryptollica, MarketStrategysignals, melikatrader94, PremiumTrader57, InvestingScope

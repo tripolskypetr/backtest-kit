@@ -59,7 +59,7 @@ The winners diverge in exits but agree on the essentials: **hold = 72h** on ever
 ```
 demo/simulator/
 ├── assets/
-│   └── ts-ideas.normalized.jsonl   # crypto-venue ideas only, symbols normalized to *USDT
+│   └── tv-ideas.normalized.jsonl   # crypto-venue ideas only, symbols normalized to *USDT
 ├── src/
 │   └── index.mjs                   # Exchange + simulator schema + Simulator.run
 ├── dump/

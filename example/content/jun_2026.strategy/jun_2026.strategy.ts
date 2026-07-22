@@ -79,7 +79,7 @@ const getBannedAuthors = singleshot(async (): Promise<Set<string>> => {
 
 const getIdeas = singleshot(async (): Promise<Idea[]> => {
   const [file, banned] = await Promise.all([
-    readFile("./assets/ts-ideas.normalized.jsonl", "utf-8"),
+    readFile("./assets/tv-ideas.normalized.jsonl", "utf-8"),
     getBannedAuthors(),
   ]);
   return file
