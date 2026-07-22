@@ -6046,26 +6046,73 @@ interface ISimulatorIdeaProfile {
 type SimulatorAuthorMetric = "close" | "reach";
 /**
  * Value lists per grid axis. The grid is the cartesian product of
- * all axes; windows and author-ban thresholds are swept the same way
+ * all axes EXCEPT banCriteria (run-level aggregation config, never
+ * swept); windows and author-ban thresholds are swept the same way
  * as stop and trailing — rules are searched, not hardcoded.
+ *
+ * Every field below states what it TUNES and under which conditions
+ * it is IGNORED — no axis is allowed to be a silent no-op without
+ * that being documented here.
  */
 interface ISimulatorGridAxes {
-    /** Hard stop levels to sweep, percent from entry. */
+    /**
+     * Hard stop levels to sweep, percent from entry.
+     * Tunes: the catastrophe exit — how deep a position may sink
+     * before a forced loss; the stop WINS when the stop and any profit
+     * floor are reachable inside one candle (pessimism contract). Also
+     * the shakeout bound of the "reach" author metric.
+     * Ignored: never for trading — every trade checks it. For BAN
+     * TRAINING it is ignored under authorMetric "close": only the
+     * "reach" rule grades authors against it (see SimulatorAuthorRule).
+     */
     hardStopPercent: number[];
-    /** Trailing take pullback levels to sweep, percent from peak. */
+    /**
+     * Trailing take pullback levels to sweep, percent from the peak.
+     * Tunes: how much of a runner's peak is given back. Arms only from
+     * PREVIOUS-candle peaks and only when the locked level is not
+     * worse than entry (peak >= entry/(1 - r)).
+     * Ignored: inert for any trade whose peak never reaches the arm
+     * level — such trades exit by stop, lock, or the hold cap. Never
+     * affects ban training under any metric.
+     */
     trailingTakePercent: number[];
-    /** Maximum position hold durations to sweep, minutes. */
+    /**
+     * Maximum position hold durations to sweep, minutes.
+     * Tunes: slot turnover — one position per symbol, and a busy slot
+     * ABSORBS qualified ideas (per-trade absorbedIdeaIds), so longer
+     * holds trade less often; the cap is the worst-case exit
+     * (time_expired) when neither stop nor floor fires.
+     * Ignored: never for trading. Ban training does NOT use it — an
+     * author's hit is graded on the idea's full 5-day profile horizon,
+     * not on the point's hold.
+     */
     holdMinutes: number[];
-    /** Entry thresholds to sweep: minimum unique aligned authors. */
+    /**
+     * Entry thresholds to sweep: minimum unique UNBANNED aligned
+     * authors within the 4h lookback window (the idea's own author
+     * counts, banned authors are invisible to the count).
+     * Tunes: binary crowd consensus required to enter; 1 = one proven
+     * author is enough.
+     * Ignored: never — the gate runs for every candidate entry.
+     */
     minIdeasAligned: number[];
     /**
-     * Author ban rule to sweep: minimum ideas with a known outcome an
-     * author needs before he can be allowed (fewer -> banned by default).
+     * Author ban rule to sweep: minimum ideas with a FULLY OBSERVED
+     * outcome an author needs before he can be allowed (fewer ->
+     * banned by default; truncated profiles prove nothing).
+     * Tunes: how much evidence "proven" requires.
+     * Ignored: never — the rule trains under both author metrics;
+     * WHAT counts as a hit is decided by authorMetric.
      */
     minAuthorTrack: number[];
     /**
-     * Author ban rule to sweep: minimum hit rate (0..1) an author needs
-     * to be allowed (worse -> banned).
+     * Author ban rule to sweep: minimum hit rate (0..1) an author
+     * needs to be allowed. The ban is STRICTLY below the threshold —
+     * an author exactly at it stays allowed.
+     * Tunes: required author quality; on the reference data quality
+     * mattered more than track length on every ranking.
+     * Ignored: never — trains under both metrics; the hit definition
+     * follows authorMetric.
      */
     minAuthorHitRate: number[];
     /**
@@ -6073,41 +6120,58 @@ interface ISimulatorGridAxes {
      * is his Laplace-smoothed track record (hits+1)/(ideas+2) — a 2/2
      * newcomer weighs less than a 15/15 veteran. Entry requires the
      * SUM of weights of unique aligned unbanned authors in the rolling
-     * window to reach the threshold. 0 disables the weighted gate
-     * (binary minIdeasAligned counting only).
+     * window to reach the threshold.
+     * Tunes: quality-weighted consensus on top of (or instead of) the
+     * binary count; weights inherit the authorMetric hit definition.
+     * Ignored: 0 DISABLES the gate entirely (binary minIdeasAligned
+     * counting only) — keep 0 in the list to sweep the unweighted
+     * baseline.
      */
     minWeightAligned: number[];
     /**
-     * Profit lock levels to sweep, percent from entry; 0 disables.
-     * When price TOUCHES +X% a fixed floor arms at that level and the
-     * trade exits only on a PULLBACK to the floor — unlike a plain
-     * fixed take, a runner keeps running and is later handled by the
-     * trailing take (whose floor rises above the lock once the peak
-     * clears it). Covers the zone where the trailing take is not armed
-     * yet (peak below entry/(1 - r)) and profit would otherwise bleed
-     * back to zero.
+     * Profit lock levels to sweep, percent from entry. When price
+     * TOUCHES +X% a fixed floor arms at that level and the trade exits
+     * only on a PULLBACK to the floor — unlike a plain fixed take, a
+     * runner keeps running and is later handled by the trailing take
+     * (whose floor rises above the lock once the peak clears it).
+     * Covers the zone where the trailing take is not armed yet (peak
+     * below entry/(1 - r)) and profit would otherwise bleed back.
+     * Tunes: harvesting the crowd-liquidity step without cutting
+     * runners. Also the grading level of the "reach" author metric.
+     * Ignored: 0 DISABLES the mechanism for trading AND degenerates
+     * the "reach" metric into "close". Under authorMetric "close" the
+     * level never affects ban training — trading only.
      */
     profitLockPercent: number[];
     /**
-     * Author-hit metrics to sweep for the ban filter. The metric is a
-     * rule parameter like the thresholds: "close" judges authors by
-     * horizon close, "reach" by lock-reachability of their ideas.
+     * Author-hit metrics to sweep for the ban filter — a rule
+     * parameter like the thresholds.
+     * Tunes: which author grading feeds which exit style — "close"
+     * (5-day horizon close) rewards authors whose calls survive a long
+     * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
+     * rewards the authors a lock point actually earns on; the same
+     * author has different hit counts under different metrics.
+     * Ignored: with "close" the point's lock/stop never affect ban
+     * training; "reach" with profitLockPercent = 0 falls back to
+     * "close" (see SimulatorAuthorRule — the fallback is structural).
      */
     authorMetric: SimulatorAuthorMetric[];
     /**
      * NOT a swept axis — run() aggregation config: ranking criteria
      * whose winners feed the run-level author artifact
      * (allowedAuthors = union of their whitelists, bannedAuthors =
-     * banned by every one of them). A winner elected by a NON-FINITE
-     * ranking value (Infinity sortino/recovery on a drawdown-free
-     * curve — a grid-order representative of a tie class, not a
-     * merit pick) never contributes to allowed: its authors join the
-     * pool and stay banned by default. Backward compatibility knob:
-     * ["sharpe"] makes the run-level lists exactly the Sharpe
-     * winner's artifact — the pre-union behavior. Per-winner
-     * artifacts in best[] are always complete regardless of this
-     * list. test() does not use it — a frozen point carries its own
-     * single rule.
+     * banned by every one of them).
+     * Tunes: how conservative the run-level whitelist candidate set
+     * is; ["sharpe"] is the backward-compatibility knob making the
+     * run-level lists exactly the Sharpe winner's artifact.
+     * Ignored: by the cartesian product (never a point field); by
+     * test() entirely — a frozen point carries its own single rule;
+     * and a winner elected by a NON-FINITE ranking value (Infinity
+     * sortino/recovery on a drawdown-free curve — a grid-order tie
+     * representative, not a merit pick) is ignored for allowances:
+     * its authors join the pool and stay banned by default.
+     * Per-winner artifacts in best[] are always complete regardless
+     * of this list.
      */
     banCriteria: SimulatorRankingCriterion[];
 }
@@ -6376,6 +6440,26 @@ interface ISimulatorTestResult {
 }
 /**
  * Registration schema of a simulator instance.
+ *
+ * Field-by-field contract — what each parameter allows to tune and
+ * when it is ignored:
+ * - simulatorName — registry key; duplicate registration is a
+ *   validation error.
+ * - exchangeName — candle source for idea profiles. The Exchange
+ *   contract is strict (exactly `limit` candles or throw): end of
+ *   history surfaces as an exception and becomes a truncated
+ *   profile — truncated ideas are traded to the data edge but are
+ *   IGNORED as ban-training evidence.
+ * - gridAxes — PER-AXIS override merged over the engine defaults:
+ *   an omitted axis takes the default LIST and is therefore swept;
+ *   a single-value list freezes an axis. Pinning examples:
+ *   authorMetric: ["close"] restores pre-reach ban training,
+ *   banCriteria: ["sharpe"] restores the Sharpe-only run artifact,
+ *   profitLockPercent: [0] disables the lock. Each axis documents
+ *   its own tune/ignore conditions in ISimulatorGridAxes.
+ * - callbacks — all optional; an omitted callback is simply never
+ *   fired (silent run). onAuthorsTrained fires once per unique ban
+ *   RULE (not per grid point) and never fires during test().
  */
 interface ISimulatorSchema {
     /** Unique simulator identifier for the schema registry. */
@@ -19824,17 +19908,49 @@ declare const PersistSessionAdapter: PersistSessionUtils;
 
 /**
  * Public API of the Simulator entity — parameter sweep over crowd
- * trading ideas.
+ * trading ideas. Profiles every idea with ONE candle pass and
+ * evaluates the whole grid arithmetically from the profiles; the
+ * result carries four ranking winners (sharpe / sortino / pnl /
+ * recovery), each with the author artifact under ITS OWN ban rule,
+ * plus per-point reports with trade-level detail.
  *
- * Finds production strategy parameters (hard stop, trailing take,
- * hold duration, entry consensus threshold) by profiling every idea
- * with one candle pass and evaluating the whole grid arithmetically
- * from the profiles. The result carries four ranking winners
- * (Sharpe, Sortino, PnL), the trained author whitelist/ban list and
- * per-point reports with trade-level detail.
+ * Parameter map — what each knob tunes and when it is ignored
+ * (full per-field contracts live in ISimulatorGridAxes and
+ * ISimulatorSchema):
  *
- * The simulator picks candidates — validation of the chosen
- * parameters MUST be a real engine backtest (Backtest.run).
+ * Exit axes (always active in trade simulation):
+ * - hardStopPercent — catastrophe exit; wins an ambiguous candle.
+ * - trailingTakePercent — pullback from the peak; inert for trades
+ *   whose peak never reaches the arm level entry/(1 - r).
+ * - profitLockPercent — floor armed by touching +X%, exit on the
+ *   pullback to it; 0 disables; runners are picked up by the
+ *   trailing take instead.
+ * - holdMinutes — slot turnover cap; a busy slot absorbs qualified
+ *   ideas (absorbedIdeaIds); time_expired is the worst-case exit.
+ *
+ * Entry gates (preprocessing of every candidate entry):
+ * - minIdeasAligned — unique UNBANNED aligned authors in the 4h
+ *   window; banned authors are invisible to the count.
+ * - minWeightAligned — sum of Laplace weights (hits+1)/(ideas+2) of
+ *   those authors; 0 disables the weighted gate.
+ *
+ * Ban rule (author filter, trained on the whole run range):
+ * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
+ *   truncated profiles prove nothing; the ban is strictly below the
+ *   rate threshold.
+ * - authorMetric — hit definition: "close" = 5-day horizon close
+ *   (lock/stop do NOT affect ban training), "reach" =
+ *   lock-reachability against the point's lock/stop; reach with
+ *   lock = 0 falls back to close.
+ *
+ * Run-level aggregation (not swept, ignored by test()):
+ * - banCriteria — which ranking winners feed result.allowedAuthors
+ *   (union) / bannedAuthors (banned by all); a winner elected by a
+ *   non-finite value (Infinity sortino/recovery) grants nothing.
+ *
+ * The simulator picks candidates — honest confirmation is a
+ * walk-forward test() shot, and the final arbiter for the chosen
+ * parameters is a real engine backtest (Backtest.run).
  */
 declare class SimulatorUtils {
     /**
@@ -19844,11 +19960,35 @@ declare class SimulatorUtils {
      * rankings. The referenced simulator schema must be registered
      * via addSimulatorSchema beforehand.
      *
+     * What is silently dropped from the input before any math —
+     * ideas of OTHER symbols (one shared feed serves every run),
+     * NEUTRAL ideas, and flood duplicates (at most one idea per
+     * author per direction per 8h; a dropped repost neither extends
+     * the window nor votes). Ideas at the data edge get truncated
+     * profiles: they trade to the edge but are IGNORED as
+     * ban-training evidence; an idea whose first candle chunk is
+     * beyond the edge is dropped entirely (null profile).
+     *
+     * How the grid is applied — the schema's gridAxes merge PER-AXIS
+     * over the engine defaults (an omitted axis is swept with the
+     * default list; a single-value list freezes it), then every
+     * point of the cartesian product is evaluated arithmetically
+     * from the same profiles; see ISimulatorGridAxes for each axis'
+     * tune/ignore contract. Ranking winners honor the anti-fluke
+     * floor (a point below MIN_TRADES_FOR_BEST trades can win only
+     * when NO point clears the floor), and the run-level author
+     * lists aggregate ONLY the banCriteria winners with finite
+     * ranking values — an Infinity sortino/recovery winner grants
+     * no allowances.
+     *
      * @param dto.symbol - Trading pair symbol to simulate (e.g., "BTCUSDT")
      * @param dto.simulatorName - Registered simulator name
      * @param dto.ideas - Ideas feed; other symbols are filtered out,
      * so one shared feed can be passed for every symbol
-     * @returns Final simulation result (reports, rankings; the author artifact lives per-winner in best[])
+     * @returns Final simulation result (reports sorted by sharpe,
+     * four ranking winners each carrying authorStats /
+     * allowedAuthors / bannedAuthors under ITS OWN rule, run-level
+     * union lists per banCriteria, hold-time distribution)
      * @throws Error when the simulator or its exchange is not registered
      *
      * @example
