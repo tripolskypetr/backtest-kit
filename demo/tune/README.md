@@ -101,9 +101,35 @@ The training elects the `tune_default` sharpe winner — it dominates every risk
 
 ## Step 2 — Out-of-sample (`npm test`)
 
-`src/test.mjs` hardcodes the chosen candidate — the frozen `POINT` and the raw `AUTHOR_STATS` from Step 1 — loads ONLY the tail of the feed (the 30% the training never saw) and calls `Simulator.test` once. No training happens on the tail: `onAuthorsTrained` never fires, unseen authors are banned as unproven.
+`src/test.mjs` hardcodes the chosen candidate — the frozen `POINT` and the raw `AUTHOR_STATS` from Step 1 — loads ONLY the tail of the feed (the 30% the training never saw) and calls `Simulator.test` once. No training happens on the tail: `onAuthorsTrained` never fires, unseen authors are banned as unproven. The full result is saved to [`assets/tv-ideas.test.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune/assets/tv-ideas.test.json).
 
-*(to be filled with the argumentation of the applied config and the actual `npm test` run result)*
+### Out-of-sample result
+
+181 tail profiles (June 22–30, none truncated), the frozen whitelist resolves to the same 7 authors, 147 logins banned — including every author the training never saw:
+
+| Metric | Train (Jun 1–21) | Test (Jun 22–30) |
+|---|---|---|
+| Trades | 9 | 7 (8 qualified ideas absorbed by busy slot) |
+| PnL | +12.22% | **+6.98%** |
+| PnL per day | 0.58%/day | **0.78%/day** |
+| Win rate | 89% | 57% |
+| Profit factor | — | 4.82 |
+| Sharpe | 2.44 | **1.65** |
+| Sortino | 9.34 | 4.46 |
+| Max series drawdown | 1.31% | 1.56% |
+
+The seven test trades, in order: LONG trailing −0.16% (11h), SHORT lock +2.20% (30h), SHORT lock +2.20% (4h), SHORT trailing −0.11% (9h), SHORT lock +2.20% (4h), SHORT expired −1.56% (72h), SHORT lock +2.20% (16h).
+
+What to read out of this:
+
+- **The edge survives the tail.** Sharpe retains 68% of its train value (2.44 → 1.65), the drawdown stays in the same 1.3–1.6% band, and PnL per calendar day is actually HIGHER out-of-sample (0.78 vs 0.58 %/day) — the total looks smaller only because the tail is 9 days against 21.
+- **The profit lock is the scoring mechanism, not a decoration.** Four of seven exits are `profit_lock` at exactly +2.20% each (2.5% minus fees and slippage), most within hours — the crowd's ideas keep reaching +2.5% on the tail, they just don't keep it for 72 hours. On the train window the same pattern held 8 of 9 trades.
+- **The trailing-take arm guarantee converts would-be losers into breakeven.** The two `trailing_take` exits close at −0.16% and −0.11% — the trailing floor arms only when its locked level is not worse than entry, so a reversal after a small run costs only the round-trip fees instead of a stop.
+- **Exactly one real loss:** a SHORT that never reached +2.5%, rode the full 72h hold and expired at −1.56% — the hold cap, not the hard stop, is the actual worst-case boundary on this feed (zero `hard_stop` exits on either window).
+- **The whitelist transfers.** All seven trades come from the frozen 7-author whitelist; the tail's own crowd (147 banned logins, everyone unproven on train) contributed nothing but absorbed-idea noise.
+- **Read Calmar with care.** The report's `calmarRatio` of ~117 is an annualization artifact of a 9-day bucket window; `recoveryFactor` 4.48 (PnL over drawdown, no annualization) is the honest cousin.
+
+Two honest caveats. Seven trades is a thin sample — this demo certifies the *protocol*, not a production edge. And the final arbiter for any point picked here is still a real engine backtest (`Backtest.run`) — the simulator makes the search cheap, it does not replace the engine.
 
 ## License
 
