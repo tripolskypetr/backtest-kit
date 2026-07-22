@@ -162,6 +162,16 @@ export const main = async () => {
   addSimulatorSchema({
     simulatorName: SIMULATOR_NAME,
     exchangeName,
+    gridAxes: {
+      hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
+      trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
+      holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
+      minIdeasAligned: [1, 2, 3],
+      minAuthorTrack: [2, 3, 5],
+      minAuthorHitRate: [0.5, 0.6],
+      minWeightAligned: [0, 0.6, 1.2],
+      profitLockPercent: [0, 1.5, 2.5],
+    },
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {
         if (values.verbose) {

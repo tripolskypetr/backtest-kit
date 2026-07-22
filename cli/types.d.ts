@@ -1,6 +1,6 @@
 import * as functools_kit from 'functools-kit';
 import * as BacktestKit from 'backtest-kit';
-import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, OrderOpenContract, OrderCloseContract, CancelScheduledCommit, ClosePendingCommit, SignalInfoContract } from 'backtest-kit';
+import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, OrderFillOpenContract, OrderFillCloseContract, OrderRejectOpenContract, OrderRejectCloseContract, OrderContinueContract, OrderStopContract, CancelScheduledCommit, ClosePendingCommit, SignalInfoContract } from 'backtest-kit';
 import * as BacktestKitUi from '@backtest-kit/ui';
 import * as BacktestKitGraph from '@backtest-kit/graph';
 import * as BacktestKitOllama from '@backtest-kit/ollama';
@@ -309,8 +309,22 @@ declare class TelegramLogicService {
     private notifyClosed;
     private notifyRisk;
     private notifyAverageBuy;
-    private notifySignalOpen;
-    private notifySignalClose;
+    private notifyOrderFillOpen;
+    private notifyOrderFillClose;
+    private notifyOrderRejectOpen;
+    private notifyOrderRejectClose;
+    /**
+     * Post-verdict order-check CONTINUE (order_continue). Fires every live tick the
+     * order survives the check, so it is throttled via functools-kit ttl:
+     * one message per signalId per ORDER_CHECK_NOTIFY_TTL (15 minutes).
+     */
+    private notifyOrderContinue;
+    /**
+     * Post-verdict order-check STOP (order_stop). Terminal — fires once per signal,
+     * so no throttle; drops the continue throttle slot for this signalId
+     * (the signal leaves monitoring, the ttl entry would only leak otherwise).
+     */
+    private notifyOrderStop;
     private notifySignalInfo;
     private notifyCancelScheduled;
     private notifyClosePending;
@@ -330,6 +344,10 @@ interface NotificationConfig {
     partial_profit: boolean;
     order_sync: boolean;
     order_check: boolean;
+    order_fill: boolean;
+    order_reject: boolean;
+    order_continue: boolean;
+    order_stop: boolean;
     strategy_commit: boolean;
 }
 interface TelegramConfig {
@@ -344,8 +362,12 @@ interface TelegramConfig {
     getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string>;
     getRiskMarkdown(event: RiskContract): Promise<string>;
     getAverageBuyMarkdown(event: AverageBuyCommit): Promise<string>;
-    getSignalOpenMarkdown(event: OrderOpenContract): Promise<string>;
-    getSignalCloseMarkdown(event: OrderCloseContract): Promise<string>;
+    getOrderFillOpenMarkdown(event: OrderFillOpenContract): Promise<string>;
+    getOrderFillCloseMarkdown(event: OrderFillCloseContract): Promise<string>;
+    getOrderRejectOpenMarkdown(event: OrderRejectOpenContract): Promise<string>;
+    getOrderRejectCloseMarkdown(event: OrderRejectCloseContract): Promise<string>;
+    getOrderContinueMarkdown(event: OrderContinueContract): Promise<string>;
+    getOrderStopMarkdown(event: OrderStopContract): Promise<string>;
     getCancelScheduledMarkdown(event: CancelScheduledCommit): Promise<string>;
     getClosePendingMarkdown(event: ClosePendingCommit): Promise<string>;
     getSignalInfoMarkdown(event: SignalInfoContract): Promise<string>;
@@ -367,8 +389,12 @@ declare class TelegramTemplateService implements TelegramConfig {
     getClosedMarkdown: (event: IStrategyTickResultClosed) => Promise<string>;
     getRiskMarkdown: (event: RiskContract) => Promise<string>;
     getAverageBuyMarkdown: (event: AverageBuyCommit) => Promise<string>;
-    getSignalOpenMarkdown: (event: OrderOpenContract) => Promise<string>;
-    getSignalCloseMarkdown: (event: OrderCloseContract) => Promise<string>;
+    getOrderFillOpenMarkdown: (event: OrderFillOpenContract) => Promise<string>;
+    getOrderFillCloseMarkdown: (event: OrderFillCloseContract) => Promise<string>;
+    getOrderRejectOpenMarkdown: (event: OrderRejectOpenContract) => Promise<string>;
+    getOrderRejectCloseMarkdown: (event: OrderRejectCloseContract) => Promise<string>;
+    getOrderContinueMarkdown: (event: OrderContinueContract) => Promise<string>;
+    getOrderStopMarkdown: (event: OrderStopContract) => Promise<string>;
     getCancelScheduledMarkdown: (event: CancelScheduledCommit) => Promise<string>;
     getClosePendingMarkdown: (event: ClosePendingCommit) => Promise<string>;
     getSignalInfoMarkdown: (event: SignalInfoContract) => Promise<string>;
