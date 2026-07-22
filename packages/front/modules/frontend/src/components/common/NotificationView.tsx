@@ -120,6 +120,17 @@ const getNotificationColor = (item: NotificationModel): string | undefined => {
       return "#2196F3";
     case "order_sync.check":
       return "#3F51B5";
+    case "order_fill.open":
+      return item.orderType === "schedule" ? "#FF9800" : "#4CAF50";
+    case "order_fill.close":
+      return "#2196F3";
+    case "order_reject.open":
+    case "order_reject.close":
+      return "#F44336";
+    case "order_continue.check":
+      return "#009688";
+    case "order_stop.check":
+      return "#FF5722";
     case "cancel_scheduled.commit":
       return "#9E9E9E";
     case "close_pending.commit":
@@ -173,6 +184,17 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <Close sx={sx} />;
     case "order_sync.check":
       return <Sync sx={sx} />;
+    case "order_fill.open":
+      return item.orderType === "schedule" ? <Schedule sx={sx} /> : <PlayArrow sx={sx} />;
+    case "order_fill.close":
+      return <Close sx={sx} />;
+    case "order_reject.open":
+    case "order_reject.close":
+      return <ReportProblem sx={sx} />;
+    case "order_continue.check":
+      return <Sync sx={sx} />;
+    case "order_stop.check":
+      return <Cancel sx={sx} />;
     case "cancel_scheduled.commit":
       return <Cancel sx={sx} />;
     case "close_pending.commit":
@@ -229,6 +251,18 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Order Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "order_sync.check":
       return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "order_fill.open":
+      return `${t(item.orderType === "schedule" ? "Order Placed" : "Order Filled")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "order_fill.close":
+      return `${t("Order Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "order_reject.open":
+      return `${t("Order Rejected")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "order_reject.close":
+      return `${t("Close Rejected")} ${item.symbol}`;
+    case "order_continue.check":
+      return `${t("Order Still Open")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "order_stop.check":
+      return `${t("Order Gone")} ${item.symbol}`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
@@ -305,6 +339,24 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "order_sync.check":
       ioc.layoutService.pickOrderSyncCheck(item.id);
+      break;
+    case "order_fill.open":
+      ioc.layoutService.pickOrderFillOpen(item.id);
+      break;
+    case "order_fill.close":
+      ioc.layoutService.pickOrderFillClose(item.id);
+      break;
+    case "order_reject.open":
+      ioc.layoutService.pickOrderRejectOpen(item.id);
+      break;
+    case "order_reject.close":
+      ioc.layoutService.pickOrderRejectClose(item.id);
+      break;
+    case "order_continue.check":
+      ioc.layoutService.pickOrderContinue(item.id);
+      break;
+    case "order_stop.check":
+      ioc.layoutService.pickOrderStop(item.id);
       break;
     case "cancel_scheduled.commit":
       ioc.layoutService.pickCancelScheduled(item.id);
@@ -462,7 +514,12 @@ export const NotificationView = () => {
                 {async () => {
                   const rawItems = await ioc.notificationViewService.getList();
                   const items = rawItems.filter((item) =>
-                    item.type.startsWith("signal.") || item.type.startsWith("order_sync.")
+                    item.type.startsWith("signal.") ||
+                    item.type.startsWith("order_sync.") ||
+                    item.type.startsWith("order_fill.") ||
+                    item.type.startsWith("order_reject.") ||
+                    item.type.startsWith("order_continue.") ||
+                    item.type.startsWith("order_stop.")
                   );
                   return (
                     <VirtualView

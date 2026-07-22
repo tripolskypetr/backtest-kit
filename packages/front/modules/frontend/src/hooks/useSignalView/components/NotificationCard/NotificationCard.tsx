@@ -73,6 +73,17 @@ const getNotificationColor = (item: NotificationModel): string => {
       return "#2196F3";
     case "order_sync.check":
       return "#3F51B5";
+    case "order_fill.open":
+      return item.orderType === "schedule" ? "#FF9800" : "#4CAF50";
+    case "order_fill.close":
+      return "#2196F3";
+    case "order_reject.open":
+    case "order_reject.close":
+      return "#F44336";
+    case "order_continue.check":
+      return "#009688";
+    case "order_stop.check":
+      return "#FF5722";
     case "cancel_scheduled.commit":
       return "#9E9E9E";
     case "close_pending.commit":
@@ -126,6 +137,17 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <Close sx={sx} />;
     case "order_sync.check":
       return <Sync sx={sx} />;
+    case "order_fill.open":
+      return item.orderType === "schedule" ? <Schedule sx={sx} /> : <PlayArrow sx={sx} />;
+    case "order_fill.close":
+      return <Close sx={sx} />;
+    case "order_reject.open":
+    case "order_reject.close":
+      return <ReportProblem sx={sx} />;
+    case "order_continue.check":
+      return <Sync sx={sx} />;
+    case "order_stop.check":
+      return <Cancel sx={sx} />;
     case "cancel_scheduled.commit":
       return <Cancel sx={sx} />;
     case "close_pending.commit":
@@ -182,6 +204,18 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Order Sync Close")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "order_sync.check":
       return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "order_fill.open":
+      return `${t(item.orderType === "schedule" ? "Order Placed" : "Order Filled")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "order_fill.close":
+      return `${t("Order Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "order_reject.open":
+      return `${t("Order Rejected")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "order_reject.close":
+      return `${t("Close Rejected")} ${item.symbol}`;
+    case "order_continue.check":
+      return `${t("Order Still Open")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+    case "order_stop.check":
+      return `${t("Order Gone")} ${item.symbol}`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
@@ -239,6 +273,18 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Order Sync Close");
     case "order_sync.check":
       return t("Order Sync Check");
+    case "order_fill.open":
+      return item.orderType === "schedule" ? t("Order Fill Placed") : t("Order Fill Open");
+    case "order_fill.close":
+      return t("Order Fill Close");
+    case "order_reject.open":
+      return t("Order Reject Open");
+    case "order_reject.close":
+      return t("Order Reject Close");
+    case "order_continue.check":
+      return t("Order Continue Check");
+    case "order_stop.check":
+      return t("Order Stop Check");
     case "cancel_scheduled.commit":
       return t("Cancel Scheduled");
     case "close_pending.commit":
@@ -315,6 +361,24 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "order_sync.check":
       ioc.layoutService.pickOrderSyncCheck(item.id);
+      break;
+    case "order_fill.open":
+      ioc.layoutService.pickOrderFillOpen(item.id);
+      break;
+    case "order_fill.close":
+      ioc.layoutService.pickOrderFillClose(item.id);
+      break;
+    case "order_reject.open":
+      ioc.layoutService.pickOrderRejectOpen(item.id);
+      break;
+    case "order_reject.close":
+      ioc.layoutService.pickOrderRejectClose(item.id);
+      break;
+    case "order_continue.check":
+      ioc.layoutService.pickOrderContinue(item.id);
+      break;
+    case "order_stop.check":
+      ioc.layoutService.pickOrderStop(item.id);
       break;
     case "cancel_scheduled.commit":
       ioc.layoutService.pickCancelScheduled(item.id);
@@ -416,7 +480,32 @@ const hasPercentShift = (
 const hasOrderType = (
   item: NotificationModel
 ): item is NotificationModel & { orderType: "schedule" | "active" } => {
-  return (item.type === "order_sync.open" || item.type === "order_sync.check") && !!item.orderType;
+  return (
+    item.type === "order_sync.open" ||
+    item.type === "order_sync.check" ||
+    item.type === "order_fill.open" ||
+    item.type === "order_continue.check" ||
+    item.type === "order_stop.check"
+  ) && !!item.orderType;
+};
+
+const hasStopReason = (
+  item: NotificationModel
+): item is NotificationModel & { reason: "deleted" | "exhausted" } => {
+  return item.type === "order_stop.check" && !!item.reason;
+};
+
+const hasCheckAttempt = (
+  item: NotificationModel
+): item is NotificationModel & { attempt: number } => {
+  return (
+    item.type === "order_fill.open" ||
+    item.type === "order_fill.close" ||
+    item.type === "order_reject.open" ||
+    item.type === "order_reject.close" ||
+    item.type === "order_continue.check" ||
+    item.type === "order_stop.check"
+  ) && "attempt" in item && item.attempt > 0;
 };
 
 const hasPausedState = (
@@ -688,9 +777,27 @@ export const NotificationCard = forwardRef(
                     <Chip
                       sx={{ mt: 1, mr: 1 }}
                       size="small"
-                      label={item.type === "order_sync.check" ? item.orderType.toUpperCase() : t(item.orderType === "schedule" ? "Order placed" : "Order filled")}
+                      label={item.type === "order_sync.open" || item.type === "order_fill.open" ? t(item.orderType === "schedule" ? "Order placed" : "Order filled") : item.orderType.toUpperCase()}
                       variant="outlined"
                       color={item.orderType === "schedule" ? "warning" : "success"}
+                    />
+                  )}
+                  {hasStopReason(item) && (
+                    <Chip
+                      sx={{ mt: 1, mr: 1 }}
+                      size="small"
+                      label={item.reason}
+                      variant="outlined"
+                      color="error"
+                    />
+                  )}
+                  {hasCheckAttempt(item) && (
+                    <Chip
+                      sx={{ mt: 1, mr: 1 }}
+                      size="small"
+                      label={`${t("Attempt")}: ${item.attempt}`}
+                      variant="outlined"
+                      color="warning"
                     />
                   )}
                   {hasActivePositionCount(item) && (

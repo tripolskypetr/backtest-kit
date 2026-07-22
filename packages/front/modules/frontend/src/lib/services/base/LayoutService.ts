@@ -43,6 +43,18 @@ export class LayoutService {
     public readonly pickOrderSyncCloseSubject = new Subject<string>();
     public readonly pickOrderSyncCheckSubject = new Subject<string>();
 
+    // Order fill subjects (2 types, broker-confirmed post-verdict)
+    public readonly pickOrderFillOpenSubject = new Subject<string>();
+    public readonly pickOrderFillCloseSubject = new Subject<string>();
+
+    // Order reject subjects (2 types, terminal post-verdict)
+    public readonly pickOrderRejectOpenSubject = new Subject<string>();
+    public readonly pickOrderRejectCloseSubject = new Subject<string>();
+
+    // Order check decision subjects (continue / stop)
+    public readonly pickOrderContinueSubject = new Subject<string>();
+    public readonly pickOrderStopSubject = new Subject<string>();
+
     // Cancel scheduled / close pending subjects
     public readonly pickCancelScheduledSubject = new Subject<string>();
     public readonly pickClosePendingSubject = new Subject<string>();
@@ -228,6 +240,33 @@ export class LayoutService {
 
     pickOrderSyncCheck = async (notificationId: string) => {
         await this.pickOrderSyncCheckSubject.next(notificationId);
+    };
+
+    // Order fill methods (2 types)
+    pickOrderFillOpen = async (notificationId: string) => {
+        await this.pickOrderFillOpenSubject.next(notificationId);
+    };
+
+    pickOrderFillClose = async (notificationId: string) => {
+        await this.pickOrderFillCloseSubject.next(notificationId);
+    };
+
+    // Order reject methods (2 types)
+    pickOrderRejectOpen = async (notificationId: string) => {
+        await this.pickOrderRejectOpenSubject.next(notificationId);
+    };
+
+    pickOrderRejectClose = async (notificationId: string) => {
+        await this.pickOrderRejectCloseSubject.next(notificationId);
+    };
+
+    // Order check decision methods (continue / stop)
+    pickOrderContinue = async (notificationId: string) => {
+        await this.pickOrderContinueSubject.next(notificationId);
+    };
+
+    pickOrderStop = async (notificationId: string) => {
+        await this.pickOrderStopSubject.next(notificationId);
     };
 
     // Cancel scheduled / close pending methods

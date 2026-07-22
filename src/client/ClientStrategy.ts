@@ -1124,10 +1124,19 @@ const GET_SIGNAL_FN = trycatch(
       console.warn(message, payload);
       const error = new Error(message);
       errorEmitter.next(error);
-      exitEmitter.next(error);
+      // Потребить мёртвый id + зачистить слот и ПЕРСИСТНУТЬ ДО exitEmitter:
+      // слушатель exit может завершить процесс синхронно внутри next(), и
+      // незаписанный дроп восстановил бы тот же retryOpenSignal на рестарте —
+      // повторное исчерпание, повторный exit, вечный цикл рестартов одного
+      // мёртвого сигнала. Консумация в _lastPendingId (как у терминального
+      // дропа) закрывает вторую половину цикла: детерминированная стратегия,
+      // ре-эмитящая тот же id, не откроет ещё один реальный ордер ни этим же
+      // тиком (fall-through ниже), ни после рестарта.
+      self._lastPendingId = retrySignal.id;
       self._retryOpenSignal = null;
       self._retryOpenCount = 0;
       await PERSIST_STRATEGY_FN(self);
+      exitEmitter.next(error);
       retrySignal = null;
     }
     if (retrySignal) {

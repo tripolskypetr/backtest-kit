@@ -591,3 +591,198 @@ test("RETRY: started close attempt survives a crash and resumes with attempt 1",
     PersistRecentAdapter.useDummy();
   }
 });
+
+/**
+ * RETRY: исчерпание бюджета open-ретраев — зачистка слота и консумация мёртвого
+ * id в lastPendingId ПЕРСИСТЯТСЯ ДО exitEmitter.next. Слушатель exit может
+ * завершить процесс синхронно: незаписанный дроп восстановил бы тот же
+ * retryOpenSignal на рестарте (повторное исчерпание → повторный exit → вечный
+ * цикл рестартов одного мёртвого сигнала), а без консумации детерминированная
+ * стратегия выдавала бы ещё один реальный ордер тем же тиком и после каждого
+ * рестарта.
+ */
+test("RETRY: exhaustion persists the dead-id drop BEFORE the fatal exit (no restart loop of one dead signal)", async ({ pass, fail }) => {
+  setConfig({ CC_ORDER_OPEN_RETRY_ATTEMPTS: 2 }, true);
+
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const DEAD_ID = "exhaust-dead-signal-id";
+  const context = {
+    strategyName: "retry-exhaust-persist-strategy",
+    exchangeName: "binance-retry-exhaust-persist",
+    frameName: "",
+  };
+
+  PersistSignalAdapter.useJson();
+  PersistStrategyAdapter.useJson();
+  PersistScheduleAdapter.useJson();
+  PersistRecentAdapter.useJson();
+
+  const originalWrite = PersistStrategyAdapter.writeStrategyData;
+
+  try {
+    // Сброс остатков прошлых прогонов сьюта (json-файлы живут на диске)
+    await PersistSignalAdapter.writeSignalData(null, "BTCUSDT", context.strategyName, context.exchangeName);
+    await PersistScheduleAdapter.writeScheduleData(null, "BTCUSDT", context.strategyName, context.exchangeName);
+    await PersistStrategyAdapter.writeStrategyData(
+      {
+        pendingSignalId: null,
+        lastPendingId: null,
+        createdSignal: null,
+        commitQueue: [],
+        closedSignal: null,
+        cancelledSignal: null,
+        activatedSignal: null,
+        takeProfitSignal: null,
+        stopLossSignal: null,
+        retryOpenSignal: null,
+        retryOpenCount: 0,
+        retryCloseCount: 0,
+      },
+      "BTCUSDT", context.strategyName, context.exchangeName,
+    );
+
+    // Хронология «персист снапшота» vs «exit-сигнал»: врап пишет событие
+    // синхронно при вызове, слушатель exit — синхронным первым сегментом next()
+    const events = [];
+    PersistStrategyAdapter.writeStrategyData = async (data, ...rest) => {
+      events.push({
+        type: "persist",
+        retryOpenSignalId: data?.retryOpenSignal?.id ?? null,
+        lastPendingId: data?.lastPendingId ?? null,
+      });
+      return await originalWrite.call(PersistStrategyAdapter, data, ...rest);
+    };
+    const unsubscribeExit = listenExit(() => { events.push({ type: "exit" }); });
+
+    const gateEvents = [];
+    let getSignalCalls = 0;
+
+    makeExchange(context.exchangeName, () => basePrice);
+
+    class EmptyAction {}
+    addActionSchema({
+      actionName: "retry-exhaust-persist-action",
+      handler: EmptyAction,
+      callbacks: {
+        onOrderSync: (event) => {
+          if (event.action !== "signal-open" || event.type !== "active") return;
+          gateEvents.push({ id: event.signalId, attempt: event.attempt });
+          throw new Error("retry-exhaust-persist: network always fails");
+        },
+      },
+    });
+
+    addStrategySchema({
+      strategyName: context.strategyName,
+      interval: "1m",
+      actions: ["retry-exhaust-persist-action"],
+      // Детерминированный id: без консумации в lastPendingId исчерпание
+      // выродилось бы в новый реальный ордер тем же тиком и после рестарта
+      getSignal: async () => {
+        getSignalCalls += 1;
+        return {
+          id: DEAD_ID,
+          position: "long",
+          note: "retry exhaust persist",
+          priceTakeProfit: basePrice + 5000,
+          priceStopLoss: basePrice - 5000,
+          minuteEstimatedTime: 120,
+        };
+      },
+    });
+
+    try {
+      const runTick = makeRunTick(context);
+
+      // tick1: исходная попытка (attempt 0), tick2-3: ретраи (attempt 1, 2),
+      // tick4: count 3 > 2 → исчерпание (консумация + персист + exit), fall-through
+      // регенерирует ТОТ ЖЕ id — whipsaw-гард гасит его БЕЗ обращения к бирже
+      for (let i = 0; i < 4; i++) {
+        const tick = await runTick(new Date(t0 + i * MIN));
+        if (tick.action !== "idle") {
+          fail(`tick #${i + 1} expected "idle", got "${tick.action}"`);
+          return;
+        }
+      }
+
+      if (gateEvents.length !== 3) {
+        fail(`REGRESSION: expected exactly 3 gate calls (initial + 2 retries), exhaustion must NOT replay the dead id same tick, got ${gateEvents.length}: ${JSON.stringify(gateEvents)}`);
+        return;
+      }
+      if (gateEvents.some(({ id }) => id !== DEAD_ID)) {
+        fail(`all attempts must carry the dead id "${DEAD_ID}", got ${JSON.stringify(gateEvents)}`);
+        return;
+      }
+      if (gateEvents.map(({ attempt }) => attempt).join(",") !== "0,1,2") {
+        fail(`gate attempts must be "0,1,2", got "${gateEvents.map(({ attempt }) => attempt).join(",")}"`);
+        return;
+      }
+      if (getSignalCalls !== 2) {
+        fail(`expected getSignal calls: initial + blocked fall-through (2), got ${getSignalCalls}`);
+        return;
+      }
+
+      // Дать queued-слушателю exit дойти, затем проверить порядок событий
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const exitIdx = events.findIndex((e) => e.type === "exit");
+      const wipeIdx = events.findIndex((e) =>
+        e.type === "persist" && e.retryOpenSignalId === null && e.lastPendingId === DEAD_ID
+      );
+      if (exitIdx === -1) {
+        fail("exhaustion must signal fatal exit");
+        return;
+      }
+      if (wipeIdx === -1) {
+        fail(`no persist event with wiped slot + consumed dead id, events: ${JSON.stringify(events)}`);
+        return;
+      }
+      if (exitIdx < wipeIdx) {
+        fail(`REGRESSION: exitEmitter fired BEFORE the exhausted slot wipe was persisted (exit at #${exitIdx}, wipe persist at #${wipeIdx}) — a restart would replay the same dead signal forever`);
+        return;
+      }
+
+      // Снапшот на диске: слот зачищен, мёртвый id потреблён
+      const snapshot = await PersistStrategyAdapter.readStrategyData("BTCUSDT", context.strategyName, context.exchangeName);
+      if (snapshot?.retryOpenSignal !== null || snapshot?.retryOpenCount !== 0) {
+        fail(`persisted snapshot must carry the wiped slot, got retryOpenSignal=${JSON.stringify(snapshot?.retryOpenSignal)} retryOpenCount=${snapshot?.retryOpenCount}`);
+        return;
+      }
+      if (snapshot?.lastPendingId !== DEAD_ID) {
+        fail(`persisted snapshot must carry the consumed dead id, got lastPendingId=${snapshot?.lastPendingId}`);
+        return;
+      }
+
+      // «Крэш» сразу после exit — рестарт НЕ должен реплеить мёртвый сигнал
+      await lib.strategyConnectionService.clear({
+        symbol: "BTCUSDT",
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        backtest: false,
+      });
+
+      const tick5 = await runTick(new Date(t0 + 4 * MIN));
+      const tick6 = await runTick(new Date(t0 + 5 * MIN));
+      if (tick5.action !== "idle" || tick6.action !== "idle") {
+        fail(`ticks #5/#6 after crash expected "idle" (restored consumption), got "${tick5.action}"/"${tick6.action}"`);
+        return;
+      }
+      if (gateEvents.length !== 3) {
+        fail(`REGRESSION: restart replayed the exhausted dead id to the exchange, got ${gateEvents.length} gate calls: ${JSON.stringify(gateEvents)}`);
+        return;
+      }
+
+      pass(`dead id "${DEAD_ID}" dropped durably: wipe persisted before exit (persist #${wipeIdx} < exit #${exitIdx}), no replay same tick or across the restart`);
+    } finally {
+      unsubscribeExit();
+    }
+  } finally {
+    PersistStrategyAdapter.writeStrategyData = originalWrite;
+    PersistSignalAdapter.useDummy();
+    PersistStrategyAdapter.useDummy();
+    PersistScheduleAdapter.useDummy();
+    PersistRecentAdapter.useDummy();
+  }
+});
