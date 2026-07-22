@@ -9,6 +9,8 @@ group: other/simulator
 
 A **feasibility probe** for a signal feed, driven by the `Simulator` entity. The dataset is a scrape of TradingView ideas (author, direction, publish time) for June 2026 — a month where BTC fell **−20.4%** while the crowd kept posting longs. The question this demo answers is deliberately more basic than "which parameters are best": **is there anything to compute at all?** Does this news flow contain any signal worth searching for, and how many ideas and authors survive the windows — the anti-flood dedupe and the author ban rules — that any honest pipeline must apply first?
 
+Be clear about what the search for the best grid point means here: **the probe's output is not a sum of money — it is a boolean.** The winners' PnL below is not a forecast of earnings; the sweep hunts for the ideal point only as *evidence*, and the whole run collapses into one bit: `true` — the dataset carries an edge and further processing makes sense, or `false` — there is nothing here and every next step is a waste.
+
 That is why there is **no out-of-sample test run here, by design.** The probe evaluates the feed on its own full history (train-on-train, stated openly): a feed that yields no profitable grid region and no allowed authors under these most favorable conditions is disqualified immediately — there is nothing to validate. A feed that passes graduates to [`demo/tune`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune), where the surviving signal is trained honestly: walk-forward split, frozen artifact, one shot on the tail.
 
 Not every feed will pass, and that is the point. The edge found here is a property of THIS kind of feed: it rides **crowd liquidity** (a public idea with an audience moves its own market — people see the post, buy, and push the price a step by themselves) and it feeds the ban filter with a **large author population** to select from. Swap the input for an arbitrary RSS stream or a single-author Telegram channel and the same machinery may honestly find nothing: a feed nobody trades on has no crowd step to harvest, and a single unproven author offers nothing to whitelist — in principle, ALL of his signals can be wrong.
@@ -54,7 +56,7 @@ Both artifacts are committed: [`assets/simulator.done.json`](https://github.com/
 | Max series drawdown | **1.92%** | 5.29% |
 | Sharpe / Sortino | **1.57** / 6.00 | 1.04 / 1.84 |
 
-The verdict for this feed: **there is something to compute.** A profitable region exists and is not a single fluke point (hold = 72h dominates both runs and every ranking), the window cut leaves 300 workable ideas, and 13 authors survive the strictest scrutiny — enough population for a whitelist. Sweeping the ban rule instead of hardcoding it adds half a point of sharpe and cuts the drawdown almost 3× — the rule is signal, not a constant. Top allowed authors under the winner's rule: TradingShot (15 ideas, 0.60), MarketStrategysignals (8, 0.62), PremiumTrader57 (8, 0.62), XAUxBTC_Pro (6, 0.67).
+The verdict for this feed: **`true` — there is an edge to process.** Not because +15.98% is money anyone will earn (it is not — a train-on-train, selection-biased ceiling), but because the evidence stacks: a profitable region exists and is not a single fluke point (hold = 72h dominates both runs and every ranking), the window cut leaves 300 workable ideas, and 13 authors survive the strictest scrutiny — enough population for a whitelist. Sweeping the ban rule instead of hardcoding it adds half a point of sharpe and cuts the drawdown almost 3× — the rule is signal, not a constant. Top allowed authors under the winner's rule: TradingShot (15 ideas, 0.60), MarketStrategysignals (8, 0.62), PremiumTrader57 (8, 0.62), XAUxBTC_Pro (6, 0.67).
 
 ## Project Structure
 
@@ -98,13 +100,13 @@ The script registers a CCXT Binance spot exchange (`ccxt_exchange`), a simulator
 
 ## Reading the Result
 
-The probe's answer is three numbers, in order of importance:
+The probe's answer is a single boolean, assembled from three checks in order of importance — none of them is a money figure:
 
-1. **The whitelist size** (`allowedAuthors`). Zero disqualifies the feed regardless of anything else — nobody survives proof, nothing to follow. `authorStats` behind it carries the raw evidence (ideas with known outcome, hits, hit rate).
-2. **The window cut** (`ideasTotal` → `ideasDirectional`). Shows how much of the flow is reposts and NEUTRAL noise versus workable directional signals.
-3. **The best grid region** (`best` — ranking winners with full trade lists; `reports` — every point sorted by Sharpe; `p95/p99HoldMinutes` — eternal holds pinned at the cap are visible instantly). Train-on-train by construction: read it as an upper bound, not a promise. If even the upper bound is unprofitable, stop here.
+1. **The whitelist size** (`allowedAuthors`). Zero → **`false`** immediately, regardless of anything else — nobody survives proof, nothing to follow. `authorStats` behind it carries the raw evidence (ideas with known outcome, hits, hit rate).
+2. **The window cut** (`ideasTotal` → `ideasDirectional`). A feed that mostly evaporates into reposts and NEUTRAL noise → **`false`**: not enough workable signals to ever clear the anti-fluke floors.
+3. **The best grid region** (`best` — ranking winners with full trade lists; `reports` — every point sorted by Sharpe; `p95/p99HoldMinutes` — eternal holds pinned at the cap are visible instantly). Train-on-train by construction — an upper bound, never a promise of earnings. Its only legitimate reading: if even this selection-biased ceiling is unprofitable → **`false`**, stop here.
 
-A passing feed graduates to [`demo/tune`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune) — walk-forward training on the head of the feed and one frozen out-of-sample shot on the tail. A failing feed is an answer too, and a much cheaper one than a month of forward testing.
+All three pass → **`true`**: the feed graduates to [`demo/tune`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune) — walk-forward training on the head of the feed and one frozen out-of-sample shot on the tail. A `false` is an answer too, and a much cheaper one than a month of forward testing on a dead feed.
 
 ## License
 
