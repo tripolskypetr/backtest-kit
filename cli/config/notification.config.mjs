@@ -11,5 +11,9 @@ export default {
   partial_profit: false,
   order_sync: false,
   order_check: false,
+  order_fill: true,
+  order_reject: true,
+  order_continue: true,
+  order_stop: true,
   strategy_commit: true,
 };

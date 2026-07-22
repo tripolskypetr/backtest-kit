@@ -15,6 +15,8 @@ import {
   OrderFillOpenContract,
   OrderFillCloseContract,
   OrderRejectContract,
+  OrderContinueContract,
+  OrderStopContract,
   SignalInfoContract,
 } from "backtest-kit";
 
@@ -41,6 +43,10 @@ export interface NotificationConfig {
   partial_profit: boolean;
   order_sync: boolean;
   order_check: boolean;
+  order_fill: boolean;
+  order_reject: boolean;
+  order_continue: boolean;
+  order_stop: boolean;
   strategy_commit: boolean;
 }
 
@@ -56,9 +62,11 @@ export interface TelegramConfig {
   getClosedMarkdown(event: IStrategyTickResultClosed): Promise<string>;
   getRiskMarkdown(event: RiskContract): Promise<string>;
   getAverageBuyMarkdown(event: AverageBuyCommit): Promise<string>;
-  getSignalOpenMarkdown(event: OrderFillOpenContract): Promise<string>;
-  getSignalCloseMarkdown(event: OrderFillCloseContract): Promise<string>;
+  getOrderOpenMarkdown(event: OrderFillOpenContract): Promise<string>;
+  getOrderCloseMarkdown(event: OrderFillCloseContract): Promise<string>;
   getOrderRejectedMarkdown(event: OrderRejectContract): Promise<string>;
+  getOrderContinueMarkdown(event: OrderContinueContract): Promise<string>;
+  getOrderStopMarkdown(event: OrderStopContract): Promise<string>;
   getCancelScheduledMarkdown(event: CancelScheduledCommit): Promise<string>;
   getClosePendingMarkdown(event: ClosePendingCommit): Promise<string>;
   getSignalInfoMarkdown(event: SignalInfoContract): Promise<string>;

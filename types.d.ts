@@ -3052,6 +3052,16 @@ type StrategyStatus = {
      */
     pendingSignalId: string | null;
     /**
+     * Whipsaw-guard slot (_lastPendingId): the id of the last successfully OPENED signal
+     * or the last TERMINALLY REJECTED one (OrderRejectedError consumes the id). Persisted
+     * so the consumption survives restarts: a terminally rejected deterministic id must
+     * not re-hit the exchange with one more real order after every process restart
+     * (supervisor loops would otherwise recreate the per-attempt spam the consumption
+     * exists to prevent). Old snapshots without the field fall back to the
+     * PersistRecentAdapter-based restore (last successfully opened id only).
+     */
+    lastPendingId: string | null;
+    /**
      * User-supplied signal DTO scheduled to be consumed by the next getSignal tick instead
      * of params.getSignal (set via createPending / createScheduled), or null if none queued.
      * createPending and createScheduled overwrite the same slot, so only the latest wins.
@@ -9960,6 +9970,161 @@ interface OrderRejectCloseContract extends OrderRejectBase {
 type OrderRejectContract = OrderRejectOpenContract | OrderRejectCloseContract;
 
 /**
+ * Post-verdict order-check CONTINUE event.
+ *
+ * The pre-verdict OrderCheckContract (syncPendingSubject) is the ping REQUEST —
+ * it fires before the broker adapter answers. This event is its resolved
+ * counterpart for the NON-terminal outcome: the framework decided the order is
+ * still open on the exchange and monitoring CONTINUES. Emitted on every live
+ * tick while the signal survives the check, discriminated by `type`:
+ * - `type: "active"` — the order backing an open position (pending signal);
+ * - `type: "schedule"` — the resting entry order of a scheduled signal.
+ *
+ * `attempt` tells which continue-path fired:
+ * - 0 — the check CONFIRMED the order (healthy; the failure streak was reset);
+ * - >0 — the check FAILED transiently and was TOLERATED (order assumed still
+ *   open) — the value is the current consecutive-failure streak, bounded by
+ *   CC_ORDER_CHECK_RETRY_ATTEMPTS before the terminal path fires instead
+ *   (see OrderStopContract).
+ *
+ * Live-only: backtest never runs order checks. Notification-only channel:
+ * listener exceptions are swallowed at the emission site (logged + errorEmitter)
+ * and never affect the already-made monitoring decision.
+ */
+interface OrderContinueContract {
+    /** Monitored state: "active" — open position order, "schedule" — resting entry order */
+    type: "schedule" | "active";
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Timeframe name (empty string in live mode) */
+    frameName: FrameName;
+    /** Always false: order checks are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Timestamp from execution context (tick's when) */
+    timestamp: number;
+    /** Complete public signal row at the moment of this event */
+    signal: IPublicSignalRow;
+    /**
+     * Consecutive-failure streak at the moment of this decision: 0 — the check
+     * confirmed the order (healthy), >0 — this many consecutive transient
+     * failures are currently tolerated (order assumed still open).
+     */
+    attempt: number;
+    /** Market price at the moment of the check (VWAP) */
+    currentPrice: number;
+    /** Unrealized PNL of the position at the moment of this event */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to this event */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to this event */
+    maxDrawdown: IStrategyPnL;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price (may differ from priceOpen after DCA averaging) */
+    priceOpen: number;
+    /** Effective take profit price (may differ from original after trailing) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (may differ from original after trailing) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price before any DCA averaging (initial priceOpen) */
+    originalPriceOpen: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging done. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = none. */
+    totalPartials: number;
+}
+
+/**
+ * Post-verdict order-check STOP event.
+ *
+ * The terminal counterpart of OrderContinueContract: the framework decided the
+ * order behind the monitored signal is NO LONGER open on the exchange and acts
+ * terminally — for `type: "active"` the pending position closes with closeReason
+ * "closed", for `type: "schedule"` the scheduled signal cancels (reason "user").
+ * Emitted exactly once per monitored signal, right BEFORE the teardown runs.
+ *
+ * `reason` tells which terminal path fired:
+ * - "deleted" — the adapter threw OrderDeletedError: the CONFIRMED "order not
+ *   found by id" (filled, cancelled or liquidated externally), terminal at once,
+ *   bypassing the tolerance counter;
+ * - "exhausted" — CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive transient failures
+ *   spent (or the config is 0 — legacy: any failure is terminal on the spot).
+ *   For genuine network exhaustion the engine also signals a fatal exit.
+ *
+ * Live-only: backtest never runs order checks. Notification-only channel:
+ * listener exceptions are swallowed at the emission site (logged + errorEmitter)
+ * and never affect the already-made terminal decision.
+ */
+interface OrderStopContract {
+    /** Monitored state: "active" — open position order, "schedule" — resting entry order */
+    type: "schedule" | "active";
+    /** Which terminal path fired: confirmed not-found ("deleted") or tolerance spent ("exhausted") */
+    reason: "deleted" | "exhausted";
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Timeframe name (empty string in live mode) */
+    frameName: FrameName;
+    /** Always false: order checks are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Timestamp from execution context (tick's when) */
+    timestamp: number;
+    /** Complete public signal row at the moment of this event */
+    signal: IPublicSignalRow;
+    /** Consecutive-failure streak at termination (0 for an immediate "deleted" verdict) */
+    attempt: number;
+    /** Market price at the moment of the check (VWAP) */
+    currentPrice: number;
+    /** Unrealized PNL of the position at the moment of this event */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to this event */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to this event */
+    maxDrawdown: IStrategyPnL;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price (may differ from priceOpen after DCA averaging) */
+    priceOpen: number;
+    /** Effective take profit price (may differ from original after trailing) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (may differ from original after trailing) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price before any DCA averaging (initial priceOpen) */
+    originalPriceOpen: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging done. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = none. */
+    totalPartials: number;
+}
+
+/**
  * Contract for highest profit updates emitted by the framework.
  * This contract defines the structure of the data emitted when a new highest profit is achieved for an open position.
  * It includes contextual information about the strategy, exchange, frame, and the associated signal.
@@ -11513,6 +11678,61 @@ declare function listenOrderReject(fn: (event: OrderRejectContract) => void): ()
  * @returns Unsubscribe function to cancel the listener before it fires
  */
 declare function listenOrderRejectOnce(filterFn: (event: OrderRejectContract) => boolean, fn: (event: OrderRejectContract) => void): () => void;
+/**
+ * Subscribes to post-verdict order-check CONTINUE events with queued async processing.
+ *
+ * Paired with {@link listenOrderStop}: the pre-verdict {@link listenCheck} fires the
+ * ping REQUEST before the broker adapter answers; this channel carries the resolved
+ * NON-terminal decision — the order is confirmed still open (`event.attempt` 0) or a
+ * transient check failure was tolerated (`event.attempt` > 0) and monitoring
+ * continues. Emitted on every live tick while the monitored signal survives the
+ * check, for both states (`event.type` "active"/"schedule").
+ *
+ * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
+ * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
+ * and cannot affect the already-made monitoring decision.
+ *
+ * @param fn - Callback function to handle continue events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenOrderContinue(fn: (event: OrderContinueContract) => void): () => void;
+/**
+ * Subscribes to filtered post-verdict order-check CONTINUE events with one-time execution.
+ * See {@link listenOrderContinue} for the emission semantics.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, processing waits until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenOrderContinueOnce(filterFn: (event: OrderContinueContract) => boolean, fn: (event: OrderContinueContract) => void): () => void;
+/**
+ * Subscribes to post-verdict order-check STOP events with queued async processing.
+ *
+ * Paired with {@link listenOrderContinue}: fires exactly once per monitored signal
+ * when the check resolved TERMINALLY — `event.reason` "deleted" (OrderDeletedError:
+ * confirmed order-not-found, bypassing the tolerance counter) or "exhausted"
+ * (CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive transient failures spent, or the
+ * legacy config 0). Emitted right BEFORE the teardown: close "closed" for
+ * `event.type` "active", cancel "user" for "schedule". `event.attempt` carries the
+ * final failure streak.
+ *
+ * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
+ * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
+ * and cannot affect the already-made terminal decision.
+ *
+ * @param fn - Callback function to handle stop events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+declare function listenOrderStop(fn: (event: OrderStopContract) => void): () => void;
+/**
+ * Subscribes to filtered post-verdict order-check STOP events with one-time execution.
+ * See {@link listenOrderStop} for the emission semantics.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, processing waits until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+declare function listenOrderStopOnce(filterFn: (event: OrderStopContract) => boolean, fn: (event: OrderStopContract) => void): () => void;
 /**
  * Subscribes to order-check ping events with queued async processing.
  * This is the order CHECK channel: it decides whether the order behind the monitored
@@ -14397,6 +14617,606 @@ interface OrderSyncCheckNotification {
     createdAt: number;
 }
 /**
+ * Order-check CONTINUE notification (post-verdict pair of `order_sync.check`).
+ * Emitted when the check resolved NON-terminally: the order is confirmed still open
+ * (`attempt` 0) or a transient failure was tolerated (`attempt` > 0) — monitoring
+ * continues. The pre-verdict `order_sync.check` fires the ping REQUEST before the
+ * adapter answers; this notification carries the decision. Throttled by
+ * NotificationAdapter to at most one notification per signalId per
+ * `CC_NOTIFICATION_ORDER_CHECK_TTL`; the throttle entry is dropped when the signal
+ * is closed or cancelled. Live-only.
+ * Source: `orderContinueSubject` (OrderContinueContract).
+ */
+interface OrderContinueCheckNotification {
+    /** Discriminator for type-safe union */
+    type: "order_continue.check";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the check decision was made */
+    timestamp: number;
+    /** Always false: order checks are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /**
+     * Which order is being monitored (from OrderContinueContract.type):
+     * - "active" — the order backing an open position (pending signal)
+     * - "schedule" — the resting entry order of a scheduled signal awaiting activation
+     */
+    orderType: "schedule" | "active";
+    /** Consecutive-failure streak at this decision: 0 — check confirmed, >0 — tolerated transient failures */
+    attempt: number;
+    /** Market price at the moment of the check (VWAP) */
+    currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price (may differ from original after DCA averaging) */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Unrealized PNL of the position at the moment of the check */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment of the check */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment of the check */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation (adjusted with slippage and fees) */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
+ * Order-check STOP notification (post-verdict pair of `order_sync.check`).
+ * Emitted exactly once per monitored signal when the check resolved TERMINALLY —
+ * `reason` "deleted" (OrderDeletedError: confirmed order-not-found, bypassing the
+ * tolerance counter) or "exhausted" (CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive
+ * transient failures spent, or the legacy config 0) — right before the teardown:
+ * close "closed" for `orderType` "active", cancel "user" for "schedule". Not
+ * throttled (rare terminal event). Live-only.
+ * Source: `orderStopSubject` (OrderStopContract).
+ */
+interface OrderStopCheckNotification {
+    /** Discriminator for type-safe union */
+    type: "order_stop.check";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the check decision was made */
+    timestamp: number;
+    /** Always false: order checks are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /**
+     * Which order was monitored (from OrderStopContract.type):
+     * - "active" — the order backing an open position; the framework closes it with closeReason "closed"
+     * - "schedule" — the resting entry order; the framework cancels the scheduled signal (reason "user")
+     */
+    orderType: "schedule" | "active";
+    /** Which terminal path fired: confirmed not-found ("deleted") or tolerance spent ("exhausted") */
+    reason: "deleted" | "exhausted";
+    /** Consecutive-failure streak at termination (includes the terminating check) */
+    attempt: number;
+    /** Market price at the moment of the check (VWAP) */
+    currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price (may differ from original after DCA averaging) */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Unrealized PNL of the position at the moment of the check */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment of the check */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment of the check */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation (adjusted with slippage and fees) */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
+ * Order fill notification (broker-CONFIRMED open/placement).
+ * Post-verdict counterpart of `order_sync.open`: emitted ONLY after the onOrderSync
+ * gate resolved into the "confirmed" verdict — the exchange really filled the position
+ * order (`orderType: "active"`) or placed the resting entry order (`orderType: "schedule"`).
+ * A rejected or transient attempt never produces this notification. Live-only.
+ * Source: `orderFillSubject` (OrderFillContract).
+ */
+interface OrderFillOpenNotification {
+    /** Discriminator for type-safe union */
+    type: "order_fill.open";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the gate confirmed */
+    timestamp: number;
+    /** Always false: fills are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where the order executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+    signalId: string;
+    /**
+     * Which order was confirmed (from OrderFillContract.type):
+     * - "active" — the position order FILLED (immediate open or activation of a resting order)
+     * - "schedule" — the resting entry order was PLACED (not a fill)
+     */
+    orderType: "schedule" | "active";
+    /** Number of consecutive failed gate attempts that preceded this confirmed one (0 = first attempt) */
+    attempt: number;
+    /** Market price at the moment of confirmation (VWAP) */
+    currentPrice: number;
+    /** PNL snapshot of the position at the moment of this event */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
+    /** Cost of the position entry in USD */
+    cost: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price (DCA-averaged when entries exist) */
+    priceOpen: number;
+    /** Effective take profit price (trailing-aware) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (trailing-aware) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price before any DCA averaging */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
+ * Order fill notification (broker-CONFIRMED close).
+ * Post-verdict counterpart of `order_sync.close`: emitted ONLY after the close gate
+ * resolved into the "confirmed" verdict — the exit order really executed on the
+ * exchange. A rejected or transient close attempt (and a force-close performed
+ * without broker confirmation) never produces this notification. Live-only.
+ * Source: `orderFillSubject` (OrderFillContract).
+ */
+interface OrderFillCloseNotification {
+    /** Discriminator for type-safe union */
+    type: "order_fill.close";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the gate confirmed */
+    timestamp: number;
+    /** Always false: fills are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where the order executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+    signalId: string;
+    /** Which order was confirmed (from OrderFillContract.type). Closes always go through the position order, so this is always "active". */
+    orderType: "schedule" | "active";
+    /** Number of consecutive failed gate attempts that preceded this confirmed one (0 = first attempt) */
+    attempt: number;
+    /** Market price at the moment of confirmation (VWAP) */
+    currentPrice: number;
+    /** PNL snapshot of the position at the moment of this event */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price at close */
+    priceOpen: number;
+    /** Effective take profit price at close */
+    priceTakeProfit: number;
+    /** Effective stop loss price at close */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price before any DCA averaging */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Why the signal was closed (take_profit | stop_loss | time_expired | closed) */
+    closeReason: string;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
+ * Order reject notification (TERMINAL open/placement rejection).
+ * Emitted ONLY when the open gate resolved into the "rejected" verdict — the broker
+ * adapter threw OrderRejectedError ("the exchange definitively refused this order,
+ * retrying is pointless"). Exactly once per dropped attempt: the rejected signalId
+ * is consumed by the whipsaw guard, so this cannot repeat per-tick for one signal.
+ * Transient failures never fire here (they retry silently). Live-only.
+ * Source: `orderRejectSubject` (OrderRejectContract).
+ */
+interface OrderRejectOpenNotification {
+    /** Discriminator for type-safe union */
+    type: "order_reject.open";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the gate rejected */
+    timestamp: number;
+    /** Always false: rejections are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name that refused the order */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+    signalId: string;
+    /**
+     * Which order was rejected (from OrderRejectContract.type):
+     * - "active" — the position order (immediate open or activation fill)
+     * - "schedule" — the resting entry order being placed at scheduled-signal creation
+     */
+    orderType: "schedule" | "active";
+    /** Number of consecutive failed gate attempts that preceded this terminal one (0 = rejected on the first attempt) */
+    attempt: number;
+    /** Human-readable rejection reason (the OrderRejectedError message from the broker adapter) */
+    message: string;
+    /** Market price at the moment of rejection (VWAP) */
+    currentPrice: number;
+    /** PNL snapshot of the position at the moment of this event */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
+    /** Cost of the position entry in USD */
+    cost: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price (DCA-averaged when entries exist) */
+    priceOpen: number;
+    /** Effective take profit price (trailing-aware) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (trailing-aware) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price before any DCA averaging */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
+ * Order reject notification (TERMINAL close rejection → force-close).
+ * Emitted ONLY when the close gate resolved into the "rejected" verdict — the broker
+ * adapter threw OrderRejectedError. The engine force-closes its state with the
+ * original closeReason; the real exchange position is the adapter's/operator's to
+ * reconcile. Transient close failures never fire here. Live-only.
+ * Source: `orderRejectSubject` (OrderRejectContract).
+ */
+interface OrderRejectCloseNotification {
+    /** Discriminator for type-safe union */
+    type: "order_reject.close";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the gate rejected */
+    timestamp: number;
+    /** Always false: rejections are live-only (kept for cross-channel filter uniformity) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name that refused the order */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+    signalId: string;
+    /** Which order was rejected (from OrderRejectContract.type). Closes always go through the position order, so this is always "active". */
+    orderType: "schedule" | "active";
+    /** Number of consecutive failed gate attempts that preceded this terminal one (0 = rejected on the first attempt) */
+    attempt: number;
+    /** Human-readable rejection reason (the OrderRejectedError message from the broker adapter) */
+    message: string;
+    /** Market price at the moment of rejection (VWAP) */
+    currentPrice: number;
+    /** PNL snapshot of the position at the moment of this event */
+    pnl: IStrategyPnL;
+    /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+    peakProfit: IStrategyPnL;
+    /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+    maxDrawdown: IStrategyPnL;
+    /** Profit/loss as percentage */
+    pnlPercentage: number;
+    /** Entry price from PNL calculation */
+    pnlPriceOpen: number;
+    /** Exit price from PNL calculation */
+    pnlPriceClose: number;
+    /** Absolute profit/loss in USD */
+    pnlCost: number;
+    /** Total invested capital in USD */
+    pnlEntries: number;
+    /** Peak price reached in profit direction during the life of this position */
+    peakProfitPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of peak profit */
+    peakProfitPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+    peakProfitCost: number;
+    /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+    peakProfitPercentage: number;
+    /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+    peakProfitEntries: number;
+    /** Maximum drawdown price reached in loss direction during the life of this position */
+    maxDrawdownPriceOpen: number;
+    /** Exit price for PNL calculation at the moment of max drawdown */
+    maxDrawdownPriceClose: number;
+    /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownCost: number;
+    /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownPercentage: number;
+    /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+    maxDrawdownEntries: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Effective entry price at close */
+    priceOpen: number;
+    /** Effective take profit price at close */
+    priceTakeProfit: number;
+    /** Effective stop loss price at close */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price before any DCA averaging */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+    totalPartials: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** The closeReason the engine force-closes with (take_profit | stop_loss | time_expired | closed) */
+    closeReason: string;
+    /** Optional human-readable description of signal reason */
+    note?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
  * Risk rejection notification.
  * Emitted when a signal is rejected due to risk management rules.
  */
@@ -14911,7 +15731,7 @@ interface SignalInfoNotification {
  * }
  * ```
  */
-type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | OrderSyncOpenNotification | OrderSyncCloseNotification | OrderSyncCheckNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | StrategyPauseNotification | SignalInfoNotification;
+type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | CancelScheduledCommitNotification | ClosePendingCommitNotification | OrderSyncOpenNotification | OrderSyncCloseNotification | OrderSyncCheckNotification | OrderContinueCheckNotification | OrderStopCheckNotification | OrderFillOpenNotification | OrderFillCloseNotification | OrderRejectOpenNotification | OrderRejectCloseNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification | StrategyPauseNotification | SignalInfoNotification;
 
 /**
  * Unified tick event data for report generation.
@@ -16369,6 +17189,15 @@ type StrategyData = {
      * otherwise the snapshot belongs to a different/stale position and is discarded.
      */
     pendingSignalId: string | null;
+    /**
+     * Whipsaw-guard slot (_lastPendingId): the id of the last successfully OPENED signal
+     * or the last TERMINALLY REJECTED one (OrderRejectedError consumes the id). Persisted
+     * so the consumption survives restarts: a terminally rejected deterministic id must
+     * not re-hit the exchange with one more real order after every process restart.
+     * Old snapshots without the field read as null and fall back to the
+     * PersistRecentAdapter-based restore (last successfully opened id only).
+     */
+    lastPendingId: string | null;
     /**
      * User-supplied signal DTO scheduled to be consumed by the next getSignal tick instead
      * of params.getSignal (set via createPending / createScheduled), or null if none queued.
@@ -27676,6 +28505,41 @@ interface INotificationTarget {
      */
     order_check: boolean;
     /**
+     * Broker-CONFIRMED order fill notifications (`order_fill.open`, `order_fill.close`).
+     * Post-verdict counterpart of `order_sync`: fired ONLY after the onOrderSync gate
+     * resolved into the "confirmed" verdict — a rejected or transient attempt never
+     * fires here. Live-only (backtest gates short-circuit without an exchange).
+     * Source: `orderFillSubject` (OrderFillContract).
+     */
+    order_fill: boolean;
+    /**
+     * TERMINAL order rejection notifications (`order_reject.open`, `order_reject.close`).
+     * Fired ONLY on the "rejected" verdict (OrderRejectedError from the broker adapter) —
+     * exactly once per dropped attempt (the open consumes its signalId, the close
+     * force-closes). Transient failures never fire here. Live-only.
+     * Source: `orderRejectSubject` (OrderRejectContract).
+     */
+    order_reject: boolean;
+    /**
+     * Post-verdict order-check CONTINUE notifications (`order_continue.check`).
+     * The resolved pair of `order_check`: the order is confirmed still open (attempt 0)
+     * or a transient failure was tolerated (attempt > 0) — monitoring continues.
+     * Throttled like `order_check`: at most one notification per signalId per
+     * `CC_NOTIFICATION_ORDER_CHECK_TTL`; the throttle entry is dropped when the
+     * signal is closed or cancelled. Live-only.
+     * Source: `orderContinueSubject` (OrderContinueContract).
+     */
+    order_continue: boolean;
+    /**
+     * Post-verdict order-check STOP notifications (`order_stop.check`).
+     * Fired exactly once per monitored signal when the check resolved terminally —
+     * "deleted" (confirmed not-found) or "exhausted" (transient tolerance spent) —
+     * right before the teardown (close "closed" / cancel "user"). Not throttled.
+     * Live-only.
+     * Source: `orderStopSubject` (OrderStopContract).
+     */
+    order_stop: boolean;
+    /**
      * Risk manager rejection notifications (`risk.rejection`).
      * Fired when the risk manager blocks a new signal from opening due to
      * active position count limits or other risk rules.
@@ -27757,6 +28621,26 @@ interface INotificationUtils {
      * @param data - The order check contract data
      */
     handleCheck(data: OrderCheckContract): Promise<void>;
+    /**
+     * Handles broker-confirmed order fill event (post-verdict, signal-open/signal-close).
+     * @param data - The order fill contract data
+     */
+    handleOrderFill(data: OrderFillContract): Promise<void>;
+    /**
+     * Handles terminal order rejection event (post-verdict, signal-open/signal-close).
+     * @param data - The order reject contract data
+     */
+    handleOrderReject(data: OrderRejectContract): Promise<void>;
+    /**
+     * Handles post-verdict order-check continue event (order still open, monitoring continues).
+     * @param data - The order continue contract data
+     */
+    handleOrderContinue(data: OrderContinueContract): Promise<void>;
+    /**
+     * Handles post-verdict order-check stop event (terminal: order gone, teardown follows).
+     * @param data - The order stop contract data
+     */
+    handleOrderStop(data: OrderStopContract): Promise<void>;
     /**
      * Handles risk rejection event.
      * @param data - The risk contract data
@@ -27860,6 +28744,30 @@ declare class NotificationBacktestAdapter implements INotificationUtils {
      * @param data - The order check contract data
      */
     handleCheck: (data: OrderCheckContract) => any;
+    /**
+     * Handles broker-confirmed order fill events (signal-open, signal-close).
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order fill contract data
+     */
+    handleOrderFill: (data: OrderFillContract) => any;
+    /**
+     * Handles terminal order rejection events (signal-open, signal-close).
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order reject contract data
+     */
+    handleOrderReject: (data: OrderRejectContract) => any;
+    /**
+     * Handles post-verdict order-check continue events.
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order continue contract data
+     */
+    handleOrderContinue: (data: OrderContinueContract) => any;
+    /**
+     * Handles post-verdict order-check stop events.
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order stop contract data
+     */
+    handleOrderStop: (data: OrderStopContract) => any;
     /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.
@@ -27994,6 +28902,30 @@ declare class NotificationLiveAdapter implements INotificationUtils {
      */
     handleCheck: (data: OrderCheckContract) => any;
     /**
+     * Handles broker-confirmed order fill events (signal-open, signal-close).
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order fill contract data
+     */
+    handleOrderFill: (data: OrderFillContract) => any;
+    /**
+     * Handles terminal order rejection events (signal-open, signal-close).
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order reject contract data
+     */
+    handleOrderReject: (data: OrderRejectContract) => any;
+    /**
+     * Handles post-verdict order-check continue events.
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order continue contract data
+     */
+    handleOrderContinue: (data: OrderContinueContract) => any;
+    /**
+     * Handles post-verdict order-check stop events.
+     * Proxies call to the underlying notification adapter.
+     * @param data - The order stop contract data
+     */
+    handleOrderStop: (data: OrderStopContract) => any;
+    /**
      * Handles risk rejection event.
      * Proxies call to the underlying notification adapter.
      * @param data - The risk contract data
@@ -28079,7 +29011,7 @@ declare class NotificationAdapter {
      *
      * @returns Cleanup function that unsubscribes from all emitters
      */
-    enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, order_sync, order_check, risk, pause, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & functools_kit.ISingleshotClearable<({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, order_sync, order_check, risk, pause, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void>;
+    enable: (({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, order_sync, order_check, order_fill, order_reject, order_continue, order_stop, risk, pause, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void) & functools_kit.ISingleshotClearable<({ signal, info, partial_profit, partial_loss, breakeven, strategy_commit, order_sync, order_check, order_fill, order_reject, order_continue, order_stop, risk, pause, common_error, critical_error, validation_error, }?: INotificationTarget) => () => void>;
     /**
      * Disables notification storage by unsubscribing from all emitters.
      * Safe to call multiple times.
@@ -33280,6 +34212,23 @@ declare const orderFillSubject: Subject<OrderFillContract>;
  */
 declare const orderRejectSubject: Subject<OrderRejectContract>;
 /**
+ * Post-verdict order-check CONTINUE emitter (paired with orderStopSubject).
+ * Emitted on every live tick when the check resolved NON-terminally: the order
+ * is confirmed still open (attempt 0) or a transient failure was tolerated
+ * (attempt > 0) — monitoring continues. The pre-verdict syncPendingSubject fires
+ * the ping REQUEST before the adapter answers; this channel carries the decision.
+ * Live-only. Notification-only: listener exceptions are swallowed at the emission site.
+ */
+declare const orderContinueSubject: Subject<OrderContinueContract>;
+/**
+ * Post-verdict order-check STOP emitter (paired with orderContinueSubject).
+ * Emitted exactly once per monitored signal when the check resolved TERMINALLY —
+ * OrderDeletedError ("deleted") or spent transient tolerance ("exhausted") — right
+ * before the teardown (close "closed" for active / cancel "user" for schedule).
+ * Live-only. Notification-only: listener exceptions are swallowed at the emission site.
+ */
+declare const orderStopSubject: Subject<OrderStopContract>;
+/**
  * Pending-order synchronization emitter.
  * Emitted on every live tick while a pending signal is monitored, BEFORE TP/SL/time evaluation.
  * Asks the exchange whether the order is STILL pending (open).
@@ -33503,8 +34452,10 @@ declare const emitters_exitEmitter: typeof exitEmitter;
 declare const emitters_highestProfitSubject: typeof highestProfitSubject;
 declare const emitters_idlePingSubject: typeof idlePingSubject;
 declare const emitters_maxDrawdownSubject: typeof maxDrawdownSubject;
+declare const emitters_orderContinueSubject: typeof orderContinueSubject;
 declare const emitters_orderFillSubject: typeof orderFillSubject;
 declare const emitters_orderRejectSubject: typeof orderRejectSubject;
+declare const emitters_orderStopSubject: typeof orderStopSubject;
 declare const emitters_partialLossSubject: typeof partialLossSubject;
 declare const emitters_partialProfitSubject: typeof partialProfitSubject;
 declare const emitters_pauseSubject: typeof pauseSubject;
@@ -33528,7 +34479,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_orderFillSubject as orderFillSubject, emitters_orderRejectSubject as orderRejectSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_pauseSubject as pauseSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_activePingSubject as activePingSubject, emitters_afterEndSubject as afterEndSubject, emitters_backtestScheduleOpenSubject as backtestScheduleOpenSubject, emitters_beforeStartSubject as beforeStartSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_entrySubject as entrySubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_highestProfitSubject as highestProfitSubject, emitters_idlePingSubject as idlePingSubject, emitters_maxDrawdownSubject as maxDrawdownSubject, emitters_orderContinueSubject as orderContinueSubject, emitters_orderFillSubject as orderFillSubject, emitters_orderRejectSubject as orderRejectSubject, emitters_orderStopSubject as orderStopSubject, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_pauseSubject as pauseSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_scheduleEventSubject as scheduleEventSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_shutdownEmitter as shutdownEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalEventSubject as signalEventSubject, emitters_signalLiveEmitter as signalLiveEmitter, emitters_signalNotifySubject as signalNotifySubject, emitters_strategyCommitSubject as strategyCommitSubject, emitters_syncPendingSubject as syncPendingSubject, emitters_syncSubject as syncSubject, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -42601,4 +43552,4 @@ declare class OrderTransientError extends Error {
     static fromError(error: object): OrderTransientError;
 }
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISimulatorBest, type ISimulatorGridAxes, type ISimulatorIdea, type ISimulatorResult, type ISimulatorSchema, type ISimulatorTestResult, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Simulator, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSimulatorSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSimulatorSchema, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSimulatorSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenOrderFill, listenOrderFillOnce, listenOrderReject, listenOrderRejectOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSimulatorSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISimulatorBest, type ISimulatorGridAxes, type ISimulatorIdea, type ISimulatorResult, type ISimulatorSchema, type ISimulatorTestResult, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Simulator, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSimulatorSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSimulatorSchema, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSimulatorSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenOrderContinue, listenOrderContinueOnce, listenOrderFill, listenOrderFillOnce, listenOrderReject, listenOrderRejectOnce, listenOrderStop, listenOrderStopOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSimulatorSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

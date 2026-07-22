@@ -19,6 +19,8 @@ import {
   OrderFillOpenContract,
   OrderFillCloseContract,
   OrderRejectContract,
+  OrderContinueContract,
+  OrderStopContract,
   SignalInfoContract,
 } from "backtest-kit";
 import ResolveService from "../core/ResolveService";
@@ -46,6 +48,8 @@ type Data =
   | OrderFillOpenContract
   | OrderFillCloseContract
   | OrderRejectContract
+  | OrderContinueContract
+  | OrderStopContract
   | SignalInfoContract;
 
 const READ_TEMPLATE_FN = memoize(
@@ -220,26 +224,26 @@ export class TelegramTemplateService implements TelegramConfig {
     return await RENDER_TEMPLATE_FN("average-buy.mustache", event, this);
   };
 
-  public getSignalOpenMarkdown = async (event: OrderFillOpenContract) => {
-    this.loggerService.log("telegramTemplateService getSignalOpenMarkdown", {
+  public getOrderOpenMarkdown = async (event: OrderFillOpenContract) => {
+    this.loggerService.log("telegramTemplateService getOrderOpenMarkdown", {
       event,
     });
     const adapter = await this.getTelegramAdapter();
-    if (adapter?.getSignalOpenMarkdown) {
-      return await adapter.getSignalOpenMarkdown(event);
+    if (adapter?.getOrderOpenMarkdown) {
+      return await adapter.getOrderOpenMarkdown(event);
     }
-    return await RENDER_TEMPLATE_FN("signal-open.mustache", event, this);
+    return await RENDER_TEMPLATE_FN("order-open.mustache", event, this);
   };
 
-  public getSignalCloseMarkdown = async (event: OrderFillCloseContract) => {
-    this.loggerService.log("telegramTemplateService getSignalCloseMarkdown", {
+  public getOrderCloseMarkdown = async (event: OrderFillCloseContract) => {
+    this.loggerService.log("telegramTemplateService getOrderCloseMarkdown", {
       event,
     });
     const adapter = await this.getTelegramAdapter();
-    if (adapter?.getSignalCloseMarkdown) {
-      return await adapter.getSignalCloseMarkdown(event);
+    if (adapter?.getOrderCloseMarkdown) {
+      return await adapter.getOrderCloseMarkdown(event);
     }
-    return await RENDER_TEMPLATE_FN("signal-close.mustache", event, this);
+    return await RENDER_TEMPLATE_FN("order-close.mustache", event, this);
   };
 
   public getOrderRejectedMarkdown = async (event: OrderRejectContract) => {
@@ -251,6 +255,28 @@ export class TelegramTemplateService implements TelegramConfig {
       return await adapter.getOrderRejectedMarkdown(event);
     }
     return await RENDER_TEMPLATE_FN("order-rejected.mustache", event, this);
+  };
+
+  public getOrderContinueMarkdown = async (event: OrderContinueContract) => {
+    this.loggerService.log("telegramTemplateService getOrderContinueMarkdown", {
+      event,
+    });
+    const adapter = await this.getTelegramAdapter();
+    if (adapter?.getOrderContinueMarkdown) {
+      return await adapter.getOrderContinueMarkdown(event);
+    }
+    return await RENDER_TEMPLATE_FN("order-continue.mustache", event, this);
+  };
+
+  public getOrderStopMarkdown = async (event: OrderStopContract) => {
+    this.loggerService.log("telegramTemplateService getOrderStopMarkdown", {
+      event,
+    });
+    const adapter = await this.getTelegramAdapter();
+    if (adapter?.getOrderStopMarkdown) {
+      return await adapter.getOrderStopMarkdown(event);
+    }
+    return await RENDER_TEMPLATE_FN("order-stop.mustache", event, this);
   };
 
   public getCancelScheduledMarkdown = async (event: CancelScheduledCommit) => {
