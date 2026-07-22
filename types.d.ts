@@ -6162,29 +6162,6 @@ interface ISimulatorGridAxes {
      */
     profitLockPercent: number[];
     /**
-     * Entry delays to sweep, minutes after the publication minute.
-     * Tunes: WHERE on the crowd-liquidity step the entry lands. The
-     * first-hour impulse of a posted idea retraces at 30-120 minutes
-     * (measured on the reference feed), so a delayed entry at 4-8
-     * hours buys the pullback: same or better PnL with a lower stop
-     * along the path. Entry fills at the open of candle[delay]; the
-     * delay is execution timing ONLY — the busy check anchors to the
-     * delayed entry minute, while consensus gates, profile MFE/MAE and
-     * ban training keep grading from the publication minute (the
-     * signal is the post; an author's correctness does not depend on
-     * when WE enter).
-     * Ignored: 0 DISABLES the mechanism (instant entry at the minute
-     * after publication) — keep 0 in the list to sweep the baseline.
-     * Never affects ban training. The delay consumes the tail of the
-     * fixed 5-day profile horizon: a delay + hold overshooting the
-     * horizon clamps to the horizon close (time_expired on a full
-     * profile; data_truncated stays reserved for profiles cut by the
-     * end of candle data), and an idea whose profile is shorter than
-     * the delay is skipped entirely (reported per point as
-     * skippedNoData).
-     */
-    entryDelayMinutes: number[];
-    /**
      * Author-hit metrics to sweep for the ban filter — a rule
      * parameter like the thresholds.
      * Tunes: which author grading feeds which exit style — "close"
@@ -6244,8 +6221,6 @@ interface ISimulatorGridPoint {
      * entry, exit on pullback to the floor; 0 = disabled.
      */
     profitLockPercent: number;
-    /** Entry delay, minutes after the publication minute; 0 = instant. */
-    entryDelayMinutes: number;
     /** Author-hit metric of the ban filter for this point. */
     authorMetric: SimulatorAuthorMetric;
 }
@@ -6261,10 +6236,7 @@ interface ISimulatorTrade {
     ideaId: number;
     /** Position direction inherited from the idea. */
     direction: SimulatorIdeaDirection;
-    /**
-     * Unix timestamp in milliseconds of the trade entry minute: the
-     * minute after publication plus the point's entryDelayMinutes.
-     */
+    /** Unix timestamp in milliseconds of the trade entry minute. */
     entryTimestamp: number;
     /** Unix timestamp in milliseconds of the exit candle. */
     exitTimestamp: number;
@@ -6291,12 +6263,6 @@ interface ISimulatorPointReport {
     trades: number;
     /** Qualified ideas skipped because the position slot was busy. */
     skippedBusy: number;
-    /**
-     * Qualified ideas skipped because the profile has no candle at the
-     * delayed entry minute (the idea sits closer to the data edge than
-     * entryDelayMinutes). Always 0 with entryDelayMinutes = 0.
-     */
-    skippedNoData: number;
     /** Sum of trade PnL percents over the range. */
     totalPnlPercent: number;
     /** Mean trade PnL, percent. */
@@ -6510,9 +6476,8 @@ interface ISimulatorTestResult {
  *   a single-value list freezes an axis. Pinning examples:
  *   authorMetric: ["close"] restores pre-reach ban training,
  *   banCriteria: ["sharpe"] restores the Sharpe-only run artifact,
- *   profitLockPercent: [0] disables the lock, entryDelayMinutes: [0]
- *   pins instant entry. Each axis documents its own tune/ignore
- *   conditions in ISimulatorGridAxes.
+ *   profitLockPercent: [0] disables the lock. Each axis documents
+ *   its own tune/ignore conditions in ISimulatorGridAxes.
  * - callbacks — all optional; an omitted callback is simply never
  *   fired (silent run). onAuthorsTrained fires once per unique ban
  *   RULE (not per grid point) and never fires during test().
@@ -19989,16 +19954,6 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  *   window; banned authors are invisible to the count.
  * - minWeightAligned — sum of Laplace weights (hits+1)/(ideas+2) of
  *   those authors; 0 disables the weighted gate.
- *
- * Entry timing:
- * - entryDelayMinutes — entry fills at candle[delay] open, delay
- *   minutes after the publication minute; 0 = instant. Execution
- *   timing only: consensus gates and ban training stay anchored to
- *   the publication minute, the busy check moves to the delayed
- *   entry minute. The delay consumes the tail of the 5-day profile
- *   horizon (an overshooting hold clamps to the horizon close; a
- *   profile shorter than the delay is skipped and counted in
- *   skippedNoData).
  *
  * Ban rule (author filter, trained on the whole run range):
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
@@ -42959,10 +42914,7 @@ declare class SimulatorSchemaService {
  * 3. The outcome of every grid point is derived arithmetically from
  *    the profiles with production slot semantics (one position per
  *    symbol, busy-slot ideas skipped). Honesty contracts: entry at
- *    next-minute open plus the point's entryDelayMinutes (the busy
- *    check anchors to the delayed entry minute; consensus and ban
- *    training stay anchored to the publication minute), exits by
- *    candle wicks (never close-to-close),
+ *    next-minute open, exits by candle wicks (never close-to-close),
  *    stop wins inside an ambiguous candle, trailing arms only from
  *    previous-candle peaks, fees and slippage from GLOBAL_CONFIG on
  *    both legs.

@@ -43,7 +43,6 @@ addSimulatorSchema({
         minAuthorHitRate: [0.5, 0.6],
         minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1.5, 2.5],
-        entryDelayMinutes: [0, 240, 480],
         minAuthorWilson: [0, 0.6],
         // обе метрики авторского hit'а — перебор решает, какая
         // арифметика кормит какой стиль выхода (BC не сохраняем)
@@ -66,7 +65,6 @@ addSimulatorSchema({
         minAuthorHitRate: [0.5, 0.6],
         minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1, 2],
-        entryDelayMinutes: [0, 240, 480],
         minAuthorWilson: [0, 0.6],
     }
 });
@@ -84,7 +82,6 @@ addSimulatorSchema({
         minAuthorHitRate: [0.5, 0.6],
         minWeightAligned: [0, 0.6],
         profitLockPercent: [0, 0.5, 1, 1.5, 2, 2.5, 3],
-        entryDelayMinutes: [0, 240, 480],
         minAuthorWilson: [0, 0.6],
     },
 });
@@ -102,7 +99,6 @@ addSimulatorSchema({
         minAuthorHitRate: [0.5, 0.6],
         minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1, 2],
-        entryDelayMinutes: [0, 240, 480],
         minAuthorWilson: [0, 0.6],
     },
 });
@@ -126,7 +122,7 @@ const runTune = async (simulatorName) => {
     result.push({
       config: simulatorName,
       by: best.criterion,
-      point: `H=${p.hardStopPercent} TT=${p.trailingTakePercent} hold=${p.holdMinutes / 60}h N=${p.minIdeasAligned} track=${p.minAuthorTrack} rate=${p.minAuthorHitRate} wilson=${p.minAuthorWilson} W=${p.minWeightAligned} lock=${p.profitLockPercent} delay=${p.entryDelayMinutes}m metric=${p.authorMetric}`,
+      point: `H=${p.hardStopPercent} TT=${p.trailingTakePercent} hold=${p.holdMinutes / 60}h N=${p.minIdeasAligned} track=${p.minAuthorTrack} rate=${p.minAuthorHitRate} wilson=${p.minAuthorWilson} W=${p.minWeightAligned} lock=${p.profitLockPercent} metric=${p.authorMetric}`,
       train: {
         trades: best.report.trades,
         pnl: fmt(best.report.totalPnlPercent),

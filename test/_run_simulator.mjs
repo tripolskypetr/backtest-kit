@@ -37,7 +37,6 @@ import "./sim/hold_beyond_horizon.test.mjs";
 import "./sim/aligned_window_boundary.test.mjs";
 import "./sim/weight_sum_pair.test.mjs";
 import "./sim/entity_lifecycle.test.mjs";
-import "./sim/entry_delay.test.mjs";
 import "./sim/wilson_ban.test.mjs";
 
 run(import.meta.url, () => {

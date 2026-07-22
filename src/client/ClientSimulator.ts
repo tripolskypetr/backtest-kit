@@ -595,13 +595,8 @@ const FREEZE_AUTHOR_FILTER_FN = (
  * Simulates one trade: an idea profile against a grid point.
  *
  * Honesty contracts (violating any produces garbage):
- * - entry at the open of the minute AFTER publication plus the
- *   point's entryDelayMinutes (candle[delay] of the profile — the
- *   caller guarantees it exists), slippage in the fill price against
- *   the position; the delay consumes the tail of the fixed profile
- *   horizon — the hold clamps to the horizon close (time_expired on
- *   a full profile; data_truncated stays reserved for profiles cut
- *   by the end of candle data);
+ * - entry at the open of the minute AFTER publication, slippage in
+ *   the fill price against the position;
  * - exits are checked against candle wicks (high/low), never close;
  * - trailing take arms from the peak of PREVIOUS candles only (the
  *   current candle peak updates after the checks) and only when the
@@ -626,11 +621,7 @@ const SIMULATE_TRADE_FN = (
 ): ISimulatorTrade => {
   const direction = profile.idea.direction === "LONG" ? 1 : -1;
   const slip = GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100;
-  // замороженные точки старых артефактов не несут поля задержки —
-  // отсутствие деградирует в 0 (мгновенный вход), как и прочие
-  // выключенные механизмы точки
-  const delay = point.entryDelayMinutes ?? 0;
-  const entryFill = profile.candles[delay].open * (1 + direction * slip);
+  const entryFill = profile.entryPrice * (1 + direction * slip);
   const stopLevel =
     entryFill * (1 - (direction * point.hardStopPercent) / 100);
   const trailRatio = point.trailingTakePercent / 100;
@@ -648,10 +639,9 @@ const SIMULATE_TRADE_FN = (
   let peak = entryFill;
   let exitLevel: number | null = null;
   let exitReason: SimulatorExitReason = "time_expired";
-  let exitIndex =
-    Math.min(delay + point.holdMinutes, profile.candles.length) - 1;
+  let exitIndex = Math.min(point.holdMinutes, profile.candles.length) - 1;
 
-  for (let i = delay; i <= exitIndex; i++) {
+  for (let i = 0; i <= exitIndex; i++) {
     const candle = profile.candles[i];
     const adverse = direction > 0 ? candle.low : candle.high;
     const stopHit =
@@ -703,9 +693,6 @@ const SIMULATE_TRADE_FN = (
 
   if (exitLevel === null) {
     exitLevel = profile.candles[exitIndex].close;
-    // data_truncated зарезервирована за краем ДАННЫХ (обрезанный
-    // профиль); кламп полного профиля статическим горизонтом — в том
-    // числе задержкой входа, съевшей хвост, — это time_expired
     exitReason =
       profile.truncated && exitIndex === profile.candles.length - 1
         ? "data_truncated"
@@ -720,10 +707,10 @@ const SIMULATE_TRADE_FN = (
   return {
     ideaId: profile.idea.id,
     direction: profile.idea.direction,
-    entryTimestamp: profile.entryTimestamp + delay * MINUTE_MS,
+    entryTimestamp: profile.entryTimestamp,
     exitTimestamp: profile.entryTimestamp + exitIndex * MINUTE_MS,
     exitReason,
-    holdMinutesActual: exitIndex - delay + 1,
+    holdMinutesActual: exitIndex + 1,
     pnlPercent,
     absorbedIdeaIds: [],
   };
@@ -799,11 +786,7 @@ const EVALUATE_POINT_FN = (
     data_truncated: 0,
   };
   let skippedBusy = 0;
-  let skippedNoData = 0;
   let busyUntil = -Infinity;
-  // отсутствие поля у замороженной точки старого артефакта = 0
-  const entryDelayMinutes = point.entryDelayMinutes ?? 0;
-  const delayMs = entryDelayMinutes * MINUTE_MS;
   // сделка, держащая слот сейчас, — ей приписываются поглощённые посты
   let holdingTrade: ISimulatorTrade | null = null;
 
@@ -820,15 +803,7 @@ const EVALUATE_POINT_FN = (
     if (filter.weightAligned[index] < point.minWeightAligned) {
       continue;
     }
-    // у профиля нет свечи на минуте отложенного входа (идея ближе к
-    // краю данных, чем задержка) — войти нельзя ни при каком слоте
-    if (profile.candles.length <= entryDelayMinutes) {
-      skippedNoData += 1;
-      continue;
-    }
-    // вход происходит через delay минут после поста — занятость слота
-    // проверяется на минуту фактического входа, не на минуту поста
-    if (profile.entryTimestamp + delayMs < busyUntil) {
+    if (profile.entryTimestamp < busyUntil) {
       skippedBusy += 1;
       if (holdingTrade) {
         holdingTrade.absorbedIdeaIds.push(profile.idea.id);
@@ -925,7 +900,6 @@ const EVALUATE_POINT_FN = (
       point,
       trades: trades.length,
       skippedBusy,
-      skippedNoData,
       totalPnlPercent,
       avgPnlPercent: trades.length ? totalPnlPercent / trades.length : 0,
       winRate: trades.length ? wins / trades.length : 0,
@@ -960,21 +934,18 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
               axes.minAuthorWilson.flatMap((minAuthorWilson) =>
                 axes.minWeightAligned.flatMap((minWeightAligned) =>
                   axes.profitLockPercent.flatMap((profitLockPercent) =>
-                    axes.entryDelayMinutes.flatMap((entryDelayMinutes) =>
-                      axes.authorMetric.map((authorMetric) => ({
-                        hardStopPercent,
-                        trailingTakePercent,
-                        holdMinutes,
-                        minIdeasAligned,
-                        minAuthorTrack,
-                        minAuthorHitRate,
-                        minAuthorWilson,
-                        minWeightAligned,
-                        profitLockPercent,
-                        entryDelayMinutes,
-                        authorMetric,
-                      })),
-                    ),
+                    axes.authorMetric.map((authorMetric) => ({
+                      hardStopPercent,
+                      trailingTakePercent,
+                      holdMinutes,
+                      minIdeasAligned,
+                      minAuthorTrack,
+                      minAuthorHitRate,
+                      minAuthorWilson,
+                      minWeightAligned,
+                      profitLockPercent,
+                      authorMetric,
+                    })),
                   ),
                 ),
               ),
@@ -1418,10 +1389,7 @@ const TEST_FN = async (
  * 3. The outcome of every grid point is derived arithmetically from
  *    the profiles with production slot semantics (one position per
  *    symbol, busy-slot ideas skipped). Honesty contracts: entry at
- *    next-minute open plus the point's entryDelayMinutes (the busy
- *    check anchors to the delayed entry minute; consensus and ban
- *    training stay anchored to the publication minute), exits by
- *    candle wicks (never close-to-close),
+ *    next-minute open, exits by candle wicks (never close-to-close),
  *    stop wins inside an ambiguous candle, trailing arms only from
  *    previous-candle peaks, fees and slippage from GLOBAL_CONFIG on
  *    both legs.

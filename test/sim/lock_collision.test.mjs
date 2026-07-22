@@ -63,7 +63,6 @@ const AXES = {
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
   minWeightAligned: [0],
-  entryDelayMinutes: [0],
   minAuthorWilson: [0],
   authorMetric: ["close"],
   holdMinutes: [240],

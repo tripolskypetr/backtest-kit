@@ -72,7 +72,6 @@ test("SIM: weighted consensus filters the coin-flipper the binary rule lets thro
       minAuthorHitRate: [0.5],
       minWeightAligned: [0, 0.7],
       profitLockPercent: [0],
-      entryDelayMinutes: [0],
       minAuthorWilson: [0],
       authorMetric: ["close"],
     },

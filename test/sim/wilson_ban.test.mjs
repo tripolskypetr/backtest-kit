@@ -75,7 +75,6 @@ test("SIM: Wilson lower bound bans a 3/3 newcomer where a 15/15 veteran passes",
       minWeightAligned: [0],
       profitLockPercent: [0],
       minAuthorWilson: [0, 0.6],
-      entryDelayMinutes: [0],
       authorMetric: ["close"],
     },
     callbacks: {

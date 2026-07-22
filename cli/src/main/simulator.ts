@@ -184,7 +184,6 @@ export const main = async () => {
       minAuthorHitRate: [0.5, 0.6],
       minWeightAligned: [0, 0.6, 1.2],
       profitLockPercent: [0, 1.5, 2.5],
-      entryDelayMinutes: [0, 4 * 60, 8 * 60],
       authorMetric: ["close", "reach"],
       banCriteria: ["sharpe", "pnl"],
       minAuthorWilson: [0, 0.6],

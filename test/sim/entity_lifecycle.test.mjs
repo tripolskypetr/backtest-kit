@@ -26,7 +26,6 @@ const SINGLE_POINT = {
   minAuthorHitRate: [0],
   minWeightAligned: [0],
   profitLockPercent: [0],
-  entryDelayMinutes: [0],
   minAuthorWilson: [0],
   authorMetric: ["close"],
 };

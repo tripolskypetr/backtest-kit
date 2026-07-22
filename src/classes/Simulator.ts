@@ -33,16 +33,6 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - minWeightAligned — sum of Laplace weights (hits+1)/(ideas+2) of
  *   those authors; 0 disables the weighted gate.
  *
- * Entry timing:
- * - entryDelayMinutes — entry fills at candle[delay] open, delay
- *   minutes after the publication minute; 0 = instant. Execution
- *   timing only: consensus gates and ban training stay anchored to
- *   the publication minute, the busy check moves to the delayed
- *   entry minute. The delay consumes the tail of the 5-day profile
- *   horizon (an overshooting hold clamps to the horizon close; a
- *   profile shorter than the delay is skipped and counted in
- *   skippedNoData).
- *
  * Ban rule (author filter, trained on the whole run range):
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the

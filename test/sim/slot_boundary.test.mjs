@@ -48,7 +48,6 @@ test("SIM: slot frees exactly one minute after exit — boundary idea trades, ea
       minAuthorHitRate: [0],
       minWeightAligned: [0],
       profitLockPercent: [0],
-      entryDelayMinutes: [0],
       minAuthorWilson: [0],
       authorMetric: ["close"],
     },

@@ -1,4 +1,3 @@
-
 {
   "symbol": "BTCUSDT",
   "ideasTotal": 276,
@@ -12,8 +11,10 @@
     "minIdeasAligned": 1,
     "minAuthorTrack": 5,
     "minAuthorHitRate": 0.5,
+    "minAuthorWilson": 0,
     "minWeightAligned": 0,
-    "profitLockPercent": 2.5
+    "profitLockPercent": 2.5,
+    "authorMetric": "close"
   },
   "report": {
     "point": {
@@ -23,8 +24,10 @@
       "minIdeasAligned": 1,
       "minAuthorTrack": 5,
       "minAuthorHitRate": 0.5,
+      "minAuthorWilson": 0,
       "minWeightAligned": 0,
-      "profitLockPercent": 2.5
+      "profitLockPercent": 2.5,
+      "authorMetric": "close"
     },
     "trades": 7,
     "skippedBusy": 8,
