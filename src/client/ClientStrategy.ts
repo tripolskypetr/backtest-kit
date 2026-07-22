@@ -2908,7 +2908,18 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     self.params.logger.info("ClientStrategy scheduled signal activation rejected by sync", {
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
+      reason: syncOpenAllowed.reason,
     });
+    // Терминальный реджект активации (OrderRejectedError: NOTIONAL и т.п.) —
+    // потребить id ДО teardown, как в терминальных ветках open-гейтов. Без
+    // консумации детерминированная стратегия ре-издаёт тот же сигнал следующим
+    // тиком: новое РЕАЛЬНОЕ размещение resting-ордера → новая активация → новый
+    // реальный реджект — по паре отклонённых ордеров на бирже за цикл, вечно,
+    // пока цена в entry-диапазоне. Транзиентный реджект id не потребляет.
+    if (syncOpenAllowed.reason !== "transient") {
+      self._lastPendingId = scheduled.id;
+      await PERSIST_STRATEGY_FN(self);
+    }
     await self.setScheduledSignal(null);
     // Release the slot reserved by checkSignalAndReserve above
     await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -5034,7 +5045,13 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     self.params.logger.info("ClientStrategy backtest scheduled signal activation rejected by sync", {
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
+      reason: syncOpenAllowed.reason,
     });
+    // Терминальный реджект активации — потребить id (зеркало live-ветки):
+    // иначе детерминированная стратегия реиграет тот же сигнал каждую свечу.
+    if (syncOpenAllowed.reason !== "transient") {
+      self._lastPendingId = scheduled.id;
+    }
     await self.setScheduledSignal(null);
     // Release the slot reserved by checkSignalAndReserve above
     await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -5706,7 +5723,13 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         self.params.logger.info("ClientStrategy backtest user-activated signal rejected by sync", {
           symbol: self.params.execution.context.symbol,
           signalId: activatedSignal.id,
+          reason: syncOpenAllowed.reason,
         });
+        // Терминальный реджект активации — потребить id (зеркало live-ветки):
+        // иначе детерминированная стратегия реиграет тот же сигнал каждую свечу.
+        if (syncOpenAllowed.reason !== "transient") {
+          self._lastPendingId = activatedSignal.id;
+        }
         await self.setScheduledSignal(null);
         // Release the slot reserved by checkSignalAndReserve above
         await CALL_RISK_REMOVE_SIGNAL_FN(
@@ -7986,7 +8009,16 @@ export class ClientStrategy implements IStrategy {
         this.params.logger.info("ClientStrategy tick: user-activated signal rejected by sync", {
           symbol: this.params.execution.context.symbol,
           signalId: activatedSignal.id,
+          reason: syncOpenAllowed.reason,
         });
+        // Терминальный реджект активации — потребить id ДО teardown (зеркало
+        // ACTIVATE_SCHEDULED_SIGNAL_FN): без консумации детерминированная
+        // стратегия ре-издаёт тот же id и выдаёт по реальному отклонённому
+        // ордеру за цикл. Транзиентный реджект id не потребляет.
+        if (syncOpenAllowed.reason !== "transient") {
+          this._lastPendingId = activatedSignal.id;
+          await PERSIST_STRATEGY_FN(this);
+        }
         await this.setScheduledSignal(null);
         // Release the slot reserved by checkSignalAndReserve above
         await CALL_RISK_REMOVE_SIGNAL_FN(
