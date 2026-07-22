@@ -125,7 +125,6 @@ const runTune = async (simulatorName) => {
       },
     });
 
-    console.log(result);
   }
 
   // сырой трек-рекорд под правило Sharpe-победителя — источник
