@@ -32,6 +32,8 @@ addSimulatorSchema({
     // правило бана авторов — тоже оси перебора
     minAuthorTrack: [2, 3, 5],
     minAuthorHitRate: [0.5, 0.6],
+    minWeightAligned: [0, 0.6, 1.2],
+    profitLockPercent: [0, 1.5, 2.5],
   },
 });
 

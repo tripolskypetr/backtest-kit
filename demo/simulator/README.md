@@ -21,7 +21,7 @@ This project exists for the concrete checks below.
 
 ### 1. Is there a profitable grid region at all?
 
-One `Simulator.run` over the whole feed: each idea gets ONE asynchronous candle pass from the minute after its publication (5-day horizon, wick-honest execution — exits by high/low, never close-to-close, stop wins inside an ambiguous candle, fees and slippage on both legs), and the outcome of **any** grid point is derived from the profiles arithmetically — a 2,592-point grid costs one candle pass per idea, not 2,592 backtests. If no point shows a viable risk-adjusted result even on its own training range, the feed carries no extractable signal — full stop.
+One `Simulator.run` over the whole feed: each idea gets ONE asynchronous candle pass from the minute after its publication (5-day horizon, wick-honest execution — exits by high/low, never close-to-close, stop wins inside an ambiguous candle, fees and slippage on both legs), and the outcome of **any** grid point is derived from the profiles arithmetically — a 23,328-point grid costs one candle pass per idea, not 23,328 backtests. If no point shows a viable risk-adjusted result even on its own training range, the feed carries no extractable signal — full stop.
 
 ### 2. How much does the window cut?
 
@@ -29,34 +29,37 @@ Before any trading logic runs, the feed passes the honesty filters: NEUTRAL idea
 
 ### 3. Does anyone survive the ban?
 
-Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate, and the ban thresholds themselves are grid axes (track ∈ {2, 3, 5} × hit rate ∈ {0.5, 0.6}). The probe answers how many authors clear the bar: **13 of 154** under the winning rule (141 banned — the long-posting crowd). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
+Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate. The probe answers how many authors clear the bar: **5 of 154** under the winning rule (track ≥ 5, hit rate ≥ 0.6 — 149 banned, the long-posting crowd included). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
 
-### 4. Does the ban rule itself matter?
+### 4. Rules are searched, not assumed
 
-Two entry points differ in exactly one thing. `src/index.mjs` sweeps the ban thresholds as grid axes; `src/index.strict.mjs` keeps the rule pinned at the engine default (track ≥ 3, rate ≥ 0.5). Comparing the two committed artifacts shows what searching the rule is worth on this feed: best sharpe 1.57 vs 1.04, drawdown 1.92% vs 5.29%.
+Every mechanism threshold is a grid axis, not a constant: the ban rule (track ∈ {2, 3, 5} × hit rate ∈ {0.5, 0.6}), the weighted consensus gate (`minWeightAligned` ∈ {0, 0.6, 1.2} — Laplace-smoothed track-record weights of aligned authors), and the profit lock (`profitLockPercent` ∈ {0, 1.5, 2.5} — a floor armed by touching +X% from entry, exit on a pullback to it). The winners prove the axes carry signal: each ranking criterion elects a different rule combination, and the profit lock in particular is the watershed — see the results below.
 
 ### 5. The probe picks candidates, the engine validates them
 
-The result carries ranking winners (time-based Sharpe/Sortino over daily equity increments — frozen capital is not free — plus total PnL) with full trade lists, hold-time tail percentiles and per-trade `absorbedIdeaIds`. These are **candidates and upper bounds**: the honest confirmation lives in `demo/tune` (walk-forward), and the final arbiter is always a real engine backtest (`Backtest.run`).
+The result carries ranking winners (time-based Sharpe/Sortino over daily equity increments — frozen capital is not free — plus total PnL and recovery factor) with full trade lists, hold-time tail percentiles and per-trade `absorbedIdeaIds`. These are **candidates and upper bounds**: the honest confirmation lives in `demo/tune` (walk-forward), and the final arbiter is always a real engine backtest (`Backtest.run`).
 
 ## Actual Results (June 2026, BTCUSDT, full feed)
 
-Both artifacts are committed: [`assets/simulator.done.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator/assets/simulator.done.json) (swept ban rule) and [`assets/simulator.strict.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator/assets/simulator.strict.json) (pinned ban rule). The feed is strictly crypto-venue: ideas are classified by the `fullName` exchange prefix (Binance, Coinbase, Bitstamp, Bybit, OKX, …) — forex/CFD, metals, stocks and indices never enter the file, so no fabricated pairs.
+The committed artifact is [`assets/simulator.done.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator/assets/simulator.done.json). The feed is strictly crypto-venue: ideas are classified by the `fullName` exchange prefix (Binance, Coinbase, Bitstamp, Bybit, OKX, …) — forex/CFD, metals, stocks and indices never enter the file, so no fabricated pairs.
 
-| | Swept ban rule (`npm start`) | Pinned ban rule (`index.strict.mjs`) |
-|---|---|---|
-| Ideas (BTCUSDT) | 421 → 300 after NEUTRAL + flood dedupe | same |
-| Profiles built | 300, none truncated | same |
-| Author filter | **13 allowed / 141 banned** (winner rule: track≥2, rate≥0.6) | 12 allowed / 142 banned (track≥3, rate≥0.5) |
-| Grid | 2,592 points | 432 points |
-| Sharpe winner | H=7 TT=3 hold=72h N=2 | H=5 TT=3 hold=72h N=1 |
-| Trades | 8 | 12 |
-| PnL | **+15.98%** | +10.89% |
-| Win rate | 63% | 75% |
-| Max series drawdown | **1.92%** | 5.29% |
-| Sharpe / Sortino | **1.57** / 6.00 | 1.04 / 1.84 |
+| Stage | Numbers |
+|---|---|
+| Ideas in feed (BTCUSDT) | 421 total → 300 after NEUTRAL + flood dedupe |
+| Profiles built | 300, none truncated |
+| Author filter | **5 allowed / 149 banned** (winning rule: track ≥ 5, hit rate ≥ 0.6) |
+| Grid | 23,328 points (8 × 6 × 3 × 3 × 3 × 2 × 3 × 3) |
 
-The verdict for this feed: **`true` — there is an edge to process.** Not because +15.98% is money anyone will earn (it is not — a train-on-train, selection-biased ceiling), but because the evidence stacks: a profitable region exists and is not a single fluke point (hold = 72h dominates both runs and every ranking), the window cut leaves 300 workable ideas, and 13 authors survive the strictest scrutiny — enough population for a whitelist. Sweeping the ban rule instead of hardcoding it adds half a point of sharpe and cuts the drawdown almost 3× — the rule is signal, not a constant. Top allowed authors under the winner's rule: TradingShot (15 ideas, 0.60), MarketStrategysignals (8, 0.62), PremiumTrader57 (8, 0.62), XAUxBTC_Pro (6, 0.67).
+The four ranking winners:
+
+| Criterion | Point | Trades | PnL | Win rate | DD | Sharpe | Sortino |
+|---|---|---|---|---|---|---|---|
+| Sharpe | H=3 TT=2 72h N=1 track≥5 rate≥0.6 **lock=2.5** | 17 | +20.17% | 82% | 6.61% | **2.29** | 4.32 |
+| PnL | H=3 TT=2 72h N=1 track≥2 rate≥0.6 **lock=2.5** | 19 | **+21.06%** | 84% | 6.61% | 2.03 | 3.68 |
+| Sortino | H=2.5 TT=0.5 24h N=1 W=1.2 lock=1.5 | 10 | +2.18% | 60% | **0.51%** | 1.60 | **9.00** |
+| Recovery | H=7 TT=4 72h N=2 track≥2 rate≥0.6 lock=0 | 8 | +18.97% | 63% | 1.92% | 1.39 | 7.12 |
+
+The verdict for this feed: **`true` — there is an edge to process.** Not because +20% is money anyone will earn (it is not — a train-on-train, selection-biased ceiling), but because the evidence stacks: the profitable region is broad, not one point — the four winners span the whole risk spectrum, from a max-sharpe point to a near-zero-drawdown sortino curiosity to a lock-free low-DD recovery profile — and **hold = 72h** dominates three rankings of four. The profit lock is the scoring mechanism: 12 of 17 exits on the sharpe winner and 14 of 19 on the pnl winner are `profit_lock` at +2.5% — the crowd's ideas reach the lock level far more often than they survive 72 hours unlocked. And 5 authors survive the strictest scrutiny — enough population for a whitelist: TradingShot, MarketStrategysignals, PremiumTrader57, XAUxBTC_Pro, melikatrader94.
 
 ## Project Structure
 
@@ -64,11 +67,9 @@ The verdict for this feed: **`true` — there is an edge to process.** Not becau
 demo/simulator/
 ├── assets/
 │   ├── tv-ideas.normalized.jsonl   # crypto-venue ideas only, symbols normalized to *USDT
-│   ├── simulator.done.json         # probe artifact: swept ban rule (2,592 points)
-│   └── simulator.strict.json       # probe artifact: pinned ban rule (432 points)
+│   └── simulator.done.json         # probe artifact: full-feed run, 23,328-point grid
 ├── src/
-│   ├── index.mjs                   # Exchange + simulator schema, ban rule as grid axes
-│   └── index.strict.mjs            # same, ban rule pinned to the engine default
+│   └── index.mjs                   # Exchange + simulator schema + Simulator.run
 ├── dump/                           # raw run outputs and the candle persist cache
 ├── package.json                    # Scripts and dependencies
 └── README.md                       # This file
@@ -86,17 +87,34 @@ npm install
 ## Running
 
 ```bash
-# feasibility probe, ban rule swept as grid axes
+# feasibility probe over the whole feed
 npm start
-
-# same probe with the ban rule pinned to the engine default
-node ./src/index.strict.mjs
 
 # the published CLI on the same feed (stdout report + ./dump JSON)
 npm run cli
 ```
 
-The script registers a CCXT Binance spot exchange (`ccxt_exchange`), a simulator schema (`tv_simulator`) with explicit grid axes, loads the ideas feed and runs the probe for BTCUSDT. Candles are fetched lazily in chunks through the exchange schema (persist cache first, network after) — only the horizons of actual ideas are requested, gaps between sparse ideas are never downloaded.
+The script registers a CCXT Binance spot exchange (`ccxt_exchange`), a simulator schema (`tv_simulator`) with explicit grid axes, loads the ideas feed and runs the probe for BTCUSDT:
+
+```javascript
+addSimulatorSchema({
+  simulatorName: "tv_simulator",
+  exchangeName: "ccxt_exchange",
+  gridAxes: {
+    hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
+    trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
+    holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
+    minIdeasAligned: [1, 2, 3],
+    // правило бана авторов — тоже оси перебора
+    minAuthorTrack: [2, 3, 5],
+    minAuthorHitRate: [0.5, 0.6],
+    minWeightAligned: [0, 0.6, 1.2],
+    profitLockPercent: [0, 1.5, 2.5],
+  },
+});
+```
+
+Candles are fetched lazily in chunks through the exchange schema (persist cache first, network after) — only the horizons of actual ideas are requested, gaps between sparse ideas are never downloaded. The full result is written to `./dump/simulator.done.json`.
 
 ## Reading the Result
 
