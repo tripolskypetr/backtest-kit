@@ -494,7 +494,14 @@ const FREEZE_AUTHOR_FILTER_FN = (
  * - trailing take arms from the peak of PREVIOUS candles only (the
  *   current candle peak updates after the checks) and only when the
  *   locked level is not worse than the entry;
- * - stop and trailing reachable inside one candle -> stop wins;
+ * - profit lock arms from previous-candle peaks the same way: once
+ *   price has touched +lock% from entry, a FIXED floor sits at that
+ *   level and a pullback to it exits; a runner is untouched — when
+ *   the peak clears the lock, the trailing floor rises above it and
+ *   the pullback hits the trailing level first;
+ * - stop and any profit floor reachable inside one candle -> stop
+ *   wins; both floors reachable -> the HIGHER one fills (falling
+ *   price crosses it first);
  * - fees are charged separately: 2 x CC_PERCENT_FEE.
  *
  * @param profile - Idea profile (candle trajectory)
@@ -517,6 +524,10 @@ const SIMULATE_TRADE_FN = (
    * short: peak*(1+r) <= entry =>  peak <= entry/(1+r)
    */
   const armLevel = entryFill / (1 - direction * trailRatio);
+  const lockLevel =
+    point.profitLockPercent > 0
+      ? entryFill * (1 + (direction * point.profitLockPercent) / 100)
+      : null;
 
   let peak = entryFill;
   let exitLevel: number | null = null;
@@ -534,15 +545,37 @@ const SIMULATE_TRADE_FN = (
     const trailHit =
       trailArmed &&
       (direction > 0 ? adverse <= trailLevel : adverse >= trailLevel);
+    const lockArmed =
+      lockLevel !== null &&
+      (direction > 0 ? peak >= lockLevel : peak <= lockLevel);
+    const lockHit =
+      lockArmed &&
+      (direction > 0 ? adverse <= lockLevel! : adverse >= lockLevel!);
     if (stopHit) {
       exitLevel = stopLevel;
       exitReason = "hard_stop";
       exitIndex = i;
       break;
     }
+    // оба пола пробиты одной свечой: падающая цена сперва проходит
+    // ВЕРХНИЙ из взведённых уровней — он и исполняется
+    if (trailHit && lockHit) {
+      const trailBetter =
+        direction > 0 ? trailLevel >= lockLevel! : trailLevel <= lockLevel!;
+      exitLevel = trailBetter ? trailLevel : lockLevel!;
+      exitReason = trailBetter ? "trailing_take" : "profit_lock";
+      exitIndex = i;
+      break;
+    }
     if (trailHit) {
       exitLevel = trailLevel;
       exitReason = "trailing_take";
+      exitIndex = i;
+      break;
+    }
+    if (lockHit) {
+      exitLevel = lockLevel!;
+      exitReason = "profit_lock";
       exitIndex = i;
       break;
     }
@@ -641,6 +674,7 @@ const EVALUATE_POINT_FN = (
   const exitReasons: Record<SimulatorExitReason, number> = {
     hard_stop: 0,
     trailing_take: 0,
+    profit_lock: 0,
     time_expired: 0,
     data_truncated: 0,
   };
@@ -790,15 +824,18 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
         axes.minIdeasAligned.flatMap((minIdeasAligned) =>
           axes.minAuthorTrack.flatMap((minAuthorTrack) =>
             axes.minAuthorHitRate.flatMap((minAuthorHitRate) =>
-              axes.minWeightAligned.map((minWeightAligned) => ({
-                hardStopPercent,
-                trailingTakePercent,
-                holdMinutes,
-                minIdeasAligned,
-                minAuthorTrack,
-                minAuthorHitRate,
-                minWeightAligned,
-              })),
+              axes.minWeightAligned.flatMap((minWeightAligned) =>
+                axes.profitLockPercent.map((profitLockPercent) => ({
+                  hardStopPercent,
+                  trailingTakePercent,
+                  holdMinutes,
+                  minIdeasAligned,
+                  minAuthorTrack,
+                  minAuthorHitRate,
+                  minWeightAligned,
+                  profitLockPercent,
+                })),
+              ),
             ),
           ),
         ),
@@ -835,6 +872,15 @@ const ASSERT_TRADE_INVARIANTS_FN = (
     ) {
       throw new Error(
         `ClientSimulator invariant: trailing take locked a loss ${trade.pnlPercent.toFixed(3)} ` +
+          `(idea ${trade.ideaId}, ${JSON.stringify(point)})`,
+      );
+    }
+    if (
+      trade.exitReason === "profit_lock" &&
+      trade.pnlPercent < point.profitLockPercent - costFloor
+    ) {
+      throw new Error(
+        `ClientSimulator invariant: profit lock filled below its level ${trade.pnlPercent.toFixed(3)} ` +
           `(idea ${trade.ideaId}, ${JSON.stringify(point)})`,
       );
     }

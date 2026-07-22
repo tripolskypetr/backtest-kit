@@ -5899,6 +5899,17 @@ interface ISimulatorGridAxes {
      * (binary minIdeasAligned counting only).
      */
     minWeightAligned: number[];
+    /**
+     * Profit lock levels to sweep, percent from entry; 0 disables.
+     * When price TOUCHES +X% a fixed floor arms at that level and the
+     * trade exits only on a PULLBACK to the floor — unlike a plain
+     * fixed take, a runner keeps running and is later handled by the
+     * trailing take (whose floor rises above the lock once the peak
+     * clears it). Covers the zone where the trailing take is not armed
+     * yet (peak below entry/(1 - r)) and profit would otherwise bleed
+     * back to zero.
+     */
+    profitLockPercent: number[];
 }
 /**
  * Single point of the grid (scalar per axis).
@@ -5921,11 +5932,16 @@ interface ISimulatorGridPoint {
      * track-record weights of aligned unbanned authors; 0 = disabled.
      */
     minWeightAligned: number;
+    /**
+     * Profit lock: fixed floor armed when price touches +X% from
+     * entry, exit on pullback to the floor; 0 = disabled.
+     */
+    profitLockPercent: number;
 }
 /**
  * Why a simulated trade was closed.
  */
-type SimulatorExitReason = "hard_stop" | "trailing_take" | "time_expired" | "data_truncated";
+type SimulatorExitReason = "hard_stop" | "trailing_take" | "profit_lock" | "time_expired" | "data_truncated";
 /**
  * Single simulated trade: an idea evaluated against a grid point.
  */

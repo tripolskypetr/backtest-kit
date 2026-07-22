@@ -53,6 +53,7 @@ test("SIM: profile MFE/MAE/shakeout are numerically exact and shakeout ignores p
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onProfiles: (_symbol, list) => profiles.push(...list),

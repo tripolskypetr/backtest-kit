@@ -47,6 +47,7 @@ test("SIM: slot frees exactly one minute after exit — boundary idea trades, ea
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onGridPoint: (_symbol, report, trades) => captured.push({ report, trades }),

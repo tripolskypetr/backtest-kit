@@ -61,6 +61,7 @@ test("SIM: a monster single-trade point cannot win any ranking — the trades fl
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onRanking: (_symbol, criterion, sorted, best) => {

@@ -85,6 +85,7 @@ test("SIM: default-ban — unproven and coin-flipping authors are banned, ban ru
       minAuthorTrack: [3, 5],
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onAuthorsTrained: (_symbol, stats, bannedIdeas) => {

@@ -73,6 +73,7 @@ test("SIM: out-of-sample test freezes the point and the author track record", as
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onAuthorsTrained: () => { authorsTrainedCalls += 1; },

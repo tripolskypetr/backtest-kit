@@ -24,7 +24,12 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
  *   length on every criterion — both are swept;
  * - weighted consensus: 0 keeps the unweighted baseline in the
  *   sweep, 0.6 ~ a solo proven author (Laplace (hits+1)/(ideas+2)),
- *   1.2 ~ a pair — the sweep itself decides whether weighting helps.
+ *   1.2 ~ a pair — the sweep itself decides whether weighting helps;
+ * - profit lock: covers the bleed zone below the trailing arm level
+ *   (trailing arms only from peak >= entry/(1-r), so a +1.5..2.5%
+ *   run that dumps gives everything back without a lock); 0 keeps
+ *   the lock-free baseline, runners are untouched — above the lock
+ *   the trailing floor is higher and fills first.
  */
 const DEFAULT_GRID_AXES = {
   hardStopPercent: [2, 3, 5, 7],
@@ -34,6 +39,7 @@ const DEFAULT_GRID_AXES = {
   minAuthorTrack: [3, 5],
   minAuthorHitRate: [0.5, 0.6],
   minWeightAligned: [0, 0.6, 1.2],
+  profitLockPercent: [0, 1.5, 2.5],
 };
 
 /**

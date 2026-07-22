@@ -57,6 +57,7 @@ test("SIM: minIdeasAligned counts unique aligned authors in the rolling window",
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onGridPoint: (_symbol, report, trades) => {

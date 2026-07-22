@@ -63,6 +63,7 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onGridPoint: (_symbol, report) => pointReports.push(report),

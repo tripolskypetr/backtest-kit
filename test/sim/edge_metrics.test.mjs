@@ -65,6 +65,7 @@ test("SIM: profitable series with no losing day yields infinite Sortino", async 
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {},
   });
@@ -130,6 +131,7 @@ test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictl
       minAuthorTrack: [4],
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {},
   });

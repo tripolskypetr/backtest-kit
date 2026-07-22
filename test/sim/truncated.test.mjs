@@ -73,6 +73,7 @@ test("SIM: end-of-data truncation — data_truncated exit and no track credit fo
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
+      profitLockPercent: [0],
     },
     callbacks: {
       onGridPoint: (_symbol, report, trades) => captured.push({ report, trades }),
