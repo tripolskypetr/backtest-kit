@@ -6222,7 +6222,12 @@ interface ISimulatorAuthorStat {
     author: string;
     /** Directional ideas with a KNOWN outcome (truncated ones excluded). */
     ideas: number;
-    /** Number of correct ideas (horizon return in idea direction > 0). */
+    /**
+     * Number of the author's hits UNDER THE RULE'S METRIC: horizon
+     * close in the idea direction for "close", lock-reachability for
+     * "reach" — the same author has different hit counts under
+     * different rules.
+     */
     hits: number;
     /** hits / ideas, 0..1; zero when the author has no known outcomes. */
     hitRate: number;
@@ -6256,10 +6261,12 @@ interface ISimulatorBest {
     /** Trades of the winning point (empty when report is null). */
     trades: ISimulatorTrade[];
     /**
-     * Per-author track records under THIS winner's ban rule (raw
-     * ideas/hits/hitRate are rule-independent; the banned flag follows
-     * this point's minAuthorTrack/minAuthorHitRate). Empty when report
-     * is null.
+     * Per-author track records under THIS winner's rule — the ONLY
+     * source of the author artifact in a run result. Hits are counted
+     * by the rule's metric (authorMetric + the lock/stop levels the
+     * "reach" metric grades against), so even the raw numbers differ
+     * between winners with different rules — a single run-level list
+     * cannot represent them. Empty when report is null.
      */
     authorStats: ISimulatorAuthorStat[];
     /** Whitelist under THIS winner's ban rule. */
@@ -6269,7 +6276,8 @@ interface ISimulatorBest {
 }
 /**
  * Final result of a simulation run: grid reports, four ranking
- * winners and the trained author filter artifact.
+ * winners; the author artifact is per-winner in best[] — hits are
+ * metric-dependent, a run-level list would lie to other criteria.
  */
 interface ISimulatorResult {
     /** Trading pair symbol the simulation ran for. */
@@ -6283,21 +6291,17 @@ interface ISimulatorResult {
     /** Profiles cut short by end of candle data. */
     truncatedCount: number;
     /**
-     * CONVENIENCE DEFAULT: per-author track records under the Sharpe
-     * winner's ban rule (raw ideas/hits/hitRate are rule-independent;
-     * the banned flag follows that rule). When picking a winner by ANY
-     * other criterion, use the per-ranking artifact in best[] — the
-     * ban rule is a property of the winning point, and criteria may
-     * elect points with different rules.
-     */
-    authorStats: ISimulatorAuthorStat[];
-    /**
-     * CONVENIENCE DEFAULT: the whitelist under the Sharpe winner's ban
-     * rule. For any other criterion take best[].allowedAuthors of that
-     * criterion — see authorStats.
+     * Authors allowed by AT LEAST ONE ranking winner's rule (union
+     * over best[]). No criterion is privileged: with different rules
+     * among winners this is the honest run-level whitelist candidate
+     * set; which winner allows whom — in best[].allowedAuthors.
      */
     allowedAuthors: string[];
-    /** Logins of banned authors (complement of allowedAuthors). */
+    /**
+     * Authors banned by EVERY ranking winner's rule (complement of
+     * allowedAuthors over all authors seen in the run). Banned here
+     * means banned no matter which winner is taken to production.
+     */
     bannedAuthors: string[];
     /** Mean holding time across all trades of every grid point, minutes. */
     avgHoldMinutes: number;
@@ -19828,7 +19832,7 @@ declare class SimulatorUtils {
      * @param dto.simulatorName - Registered simulator name
      * @param dto.ideas - Ideas feed; other symbols are filtered out,
      * so one shared feed can be passed for every symbol
-     * @returns Final simulation result (reports, rankings, author artifact)
+     * @returns Final simulation result (reports, rankings; the author artifact lives per-winner in best[])
      * @throws Error when the simulator or its exchange is not registered
      *
      * @example
@@ -19840,8 +19844,8 @@ declare class SimulatorUtils {
      *   simulatorName: "tv-ideas-simulator",
      *   ideas,
      * });
-     * // result.best -> winners by sharpe / sortino / pnl
-     * // result.allowedAuthors -> production whitelist
+     * // result.best -> winners by sharpe / sortino / pnl / recovery,
+     * // each with authorStats/allowedAuthors under ITS OWN rule
      * ```
      */
     run: (dto: {
@@ -19864,9 +19868,10 @@ declare class SimulatorUtils {
      * filtered out, so one shared feed can be passed for every symbol
      * @param dto.point - Frozen grid point from the train run
      * (e.g., the Sharpe winner's `best.report.point`)
-     * @param dto.authorStats - Frozen author track record from the
-     * train run (`result.authorStats` — raw ideas/hits are reused,
-     * the banned flag is re-derived under the point's ban rule)
+     * @param dto.authorStats - Frozen author track record of the
+     * CHOSEN winner (`best.authorStats` — hits are counted under that
+     * winner's rule metric, so take them from the same best[] entry
+     * as the point; the banned flag is re-derived under the rule)
      * @returns Out-of-sample result: the point report with the same
      * metrics as run(), the trade list and the frozen author artifact
      * @throws Error when the simulator or its exchange is not registered
@@ -19889,7 +19894,7 @@ declare class SimulatorUtils {
      *   simulatorName: "tv-ideas-simulator",
      *   ideas: julyIdeas,
      *   point: winner.report.point,
-     *   authorStats: train.authorStats,
+     *   authorStats: winner.authorStats,
      * });
      * // test.report -> out-of-sample sharpe / pnl / drawdown
      * ```
@@ -42844,7 +42849,7 @@ declare class SimulatorConnectionService implements TSimulator$2 {
      * @param dto.symbol - Trading pair symbol to simulate
      * @param dto.simulatorName - Registered simulator name
      * @param dto.ideas - Ideas feed (other symbols are filtered out by the client)
-     * @returns Final simulation result (reports, rankings, author artifact)
+     * @returns Final simulation result (reports, rankings; the author artifact lives per-winner in best[])
      */
     run: (dto: {
         symbol: string;
@@ -42907,7 +42912,7 @@ declare class SimulatorGlobalService implements TSimulator$1 {
      * @param dto.symbol - Trading pair symbol to simulate
      * @param dto.simulatorName - Registered simulator name
      * @param dto.ideas - Ideas feed (other symbols are filtered out by the client)
-     * @returns Final simulation result (reports, rankings, author artifact)
+     * @returns Final simulation result (reports, rankings; the author artifact lives per-winner in best[])
      * @throws Error when the simulator or its exchange is not registered
      */
     run: (dto: {
@@ -42964,7 +42969,7 @@ declare class SimulatorCoreService implements TSimulator {
      * @param dto.symbol - Trading pair symbol to simulate
      * @param dto.simulatorName - Registered simulator name
      * @param dto.ideas - Ideas feed (other symbols are filtered out by the client)
-     * @returns Final simulation result (reports, rankings, author artifact)
+     * @returns Final simulation result (reports, rankings; the author artifact lives per-winner in best[])
      * @throws Error when the simulator or its exchange is not registered
      */
     run: (dto: {

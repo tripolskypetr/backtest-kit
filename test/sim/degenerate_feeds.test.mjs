@@ -79,7 +79,7 @@ test("SIM: empty ideas feed resolves structurally — zero counters, zero grid, 
     fail("rankings must resolve on an empty feed");
     return;
   }
-  if (result.allowedAuthors.length !== 0 || result.bannedAuthors.length !== 0 || result.authorStats.length !== 0) {
+  if (result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.length !== 0 || result.best.find(({ criterion }) => criterion === "sharpe").bannedAuthors.length !== 0 || result.best.find(({ criterion }) => criterion === "sharpe").authorStats.length !== 0) {
     fail("author artifacts must be empty");
     return;
   }
@@ -121,8 +121,8 @@ test("SIM: idea entirely beyond the end of data is dropped via the null-profile 
     return;
   }
   // авторы без профилей не попадают в статистику
-  if (result.authorStats.length !== 0) {
-    fail(`no author may have stats without a profile, got ${JSON.stringify(result.authorStats)}`);
+  if (result.best.find(({ criterion }) => criterion === "sharpe").authorStats.length !== 0) {
+    fail(`no author may have stats without a profile, got ${JSON.stringify(result.best.find(({ criterion }) => criterion === "sharpe").authorStats)}`);
     return;
   }
   if (result.reports.some((r) => r.trades !== 0)) {

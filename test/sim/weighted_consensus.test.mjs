@@ -97,7 +97,7 @@ test("SIM: weighted consensus filters the coin-flipper the binary rule lets thro
   });
 
   // ключевая предпосылка: coin ДОПУЩЕН правилом бана (0.5 на пороге)
-  const stats = Object.fromEntries(result.authorStats.map((s) => [s.author, s]));
+  const stats = Object.fromEntries(result.best.find(({ criterion }) => criterion === "sharpe").authorStats.map((s) => [s.author, s]));
   if (stats.coin?.banned !== false || stats.coin?.hitRate !== 0.5) {
     fail(`coin must be allowed with hitRate 0.5, got ${JSON.stringify(stats.coin)}`);
     return;

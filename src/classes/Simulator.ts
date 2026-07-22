@@ -31,7 +31,7 @@ export class SimulatorUtils {
      * @param dto.simulatorName - Registered simulator name
      * @param dto.ideas - Ideas feed; other symbols are filtered out,
      * so one shared feed can be passed for every symbol
-     * @returns Final simulation result (reports, rankings, author artifact)
+     * @returns Final simulation result (reports, rankings; the author artifact lives per-winner in best[])
      * @throws Error when the simulator or its exchange is not registered
      *
      * @example
@@ -43,8 +43,8 @@ export class SimulatorUtils {
      *   simulatorName: "tv-ideas-simulator",
      *   ideas,
      * });
-     * // result.best -> winners by sharpe / sortino / pnl
-     * // result.allowedAuthors -> production whitelist
+     * // result.best -> winners by sharpe / sortino / pnl / recovery,
+     * // each with authorStats/allowedAuthors under ITS OWN rule
      * ```
      */
     public run = async (
@@ -77,9 +77,10 @@ export class SimulatorUtils {
      * filtered out, so one shared feed can be passed for every symbol
      * @param dto.point - Frozen grid point from the train run
      * (e.g., the Sharpe winner's `best.report.point`)
-     * @param dto.authorStats - Frozen author track record from the
-     * train run (`result.authorStats` — raw ideas/hits are reused,
-     * the banned flag is re-derived under the point's ban rule)
+     * @param dto.authorStats - Frozen author track record of the
+     * CHOSEN winner (`best.authorStats` — hits are counted under that
+     * winner's rule metric, so take them from the same best[] entry
+     * as the point; the banned flag is re-derived under the rule)
      * @returns Out-of-sample result: the point report with the same
      * metrics as run(), the trade list and the frozen author artifact
      * @throws Error when the simulator or its exchange is not registered
@@ -102,7 +103,7 @@ export class SimulatorUtils {
      *   simulatorName: "tv-ideas-simulator",
      *   ideas: julyIdeas,
      *   point: winner.report.point,
-     *   authorStats: train.authorStats,
+     *   authorStats: winner.authorStats,
      * });
      * // test.report -> out-of-sample sharpe / pnl / drawdown
      * ```

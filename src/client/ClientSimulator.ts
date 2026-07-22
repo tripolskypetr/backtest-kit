@@ -940,7 +940,7 @@ const ASSERT_TRADE_INVARIANTS_FN = (
  * @param self - ClientSimulator instance reference
  * @param symbol - Trading pair symbol
  * @param allIdeas - Ideas to simulate (other symbols are filtered out)
- * @returns Final result with reports, rankings and the author artifact
+ * @returns Final result with reports and rankings; the author artifact lives per-winner in best[]
  */
 const RUN_FN = async (
   self: ClientSimulator,
@@ -1111,30 +1111,32 @@ const RUN_FN = async (
   }
   reports.sort((a, b) => b.sharpe - a.sharpe);
 
-  // артефакт уровня результата — УДОБНЫЙ ДЕФОЛТ по правилу
-  // Sharpe-победителя; при выборе точки другим критерием потребитель
-  // обязан брать best[].allowedAuthors своего критерия (правило бана —
-  // свойство точки). Сырые ideas/hits/hitRate от правила не зависят
-  const winnerPoint =
-    best.find(({ criterion }) => criterion === "sharpe")?.report?.point ??
-    points[0] ??
-    null;
-  const winnerFilter = winnerPoint ? getFilter(winnerPoint) : null;
-  const authorStats = winnerFilter ? winnerFilter.stats : [];
-
+  // артефакт авторов уровня результата — БЕЗ привилегированного
+  // критерия: hits метрико-зависимы, поэтому единый список под одно
+  // правило врал бы остальным победителям. Честная семантика:
+  // allowed = допущен правилом ХОТЯ БЫ ОДНОГО победителя (union),
+  // banned = забанен правилами ВСЕХ победителей (дополнение).
+  // Точная разбивка по правилам — в best[].authorStats
+  const allowedUnion = new Set<string>();
+  const everyAuthor = new Set<string>();
+  for (const bestEntry of best) {
+    for (const { author } of bestEntry.authorStats) {
+      everyAuthor.add(author);
+    }
+    for (const author of bestEntry.allowedAuthors) {
+      allowedUnion.add(author);
+    }
+  }
   const result: ISimulatorResult = {
     symbol,
     ideasTotal: ideas.length,
     ideasDirectional: directional.length,
     profileCount: profiles.length,
     truncatedCount,
-    authorStats,
-    allowedAuthors: authorStats
-      .filter(({ banned }) => !banned)
-      .map(({ author }) => author),
-    bannedAuthors: authorStats
-      .filter(({ banned }) => banned)
-      .map(({ author }) => author),
+    allowedAuthors: [...allowedUnion],
+    bannedAuthors: [...everyAuthor].filter(
+      (author) => !allowedUnion.has(author),
+    ),
     avgHoldMinutes: holdStats.avgHoldMinutes,
     p95HoldMinutes: holdStats.p95HoldMinutes,
     p99HoldMinutes: holdStats.p99HoldMinutes,

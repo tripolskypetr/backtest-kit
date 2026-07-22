@@ -92,8 +92,8 @@ test("SIM: out-of-sample test freezes the point and the author track record", as
     ideas: trainIdeas,
   });
   const winner = train.best.find(({ criterion }) => criterion === "sharpe");
-  if (!winner?.report || !train.allowedAuthors.includes("prophet")) {
-    fail(`train must allow prophet with a sharpe winner, got ${JSON.stringify(train.allowedAuthors)}`);
+  if (!winner?.report || !train.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.includes("prophet")) {
+    fail(`train must allow prophet with a sharpe winner, got ${JSON.stringify(train.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors)}`);
     return;
   }
   // артефакт авторов есть у КАЖДОГО победителя под его собственное
@@ -120,7 +120,7 @@ test("SIM: out-of-sample test freezes the point and the author track record", as
     simulatorName: "sim_oos",
     ideas: testIdeas,
     point: winner.report.point,
-    authorStats: train.authorStats,
+    authorStats: train.best.find(({ criterion }) => criterion === "sharpe").authorStats,
   });
 
   // на тесте ничего не обучается: onAuthorsTrained не эмитился

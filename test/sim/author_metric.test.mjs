@@ -142,6 +142,13 @@ test("SIM: reach metric allows the spiker the close metric bans — and the lock
     }
   }
 
+  // ран-левел артефакт без привилегий: allowed = union по победителям
+  // (все победители reach -> spiker допущен), banned = дополнение
+  if (JSON.stringify(result.allowedAuthors) !== JSON.stringify(["spiker"]) || result.bannedAuthors.length !== 0) {
+    fail(`run-level union artifact wrong: allowed=${JSON.stringify(result.allowedAuthors)} banned=${JSON.stringify(result.bannedAuthors)}`);
+    return;
+  }
+
   pass(
     `author metric splits the world: close bans spiker (0/5 hits, 0 trades), ` +
     `reach allows him (5/5 hits) and the lock point takes 5/5 profit_lock exits, ` +

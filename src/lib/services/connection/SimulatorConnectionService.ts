@@ -99,7 +99,7 @@ export class SimulatorConnectionService implements TSimulator {
    * @param dto.symbol - Trading pair symbol to simulate
    * @param dto.simulatorName - Registered simulator name
    * @param dto.ideas - Ideas feed (other symbols are filtered out by the client)
-   * @returns Final simulation result (reports, rankings, author artifact)
+   * @returns Final simulation result (reports, rankings; the author artifact lives per-winner in best[])
    */
   public run = async (dto: {
     symbol: string;

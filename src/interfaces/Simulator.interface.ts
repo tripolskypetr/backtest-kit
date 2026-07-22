@@ -259,7 +259,12 @@ export interface ISimulatorAuthorStat {
   author: string;
   /** Directional ideas with a KNOWN outcome (truncated ones excluded). */
   ideas: number;
-  /** Number of correct ideas (horizon return in idea direction > 0). */
+  /**
+   * Number of the author's hits UNDER THE RULE'S METRIC: horizon
+   * close in the idea direction for "close", lock-reachability for
+   * "reach" — the same author has different hit counts under
+   * different rules.
+   */
   hits: number;
   /** hits / ideas, 0..1; zero when the author has no known outcomes. */
   hitRate: number;
@@ -295,10 +300,12 @@ export interface ISimulatorBest {
   /** Trades of the winning point (empty when report is null). */
   trades: ISimulatorTrade[];
   /**
-   * Per-author track records under THIS winner's ban rule (raw
-   * ideas/hits/hitRate are rule-independent; the banned flag follows
-   * this point's minAuthorTrack/minAuthorHitRate). Empty when report
-   * is null.
+   * Per-author track records under THIS winner's rule — the ONLY
+   * source of the author artifact in a run result. Hits are counted
+   * by the rule's metric (authorMetric + the lock/stop levels the
+   * "reach" metric grades against), so even the raw numbers differ
+   * between winners with different rules — a single run-level list
+   * cannot represent them. Empty when report is null.
    */
   authorStats: ISimulatorAuthorStat[];
   /** Whitelist under THIS winner's ban rule. */
@@ -309,7 +316,8 @@ export interface ISimulatorBest {
 
 /**
  * Final result of a simulation run: grid reports, four ranking
- * winners and the trained author filter artifact.
+ * winners; the author artifact is per-winner in best[] — hits are
+ * metric-dependent, a run-level list would lie to other criteria.
  */
 export interface ISimulatorResult {
   /** Trading pair symbol the simulation ran for. */
@@ -323,21 +331,17 @@ export interface ISimulatorResult {
   /** Profiles cut short by end of candle data. */
   truncatedCount: number;
   /**
-   * CONVENIENCE DEFAULT: per-author track records under the Sharpe
-   * winner's ban rule (raw ideas/hits/hitRate are rule-independent;
-   * the banned flag follows that rule). When picking a winner by ANY
-   * other criterion, use the per-ranking artifact in best[] — the
-   * ban rule is a property of the winning point, and criteria may
-   * elect points with different rules.
-   */
-  authorStats: ISimulatorAuthorStat[];
-  /**
-   * CONVENIENCE DEFAULT: the whitelist under the Sharpe winner's ban
-   * rule. For any other criterion take best[].allowedAuthors of that
-   * criterion — see authorStats.
+   * Authors allowed by AT LEAST ONE ranking winner's rule (union
+   * over best[]). No criterion is privileged: with different rules
+   * among winners this is the honest run-level whitelist candidate
+   * set; which winner allows whom — in best[].allowedAuthors.
    */
   allowedAuthors: string[];
-  /** Logins of banned authors (complement of allowedAuthors). */
+  /**
+   * Authors banned by EVERY ranking winner's rule (complement of
+   * allowedAuthors over all authors seen in the run). Banned here
+   * means banned no matter which winner is taken to production.
+   */
   bannedAuthors: string[];
   /** Mean holding time across all trades of every grid point, minutes. */
   avgHoldMinutes: number;
