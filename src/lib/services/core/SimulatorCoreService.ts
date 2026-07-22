@@ -3,9 +3,10 @@ import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
 import SimulatorConnectionService from "../connection/SimulatorConnectionService";
 import SimulatorValidationService from "../validation/SimulatorValidationService";
-import { SimulatorName, ISimulator, ISimulatorIdea } from "../../../interfaces/Simulator.interface";
+import { SimulatorName, ISimulator, ISimulatorIdea, ISimulatorGridPoint, ISimulatorAuthorStat } from "../../../interfaces/Simulator.interface";
 
 const METHOD_NAME_RUN = "simulatorCoreService run";
+const METHOD_NAME_TEST = "simulatorCoreService test";
 
 /**
  * Structural mirror of ISimulator: the core service exposes the same
@@ -55,6 +56,36 @@ export class SimulatorCoreService implements TSimulator {
     });
     this.simulatorValidationService.validate(dto.simulatorName, METHOD_NAME_RUN);
     return await this.simulatorConnectionService.run(dto);
+  };
+
+  /**
+   * Out-of-sample test after validating the simulator reference:
+   * evaluates one frozen grid point over fresh ideas with a frozen
+   * author track record from a train run.
+   *
+   * @param dto.symbol - Trading pair symbol to test
+   * @param dto.simulatorName - Registered simulator name
+   * @param dto.ideas - Out-of-sample ideas feed (other symbols are filtered out by the client)
+   * @param dto.point - Frozen grid point from the train run
+   * @param dto.authorStats - Frozen author track record from the train run
+   * @returns Out-of-sample result (point report, trades, frozen author artifact)
+   * @throws Error when the simulator or its exchange is not registered
+   */
+  public test = async (dto: {
+    symbol: string;
+    simulatorName: SimulatorName;
+    ideas: ISimulatorIdea[];
+    point: ISimulatorGridPoint;
+    authorStats: ISimulatorAuthorStat[];
+  }) => {
+    this.loggerService.log(METHOD_NAME_TEST, {
+      simulatorName: dto.simulatorName,
+      ideasLen: dto.ideas.length,
+      symbol: dto.symbol,
+      point: dto.point,
+    });
+    this.simulatorValidationService.validate(dto.simulatorName, METHOD_NAME_TEST);
+    return await this.simulatorConnectionService.test(dto);
   };
 }
 

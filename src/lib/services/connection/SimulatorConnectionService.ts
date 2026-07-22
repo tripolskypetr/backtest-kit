@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { SimulatorName, ISimulator, ISimulatorIdea } from "../../../interfaces/Simulator.interface";
+import { SimulatorName, ISimulator, ISimulatorIdea, ISimulatorGridPoint, ISimulatorAuthorStat } from "../../../interfaces/Simulator.interface";
 import { memoize } from "functools-kit";
 import SimulatorSchemaService from "../schema/SimulatorSchemaService";
 import { ClientSimulator } from "../../../client/ClientSimulator";
@@ -103,6 +103,35 @@ export class SimulatorConnectionService implements TSimulator {
     });
     const instance = await this.getSimulator(dto.simulatorName);
     return await instance.run(dto.symbol, dto.ideas);
+  }
+
+  /**
+   * Out-of-sample test through the memoized client: evaluates one
+   * frozen grid point over fresh ideas with a frozen author track
+   * record from a train run — nothing is trained on the test data.
+   *
+   * @param dto.symbol - Trading pair symbol to test
+   * @param dto.simulatorName - Registered simulator name
+   * @param dto.ideas - Out-of-sample ideas feed (other symbols are filtered out by the client)
+   * @param dto.point - Frozen grid point from the train run
+   * @param dto.authorStats - Frozen author track record from the train run
+   * @returns Out-of-sample result (point report, trades, frozen author artifact)
+   */
+  public test = async (dto: {
+    symbol: string;
+    simulatorName: SimulatorName;
+    ideas: ISimulatorIdea[];
+    point: ISimulatorGridPoint;
+    authorStats: ISimulatorAuthorStat[];
+  }) => {
+    this.loggerService.log("simulatorConnectionService test", {
+        symbol: dto.symbol,
+        simulatorName: dto.simulatorName,
+        ideasLen: dto.ideas.length,
+        point: dto.point,
+    });
+    const instance = await this.getSimulator(dto.simulatorName);
+    return await instance.test(dto.symbol, dto.ideas, dto.point, dto.authorStats);
   }
 
   /**

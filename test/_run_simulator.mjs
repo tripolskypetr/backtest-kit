@@ -20,6 +20,7 @@ import "./sim/profile_diagnostics.test.mjs";
 import "./sim/degenerate_feeds.test.mjs";
 import "./sim/grid_cartesian.test.mjs";
 import "./sim/weighted_consensus.test.mjs";
+import "./sim/out_of_sample.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

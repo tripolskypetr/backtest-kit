@@ -6093,6 +6093,50 @@ interface ISimulatorResult {
     best: ISimulatorBest[];
 }
 /**
+ * Result of an out-of-sample test: ONE frozen grid point evaluated
+ * over fresh ideas with a FROZEN author track record. Nothing is
+ * trained on the test data — the honesty run() deliberately skips
+ * (lookahead inside train) is provided here.
+ */
+interface ISimulatorTestResult {
+    /** Trading pair symbol the test ran for. */
+    symbol: string;
+    /** Total ideas of the symbol received (including NEUTRAL). */
+    ideasTotal: number;
+    /** Directional ideas tested (NEUTRAL and flood duplicates excluded). */
+    ideasDirectional: number;
+    /** Number of idea profiles built (ideas with candle data). */
+    profileCount: number;
+    /** Profiles cut short by end of candle data. */
+    truncatedCount: number;
+    /** The frozen grid point the test evaluated (from the train run). */
+    point: ISimulatorGridPoint;
+    /** Out-of-sample report of the point (same metrics as in run()). */
+    report: ISimulatorPointReport;
+    /** Trades of the point over the test range. */
+    trades: ISimulatorTrade[];
+    /**
+     * The FROZEN author stats the test was gated by: raw ideas/hits
+     * come from the train run verbatim, the banned flag is re-derived
+     * under the tested point's ban rule. Test outcomes never feed back
+     * into these numbers.
+     */
+    authorStats: ISimulatorAuthorStat[];
+    /** Logins allowed under the frozen stats and the point's ban rule. */
+    allowedAuthors: string[];
+    /**
+     * Logins banned on the test range: train authors failing the rule
+     * PLUS authors seen only in the test feed (unproven = banned).
+     */
+    bannedAuthors: string[];
+    /** Mean holding time across the test trades, minutes. */
+    avgHoldMinutes: number;
+    /** 95th percentile of holding time, minutes. */
+    p95HoldMinutes: number;
+    /** 99th percentile of holding time, minutes. */
+    p99HoldMinutes: number;
+}
+/**
  * Registration schema of a simulator instance.
  */
 interface ISimulatorSchema {
@@ -6148,6 +6192,11 @@ interface ISimulatorCallbacks {
     onRanking(symbol: string, criterion: SimulatorRankingCriterion, sorted: ISimulatorPointReport[], best: ISimulatorBest): void;
     /** Simulation finished. */
     onDone(symbol: string, result: ISimulatorResult): void;
+    /**
+     * Out-of-sample test finished. onAuthorsTrained deliberately never
+     * fires during a test — nothing is trained on the test data.
+     */
+    onTestDone(symbol: string, result: ISimulatorTestResult): void;
 }
 /**
  * Runtime parameters of a simulator client: the schema with defaults
@@ -6168,6 +6217,14 @@ interface ISimulator {
      * profiles -> author filter -> grid evaluation -> rankings.
      */
     run(symbol: string, ideas: ISimulatorIdea[]): Promise<ISimulatorResult>;
+    /**
+     * Out-of-sample test: evaluates ONE frozen grid point over fresh
+     * ideas with a FROZEN author track record from a train run.
+     * Profiles are built for the test ideas, but the author filter is
+     * NOT retrained — authors unseen in the frozen stats are banned by
+     * default (unproven = banned).
+     */
+    test(symbol: string, ideas: ISimulatorIdea[], point: ISimulatorGridPoint, authorStats: ISimulatorAuthorStat[]): Promise<ISimulatorTestResult>;
 }
 /**
  * Unique simulator identifier.
@@ -18618,6 +18675,58 @@ declare class SimulatorUtils {
         simulatorName: SimulatorName;
         ideas: ISimulatorIdea[];
     }) => Promise<ISimulatorResult>;
+    /**
+     * Out-of-sample test of parameters picked by run(): evaluates
+     * ONE frozen grid point over fresh ideas with a FROZEN author
+     * track record. Nothing is trained on the test data — authors
+     * unseen in the frozen stats are banned by default, test
+     * outcomes never feed back into the stats. This is the honesty
+     * step run() deliberately skips (its author training uses
+     * lookahead inside the train range).
+     *
+     * @param dto.symbol - Trading pair symbol to test (e.g., "BTCUSDT")
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Out-of-sample ideas feed; other symbols are
+     * filtered out, so one shared feed can be passed for every symbol
+     * @param dto.point - Frozen grid point from the train run
+     * (e.g., the Sharpe winner's `best.report.point`)
+     * @param dto.authorStats - Frozen author track record from the
+     * train run (`result.authorStats` — raw ideas/hits are reused,
+     * the banned flag is re-derived under the point's ban rule)
+     * @returns Out-of-sample result: the point report with the same
+     * metrics as run(), the trade list and the frozen author artifact
+     * @throws Error when the simulator or its exchange is not registered
+     *
+     * @example
+     * ```typescript
+     * import { Simulator } from "backtest-kit";
+     *
+     * // train on June...
+     * const train = await Simulator.run({
+     *   symbol: "BTCUSDT",
+     *   simulatorName: "tv-ideas-simulator",
+     *   ideas: juneIdeas,
+     * });
+     * const winner = train.best.find(({ criterion }) => criterion === "sharpe");
+     *
+     * // ...prove on July the training never saw
+     * const test = await Simulator.test({
+     *   symbol: "BTCUSDT",
+     *   simulatorName: "tv-ideas-simulator",
+     *   ideas: julyIdeas,
+     *   point: winner.report.point,
+     *   authorStats: train.authorStats,
+     * });
+     * // test.report -> out-of-sample sharpe / pnl / drawdown
+     * ```
+     */
+    test: (dto: {
+        symbol: string;
+        simulatorName: SimulatorName;
+        ideas: ISimulatorIdea[];
+        point: ISimulatorGridPoint;
+        authorStats: ISimulatorAuthorStat[];
+    }) => Promise<ISimulatorTestResult>;
 }
 /**
  * Singleton instance of SimulatorUtils — the public entry point:
@@ -41353,6 +41462,34 @@ declare class ClientSimulator implements ISimulator {
      * take locking a loss, exit before entry)
      */
     run: (symbol: string, ideas: ISimulatorIdea[]) => Promise<ISimulatorResult>;
+    /**
+     * Out-of-sample test: evaluates ONE frozen grid point over fresh
+     * ideas with a FROZEN author track record from a train run.
+     *
+     * Steps and emitted callbacks:
+     * 1. Filters the input array by symbol, sorts by publication time,
+     *    drops NEUTRAL ideas and flood duplicates (same preprocessing
+     *    as run()) -> onIdeas(symbol, total, directional).
+     * 2. Builds one trajectory profile per test idea
+     *    -> onProfiles(symbol, profiles, truncatedCount).
+     * 3. FREEZES the author filter: the point's ban rule is applied to
+     *    the given train stats verbatim; authors unseen in the stats
+     *    are banned by default. onAuthorsTrained never fires — nothing
+     *    is trained on the test data.
+     * 4. Evaluates the single point with production slot semantics and
+     *    the same metric math as run()
+     *    -> onGridPoint(symbol, report, trades).
+     * 5. Assembles the result -> onTestDone(symbol, result).
+     *
+     * @param symbol - Trading pair symbol to test (e.g., "BTCUSDT")
+     * @param ideas - Out-of-sample ideas feed (other symbols filtered out)
+     * @param point - Frozen grid point (e.g., the train Sharpe winner)
+     * @param authorStats - Frozen author track record from the train run
+     * @returns Out-of-sample result: the point report, trades and the
+     * frozen author artifact as applied on the test range
+     * @throws Error when a trade violates the arithmetic invariants
+     */
+    test: (symbol: string, ideas: ISimulatorIdea[], point: ISimulatorGridPoint, authorStats: ISimulatorAuthorStat[]) => Promise<ISimulatorTestResult>;
 }
 
 /**
@@ -41398,6 +41535,25 @@ declare class SimulatorConnectionService implements TSimulator$2 {
         ideas: ISimulatorIdea[];
     }) => Promise<ISimulatorResult>;
     /**
+     * Out-of-sample test through the memoized client: evaluates one
+     * frozen grid point over fresh ideas with a frozen author track
+     * record from a train run — nothing is trained on the test data.
+     *
+     * @param dto.symbol - Trading pair symbol to test
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Out-of-sample ideas feed (other symbols are filtered out by the client)
+     * @param dto.point - Frozen grid point from the train run
+     * @param dto.authorStats - Frozen author track record from the train run
+     * @returns Out-of-sample result (point report, trades, frozen author artifact)
+     */
+    test: (dto: {
+        symbol: string;
+        simulatorName: SimulatorName;
+        ideas: ISimulatorIdea[];
+        point: ISimulatorGridPoint;
+        authorStats: ISimulatorAuthorStat[];
+    }) => Promise<ISimulatorTestResult>;
+    /**
      * Drops memoized client instances: a specific one by name or all
      * of them when called without arguments. The next getSimulator
      * call re-reads the schema and builds a fresh client.
@@ -41442,6 +41598,26 @@ declare class SimulatorGlobalService implements TSimulator$1 {
         simulatorName: SimulatorName;
         ideas: ISimulatorIdea[];
     }) => Promise<ISimulatorResult>;
+    /**
+     * Out-of-sample test after validating the simulator reference:
+     * evaluates one frozen grid point over fresh ideas with a frozen
+     * author track record from a train run.
+     *
+     * @param dto.symbol - Trading pair symbol to test
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Out-of-sample ideas feed (other symbols are filtered out by the client)
+     * @param dto.point - Frozen grid point from the train run
+     * @param dto.authorStats - Frozen author track record from the train run
+     * @returns Out-of-sample result (point report, trades, frozen author artifact)
+     * @throws Error when the simulator or its exchange is not registered
+     */
+    test: (dto: {
+        symbol: string;
+        simulatorName: SimulatorName;
+        ideas: ISimulatorIdea[];
+        point: ISimulatorGridPoint;
+        authorStats: ISimulatorAuthorStat[];
+    }) => Promise<ISimulatorTestResult>;
 }
 
 /**
@@ -41479,6 +41655,26 @@ declare class SimulatorCoreService implements TSimulator {
         simulatorName: SimulatorName;
         ideas: ISimulatorIdea[];
     }) => Promise<ISimulatorResult>;
+    /**
+     * Out-of-sample test after validating the simulator reference:
+     * evaluates one frozen grid point over fresh ideas with a frozen
+     * author track record from a train run.
+     *
+     * @param dto.symbol - Trading pair symbol to test
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Out-of-sample ideas feed (other symbols are filtered out by the client)
+     * @param dto.point - Frozen grid point from the train run
+     * @param dto.authorStats - Frozen author track record from the train run
+     * @returns Out-of-sample result (point report, trades, frozen author artifact)
+     * @throws Error when the simulator or its exchange is not registered
+     */
+    test: (dto: {
+        symbol: string;
+        simulatorName: SimulatorName;
+        ideas: ISimulatorIdea[];
+        point: ISimulatorGridPoint;
+        authorStats: ISimulatorAuthorStat[];
+    }) => Promise<ISimulatorTestResult>;
 }
 
 declare const backtest: {
@@ -42074,4 +42270,4 @@ declare class OrderTransientError extends Error {
     static fromError(error: object): OrderTransientError;
 }
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISimulatorBest, type ISimulatorGridAxes, type ISimulatorIdea, type ISimulatorResult, type ISimulatorSchema, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, OrderDeletedError, type OrderOpenContract, OrderRejectedError, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Simulator, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSimulatorSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSimulatorSchema, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSimulatorSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSimulatorSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISimulatorBest, type ISimulatorGridAxes, type ISimulatorIdea, type ISimulatorResult, type ISimulatorSchema, type ISimulatorTestResult, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, OrderDeletedError, type OrderOpenContract, OrderRejectedError, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Simulator, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSimulatorSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSimulatorSchema, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMemory, listRiskSchema, listSimulatorSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenCheck, listenCheckOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenScheduleEvent, listenScheduleEventOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalEvent, listenSignalEventOnce, listenSignalLive, listenSignalLiveOnce, listenSignalNotify, listenSignalNotifyOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSimulatorSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

@@ -247,6 +247,7 @@ export {
   ISimulatorGridAxes,
   ISimulatorBest,
   ISimulatorResult,
+  ISimulatorTestResult,
   ISimulatorSchema,
 } from "./interfaces/Simulator.interface";
 

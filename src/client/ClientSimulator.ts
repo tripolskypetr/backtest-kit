@@ -12,6 +12,7 @@ import {
   ISimulatorParams,
   ISimulatorPointReport,
   ISimulatorResult,
+  ISimulatorTestResult,
   ISimulatorTrade,
   SimulatorExitReason,
   SimulatorRankingCriterion,
@@ -385,6 +386,84 @@ const TRAIN_AUTHOR_FILTER_FN = (
       profile.idea.direction as "LONG" | "SHORT",
       profile.entryTimestamp,
       (author) => !banned.has(author),
+    ),
+  );
+  const weightAligned = profiles.map((profile) =>
+    SUM_ALIGNED_WEIGHT_FN(
+      ideas,
+      profile.idea.direction as "LONG" | "SHORT",
+      profile.entryTimestamp,
+      weightOf,
+    ),
+  );
+  return {
+    stats: stats.sort((a, b) => b.ideas - a.ideas),
+    banned,
+    bannedIdeas: profileBanned.filter(Boolean).length,
+    profileBanned,
+    alignedFiltered,
+    weightAligned,
+  };
+};
+
+/**
+ * Builds the author filter context for an out-of-sample test from a
+ * FROZEN track record — the exact opposite of TRAIN_AUTHOR_FILTER_FN:
+ * nothing is learned from the given profiles, the raw ideas/hits come
+ * from the train run verbatim and only the banned flag is re-derived
+ * under the tested point's ban rule (same formulas as in train).
+ *
+ * Default-ban semantics survive freezing: an author present in the
+ * test feed but absent from the frozen stats has proven nothing on
+ * the train range — banned, zero vote weight.
+ *
+ * @param profiles - Profiles of the TEST ideas
+ * @param ideas - All test ideas of the symbol (for aligned counting)
+ * @param authorStats - Frozen per-author track record from a train run
+ * @param minAuthorTrack - Minimum known-outcome ideas to be allowed
+ * @param minAuthorHitRate - Minimum hit rate (0..1) to be allowed
+ * @returns Filter context with frozen stats (sorted by idea count)
+ */
+const FREEZE_AUTHOR_FILTER_FN = (
+  profiles: ISimulatorIdeaProfile[],
+  ideas: ISimulatorIdea[],
+  authorStats: ISimulatorAuthorStat[],
+  minAuthorTrack: number,
+  minAuthorHitRate: number,
+): IAuthorFilterContext => {
+  const stats: ISimulatorAuthorStat[] = authorStats.map(
+    ({ author, ideas: n, hits }) => ({
+      author,
+      ideas: n,
+      hits,
+      hitRate: n ? hits / n : 0,
+      banned: n < minAuthorTrack || hits / n < minAuthorHitRate,
+    }),
+  );
+  const allowed = new Set(
+    stats.filter(({ banned }) => !banned).map(({ author }) => author),
+  );
+  // в бане: провалившие правило по замороженному треку ПЛЮС авторы,
+  // которых в трейне не было вовсе (недоказанный = забанен)
+  const banned = new Set(
+    [
+      ...stats.map(({ author }) => author),
+      ...ideas.map(({ author }) => author),
+    ].filter((author) => !allowed.has(author)),
+  );
+  const weightByAuthor = new Map<string, number>(
+    stats
+      .filter(({ banned }) => !banned)
+      .map(({ author, ideas: n, hits }) => [author, (hits + 1) / (n + 2)]),
+  );
+  const weightOf = (author: string) => weightByAuthor.get(author) ?? 0;
+  const profileBanned = profiles.map(({ idea }) => !allowed.has(idea.author));
+  const alignedFiltered = profiles.map((profile) =>
+    COUNT_ALIGNED_AUTHORS_FN(
+      ideas,
+      profile.idea.direction as "LONG" | "SHORT",
+      profile.entryTimestamp,
+      (author) => allowed.has(author),
     ),
   );
   const weightAligned = profiles.map((profile) =>
@@ -977,6 +1056,127 @@ const RUN_FN = async (
 };
 
 /**
+ * Out-of-sample test for a symbol: fresh ideas -> profiles -> ONE
+ * frozen grid point evaluated with a FROZEN author track record.
+ *
+ * This is the honesty counterpart of RUN_FN: run() trains the author
+ * filter with deliberate lookahead inside the train range, test()
+ * proves the picked parameters on data the training never saw —
+ * nothing here feeds back into the stats.
+ *
+ * @param self - ClientSimulator instance reference
+ * @param symbol - Trading pair symbol
+ * @param allIdeas - Test ideas (other symbols are filtered out)
+ * @param point - Frozen grid point from the train run
+ * @param authorStats - Frozen per-author track record from the train run
+ * @returns Out-of-sample result with the point report and trades
+ */
+const TEST_FN = async (
+  self: ClientSimulator,
+  symbol: string,
+  allIdeas: ISimulatorIdea[],
+  point: ISimulatorGridPoint,
+  authorStats: ISimulatorAuthorStat[],
+): Promise<ISimulatorTestResult> => {
+  const ideas = allIdeas
+    .filter((idea) => idea.symbol === symbol)
+    .sort((a, b) => a.ts - b.ts);
+  const directional = DEDUPE_IDEAS_FN(
+    ideas.filter(({ direction }) => direction !== "NEUTRAL"),
+  );
+  if (self.params.callbacks?.onIdeas) {
+    self.params.callbacks?.onIdeas(symbol, ideas.length, directional.length);
+  }
+
+  const profiles: ISimulatorIdeaProfile[] = [];
+  for (let index = 0; index < directional.length; index++) {
+    const profile = await BUILD_PROFILE_FN(
+      self,
+      symbol,
+      directional[index],
+      directional,
+    );
+    if (profile) {
+      profiles.push(profile);
+    }
+    if (self.params.callbacks?.onProgress) {
+      self.params.callbacks?.onProgress(
+        symbol,
+        "profiles",
+        index + 1,
+        directional.length,
+      );
+    }
+  }
+  const truncatedCount = profiles.filter(({ truncated }) => truncated).length;
+  if (self.params.callbacks?.onProfiles) {
+    self.params.callbacks?.onProfiles(symbol, profiles, truncatedCount);
+  }
+
+  // фильтр авторов ЗАМОРОЖЕН: правило точки применяется к train-треку,
+  // onAuthorsTrained намеренно не эмитится — здесь ничего не обучается
+  const filter = FREEZE_AUTHOR_FILTER_FN(
+    profiles,
+    directional,
+    authorStats,
+    point.minAuthorTrack,
+    point.minAuthorHitRate,
+  );
+
+  // окно суточных корзин — по тестовому диапазону: метрики отчёта
+  // считаются той же математикой, что в run(), но по свежим данным
+  const rangeStartTs = profiles.length
+    ? Math.min(...profiles.map(({ entryTimestamp }) => entryTimestamp))
+    : 0;
+  const rangeEndTs = profiles.length
+    ? Math.max(...profiles.map(({ outcomeKnownAt }) => outcomeKnownAt))
+    : 0;
+  const rangeDays = Math.max(1, Math.ceil((rangeEndTs - rangeStartTs) / DAY_MS));
+
+  const { report, trades } = EVALUATE_POINT_FN(
+    profiles,
+    point,
+    filter,
+    rangeStartTs,
+    rangeDays,
+  );
+  ASSERT_TRADE_INVARIANTS_FN(trades, point);
+  if (self.params.callbacks?.onGridPoint) {
+    self.params.callbacks?.onGridPoint(symbol, report, trades);
+  }
+  if (self.params.callbacks?.onProgress) {
+    self.params.callbacks?.onProgress(symbol, "grid", 1, 1);
+  }
+
+  const holdStats = COMPUTE_HOLD_STATS_FN(
+    trades.map(({ holdMinutesActual }) => holdMinutesActual),
+  );
+
+  const result: ISimulatorTestResult = {
+    symbol,
+    ideasTotal: ideas.length,
+    ideasDirectional: directional.length,
+    profileCount: profiles.length,
+    truncatedCount,
+    point,
+    report,
+    trades,
+    authorStats: filter.stats,
+    allowedAuthors: filter.stats
+      .filter(({ banned }) => !banned)
+      .map(({ author }) => author),
+    bannedAuthors: [...filter.banned],
+    avgHoldMinutes: holdStats.avgHoldMinutes,
+    p95HoldMinutes: holdStats.p95HoldMinutes,
+    p99HoldMinutes: holdStats.p99HoldMinutes,
+  };
+  if (self.params.callbacks?.onTestDone) {
+    self.params.callbacks?.onTestDone(symbol, result);
+  }
+  return result;
+};
+
+/**
  * Parameter sweep engine over crowd trading ideas (the "Simulator").
  *
  * Finds production strategy parameters (hard stop, trailing take,
@@ -1058,5 +1258,46 @@ export class ClientSimulator implements ISimulator {
       ideasLen: ideas.length,
     });
     return await RUN_FN(this, symbol, ideas);
+  }
+
+  /**
+   * Out-of-sample test: evaluates ONE frozen grid point over fresh
+   * ideas with a FROZEN author track record from a train run.
+   *
+   * Steps and emitted callbacks:
+   * 1. Filters the input array by symbol, sorts by publication time,
+   *    drops NEUTRAL ideas and flood duplicates (same preprocessing
+   *    as run()) -> onIdeas(symbol, total, directional).
+   * 2. Builds one trajectory profile per test idea
+   *    -> onProfiles(symbol, profiles, truncatedCount).
+   * 3. FREEZES the author filter: the point's ban rule is applied to
+   *    the given train stats verbatim; authors unseen in the stats
+   *    are banned by default. onAuthorsTrained never fires — nothing
+   *    is trained on the test data.
+   * 4. Evaluates the single point with production slot semantics and
+   *    the same metric math as run()
+   *    -> onGridPoint(symbol, report, trades).
+   * 5. Assembles the result -> onTestDone(symbol, result).
+   *
+   * @param symbol - Trading pair symbol to test (e.g., "BTCUSDT")
+   * @param ideas - Out-of-sample ideas feed (other symbols filtered out)
+   * @param point - Frozen grid point (e.g., the train Sharpe winner)
+   * @param authorStats - Frozen author track record from the train run
+   * @returns Out-of-sample result: the point report, trades and the
+   * frozen author artifact as applied on the test range
+   * @throws Error when a trade violates the arithmetic invariants
+   */
+  public test = async (
+    symbol: string,
+    ideas: ISimulatorIdea[],
+    point: ISimulatorGridPoint,
+    authorStats: ISimulatorAuthorStat[],
+  ): Promise<ISimulatorTestResult> => {
+    this.params.logger.debug("ClientSimulator test", {
+      symbol,
+      ideasLen: ideas.length,
+      point,
+    });
+    return await TEST_FN(this, symbol, ideas, point, authorStats);
   }
 }

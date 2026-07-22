@@ -1,8 +1,9 @@
-import { ISimulatorIdea, SimulatorName } from "../interfaces/Simulator.interface";
+import { ISimulatorIdea, ISimulatorGridPoint, ISimulatorAuthorStat, SimulatorName } from "../interfaces/Simulator.interface";
 
 import backtest from "../lib";
 
 const METHOD_NAME_RUN = "Simulator.run";
+const METHOD_NAME_TEST = "Simulator.test";
 
 /**
  * Public API of the Simulator entity — parameter sweep over crowd
@@ -59,6 +60,69 @@ export class SimulatorUtils {
             symbol: dto.symbol,
         });
         return await backtest.simulatorGlobalService.run(dto);
+    }
+
+    /**
+     * Out-of-sample test of parameters picked by run(): evaluates
+     * ONE frozen grid point over fresh ideas with a FROZEN author
+     * track record. Nothing is trained on the test data — authors
+     * unseen in the frozen stats are banned by default, test
+     * outcomes never feed back into the stats. This is the honesty
+     * step run() deliberately skips (its author training uses
+     * lookahead inside the train range).
+     *
+     * @param dto.symbol - Trading pair symbol to test (e.g., "BTCUSDT")
+     * @param dto.simulatorName - Registered simulator name
+     * @param dto.ideas - Out-of-sample ideas feed; other symbols are
+     * filtered out, so one shared feed can be passed for every symbol
+     * @param dto.point - Frozen grid point from the train run
+     * (e.g., the Sharpe winner's `best.report.point`)
+     * @param dto.authorStats - Frozen author track record from the
+     * train run (`result.authorStats` — raw ideas/hits are reused,
+     * the banned flag is re-derived under the point's ban rule)
+     * @returns Out-of-sample result: the point report with the same
+     * metrics as run(), the trade list and the frozen author artifact
+     * @throws Error when the simulator or its exchange is not registered
+     *
+     * @example
+     * ```typescript
+     * import { Simulator } from "backtest-kit";
+     *
+     * // train on June...
+     * const train = await Simulator.run({
+     *   symbol: "BTCUSDT",
+     *   simulatorName: "tv-ideas-simulator",
+     *   ideas: juneIdeas,
+     * });
+     * const winner = train.best.find(({ criterion }) => criterion === "sharpe");
+     *
+     * // ...prove on July the training never saw
+     * const test = await Simulator.test({
+     *   symbol: "BTCUSDT",
+     *   simulatorName: "tv-ideas-simulator",
+     *   ideas: julyIdeas,
+     *   point: winner.report.point,
+     *   authorStats: train.authorStats,
+     * });
+     * // test.report -> out-of-sample sharpe / pnl / drawdown
+     * ```
+     */
+    public test = async (
+        dto: {
+            symbol: string;
+            simulatorName: SimulatorName;
+            ideas: ISimulatorIdea[];
+            point: ISimulatorGridPoint;
+            authorStats: ISimulatorAuthorStat[];
+        }
+    ) => {
+        backtest.loggerService.log(METHOD_NAME_TEST, {
+            simulatorName: dto.simulatorName,
+            ideasLen: dto.ideas.length,
+            symbol: dto.symbol,
+            point: dto.point,
+        });
+        return await backtest.simulatorGlobalService.test(dto);
     }
 }
 

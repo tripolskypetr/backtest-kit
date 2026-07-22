@@ -297,6 +297,51 @@ export interface ISimulatorResult {
 }
 
 /**
+ * Result of an out-of-sample test: ONE frozen grid point evaluated
+ * over fresh ideas with a FROZEN author track record. Nothing is
+ * trained on the test data — the honesty run() deliberately skips
+ * (lookahead inside train) is provided here.
+ */
+export interface ISimulatorTestResult {
+  /** Trading pair symbol the test ran for. */
+  symbol: string;
+  /** Total ideas of the symbol received (including NEUTRAL). */
+  ideasTotal: number;
+  /** Directional ideas tested (NEUTRAL and flood duplicates excluded). */
+  ideasDirectional: number;
+  /** Number of idea profiles built (ideas with candle data). */
+  profileCount: number;
+  /** Profiles cut short by end of candle data. */
+  truncatedCount: number;
+  /** The frozen grid point the test evaluated (from the train run). */
+  point: ISimulatorGridPoint;
+  /** Out-of-sample report of the point (same metrics as in run()). */
+  report: ISimulatorPointReport;
+  /** Trades of the point over the test range. */
+  trades: ISimulatorTrade[];
+  /**
+   * The FROZEN author stats the test was gated by: raw ideas/hits
+   * come from the train run verbatim, the banned flag is re-derived
+   * under the tested point's ban rule. Test outcomes never feed back
+   * into these numbers.
+   */
+  authorStats: ISimulatorAuthorStat[];
+  /** Logins allowed under the frozen stats and the point's ban rule. */
+  allowedAuthors: string[];
+  /**
+   * Logins banned on the test range: train authors failing the rule
+   * PLUS authors seen only in the test feed (unproven = banned).
+   */
+  bannedAuthors: string[];
+  /** Mean holding time across the test trades, minutes. */
+  avgHoldMinutes: number;
+  /** 95th percentile of holding time, minutes. */
+  p95HoldMinutes: number;
+  /** 99th percentile of holding time, minutes. */
+  p99HoldMinutes: number;
+}
+
+/**
  * Registration schema of a simulator instance.
  */
 export interface ISimulatorSchema {
@@ -376,6 +421,11 @@ export interface ISimulatorCallbacks {
   ): void;
   /** Simulation finished. */
   onDone(symbol: string, result: ISimulatorResult): void;
+  /**
+   * Out-of-sample test finished. onAuthorsTrained deliberately never
+   * fires during a test — nothing is trained on the test data.
+   */
+  onTestDone(symbol: string, result: ISimulatorTestResult): void;
 }
 
 /**
@@ -398,6 +448,19 @@ export interface ISimulator {
    * profiles -> author filter -> grid evaluation -> rankings.
    */
   run(symbol: string, ideas: ISimulatorIdea[]): Promise<ISimulatorResult>;
+  /**
+   * Out-of-sample test: evaluates ONE frozen grid point over fresh
+   * ideas with a FROZEN author track record from a train run.
+   * Profiles are built for the test ideas, but the author filter is
+   * NOT retrained — authors unseen in the frozen stats are banned by
+   * default (unproven = banned).
+   */
+  test(
+    symbol: string,
+    ideas: ISimulatorIdea[],
+    point: ISimulatorGridPoint,
+    authorStats: ISimulatorAuthorStat[],
+  ): Promise<ISimulatorTestResult>;
 }
 
 /**
