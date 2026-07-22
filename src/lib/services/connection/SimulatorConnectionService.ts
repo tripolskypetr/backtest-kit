@@ -21,6 +21,7 @@ const DEFAULT_GRID_AXES = {
   minIdeasAligned: [1, 2, 3],
   minAuthorTrack: [3],
   minAuthorHitRate: [0.5],
+  minWeightAligned: [0],
 };
 
 /**

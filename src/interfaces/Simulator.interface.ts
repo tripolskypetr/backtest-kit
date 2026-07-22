@@ -81,6 +81,15 @@ export interface ISimulatorGridAxes {
    * to be allowed (worse -> banned).
    */
   minAuthorHitRate: number[];
+  /**
+   * Weighted consensus thresholds to sweep. An author's vote weight
+   * is his Laplace-smoothed track record (hits+1)/(ideas+2) — a 2/2
+   * newcomer weighs less than a 15/15 veteran. Entry requires the
+   * SUM of weights of unique aligned unbanned authors in the rolling
+   * window to reach the threshold. 0 disables the weighted gate
+   * (binary minIdeasAligned counting only).
+   */
+  minWeightAligned: number[];
 }
 
 /**
@@ -99,6 +108,11 @@ export interface ISimulatorGridPoint {
   minAuthorTrack: number;
   /** Author ban rule: minimum hit rate (0..1) to be allowed. */
   minAuthorHitRate: number;
+  /**
+   * Weighted consensus threshold: required sum of Laplace-smoothed
+   * track-record weights of aligned unbanned authors; 0 = disabled.
+   */
+  minWeightAligned: number;
 }
 
 /**

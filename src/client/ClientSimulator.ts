@@ -180,6 +180,43 @@ const COUNT_ALIGNED_AUTHORS_FN = (
 };
 
 /**
+ * Sums Laplace-smoothed track-record weights of UNIQUE same-direction
+ * unbanned authors within the rolling lookback window. The weight of
+ * an author is (hits+1)/(ideas+2): a proven 15/15 veteran approaches
+ * 1, a fresh 2/2 stays modest, a banned author contributes nothing.
+ *
+ * @param ideas - All ideas of the symbol
+ * @param direction - Direction to sum votes for
+ * @param ts - Minute timestamp to sum at
+ * @param weightOf - Author weight resolver (0 for banned)
+ * @returns Sum of unique aligned author weights
+ */
+const SUM_ALIGNED_WEIGHT_FN = (
+  ideas: ISimulatorIdea[],
+  direction: "LONG" | "SHORT",
+  ts: number,
+  weightOf: (author: string) => number,
+): number => {
+  const authors = new Set<string>();
+  const from = ts - ALIGNED_LOOKBACK_MINUTES * MINUTE_MS;
+  for (const idea of ideas) {
+    if (idea.direction !== direction) {
+      continue;
+    }
+    const ideaTs = intervalStart(idea.ts, "1m") + MINUTE_MS;
+    if (ideaTs > ts || ideaTs <= from) {
+      continue;
+    }
+    authors.add(idea.author);
+  }
+  let sum = 0;
+  for (const author of authors) {
+    sum += weightOf(author);
+  }
+  return sum;
+};
+
+/**
  * Builds the per-candle trajectory profile of a single idea in ONE
  * asynchronous candle pass: entry basis, MFE/MAE extremes, whale
  * shakeout depth (worst MAE before the max-MFE candle) and the
@@ -276,6 +313,11 @@ interface IAuthorFilterContext {
   profileBanned: boolean[];
   /** Aligned unbanned authors at entry per profile index. */
   alignedFiltered: number[];
+  /**
+   * Sum of Laplace-smoothed track-record weights of aligned unbanned
+   * authors at entry per profile index (weighted consensus).
+   */
+  weightAligned: number[];
 }
 
 /**
@@ -324,6 +366,14 @@ const TRAIN_AUTHOR_FILTER_FN = (
   const banned = new Set(
     stats.filter(({ banned }) => banned).map(({ author }) => author),
   );
+  // вес голоса автора — сглаженная по Лапласу правота (hits+1)/(ideas+2):
+  // новичок 2/2 весит меньше ветерана 15/15, забаненный — ноль
+  const weightByAuthor = new Map<string, number>(
+    stats
+      .filter(({ banned }) => !banned)
+      .map(({ author, ideas: n, hits }) => [author, (hits + 1) / (n + 2)]),
+  );
+  const weightOf = (author: string) => weightByAuthor.get(author) ?? 0;
   const profileBanned = profiles.map(({ idea }) => banned.has(idea.author));
   const alignedFiltered = profiles.map((profile) =>
     COUNT_ALIGNED_AUTHORS_FN(
@@ -333,12 +383,21 @@ const TRAIN_AUTHOR_FILTER_FN = (
       (author) => !banned.has(author),
     ),
   );
+  const weightAligned = profiles.map((profile) =>
+    SUM_ALIGNED_WEIGHT_FN(
+      ideas,
+      profile.idea.direction as "LONG" | "SHORT",
+      profile.entryTimestamp,
+      weightOf,
+    ),
+  );
   return {
     stats: stats.sort((a, b) => b.ideas - a.ideas),
     banned,
     bannedIdeas: profileBanned.filter(Boolean).length,
     profileBanned,
     alignedFiltered,
+    weightAligned,
   };
 };
 
@@ -515,6 +574,11 @@ const EVALUATE_POINT_FN = (
     if (filter.alignedFiltered[index] < point.minIdeasAligned) {
       continue;
     }
+    // взвешенный консенсус: сумма Лаплас-весов однонаправленных
+    // незабаненных авторов окна; 0 = гейт выключен
+    if (filter.weightAligned[index] < point.minWeightAligned) {
+      continue;
+    }
     if (profile.entryTimestamp < busyUntil) {
       skippedBusy += 1;
       if (holdingTrade) {
@@ -621,14 +685,17 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
       axes.holdMinutes.flatMap((holdMinutes) =>
         axes.minIdeasAligned.flatMap((minIdeasAligned) =>
           axes.minAuthorTrack.flatMap((minAuthorTrack) =>
-            axes.minAuthorHitRate.map((minAuthorHitRate) => ({
-              hardStopPercent,
-              trailingTakePercent,
-              holdMinutes,
-              minIdeasAligned,
-              minAuthorTrack,
-              minAuthorHitRate,
-            })),
+            axes.minAuthorHitRate.flatMap((minAuthorHitRate) =>
+              axes.minWeightAligned.map((minWeightAligned) => ({
+                hardStopPercent,
+                trailingTakePercent,
+                holdMinutes,
+                minIdeasAligned,
+                minAuthorTrack,
+                minAuthorHitRate,
+                minWeightAligned,
+              })),
+            ),
           ),
         ),
       ),
