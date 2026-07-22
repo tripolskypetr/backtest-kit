@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { SimulatorName, ISimulator, ISimulatorIdea, ISimulatorGridPoint, ISimulatorAuthorStat } from "../../../interfaces/Simulator.interface";
+import { SimulatorName, ISimulator, ISimulatorIdea, ISimulatorGridPoint, ISimulatorAuthorStat, ISimulatorGridAxes } from "../../../interfaces/Simulator.interface";
 import { memoize } from "functools-kit";
 import SimulatorSchemaService from "../schema/SimulatorSchemaService";
 import { ClientSimulator } from "../../../client/ClientSimulator";
@@ -31,12 +31,12 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
  *   the lock-free baseline, runners are untouched — above the lock
  *   the trailing floor is higher and fills first.
  */
-const DEFAULT_GRID_AXES = {
-  hardStopPercent: [2, 3, 5, 7],
-  trailingTakePercent: [1, 1.5, 2, 3, 4],
-  holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60, 5 * 24 * 60],
-  minIdeasAligned: [1, 2],
-  minAuthorTrack: [3, 5],
+const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
+  hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
+  trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
+  holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
+  minIdeasAligned: [1, 2, 3],
+  minAuthorTrack: [2, 3, 5],
   minAuthorHitRate: [0.5, 0.6],
   minWeightAligned: [0, 0.6, 1.2],
   profitLockPercent: [0, 1.5, 2.5],

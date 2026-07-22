@@ -1,6 +1,6 @@
 import { addExchangeSchema, addSimulatorSchema, Simulator } from "backtest-kit";
 import { singleshot } from "functools-kit";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync } from "fs";
 import ccxt from "ccxt";
 
 const getExchange = singleshot(async () => {
@@ -109,13 +109,8 @@ const result = await Simulator.test({
   authorStats: AUTHOR_STATS,
 });
 
-writeFileSync("./dump/simulator.test.json", JSON.stringify(result, null, 2));
-
 console.log(
-  "test saved; trades:", result.report.trades,
-  "pnl:", result.report.totalPnlPercent.toFixed(2) + "%",
-  "sharpe:", Number.isFinite(result.report.sharpe) ? result.report.sharpe.toFixed(2) : result.report.sharpe,
-  "allowed:", result.allowedAuthors.join(", "),
+  JSON.stringify(result, null, 2)
 );
 
 process.exit(0);
