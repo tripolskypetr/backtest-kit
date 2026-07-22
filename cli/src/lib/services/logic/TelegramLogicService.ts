@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { compose, singleshot, trycatch, ttl } from "functools-kit";
+import { compose, singleshot, Source, trycatch, ttl } from "functools-kit";
 import { getTelegram } from "../../../config/telegram";
 import {
   BreakevenCommit,
@@ -474,6 +474,10 @@ export class TelegramLogicService {
       await this.notifySignalInfo(event);
     });
 
+    const unGc = Source.fromInterval(1_000).connect(() => {
+        this.notifyOrderContinue.gc();
+    });
+
     const unConnect = () => this.connect.clear();
 
     const unListen = compose(
@@ -485,6 +489,7 @@ export class TelegramLogicService {
       () => unOrderContinue(),
       () => unOrderStop(),
       () => this.notifyOrderContinue.clear(),
+      () => unGc(),
       () => unSignalNotify(),
       () => unConnect(),
     );
