@@ -7,7 +7,7 @@ group: other/simulator
 
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator)
 
-A parameter sweep over crowd trading ideas, driven by the `Simulator` entity. The dataset is a scrape of TradingView ideas (author, direction, publish time) for June 2026 — a month where BTC fell **−20.4%** while the crowd kept posting longs. The simulator profiles every idea with one candle pass, trains an author whitelist on the results, evaluates the whole exit-parameter grid arithmetically from the profiles and reports four ranking winners — without running a backtest per grid point.
+A walk-forward parameter sweep over crowd trading ideas, driven by the `Simulator` entity. The dataset is a scrape of TradingView ideas (author, direction, publish time) for June 2026 — a month where BTC fell **−20.4%** while the crowd kept posting longs. The demo trains on the first 70% of the feed's time range (`Simulator.run`: profiles, author whitelist, full grid, four ranking winners — without a backtest per grid point) and then proves the picked parameters **out-of-sample** on the remaining tail with `Simulator.test`: the winning point and the author track record are frozen, nothing is trained on the test data.
 
 ## Purpose
 
@@ -15,7 +15,7 @@ This project exists for the concrete checks below.
 
 ### 1. Ideas are the unit of simulation, not candles
 
-Each idea gets ONE asynchronous forward candle pass from the minute after its publication, capped by a static 5-day horizon. The pass produces a per-candle trajectory profile: maximum favorable/adverse excursion by wicks, whale-shakeout depth (worst drawdown *before* the peak), and the count of aligned authors at entry. The outcome of **any** grid point — hard stop × trailing take × hold duration × consensus threshold — is then derived from the profile arithmetically. A 432-point grid costs one candle pass per idea, not 432 backtests.
+Each idea gets ONE asynchronous forward candle pass from the minute after its publication, capped by a static 5-day horizon. The pass produces a per-candle trajectory profile: maximum favorable/adverse excursion by wicks, whale-shakeout depth (worst drawdown *before* the peak), and the count of aligned authors at entry. The outcome of **any** grid point — hard stop × trailing take × hold duration × consensus threshold — is then derived from the profile arithmetically. A 7,776-point grid costs one candle pass per idea, not 7,776 backtests.
 
 ### 2. Honest execution, no close-to-close shortcuts
 
@@ -23,7 +23,7 @@ The trade arithmetic follows strict contracts: entry at the open of the minute *
 
 ### 3. The author filter is a trained artifact
 
-Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate, and the ban thresholds themselves are grid axes (this demo sweeps track ∈ {2, 3, 5} × hit rate ∈ {0.5, 0.6}). Flood is neutralized before anything else: at most one idea per author per direction per 8 hours, so reposting the same call cannot inflate a track record, retrigger entries or keep a consensus vote alive. On this bear-month dataset the winning rule allowed **13 of 154 authors** and banned the long-posting crowd — the whitelist (`allowedAuthors`) is the artifact to apply in production.
+Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate, and the ban thresholds themselves are grid axes (this demo sweeps track ∈ {2, 3, 5} × hit rate ∈ {0.5, 0.6}). Flood is neutralized before anything else: at most one idea per author per direction per 8 hours, so reposting the same call cannot inflate a track record, retrigger entries or keep a consensus vote alive. On the train window the winning rule allowed **10 of 42 authors** and banned the long-posting crowd — the whitelist (`allowedAuthors`) is the artifact to apply in production.
 
 ### 4. Metrics that measure performance, not a pretty picture
 
@@ -33,26 +33,44 @@ Sharpe and Sortino are **time-based**: computed over daily equity increments acr
 
 The result carries winners of four rankings (Sharpe, Sortino, total PnL, recovery factor) with full trade lists. These are **candidates**: the final arbiter for the chosen parameters is always a real engine backtest (`Backtest.run`) — the simulator's job is to make the search cheap, not to replace the engine.
 
-## Actual Results (June 2026, BTCUSDT)
+### 6. Out-of-sample honesty via `Simulator.test`
 
-The committed [`dump/simulator.done.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator/dump/simulator.done.json) was produced by `npm start` on the bear month. The feed is strictly crypto-venue: ideas are classified by the `fullName` exchange prefix (Binance, Coinbase, Bitstamp, Bybit, OKX, …) — forex/CFD, metals, stocks and indices never enter the file, so no fabricated pairs.
+`run()` trains its author filter with deliberate lookahead inside the train range — the honesty comes from the walk-forward step. `Simulator.test` takes the frozen Sharpe-winner point and the frozen `authorStats` from the train run and evaluates them on the tail of the feed the training never saw: the banned flag is re-derived from the frozen track under the point's own ban rule, an author unseen in train is banned by default (unproven = banned), and `onAuthorsTrained` never fires on test data.
 
-| Stage | Numbers |
-|---|---|
-| Ideas in feed (BTCUSDT) | 421 total → 300 after NEUTRAL + flood dedupe |
-| Profiles built | 300, none truncated |
-| Author filter | 13 allowed / 141 banned (winning rule: track ≥ 2, hit rate ≥ 0.6) |
-| Grid | 2,592 points (8 × 6 × 3 × 3 × 3 × 2) |
+## Actual Results (June 2026, BTCUSDT, walk-forward)
 
-The three ranking winners:
+The committed [`dump/simulator.done.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator/dump/simulator.done.json) (train) and [`dump/simulator.test.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator/dump/simulator.test.json) (out-of-sample) were produced by one `npm start`. The feed is split by TIME at 70% of its range: **train = June 1–21**, **test = June 22–30** (the tail is denser — the crowd posted hardest at the bottom of the crash). The feed is strictly crypto-venue: ideas are classified by the `fullName` exchange prefix (Binance, Coinbase, Bitstamp, Bybit, OKX, …) — forex/CFD, metals, stocks and indices never enter the file, so no fabricated pairs.
+
+| Stage | Train (June 1–21) | Test (June 22–30) |
+|---|---|---|
+| Ideas in feed (BTCUSDT) | 145 total → 119 after NEUTRAL + flood dedupe | 276 total → 181 |
+| Profiles built | 119, none truncated | 181, none truncated |
+| Author filter | **trained**: 10 allowed / 32 banned | **frozen** from train; unseen authors banned (144 banned total) |
+| Grid | 7,776 points (8 × 6 × 3 × 3 × 3 × 2 × 3) | the Sharpe winner's single point |
+
+The four ranking winners on the train window:
 
 | Criterion | Point | Ban rule | Trades | PnL | Win rate | Sharpe | Sortino |
 |---|---|---|---|---|---|---|---|
-| Sharpe | H=7 TT=3 hold=72h N=2 | track≥2, rate≥0.6 | 8 (3L/5S) | +15.98% | 62% | **1.57** | 6.00 |
-| Sortino | H=4 TT=1 hold=72h N=2 | track≥3, rate≥0.6 | 8 (2L/6S) | +6.23% | 50% | 1.38 | **7.76** |
-| PnL | H=3 TT=4 hold=72h N=1 | track≥5, rate≥0.6 | 10 (1L/9S) | **+19.37%** | 70% | 1.36 | 5.02 |
+| Sharpe | H=5 TT=3 hold=72h N=1 W=0 | track≥2, rate≥0.5 | 9 (5L/4S) | +15.61% | 89% | **1.42** | 2.95 |
+| Sortino | H=1 TT=4 hold=72h N=1 W=0.6 | track≥2, rate≥0.6 | 8 (0L/8S) | +14.94% | 38% | 1.07 | **5.13** |
+| PnL | H=3 TT=4 hold=72h N=1 W=0 | track≥2, rate≥0.5 | 8 (3L/5S) | **+17.40%** | 75% | 1.25 | 4.31 |
+| Recovery | H=4 TT=3 hold=72h N=1 W=0.6 | track≥3, rate≥0.5 | 8 (2L/6S) | +13.22% | 50% | 1.32 | 4.49 |
 
-The winners diverge in exits but agree on the essentials: **hold = 72h** on every criterion, **hit rate ≥ 0.6** on every criterion (the quality threshold matters more than the track length), and 0–1 stop-outs across all three. Sweeping the ban rule instead of hardcoding it lifted the best Sharpe from 1.04 to 1.57 and the best PnL from +10.89% to +19.37% on the same feed. Top allowed authors under the Sharpe winner's rule: TradingShot (15 ideas, 0.60), MarketStrategysignals (8, 0.62), PremiumTrader57 (8, 0.62), XAUxBTC_Pro (6, 0.67).
+All four criteria converge on **hold = 72h**; the W column is the weighted-consensus threshold (`minWeightAligned`, swept from the defaults — two of four winners use it). Top allowed authors under the Sharpe winner's rule: TradingShot (10 ideas, 0.60), Apex_Legends (7, 0.57), Cryptollica (6, 0.50), MarketStrategysignals (6, 0.67).
+
+### Out-of-sample (frozen point H=5 TT=3 hold=72h, frozen whitelist)
+
+| Metric | Train | Test |
+|---|---|---|
+| Trades | 9 | 3 (16 qualified ideas absorbed by busy slot) |
+| PnL | +15.61% | **+0.91%** |
+| Win rate | 89% | 33% |
+| Profit factor | — | 1.24 |
+| Sharpe | 1.42 | 0.17 |
+| Max series drawdown | 5.29% | 3.72% |
+
+The test trades: one SHORT closed by trailing take at **+4.63%**, two LONGs expired at −1.49% and −2.23%. This shrinkage is the honest picture the train-only numbers hide: the edge survives out-of-sample (positive PnL, profit factor above 1) but is an order of magnitude thinner than the in-sample Sharpe suggests — exactly why `test()` exists, and why the final arbiter is still a real engine backtest.
 
 ## Project Structure
 
@@ -83,7 +101,7 @@ npm install
 npm start
 ```
 
-The script registers a CCXT Binance spot exchange (`ccxt_exchange`), a simulator schema (`tv_simulator`) with explicit grid axes, loads the ideas feed and runs the sweep for BTCUSDT:
+The script registers a CCXT Binance spot exchange (`ccxt_exchange`), a simulator schema (`tv_simulator`) with explicit grid axes, splits the feed by time (train = first 70% of the range, test = the tail), runs the sweep on the train window and proves the Sharpe winner out-of-sample:
 
 ```javascript
 addSimulatorSchema({
@@ -100,14 +118,25 @@ addSimulatorSchema({
   },
 });
 
+// train on the first 70% of the feed's time range...
 const result = await Simulator.run({
   symbol: "BTCUSDT",
   simulatorName: "tv_simulator",
-  ideas,
+  ideas: trainIdeas,
+});
+
+// ...prove the Sharpe winner on the tail the training never saw
+const winner = result.best.find(({ criterion }) => criterion === "sharpe");
+const testResult = await Simulator.test({
+  symbol: "BTCUSDT",
+  simulatorName: "tv_simulator",
+  ideas: testIdeas,
+  point: winner.report.point,
+  authorStats: result.authorStats,
 });
 ```
 
-Candles are fetched lazily in chunks through the exchange schema (persist cache first, network after) — only the horizons of actual ideas are requested, gaps between sparse ideas are never downloaded. The full result is written to `./dump/simulator.done.json`.
+Candles are fetched lazily in chunks through the exchange schema (persist cache first, network after) — only the horizons of actual ideas are requested, gaps between sparse ideas are never downloaded. The train result is written to `./dump/simulator.done.json`, the out-of-sample result to `./dump/simulator.test.json`.
 
 ## Reading the Result
 
@@ -118,6 +147,8 @@ Candles are fetched lazily in chunks through the exchange schema (persist cache 
 - **`authorStats`** — per-author track records behind the ban decisions (ideas with known outcome, hits, hit rate).
 - **`reports`** — all grid points sorted by Sharpe, each with time-based Sharpe/Sortino, exit-reason counts and hold-time percentiles.
 - **`avgHoldMinutes` / `p95HoldMinutes` / `p99HoldMinutes`** — run-level hold distribution; a p99 pinned at the hold cap exposes eternal holds instantly.
+
+`ISimulatorTestResult` (the out-of-sample artifact) mirrors a single point of the above: the frozen `point`, its `report` with the same metric math (time-based Sharpe/Sortino, Calmar, recovery — computed over the TEST range), the `trades` list, and the frozen author artifact as applied (`authorStats` carry the train numbers verbatim; `bannedAuthors` additionally includes every author seen only in the test feed).
 
 ## License
 
