@@ -73,7 +73,7 @@ test("SIM: empty ideas feed resolves structurally — zero counters, zero grid, 
     fail(`grid must be full of zero points, got ${JSON.stringify(result.reports.map((r) => r.trades))}`);
     return;
   }
-  if (result.best.length !== 3 || result.best.some((b) => !b.report)) {
+  if (result.best.length !== 4 || result.best.some((b) => !b.report)) {
     fail("rankings must resolve on an empty feed");
     return;
   }
@@ -86,7 +86,7 @@ test("SIM: empty ideas feed resolves structurally — zero counters, zero grid, 
     return;
   }
 
-  pass("empty feed: zero counters, 2 zero points, 3 rankings resolved, no crash");
+  pass("empty feed: zero counters, 2 zero points, 4 rankings resolved, no crash");
 });
 
 test("SIM: idea entirely beyond the end of data is dropped via the null-profile path", async ({ pass, fail }) => {

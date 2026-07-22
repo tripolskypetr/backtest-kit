@@ -135,7 +135,7 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
   }
 
   // победители рейтингов существуют (нулевая точка), прогон не падает
-  if (result.best.length !== 3 || result.best.some((b) => !b.report || b.report.trades !== 0)) {
+  if (result.best.length !== 4 || result.best.some((b) => !b.report || b.report.trades !== 0)) {
     fail(`rankings must resolve to a zero-trade point, got ${JSON.stringify(result.best.map((b) => b.report?.trades))}`);
     return;
   }

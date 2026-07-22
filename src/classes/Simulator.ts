@@ -11,7 +11,7 @@ const METHOD_NAME_RUN = "Simulator.run";
  * Finds production strategy parameters (hard stop, trailing take,
  * hold duration, entry consensus threshold) by profiling every idea
  * with one candle pass and evaluating the whole grid arithmetically
- * from the profiles. The result carries three ranking winners
+ * from the profiles. The result carries four ranking winners
  * (Sharpe, Sortino, PnL), the trained author whitelist/ban list and
  * per-point reports with trade-level detail.
  *

@@ -159,7 +159,7 @@ Simulator flags (--simulator):
   Runs the backtest-kit Simulator entity: one 5-day candle pass per idea, flood
   dedupe (one idea per author per direction per 8h), default-ban author filter
   (ban thresholds are grid axes), grid evaluation with time-based Sharpe/Sortino,
-  three ranking winners. The report includes the production author whitelist.
+  four ranking winners. The report includes the production author whitelist.
   Ideas of other symbols are filtered out — one shared feed serves any --symbol.
 
   No output flag → print the Markdown summary to stdout. With --verbose every

@@ -6033,9 +6033,13 @@ interface ISimulatorAuthorStat {
     banned: boolean;
 }
 /**
- * Ranking criterion for picking grid winners.
+ * Ranking criterion for picking grid winners. "recovery" ranks by
+ * recoveryFactor (total PnL / max series drawdown); a calmar ranking
+ * would produce the IDENTICAL ordering — within one run calmar is
+ * recoveryFactor times a constant (365/days of the shared bucket
+ * window) — so only the raw criterion exists.
  */
-type SimulatorRankingCriterion = "sharpe" | "sortino" | "pnl";
+type SimulatorRankingCriterion = "sharpe" | "sortino" | "pnl" | "recovery";
 /**
  * Winner of one ranking criterion with its trade list.
  */
@@ -6048,7 +6052,7 @@ interface ISimulatorBest {
     trades: ISimulatorTrade[];
 }
 /**
- * Final result of a simulation run: grid reports, three ranking
+ * Final result of a simulation run: grid reports, four ranking
  * winners and the trained author filter artifact.
  */
 interface ISimulatorResult {
@@ -6085,7 +6089,7 @@ interface ISimulatorResult {
     p99HoldMinutes: number;
     /** All grid point reports, sorted by Sharpe descending. */
     reports: ISimulatorPointReport[];
-    /** Winners of the three rankings: sharpe, sortino, pnl. */
+    /** Winners of the rankings: sharpe, sortino, pnl, recovery. */
     best: ISimulatorBest[];
 }
 /**
@@ -18574,7 +18578,7 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  * Finds production strategy parameters (hard stop, trailing take,
  * hold duration, entry consensus threshold) by profiling every idea
  * with one candle pass and evaluating the whole grid arithmetically
- * from the profiles. The result carries three ranking winners
+ * from the profiles. The result carries four ranking winners
  * (Sharpe, Sortino, PnL), the trained author whitelist/ban list and
  * per-point reports with trade-level detail.
  *
@@ -41302,7 +41306,7 @@ declare class SimulatorSchemaService {
  *    stop wins inside an ambiguous candle, trailing arms only from
  *    previous-candle peaks, fees and slippage from GLOBAL_CONFIG on
  *    both legs.
- * 4. Grid winners are picked by three rankings (Sharpe, Sortino,
+ * 4. Grid winners are picked by four rankings (Sharpe, Sortino, PnL,
  *    total PnL) with an anti-fluke minimum-trades guard.
  *
  * Every stage emits an ISimulatorCallbacks hook; the client itself
@@ -41342,7 +41346,7 @@ declare class ClientSimulator implements ISimulator {
      * @param symbol - Trading pair symbol to simulate (e.g., "BTCUSDT")
      * @param ideas - Ideas feed (other symbols are filtered out)
      * @returns Final result: all grid point reports (sorted by Sharpe),
-     * winners of the three rankings with their trade lists, and the
+     * winners of the four rankings with their trade lists, and the
      * trained author filter artifact (stats + ban list)
      * @throws Error when a grid point produces a trade violating the
      * arithmetic invariants (PnL below the hard stop floor, trailing

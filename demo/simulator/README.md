@@ -7,7 +7,7 @@ group: other/simulator
 
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/simulator)
 
-A parameter sweep over crowd trading ideas, driven by the `Simulator` entity. The dataset is a scrape of TradingView ideas (author, direction, publish time) for June 2026 — a month where BTC fell **−20.4%** while the crowd kept posting longs. The simulator profiles every idea with one candle pass, trains an author whitelist on the results, evaluates the whole exit-parameter grid arithmetically from the profiles and reports three ranking winners — without running a backtest per grid point.
+A parameter sweep over crowd trading ideas, driven by the `Simulator` entity. The dataset is a scrape of TradingView ideas (author, direction, publish time) for June 2026 — a month where BTC fell **−20.4%** while the crowd kept posting longs. The simulator profiles every idea with one candle pass, trains an author whitelist on the results, evaluates the whole exit-parameter grid arithmetically from the profiles and reports four ranking winners — without running a backtest per grid point.
 
 ## Purpose
 
@@ -31,7 +31,7 @@ Sharpe and Sortino are **time-based**: computed over daily equity increments acr
 
 ### 5. The simulator picks candidates, the engine validates them
 
-The result carries winners of three rankings (Sharpe, Sortino, total PnL) with full trade lists. These are **candidates**: the final arbiter for the chosen parameters is always a real engine backtest (`Backtest.run`) — the simulator's job is to make the search cheap, not to replace the engine.
+The result carries winners of four rankings (Sharpe, Sortino, total PnL, recovery factor) with full trade lists. These are **candidates**: the final arbiter for the chosen parameters is always a real engine backtest (`Backtest.run`) — the simulator's job is to make the search cheap, not to replace the engine.
 
 ## Actual Results (June 2026, BTCUSDT)
 
@@ -113,7 +113,7 @@ Candles are fetched lazily in chunks through the exchange schema (persist cache 
 
 `ISimulatorResult` fields worth checking first:
 
-- **`best`** — winners of the three rankings, each with its point report and full trade list (`exitReason`, `pnlPercent`, `holdMinutesActual`, `absorbedIdeaIds` per trade).
+- **`best`** — winners of the four rankings, each with its point report and full trade list (`exitReason`, `pnlPercent`, `holdMinutesActual`, `absorbedIdeaIds` per trade).
 - **`allowedAuthors` / `bannedAuthors`** — the trained whitelist; in production only ideas of allowed authors should count.
 - **`authorStats`** — per-author track records behind the ban decisions (ideas with known outcome, hits, hit rate).
 - **`reports`** — all grid points sorted by Sharpe, each with time-based Sharpe/Sortino, exit-reason counts and hold-time percentiles.

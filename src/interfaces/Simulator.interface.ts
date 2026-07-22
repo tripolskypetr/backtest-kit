@@ -234,9 +234,13 @@ export interface ISimulatorAuthorStat {
 }
 
 /**
- * Ranking criterion for picking grid winners.
+ * Ranking criterion for picking grid winners. "recovery" ranks by
+ * recoveryFactor (total PnL / max series drawdown); a calmar ranking
+ * would produce the IDENTICAL ordering — within one run calmar is
+ * recoveryFactor times a constant (365/days of the shared bucket
+ * window) — so only the raw criterion exists.
  */
-export type SimulatorRankingCriterion = "sharpe" | "sortino" | "pnl";
+export type SimulatorRankingCriterion = "sharpe" | "sortino" | "pnl" | "recovery";
 
 /**
  * Winner of one ranking criterion with its trade list.
@@ -251,7 +255,7 @@ export interface ISimulatorBest {
 }
 
 /**
- * Final result of a simulation run: grid reports, three ranking
+ * Final result of a simulation run: grid reports, four ranking
  * winners and the trained author filter artifact.
  */
 export interface ISimulatorResult {
@@ -288,7 +292,7 @@ export interface ISimulatorResult {
   p99HoldMinutes: number;
   /** All grid point reports, sorted by Sharpe descending. */
   reports: ISimulatorPointReport[];
-  /** Winners of the three rankings: sharpe, sortino, pnl. */
+  /** Winners of the rankings: sharpe, sortino, pnl, recovery. */
   best: ISimulatorBest[];
 }
 

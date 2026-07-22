@@ -769,7 +769,7 @@ const ASSERT_TRADE_INVARIANTS_FN = (
 
 /**
  * Full simulation run for a symbol: ideas -> profiles -> author
- * filter training -> grid evaluation -> three rankings.
+ * filter training -> grid evaluation -> four rankings.
  *
  * Every progress point the reference Sweep script printed to console
  * is emitted through ISimulatorCallbacks instead.
@@ -898,6 +898,7 @@ const RUN_FN = async (
     { criterion: "sharpe", value: ({ sharpe }) => sharpe },
     { criterion: "sortino", value: ({ sortino }) => sortino },
     { criterion: "pnl", value: ({ totalPnlPercent }) => totalPnlPercent },
+    { criterion: "recovery", value: ({ recoveryFactor }) => recoveryFactor },
   ];
   const eligible = reports.filter(
     ({ trades }) => trades >= MIN_TRADES_FOR_BEST,
@@ -1002,7 +1003,7 @@ const RUN_FN = async (
  *    stop wins inside an ambiguous candle, trailing arms only from
  *    previous-candle peaks, fees and slippage from GLOBAL_CONFIG on
  *    both legs.
- * 4. Grid winners are picked by three rankings (Sharpe, Sortino,
+ * 4. Grid winners are picked by four rankings (Sharpe, Sortino, PnL,
  *    total PnL) with an anti-fluke minimum-trades guard.
  *
  * Every stage emits an ISimulatorCallbacks hook; the client itself
@@ -1042,7 +1043,7 @@ export class ClientSimulator implements ISimulator {
    * @param symbol - Trading pair symbol to simulate (e.g., "BTCUSDT")
    * @param ideas - Ideas feed (other symbols are filtered out)
    * @returns Final result: all grid point reports (sorted by Sharpe),
-   * winners of the three rankings with their trade lists, and the
+   * winners of the four rankings with their trade lists, and the
    * trained author filter artifact (stats + ban list)
    * @throws Error when a grid point produces a trade violating the
    * arithmetic invariants (PnL below the hard stop floor, trailing
