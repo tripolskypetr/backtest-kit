@@ -71,6 +71,7 @@ addSimulatorSchema({
     // взвешенный консенсус: 0 = выкл, 0.6 ~ соло доказанного автора,
     // 1.1 ~ пара авторов (вес Лапласа (hits+1)/(ideas+2))
     minWeightAligned: [0],
+    profitLockPercent: [0],
   },
 });
 
