@@ -9,6 +9,8 @@ import {
   OrderRejectedError,
   OrderDeletedError,
   OrderTransientError,
+  PersistSignalAdapter,
+  PersistScheduleAdapter,
   lib,
   MethodContextService,
 } from "../../build/index.mjs";
@@ -654,6 +656,200 @@ test("BROKER ATTEMPT: schedule check exhaustion cancels the resting order and si
 
     pass(`schedule check exhausted (attempts ${checkAttempts.join(",")}): cancelled/"user", fatal exit signaled`);
   } finally {
+    Broker.disable();
+    unsubscribeExit();
+  }
+});
+
+/**
+ * BROKER ATTEMPT: исчерпание schedule-чека — зачистка scheduled-снапшота
+ * персистится ДО exitEmitter. Слушатель exit может звать process.exit синхронно
+ * внутри next(): выстрел до teardown оставлял снапшот на диске — рестарт
+ * восстанавливал тот же сигнал, чек снова исчерпывался, снова exit: вечный цикл
+ * рестартов одного сигнала без дюрабельного прогресса.
+ */
+test("BROKER ATTEMPT: schedule check exhaustion persists the wipe BEFORE the fatal exit", async ({ pass, fail }) => {
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 1 }, true);
+
+  const basePrice = 50000;
+  const priceOpen = 40000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "brk-att-sched-wipe-order-strategy",
+    exchangeName: "binance-brk-att-sched-wipe-order",
+    frameName: "",
+  };
+
+  // Хронология «запись schedule-снапшота» vs «exit-сигнал»: врап пишет событие
+  // синхронно при вызове, слушатель exit — синхронным первым сегментом next()
+  const events = [];
+  const originalWrite = PersistScheduleAdapter.writeScheduleData;
+  PersistScheduleAdapter.writeScheduleData = async (data, ...rest) => {
+    events.push({ type: "write", wiped: data === null });
+    return await originalWrite.call(PersistScheduleAdapter, data, ...rest);
+  };
+  const unsubscribeExit = listenExit(() => { events.push({ type: "exit" }); });
+
+  let issued = false;
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (issued) return null;
+      issued = true;
+      return {
+        position: "long",
+        note: "brk att sched wipe order",
+        priceOpen,
+        priceTakeProfit: priceOpen + 4000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  Broker.useBrokerAdapter({
+    onOrderScheduleCheck: async () => {
+      throw new OrderTransientError("brk: exchange down");
+    },
+  });
+  Broker.enable();
+
+  try {
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "scheduled") {
+      fail(`tick #1 expected "scheduled", got "${tick1.action}"`);
+      return;
+    }
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "waiting") {
+      fail(`tick #2 expected "waiting" (failure within tolerance), got "${tick2.action}"`);
+      return;
+    }
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "cancelled" || tick3.reason !== "user") {
+      fail(`tick #3 expected cancelled/"user" (check exhausted), got "${tick3.action}"/"${tick3.reason}"`);
+      return;
+    }
+
+    await settle();
+
+    const exitIdx = events.findIndex((e) => e.type === "exit");
+    const wipeIdx = events.findIndex((e) => e.type === "write" && e.wiped);
+    if (exitIdx === -1) {
+      fail("schedule-check exhaustion must signal fatal exit");
+      return;
+    }
+    if (wipeIdx === -1) {
+      fail(`no schedule-snapshot wipe write recorded, events: ${JSON.stringify(events)}`);
+      return;
+    }
+    if (exitIdx < wipeIdx) {
+      fail(`REGRESSION: exitEmitter fired BEFORE the scheduled-snapshot wipe (exit at #${exitIdx}, wipe at #${wipeIdx}) — a sync process.exit listener would leave the snapshot on disk and restart-loop the same signal forever`);
+      return;
+    }
+
+    pass(`schedule wipe persisted before the fatal exit (wipe #${wipeIdx} < exit #${exitIdx})`);
+  } finally {
+    PersistScheduleAdapter.writeScheduleData = originalWrite;
+    Broker.disable();
+    unsubscribeExit();
+  }
+});
+
+/**
+ * BROKER ATTEMPT: исчерпание active-чека — зачистка pending-снапшота персистится
+ * ДО exitEmitter (симметрично schedule-кейсу выше): выстрел до teardown оставлял
+ * позицию на диске и давал вечный цикл рестартов одного сигнала.
+ */
+test("BROKER ATTEMPT: active check exhaustion persists the wipe BEFORE the fatal exit", async ({ pass, fail }) => {
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 1 }, true);
+
+  const basePrice = 50000;
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "brk-att-active-wipe-order-strategy",
+    exchangeName: "binance-brk-att-active-wipe-order",
+    frameName: "",
+  };
+
+  const events = [];
+  const originalWrite = PersistSignalAdapter.writeSignalData;
+  PersistSignalAdapter.writeSignalData = async (data, ...rest) => {
+    events.push({ type: "write", wiped: data === null });
+    return await originalWrite.call(PersistSignalAdapter, data, ...rest);
+  };
+  const unsubscribeExit = listenExit(() => { events.push({ type: "exit" }); });
+
+  let issued = false;
+
+  makeExchange(context.exchangeName, () => basePrice);
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (issued) return null;
+      issued = true;
+      return {
+        position: "long",
+        note: "brk att active wipe order",
+        priceTakeProfit: basePrice + 15000,
+        priceStopLoss: basePrice - 15000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  Broker.useBrokerAdapter({
+    onOrderActiveCheck: async () => {
+      throw new OrderTransientError("brk: exchange unreachable");
+    },
+  });
+  Broker.enable();
+
+  try {
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "active") {
+      fail(`tick #2 expected "active" (failure within tolerance), got "${tick2.action}"`);
+      return;
+    }
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "closed" || tick3.closeReason !== "closed") {
+      fail(`tick #3 expected closed/"closed" (check exhausted), got "${tick3.action}"/"${tick3.closeReason}"`);
+      return;
+    }
+
+    await settle();
+
+    const exitIdx = events.findIndex((e) => e.type === "exit");
+    const wipeIdx = events.findIndex((e) => e.type === "write" && e.wiped);
+    if (exitIdx === -1) {
+      fail("active-check exhaustion must signal fatal exit");
+      return;
+    }
+    if (wipeIdx === -1) {
+      fail(`no pending-snapshot wipe write recorded, events: ${JSON.stringify(events)}`);
+      return;
+    }
+    if (exitIdx < wipeIdx) {
+      fail(`REGRESSION: exitEmitter fired BEFORE the pending-snapshot wipe (exit at #${exitIdx}, wipe at #${wipeIdx}) — a sync process.exit listener would leave the position on disk and restart-loop the same signal forever`);
+      return;
+    }
+
+    pass(`pending wipe persisted before the fatal exit (wipe #${wipeIdx} < exit #${exitIdx})`);
+  } finally {
+    PersistSignalAdapter.writeSignalData = originalWrite;
     Broker.disable();
     unsubscribeExit();
   }

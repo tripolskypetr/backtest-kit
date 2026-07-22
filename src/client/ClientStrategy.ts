@@ -8138,9 +8138,15 @@ export class ClientStrategy implements IStrategy {
             || this._orderCheckAttempt > GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS;
           if (terminal) {
             // Исчерпание толерантности ТРАНЗИЕНТНЫМИ сбоями = сеть не даёт проверить
-            // resting-ордер — продолжать работу нельзя: фатальный сигнал ПОСЛЕ
-            // errorEmitter-лога. "deleted" (подтверждённый not-found) и legacy CC=0 —
-            // не сетевые кейсы, без exit.
+            // resting-ордер — продолжать работу нельзя. НО фатальный сигнал стреляет
+            // ПОСЛЕ терминального teardown ниже: слушатель exit может звать
+            // process.exit синхронно внутри next(), и выстрел до персиста зачистки
+            // (CANCEL_..._AS_CLOSED_FN → setScheduledSignal(null)) оставлял
+            // scheduled-снапшот на диске — рестарт восстанавливал тот же сигнал,
+            // чек снова исчерпывался, снова exit: вечный цикл рестартов одного
+            // сигнала без дюрабельного прогресса. "deleted" (подтверждённый
+            // not-found) и legacy CC=0 — не сетевые кейсы, без exit.
+            let fatalError: Error | null = null;
             if (stillScheduled.reason === "transient" && GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS > 0) {
               const message = "ClientStrategy tick: scheduled-order check attempts exhausted (network), cancelling scheduled signal and signaling fatal exit";
               const payload = {
@@ -8152,9 +8158,8 @@ export class ClientStrategy implements IStrategy {
               };
               this.params.logger.warn(message, payload);
               console.warn(message, payload);
-              const error = new Error(message);
-              errorEmitter.next(error);
-              exitEmitter.next(error);
+              fatalError = new Error(message);
+              errorEmitter.next(fatalError);
             }
             // Post-verdict STOP: emitted with the FINAL failure streak, before the
             // counter reset and the cancel teardown below
@@ -8167,11 +8172,17 @@ export class ClientStrategy implements IStrategy {
               currentTime
             );
             this._orderCheckAttempt = 0;
-            return await CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN(
+            const cancelResult = await CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN(
               this,
               this._scheduledSignal,
               currentPrice
             );
+            // Фатальный сигнал — только теперь: отмена дюрабельна (scheduled-снапшот
+            // зачищен на диске, cancel-события дошли до брокер-адаптера).
+            if (fatalError) {
+              exitEmitter.next(fatalError);
+            }
+            return cancelResult;
           }
           // Transient failure tolerated: the resting order is assumed still open
           this.params.logger.warn("ClientStrategy tick: scheduled-order check failed, tolerated as transient", {
@@ -8310,9 +8321,15 @@ export class ClientStrategy implements IStrategy {
           || this._orderCheckAttempt > GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS;
         if (terminal) {
           // Исчерпание толерантности ТРАНЗИЕНТНЫМИ сбоями = сеть не даёт проверить
-          // ордер позиции — продолжать работу нельзя: фатальный сигнал ПОСЛЕ
-          // errorEmitter-лога. "deleted" (подтверждённый not-found) и legacy CC=0 —
-          // не сетевые кейсы, без exit.
+          // ордер позиции — продолжать работу нельзя. НО фатальный сигнал стреляет
+          // ПОСЛЕ терминального teardown ниже: слушатель exit может звать
+          // process.exit синхронно внутри next(), и выстрел до персиста зачистки
+          // (CLOSE_..._AS_CLOSED_FN → setPendingSignal(null)) оставлял pending-
+          // снапшот на диске — рестарт восстанавливал ту же позицию, чек снова
+          // исчерпывался, снова exit: вечный цикл рестартов одного сигнала без
+          // дюрабельного прогресса. "deleted" (подтверждённый not-found) и legacy
+          // CC=0 — не сетевые кейсы, без exit.
+          let fatalError: Error | null = null;
           if (stillPending.reason === "transient" && GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS > 0) {
             const message = "ClientStrategy tick: pending-order check attempts exhausted (network), closing position and signaling fatal exit";
             const payload = {
@@ -8324,9 +8341,8 @@ export class ClientStrategy implements IStrategy {
             };
             this.params.logger.warn(message, payload);
             console.warn(message, payload);
-            const error = new Error(message);
-            errorEmitter.next(error);
-            exitEmitter.next(error);
+            fatalError = new Error(message);
+            errorEmitter.next(fatalError);
           }
           // Post-verdict STOP: emitted with the FINAL failure streak, before the
           // counter reset and the close teardown below
@@ -8339,11 +8355,17 @@ export class ClientStrategy implements IStrategy {
             currentTime
           );
           this._orderCheckAttempt = 0;
-          return await CLOSE_PENDING_SIGNAL_AS_CLOSED_FN(
+          const closeResult = await CLOSE_PENDING_SIGNAL_AS_CLOSED_FN(
             this,
             this._pendingSignal,
             averagePrice
           );
+          // Фатальный сигнал — только теперь: закрытие дюрабельно (pending-снапшот
+          // зачищен на диске, close-события дошли до брокер-адаптера).
+          if (fatalError) {
+            exitEmitter.next(fatalError);
+          }
+          return closeResult;
         }
         // Transient failure tolerated: the order is assumed still open, monitoring continues
         this.params.logger.warn("ClientStrategy tick: pending-order check failed, tolerated as transient", {
