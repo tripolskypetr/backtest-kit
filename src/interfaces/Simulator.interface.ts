@@ -72,6 +72,39 @@ export interface ISimulatorIdeaProfile {
 export type SimulatorAuthorMetric = "close" | "reach";
 
 /**
+ * Discriminated union of the ban-filter rule derived from a grid
+ * point. The discriminator makes the dependency EXPLICIT at the type
+ * level: the "close" rule carries no lock/stop fields — with
+ * authorMetric: "close" the point's profitLockPercent and
+ * hardStopPercent do not affect ban-list training in any way. Only
+ * the "reach" rule grades authors against the point's lock/stop
+ * levels, and a reach point with profitLockPercent = 0 degenerates
+ * into the "close" rule structurally (in the rule builder), not via
+ * a scattered runtime branch.
+ */
+export type SimulatorAuthorRule =
+  | {
+      /** Discriminator: grade authors by the 5-day horizon close. */
+      metric: "close";
+      /** Minimum known-outcome ideas to be allowed. */
+      minAuthorTrack: number;
+      /** Minimum hit rate (0..1) to be allowed. */
+      minAuthorHitRate: number;
+    }
+  | {
+      /** Discriminator: grade authors by lock-reachability. */
+      metric: "reach";
+      /** Minimum known-outcome ideas to be allowed. */
+      minAuthorTrack: number;
+      /** Minimum hit rate (0..1) to be allowed. */
+      minAuthorHitRate: number;
+      /** Lock level the reach hit is graded against (always > 0). */
+      profitLockPercent: number;
+      /** Stop level the pre-peak shakeout is graded against. */
+      hardStopPercent: number;
+    };
+
+/**
  * Value lists per grid axis. The grid is the cartesian product of
  * all axes; windows and author-ban thresholds are swept the same way
  * as stop and trailing — rules are searched, not hardcoded.

@@ -14,6 +14,7 @@ import {
   ISimulatorResult,
   ISimulatorTestResult,
   ISimulatorTrade,
+  SimulatorAuthorRule,
   SimulatorExitReason,
   SimulatorRankingCriterion,
 } from "../interfaces/Simulator.interface";
@@ -326,16 +327,46 @@ interface IAuthorFilterContext {
 }
 
 /**
- * Author "hit" under the rule metric of a grid point.
+ * Derives the ban-filter rule from a grid point as a discriminated
+ * union — the ONLY place the metric fallback lives. The "close" rule
+ * structurally carries no lock/stop fields: with authorMetric
+ * "close" the point's profitLockPercent/hardStopPercent do not
+ * affect ban-list training at all (see the filter cache key — they
+ * are not part of it either). A reach point with lock = 0 has
+ * nothing to grade reachability against and degenerates into the
+ * "close" rule here, not via scattered runtime branches.
+ *
+ * @param point - Grid point carrying the rule fields
+ * @returns Discriminated ban-filter rule
+ */
+const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
+  if (point.authorMetric === "reach" && point.profitLockPercent > 0) {
+    return {
+      metric: "reach",
+      minAuthorTrack: point.minAuthorTrack,
+      minAuthorHitRate: point.minAuthorHitRate,
+      profitLockPercent: point.profitLockPercent,
+      hardStopPercent: point.hardStopPercent,
+    };
+  }
+  return {
+    metric: "close",
+    minAuthorTrack: point.minAuthorTrack,
+    minAuthorHitRate: point.minAuthorHitRate,
+  };
+};
+
+/**
+ * Author "hit" under a discriminated ban-filter rule.
  *
  * "close" — the idea's horizon close moved in its direction (the
- * profile's precomputed hit). "reach" — the idea was HARVESTABLE by
- * the point's lock machinery: MFE reached the profit-lock level and
- * the worst pre-peak pullback (shakeout) stayed above the hard stop.
- * An author whose calls spike to the lock within hours and then die
- * by the horizon close is a miss for "close" and a hit for "reach" —
- * exactly the author a lock point earns on. With lock = 0 the reach
- * metric degenerates and falls back to "close".
+ * profile's precomputed hit); the rule has no lock/stop fields by
+ * construction. "reach" — the idea was HARVESTABLE by the rule's
+ * lock machinery: MFE reached the profit-lock level and the worst
+ * pre-peak pullback (shakeout) stayed above the hard stop. An author
+ * whose calls spike to the lock within hours and then die by the
+ * horizon close is a miss for "close" and a hit for "reach" —
+ * exactly the author a lock point earns on.
  *
  * Same-candle ambiguity (lock and stop both reachable in the candle
  * of the MFE peak) reads as a hit here while SIMULATE_TRADE_FN gives
@@ -343,17 +374,17 @@ interface IAuthorFilterContext {
  * optimistic than execution; it grades authors, not PnL.
  *
  * @param profile - Idea profile
- * @param point - Grid point carrying the rule metric
+ * @param rule - Discriminated ban-filter rule (see AUTHOR_RULE_FN)
  * @returns Whether the idea counts as the author's hit
  */
 const AUTHOR_HIT_FN = (
   profile: ISimulatorIdeaProfile,
-  point: ISimulatorGridPoint,
+  rule: SimulatorAuthorRule,
 ): boolean => {
-  if (point.authorMetric === "reach" && point.profitLockPercent > 0) {
+  if (rule.metric === "reach") {
     return (
-      profile.maxMfePercent >= point.profitLockPercent &&
-      profile.shakeoutMaePercent > -point.hardStopPercent
+      profile.maxMfePercent >= rule.profitLockPercent &&
+      profile.shakeoutMaePercent > -rule.hardStopPercent
     );
   }
   return profile.hit;
@@ -372,23 +403,23 @@ const AUTHOR_HIT_FN = (
  *
  * @param profiles - Profiles of all directional ideas
  * @param ideas - All ideas of the symbol
- * @param point - Grid point carrying the rule: minAuthorTrack,
- * minAuthorHitRate and the hit metric (authorMetric + the lock/stop
- * levels the "reach" metric grades against)
+ * @param rule - Discriminated ban-filter rule: thresholds + metric;
+ * lock/stop levels exist ONLY on the "reach" variant — a "close"
+ * rule cannot depend on them by construction
  * @returns Filter context for the rule (stats sorted by idea count)
  */
 const TRAIN_AUTHOR_FILTER_FN = (
   profiles: ISimulatorIdeaProfile[],
   ideas: ISimulatorIdea[],
-  point: ISimulatorGridPoint,
+  rule: SimulatorAuthorRule,
 ): IAuthorFilterContext => {
-  const { minAuthorTrack, minAuthorHitRate } = point;
+  const { minAuthorTrack, minAuthorHitRate } = rule;
   const byAuthor = new Map<string, { ideas: number; hits: number }>();
   for (const profile of profiles) {
     const stat = byAuthor.get(profile.idea.author) ?? { ideas: 0, hits: 0 };
     if (!profile.truncated) {
       stat.ideas += 1;
-      if (AUTHOR_HIT_FN(profile, point)) {
+      if (AUTHOR_HIT_FN(profile, rule)) {
         stat.hits += 1;
       }
     }
@@ -982,19 +1013,21 @@ const RUN_FN = async (
     self.params.callbacks?.onProfiles(symbol, profiles, truncatedCount);
   }
 
-  // фильтр авторов обучается по разу на каждую уникальную комбинацию
-  // правила из сетки: пороги + метрика hit'а. Для close уровни
-  // замка/стопа на статистику не влияют и в ключ не входят; reach
-  // оценивает собираемость против lock/stop конкретной точки
+  // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО —
+  // дискриминирующий юнион AUTHOR_RULE_FN канонизирует его: у close
+  // полей lock/stop нет по построению (они НЕ влияют на бан-лист и в
+  // ключ не входят), reach несёт lock/stop своей точки, reach с
+  // lock=0 деградирует в close ещё в билдере
   const filterByRule = new Map<string, IAuthorFilterContext>();
   const getFilter = (point: ISimulatorGridPoint): IAuthorFilterContext => {
+    const rule = AUTHOR_RULE_FN(point);
     const key =
-      point.authorMetric === "reach" && point.profitLockPercent > 0
-        ? `reach:${point.minAuthorTrack}:${point.minAuthorHitRate}:${point.profitLockPercent}:${point.hardStopPercent}`
-        : `close:${point.minAuthorTrack}:${point.minAuthorHitRate}`;
+      rule.metric === "reach"
+        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
+        : `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
     let filter = filterByRule.get(key);
     if (!filter) {
-      filter = TRAIN_AUTHOR_FILTER_FN(profiles, directional, point);
+      filter = TRAIN_AUTHOR_FILTER_FN(profiles, directional, rule);
       filterByRule.set(key, filter);
       if (self.params.callbacks?.onAuthorsTrained) {
         self.params.callbacks?.onAuthorsTrained(
