@@ -24,10 +24,11 @@ addExchangeSchema({
 
 const ideas = readFileSync("./assets/ts-ideas.normalized.jsonl", "utf-8")
   .split("\n").filter(Boolean).map((line) => JSON.parse(line));
+// обучение видит ТОЛЬКО голову ленты: первые 70% времени.
+// Хвост здесь не загружается вообще — он принадлежит src/test.mjs
 const sorted = [...ideas].sort((a, b) => a.ts - b.ts);
 const cutoff = sorted[0].ts + (sorted[sorted.length - 1].ts - sorted[0].ts) * 0.7;
 const trainIdeas = sorted.filter(({ ts }) => ts < cutoff);
-const testIdeas = sorted.filter(({ ts }) => ts >= cutoff);
 
 // Дефолтный конфиг
 addSimulatorSchema({ 
@@ -98,8 +99,9 @@ const fmt = (value) => (Number.isFinite(value) ? +value.toFixed(2) : "inf");
 
 const result = [];
 
-// train на первых 70% ленты, затем каждый победитель рейтинга
-// проверяется out-of-sample на хвосте с замороженным трек-рекордом
+// только обучение: победители рейтингов по train-метрикам.
+// Их точки и трек-рекорд авторов — кандидаты на хардкод в src/test.mjs,
+// единственный выстрел по хвосту делается там
 const runTune = async (simulatorName) => {
   const train = await Simulator.run({ symbol: "BTCUSDT", simulatorName, ideas: trainIdeas });
 
@@ -107,34 +109,31 @@ const runTune = async (simulatorName) => {
     if (!best.report) {
       continue;
     }
-    const oos = await Simulator.test({
-      symbol: "BTCUSDT",
-      simulatorName,
-      ideas: testIdeas,
-      point: best.report.point,
-      authorStats: train.authorStats,
-    });
     const p = best.report.point;
 
     result.push({
       config: simulatorName,
       by: best.criterion,
       point: `H=${p.hardStopPercent} TT=${p.trailingTakePercent} hold=${p.holdMinutes / 60}h N=${p.minIdeasAligned} track=${p.minAuthorTrack} rate=${p.minAuthorHitRate} W=${p.minWeightAligned} lock=${p.profitLockPercent}`,
-      train: { trades: best.report.trades, pnl: fmt(best.report.totalPnlPercent), sharpe: fmt(best.report.sharpe) },
-      test: {
-        trades: oos.report.trades,
-        skipped: oos.report.skippedBusy,
-        pnl: fmt(oos.report.totalPnlPercent),
-        wr: fmt(oos.report.winRate),
-        pf: fmt(oos.report.profitFactor),
-        dd: fmt(oos.report.maxSeriesDrawdownPercent),
-        sharpe: fmt(oos.report.sharpe),
-        exits: oos.report.exitReasons,
+      train: {
+        trades: best.report.trades,
+        pnl: fmt(best.report.totalPnlPercent),
+        wr: fmt(best.report.winRate),
+        dd: fmt(best.report.maxSeriesDrawdownPercent),
+        sharpe: fmt(best.report.sharpe),
+        sortino: fmt(best.report.sortino),
       },
     });
 
     console.log(result);
   }
+
+  // сырой трек-рекорд под правило Sharpe-победителя — источник
+  // для AUTHOR_STATS в src/test.mjs
+  result.push({
+    config: simulatorName,
+    authorStats: train.authorStats.map(({ author, ideas, hits }) => ({ author, ideas, hits })),
+  });
 };
 
 await runTune("tune_default");
