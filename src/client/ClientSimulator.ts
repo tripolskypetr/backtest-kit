@@ -1111,15 +1111,18 @@ const RUN_FN = async (
   }
   reports.sort((a, b) => b.sharpe - a.sharpe);
 
-  // артефакт авторов уровня результата — БЕЗ привилегированного
-  // критерия: hits метрико-зависимы, поэтому единый список под одно
-  // правило врал бы остальным победителям. Честная семантика:
-  // allowed = допущен правилом ХОТЯ БЫ ОДНОГО победителя (union),
-  // banned = забанен правилами ВСЕХ победителей (дополнение).
-  // Точная разбивка по правилам — в best[].authorStats
+  // ран-левел артефакт агрегируется по победителям критериев из
+  // gridAxes.banCriteria (конфиг прогона, не ось перебора): allowed =
+  // союз их белых списков, banned = забанен каждым из них. BC-ручка:
+  // схема с banCriteria ["sharpe"] получает прежний артефакт ровно по
+  // Sharpe-победителю. Полная разбивка — в best[].authorStats
+  const banCriteria = new Set(self.params.gridAxes.banCriteria);
   const allowedUnion = new Set<string>();
   const everyAuthor = new Set<string>();
   for (const bestEntry of best) {
+    if (!banCriteria.has(bestEntry.criterion)) {
+      continue;
+    }
     for (const { author } of bestEntry.authorStats) {
       everyAuthor.add(author);
     }

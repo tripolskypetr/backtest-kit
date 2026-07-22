@@ -32,7 +32,11 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
  *   the trailing floor is higher and fills first;
  * - author metric: "close" grades authors by horizon close (feeds
  *   long-hold points), "reach" by lock-reachability of their ideas
- *   (feeds lock points) — the sweep decides which grading wins.
+ *   (feeds lock points) — the sweep decides which grading wins;
+ * - ban criteria (NOT a swept axis — run() aggregation config): all
+ *   four ranking winners feed the run-level author artifact by
+ *   default; a schema pins ["sharpe"] to restore the pre-union
+ *   Sharpe-only artifact.
  */
 const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
@@ -44,6 +48,7 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minWeightAligned: [0, 0.6, 1.2],
   profitLockPercent: [0, 1.5, 2.5],
   authorMetric: ["close", "reach"],
+  banCriteria: ["sharpe", "pnl"],
 };
 
 /**

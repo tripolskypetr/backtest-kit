@@ -121,6 +121,18 @@ export interface ISimulatorGridAxes {
    * horizon close, "reach" by lock-reachability of their ideas.
    */
   authorMetric: SimulatorAuthorMetric[];
+  /**
+   * NOT a swept axis — run() aggregation config: ranking criteria
+   * whose winners feed the run-level author artifact
+   * (allowedAuthors = union of their whitelists, bannedAuthors =
+   * banned by every one of them). Backward compatibility knob:
+   * ["sharpe"] makes the run-level lists exactly the Sharpe
+   * winner's artifact — the pre-union behavior. Per-winner
+   * artifacts in best[] are always complete regardless of this
+   * list. test() does not use it — a frozen point carries its own
+   * single rule.
+   */
+  banCriteria: SimulatorRankingCriterion[];
 }
 
 /**
