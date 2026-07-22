@@ -205,17 +205,17 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "order_sync.check":
       return `${t("Order Sync Check")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "order_fill.open":
-      return `${t(item.orderType === "schedule" ? "Order Placed" : "Order Filled")} ${item.position.toUpperCase()} ${item.symbol}`;
+      return `${t("Order Open Fill")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "order_fill.close":
-      return `${t("Order Closed")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+      return `${t("Order Close Fill")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "order_reject.open":
-      return `${t("Order Rejected")} ${item.position.toUpperCase()} ${item.symbol}`;
+      return `${t("Order Open Rejected")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "order_reject.close":
-      return `${t("Close Rejected")} ${item.symbol}`;
+      return `${t("Order Close Rejected")} ${item.symbol}`;
     case "order_continue.check":
-      return `${t("Order Still Open")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
+      return `${t("Order Continue")} ${item.symbol} (${item.pnlPercentage != null ? `${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%` : t("N/A")})`;
     case "order_stop.check":
-      return `${t("Order Gone")} ${item.symbol}`;
+      return `${t("Order Stop")} ${item.symbol}`;
     case "cancel_scheduled.commit":
       return `${t("Cancel Scheduled")} ${item.symbol}`;
     case "close_pending.commit":
@@ -274,17 +274,17 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
     case "order_sync.check":
       return t("Order Sync Check");
     case "order_fill.open":
-      return item.orderType === "schedule" ? t("Order Fill Placed") : t("Order Fill Open");
+      return t("Order Open Fill");
     case "order_fill.close":
-      return t("Order Fill Close");
+      return t("Order Close Fill");
     case "order_reject.open":
-      return t("Order Reject Open");
+      return t("Order Open Rejected");
     case "order_reject.close":
-      return t("Order Reject Close");
+      return t("Order Close Rejected");
     case "order_continue.check":
-      return t("Order Continue Check");
+      return t("Order Continue");
     case "order_stop.check":
-      return t("Order Stop Check");
+      return t("Order Stop");
     case "cancel_scheduled.commit":
       return t("Cancel Scheduled");
     case "close_pending.commit":

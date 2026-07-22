@@ -46,6 +46,18 @@ import useOrderSyncOpenView from "../hooks/useOrderSyncOpenView";
 import useOrderSyncCloseView from "../hooks/useOrderSyncCloseView";
 import useOrderSyncCheckView from "../hooks/useOrderSyncCheckView";
 
+// Order fill hooks (2 types, broker-confirmed post-verdict)
+import useOrderFillOpenView from "../hooks/useOrderFillOpenView";
+import useOrderFillCloseView from "../hooks/useOrderFillCloseView";
+
+// Order reject hooks (2 types, terminal post-verdict)
+import useOrderRejectOpenView from "../hooks/useOrderRejectOpenView";
+import useOrderRejectCloseView from "../hooks/useOrderRejectCloseView";
+
+// Order check decision hooks (continue / stop)
+import useOrderContinueView from "../hooks/useOrderContinueView";
+import useOrderStopView from "../hooks/useOrderStopView";
+
 // Cancel scheduled / close pending hooks
 import useCancelScheduledView from "../hooks/useCancelScheduledView";
 import useClosePendingView from "../hooks/useClosePendingView";
@@ -137,6 +149,18 @@ export const LayoutModalProvider = ({
     const pickOrderSyncClose = useOrderSyncCloseView();
     const pickOrderSyncCheck = useOrderSyncCheckView();
 
+    // Order fill hooks (2 types)
+    const pickOrderFillOpen = useOrderFillOpenView();
+    const pickOrderFillClose = useOrderFillCloseView();
+
+    // Order reject hooks (2 types)
+    const pickOrderRejectOpen = useOrderRejectOpenView();
+    const pickOrderRejectClose = useOrderRejectCloseView();
+
+    // Order check decision hooks (continue / stop)
+    const pickOrderContinue = useOrderContinueView();
+    const pickOrderStop = useOrderStopView();
+
     // Cancel scheduled / close pending hooks
     const pickCancelScheduled = useCancelScheduledView();
     const pickClosePending = useClosePendingView();
@@ -211,6 +235,18 @@ export const LayoutModalProvider = ({
     useOnce(() => ioc.layoutService.pickOrderSyncOpenSubject.subscribe(pickOrderSyncOpen));
     useOnce(() => ioc.layoutService.pickOrderSyncCloseSubject.subscribe(pickOrderSyncClose));
     useOnce(() => ioc.layoutService.pickOrderSyncCheckSubject.subscribe(pickOrderSyncCheck));
+
+    // Order fill subscriptions (2 types)
+    useOnce(() => ioc.layoutService.pickOrderFillOpenSubject.subscribe(pickOrderFillOpen));
+    useOnce(() => ioc.layoutService.pickOrderFillCloseSubject.subscribe(pickOrderFillClose));
+
+    // Order reject subscriptions (2 types)
+    useOnce(() => ioc.layoutService.pickOrderRejectOpenSubject.subscribe(pickOrderRejectOpen));
+    useOnce(() => ioc.layoutService.pickOrderRejectCloseSubject.subscribe(pickOrderRejectClose));
+
+    // Order check decision subscriptions (continue / stop)
+    useOnce(() => ioc.layoutService.pickOrderContinueSubject.subscribe(pickOrderContinue));
+    useOnce(() => ioc.layoutService.pickOrderStopSubject.subscribe(pickOrderStop));
 
     // Cancel scheduled / close pending subscriptions
     useOnce(() => ioc.layoutService.pickCancelScheduledSubject.subscribe(pickCancelScheduled));
