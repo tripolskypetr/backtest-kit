@@ -29,7 +29,10 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
  *   (trailing arms only from peak >= entry/(1-r), so a +1.5..2.5%
  *   run that dumps gives everything back without a lock); 0 keeps
  *   the lock-free baseline, runners are untouched — above the lock
- *   the trailing floor is higher and fills first.
+ *   the trailing floor is higher and fills first;
+ * - author metric: "close" grades authors by horizon close (feeds
+ *   long-hold points), "reach" by lock-reachability of their ideas
+ *   (feeds lock points) — the sweep decides which grading wins.
  */
 const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
@@ -40,6 +43,7 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minAuthorHitRate: [0.5, 0.6],
   minWeightAligned: [0, 0.6, 1.2],
   profitLockPercent: [0, 1.5, 2.5],
+  authorMetric: ["close", "reach"],
 };
 
 /**

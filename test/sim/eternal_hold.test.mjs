@@ -91,6 +91,7 @@ const GRID_AXES = {
   minAuthorHitRate: [0.5],
   minWeightAligned: [0],
   profitLockPercent: [0],
+  authorMetric: ["close"],
 };
 
 test("SIM: time-based Sharpe punishes eternal hold in favor of normal entries", async ({ pass, fail }) => {

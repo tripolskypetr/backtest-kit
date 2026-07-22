@@ -1,6 +1,6 @@
 import * as di_scoped from 'di-scoped';
 import * as functools_kit from 'functools-kit';
-import { Subject, BehaviorSubject } from 'functools-kit';
+import { TIMEOUT_SYMBOL, Subject, BehaviorSubject } from 'functools-kit';
 import { WriteStream } from 'fs';
 
 /**
@@ -6032,6 +6032,19 @@ interface ISimulatorIdeaProfile {
     shakeoutMaePercent: number;
 }
 /**
+ * Metric that defines an author's "hit" for the ban filter:
+ * - "close" — the idea's 5-day horizon close moved in its direction
+ *   (rewards authors whose calls survive a long hold);
+ * - "reach" — the idea's MFE reached the point's profit-lock level
+ *   before its pre-peak MAE reached the hard stop (rewards authors
+ *   whose calls are HARVESTABLE by the lock machinery, even when the
+ *   horizon close goes against them). With profitLockPercent = 0 the
+ *   reach metric falls back to "close".
+ * The right metric depends on the exit style being ranked: close-hit
+ * authors feed long-hold points, reach-hit authors feed lock points.
+ */
+type SimulatorAuthorMetric = "close" | "reach";
+/**
  * Value lists per grid axis. The grid is the cartesian product of
  * all axes; windows and author-ban thresholds are swept the same way
  * as stop and trailing — rules are searched, not hardcoded.
@@ -6075,6 +6088,12 @@ interface ISimulatorGridAxes {
      * back to zero.
      */
     profitLockPercent: number[];
+    /**
+     * Author-hit metrics to sweep for the ban filter. The metric is a
+     * rule parameter like the thresholds: "close" judges authors by
+     * horizon close, "reach" by lock-reachability of their ideas.
+     */
+    authorMetric: SimulatorAuthorMetric[];
 }
 /**
  * Single point of the grid (scalar per axis).
@@ -6102,6 +6121,8 @@ interface ISimulatorGridPoint {
      * entry, exit on pullback to the floor; 0 = disabled.
      */
     profitLockPercent: number;
+    /** Author-hit metric of the ban filter for this point. */
+    authorMetric: SimulatorAuthorMetric;
 }
 /**
  * Why a simulated trade was closed.
@@ -6222,7 +6243,10 @@ interface ISimulatorAuthorStat {
  */
 type SimulatorRankingCriterion = "sharpe" | "sortino" | "pnl" | "recovery";
 /**
- * Winner of one ranking criterion with its trade list.
+ * Winner of one ranking criterion with its trade list and the author
+ * artifact under ITS OWN ban rule. Different criteria may elect
+ * points with different ban rules — the whitelist is a property of
+ * the winning point, never a global of the run.
  */
 interface ISimulatorBest {
     /** The ranking criterion this winner belongs to. */
@@ -6231,6 +6255,17 @@ interface ISimulatorBest {
     report: ISimulatorPointReport | null;
     /** Trades of the winning point (empty when report is null). */
     trades: ISimulatorTrade[];
+    /**
+     * Per-author track records under THIS winner's ban rule (raw
+     * ideas/hits/hitRate are rule-independent; the banned flag follows
+     * this point's minAuthorTrack/minAuthorHitRate). Empty when report
+     * is null.
+     */
+    authorStats: ISimulatorAuthorStat[];
+    /** Whitelist under THIS winner's ban rule. */
+    allowedAuthors: string[];
+    /** Ban list under THIS winner's ban rule. */
+    bannedAuthors: string[];
 }
 /**
  * Final result of a simulation run: grid reports, four ranking
@@ -6248,19 +6283,21 @@ interface ISimulatorResult {
     /** Profiles cut short by end of candle data. */
     truncatedCount: number;
     /**
-     * Per-author track records under the ban rule of the Sharpe
-     * winner's grid point (raw ideas/hits/hitRate are rule-independent;
-     * the banned flag follows the winning rule).
+     * CONVENIENCE DEFAULT: per-author track records under the Sharpe
+     * winner's ban rule (raw ideas/hits/hitRate are rule-independent;
+     * the banned flag follows that rule). When picking a winner by ANY
+     * other criterion, use the per-ranking artifact in best[] — the
+     * ban rule is a property of the winning point, and criteria may
+     * elect points with different rules.
      */
     authorStats: ISimulatorAuthorStat[];
     /**
-     * Logins of allowed authors — the production WHITELIST under the
-     * Sharpe winner's ban rule. With default-ban semantics this is the
-     * trained artifact to apply: in production only ideas of these
-     * authors count.
+     * CONVENIENCE DEFAULT: the whitelist under the Sharpe winner's ban
+     * rule. For any other criterion take best[].allowedAuthors of that
+     * criterion — see authorStats.
      */
     allowedAuthors: string[];
-    /** Logins of banned authors (complement of the whitelist). */
+    /** Logins of banned authors (complement of allowedAuthors). */
     bannedAuthors: string[];
     /** Mean holding time across all trades of every grid point, minutes. */
     avgHoldMinutes: number;
@@ -20001,7 +20038,7 @@ declare class MarkdownFileBase implements TMarkdownBase {
      * Waits for drain event if write buffer is full.
      * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
      */
-    [WRITE_SAFE_SYMBOL]: (line: string) => Promise<symbol | void>;
+    [WRITE_SAFE_SYMBOL]: (line: string) => Promise<void | typeof TIMEOUT_SYMBOL>;
     /**
      * Initializes the JSONL file and write stream.
      * Safe to call multiple times - singleshot ensures one-time execution.
@@ -20255,7 +20292,7 @@ declare class ReportBase implements TReportBase {
      * Waits for drain event if write buffer is full.
      * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
      */
-    [WRITE_SAFE_SYMBOL]: functools_kit.IWrappedQueuedFn<symbol | void, [line: string]>;
+    [WRITE_SAFE_SYMBOL]: functools_kit.IWrappedQueuedFn<void | typeof TIMEOUT_SYMBOL, [line: string]>;
     /**
      * Initializes the JSONL file and write stream.
      * Safe to call multiple times - singleshot ensures one-time execution.

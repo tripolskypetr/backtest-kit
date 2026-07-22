@@ -74,6 +74,7 @@ test("SIM: out-of-sample test freezes the point and the author track record", as
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
       profitLockPercent: [0],
+      authorMetric: ["close"],
     },
     callbacks: {
       onAuthorsTrained: () => { authorsTrainedCalls += 1; },
@@ -94,6 +95,14 @@ test("SIM: out-of-sample test freezes the point and the author track record", as
   if (!winner?.report || !train.allowedAuthors.includes("prophet")) {
     fail(`train must allow prophet with a sharpe winner, got ${JSON.stringify(train.allowedAuthors)}`);
     return;
+  }
+  // артефакт авторов есть у КАЖДОГО победителя под его собственное
+  // правило бана — белый список не глобаль прогона, а свойство точки
+  for (const b of train.best) {
+    if (!b.allowedAuthors.includes("prophet") || b.authorStats.length === 0 || b.bannedAuthors.length !== 0) {
+      fail(`per-ranking author artifact broken for ${b.criterion}: ${JSON.stringify({ allowed: b.allowedAuthors, banned: b.bannedAuthors })}`);
+      return;
+    }
   }
   const trainedCallsAfterTrain = authorsTrainedCalls;
   if (trainedCallsAfterTrain === 0) {

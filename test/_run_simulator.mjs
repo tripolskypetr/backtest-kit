@@ -22,6 +22,7 @@ import "./sim/grid_cartesian.test.mjs";
 import "./sim/weighted_consensus.test.mjs";
 import "./sim/out_of_sample.test.mjs";
 import "./sim/profit_lock.test.mjs";
+import "./sim/author_metric.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

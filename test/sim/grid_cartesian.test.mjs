@@ -38,6 +38,7 @@ test("SIM: cartesian grid emits every axis combination exactly once", async ({ p
     minAuthorHitRate: [0, 0.5],
     minWeightAligned: [0],
     profitLockPercent: [0],
+    authorMetric: ["close"],
   };
 
   const seen = [];

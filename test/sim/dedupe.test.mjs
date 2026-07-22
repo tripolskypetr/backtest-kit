@@ -47,6 +47,7 @@ const GRID_AXES = {
   minAuthorHitRate: [0],
   minWeightAligned: [0],
   profitLockPercent: [0],
+  authorMetric: ["close"],
 };
 
 const idea = (id, minute, direction, author) => ({
