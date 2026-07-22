@@ -38,6 +38,7 @@ const PERMISSIVE_FILTER = {
   minAuthorHitRate: [0],
   minWeightAligned: [0],
   profitLockPercent: [0],
+  entryDelayMinutes: [0],
   authorMetric: ["close"],
 };
 

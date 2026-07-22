@@ -33,6 +33,12 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
  * - author metric: "close" grades authors by horizon close (feeds
  *   long-hold points), "reach" by lock-reachability of their ideas
  *   (feeds lock points) — the sweep decides which grading wins;
+ * - entry delay: the first-hour impulse of a posted idea retraces at
+ *   30-120 minutes (measured on the reference feed: entries delayed
+ *   by 30-60 minutes buy the local top and were the WORST of every
+ *   delay tried), so the sweep offers the pullback entries at 4h and
+ *   8h next to the instant baseline 0; the 15-60 minute range is
+ *   deliberately absent;
  * - ban criteria (NOT a swept axis — run() aggregation config): all
  *   four ranking winners feed the run-level author artifact by
  *   default; a schema pins ["sharpe"] to restore the pre-union
@@ -47,6 +53,7 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minAuthorHitRate: [0.5, 0.6],
   minWeightAligned: [0, 0.6, 1.2],
   profitLockPercent: [0, 1.5, 2.5],
+  entryDelayMinutes: [0, 4 * 60, 8 * 60],
   authorMetric: ["close", "reach"],
   banCriteria: ["sharpe", "pnl"],
 };

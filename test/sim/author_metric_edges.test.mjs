@@ -100,6 +100,7 @@ test("SIM: reach thresholds are exact — >= on the lock touch, strictly > on th
         minAuthorHitRate: [0.5],
         minWeightAligned: [0],
         profitLockPercent: [2.5],
+        entryDelayMinutes: [0],
         authorMetric: ["reach"],
       },
       callbacks: {
@@ -151,6 +152,7 @@ test("SIM: reach with lock=0 degrades to the close metric — the spiker stays b
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
       profitLockPercent: [0],
+      entryDelayMinutes: [0],
       authorMetric: ["reach"],
     },
     callbacks: {

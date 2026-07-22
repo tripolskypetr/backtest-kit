@@ -51,6 +51,7 @@ test("SIM: the 240-minute consensus window boundary is exclusive on the far edge
       minAuthorHitRate: [0],
       minWeightAligned: [0],
       profitLockPercent: [0],
+      entryDelayMinutes: [0],
       authorMetric: ["close"],
     },
   });

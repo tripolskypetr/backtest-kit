@@ -70,6 +70,7 @@ test("SIM: reach hit counts follow the point's stop — two trainings for H=[3,5
       minAuthorHitRate: [0.5],
       minWeightAligned: [0],
       profitLockPercent: [2.5],
+      entryDelayMinutes: [0],
       authorMetric: ["reach"],
     },
     callbacks: {

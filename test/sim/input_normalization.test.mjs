@@ -34,6 +34,7 @@ const AXES = {
   minAuthorHitRate: [0.5],
   minWeightAligned: [0],
   profitLockPercent: [0],
+  entryDelayMinutes: [0],
   authorMetric: ["close"],
 };
 
