@@ -187,6 +187,7 @@ export const main = async () => {
       entryDelayMinutes: [0, 4 * 60, 8 * 60],
       authorMetric: ["close", "reach"],
       banCriteria: ["sharpe", "pnl"],
+      minAuthorWilson: [0, 0.6],
     },
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {

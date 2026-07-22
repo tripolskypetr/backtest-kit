@@ -34,7 +34,10 @@ addSimulatorSchema({
     minAuthorHitRate: [0.5, 0.6],
     minWeightAligned: [0, 0.6, 1.2],
     profitLockPercent: [0, 1.5, 2.5],
-    authorMetric: ["close"],
+    entryDelayMinutes: [0, 240, 480],
+    minAuthorWilson: [0, 0.6],
+    // обе метрики авторского hit'а — перебор решает (BC не сохраняем)
+    authorMetric: ["close", "reach"],
   },
 });
 
