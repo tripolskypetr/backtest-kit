@@ -25,6 +25,12 @@ import "./sim/profit_lock.test.mjs";
 import "./sim/author_metric.test.mjs";
 import "./sim/author_metric_edges.test.mjs";
 import "./sim/ban_criteria.test.mjs";
+import "./sim/lock_collision.test.mjs";
+import "./sim/short_lock.test.mjs";
+import "./sim/reach_stop_dependence.test.mjs";
+import "./sim/weighted_reach.test.mjs";
+import "./sim/oos_reach.test.mjs";
+import "./sim/best_fallback.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

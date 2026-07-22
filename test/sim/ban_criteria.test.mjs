@@ -95,6 +95,11 @@ test("SIM: banCriteria gates the run-level author artifact — sharpe-only vs un
     exchangeName: "sim-bancrit-exchange",
     gridAxes: { ...AXES, banCriteria: ["recovery"] },
   });
+  addSimulatorSchema({
+    simulatorName: "sim_bancrit_empty",
+    exchangeName: "sim-bancrit-exchange",
+    gridAxes: { ...AXES, banCriteria: [] },
+  });
 
   const runSharpe = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_bancrit_sharpe", ideas: IDEAS });
 
@@ -161,9 +166,21 @@ test("SIM: banCriteria gates the run-level author artifact — sharpe-only vs un
     return;
   }
 
+  // 4) вырожденный banCriteria []: агрегация без участников — оба
+  // списка пусты, прогон жив, per-best артефакты полны как обычно
+  const runEmpty = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_bancrit_empty", ideas: IDEAS });
+  if (runEmpty.allowedAuthors.length !== 0 || runEmpty.bannedAuthors.length !== 0) {
+    fail(`banCriteria [] must yield empty run-level lists, got ${JSON.stringify(runEmpty.allowedAuthors)}/${JSON.stringify(runEmpty.bannedAuthors)}`);
+    return;
+  }
+  if (runEmpty.best.some((b) => b.authorStats.length === 0)) {
+    fail(`per-best artifacts must stay complete with banCriteria []`);
+    return;
+  }
+
   pass(
     `banCriteria works: winners split (sharpe->strict track9: ${bestSharpe.report.sharpe.toFixed(2)} vs pnl->soft track2: ` +
     `+${bestPnl.report.totalPnlPercent.toFixed(2)}%), ["sharpe"] mirrors the sharpe artifact (coin banned), ` +
-    `["sharpe","pnl"] unions coin back in, Infinity recovery winner grants nothing (all banned by default)`
+    `["sharpe","pnl"] unions coin back in, Infinity recovery winner grants nothing, [] degrades to empty lists`
   );
 });
