@@ -3834,6 +3834,10 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
       // Terminal rejection (OrderRejectedError): retrying is pointless — drop the
       // trade attempt for good and wipe an already-armed retry slot for this id.
       await DROP_RETRY_OPEN_SIGNAL_FN(self, signal);
+      // Consume the id (mirrors OPEN_NEW_PENDING_SIGNAL_FN): a deterministic
+      // strategy re-emits the SAME id every tick — without the whipsaw block the
+      // terminal drop degenerates into one REAL rejected placement per tick.
+      self._lastPendingId = signal.id;
     }
     // Roll back the interval throttle consumed in GET_SIGNAL_FN so the strategy
     // reacts on the NEXT TICK, not on the next interval boundary.
@@ -3978,6 +3982,12 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
       // Terminal rejection (OrderRejectedError): retrying is pointless — drop the
       // trade attempt for good and wipe the pre-armed retry slot for this id.
       await DROP_RETRY_OPEN_SIGNAL_FN(self, signal);
+      // Consume the id: a deterministic strategy (e.g. a channel signal) re-emits
+      // the SAME id every tick, and with the throttle rolled back below "dropped
+      // for good" otherwise degenerates into one REAL rejected exchange order per
+      // tick until the signal condition passes. The whipsaw guard in GET_SIGNAL_FN
+      // filters the repeat before the risk check; a FRESH id is a new trade attempt.
+      self._lastPendingId = signal.id;
     }
     // Roll back the interval throttle consumed in GET_SIGNAL_FN so the strategy
     // reacts on the NEXT TICK (retry the same row / generate a fresh signal), not
