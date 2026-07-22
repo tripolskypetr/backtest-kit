@@ -431,16 +431,10 @@ export class TelegramLogicService {
     // guaranteed truthful. The pre-verdict syncSubject is NOT consumed here.
     const unOrderFill = listenOrderFill(async (event) => {
       if (event.action === "signal-open") {
-        // type "active" is the POSITION fill and covers BOTH open paths: an
-        // immediate open (no schedule phase at all) and the activation fill of
-        // a resting order — either way this is the moment the position really
-        // opened on the exchange. type "schedule" is only the resting-order
-        // PLACEMENT (not a fill yet; the "scheduled" notification from
-        // listenSignal already covered it) — the actual fill of that order
-        // arrives later as a separate type "active" event.
-        if (event.type !== "active") {
-          return;
-        }
+        // Both open outcomes notify: type "active" — the order opened at once
+        // (immediate fill, no schedule phase), type "schedule" — the resting
+        // order was placed on the exchange. Either way the broker confirmed a
+        // real order; the template's Order field carries the type.
         await this.notifyOrderFillOpen(event);
         return;
       }
