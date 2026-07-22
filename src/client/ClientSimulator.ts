@@ -656,6 +656,25 @@ const EVALUATE_POINT_FN = (
     trades.map(({ holdMinutesActual }) => holdMinutesActual),
   );
 
+  // Calmar — годовая доходность к просадке кривой (окно корзин общее
+  // для всех точек), recovery — сырой PnL к той же просадке; без
+  // просадки при положительном PnL оба бесконечны (как profitFactor)
+  const annualizedPnlPercent = rangeDays > 0
+    ? totalPnlPercent * (365 / rangeDays)
+    : 0;
+  const calmarRatio =
+    maxSeriesDrawdownPercent > 0
+      ? annualizedPnlPercent / maxSeriesDrawdownPercent
+      : totalPnlPercent > 0
+        ? Number.POSITIVE_INFINITY
+        : 0;
+  const recoveryFactor =
+    maxSeriesDrawdownPercent > 0
+      ? totalPnlPercent / maxSeriesDrawdownPercent
+      : totalPnlPercent > 0
+        ? Number.POSITIVE_INFINITY
+        : 0;
+
   return {
     report: {
       point,
@@ -666,6 +685,8 @@ const EVALUATE_POINT_FN = (
       winRate: trades.length ? wins / trades.length : 0,
       profitFactor: grossLoss > 0 ? grossProfit / grossLoss : Infinity,
       maxSeriesDrawdownPercent,
+      calmarRatio,
+      recoveryFactor,
       avgHoldMinutes: holdStats.avgHoldMinutes,
       p95HoldMinutes: holdStats.p95HoldMinutes,
       p99HoldMinutes: holdStats.p99HoldMinutes,

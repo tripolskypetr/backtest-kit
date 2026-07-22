@@ -5971,6 +5971,19 @@ interface ISimulatorPointReport {
     profitFactor: number;
     /** Maximum drawdown of the cumulative trade PnL curve, percent. */
     maxSeriesDrawdownPercent: number;
+    /**
+     * Calmar ratio: total PnL annualized over the shared daily bucket
+     * window (x 365/days) divided by maxSeriesDrawdownPercent.
+     * Infinity when the curve has no drawdown and PnL is positive
+     * (JSON-serializes to null, same as profitFactor/sortino).
+     */
+    calmarRatio: number;
+    /**
+     * Recovery factor: total PnL divided by maxSeriesDrawdownPercent.
+     * Infinity when the curve has no drawdown and PnL is positive
+     * (JSON-serializes to null, same as profitFactor/sortino).
+     */
+    recoveryFactor: number;
     /** Mean holding time per trade, minutes. */
     avgHoldMinutes: number;
     /** 95th percentile of holding time, minutes — spots eternal holds. */

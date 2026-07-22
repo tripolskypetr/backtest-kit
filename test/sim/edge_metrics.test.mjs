@@ -88,8 +88,14 @@ test("SIM: profitable series with no losing day yields infinite Sortino", async 
     fail(`sharpe must stay finite and positive, got ${report.sharpe}`);
     return;
   }
+  // кривая без просадки при положительном PnL: Calmar и recovery
+  // бесконечны по той же конвенции, что profitFactor/sortino
+  if (report.calmarRatio !== Number.POSITIVE_INFINITY || report.recoveryFactor !== Number.POSITIVE_INFINITY) {
+    fail(`drawdown-free profitable curve must have infinite calmar/recovery, got ${report.calmarRatio}/${report.recoveryFactor}`);
+    return;
+  }
 
-  pass(`sortino=Infinity with finite sharpe=${report.sharpe.toFixed(2)} on ${report.trades} clean trades`);
+  pass(`sortino=Infinity, calmar=Infinity, recovery=Infinity with finite sharpe=${report.sharpe.toFixed(2)} on ${report.trades} clean trades`);
 });
 
 test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictly below", async ({ pass, fail }) => {

@@ -124,6 +124,8 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
       report.totalPnlPercent !== 0 ||
       report.sharpe !== 0 ||
       report.sortino !== 0 ||
+      report.calmarRatio !== 0 ||
+      report.recoveryFactor !== 0 ||
       report.avgHoldMinutes !== 0 ||
       report.p99HoldMinutes !== 0
     ) {
