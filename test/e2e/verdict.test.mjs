@@ -8,10 +8,13 @@ import {
   listenSync,
   listenOrderFill,
   listenOrderReject,
+  listenOrderContinue,
+  listenOrderStop,
   listenCheck,
   listenExit,
   OrderRejectedError,
   OrderDeletedError,
+  Notification,
   lib,
   MethodContextService,
 } from "../../build/index.mjs";
@@ -637,6 +640,165 @@ test("VERDICT: terminal open rejection emits no order-fill event", async ({ pass
     unsubscribeSync();
     unsubscribeFill();
     unsubscribeReject();
+  }
+});
+
+/**
+ * VERDICT: пост-вердиктные события доезжают до ленты нотификаций —
+ * терминальный реджект кладёт ровно один order_reject.open (с message из
+ * OrderRejectedError), подтверждённый open — ровно один order_fill.open.
+ */
+test("VERDICT: order fill and reject land in the notification feed", async ({ pass, fail }) => {
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "verdict-notify-feed-strategy",
+    exchangeName: "binance-verdict-notify-feed",
+    frameName: "",
+  };
+
+  makeExchange(context.exchangeName, () => 50000);
+  makeStrategy(context, { minuteEstimatedTime: 120, once: false });
+
+  let gateCalls = 0;
+  const unsubscribe = listenSync((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    if (event.action !== "signal-open" || event.type !== "active") return;
+    gateCalls += 1;
+    if (gateCalls === 1) {
+      throw new OrderRejectedError("verdict: NOTIONAL — feed test rejection");
+    }
+  }, true);
+
+  const disableNotification = Notification.enable();
+
+  try {
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick1.action !== "idle" || tick2.action !== "opened") {
+      fail(`expected idle, opened — got ${tick1.action}, ${tick2.action}`);
+      return;
+    }
+
+    const feed = (await Notification.getData(false))
+      .filter((row) => row.strategyName === context.strategyName);
+    const rejects = feed.filter(({ type }) => type === "order_reject.open");
+    const fills = feed.filter(({ type }) => type === "order_fill.open");
+
+    if (rejects.length !== 1) {
+      fail(`expected exactly 1 order_reject.open notification, got ${rejects.length}`);
+      return;
+    }
+    if (!rejects[0].message.includes("NOTIONAL")) {
+      fail(`reject notification must carry the OrderRejectedError message, got "${rejects[0].message}"`);
+      return;
+    }
+    if (fills.length !== 1) {
+      fail(`expected exactly 1 order_fill.open notification, got ${fills.length}`);
+      return;
+    }
+    if (fills[0].signalId !== tick2.signal.id) {
+      fail(`fill notification must carry the OPENED signal id ${tick2.signal.id}, got ${fills[0].signalId}`);
+      return;
+    }
+    if (rejects[0].signalId === fills[0].signalId) {
+      fail(`reject and fill must belong to different signal ids, got the same "${fills[0].signalId}"`);
+      return;
+    }
+
+    pass(`feed carries 1 order_reject.open ("${rejects[0].message}") and 1 order_fill.open (${fills[0].signalId})`);
+  } finally {
+    disableNotification();
+    unsubscribe();
+  }
+});
+
+/**
+ * VERDICT: пост-вердиктная пара чека — listenOrderContinue отдаёт толерантные
+ * решения (attempt 1,2), listenOrderStop — ровно одно терминальное
+ * ("exhausted", финальный стрик 3); в ленту нотификаций попадает один
+ * order_continue.check (TTL-троттл глушит повторы) и один order_stop.check.
+ */
+test("VERDICT: check decisions land on continue/stop channels and the notification feed", async ({ pass, fail }) => {
+  setConfig({ CC_ORDER_CHECK_RETRY_ATTEMPTS: 2 }, true);
+
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "verdict-check-feed-strategy",
+    exchangeName: "binance-verdict-check-feed",
+    frameName: "",
+  };
+
+  const continues = [];
+  const stops = [];
+
+  makeExchange(context.exchangeName, () => 50000);
+  makeStrategy(context, { minuteEstimatedTime: 120, once: true });
+
+  const unsubscribeExit = listenExit(() => void 0);
+  const unsubscribeCheck = listenCheck((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    throw new Error("verdict: check always fails");
+  }, true);
+
+  const unsubscribeContinue = listenOrderContinue((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    continues.push({ type: event.type, attempt: event.attempt });
+  });
+
+  const unsubscribeStop = listenOrderStop((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    stops.push({ type: event.type, reason: event.reason, attempt: event.attempt });
+  });
+
+  const disableNotification = Notification.enable();
+
+  try {
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    const tick4 = await runTick(new Date(t0 + 3 * MIN));
+    if (tick1.action !== "opened" || tick2.action !== "active" || tick3.action !== "active" || tick4.action !== "closed") {
+      fail(`expected opened, active, active, closed — got ${tick1.action}, ${tick2.action}, ${tick3.action}, ${tick4.action}`);
+      return;
+    }
+
+    const flatContinues = continues.map(({ type, attempt }) => `${type}:${attempt}`).join(",");
+    if (flatContinues !== "active:1,active:2") {
+      fail(`expected tolerated continues "active:1,active:2", got "${flatContinues}"`);
+      return;
+    }
+    if (stops.length !== 1 || stops[0].type !== "active" || stops[0].reason !== "exhausted" || stops[0].attempt !== 3) {
+      fail(`expected exactly 1 stop {active, exhausted, attempt 3}, got ${JSON.stringify(stops)}`);
+      return;
+    }
+
+    const feed = (await Notification.getData(false))
+      .filter((row) => row.strategyName === context.strategyName);
+    const feedContinues = feed.filter(({ type }) => type === "order_continue.check");
+    const feedStops = feed.filter(({ type }) => type === "order_stop.check");
+
+    // TTL-троттл (CC_NOTIFICATION_ORDER_CHECK_TTL, 15 мин по умолчанию) глушит
+    // второе continue на минутных тиках — в ленте остаётся только первое
+    if (feedContinues.length !== 1 || feedContinues[0].attempt !== 1) {
+      fail(`expected exactly 1 throttled order_continue.check (attempt 1), got ${JSON.stringify(feedContinues.map(({ attempt }) => attempt))}`);
+      return;
+    }
+    if (feedStops.length !== 1 || feedStops[0].reason !== "exhausted") {
+      fail(`expected exactly 1 order_stop.check (exhausted), got ${JSON.stringify(feedStops)}`);
+      return;
+    }
+
+    pass(`continues "${flatContinues}", stop {${stops[0].reason}, attempt ${stops[0].attempt}}, feed: 1 continue (throttled) + 1 stop`);
+  } finally {
+    disableNotification();
+    unsubscribeContinue();
+    unsubscribeStop();
+    unsubscribeCheck();
+    unsubscribeExit();
   }
 });
 

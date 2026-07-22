@@ -12,6 +12,10 @@ import {
   strategyCommitSubject,
   syncSubject,
   syncPendingSubject,
+  orderFillSubject,
+  orderRejectSubject,
+  orderContinueSubject,
+  orderStopSubject,
   signalEventSubject,
   scheduleEventSubject,
   signalNotifySubject,
@@ -25,7 +29,11 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { OrderSyncContract } from "../contract/OrderSync.contract";
+import { OrderFillContract } from "../contract/OrderFill.contract";
+import { OrderRejectContract } from "../contract/OrderReject.contract";
 import { OrderCheckContract } from "../contract/OrderCheck.contract";
+import { OrderContinueContract } from "../contract/OrderContinue.contract";
+import { OrderStopContract } from "../contract/OrderStop.contract";
 import { SignalEventContract } from "../contract/SignalEvent.contract";
 import { ScheduleEventContract } from "../contract/ScheduleEvent.contract";
 import { SignalInfoContract } from "../contract/SignalInfo.contract";
@@ -110,6 +118,45 @@ export interface INotificationTarget {
   order_check: boolean;
 
   /**
+   * Broker-CONFIRMED order fill notifications (`order_fill.open`, `order_fill.close`).
+   * Post-verdict counterpart of `order_sync`: fired ONLY after the onOrderSync gate
+   * resolved into the "confirmed" verdict — a rejected or transient attempt never
+   * fires here. Live-only (backtest gates short-circuit without an exchange).
+   * Source: `orderFillSubject` (OrderFillContract).
+   */
+  order_fill: boolean;
+
+  /**
+   * TERMINAL order rejection notifications (`order_reject.open`, `order_reject.close`).
+   * Fired ONLY on the "rejected" verdict (OrderRejectedError from the broker adapter) —
+   * exactly once per dropped attempt (the open consumes its signalId, the close
+   * force-closes). Transient failures never fire here. Live-only.
+   * Source: `orderRejectSubject` (OrderRejectContract).
+   */
+  order_reject: boolean;
+
+  /**
+   * Post-verdict order-check CONTINUE notifications (`order_continue.check`).
+   * The resolved pair of `order_check`: the order is confirmed still open (attempt 0)
+   * or a transient failure was tolerated (attempt > 0) — monitoring continues.
+   * Throttled like `order_check`: at most one notification per signalId per
+   * `CC_NOTIFICATION_ORDER_CHECK_TTL`; the throttle entry is dropped when the
+   * signal is closed or cancelled. Live-only.
+   * Source: `orderContinueSubject` (OrderContinueContract).
+   */
+  order_continue: boolean;
+
+  /**
+   * Post-verdict order-check STOP notifications (`order_stop.check`).
+   * Fired exactly once per monitored signal when the check resolved terminally —
+   * "deleted" (confirmed not-found) or "exhausted" (transient tolerance spent) —
+   * right before the teardown (close "closed" / cancel "user"). Not throttled.
+   * Live-only.
+   * Source: `orderStopSubject` (OrderStopContract).
+   */
+  order_stop: boolean;
+
+  /**
    * Risk manager rejection notifications (`risk.rejection`).
    * Fired when the risk manager blocks a new signal from opening due to
    * active position count limits or other risk rules.
@@ -168,6 +215,10 @@ const WILDCARD_TARGET: INotificationTarget = {
   strategy_commit: true,
   order_sync: true,
   order_check: true,
+  order_fill: true,
+  order_reject: true,
+  order_continue: true,
+  order_stop: true,
   risk: true,
   info: true,
   pause: true,
@@ -1057,6 +1108,324 @@ const CREATE_ORDER_CHECK_NOTIFICATION_FN = (data: OrderCheckContract): Notificat
 });
 
 /**
+ * Creates a notification model for post-verdict order-check CONTINUE events.
+ * The resolved pair of CREATE_ORDER_CHECK_NOTIFICATION_FN: the source event exists
+ * ONLY after a non-terminal check decision (orderContinueSubject).
+ * @param data - The order continue contract data
+ * @returns NotificationModel for order-check continue event
+ */
+const CREATE_ORDER_CONTINUE_NOTIFICATION_FN = (data: OrderContinueContract): NotificationModel => ({
+  type: "order_continue.check",
+  id: CREATE_KEY_FN(),
+  timestamp: data.timestamp,
+  backtest: data.backtest,
+  symbol: data.symbol,
+  strategyName: data.strategyName,
+  exchangeName: data.exchangeName,
+  signalId: data.signalId,
+  orderType: data.type,
+  attempt: data.attempt,
+  currentPrice: data.currentPrice,
+  position: data.position,
+  priceOpen: data.priceOpen,
+  priceTakeProfit: data.priceTakeProfit,
+  priceStopLoss: data.priceStopLoss,
+  originalPriceTakeProfit: data.originalPriceTakeProfit,
+  originalPriceStopLoss: data.originalPriceStopLoss,
+  originalPriceOpen: data.originalPriceOpen,
+  totalEntries: data.totalEntries,
+  totalPartials: data.totalPartials,
+  pnl: data.pnl,
+  maxDrawdown: data.maxDrawdown,
+  peakProfit: data.peakProfit,
+  pnlPercentage: data.pnl.pnlPercentage,
+  pnlPriceOpen: data.pnl.priceOpen,
+  pnlPriceClose: data.pnl.priceClose,
+  pnlCost: data.pnl.pnlCost,
+  pnlEntries: data.pnl.pnlEntries,
+  peakProfitPriceOpen: data.peakProfit.priceOpen,
+  peakProfitPriceClose: data.peakProfit.priceClose,
+  peakProfitPercentage: data.peakProfit.pnlPercentage,
+  peakProfitCost: data.peakProfit.pnlCost,
+  peakProfitEntries: data.peakProfit.pnlEntries,
+  maxDrawdownPriceOpen: data.maxDrawdown.priceOpen,
+  maxDrawdownPriceClose: data.maxDrawdown.priceClose,
+  maxDrawdownPercentage: data.maxDrawdown.pnlPercentage,
+  maxDrawdownCost: data.maxDrawdown.pnlCost,
+  maxDrawdownEntries: data.maxDrawdown.pnlEntries,
+  scheduledAt: data.scheduledAt,
+  pendingAt: data.pendingAt,
+  note: data.signal.note,
+  createdAt: data.timestamp,
+});
+
+/**
+ * Creates a notification model for post-verdict order-check STOP events.
+ * The terminal pair of CREATE_ORDER_CONTINUE_NOTIFICATION_FN: the source event
+ * exists ONLY on a terminal check decision (orderStopSubject) — "deleted" or
+ * "exhausted" — right before the close/cancel teardown.
+ * @param data - The order stop contract data
+ * @returns NotificationModel for order-check stop event
+ */
+const CREATE_ORDER_STOP_NOTIFICATION_FN = (data: OrderStopContract): NotificationModel => ({
+  type: "order_stop.check",
+  id: CREATE_KEY_FN(),
+  timestamp: data.timestamp,
+  backtest: data.backtest,
+  symbol: data.symbol,
+  strategyName: data.strategyName,
+  exchangeName: data.exchangeName,
+  signalId: data.signalId,
+  orderType: data.type,
+  reason: data.reason,
+  attempt: data.attempt,
+  currentPrice: data.currentPrice,
+  position: data.position,
+  priceOpen: data.priceOpen,
+  priceTakeProfit: data.priceTakeProfit,
+  priceStopLoss: data.priceStopLoss,
+  originalPriceTakeProfit: data.originalPriceTakeProfit,
+  originalPriceStopLoss: data.originalPriceStopLoss,
+  originalPriceOpen: data.originalPriceOpen,
+  totalEntries: data.totalEntries,
+  totalPartials: data.totalPartials,
+  pnl: data.pnl,
+  maxDrawdown: data.maxDrawdown,
+  peakProfit: data.peakProfit,
+  pnlPercentage: data.pnl.pnlPercentage,
+  pnlPriceOpen: data.pnl.priceOpen,
+  pnlPriceClose: data.pnl.priceClose,
+  pnlCost: data.pnl.pnlCost,
+  pnlEntries: data.pnl.pnlEntries,
+  peakProfitPriceOpen: data.peakProfit.priceOpen,
+  peakProfitPriceClose: data.peakProfit.priceClose,
+  peakProfitPercentage: data.peakProfit.pnlPercentage,
+  peakProfitCost: data.peakProfit.pnlCost,
+  peakProfitEntries: data.peakProfit.pnlEntries,
+  maxDrawdownPriceOpen: data.maxDrawdown.priceOpen,
+  maxDrawdownPriceClose: data.maxDrawdown.priceClose,
+  maxDrawdownPercentage: data.maxDrawdown.pnlPercentage,
+  maxDrawdownCost: data.maxDrawdown.pnlCost,
+  maxDrawdownEntries: data.maxDrawdown.pnlEntries,
+  scheduledAt: data.scheduledAt,
+  pendingAt: data.pendingAt,
+  note: data.signal.note,
+  createdAt: data.timestamp,
+});
+
+/**
+ * Creates a notification model for broker-confirmed order fill events.
+ * Post-verdict counterpart of CREATE_SIGNAL_SYNC_NOTIFICATION_FN: the source event
+ * exists ONLY after the "confirmed" verdict (orderFillSubject).
+ * @param data - The order fill contract data
+ * @returns NotificationModel for order fill event
+ */
+const CREATE_ORDER_FILL_NOTIFICATION_FN = (data: OrderFillContract): NotificationModel => {
+  if (data.action === "signal-open") {
+    return {
+      type: "order_fill.open",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      orderType: data.type,
+      attempt: data.attempt,
+      currentPrice: data.currentPrice,
+      pnl: data.signal.pnl,
+      maxDrawdown: data.signal.maxDrawdown,
+      peakProfit: data.signal.peakProfit,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      peakProfitPriceOpen: data.signal.peakProfit.priceOpen,
+      peakProfitPriceClose: data.signal.peakProfit.priceClose,
+      peakProfitPercentage: data.signal.peakProfit.pnlPercentage,
+      peakProfitCost: data.signal.peakProfit.pnlCost,
+      peakProfitEntries: data.signal.peakProfit.pnlEntries,
+      maxDrawdownPriceOpen: data.signal.maxDrawdown.priceOpen,
+      maxDrawdownPriceClose: data.signal.maxDrawdown.priceClose,
+      maxDrawdownPercentage: data.signal.maxDrawdown.pnlPercentage,
+      maxDrawdownCost: data.signal.maxDrawdown.pnlCost,
+      maxDrawdownEntries: data.signal.maxDrawdown.pnlEntries,
+      cost: data.cost,
+      position: data.position,
+      priceOpen: data.priceOpen,
+      priceTakeProfit: data.priceTakeProfit,
+      priceStopLoss: data.priceStopLoss,
+      originalPriceTakeProfit: data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.originalPriceStopLoss,
+      originalPriceOpen: data.originalPriceOpen,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      scheduledAt: data.scheduledAt,
+      pendingAt: data.pendingAt,
+      note: data.signal.note,
+      createdAt: data.timestamp,
+    };
+  }
+  if (data.action === "signal-close") {
+    return {
+      type: "order_fill.close",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      orderType: data.type,
+      attempt: data.attempt,
+      currentPrice: data.currentPrice,
+      pnl: data.signal.pnl,
+      maxDrawdown: data.signal.maxDrawdown,
+      peakProfit: data.signal.peakProfit,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      peakProfitPriceOpen: data.signal.peakProfit.priceOpen,
+      peakProfitPriceClose: data.signal.peakProfit.priceClose,
+      peakProfitPercentage: data.signal.peakProfit.pnlPercentage,
+      peakProfitCost: data.signal.peakProfit.pnlCost,
+      peakProfitEntries: data.signal.peakProfit.pnlEntries,
+      maxDrawdownPriceOpen: data.signal.maxDrawdown.priceOpen,
+      maxDrawdownPriceClose: data.signal.maxDrawdown.priceClose,
+      maxDrawdownPercentage: data.signal.maxDrawdown.pnlPercentage,
+      maxDrawdownCost: data.signal.maxDrawdown.pnlCost,
+      maxDrawdownEntries: data.signal.maxDrawdown.pnlEntries,
+      position: data.position,
+      priceOpen: data.priceOpen,
+      priceTakeProfit: data.priceTakeProfit,
+      priceStopLoss: data.priceStopLoss,
+      originalPriceTakeProfit: data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.originalPriceStopLoss,
+      originalPriceOpen: data.originalPriceOpen,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      scheduledAt: data.scheduledAt,
+      pendingAt: data.pendingAt,
+      closeReason: data.closeReason,
+      note: data.signal.note,
+      createdAt: data.timestamp,
+    };
+  }
+  throw new Error(`Unrecognized order fill action: ${get(data, "action")}`);
+};
+
+/**
+ * Creates a notification model for terminal order rejection events.
+ * The source event exists ONLY on the "rejected" verdict (orderRejectSubject) —
+ * exactly once per dropped attempt, carrying the OrderRejectedError message.
+ * @param data - The order reject contract data
+ * @returns NotificationModel for order reject event
+ */
+const CREATE_ORDER_REJECT_NOTIFICATION_FN = (data: OrderRejectContract): NotificationModel => {
+  if (data.action === "signal-open") {
+    return {
+      type: "order_reject.open",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      orderType: data.type,
+      attempt: data.attempt,
+      message: data.message,
+      currentPrice: data.currentPrice,
+      pnl: data.signal.pnl,
+      maxDrawdown: data.signal.maxDrawdown,
+      peakProfit: data.signal.peakProfit,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      peakProfitPriceOpen: data.signal.peakProfit.priceOpen,
+      peakProfitPriceClose: data.signal.peakProfit.priceClose,
+      peakProfitPercentage: data.signal.peakProfit.pnlPercentage,
+      peakProfitCost: data.signal.peakProfit.pnlCost,
+      peakProfitEntries: data.signal.peakProfit.pnlEntries,
+      maxDrawdownPriceOpen: data.signal.maxDrawdown.priceOpen,
+      maxDrawdownPriceClose: data.signal.maxDrawdown.priceClose,
+      maxDrawdownPercentage: data.signal.maxDrawdown.pnlPercentage,
+      maxDrawdownCost: data.signal.maxDrawdown.pnlCost,
+      maxDrawdownEntries: data.signal.maxDrawdown.pnlEntries,
+      cost: data.cost,
+      position: data.position,
+      priceOpen: data.priceOpen,
+      priceTakeProfit: data.priceTakeProfit,
+      priceStopLoss: data.priceStopLoss,
+      originalPriceTakeProfit: data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.originalPriceStopLoss,
+      originalPriceOpen: data.originalPriceOpen,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      scheduledAt: data.scheduledAt,
+      pendingAt: data.pendingAt,
+      note: data.signal.note,
+      createdAt: data.timestamp,
+    };
+  }
+  if (data.action === "signal-close") {
+    return {
+      type: "order_reject.close",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      orderType: data.type,
+      attempt: data.attempt,
+      message: data.message,
+      currentPrice: data.currentPrice,
+      pnl: data.signal.pnl,
+      maxDrawdown: data.signal.maxDrawdown,
+      peakProfit: data.signal.peakProfit,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      peakProfitPriceOpen: data.signal.peakProfit.priceOpen,
+      peakProfitPriceClose: data.signal.peakProfit.priceClose,
+      peakProfitPercentage: data.signal.peakProfit.pnlPercentage,
+      peakProfitCost: data.signal.peakProfit.pnlCost,
+      peakProfitEntries: data.signal.peakProfit.pnlEntries,
+      maxDrawdownPriceOpen: data.signal.maxDrawdown.priceOpen,
+      maxDrawdownPriceClose: data.signal.maxDrawdown.priceClose,
+      maxDrawdownPercentage: data.signal.maxDrawdown.pnlPercentage,
+      maxDrawdownCost: data.signal.maxDrawdown.pnlCost,
+      maxDrawdownEntries: data.signal.maxDrawdown.pnlEntries,
+      position: data.position,
+      priceOpen: data.priceOpen,
+      priceTakeProfit: data.priceTakeProfit,
+      priceStopLoss: data.priceStopLoss,
+      originalPriceTakeProfit: data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.originalPriceStopLoss,
+      originalPriceOpen: data.originalPriceOpen,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      scheduledAt: data.scheduledAt,
+      pendingAt: data.pendingAt,
+      closeReason: data.closeReason,
+      note: data.signal.note,
+      createdAt: data.timestamp,
+    };
+  }
+  throw new Error(`Unrecognized order reject action: ${get(data, "action")}`);
+};
+
+/**
  * Creates a notification model for risk rejection events.
  * @param data - The risk contract data
  * @returns NotificationModel for risk rejection event
@@ -1197,6 +1566,10 @@ const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationM
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationMemoryBacktestUtils.handleStrategyCommit";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryBacktestUtils.handleSync";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CHECK = "NotificationMemoryBacktestUtils.handleCheck";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_FILL = "NotificationMemoryBacktestUtils.handleOrderFill";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_REJECT = "NotificationMemoryBacktestUtils.handleOrderReject";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_CONTINUE = "NotificationMemoryBacktestUtils.handleOrderContinue";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_STOP = "NotificationMemoryBacktestUtils.handleOrderStop";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationMemoryBacktestUtils.handleRisk";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PAUSE = "NotificationMemoryBacktestUtils.handlePause";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryBacktestUtils.handleError";
@@ -1213,6 +1586,10 @@ const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationMemor
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationMemoryLiveUtils.handleStrategyCommit";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryLiveUtils.handleSync";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CHECK = "NotificationMemoryLiveUtils.handleCheck";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_FILL = "NotificationMemoryLiveUtils.handleOrderFill";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_REJECT = "NotificationMemoryLiveUtils.handleOrderReject";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_CONTINUE = "NotificationMemoryLiveUtils.handleOrderContinue";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_STOP = "NotificationMemoryLiveUtils.handleOrderStop";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationMemoryLiveUtils.handleRisk";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PAUSE = "NotificationMemoryLiveUtils.handlePause";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryLiveUtils.handleError";
@@ -1248,6 +1625,10 @@ const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "Notification
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistBacktestUtils.handleStrategyCommit";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationPersistBacktestUtils.handleSync";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CHECK = "NotificationPersistBacktestUtils.handleCheck";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_FILL = "NotificationPersistBacktestUtils.handleOrderFill";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_REJECT = "NotificationPersistBacktestUtils.handleOrderReject";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_CONTINUE = "NotificationPersistBacktestUtils.handleOrderContinue";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_STOP = "NotificationPersistBacktestUtils.handleOrderStop";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationPersistBacktestUtils.handleRisk";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PAUSE = "NotificationPersistBacktestUtils.handlePause";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationPersistBacktestUtils.handleError";
@@ -1266,6 +1647,10 @@ const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPers
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistLiveUtils.handleStrategyCommit";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationPersistLiveUtils.handleSync";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CHECK = "NotificationPersistLiveUtils.handleCheck";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_FILL = "NotificationPersistLiveUtils.handleOrderFill";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_REJECT = "NotificationPersistLiveUtils.handleOrderReject";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_CONTINUE = "NotificationPersistLiveUtils.handleOrderContinue";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_STOP = "NotificationPersistLiveUtils.handleOrderStop";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationPersistLiveUtils.handleRisk";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PAUSE = "NotificationPersistLiveUtils.handlePause";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationPersistLiveUtils.handleError";
@@ -1315,6 +1700,26 @@ export interface INotificationUtils {
    * @param data - The order check contract data
    */
   handleCheck(data: OrderCheckContract): Promise<void>;
+  /**
+   * Handles broker-confirmed order fill event (post-verdict, signal-open/signal-close).
+   * @param data - The order fill contract data
+   */
+  handleOrderFill(data: OrderFillContract): Promise<void>;
+  /**
+   * Handles terminal order rejection event (post-verdict, signal-open/signal-close).
+   * @param data - The order reject contract data
+   */
+  handleOrderReject(data: OrderRejectContract): Promise<void>;
+  /**
+   * Handles post-verdict order-check continue event (order still open, monitoring continues).
+   * @param data - The order continue contract data
+   */
+  handleOrderContinue(data: OrderContinueContract): Promise<void>;
+  /**
+   * Handles post-verdict order-check stop event (terminal: order gone, teardown follows).
+   * @param data - The order stop contract data
+   */
+  handleOrderStop(data: OrderStopContract): Promise<void>;
   /**
    * Handles risk rejection event.
    * @param data - The risk contract data
@@ -1487,6 +1892,63 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
   });
 
   /**
+   * Handles broker-confirmed order fill events (signal-open, signal-close).
+   * @param data - The order fill contract data
+   */
+  public handleOrderFill = trycatch(async (data: OrderFillContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_FILL, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    this._addNotification(CREATE_ORDER_FILL_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles terminal order rejection events (signal-open, signal-close).
+   * @param data - The order reject contract data
+   */
+  public handleOrderReject = trycatch(async (data: OrderRejectContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_REJECT, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    this._addNotification(CREATE_ORDER_REJECT_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check continue events.
+   * @param data - The order continue contract data
+   */
+  public handleOrderContinue = trycatch(async (data: OrderContinueContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_CONTINUE, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    this._addNotification(CREATE_ORDER_CONTINUE_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check stop events.
+   * @param data - The order stop contract data
+   */
+  public handleOrderStop = trycatch(async (data: OrderStopContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ORDER_STOP, {
+      signalId: data.signalId,
+      type: data.type,
+      reason: data.reason,
+    });
+    this._addNotification(CREATE_ORDER_STOP_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -1623,6 +2085,42 @@ export class NotificationDummyBacktestUtils implements INotificationUtils {
    * No-op handler for order-ping check event.
    */
   public handleCheck = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for broker-confirmed order fill event.
+   */
+  public handleOrderFill = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for terminal order rejection event.
+   */
+  public handleOrderReject = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for post-verdict order-check continue event.
+   */
+  public handleOrderContinue = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for post-verdict order-check stop event.
+   */
+  public handleOrderStop = trycatch(async (): Promise<void> => {
     void 0;
   }, {
     defaultValue: null,
@@ -1870,6 +2368,71 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
   });
 
   /**
+   * Handles broker-confirmed order fill events (signal-open, signal-close).
+   * @param data - The order fill contract data
+   */
+  public handleOrderFill = trycatch(async (data: OrderFillContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_FILL, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_FILL_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles terminal order rejection events (signal-open, signal-close).
+   * @param data - The order reject contract data
+   */
+  public handleOrderReject = trycatch(async (data: OrderRejectContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_REJECT, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_REJECT_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check continue events.
+   * @param data - The order continue contract data
+   */
+  public handleOrderContinue = trycatch(async (data: OrderContinueContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_CONTINUE, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_CONTINUE_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check stop events.
+   * @param data - The order stop contract data
+   */
+  public handleOrderStop = trycatch(async (data: OrderStopContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ORDER_STOP, {
+      signalId: data.signalId,
+      type: data.type,
+      reason: data.reason,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_STOP_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -2087,6 +2650,63 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
   });
 
   /**
+   * Handles broker-confirmed order fill events (signal-open, signal-close).
+   * @param data - The order fill contract data
+   */
+  public handleOrderFill = trycatch(async (data: OrderFillContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_FILL, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    this._addNotification(CREATE_ORDER_FILL_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles terminal order rejection events (signal-open, signal-close).
+   * @param data - The order reject contract data
+   */
+  public handleOrderReject = trycatch(async (data: OrderRejectContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_REJECT, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    this._addNotification(CREATE_ORDER_REJECT_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check continue events.
+   * @param data - The order continue contract data
+   */
+  public handleOrderContinue = trycatch(async (data: OrderContinueContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_CONTINUE, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    this._addNotification(CREATE_ORDER_CONTINUE_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check stop events.
+   * @param data - The order stop contract data
+   */
+  public handleOrderStop = trycatch(async (data: OrderStopContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ORDER_STOP, {
+      signalId: data.signalId,
+      type: data.type,
+      reason: data.reason,
+    });
+    this._addNotification(CREATE_ORDER_STOP_NOTIFICATION_FN(data));
+  }, {
+    defaultValue: null,
+  });
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -2223,6 +2843,42 @@ export class NotificationDummyLiveUtils implements INotificationUtils {
    * No-op handler for order-ping check event.
    */
   public handleCheck = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for broker-confirmed order fill event.
+   */
+  public handleOrderFill = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for terminal order rejection event.
+   */
+  public handleOrderReject = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for post-verdict order-check continue event.
+   */
+  public handleOrderContinue = trycatch(async (): Promise<void> => {
+    void 0;
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * No-op handler for post-verdict order-check stop event.
+   */
+  public handleOrderStop = trycatch(async (): Promise<void> => {
     void 0;
   }, {
     defaultValue: null,
@@ -2473,6 +3129,71 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
   });
 
   /**
+   * Handles broker-confirmed order fill events (signal-open, signal-close).
+   * @param data - The order fill contract data
+   */
+  public handleOrderFill = trycatch(async (data: OrderFillContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_FILL, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_FILL_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles terminal order rejection events (signal-open, signal-close).
+   * @param data - The order reject contract data
+   */
+  public handleOrderReject = trycatch(async (data: OrderRejectContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_REJECT, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_REJECT_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check continue events.
+   * @param data - The order continue contract data
+   */
+  public handleOrderContinue = trycatch(async (data: OrderContinueContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_CONTINUE, {
+      signalId: data.signalId,
+      type: data.type,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_CONTINUE_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check stop events.
+   * @param data - The order stop contract data
+   */
+  public handleOrderStop = trycatch(async (data: OrderStopContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ORDER_STOP, {
+      signalId: data.signalId,
+      type: data.type,
+      reason: data.reason,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ORDER_STOP_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  }, {
+    defaultValue: null,
+  });
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -2649,6 +3370,50 @@ export class NotificationBacktestAdapter implements INotificationUtils {
    */
   handleCheck = trycatch(async (data: OrderCheckContract): Promise<void> => {
     return await this.getInstance().handleCheck(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles broker-confirmed order fill events (signal-open, signal-close).
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order fill contract data
+   */
+  handleOrderFill = trycatch(async (data: OrderFillContract): Promise<void> => {
+    return await this.getInstance().handleOrderFill(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles terminal order rejection events (signal-open, signal-close).
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order reject contract data
+   */
+  handleOrderReject = trycatch(async (data: OrderRejectContract): Promise<void> => {
+    return await this.getInstance().handleOrderReject(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check continue events.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order continue contract data
+   */
+  handleOrderContinue = trycatch(async (data: OrderContinueContract): Promise<void> => {
+    return await this.getInstance().handleOrderContinue(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check stop events.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order stop contract data
+   */
+  handleOrderStop = trycatch(async (data: OrderStopContract): Promise<void> => {
+    return await this.getInstance().handleOrderStop(data);
   }, {
     defaultValue: null,
   });
@@ -2862,6 +3627,50 @@ export class NotificationLiveAdapter implements INotificationUtils {
   });
 
   /**
+   * Handles broker-confirmed order fill events (signal-open, signal-close).
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order fill contract data
+   */
+  handleOrderFill = trycatch(async (data: OrderFillContract): Promise<void> => {
+    return await this.getInstance().handleOrderFill(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles terminal order rejection events (signal-open, signal-close).
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order reject contract data
+   */
+  handleOrderReject = trycatch(async (data: OrderRejectContract): Promise<void> => {
+    return await this.getInstance().handleOrderReject(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check continue events.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order continue contract data
+   */
+  handleOrderContinue = trycatch(async (data: OrderContinueContract): Promise<void> => {
+    return await this.getInstance().handleOrderContinue(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
+   * Handles post-verdict order-check stop events.
+   * Proxies call to the underlying notification adapter.
+   * @param data - The order stop contract data
+   */
+  handleOrderStop = trycatch(async (data: OrderStopContract): Promise<void> => {
+    return await this.getInstance().handleOrderStop(data);
+  }, {
+    defaultValue: null,
+  });
+
+  /**
    * Handles risk rejection event.
    * Proxies call to the underlying notification adapter.
    * @param data - The risk contract data
@@ -3001,6 +3810,10 @@ export class NotificationAdapter {
     strategy_commit = false,
     order_sync = false,
     order_check = false,
+    order_fill = false,
+    order_reject = false,
+    order_continue = false,
+    order_stop = false,
     risk = false,
     pause = false,
     common_error = false,
@@ -3034,6 +3847,7 @@ export class NotificationAdapter {
         .connect(async (event: SignalEventContract) => {
           if (event.action === "closed") {
             checkThrottleMap.delete(event.data.id);
+            continueThrottleMap.delete(event.data.id);
           }
         });
 
@@ -3042,6 +3856,7 @@ export class NotificationAdapter {
         .connect(async (event: ScheduleEventContract) => {
           if (event.action === "cancelled") {
             checkThrottleMap.delete(event.data.id);
+            continueThrottleMap.delete(event.data.id);
           }
         });
 
@@ -3098,6 +3913,51 @@ export class NotificationAdapter {
           }
         });
 
+      // Throttle state for order_continue.check: signalId -> timestamp of the last
+      // emitted continue notification (the continue decision fires every live tick,
+      // like the check ping). Entries are dropped on signal close/cancel by the
+      // same lifecycle handlers that clean checkThrottleMap.
+      const continueThrottleMap = new Map<string, number>();
+
+      // Post-verdict order channels are live-only (backtest gates short-circuit
+      // without an exchange) — the symmetric filter is kept for uniformity.
+      const unBacktestOrderContinue = orderContinueSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (data: OrderContinueContract) => {
+          if (order_continue) {
+            const lastTimestamp = continueThrottleMap.get(data.signalId);
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_ORDER_CHECK_TTL) {
+              return;
+            }
+            continueThrottleMap.set(data.signalId, data.timestamp);
+            await NotificationBacktest.handleOrderContinue(data);
+          }
+        });
+
+      const unBacktestOrderStop = orderStopSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (data: OrderStopContract) => {
+          if (order_stop) {
+            await NotificationBacktest.handleOrderStop(data);
+          }
+        });
+
+      const unBacktestOrderFill = orderFillSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (data: OrderFillContract) => {
+          if (order_fill) {
+            await NotificationBacktest.handleOrderFill(data);
+          }
+        });
+
+      const unBacktestOrderReject = orderRejectSubject
+        .filter(({ backtest }) => backtest)
+        .connect(async (data: OrderRejectContract) => {
+          if (order_reject) {
+            await NotificationBacktest.handleOrderReject(data);
+          }
+        });
+
       const unBacktestRisk = riskSubject
         .filter(({ backtest }) => backtest)
         .connect(async (data: RiskContract) => {
@@ -3150,6 +4010,10 @@ export class NotificationAdapter {
         () => unBacktestStrategyCommit(),
         () => unBacktestSync(),
         () => unBacktestCheck(),
+        () => unBacktestOrderFill(),
+        () => unBacktestOrderReject(),
+        () => unBacktestOrderContinue(),
+        () => unBacktestOrderStop(),
         () => unBacktestRisk(),
         () => unBacktestPause(),
         () => unBacktestError(),
@@ -3157,6 +4021,7 @@ export class NotificationAdapter {
         () => unBacktestValidation(),
         () => unBacktestSignalNotify(),
         () => checkThrottleMap.clear(),
+        () => continueThrottleMap.clear(),
       );
     }
 
@@ -3178,11 +4043,16 @@ export class NotificationAdapter {
       // lifecycle channels cover every path: signalEventSubject "closed" fires for
       // all pending-signal closes (TP/SL/time_expired/user/ping), scheduleEventSubject
       // "cancelled" fires for scheduled signals removed before activation.
+      // Throttle state for order_continue.check (live): same TTL and lifecycle
+      // cleanup as checkThrottleMap — the continue decision fires every live tick.
+      const continueThrottleMap = new Map<string, number>();
+
       const unLiveSignalEvent = signalEventSubject
         .filter(({ backtest }) => !backtest)
         .connect(async (event: SignalEventContract) => {
           if (event.action === "closed") {
             checkThrottleMap.delete(event.data.id);
+            continueThrottleMap.delete(event.data.id);
           }
         });
 
@@ -3191,6 +4061,7 @@ export class NotificationAdapter {
         .connect(async (event: ScheduleEventContract) => {
           if (event.action === "cancelled") {
             checkThrottleMap.delete(event.data.id);
+            continueThrottleMap.delete(event.data.id);
           }
         });
 
@@ -3247,6 +4118,46 @@ export class NotificationAdapter {
           }
         });
 
+      // Post-verdict order channels: fill fires only on the "confirmed" verdict,
+      // reject only on the terminal "rejected" one — see orderFillSubject /
+      // orderRejectSubject docs in config/emitters.
+      const unLiveOrderContinue = orderContinueSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (data: OrderContinueContract) => {
+          if (order_continue) {
+            const lastTimestamp = continueThrottleMap.get(data.signalId);
+            if (lastTimestamp !== undefined && data.timestamp - lastTimestamp < GLOBAL_CONFIG.CC_NOTIFICATION_ORDER_CHECK_TTL) {
+              return;
+            }
+            continueThrottleMap.set(data.signalId, data.timestamp);
+            await NotificationLive.handleOrderContinue(data);
+          }
+        });
+
+      const unLiveOrderStop = orderStopSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (data: OrderStopContract) => {
+          if (order_stop) {
+            await NotificationLive.handleOrderStop(data);
+          }
+        });
+
+      const unLiveOrderFill = orderFillSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (data: OrderFillContract) => {
+          if (order_fill) {
+            await NotificationLive.handleOrderFill(data);
+          }
+        });
+
+      const unLiveOrderReject = orderRejectSubject
+        .filter(({ backtest }) => !backtest)
+        .connect(async (data: OrderRejectContract) => {
+          if (order_reject) {
+            await NotificationLive.handleOrderReject(data);
+          }
+        });
+
       const unLiveRisk = riskSubject
         .filter(({ backtest }) => !backtest)
         .connect(async (data: RiskContract) => {
@@ -3299,6 +4210,10 @@ export class NotificationAdapter {
         () => unLiveStrategyCommit(),
         () => unLiveSync(),
         () => unLiveCheck(),
+        () => unLiveOrderFill(),
+        () => unLiveOrderReject(),
+        () => unLiveOrderContinue(),
+        () => unLiveOrderStop(),
         () => unLiveRisk(),
         () => unLivePause(),
         () => unLiveError(),
@@ -3306,6 +4221,7 @@ export class NotificationAdapter {
         () => unLiveValidation(),
         () => unLiveSignalNotify(),
         () => checkThrottleMap.clear(),
+        () => continueThrottleMap.clear(),
       );
     }
 

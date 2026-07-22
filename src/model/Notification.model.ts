@@ -1356,6 +1356,612 @@ export interface OrderSyncCheckNotification {
 }
 
 /**
+ * Order-check CONTINUE notification (post-verdict pair of `order_sync.check`).
+ * Emitted when the check resolved NON-terminally: the order is confirmed still open
+ * (`attempt` 0) or a transient failure was tolerated (`attempt` > 0) — monitoring
+ * continues. The pre-verdict `order_sync.check` fires the ping REQUEST before the
+ * adapter answers; this notification carries the decision. Throttled by
+ * NotificationAdapter to at most one notification per signalId per
+ * `CC_NOTIFICATION_ORDER_CHECK_TTL`; the throttle entry is dropped when the signal
+ * is closed or cancelled. Live-only.
+ * Source: `orderContinueSubject` (OrderContinueContract).
+ */
+export interface OrderContinueCheckNotification {
+  /** Discriminator for type-safe union */
+  type: "order_continue.check";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the check decision was made */
+  timestamp: number;
+  /** Always false: order checks are live-only (kept for cross-channel filter uniformity) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /**
+   * Which order is being monitored (from OrderContinueContract.type):
+   * - "active" — the order backing an open position (pending signal)
+   * - "schedule" — the resting entry order of a scheduled signal awaiting activation
+   */
+  orderType: "schedule" | "active";
+  /** Consecutive-failure streak at this decision: 0 — check confirmed, >0 — tolerated transient failures */
+  attempt: number;
+  /** Market price at the moment of the check (VWAP) */
+  currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective entry price (may differ from original after DCA averaging) */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Unrealized PNL of the position at the moment of the check */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment of the check */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment of the check */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation (adjusted with slippage and fees) */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of peak profit */
+  peakProfitPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+  peakProfitCost: number;
+  /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+  peakProfitPercentage: number;
+  /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+  peakProfitEntries: number;
+  /** Maximum drawdown price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of max drawdown */
+  maxDrawdownPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownCost: number;
+  /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownPercentage: number;
+  /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownEntries: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
+  /** Optional human-readable description of signal reason */
+  note?: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Order-check STOP notification (post-verdict pair of `order_sync.check`).
+ * Emitted exactly once per monitored signal when the check resolved TERMINALLY —
+ * `reason` "deleted" (OrderDeletedError: confirmed order-not-found, bypassing the
+ * tolerance counter) or "exhausted" (CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive
+ * transient failures spent, or the legacy config 0) — right before the teardown:
+ * close "closed" for `orderType` "active", cancel "user" for "schedule". Not
+ * throttled (rare terminal event). Live-only.
+ * Source: `orderStopSubject` (OrderStopContract).
+ */
+export interface OrderStopCheckNotification {
+  /** Discriminator for type-safe union */
+  type: "order_stop.check";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the check decision was made */
+  timestamp: number;
+  /** Always false: order checks are live-only (kept for cross-channel filter uniformity) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /**
+   * Which order was monitored (from OrderStopContract.type):
+   * - "active" — the order backing an open position; the framework closes it with closeReason "closed"
+   * - "schedule" — the resting entry order; the framework cancels the scheduled signal (reason "user")
+   */
+  orderType: "schedule" | "active";
+  /** Which terminal path fired: confirmed not-found ("deleted") or tolerance spent ("exhausted") */
+  reason: "deleted" | "exhausted";
+  /** Consecutive-failure streak at termination (includes the terminating check) */
+  attempt: number;
+  /** Market price at the moment of the check (VWAP) */
+  currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective entry price (may differ from original after DCA averaging) */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Unrealized PNL of the position at the moment of the check */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment of the check */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment of the check */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation (effective price adjusted with slippage and fees) */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation (adjusted with slippage and fees) */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of peak profit */
+  peakProfitPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+  peakProfitCost: number;
+  /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+  peakProfitPercentage: number;
+  /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+  peakProfitEntries: number;
+  /** Maximum drawdown price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of max drawdown */
+  maxDrawdownPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownCost: number;
+  /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownPercentage: number;
+  /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownEntries: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
+  /** Optional human-readable description of signal reason */
+  note?: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Order fill notification (broker-CONFIRMED open/placement).
+ * Post-verdict counterpart of `order_sync.open`: emitted ONLY after the onOrderSync
+ * gate resolved into the "confirmed" verdict — the exchange really filled the position
+ * order (`orderType: "active"`) or placed the resting entry order (`orderType: "schedule"`).
+ * A rejected or transient attempt never produces this notification. Live-only.
+ * Source: `orderFillSubject` (OrderFillContract).
+ */
+export interface OrderFillOpenNotification {
+  /** Discriminator for type-safe union */
+  type: "order_fill.open";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the gate confirmed */
+  timestamp: number;
+  /** Always false: fills are live-only (kept for cross-channel filter uniformity) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where the order executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+  signalId: string;
+  /**
+   * Which order was confirmed (from OrderFillContract.type):
+   * - "active" — the position order FILLED (immediate open or activation of a resting order)
+   * - "schedule" — the resting entry order was PLACED (not a fill)
+   */
+  orderType: "schedule" | "active";
+  /** Number of consecutive failed gate attempts that preceded this confirmed one (0 = first attempt) */
+  attempt: number;
+  /** Market price at the moment of confirmation (VWAP) */
+  currentPrice: number;
+  /** PNL snapshot of the position at the moment of this event */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of peak profit */
+  peakProfitPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+  peakProfitCost: number;
+  /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+  peakProfitPercentage: number;
+  /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+  peakProfitEntries: number;
+  /** Maximum drawdown price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of max drawdown */
+  maxDrawdownPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownCost: number;
+  /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownPercentage: number;
+  /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownEntries: number;
+  /** Cost of the position entry in USD */
+  cost: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective entry price (DCA-averaged when entries exist) */
+  priceOpen: number;
+  /** Effective take profit price (trailing-aware) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (trailing-aware) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price before any DCA averaging */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** Optional human-readable description of signal reason */
+  note?: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Order fill notification (broker-CONFIRMED close).
+ * Post-verdict counterpart of `order_sync.close`: emitted ONLY after the close gate
+ * resolved into the "confirmed" verdict — the exit order really executed on the
+ * exchange. A rejected or transient close attempt (and a force-close performed
+ * without broker confirmation) never produces this notification. Live-only.
+ * Source: `orderFillSubject` (OrderFillContract).
+ */
+export interface OrderFillCloseNotification {
+  /** Discriminator for type-safe union */
+  type: "order_fill.close";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the gate confirmed */
+  timestamp: number;
+  /** Always false: fills are live-only (kept for cross-channel filter uniformity) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where the order executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+  signalId: string;
+  /** Which order was confirmed (from OrderFillContract.type). Closes always go through the position order, so this is always "active". */
+  orderType: "schedule" | "active";
+  /** Number of consecutive failed gate attempts that preceded this confirmed one (0 = first attempt) */
+  attempt: number;
+  /** Market price at the moment of confirmation (VWAP) */
+  currentPrice: number;
+  /** PNL snapshot of the position at the moment of this event */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of peak profit */
+  peakProfitPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+  peakProfitCost: number;
+  /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+  peakProfitPercentage: number;
+  /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+  peakProfitEntries: number;
+  /** Maximum drawdown price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of max drawdown */
+  maxDrawdownPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownCost: number;
+  /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownPercentage: number;
+  /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownEntries: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective entry price at close */
+  priceOpen: number;
+  /** Effective take profit price at close */
+  priceTakeProfit: number;
+  /** Effective stop loss price at close */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price before any DCA averaging */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** Why the signal was closed (take_profit | stop_loss | time_expired | closed) */
+  closeReason: string;
+  /** Optional human-readable description of signal reason */
+  note?: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Order reject notification (TERMINAL open/placement rejection).
+ * Emitted ONLY when the open gate resolved into the "rejected" verdict — the broker
+ * adapter threw OrderRejectedError ("the exchange definitively refused this order,
+ * retrying is pointless"). Exactly once per dropped attempt: the rejected signalId
+ * is consumed by the whipsaw guard, so this cannot repeat per-tick for one signal.
+ * Transient failures never fire here (they retry silently). Live-only.
+ * Source: `orderRejectSubject` (OrderRejectContract).
+ */
+export interface OrderRejectOpenNotification {
+  /** Discriminator for type-safe union */
+  type: "order_reject.open";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the gate rejected */
+  timestamp: number;
+  /** Always false: rejections are live-only (kept for cross-channel filter uniformity) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name that refused the order */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+  signalId: string;
+  /**
+   * Which order was rejected (from OrderRejectContract.type):
+   * - "active" — the position order (immediate open or activation fill)
+   * - "schedule" — the resting entry order being placed at scheduled-signal creation
+   */
+  orderType: "schedule" | "active";
+  /** Number of consecutive failed gate attempts that preceded this terminal one (0 = rejected on the first attempt) */
+  attempt: number;
+  /** Human-readable rejection reason (the OrderRejectedError message from the broker adapter) */
+  message: string;
+  /** Market price at the moment of rejection (VWAP) */
+  currentPrice: number;
+  /** PNL snapshot of the position at the moment of this event */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of peak profit */
+  peakProfitPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+  peakProfitCost: number;
+  /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+  peakProfitPercentage: number;
+  /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+  peakProfitEntries: number;
+  /** Maximum drawdown price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of max drawdown */
+  maxDrawdownPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownCost: number;
+  /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownPercentage: number;
+  /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownEntries: number;
+  /** Cost of the position entry in USD */
+  cost: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective entry price (DCA-averaged when entries exist) */
+  priceOpen: number;
+  /** Effective take profit price (trailing-aware) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (trailing-aware) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price before any DCA averaging */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** Optional human-readable description of signal reason */
+  note?: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Order reject notification (TERMINAL close rejection → force-close).
+ * Emitted ONLY when the close gate resolved into the "rejected" verdict — the broker
+ * adapter threw OrderRejectedError. The engine force-closes its state with the
+ * original closeReason; the real exchange position is the adapter's/operator's to
+ * reconcile. Transient close failures never fire here. Live-only.
+ * Source: `orderRejectSubject` (OrderRejectContract).
+ */
+export interface OrderRejectCloseNotification {
+  /** Discriminator for type-safe union */
+  type: "order_reject.close";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the gate rejected */
+  timestamp: number;
+  /** Always false: rejections are live-only (kept for cross-channel filter uniformity) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name that refused the order */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) — equals the adapter's clientOrderId */
+  signalId: string;
+  /** Which order was rejected (from OrderRejectContract.type). Closes always go through the position order, so this is always "active". */
+  orderType: "schedule" | "active";
+  /** Number of consecutive failed gate attempts that preceded this terminal one (0 = rejected on the first attempt) */
+  attempt: number;
+  /** Human-readable rejection reason (the OrderRejectedError message from the broker adapter) */
+  message: string;
+  /** Market price at the moment of rejection (VWAP) */
+  currentPrice: number;
+  /** PNL snapshot of the position at the moment of this event */
+  pnl: IStrategyPnL;
+  /** Peak profit achieved during the life of this position up to the moment this public signal was created */
+  peakProfit: IStrategyPnL;
+  /** Maximum drawdown experienced during the life of this position up to the moment this public signal was created */
+  maxDrawdown: IStrategyPnL;
+  /** Profit/loss as percentage */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Peak price reached in profit direction during the life of this position */
+  peakProfitPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of peak profit */
+  peakProfitPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its peak profit during the life of this position */
+  peakProfitCost: number;
+  /** Profit/loss as percentage at the moment the position reached its peak profit during the life of this position */
+  peakProfitPercentage: number;
+  /** Number of entries executed at the moment the position reached its peak profit during the life of this position */
+  peakProfitEntries: number;
+  /** Maximum drawdown price reached in loss direction during the life of this position */
+  maxDrawdownPriceOpen: number;
+  /** Exit price for PNL calculation at the moment of max drawdown */
+  maxDrawdownPriceClose: number;
+  /** Absolute profit/loss in USD at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownCost: number;
+  /** Profit/loss as percentage at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownPercentage: number;
+  /** Number of entries executed at the moment the position reached its maximum drawdown during the life of this position */
+  maxDrawdownEntries: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective entry price at close */
+  priceOpen: number;
+  /** Effective take profit price at close */
+  priceTakeProfit: number;
+  /** Effective stop loss price at close */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price before any DCA averaging */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** The closeReason the engine force-closes with (take_profit | stop_loss | time_expired | closed) */
+  closeReason: string;
+  /** Optional human-readable description of signal reason */
+  note?: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
  * Risk rejection notification.
  * Emitted when a signal is rejected due to risk management rules.
  */
@@ -1898,6 +2504,12 @@ export type NotificationModel =
   | OrderSyncOpenNotification
   | OrderSyncCloseNotification
   | OrderSyncCheckNotification
+  | OrderContinueCheckNotification
+  | OrderStopCheckNotification
+  | OrderFillOpenNotification
+  | OrderFillCloseNotification
+  | OrderRejectOpenNotification
+  | OrderRejectCloseNotification
   | RiskRejectionNotification
   | SignalScheduledNotification
   | SignalCancelledNotification

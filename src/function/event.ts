@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, scheduleEventSubject, signalEventSubject, activePingSubject, idlePingSubject, strategyCommitSubject, syncSubject, syncPendingSubject, orderFillSubject, orderRejectSubject, orderContinueSubject, orderStopSubject, highestProfitSubject, maxDrawdownSubject, pauseSubject, signalNotifySubject, beforeStartSubject, afterEndSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -21,6 +21,8 @@ import { not, queued } from "functools-kit";
 import OrderSyncContract from "../contract/OrderSync.contract";
 import OrderFillContract from "../contract/OrderFill.contract";
 import OrderRejectContract from "../contract/OrderReject.contract";
+import OrderContinueContract from "../contract/OrderContinue.contract";
+import OrderStopContract from "../contract/OrderStop.contract";
 import OrderCheckContract from "../contract/OrderCheck.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
@@ -76,6 +78,10 @@ const LISTEN_ORDER_FILL_METHOD_NAME = "event.listenOrderFill";
 const LISTEN_ORDER_FILL_ONCE_METHOD_NAME = "event.listenOrderFillOnce";
 const LISTEN_ORDER_REJECT_METHOD_NAME = "event.listenOrderReject";
 const LISTEN_ORDER_REJECT_ONCE_METHOD_NAME = "event.listenOrderRejectOnce";
+const LISTEN_ORDER_CONTINUE_METHOD_NAME = "event.listenOrderContinue";
+const LISTEN_ORDER_CONTINUE_ONCE_METHOD_NAME = "event.listenOrderContinueOnce";
+const LISTEN_ORDER_STOP_METHOD_NAME = "event.listenOrderStop";
+const LISTEN_ORDER_STOP_ONCE_METHOD_NAME = "event.listenOrderStopOnce";
 const LISTEN_CHECK_METHOD_NAME = "event.listenCheck";
 const LISTEN_CHECK_ONCE_METHOD_NAME = "event.listenCheckOnce";
 const LISTEN_HIGHEST_PROFIT_METHOD_NAME = "event.listenHighestProfit";
@@ -1924,6 +1930,103 @@ export function listenOrderRejectOnce(
   };
 
   return disposeFn = listenOrderReject(wrappedFn);
+}
+
+/**
+ * Subscribes to post-verdict order-check CONTINUE events with queued async processing.
+ *
+ * Paired with {@link listenOrderStop}: the pre-verdict {@link listenCheck} fires the
+ * ping REQUEST before the broker adapter answers; this channel carries the resolved
+ * NON-terminal decision — the order is confirmed still open (`event.attempt` 0) or a
+ * transient check failure was tolerated (`event.attempt` > 0) and monitoring
+ * continues. Emitted on every live tick while the monitored signal survives the
+ * check, for both states (`event.type` "active"/"schedule").
+ *
+ * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
+ * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
+ * and cannot affect the already-made monitoring decision.
+ *
+ * @param fn - Callback function to handle continue events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenOrderContinue(fn: (event: OrderContinueContract) => void) {
+  backtest.loggerService.log(LISTEN_ORDER_CONTINUE_METHOD_NAME);
+  return orderContinueSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered post-verdict order-check CONTINUE events with one-time execution.
+ * See {@link listenOrderContinue} for the emission semantics.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, processing waits until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenOrderContinueOnce(
+  filterFn: (event: OrderContinueContract) => boolean,
+  fn: (event: OrderContinueContract) => void
+) {
+  backtest.loggerService.log(LISTEN_ORDER_CONTINUE_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: OrderContinueContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenOrderContinue(wrappedFn);
+}
+
+/**
+ * Subscribes to post-verdict order-check STOP events with queued async processing.
+ *
+ * Paired with {@link listenOrderContinue}: fires exactly once per monitored signal
+ * when the check resolved TERMINALLY — `event.reason` "deleted" (OrderDeletedError:
+ * confirmed order-not-found, bypassing the tolerance counter) or "exhausted"
+ * (CC_ORDER_CHECK_RETRY_ATTEMPTS consecutive transient failures spent, or the
+ * legacy config 0). Emitted right BEFORE the teardown: close "closed" for
+ * `event.type` "active", cancel "user" for "schedule". `event.attempt` carries the
+ * final failure streak.
+ *
+ * Live-only: backtest never runs order checks. NOTIFICATION channel, not a gate:
+ * a throw from the listener is swallowed at the emission site (logged + errorEmitter)
+ * and cannot affect the already-made terminal decision.
+ *
+ * @param fn - Callback function to handle stop events. If the function returns a promise, processing is queued sequentially.
+ * @returns Unsubscribe function to stop listening
+ */
+export function listenOrderStop(fn: (event: OrderStopContract) => void) {
+  backtest.loggerService.log(LISTEN_ORDER_STOP_METHOD_NAME);
+  return orderStopSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered post-verdict order-check STOP events with one-time execution.
+ * See {@link listenOrderStop} for the emission semantics.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, processing waits until it resolves.
+ * @returns Unsubscribe function to cancel the listener before it fires
+ */
+export function listenOrderStopOnce(
+  filterFn: (event: OrderStopContract) => boolean,
+  fn: (event: OrderStopContract) => void
+) {
+  backtest.loggerService.log(LISTEN_ORDER_STOP_ONCE_METHOD_NAME);
+
+  let disposeFn: Function;
+
+  const wrappedFn = async (event: OrderStopContract) => {
+    if (filterFn(event)) {
+      await fn(event);
+      disposeFn && disposeFn();
+    }
+  };
+
+  return disposeFn = listenOrderStop(wrappedFn);
 }
 
 /**

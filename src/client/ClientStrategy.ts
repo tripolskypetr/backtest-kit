@@ -39,7 +39,7 @@ import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/ge
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, PersistStrategyAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
-import { errorEmitter, exitEmitter, backtestScheduleOpenSubject } from "../config/emitters";
+import { errorEmitter, exitEmitter, backtestScheduleOpenSubject, orderContinueSubject, orderStopSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
@@ -564,6 +564,126 @@ const CALL_SCHEDULED_ORDER_CHECK_FN = trycatch(
       console.warn(message, payload);
       errorEmitter.next(error);
     }
+  }
+);
+
+/**
+ * Emits the post-verdict order-check CONTINUE event (orderContinueSubject): the
+ * check resolved NON-terminally — confirmed (attempt 0) or tolerated transient
+ * failure (attempt > 0) — and monitoring continues. Called from the live tick
+ * right after the decision, for both monitored states (type "active"/"schedule").
+ * Notification-only: the trycatch fallback swallows a throwing listener so it
+ * can never affect the already-made monitoring decision.
+ */
+const CALL_ORDER_CONTINUE_EMIT_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    type: "schedule" | "active",
+    signal: ISignalRow | IScheduledSignalRow,
+    currentPrice: number,
+    timestamp: number
+  ): Promise<void> => {
+    const publicSignal = TO_PUBLIC_SIGNAL(type === "active" ? "pending" : "scheduled", signal, currentPrice);
+    await orderContinueSubject.next({
+      type,
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      exchangeName: self.params.exchangeName,
+      frameName: self.params.frameName,
+      backtest: self.params.execution.context.backtest,
+      signalId: signal.id,
+      timestamp,
+      signal: publicSignal,
+      attempt: self._orderCheckAttempt,
+      currentPrice,
+      pnl: publicSignal.pnl,
+      peakProfit: publicSignal.peakProfit,
+      maxDrawdown: publicSignal.maxDrawdown,
+      position: publicSignal.position,
+      priceOpen: publicSignal.priceOpen,
+      priceTakeProfit: publicSignal.priceTakeProfit,
+      priceStopLoss: publicSignal.priceStopLoss,
+      originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+      originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+      originalPriceOpen: publicSignal.originalPriceOpen,
+      scheduledAt: publicSignal.scheduledAt,
+      pendingAt: publicSignal.pendingAt,
+      totalEntries: publicSignal.totalEntries,
+      totalPartials: publicSignal.totalPartials,
+    });
+  },
+  {
+    fallback: (error, self) => {
+      const message = "ClientStrategy CALL_ORDER_CONTINUE_EMIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
+ * Emits the post-verdict order-check STOP event (orderStopSubject): the check
+ * resolved TERMINALLY — OrderDeletedError ("deleted") or spent transient
+ * tolerance ("exhausted") — right before the teardown (close "closed" for
+ * "active" / cancel "user" for "schedule"). Called with the final failure
+ * streak, BEFORE the counter reset. Notification-only: the trycatch fallback
+ * swallows a throwing listener so it can never affect the terminal decision.
+ */
+const CALL_ORDER_STOP_EMIT_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    type: "schedule" | "active",
+    reason: "deleted" | "exhausted",
+    signal: ISignalRow | IScheduledSignalRow,
+    currentPrice: number,
+    timestamp: number
+  ): Promise<void> => {
+    const publicSignal = TO_PUBLIC_SIGNAL(type === "active" ? "pending" : "scheduled", signal, currentPrice);
+    await orderStopSubject.next({
+      type,
+      reason,
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      exchangeName: self.params.exchangeName,
+      frameName: self.params.frameName,
+      backtest: self.params.execution.context.backtest,
+      signalId: signal.id,
+      timestamp,
+      signal: publicSignal,
+      attempt: self._orderCheckAttempt,
+      currentPrice,
+      pnl: publicSignal.pnl,
+      peakProfit: publicSignal.peakProfit,
+      maxDrawdown: publicSignal.maxDrawdown,
+      position: publicSignal.position,
+      priceOpen: publicSignal.priceOpen,
+      priceTakeProfit: publicSignal.priceTakeProfit,
+      priceStopLoss: publicSignal.priceStopLoss,
+      originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+      originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+      originalPriceOpen: publicSignal.originalPriceOpen,
+      scheduledAt: publicSignal.scheduledAt,
+      pendingAt: publicSignal.pendingAt,
+      totalEntries: publicSignal.totalEntries,
+      totalPartials: publicSignal.totalPartials,
+    });
+  },
+  {
+    fallback: (error, self) => {
+      const message = "ClientStrategy CALL_ORDER_STOP_EMIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.params.logger.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
   }
 );
 
@@ -8000,6 +8120,8 @@ export class ClientStrategy implements IStrategy {
         }
         if (stillScheduled.reason === "confirmed") {
           this._orderCheckAttempt = 0;
+          // Post-verdict CONTINUE: the resting order is confirmed still open
+          await CALL_ORDER_CONTINUE_EMIT_FN(this, "schedule", this._scheduledSignal, currentPrice, currentTime);
         } else {
           this._orderCheckAttempt += 1;
           const terminal = stillScheduled.reason !== "transient"
@@ -8025,6 +8147,16 @@ export class ClientStrategy implements IStrategy {
               errorEmitter.next(error);
               exitEmitter.next(error);
             }
+            // Post-verdict STOP: emitted with the FINAL failure streak, before the
+            // counter reset and the cancel teardown below
+            await CALL_ORDER_STOP_EMIT_FN(
+              this,
+              "schedule",
+              stillScheduled.reason !== "transient" ? "deleted" : "exhausted",
+              this._scheduledSignal,
+              currentPrice,
+              currentTime
+            );
             this._orderCheckAttempt = 0;
             return await CANCEL_SCHEDULED_SIGNAL_AS_CLOSED_FN(
               this,
@@ -8039,6 +8171,8 @@ export class ClientStrategy implements IStrategy {
             attempt: this._orderCheckAttempt,
             maxAttempts: GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS,
           });
+          // Post-verdict CONTINUE: tolerated transient failure, monitoring continues
+          await CALL_ORDER_CONTINUE_EMIT_FN(this, "schedule", this._scheduledSignal, currentPrice, currentTime);
         }
       }
 
@@ -8154,6 +8288,8 @@ export class ClientStrategy implements IStrategy {
       }
       if (stillPending.reason === "confirmed") {
         this._orderCheckAttempt = 0;
+        // Post-verdict CONTINUE: the position order is confirmed still open
+        await CALL_ORDER_CONTINUE_EMIT_FN(this, "active", this._pendingSignal, averagePrice, currentTime);
       } else {
         this._orderCheckAttempt += 1;
         // A FAILED check ("transient") is tolerated up to CC_ORDER_CHECK_RETRY_ATTEMPTS
@@ -8183,6 +8319,16 @@ export class ClientStrategy implements IStrategy {
             errorEmitter.next(error);
             exitEmitter.next(error);
           }
+          // Post-verdict STOP: emitted with the FINAL failure streak, before the
+          // counter reset and the close teardown below
+          await CALL_ORDER_STOP_EMIT_FN(
+            this,
+            "active",
+            stillPending.reason !== "transient" ? "deleted" : "exhausted",
+            this._pendingSignal,
+            averagePrice,
+            currentTime
+          );
           this._orderCheckAttempt = 0;
           return await CLOSE_PENDING_SIGNAL_AS_CLOSED_FN(
             this,
@@ -8197,6 +8343,8 @@ export class ClientStrategy implements IStrategy {
           attempt: this._orderCheckAttempt,
           maxAttempts: GLOBAL_CONFIG.CC_ORDER_CHECK_RETRY_ATTEMPTS,
         });
+        // Post-verdict CONTINUE: tolerated transient failure, monitoring continues
+        await CALL_ORDER_CONTINUE_EMIT_FN(this, "active", this._pendingSignal, averagePrice, currentTime);
       }
     }
 

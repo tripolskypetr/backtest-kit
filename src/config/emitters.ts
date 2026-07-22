@@ -21,6 +21,8 @@ import OrderSyncContract from "../contract/OrderSync.contract";
 import OrderFillContract from "../contract/OrderFill.contract";
 import OrderRejectContract from "../contract/OrderReject.contract";
 import OrderCheckContract from "../contract/OrderCheck.contract";
+import OrderContinueContract from "../contract/OrderContinue.contract";
+import OrderStopContract from "../contract/OrderStop.contract";
 import { HighestProfitContract } from "../contract/HighestProfit.contract";
 import { MaxDrawdownContract } from "../contract/MaxDrawdown.contract";
 import { PauseContract } from "../contract/Pause.contract";
@@ -58,6 +60,25 @@ export const orderFillSubject = new Subject<OrderFillContract>();
  * channel: listener exceptions are swallowed at the emission site.
  */
 export const orderRejectSubject = new Subject<OrderRejectContract>();
+
+/**
+ * Post-verdict order-check CONTINUE emitter (paired with orderStopSubject).
+ * Emitted on every live tick when the check resolved NON-terminally: the order
+ * is confirmed still open (attempt 0) or a transient failure was tolerated
+ * (attempt > 0) — monitoring continues. The pre-verdict syncPendingSubject fires
+ * the ping REQUEST before the adapter answers; this channel carries the decision.
+ * Live-only. Notification-only: listener exceptions are swallowed at the emission site.
+ */
+export const orderContinueSubject = new Subject<OrderContinueContract>();
+
+/**
+ * Post-verdict order-check STOP emitter (paired with orderContinueSubject).
+ * Emitted exactly once per monitored signal when the check resolved TERMINALLY —
+ * OrderDeletedError ("deleted") or spent transient tolerance ("exhausted") — right
+ * before the teardown (close "closed" for active / cancel "user" for schedule).
+ * Live-only. Notification-only: listener exceptions are swallowed at the emission site.
+ */
+export const orderStopSubject = new Subject<OrderStopContract>();
 
 /**
  * Pending-order synchronization emitter.
