@@ -65,22 +65,22 @@ test("SIM: duplicate registration throws, override applies before first use and 
   addSimulatorSchema({ simulatorName: "sim_lc_before", exchangeName: "sim-lifecycle-exchange", gridAxes: TWO_POINTS });
   await overrideSimulatorSchema({ simulatorName: "sim_lc_before", gridAxes: SINGLE_POINT });
   const before = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_lc_before", ideas: IDEAS });
-  if (before.reports.length !== 1) {
-    fail(`override before first use must apply (1 point), got ${before.reports.length}`);
+  if (Object.values(before.reports).flat().length !== 1) {
+    fail(`override before first use must apply (1 point), got ${Object.values(before.reports).flat().length}`);
     return;
   }
 
   // 3) override ПОСЛЕ первого run: клиент мемоизирован, сетка прежняя
   addSimulatorSchema({ simulatorName: "sim_lc_after", exchangeName: "sim-lifecycle-exchange", gridAxes: TWO_POINTS });
   const first = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_lc_after", ideas: IDEAS });
-  if (first.reports.length !== 2) {
-    fail(`sanity: pre-override run must see 2 points, got ${first.reports.length}`);
+  if (Object.values(first.reports).flat().length !== 2) {
+    fail(`sanity: pre-override run must see 2 points, got ${Object.values(first.reports).flat().length}`);
     return;
   }
   await overrideSimulatorSchema({ simulatorName: "sim_lc_after", gridAxes: SINGLE_POINT });
   const second = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_lc_after", ideas: IDEAS });
-  if (second.reports.length !== 2) {
-    fail(`override after first use must NOT apply to the memoized client, got ${second.reports.length} points`);
+  if (Object.values(second.reports).flat().length !== 2) {
+    fail(`override after first use must NOT apply to the memoized client, got ${Object.values(second.reports).flat().length} points`);
     return;
   }
 

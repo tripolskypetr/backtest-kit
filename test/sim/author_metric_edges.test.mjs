@@ -167,7 +167,7 @@ test("SIM: reach with lock=0 degrades to the close metric — the spiker stays b
     fail(`lock=0 must fall back to close (0/5 hits, banned), got ${JSON.stringify(spiker)}`);
     return;
   }
-  const [report] = result.reports;
+  const [report] = Object.values(result.reports).flat();
   if (report.trades !== 0) {
     fail(`banned spiker must produce 0 trades, got ${report.trades}`);
     return;

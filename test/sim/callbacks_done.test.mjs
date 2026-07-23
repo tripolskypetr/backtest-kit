@@ -73,8 +73,8 @@ test("SIM: onDone fires once and carries the exact result object", async ({ pass
     fail("onDone payload must be the exact object run() returns");
     return;
   }
-  if (result.reports.length !== 1 || result.best.length !== 4) {
-    fail(`sanity: expected 1 report / 4 winners, got ${result.reports.length}/${result.best.length}`);
+  if (Object.values(result.reports).flat().length !== 1 || result.best.length !== 4) {
+    fail(`sanity: expected 1 report / 4 winners, got ${Object.values(result.reports).flat().length}/${result.best.length}`);
     return;
   }
 

@@ -55,7 +55,7 @@ const toMarkdown = (
   lines.push("");
   lines.push(`Walk-forward: train on the first ${Math.round(trainSplit * 100)}% of the feed time range, ONE out-of-sample shot of the frozen sharpe winner on the tail.`);
   lines.push("");
-  lines.push(`## Train (${train.ideasDirectional} directional ideas, ${train.reports.length} grid points)`);
+  lines.push(`## Train (${train.ideasDirectional} directional ideas, ${Object.values(train.reports).flat().length} grid points)`);
   lines.push("");
   lines.push(`| Criterion | Point | Trades | PNL% | WinRate | DD% | Sharpe | Sortino |`);
   lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- |`);

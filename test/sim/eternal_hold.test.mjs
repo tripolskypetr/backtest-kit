@@ -107,13 +107,13 @@ test("SIM: time-based Sharpe punishes eternal hold in favor of normal entries", 
     ideas: makeIdeas(),
   });
 
-  if (result.reports.length !== 2) {
-    fail(`expected 2 grid points, got ${result.reports.length}`);
+  if (Object.values(result.reports).flat().length !== 2) {
+    fail(`expected 2 grid points, got ${Object.values(result.reports).flat().length}`);
     return;
   }
 
-  const short = result.reports.find(({ point }) => point.holdMinutes === 60);
-  const eternal = result.reports.find(({ point }) => point.holdMinutes === 7200);
+  const short = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 60);
+  const eternal = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 7200);
   if (!short || !eternal) {
     fail("short/eternal hold reports not found");
     return;

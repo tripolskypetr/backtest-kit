@@ -91,8 +91,8 @@ test("SIM: reach metric allows the spiker the close metric bans — and the lock
     ideas: Array.from({ length: 5 }, (_, k) => idea(1 + k, k * CYCLE, "LONG", "spiker")),
   });
 
-  if (result.reports.length !== 2 || reportsByMetric.size !== 2) {
-    fail(`grid must have exactly 2 points (close|reach), got ${result.reports.length}`);
+  if (Object.values(result.reports).flat().length !== 2 || reportsByMetric.size !== 2) {
+    fail(`grid must have exactly 2 points (close|reach), got ${Object.values(result.reports).flat().length}`);
     return;
   }
 

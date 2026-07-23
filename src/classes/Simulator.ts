@@ -48,7 +48,8 @@ const METHOD_NAME_TEST = "Simulator.test";
  *   (union) / bannedAuthors (banned by all); a winner elected by a
  *   non-finite value (Infinity sortino/recovery) grants nothing.
  * - reportOrder — ranking criterion ordering result.reports
- *   (descending, tie-guarded comparator); default "sharpe". Purely
+ *   buckets (descending, tie-guarded comparator); default "sharpe".
+ *   Purely
  *   presentational: never affects winners, callbacks or ban lists.
  *
  * The simulator picks candidates — honest confirmation is a

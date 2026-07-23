@@ -104,8 +104,8 @@ test("SIM: jsonl feed end-to-end — eternal hold loses to normal entries", asyn
     return;
   }
 
-  const short = result.reports.find(({ point }) => point.holdMinutes === 60);
-  const eternal = result.reports.find(({ point }) => point.holdMinutes === 7200);
+  const short = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 60);
+  const eternal = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 7200);
   if (!short || !eternal) {
     fail("short/eternal hold reports not found");
     return;

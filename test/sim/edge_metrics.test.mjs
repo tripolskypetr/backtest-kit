@@ -75,7 +75,7 @@ test("SIM: profitable series with no losing day yields infinite Sortino", async 
     ideas: Array.from({ length: CYCLES }, (_, k) => idea(1 + k, k * 481, "LONG", "prophet")),
   });
 
-  const [report] = result.reports;
+  const [report] = Object.values(result.reports).flat();
   if (report.trades !== CYCLES || report.totalPnlPercent <= 0) {
     fail(`expected ${CYCLES} profitable trades, got ${report.trades} / ${report.totalPnlPercent}`);
     return;

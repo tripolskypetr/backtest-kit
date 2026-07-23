@@ -74,7 +74,7 @@ test("SIM: with no point above the anti-fluke floor the fallback picks the BEST 
 
   // предусловие: обе точки ниже порога 8 сделок, и первая по сетке
   // (hold=120) объективно хуже
-  const byHold = new Map(result.reports.map((r) => [r.point.holdMinutes, r]));
+  const byHold = new Map(Object.values(result.reports).flat().map((r) => [r.point.holdMinutes, r]));
   const long = byHold.get(120);
   const short = byHold.get(60);
   if (long.trades !== 5 || short.trades !== 5) {

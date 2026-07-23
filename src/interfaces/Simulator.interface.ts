@@ -81,12 +81,17 @@ export interface ISimulatorIdeaProfile {
  *   the pre-peak shakeout stayed above the hard stop. The strictest
  *   grading: a transient spike (reach's hit) and a lucky last-day
  *   finish (close's hit) are both misses here. With
- *   profitLockPercent = 0 it falls back to "close", like reach.
+ *   profitLockPercent = 0 it falls back to "close", like reach;
+ * - "pnl" — the idea's MFE grew by MORE than the fixed +1% threshold
+ *   at any moment of the horizon, INDEPENDENT of the point's lock
+ *   and stop. The only lock-free level grading: unlike reach/retain
+ *   it never degenerates on lock = 0 points, so a primitive
+ *   lock-free grid can still grade "did the call ever pay".
  * The right metric depends on the exit style being ranked: close-hit
  * authors feed long-hold points, reach-hit authors feed lock points,
  * retain-hit authors feed points that need the level to HOLD.
  */
-export type SimulatorAuthorMetric = "close" | "reach" | "retain";
+export type SimulatorAuthorMetric = "close" | "reach" | "retain" | "pnl";
 
 /**
  * Discriminated union of the ban-filter rule derived from a grid
@@ -132,6 +137,17 @@ export type SimulatorAuthorRule =
       profitLockPercent: number;
       /** Stop level the pre-peak shakeout is graded against. */
       hardStopPercent: number;
+    }
+  | {
+      /**
+       * Discriminator: grade authors by the fixed +1% MFE threshold
+       * — lock/stop independent by construction (no such fields).
+       */
+      metric: "pnl";
+      /** Minimum known-outcome ideas to be allowed. */
+      minAuthorTrack: number;
+      /** Minimum hit rate (0..1) to be allowed. */
+      minAuthorHitRate: number;
     };
 
 /**
@@ -150,10 +166,11 @@ export interface ISimulatorGridAxes {
    * Tunes: the catastrophe exit — how deep a position may sink
    * before a forced loss; the stop WINS when the stop and any profit
    * floor are reachable inside one candle (pessimism contract). Also
-   * the shakeout bound of the "reach" author metric.
+   * the shakeout bound of the "reach"/"retain" author metrics.
    * Ignored: never for trading — every trade checks it. For BAN
-   * TRAINING it is ignored under authorMetric "close": only the
-   * "reach" rule grades authors against it (see SimulatorAuthorRule).
+   * TRAINING it is ignored under authorMetric "close" and "pnl":
+   * only the "reach"/"retain" rules grade authors against it (see
+   * SimulatorAuthorRule).
    */
   hardStopPercent: number[];
   /**
@@ -468,10 +485,15 @@ export interface ISimulatorResult {
   /** 99th percentile of holding time across the whole grid, minutes — eternal holds are visible right in the run result. */
   p99HoldMinutes: number;
   /**
-   * All grid point reports, sorted descending by the schema's
-   * reportOrder criterion (default sharpe).
+   * All grid point reports, keyed by the point's authorMetric.
+   * Every metric key is always present — a metric absent from the
+   * swept axis maps to an empty list. Each bucket is sorted
+   * descending by the schema's reportOrder criterion (default
+   * sharpe). Rankings and best[] are computed over ALL buckets
+   * together — the dictionary is a presentation grouping, not a
+   * per-metric tournament.
    */
-  reports: ISimulatorPointReport[];
+  reports: Record<SimulatorAuthorMetric, ISimulatorPointReport[]>;
   /** Winners of the rankings: sharpe, sortino, pnl, recovery. */
   best: ISimulatorBest[];
 }
@@ -555,7 +577,8 @@ export interface ISimulatorSchema {
      */
     gridAxes?: Partial<ISimulatorGridAxes>;
     /**
-     * Ranking criterion ordering result.reports (descending). The
+     * Ranking criterion ordering each result.reports bucket
+     * (descending). The
      * return value of run() is the consumer contract — callbacks are
      * a side channel — so the order of the flat report list is
      * declared here, not derived. Sorting uses the tie-guarded

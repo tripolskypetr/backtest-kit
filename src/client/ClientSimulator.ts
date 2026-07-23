@@ -14,6 +14,7 @@ import {
   ISimulatorResult,
   ISimulatorTestResult,
   ISimulatorTrade,
+  SimulatorAuthorMetric,
   SimulatorAuthorRule,
   SimulatorExitReason,
   SimulatorRankingCriterion,
@@ -55,6 +56,15 @@ const SORTINO_NO_LOSSES = Number.POSITIVE_INFINITY;
  * (anti-fluke guard: a two-trade point must not lead a ranking).
  */
 const MIN_TRADES_FOR_BEST = 8;
+
+/**
+ * Fixed MFE threshold of the "pnl" author metric, percent. A hit is
+ * an idea whose PnL grew by MORE than this at any moment of the
+ * horizon — independent of the point's lock and stop by design, so
+ * the grading survives lock-free grids where reach/retain would
+ * degenerate into "close".
+ */
+const PNL_HIT_THRESHOLD_PERCENT = 1;
 
 async function* ITERATE_CANDLES_FN(
   self: ClientSimulator,
@@ -277,6 +287,14 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
       hardStopPercent: point.hardStopPercent,
     };
   }
+  // "pnl" не зависит от lock/stop по построению — деградации нет
+  if (point.authorMetric === "pnl") {
+    return {
+      metric: "pnl",
+      minAuthorTrack: point.minAuthorTrack,
+      minAuthorHitRate: point.minAuthorHitRate,
+    };
+  }
   return {
     metric: "close",
     minAuthorTrack: point.minAuthorTrack,
@@ -327,6 +345,11 @@ const AUTHOR_HIT_FN = (
       profile.medianMovePercent >= rule.profitLockPercent &&
       profile.shakeoutMaePercent > -rule.hardStopPercent
     );
+  }
+  // "pnl": PnL идеи вырос БОЛЬШЕ фиксированного порога — строго
+  // больше, независимо от замка и стопа точки
+  if (rule.metric === "pnl") {
+    return profile.maxMfePercent > PNL_HIT_THRESHOLD_PERCENT;
   }
   return profile.hit;
 };
@@ -893,8 +916,8 @@ const RUN_FN = async (
   const getFilter = (point: ISimulatorGridPoint): IAuthorFilterContext => {
     const rule = AUTHOR_RULE_FN(point);
     const key =
-      rule.metric === "close"
-        ? `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`
+      rule.metric === "close" || rule.metric === "pnl"
+        ? `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`
         : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`;
     let filter = filterByRule.get(key);
     if (!filter) {
@@ -1022,6 +1045,16 @@ const RUN_FN = async (
     rankings.find(({ criterion }) => criterion === self.params.reportOrder)
       ?.value ?? rankings[0].value;
   reports.sort(byRankingDesc(orderValue));
+  // словарь отчётов по метрике точки — презентационная группировка
+  // (рейтинги и best[] считаются по ВСЕМ корзинам вместе); каждый
+  // ключ существует всегда, невыметаемая метрика = пустой список
+  const reportsByMetric: Record<
+    SimulatorAuthorMetric,
+    ISimulatorPointReport[]
+  > = { close: [], reach: [], retain: [], pnl: [] };
+  for (const report of reports) {
+    reportsByMetric[report.point.authorMetric].push(report);
+  }
 
   // ран-левел артефакт агрегируется по победителям критериев из
   // gridAxes.banCriteria (конфиг прогона, не ось перебора): allowed =
@@ -1069,7 +1102,7 @@ const RUN_FN = async (
     avgHoldMinutes: holdStats.avgHoldMinutes,
     p95HoldMinutes: holdStats.p95HoldMinutes,
     p99HoldMinutes: holdStats.p99HoldMinutes,
-    reports,
+    reports: reportsByMetric,
     best,
   };
   if (self.params.callbacks?.onDone) {
@@ -1262,7 +1295,8 @@ export class ClientSimulator implements ISimulator {
    *
    * @param symbol - Trading pair symbol to simulate (e.g., "BTCUSDT")
    * @param ideas - Ideas feed (other symbols are filtered out)
-   * @returns Final result: all grid point reports (sorted by Sharpe),
+   * @returns Final result: grid reports keyed by author metric (each
+   * bucket sorted by reportOrder),
    * winners of the four rankings with their trade lists, and the
    * trained author filter artifact (stats + ban list)
    * @throws Error when a grid point produces a trade violating the

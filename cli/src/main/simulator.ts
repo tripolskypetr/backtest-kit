@@ -35,7 +35,7 @@ const validateIdea = (idea: any, line: number): string | null => {
 };
 
 const toMarkdown = (result: ISimulatorResult): string => {
-  const profitable = result.reports.filter(
+  const profitable = Object.values(result.reports).flat().filter(
     ({ totalPnlPercent }) => totalPnlPercent > 0,
   ).length;
   const lines: string[] = [];
@@ -46,7 +46,7 @@ const toMarkdown = (result: ISimulatorResult): string => {
   lines.push(`| Ideas (total / directional) | ${result.ideasTotal} / ${result.ideasDirectional} |`);
   lines.push(`| Profiles (truncated) | ${result.profileCount} (${result.truncatedCount}) |`);
   lines.push(`| Authors allowed / banned | ${result.allowedAuthors.length} / ${result.bannedAuthors.length} |`);
-  lines.push(`| Profitable corridor | ${profitable} / ${result.reports.length} grid points |`);
+  lines.push(`| Profitable corridor | ${profitable} / ${Object.values(result.reports).flat().length} grid points |`);
   lines.push(`| Hold minutes avg / p95 / p99 | ${result.avgHoldMinutes.toFixed(0)} / ${result.p95HoldMinutes} / ${result.p99HoldMinutes} |`);
   lines.push("");
   lines.push(`## Ranking winners`);
@@ -251,7 +251,7 @@ export const main = async () => {
         if (values.verbose) {
           console.log("onDone", {
             symbol,
-            reports: result.reports.length,
+            reports: Object.values(result.reports).flat().length,
             allowedAuthors: result.allowedAuthors.length,
             bannedAuthors: result.bannedAuthors.length,
           });

@@ -191,8 +191,8 @@ test("SIM: retain with lock=0 degenerates into close — one shared training for
     ideas: IDEAS,
   });
 
-  if (result.reports.length !== 2) {
-    fail(`expected 2 grid points, got ${result.reports.length}`);
+  if (Object.values(result.reports).flat().length !== 2) {
+    fail(`expected 2 grid points, got ${Object.values(result.reports).flat().length}`);
     return;
   }
   if (trained.length !== 1) {

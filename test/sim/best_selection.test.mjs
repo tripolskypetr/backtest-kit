@@ -81,8 +81,8 @@ test("SIM: a monster single-trade point cannot win any ranking — the trades fl
     })),
   });
 
-  const steady = result.reports.find(({ point }) => point.holdMinutes === 60);
-  const fluke = result.reports.find(({ point }) => point.holdMinutes === 7200);
+  const steady = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 60);
+  const fluke = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 7200);
   if (!steady || !fluke) {
     fail("both points must be evaluated");
     return;

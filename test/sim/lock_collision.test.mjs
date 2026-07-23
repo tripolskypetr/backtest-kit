@@ -53,7 +53,7 @@ const runSingle = async (simulatorName, exchangeName, gridAxes) => {
     simulatorName,
     ideas: [idea(1, 0, "solo")],
   });
-  const [report] = result.reports;
+  const [report] = Object.values(result.reports).flat();
   const [trade] = result.best.find(({ criterion }) => criterion === "sharpe").trades;
   return { report, trade };
 };

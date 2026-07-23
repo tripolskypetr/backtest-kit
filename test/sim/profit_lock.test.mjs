@@ -119,8 +119,8 @@ test("SIM: profit lock catches the +2.5%-then-dump bleed the trailing take never
     fail(`lock must beat the bleed: ${lockTrade.pnlPercent} vs ${bareTrade.pnlPercent}`);
     return;
   }
-  if (result.reports.length !== 2) {
-    fail(`grid must have exactly 2 points, got ${result.reports.length}`);
+  if (Object.values(result.reports).flat().length !== 2) {
+    fail(`grid must have exactly 2 points, got ${Object.values(result.reports).flat().length}`);
     return;
   }
 
@@ -161,7 +161,7 @@ test("SIM: profit lock never cuts a runner — the trailing floor above it fills
     ideas: [idea(1, 0, "LONG", "runner")],
   });
 
-  const [report] = result.reports;
+  const [report] = Object.values(result.reports).flat();
   const winner = result.best.find(({ criterion }) => criterion === "sharpe");
   const [trade] = winner.trades;
   if (report.trades !== 1 || !trade) {

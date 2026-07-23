@@ -69,8 +69,8 @@ test("SIM: empty ideas feed resolves structurally — zero counters, zero grid, 
     fail(`counters must be zero, got ${result.ideasTotal}/${result.ideasDirectional}/${result.profileCount}`);
     return;
   }
-  if (result.reports.length !== 2 || result.reports.some((r) => r.trades !== 0 || r.totalPnlPercent !== 0)) {
-    fail(`grid must be full of zero points, got ${JSON.stringify(result.reports.map((r) => r.trades))}`);
+  if (Object.values(result.reports).flat().length !== 2 || Object.values(result.reports).flat().some((r) => r.trades !== 0 || r.totalPnlPercent !== 0)) {
+    fail(`grid must be full of zero points, got ${JSON.stringify(Object.values(result.reports).flat().map((r) => r.trades))}`);
     return;
   }
   if (result.best.length !== 4 || result.best.some((b) => !b.report)) {
@@ -123,7 +123,7 @@ test("SIM: idea entirely beyond the end of data is dropped via the null-profile 
     fail(`no author may have stats without a profile, got ${JSON.stringify(result.best.find(({ criterion }) => criterion === "sharpe").authorStats)}`);
     return;
   }
-  if (result.reports.some((r) => r.trades !== 0)) {
+  if (Object.values(result.reports).flat().some((r) => r.trades !== 0)) {
     fail("no trades may appear without profiles");
     return;
   }

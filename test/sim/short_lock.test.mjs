@@ -74,7 +74,7 @@ test("SIM: short profit lock fills exactly at the mirrored level on the rebound"
     simulatorName: "sim_shortlock",
     ideas: [idea(1, 0, "bear")],
   });
-  const [report] = result.reports;
+  const [report] = Object.values(result.reports).flat();
   const [trade] = result.best.find(({ criterion }) => criterion === "sharpe").trades;
 
   if (trade.exitReason !== "profit_lock") {
@@ -123,7 +123,7 @@ test("SIM: short runner rebound through both floors fills the LOWER trailing lev
     simulatorName: "sim_shortcrash",
     ideas: [idea(1, 0, "bear")],
   });
-  const [report] = result.reports;
+  const [report] = Object.values(result.reports).flat();
   const [trade] = result.best.find(({ criterion }) => criterion === "sharpe").trades;
 
   if (trade.exitReason !== "trailing_take") {
