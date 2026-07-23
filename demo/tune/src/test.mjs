@@ -22,9 +22,27 @@ addExchangeSchema({
   },
 });
 
+// правило проекта: молчаливых дефолтов в конфигах нет — все параметры
+// прописаны явно. Для test() сетка инертна (оценивается ровно одна
+// замороженная точка POINT), поэтому оси задекларированы одноточечно,
+// зеркаля POINT
 addSimulatorSchema({
   simulatorName: "tv_simulator",
   exchangeName: "ccxt_exchange",
+  gridAxes: {
+    hardStopPercent: [5],
+    trailingTakePercent: [2],
+    holdMinutes: [3 * 24 * 60],
+    minIdeasAligned: [1],
+    minAuthorTrack: [5],
+    minAuthorHitRate: [0.5],
+    minAuthorWilson: [0],
+    minWeightAligned: [0],
+    profitLockPercent: [2.5],
+    authorMetric: ["close"],
+    banCriteria: ["sharpe"],
+  },
+  reportOrder: "sharpe",
 });
 
 // точка, выявленная тренировкой (src/index.mjs, tune_default):

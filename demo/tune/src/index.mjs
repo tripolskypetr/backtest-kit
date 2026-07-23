@@ -35,10 +35,14 @@ addSimulatorSchema({
     simulatorName: "tune_default", 
     exchangeName: "ccxt_exchange", 
     gridAxes: {
-        hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
-        trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
+        // стопы < 2% сидят внутри медианного шейкаута (p25 MAE-до-пика
+        // ~ -2.7%) и ни разу не выигрывали ни одного рейтинга
+        hardStopPercent: [2, 2.5, 3, 4, 5, 7],
+        // 0.5% — шум уровня 1m-свечи, ни одной победы ни в одном прогоне
+        trailingTakePercent: [1, 1.5, 2, 3, 4],
         holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-        minIdeasAligned: [1, 2, 3],
+        // N=3 не выигрывал нигде: побеждают 1 (соло проверенного) и 2
+        minIdeasAligned: [1, 2],
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
         minWeightAligned: [0, 0.6, 1.2],
@@ -48,7 +52,8 @@ addSimulatorSchema({
         // арифметика кормит какой стиль выхода (BC не сохраняем)
         authorMetric: ["close", "reach"],
         banCriteria: ["sharpe"],
-    }
+    },
+    reportOrder: "sharpe",
 });
 
 
@@ -66,7 +71,10 @@ addSimulatorSchema({
         minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1, 2],
         minAuthorWilson: [0, 0.6],
-    }
+        authorMetric: ["close", "reach"],
+        banCriteria: ["sharpe"],
+    },
+    reportOrder: "sharpe",
 });
 
 // плотный перебор замка при умеренных холдах
@@ -83,7 +91,10 @@ addSimulatorSchema({
         minWeightAligned: [0, 0.6],
         profitLockPercent: [0, 0.5, 1, 1.5, 2, 2.5, 3],
         minAuthorWilson: [0, 0.6],
+        authorMetric: ["close", "reach"],
+        banCriteria: ["sharpe"],
     },
+    reportOrder: "sharpe",
 });
 
 // широкий компромисс: холды от 4ч до 72ч + замок
@@ -100,7 +111,10 @@ addSimulatorSchema({
         minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1, 2],
         minAuthorWilson: [0, 0.6],
+        authorMetric: ["close", "reach"],
+        banCriteria: ["sharpe"],
     },
+    reportOrder: "sharpe",
 });
 
 const fmt = (value) => (Number.isFinite(value) ? +value.toFixed(2) : "inf");

@@ -22,17 +22,17 @@ The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https
   {
     "config": "tune_default",
     "by": "sharpe",
-    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 W=0 lock=2.5",
+    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 wilson=0 W=0 lock=2.5 metric=close",
     "train": { "trades": 9, "pnl": 12.22, "wr": 0.89, "dd": 1.31, "sharpe": 2.44, "sortino": 9.34 }
   },
-  { "config": "tune_default", "by": "sortino", "point": "H=5 TT=2 hold=72h ... lock=2.5", "train": "..." },
+  { "config": "tune_default", "by": "sortino", "point": "H=5 TT=2 hold=72h ... lock=2.5 metric=close", "train": "..." },
   {
     "config": "tune_default",
     "by": "pnl",
-    "point": "H=3 TT=4 hold=72h N=1 track=2 rate=0.5 W=0 lock=0",
+    "point": "H=3 TT=4 hold=72h N=1 track=2 rate=0.5 wilson=0 W=0 lock=0 metric=close",
     "train": { "trades": 8, "pnl": 17.4, "wr": 0.75, "dd": 5.63, "sharpe": 1.25, "sortino": 4.31 }
   },
-  { "config": "tune_default", "by": "recovery", "point": "H=5 TT=2 hold=72h ... lock=2.5", "train": "..." },
+  { "config": "tune_default", "by": "recovery", "point": "H=5 TT=2 hold=72h ... lock=2.5 metric=close", "train": "..." },
   {
     "config": "tune_default",
     "authorStats": [
@@ -44,21 +44,27 @@ The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https
   {
     "config": "tune_shorthold",
     "by": "sharpe",
-    "point": "H=3 TT=1.5 hold=48h N=1 track=5 rate=0.5 W=0.6 lock=2",
+    "point": "H=3 TT=1.5 hold=48h N=1 track=5 rate=0.5 wilson=0 W=0.6 lock=2 metric=close",
     "train": { "trades": 9, "pnl": 8.7, "wr": 0.78, "dd": 1.92, "sharpe": 1.83, "sortino": 3.76 }
   },
   { "config": "tune_shorthold", "by": "sortino | pnl | recovery", "point": "the same point", "train": "..." },
   {
     "config": "tune_lockrich",
     "by": "sharpe",
-    "point": "H=5 TT=3 hold=72h N=1 track=3 rate=0.5 W=0.6 lock=2.5",
+    "point": "H=5 TT=3 hold=72h N=1 track=3 rate=0.5 wilson=0 W=0.6 lock=2.5 metric=close",
     "train": { "trades": 9, "pnl": 12.82, "wr": 0.89, "dd": 2.84, "sharpe": 2.15, "sortino": 4.52 }
   },
-  { "config": "tune_lockrich", "by": "sortino | recovery", "point": "H=5 TT=3 hold=72h ... rate=0.6 W=0.6 lock=3", "train": "..." },
+  { "config": "tune_lockrich", "by": "sortino | recovery", "point": "H=5 TT=3 hold=72h ... rate=0.6 W=0.6 lock=3 metric=close", "train": "..." },
+  {
+    "config": "tune_lockrich",
+    "by": "pnl",
+    "point": "H=5 TT=3 hold=72h N=1 track=2 rate=0.6 wilson=0 W=0.6 lock=3 metric=reach",
+    "train": { "trades": 10, "pnl": 16.08, "wr": 0.9, "dd": 5.3, "sharpe": 1.87, "sortino": 3.03 }
+  },
   {
     "config": "tune_wide",
     "by": "sharpe",
-    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 W=0 lock=2",
+    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 wilson=0 W=0 lock=2 metric=close",
     "train": { "trades": 9, "pnl": 9.21, "wr": 0.89, "dd": 1.31, "sharpe": 2.31, "sortino": 7.05 }
   },
   { "config": "tune_wide", "by": "sortino | recovery", "point": "the same point", "train": "..." },
