@@ -61,7 +61,7 @@ test("SIM: hold beyond the profile horizon clamps to time_expired at the horizon
     fail(`profile must be full, got truncated=${result.truncatedCount}`);
     return;
   }
-  const [trade] = result.best.find(({ criterion }) => criterion === "sharpe").trades;
+  const [trade] = result.reports.close.best.find(({ criterion }) => criterion === "sharpe").trades;
   if (trade.exitReason !== "time_expired") {
     fail(`clamped hold on a FULL profile must exit time_expired, got ${trade.exitReason}`);
     return;

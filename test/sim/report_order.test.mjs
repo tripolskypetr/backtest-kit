@@ -70,11 +70,11 @@ test("SIM: reportOrder orders result.reports by the declared criterion, default 
   });
 
   const byPnl = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_order_pnl", ideas: IDEAS });
-  if (Object.values(byPnl.reports).flat().length !== 3) {
-    fail(`expected 3 reports, got ${Object.values(byPnl.reports).flat().length}`);
+  if (Object.values(byPnl.reports).flatMap((b) => b.reports).length !== 3) {
+    fail(`expected 3 reports, got ${Object.values(byPnl.reports).flatMap((b) => b.reports).length}`);
     return;
   }
-  const pnls = Object.values(byPnl.reports).flat().map(({ totalPnlPercent }) => totalPnlPercent);
+  const pnls = Object.values(byPnl.reports).flatMap((b) => b.reports).map(({ totalPnlPercent }) => totalPnlPercent);
   if (!isSortedDesc(pnls)) {
     fail(`reportOrder "pnl" must sort by totalPnlPercent desc, got ${JSON.stringify(pnls)}`);
     return;
@@ -82,19 +82,19 @@ test("SIM: reportOrder orders result.reports by the declared criterion, default 
   // в дрейф-мире PnL растёт с холдом, а sharpe у самой прибыльной
   // точки НЕ максимален (одна жирная сделка = высокая дисперсия
   // суточных приращений) — порядки различимы
-  if (Object.values(byPnl.reports).flat()[0].point.holdMinutes !== 3000) {
-    fail(`pnl leader must be the longest hold, got ${Object.values(byPnl.reports).flat()[0].point.holdMinutes}`);
+  if (Object.values(byPnl.reports).flatMap((b) => b.reports)[0].point.holdMinutes !== 3000) {
+    fail(`pnl leader must be the longest hold, got ${Object.values(byPnl.reports).flatMap((b) => b.reports)[0].point.holdMinutes}`);
     return;
   }
   // Infinity-устойчивость: в мире без убыточных дней sortino = inf,
   // защищённый компаратор не рвёт сортировку (длина и состав целы)
-  if (!Object.values(byPnl.reports).flat().every(({ sortino }) => sortino === Infinity)) {
+  if (!Object.values(byPnl.reports).flatMap((b) => b.reports).every(({ sortino }) => sortino === Infinity)) {
     fail(`ramp world must yield infinite sortino everywhere`);
     return;
   }
 
   const byDefault = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_order_default", ideas: IDEAS });
-  const sharpes = Object.values(byDefault.reports).flat().map(({ sharpe }) => sharpe);
+  const sharpes = Object.values(byDefault.reports).flatMap((b) => b.reports).map(({ sharpe }) => sharpe);
   if (!isSortedDesc(sharpes)) {
     fail(`default must keep sharpe desc, got ${JSON.stringify(sharpes)}`);
     return;

@@ -69,8 +69,8 @@ test("SIM: reversed feed with mid-minute timestamps is bit-identical to the clea
   const cleanResult = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_norm_clean", ideas: clean });
   const dirtyResult = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_norm_dirty", ideas: dirty });
 
-  if (Object.values(cleanResult.reports).flat()[0].trades !== 5) {
-    fail(`sanity: clean run must trade 5, got ${Object.values(cleanResult.reports).flat()[0].trades}`);
+  if (Object.values(cleanResult.reports).flatMap((b) => b.reports)[0].trades !== 5) {
+    fail(`sanity: clean run must trade 5, got ${Object.values(cleanResult.reports).flatMap((b) => b.reports)[0].trades}`);
     return;
   }
   const cleanJson = JSON.stringify(cleanResult);

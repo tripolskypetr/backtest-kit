@@ -69,15 +69,15 @@ test("SIM: empty ideas feed resolves structurally — zero counters, zero grid, 
     fail(`counters must be zero, got ${result.ideasTotal}/${result.ideasDirectional}/${result.profileCount}`);
     return;
   }
-  if (Object.values(result.reports).flat().length !== 2 || Object.values(result.reports).flat().some((r) => r.trades !== 0 || r.totalPnlPercent !== 0)) {
-    fail(`grid must be full of zero points, got ${JSON.stringify(Object.values(result.reports).flat().map((r) => r.trades))}`);
+  if (Object.values(result.reports).flatMap((b) => b.reports).length !== 2 || Object.values(result.reports).flatMap((b) => b.reports).some((r) => r.trades !== 0 || r.totalPnlPercent !== 0)) {
+    fail(`grid must be full of zero points, got ${JSON.stringify(Object.values(result.reports).flatMap((b) => b.reports).map((r) => r.trades))}`);
     return;
   }
-  if (result.best.length !== 4 || result.best.some((b) => !b.report)) {
+  if (result.reports.close.best.length !== 4 || result.reports.close.best.some((b) => !b.report)) {
     fail("rankings must resolve on an empty feed");
     return;
   }
-  if (result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.length !== 0 || result.best.find(({ criterion }) => criterion === "sharpe").bannedAuthors.length !== 0 || result.best.find(({ criterion }) => criterion === "sharpe").authorStats.length !== 0) {
+  if (result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.length !== 0 || result.reports.close.best.find(({ criterion }) => criterion === "sharpe").bannedAuthors.length !== 0 || result.reports.close.best.find(({ criterion }) => criterion === "sharpe").authorStats.length !== 0) {
     fail("author artifacts must be empty");
     return;
   }
@@ -119,11 +119,11 @@ test("SIM: idea entirely beyond the end of data is dropped via the null-profile 
     return;
   }
   // авторы без профилей не попадают в статистику
-  if (result.best.find(({ criterion }) => criterion === "sharpe").authorStats.length !== 0) {
-    fail(`no author may have stats without a profile, got ${JSON.stringify(result.best.find(({ criterion }) => criterion === "sharpe").authorStats)}`);
+  if (result.reports.close.best.find(({ criterion }) => criterion === "sharpe").authorStats.length !== 0) {
+    fail(`no author may have stats without a profile, got ${JSON.stringify(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").authorStats)}`);
     return;
   }
-  if (Object.values(result.reports).flat().some((r) => r.trades !== 0)) {
+  if (Object.values(result.reports).flatMap((b) => b.reports).some((r) => r.trades !== 0)) {
     fail("no trades may appear without profiles");
     return;
   }

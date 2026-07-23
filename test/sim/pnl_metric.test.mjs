@@ -86,13 +86,13 @@ test("SIM: pnl metric grades the fixed +1% threshold independent of lock — str
   });
 
   // словарь отчётов: точка в корзине "pnl", остальные ключи пусты
-  if (result.reports.pnl.length !== 1) {
-    fail(`the point must land in reports.pnl, got ${result.reports.pnl.length}`);
+  if (result.reports.pnl.reports.length !== 1) {
+    fail(`the point must land in reports.pnl, got ${result.reports.pnl.reports.length}`);
     return;
   }
   for (const key of ["close", "reach", "retain"]) {
-    if (!Array.isArray(result.reports[key]) || result.reports[key].length !== 0) {
-      fail(`reports.${key} must exist and be empty, got ${JSON.stringify(result.reports[key])}`);
+    if (!Array.isArray(result.reports[key].reports) || result.reports[key].reports.length !== 0) {
+      fail(`reports.${key} must exist and be empty, got ${JSON.stringify(result.reports[key].reports)}`);
       return;
     }
   }
@@ -114,7 +114,7 @@ test("SIM: pnl metric grades the fixed +1% threshold independent of lock — str
   }
 
   // торгует только paying
-  const [report] = result.reports.pnl;
+  const [report] = result.reports.pnl.reports;
   if (report.trades !== 5) {
     fail(`only paying's 5 ideas must trade, got ${report.trades}`);
     return;

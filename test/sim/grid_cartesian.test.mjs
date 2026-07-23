@@ -55,8 +55,8 @@ test("SIM: cartesian grid emits every axis combination exactly once", async ({ p
     ideas: [],
   });
 
-  if (Object.values(result.reports).flat().length !== 64 || seen.length !== 64) {
-    fail(`expected 64 grid points, got reports=${Object.values(result.reports).flat().length}, onGridPoint=${seen.length}`);
+  if (Object.values(result.reports).flatMap((b) => b.reports).length !== 64 || seen.length !== 64) {
+    fail(`expected 64 grid points, got reports=${Object.values(result.reports).flatMap((b) => b.reports).length}, onGridPoint=${seen.length}`);
     return;
   }
 

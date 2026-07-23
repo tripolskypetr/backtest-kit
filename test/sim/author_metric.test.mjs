@@ -91,8 +91,8 @@ test("SIM: reach metric allows the spiker the close metric bans — and the lock
     ideas: Array.from({ length: 5 }, (_, k) => idea(1 + k, k * CYCLE, "LONG", "spiker")),
   });
 
-  if (Object.values(result.reports).flat().length !== 2 || reportsByMetric.size !== 2) {
-    fail(`grid must have exactly 2 points (close|reach), got ${Object.values(result.reports).flat().length}`);
+  if (Object.values(result.reports).flatMap((b) => b.reports).length !== 2 || reportsByMetric.size !== 2) {
+    fail(`grid must have exactly 2 points (close|reach), got ${Object.values(result.reports).flatMap((b) => b.reports).length}`);
     return;
   }
 
@@ -127,9 +127,9 @@ test("SIM: reach metric allows the spiker the close metric bans — and the lock
     return;
   }
 
-  // победители всех рейтингов — reach-точка, и её артефакт авторов
+  // корзины независимы: у reach-корзины свои победители, их артефакт
   // несёт spiker в белом списке ПОД ЕЁ метрику
-  for (const b of result.best) {
+  for (const b of result.reports.reach.best) {
     if (b.report?.point.authorMetric !== "reach") {
       fail(`${b.criterion} winner must be the reach point, got ${b.report?.point.authorMetric}`);
       return;
@@ -140,10 +140,20 @@ test("SIM: reach metric allows the spiker the close metric bans — and the lock
     }
   }
 
-  // ран-левел артефакт без привилегий: allowed = union по победителям
-  // (все победители reach -> spiker допущен), banned = дополнение
-  if (JSON.stringify(result.allowedAuthors) !== JSON.stringify(["spiker"]) || result.bannedAuthors.length !== 0) {
-    fail(`run-level union artifact wrong: allowed=${JSON.stringify(result.allowedAuthors)} banned=${JSON.stringify(result.bannedAuthors)}`);
+  // словари банов пометричны и не склеиваются: close-корзина банит
+  // спайкера своим правилом, reach-корзина — допускает своим
+  const closeBan = result.reports.close.bans.find(
+    ({ minAuthorTrack }) => minAuthorTrack === 5,
+  );
+  const reachBan = result.reports.reach.bans.find(
+    ({ minAuthorTrack }) => minAuthorTrack === 5,
+  );
+  if (!closeBan || !closeBan.bannedAuthors.includes("spiker") || closeBan.allowedAuthors.length !== 0) {
+    fail(`close bans dictionary must ban the spiker, got ${JSON.stringify(closeBan)}`);
+    return;
+  }
+  if (!reachBan || JSON.stringify(reachBan.allowedAuthors) !== JSON.stringify(["spiker"]) || reachBan.profitLockPercent !== 2.5) {
+    fail(`reach bans dictionary must allow the spiker and carry its lock level, got ${JSON.stringify(reachBan)}`);
     return;
   }
 

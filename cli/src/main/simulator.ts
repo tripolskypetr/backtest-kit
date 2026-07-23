@@ -256,8 +256,7 @@ export const main = async () => {
           console.log("onDone", {
             symbol,
             reports: Object.values(result.reports).flatMap((bucket) => bucket.reports).length,
-            allowedAuthors: result.allowedAuthors.length,
-            bannedAuthors: result.bannedAuthors.length,
+            bans: Object.values(result.reports).flatMap((bucket) => bucket.bans).length,
           });
         }
       },

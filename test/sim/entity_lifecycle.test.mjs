@@ -65,22 +65,22 @@ test("SIM: duplicate registration throws, override applies before first use and 
   addSimulatorSchema({ simulatorName: "sim_lc_before", exchangeName: "sim-lifecycle-exchange", gridAxes: TWO_POINTS });
   await overrideSimulatorSchema({ simulatorName: "sim_lc_before", gridAxes: SINGLE_POINT });
   const before = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_lc_before", ideas: IDEAS });
-  if (Object.values(before.reports).flat().length !== 1) {
-    fail(`override before first use must apply (1 point), got ${Object.values(before.reports).flat().length}`);
+  if (Object.values(before.reports).flatMap((b) => b.reports).length !== 1) {
+    fail(`override before first use must apply (1 point), got ${Object.values(before.reports).flatMap((b) => b.reports).length}`);
     return;
   }
 
   // 3) override ПОСЛЕ первого run: клиент мемоизирован, сетка прежняя
   addSimulatorSchema({ simulatorName: "sim_lc_after", exchangeName: "sim-lifecycle-exchange", gridAxes: TWO_POINTS });
   const first = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_lc_after", ideas: IDEAS });
-  if (Object.values(first.reports).flat().length !== 2) {
-    fail(`sanity: pre-override run must see 2 points, got ${Object.values(first.reports).flat().length}`);
+  if (Object.values(first.reports).flatMap((b) => b.reports).length !== 2) {
+    fail(`sanity: pre-override run must see 2 points, got ${Object.values(first.reports).flatMap((b) => b.reports).length}`);
     return;
   }
   await overrideSimulatorSchema({ simulatorName: "sim_lc_after", gridAxes: SINGLE_POINT });
   const second = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_lc_after", ideas: IDEAS });
-  if (Object.values(second.reports).flat().length !== 2) {
-    fail(`override after first use must NOT apply to the memoized client, got ${Object.values(second.reports).flat().length} points`);
+  if (Object.values(second.reports).flatMap((b) => b.reports).length !== 2) {
+    fail(`override after first use must NOT apply to the memoized client, got ${Object.values(second.reports).flatMap((b) => b.reports).length} points`);
     return;
   }
 

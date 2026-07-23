@@ -81,8 +81,8 @@ test("SIM: a monster single-trade point cannot win any ranking — the trades fl
     })),
   });
 
-  const steady = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 60);
-  const fluke = Object.values(result.reports).flat().find(({ point }) => point.holdMinutes === 7200);
+  const steady = Object.values(result.reports).flatMap((b) => b.reports).find(({ point }) => point.holdMinutes === 60);
+  const fluke = Object.values(result.reports).flatMap((b) => b.reports).find(({ point }) => point.holdMinutes === 7200);
   if (!steady || !fluke) {
     fail("both points must be evaluated");
     return;
@@ -99,7 +99,7 @@ test("SIM: a monster single-trade point cannot win any ranking — the trades fl
   }
 
   // порог сделок: победитель каждого рейтинга — steady, не флюк
-  for (const best of result.best) {
+  for (const best of result.reports.close.best) {
     if (!best.report || best.report.point.holdMinutes !== 60) {
       fail(`${best.criterion} winner must be the 12-trade point, got hold=${best.report?.point.holdMinutes}`);
       return;
