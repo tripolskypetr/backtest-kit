@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/minio",
-  "version": "1.5.0",
+  "version": "1.6.1",
   "description": "Backtest-kit persistence on MinIO (S3) as the source of truth with Redis as a time-ordered index",
   "author": {
     "name": "Petr Tripolsky",
@@ -70,13 +70,13 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "backtest-kit": "16.5.0",
+    "backtest-kit": "16.6.0",
     "minio": "8.0.2",
     "ioredis": "5.6.1",
     "worker-testbed": "4.0.0"
   },
   "peerDependencies": {
-    "backtest-kit": "^16.5.0",
+    "backtest-kit": "^16.6.0",
     "minio": "^8.0.2",
     "ioredis": "^5.6.1",
     "typescript": "^5.0.0"
