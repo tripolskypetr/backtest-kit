@@ -25,3 +25,11 @@ gridAxes: ISimulatorGridAxes
 ```
 
 Grid axes with defaults applied (no longer optional).
+
+### reportOrder
+
+```ts
+reportOrder: SimulatorRankingCriterion
+```
+
+Report order with the default applied (no longer optional).

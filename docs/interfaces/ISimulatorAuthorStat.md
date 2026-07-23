@@ -35,7 +35,10 @@ Directional ideas with a KNOWN outcome (truncated ones excluded).
 hits: number
 ```
 
-Number of correct ideas (horizon return in idea direction &gt; 0).
+Number of the author's hits UNDER THE RULE'S METRIC: horizon
+close in the idea direction for "close", lock-reachability for
+"reach" — the same author has different hit counts under
+different rules.
 
 ### hitRate
 
@@ -53,5 +56,6 @@ banned: boolean
 
 Author is banned under the ban rule these stats were computed
 with. True when the track is too short to judge (ideas &lt;
-minAuthorTrack) OR the hit rate is below minAuthorHitRate.
-Unproven correctness = banned.
+minAuthorTrack) OR the hit rate is below minAuthorHitRate OR the
+Wilson lower bound of the hit rate is below minAuthorWilson
+(when that bound is enabled). Unproven correctness = banned.

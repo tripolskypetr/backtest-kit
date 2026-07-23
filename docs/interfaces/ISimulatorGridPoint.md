@@ -57,6 +57,14 @@ minAuthorHitRate: number
 
 Author ban rule: minimum hit rate (0..1) to be allowed.
 
+### minAuthorWilson
+
+```ts
+minAuthorWilson: number
+```
+
+Author ban rule: minimum Wilson lower bound (0..1); 0 = off.
+
 ### minWeightAligned
 
 ```ts
@@ -74,3 +82,11 @@ profitLockPercent: number
 
 Profit lock: fixed floor armed when price touches +X% from
 entry, exit on pullback to the floor; 0 = disabled.
+
+### authorMetric
+
+```ts
+authorMetric: SimulatorAuthorMetric
+```
+
+Author-hit metric of the ban filter for this point.

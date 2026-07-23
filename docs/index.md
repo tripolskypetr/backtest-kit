@@ -697,6 +697,7 @@ group: docs
 - [ISizingSchema](types/ISizingSchema.md)
 - [SizingName](types/SizingName.md)
 - [SimulatorIdeaDirection](types/SimulatorIdeaDirection.md)
+- [SimulatorAuthorMetric](types/SimulatorAuthorMetric.md)
 - [SimulatorExitReason](types/SimulatorExitReason.md)
 - [SimulatorRankingCriterion](types/SimulatorRankingCriterion.md)
 - [SimulatorProgressStage](types/SimulatorProgressStage.md)

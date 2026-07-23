@@ -6,7 +6,8 @@ group: docs
 # ISimulatorResult
 
 Final result of a simulation run: grid reports, four ranking
-winners and the trained author filter artifact.
+winners; the author artifact is per-winner in best[] — hits are
+metric-dependent, a run-level list would lie to other criteria.
 
 ## Properties
 
@@ -50,26 +51,16 @@ truncatedCount: number
 
 Profiles cut short by end of candle data.
 
-### authorStats
-
-```ts
-authorStats: ISimulatorAuthorStat[]
-```
-
-Per-author track records under the ban rule of the Sharpe
-winner's grid point (raw ideas/hits/hitRate are rule-independent;
-the banned flag follows the winning rule).
-
 ### allowedAuthors
 
 ```ts
 allowedAuthors: string[]
 ```
 
-Logins of allowed authors — the production WHITELIST under the
-Sharpe winner's ban rule. With default-ban semantics this is the
-trained artifact to apply: in production only ideas of these
-authors count.
+Authors allowed by AT LEAST ONE ranking winner's rule (union
+over best[]). No criterion is privileged: with different rules
+among winners this is the honest run-level whitelist candidate
+set; which winner allows whom — in best[].allowedAuthors.
 
 ### bannedAuthors
 
@@ -77,7 +68,9 @@ authors count.
 bannedAuthors: string[]
 ```
 
-Logins of banned authors (complement of the whitelist).
+Authors banned by EVERY ranking winner's rule (complement of
+allowedAuthors over all authors seen in the run). Banned here
+means banned no matter which winner is taken to production.
 
 ### avgHoldMinutes
 
@@ -109,7 +102,8 @@ p99HoldMinutes: number
 reports: ISimulatorPointReport[]
 ```
 
-All grid point reports, sorted by Sharpe descending.
+All grid point reports, sorted descending by the schema's
+reportOrder criterion (default sharpe).
 
 ### best
 
