@@ -793,6 +793,8 @@ Real, runnable templates — not slideware. And worth naming the concern directl
 - **[backtest-kit-skills](https://github.com/backtest-kit/backtest-kit-skills)** — a Claude Code skill + Mintlify docs: describe a strategy in plain language, get working TypeScript with every schema registration wired. `npx skills add https://github.com/backtest-kit/backtest-kit-skills`
 - **[uzse-backtest-app](https://github.com/backtest-kit/uzse-backtest-app)** — Pine Script on regional exchanges that aren't on TradingView (UZSE, MSE, DSE…): download raw trades, build candles, feed them through a custom Mongo exchange adapter.
 - **[backtest-kit-docs](https://github.com/backtest-kit/backtest-kit-docs)** — Architecture handbook and knowledge base: explains the engine's design, AI workflows, production patterns, and quantitative trading concepts beyond the API.
+- **[wallet-manager](
+https://github.com/tripolskypetr/backtest-kit/tree/master/tools/wallet-manager)** — Binance spot wallet toolkit with an interactive REPL and a reference broker adapter. Encodes the typical adapter mistake most implementations trip over: trying to sell an asset while its funds are still frozen in a pending order — the correct sequence is to cancel the pending orders first, verify the book is clean, and only then sell with a new order. lets you vibe-code an adapter for any exchange on top of it.
 
 ---
 

@@ -1,5 +1,7 @@
 # wallet-manager
 
+> **The typical broker-adapter implementation mistake** is trying to sell an asset while its funds are still frozen in a pending order. On spot, every resting order locks its quantity (the base coin for a SELL, USDT for a BUY): a sell placed on top of that lock fails with insufficient balance — or silently trades only the unlocked remainder while TP/SL/stale entry orders keep holding the rest. The correct sequence is always: **first cancel the pending orders, verify the book is clean, and only then sell the funds with a new order.** This is exactly why `commitCancel` (and the `onOrderCloseCommit` example below) cancels everything on the symbol and verifies zero open orders before selling the balance to cash.
+
 Internal Binance **spot** wallet toolkit: a small DI-wired service layer over `node-binance-api` plus an interactive REPL. Two jobs:
 
 1. Drive the exchange by hand — buy/sell/flatten a symbol, inspect balances, orders and PnL — without touching the trading engine.
