@@ -481,7 +481,7 @@ Under the hood: 5-day candle horizon per idea (lazy chunked fetch through the ex
 
 ### 🔧 Tune (`--tune`)
 
-The **parameter search** counterpart of the `--simulator` probe: a walk-forward sweep of the full grid with the profit-harvesting machinery ON — profit lock, trailing take, both author-hit metrics (close/reach). Honesty is structural: training sees only the head of the feed (`--split` of its time range, default 70%), then the sharpe winner is frozen — point and raw author track record — and fired **exactly once** on the tail via `Simulator.test`. Nothing is trained on the tail; authors unseen in training are banned by default.
+The **parameter search** counterpart of the `--simulator` probe: a walk-forward sweep of the full grid with the profit-harvesting machinery ON — profit lock, trailing take, all three author-hit metrics (close/reach/retain). Honesty is structural: training sees only the head of the feed (`--split` of its time range, default 70%), then the sharpe winner is frozen — point and raw author track record — and fired **exactly once** on the tail via `Simulator.test`. Nothing is trained on the tail; authors unseen in training are banned by default.
 
 ```bash
 npx @backtest-kit/cli --tune --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl

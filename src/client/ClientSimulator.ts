@@ -202,6 +202,16 @@ const BUILD_PROFILE_FN = async (
     }
   }
 
+  // медиана подписанных ходов close-ов от входа — сырьё метрики
+  // "retain": median >= X означает "цена простояла на/выше +X% не
+  // меньше половины горизонта" без единой новой временной константы
+  const moves = candles
+    .map(({ close }) => (direction * (close - entryPrice) * 100) / entryPrice)
+    .sort((a, b) => a - b);
+  const half = Math.floor(moves.length / 2);
+  const medianMovePercent =
+    moves.length % 2 === 1 ? moves[half] : (moves[half - 1] + moves[half]) / 2;
+
   const lastClose = candles[candles.length - 1].close;
   return {
     idea,
@@ -216,6 +226,7 @@ const BUILD_PROFILE_FN = async (
     minutesToMfe,
     minutesToMae,
     shakeoutMaePercent,
+    medianMovePercent,
   };
 };
 
@@ -240,9 +251,9 @@ interface IAuthorFilterContext {
  * structurally carries no lock/stop fields: with authorMetric
  * "close" the point's profitLockPercent/hardStopPercent do not
  * affect ban-list training at all (see the filter cache key — they
- * are not part of it either). A reach point with lock = 0 has
- * nothing to grade reachability against and degenerates into the
- * "close" rule here, not via scattered runtime branches.
+ * are not part of it either). A reach/retain point with lock = 0
+ * has nothing to grade against and degenerates into the "close"
+ * rule here, not via scattered runtime branches.
  *
  * @param point - Grid point carrying the rule fields
  * @returns Discriminated ban-filter rule
@@ -251,6 +262,15 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
   if (point.authorMetric === "reach" && point.profitLockPercent > 0) {
     return {
       metric: "reach",
+      minAuthorTrack: point.minAuthorTrack,
+      minAuthorHitRate: point.minAuthorHitRate,
+      profitLockPercent: point.profitLockPercent,
+      hardStopPercent: point.hardStopPercent,
+    };
+  }
+  if (point.authorMetric === "retain" && point.profitLockPercent > 0) {
+    return {
+      metric: "retain",
       minAuthorTrack: point.minAuthorTrack,
       minAuthorHitRate: point.minAuthorHitRate,
       profitLockPercent: point.profitLockPercent,
@@ -276,6 +296,13 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
  * horizon close is a miss for "close" and a hit for "reach" —
  * exactly the author a lock point earns on.
  *
+ * "retain" — level FIXATION: the MEDIAN move of the horizon sat at
+ * or above the rule's level (price held +X% for at least half the
+ * trajectory — the 50% share is the median's definition, not a
+ * window) while the pre-peak shakeout stayed above the stop. The
+ * strictest grading: reach's transient spike and close's lucky
+ * last-day finish are both misses here.
+ *
  * Same-candle ambiguity (lock and stop both reachable in the candle
  * of the MFE peak) reads as a hit here while SIMULATE_TRADE_FN gives
  * that candle to the stop — the filter metric is slightly more
@@ -292,6 +319,12 @@ const AUTHOR_HIT_FN = (
   if (rule.metric === "reach") {
     return (
       profile.maxMfePercent >= rule.profitLockPercent &&
+      profile.shakeoutMaePercent > -rule.hardStopPercent
+    );
+  }
+  if (rule.metric === "retain") {
+    return (
+      profile.medianMovePercent >= rule.profitLockPercent &&
       profile.shakeoutMaePercent > -rule.hardStopPercent
     );
   }
@@ -854,15 +887,15 @@ const RUN_FN = async (
   // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО —
   // дискриминирующий юнион AUTHOR_RULE_FN канонизирует его: у close
   // полей lock/stop нет по построению (они НЕ влияют на бан-лист и в
-  // ключ не входят), reach несёт lock/stop своей точки, reach с
-  // lock=0 деградирует в close ещё в билдере
+  // ключ не входят), reach/retain несут lock/stop своей точки, а с
+  // lock=0 деградируют в close ещё в билдере
   const filterByRule = new Map<string, IAuthorFilterContext>();
   const getFilter = (point: ISimulatorGridPoint): IAuthorFilterContext => {
     const rule = AUTHOR_RULE_FN(point);
     const key =
-      rule.metric === "reach"
-        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
-        : `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
+      rule.metric === "close"
+        ? `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`
+        : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`;
     let filter = filterByRule.get(key);
     if (!filter) {
       filter = TRAIN_AUTHOR_FILTER_FN(profiles, rule);

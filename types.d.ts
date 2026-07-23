@@ -6028,6 +6028,16 @@ interface ISimulatorIdeaProfile {
     minutesToMae: number;
     /** Worst MAE BEFORE the max-MFE candle — whale shakeout depth. */
     shakeoutMaePercent: number;
+    /**
+     * MEDIAN of the per-candle close moves from entry over the whole
+     * horizon, percent in the idea's direction. The raw material of
+     * the "retain" author metric: median >= X means price sat at or
+     * above +X% for at least half the observed trajectory — a
+     * time-window-free fixation measure (the 50% share is the median's
+     * definition, not a tunable constant), insensitive to the exact
+     * horizon length unlike the close.
+     */
+    medianMovePercent: number;
 }
 /**
  * Metric that defines an author's "hit" for the ban filter:
@@ -6037,11 +6047,20 @@ interface ISimulatorIdeaProfile {
  *   before its pre-peak MAE reached the hard stop (rewards authors
  *   whose calls are HARVESTABLE by the lock machinery, even when the
  *   horizon close goes against them). With profitLockPercent = 0 the
- *   reach metric falls back to "close".
+ *   reach metric falls back to "close";
+ * - "retain" — the MEDIAN move of the idea's horizon reached the
+ *   point's profit-lock level (price FIXED at/above the level for at
+ *   least half the observed trajectory — the median is the 50%
+ *   quantile by definition, no extra time window is involved) while
+ *   the pre-peak shakeout stayed above the hard stop. The strictest
+ *   grading: a transient spike (reach's hit) and a lucky last-day
+ *   finish (close's hit) are both misses here. With
+ *   profitLockPercent = 0 it falls back to "close", like reach.
  * The right metric depends on the exit style being ranked: close-hit
- * authors feed long-hold points, reach-hit authors feed lock points.
+ * authors feed long-hold points, reach-hit authors feed lock points,
+ * retain-hit authors feed points that need the level to HOLD.
  */
-type SimulatorAuthorMetric = "close" | "reach";
+type SimulatorAuthorMetric = "close" | "reach" | "retain";
 /**
  * Value lists per grid axis. The grid is the cartesian product of
  * all axes EXCEPT banCriteria (run-level aggregation config, never
@@ -6113,10 +6132,11 @@ interface ISimulatorGridAxes {
      * Covers the zone where the trailing take is not armed yet (peak
      * below entry/(1 - r)) and profit would otherwise bleed back.
      * Tunes: harvesting the crowd-liquidity step without cutting
-     * runners. Also the grading level of the "reach" author metric.
+     * runners. Also the grading level of the "reach" and "retain"
+     * author metrics.
      * Ignored: 0 DISABLES the mechanism for trading AND degenerates
-     * the "reach" metric into "close". Under authorMetric "close" the
-     * level never affects ban training — trading only.
+     * the "reach"/"retain" metrics into "close". Under authorMetric
+     * "close" the level never affects ban training — trading only.
      */
     profitLockPercent: number[];
     /**
@@ -6125,11 +6145,14 @@ interface ISimulatorGridAxes {
      * Tunes: which author grading feeds which exit style — "close"
      * (5-day horizon close) rewards authors whose calls survive a long
      * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
-     * rewards the authors a lock point actually earns on; the same
-     * author has different hit counts under different metrics.
+     * rewards the authors a lock point actually earns on, "retain"
+     * (median move at/above the point's lock — window-free level
+     * fixation) rewards authors whose levels HOLD; the same author has
+     * different hit counts under different metrics.
      * Ignored: with "close" the point's lock/stop never affect ban
-     * training; "reach" with profitLockPercent = 0 falls back to
-     * "close" (see SimulatorAuthorRule — the fallback is structural).
+     * training; "reach"/"retain" with profitLockPercent = 0 fall back
+     * to "close" (see SimulatorAuthorRule — the fallback is
+     * structural).
      */
     authorMetric: SimulatorAuthorMetric[];
     /**
@@ -19923,8 +19946,9 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  *   rate threshold.
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
- *   lock-reachability against the point's lock/stop; reach with
- *   lock = 0 falls back to close.
+ *   lock-reachability against the point's lock/stop, "retain" =
+ *   level fixation (median move >= the point's lock — window-free);
+ *   reach/retain with lock = 0 fall back to close.
  *
  * Run-level aggregation (not swept, ignored by test()):
  * - banCriteria — which ranking winners feed result.allowedAuthors

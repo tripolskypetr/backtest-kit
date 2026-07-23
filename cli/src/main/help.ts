@@ -186,8 +186,8 @@ Tune flags (--tune):
   Positional: path to an ideas .jsonl file — same shape and validation as --simulator.
 
   The PARAMETER SEARCH counterpart of the --simulator probe: the full grid with the
-    profit-harvesting machinery on — profit lock, trailing take, both author-hit
-  metrics (close/reach). Honesty is structural:
+    profit-harvesting machinery on — profit lock, trailing take, all three author-hit
+  metrics (close/reach/retain). Honesty is structural:
   training sees ONLY the head of the feed (--split of its time range), then the
   sharpe winner is frozen — point and raw author track record — and fired exactly
   once on the tail via Simulator.test. Nothing is trained on the tail; authors

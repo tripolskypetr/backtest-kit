@@ -22,6 +22,7 @@ import "./sim/out_of_sample.test.mjs";
 import "./sim/profit_lock.test.mjs";
 import "./sim/author_metric.test.mjs";
 import "./sim/author_metric_edges.test.mjs";
+import "./sim/retain_metric.test.mjs";
 import "./sim/ban_criteria.test.mjs";
 import "./sim/lock_collision.test.mjs";
 import "./sim/short_lock.test.mjs";

@@ -39,8 +39,9 @@ const METHOD_NAME_TEST = "Simulator.test";
  *   rate threshold.
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
- *   lock-reachability against the point's lock/stop; reach with
- *   lock = 0 falls back to close.
+ *   lock-reachability against the point's lock/stop, "retain" =
+ *   level fixation (median move >= the point's lock — window-free);
+ *   reach/retain with lock = 0 fall back to close.
  *
  * Run-level aggregation (not swept, ignored by test()):
  * - banCriteria — which ranking winners feed result.allowedAuthors

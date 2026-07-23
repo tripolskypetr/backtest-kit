@@ -39,7 +39,9 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   the trailing floor is higher and fills first;
  * - author metric: "close" grades authors by horizon close (feeds
  *   long-hold points), "reach" by lock-reachability of their ideas
- *   (feeds lock points) — the sweep decides which grading wins;
+ *   (feeds lock points), "retain" by level FIXATION — median move at
+ *   or above the lock, a time-window-free grading (feeds points that
+ *   need the level to hold) — the sweep decides which grading wins;
  * - ban criteria (NOT a swept axis — run() aggregation config): all
  *   four ranking winners feed the run-level author artifact by
  *   default; a schema pins ["sharpe"] to restore the pre-union
@@ -52,7 +54,7 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minAuthorTrack: [2, 3, 5],
   minAuthorHitRate: [0.5, 0.6],
   profitLockPercent: [0, 1.5, 2.5],
-  authorMetric: ["close", "reach"],
+  authorMetric: ["close", "reach", "retain"],
   banCriteria: ["sharpe", "pnl"],
 };
 
