@@ -1186,7 +1186,15 @@ const RUN_FN = async (
       );
     }
   }
-  reports.sort((a, b) => b.sharpe - a.sharpe);
+  // порядок reports в результате — контракт потребителя run():
+  // критерий задаёт схема (reportOrder, дефолт подставлен на уровне
+  // params в connection-сервисе), компаратор — защищённый (наивное
+  // вычитание ломается на Infinity sortino/recovery серий без
+  // убытков)
+  const orderValue =
+    rankings.find(({ criterion }) => criterion === self.params.reportOrder)
+      ?.value ?? rankings[0].value;
+  reports.sort(byRankingDesc(orderValue));
 
   // ран-левел артефакт агрегируется по победителям критериев из
   // gridAxes.banCriteria (конфиг прогона, не ось перебора): allowed =

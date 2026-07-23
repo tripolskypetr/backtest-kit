@@ -1,10 +1,17 @@
 import { inject } from "../../core/di";
 import { TLoggerService } from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { SimulatorName, ISimulator, ISimulatorIdea, ISimulatorGridPoint, ISimulatorAuthorStat, ISimulatorGridAxes } from "../../../interfaces/Simulator.interface";
+import { SimulatorName, ISimulator, ISimulatorIdea, ISimulatorGridPoint, ISimulatorAuthorStat, ISimulatorGridAxes, SimulatorRankingCriterion } from "../../../interfaces/Simulator.interface";
 import { memoize } from "functools-kit";
 import SimulatorSchemaService from "../schema/SimulatorSchemaService";
 import { ClientSimulator } from "../../../client/ClientSimulator";
+
+/**
+ * Report order applied when the schema omits reportOrder: the flat
+ * result.reports list is sorted by Sharpe descending — the pre-knob
+ * canonical order.
+ */
+const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
 
 /**
  * Grid axes applied per-axis when the schema omits them (schema
@@ -91,13 +98,14 @@ export class SimulatorConnectionService implements TSimulator {
   public getSimulator = memoize(
     ([simulatorName]) => `${simulatorName}`,
     (simulatorName: SimulatorName) => {
-      const { exchangeName, gridAxes, callbacks } =
+      const { exchangeName, gridAxes, reportOrder, callbacks } =
         this.simulatorSchemaService.get(simulatorName);
       return new ClientSimulator({
         simulatorName,
         logger: this.loggerService,
         exchangeName,
         gridAxes: { ...DEFAULT_GRID_AXES, ...gridAxes },
+        reportOrder: reportOrder ?? DEFAULT_REPORT_ORDER,
         callbacks,
       });
     }
