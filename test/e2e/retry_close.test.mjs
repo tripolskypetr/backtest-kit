@@ -972,3 +972,88 @@ test("RESTART CLEAN: after a forced close the snapshot is clean and a restart co
     PersistRecentAdapter.useDummy();
   }
 });
+
+/**
+ * FORCE CLOSE: исчерпание транзиентных close-отказов — фатальный exit стреляет
+ * ПОСЛЕ дюрабельного teardown (зачистки pending-снапшота с диска), не до.
+ * Слушатель exit может звать process.exit синхронно внутри next(): выстрел до
+ * teardown оставлял pending-снапшот на диске — рестарт восстанавливал ту же
+ * позицию, закрытие снова исчерпывалось, снова exit — вечный цикл рестартов
+ * одной позиции без дюрабельного force-close (зеркало deferred-паттерна
+ * check-пингов).
+ */
+test("FORCE CLOSE: exhaustion wipes the pending snapshot BEFORE the fatal exit", async ({ pass, fail }) => {
+  setConfig({ CC_ORDER_CLOSE_RETRY_ATTEMPTS: 1 }, true);
+
+  const t0 = new Date("2024-01-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "fclose-order-strategy",
+    exchangeName: "binance-fclose-order",
+    frameName: "",
+  };
+
+  makeExchange(context.exchangeName, () => BASE_PRICE);
+  makeStrategy(context, { minuteEstimatedTime: 1 });
+
+  // Хронология «зачистка pending-снапшота» vs «exit-сигнал»: врап пишет событие
+  // синхронно при вызове, слушатель exit — синхронным первым сегментом next()
+  const events = [];
+  const originalWrite = PersistSignalAdapter.writeSignalData;
+  PersistSignalAdapter.writeSignalData = async (data, ...rest) => {
+    events.push({ type: "signal", id: data?.id ?? null });
+    return await originalWrite.call(PersistSignalAdapter, data, ...rest);
+  };
+  const unsubscribeExit = listenExit(() => { events.push({ type: "exit" }); });
+  const unsubscribe = listenSync((event) => {
+    if (event.strategyName !== context.strategyName) return;
+    if (event.action !== "signal-close") return;
+    throw new Error("fclose-order: network always fails the close");
+  }, true);
+
+  try {
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+
+    // Попытка #1 (count=1, в бюджете CC=1) → retry, позиция остаётся под монитором
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "active") {
+      fail(`tick #2 expected "active" (close rejected, retry pending), got "${tick2.action}"`);
+      return;
+    }
+
+    // Попытка #2 (count=2 > CC=1) → force-close + отложенный фатальный exit
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "closed" || tick3.closeReason !== "time_expired") {
+      fail(`tick #3 expected FORCED closed/"time_expired", got "${tick3.action}"/"${tick3.closeReason}"`);
+      return;
+    }
+
+    await settle();
+
+    const exitIdx = events.findIndex((e) => e.type === "exit");
+    const wipeIdx = events.findIndex((e) => e.type === "signal" && e.id === null);
+    if (exitIdx === -1) {
+      fail("transient exhaustion of the close gate must signal fatal exit");
+      return;
+    }
+    if (wipeIdx === -1) {
+      fail(`no pending-snapshot wipe recorded, events: ${JSON.stringify(events)}`);
+      return;
+    }
+    if (exitIdx < wipeIdx) {
+      fail(`REGRESSION: exitEmitter fired BEFORE the pending snapshot wipe (exit at #${exitIdx}, wipe at #${wipeIdx}) — a synchronous process.exit listener would leave the position on disk and loop restarts forever`);
+      return;
+    }
+
+    pass(`force-close teardown persisted before the fatal exit (wipe at #${wipeIdx}, exit at #${exitIdx})`);
+  } finally {
+    PersistSignalAdapter.writeSignalData = originalWrite;
+    unsubscribe();
+    unsubscribeExit();
+  }
+});

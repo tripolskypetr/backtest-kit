@@ -1888,6 +1888,16 @@ const DROP_RETRY_OPEN_SIGNAL_FN = async (
  *   event still fires and reaches the broker adapter). Rationale: an eternally rejected
  *   close blocks the risk slot and floods logs forever.
  *
+ * The transient-exhaustion fatal exit is NOT emitted here: it is RETURNED as
+ * `fatalError` and the caller fires exitEmitter only AFTER its teardown is durable
+ * (pending snapshot wiped from disk, close events delivered to the broker adapter) —
+ * an exit listener may call process.exit synchronously inside next(), and emitting
+ * before the teardown left the pending snapshot on disk: every restart restored the
+ * same position, exhausted the close again and exited again — an eternal restart
+ * loop with no durable force-close (mirror of the deferred-fatal pattern in the
+ * order-check exhaustion branches of tick()). A terminal OrderRejectedError is a
+ * business outcome, not a network failure: fatalError stays null, no exit.
+ *
  * CC_ORDER_CLOSE_RETRY_ATTEMPTS = 0 disables the cap: transient rejections retry
  * forever (legacy behavior); the terminal verdict still forces the close.
  */
@@ -1896,10 +1906,10 @@ const RESOLVE_CLOSE_GATE_FN = (
   verdict: IBrokerOrderVerdict,
   signal: ISignalRow,
   closeReason: string
-): "allow" | "retry" | "force" => {
+): { verdict: "allow" | "retry" | "force"; fatalError: Error | null } => {
   if (verdict.reason === "confirmed") {
     self._retryCloseCount = 0;
-    return "allow";
+    return { verdict: "allow", fatalError: null };
   }
   // The started attempt was already counted by the PRE-ARM inside
   // CALL_ORDER_SYNC_CLOSE_FN — no increment here.
@@ -1908,7 +1918,7 @@ const RESOLVE_CLOSE_GATE_FN = (
     || (GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS > 0
       && self._retryCloseCount > GLOBAL_CONFIG.CC_ORDER_CLOSE_RETRY_ATTEMPTS);
   if (!exhausted) {
-    return "retry";
+    return { verdict: "retry", fatalError: null };
   }
   const message = "ClientStrategy RESOLVE_CLOSE_GATE_FN: close attempts exhausted, force-closing engine state without broker confirmation";
   const payload = {
@@ -1923,16 +1933,12 @@ const RESOLVE_CLOSE_GATE_FN = (
   console.warn(message, payload);
   const error = new Error(message);
   errorEmitter.next(error);
-  if (!terminal) {
-    // Исчерпание ТРАНЗИЕНТНЫХ отказов = сеть/брокер не дают закрыть позицию —
-    // продолжать работу нельзя: фатальный сигнал ПОСЛЕ errorEmitter-лога (движок
-    // уже force-close'нул своё состояние, реальную позицию обязан выверить
-    // оператор/адаптер). Терминальный OrderRejectedError — бизнес-исход, не сеть:
-    // без exit.
-    exitEmitter.next(error);
-  }
   self._retryCloseCount = 0;
-  return "force";
+  // Исчерпание ТРАНЗИЕНТНЫХ отказов = сеть/брокер не дают закрыть позицию —
+  // продолжать работу нельзя, НО фатальный сигнал стреляет ВЫЗЫВАТЕЛЕМ после
+  // дюрабельного teardown (см. док-коммент). Терминальный OrderRejectedError —
+  // бизнес-исход, не сеть: без exit.
+  return { verdict: "force", fatalError: terminal ? null : error };
 };
 
 const PARTIAL_PROFIT_FN = (
@@ -4323,7 +4329,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     self
   );
 
-  const closeVerdict = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, signal, closeReason);
+  const { verdict: closeVerdict, fatalError } = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, signal, closeReason);
   if (closeVerdict === "retry") {
     self.params.logger.info(`ClientStrategy signal ${closeReason} rejected by sync`, {
       symbol: self.params.execution.context.symbol,
@@ -4409,6 +4415,14 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     currentTime,
     self.params.execution.context.backtest
   );
+
+  // Фатальный сигнал force-close — только теперь: teardown дюрабелен (pending-
+  // снапшот зачищен на диске, close-события дошли до брокер-адаптера). Слушатель
+  // exit может звать process.exit синхронно внутри next() — выстрел до teardown
+  // оставлял снапшот на диске и зацикливал рестарты одной позиции.
+  if (fatalError) {
+    exitEmitter.next(fatalError);
+  }
 
   return result;
 };
@@ -5166,7 +5180,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self
   );
 
-  const closeVerdict = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, signal, closeReason);
+  const { verdict: closeVerdict, fatalError } = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, signal, closeReason);
   if (closeVerdict === "retry") {
     self.params.logger.info(`ClientStrategy backtest ${closeReason} rejected by sync`, {
       symbol: self.params.execution.context.symbol,
@@ -5268,6 +5282,13 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self.params.execution.context.backtest
   );
 
+  // Фатальный сигнал force-close — только после завершённого teardown (зеркало
+  // live-ветки CLOSE_PENDING_SIGNAL_FN): слушатель exit может звать process.exit
+  // синхронно внутри next().
+  if (fatalError) {
+    exitEmitter.next(fatalError);
+  }
+
   return result;
 };
 
@@ -5285,7 +5306,7 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self
   );
 
-  const closeVerdict = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, closedSignal, "closed");
+  const { verdict: closeVerdict, fatalError } = RESOLVE_CLOSE_GATE_FN(self, syncCloseAllowed, closedSignal, "closed");
   if (closeVerdict === "retry") {
     // Sync close rejected (e.g. broker rejected the order) — keep _closedSignal intact
     // and return null so the candle loop re-attempts on the next candle. Mirrors live
@@ -5384,6 +5405,12 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     closeTimestamp,
     self.params.execution.context.backtest
   );
+
+  // Фатальный сигнал force-close — только после завершённого teardown (зеркало
+  // live-ветки): слушатель exit может звать process.exit синхронно внутри next().
+  if (fatalError) {
+    exitEmitter.next(fatalError);
+  }
 
   return result;
 };
@@ -7732,7 +7759,7 @@ export class ClientStrategy implements IStrategy {
         this
       );
 
-      const closeVerdict = RESOLVE_CLOSE_GATE_FN(this, syncCloseAllowed, closedSignal, "closed");
+      const { verdict: closeVerdict, fatalError } = RESOLVE_CLOSE_GATE_FN(this, syncCloseAllowed, closedSignal, "closed");
       if (closeVerdict === "retry") {
         this.params.logger.info("ClientStrategy tick: user-closed signal rejected by sync, will retry", {
           symbol: this.params.execution.context.symbol,
@@ -7843,6 +7870,15 @@ export class ClientStrategy implements IStrategy {
         currentTime,
         this.params.execution.context.backtest
       );
+
+      // Фатальный сигнал force-дренажа — только теперь: teardown дюрабелен
+      // (дренированный флаг персистнут, риск-слот освобождён, close-события
+      // дошли до брокер-адаптера). Слушатель exit может звать process.exit
+      // синхронно внутри next() — выстрел до teardown оставлял _closedSignal
+      // на диске и зацикливал рестарты одного дренажа.
+      if (fatalError) {
+        exitEmitter.next(fatalError);
+      }
 
       return result;
     }
@@ -8614,7 +8650,7 @@ export class ClientStrategy implements IStrategy {
         this
       );
 
-      const closeVerdict = RESOLVE_CLOSE_GATE_FN(this, syncCloseAllowed, closedSignal, "closed");
+      const { verdict: closeVerdict, fatalError } = RESOLVE_CLOSE_GATE_FN(this, syncCloseAllowed, closedSignal, "closed");
       if (closeVerdict === "retry") {
         this.params.logger.info("ClientStrategy backtest: user-closed signal rejected by sync, will retry in candle loop", {
           symbol: this.params.execution.context.symbol,
@@ -8717,6 +8753,13 @@ export class ClientStrategy implements IStrategy {
         closeTimestamp,
         this.params.execution.context.backtest
       );
+
+      // Фатальный сигнал force-дренажа — только после завершённого teardown
+      // (зеркало live-дренажа в tick()): слушатель exit может звать
+      // process.exit синхронно внутри next().
+      if (fatalError) {
+        exitEmitter.next(fatalError);
+      }
 
       return closedResult;
     }
