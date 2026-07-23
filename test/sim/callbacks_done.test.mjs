@@ -47,7 +47,6 @@ test("SIM: onDone fires once and carries the exact result object", async ({ pass
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
     callbacks: {
       onDone: (symbol, result) => doneCalls.push({ symbol, result }),

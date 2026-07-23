@@ -36,7 +36,6 @@ addSimulatorSchema({
     minAuthorTrack: [5],
     minAuthorHitRate: [0.5],
     profitLockPercent: [2.5],
-    authorMetric: ["close"],
     banCriteria: ["sharpe"],
   },
   reportOrder: "sharpe",
@@ -52,7 +51,6 @@ const POINT = {
   minAuthorTrack: 5,
   minAuthorHitRate: 0.5,
   profitLockPercent: 2.5,
-  authorMetric: "close",
 };
 
 // результат обучения: сырой трек-рекорд авторов train-окна.

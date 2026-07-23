@@ -66,13 +66,13 @@ test("SIM: out-of-sample test freezes the point and the author track record", as
     simulatorName: "sim_oos",
     exchangeName: "sim-oos-exchange",
     gridAxes: {
-      hardStopPercent: [50],
+      // стоп 1% = цель достижимости, покрыта всплеском +1% каждого цикла
+      hardStopPercent: [1],
       trailingTakePercent: [100],
       holdMinutes: [60],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
     callbacks: {
       onAuthorsTrained: () => { authorsTrainedCalls += 1; },

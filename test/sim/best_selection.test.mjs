@@ -54,13 +54,13 @@ test("SIM: a monster single-trade point cannot win any ranking — the trades fl
     simulatorName: "sim_best",
     exchangeName: "sim-best-exchange",
     gridAxes: {
-      hardStopPercent: [50],
+      // стоп 1% = цель достижимости, покрыта всплеском +1% каждого цикла
+      hardStopPercent: [1],
       trailingTakePercent: [100],
       holdMinutes: [60, 7200],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
     callbacks: {
       onRanking: (_symbol, criterion, sorted, best) => {

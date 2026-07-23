@@ -66,13 +66,14 @@ test("SIM: end-of-data truncation — data_truncated exit and no track credit fo
     simulatorName: "sim_trunc",
     exchangeName: "sim-trunc-exchange",
     gridAxes: {
-      hardStopPercent: [50],
+      // стоп 0.5%: не стреляет в монотонном мире, а как симметричная
+      // цель достижимости покрывается дрейфом полного горизонта (0.72%)
+      hardStopPercent: [0.5],
       trailingTakePercent: [100],
       holdMinutes: [7200],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
     callbacks: {
       onGridPoint: (_symbol, report, trades) => captured.push({ report, trades }),

@@ -5,9 +5,10 @@ import { addExchangeSchema, addSimulatorSchema, Simulator } from "../../build/in
 /**
  * Дефолт-бан фильтра авторов: недоказанная правота = бан.
  *
- * Мир с монотонным дрейфом вверх (+1e-4% в минуту): каждая LONG-идея
- * за 5-дневный горизонт закрывается в плюс (hit), каждая SHORT — в
- * минус (miss). Три автора:
+ * Мир с монотонным дрейфом вверх и циклическим всплеском +1%: hit =
+ * достижимость (MFE >= цели до пробоя стопа откатом); цель при
+ * lock=0 — симметричный стоп 1%. LONG-идеи ловят всплеск (hit),
+ * SHORT в растущем мире не имеют MFE (miss). Три автора:
  *  - prophet: 4 LONG -> track 4, hitRate 1.0;
  *  - loser:   4 SHORT -> track 4, hitRate 0.0 (хуже монетки -> бан);
  *  - newbie:  2 LONG -> track 2, hitRate 1.0 (недоказан -> бан).
@@ -78,13 +79,14 @@ test("SIM: default-ban — unproven and coin-flipping authors are banned, ban ru
     simulatorName: "sim_ban",
     exchangeName: "sim-ban-exchange",
     gridAxes: {
-      hardStopPercent: [50],
+      // стоп 1%: в монотонном мире не срабатывает в сделках, а как
+      // симметричная цель достижимости (lock=0) ловится всплеском +1%
+      hardStopPercent: [1],
       trailingTakePercent: [100],
       holdMinutes: [60],
       minAuthorTrack: [3, 5],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
     callbacks: {
       onAuthorsTrained: (_symbol, stats, bannedIdeas) => {

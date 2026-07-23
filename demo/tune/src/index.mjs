@@ -47,7 +47,6 @@ addSimulatorSchema({
         profitLockPercent: [0, 1.5, 2.5],
         // обе метрики авторского hit'а — перебор решает, какая
         // арифметика кормит какой стиль выхода (BC не сохраняем)
-        authorMetric: ["close", "reach"],
         banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
@@ -65,7 +64,6 @@ addSimulatorSchema({
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 1, 2],
-        authorMetric: ["close", "reach"],
         banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
@@ -82,7 +80,6 @@ addSimulatorSchema({
         minAuthorTrack: [2, 3],
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 0.5, 1, 1.5, 2, 2.5, 3],
-        authorMetric: ["close", "reach"],
         banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
@@ -99,7 +96,6 @@ addSimulatorSchema({
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 1, 2],
-        authorMetric: ["close", "reach"],
         banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
@@ -124,7 +120,7 @@ const runTune = async (simulatorName) => {
     result.push({
       config: simulatorName,
       by: best.criterion,
-      point: `H=${p.hardStopPercent} TT=${p.trailingTakePercent} hold=${p.holdMinutes / 60}h track=${p.minAuthorTrack} rate=${p.minAuthorHitRate} lock=${p.profitLockPercent} metric=${p.authorMetric}`,
+      point: `H=${p.hardStopPercent} TT=${p.trailingTakePercent} hold=${p.holdMinutes / 60}h track=${p.minAuthorTrack} rate=${p.minAuthorHitRate} lock=${p.profitLockPercent}`,
       train: {
         trades: best.report.trades,
         pnl: fmt(best.report.totalPnlPercent),

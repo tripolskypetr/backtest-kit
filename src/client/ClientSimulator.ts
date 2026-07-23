@@ -202,13 +202,11 @@ const BUILD_PROFILE_FN = async (
     }
   }
 
-  const lastClose = candles[candles.length - 1].close;
   return {
     idea,
     entryTimestamp,
     entryPrice,
     candles,
-    hit: direction * (lastClose - entryPrice) > 0,
     outcomeKnownAt: entryTimestamp + candles.length * MINUTE_MS,
     truncated: candles.length < IDEA_TRIM_MINUTES,
     maxMfePercent,
@@ -235,72 +233,55 @@ interface IAuthorFilterContext {
 }
 
 /**
- * Derives the ban-filter rule from a grid point as a discriminated
- * union — the ONLY place the metric fallback lives. The "close" rule
- * structurally carries no lock/stop fields: with authorMetric
- * "close" the point's profitLockPercent/hardStopPercent do not
- * affect ban-list training at all (see the filter cache key — they
- * are not part of it either). A reach point with lock = 0 has
- * nothing to grade reachability against and degenerates into the
- * "close" rule here, not via scattered runtime branches.
+ * Derives the ban-filter rule from a grid point — the ONLY place the
+ * reach-target fallback lives. The target is the point's profit
+ * lock; a lock-free point (lock = 0) has no harvest level to grade
+ * against and falls back to the SYMMETRIC target — the point's own
+ * hard stop (+stop% before -stop%, 1:1 risk-to-reward reachability)
+ * — here, not via scattered runtime branches.
  *
  * @param point - Grid point carrying the rule fields
- * @returns Discriminated ban-filter rule
+ * @returns Ban-filter rule with the reach target resolved
  */
-const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
-  if (point.authorMetric === "reach" && point.profitLockPercent > 0) {
-    return {
-      metric: "reach",
-      minAuthorTrack: point.minAuthorTrack,
-      minAuthorHitRate: point.minAuthorHitRate,
-      profitLockPercent: point.profitLockPercent,
-      hardStopPercent: point.hardStopPercent,
-    };
-  }
-  return {
-    metric: "close",
-    minAuthorTrack: point.minAuthorTrack,
-    minAuthorHitRate: point.minAuthorHitRate,
-  };
-};
+const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => ({
+  minAuthorTrack: point.minAuthorTrack,
+  minAuthorHitRate: point.minAuthorHitRate,
+  profitLockPercent:
+    point.profitLockPercent > 0
+      ? point.profitLockPercent
+      : point.hardStopPercent,
+  hardStopPercent: point.hardStopPercent,
+});
 
 /**
- * Author "hit" under a discriminated ban-filter rule.
+ * Author "hit" under a ban-filter rule: REACHABILITY, deliberately
+ * free of any day count. The idea is a hit when its MFE reached the
+ * rule's reach target before the worst pre-peak pullback (shakeout)
+ * touched the hard stop — the trajectory got there, wherever inside
+ * the profile horizon that happened; what the price did AFTER the
+ * peak is irrelevant (a real lock trade would have exited at the
+ * floor).
  *
- * "close" — the idea's horizon close moved in its direction (the
- * profile's precomputed hit); the rule has no lock/stop fields by
- * construction. "reach" — the idea was HARVESTABLE by the rule's
- * lock machinery: MFE reached the profit-lock level and the worst
- * pre-peak pullback (shakeout) stayed above the hard stop. An author
- * whose calls spike to the lock within hours and then die by the
- * horizon close is a miss for "close" and a hit for "reach" —
- * exactly the author a lock point earns on.
- *
- * Same-candle ambiguity (lock and stop both reachable in the candle
- * of the MFE peak) reads as a hit here while SIMULATE_TRADE_FN gives
- * that candle to the stop — the filter metric is slightly more
- * optimistic than execution; it grades authors, not PnL.
+ * Same-candle ambiguity (target and stop both reachable in the
+ * candle of the MFE peak) reads as a hit here while
+ * SIMULATE_TRADE_FN gives that candle to the stop — the grading is
+ * slightly more optimistic than execution; it grades authors, not
+ * PnL.
  *
  * @param profile - Idea profile
- * @param rule - Discriminated ban-filter rule (see AUTHOR_RULE_FN)
+ * @param rule - Ban-filter rule (see AUTHOR_RULE_FN)
  * @returns Whether the idea counts as the author's hit
  */
 const AUTHOR_HIT_FN = (
   profile: ISimulatorIdeaProfile,
   rule: SimulatorAuthorRule,
-): boolean => {
-  if (rule.metric === "reach") {
-    return (
-      profile.maxMfePercent >= rule.profitLockPercent &&
-      profile.shakeoutMaePercent > -rule.hardStopPercent
-    );
-  }
-  return profile.hit;
-};
+): boolean =>
+  profile.maxMfePercent >= rule.profitLockPercent &&
+  profile.shakeoutMaePercent > -rule.hardStopPercent;
 
 /**
  * Trains the author ban list on the whole simulated range for ONE
- * rule combination — thresholds AND hit metric (lookahead inside
+ * rule combination — thresholds AND reach levels (lookahead inside
  * train is deliberate — honesty is provided by out-of-sample
  * validation, not by causality inside the train range).
  *
@@ -310,10 +291,7 @@ const AUTHOR_HIT_FN = (
  * prove nothing.
  *
  * @param profiles - Profiles of all directional ideas
- * @param ideas - All ideas of the symbol
- * @param rule - Discriminated ban-filter rule: thresholds + metric;
- * lock/stop levels exist ONLY on the "reach" variant — a "close"
- * rule cannot depend on them by construction
+ * @param rule - Ban-filter rule: thresholds + reach target/stop
  * @returns Filter context for the rule (stats sorted by idea count)
  */
 const TRAIN_AUTHOR_FILTER_FN = (
@@ -738,17 +716,14 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
       axes.holdMinutes.flatMap((holdMinutes) =>
         axes.minAuthorTrack.flatMap((minAuthorTrack) =>
           axes.minAuthorHitRate.flatMap((minAuthorHitRate) =>
-            axes.profitLockPercent.flatMap((profitLockPercent) =>
-              axes.authorMetric.map((authorMetric) => ({
-                hardStopPercent,
-                trailingTakePercent,
-                holdMinutes,
-                minAuthorTrack,
-                minAuthorHitRate,
-                profitLockPercent,
-                authorMetric,
-              })),
-            ),
+            axes.profitLockPercent.map((profitLockPercent) => ({
+              hardStopPercent,
+              trailingTakePercent,
+              holdMinutes,
+              minAuthorTrack,
+              minAuthorHitRate,
+              profitLockPercent,
+            })),
           ),
         ),
       ),
@@ -852,17 +827,13 @@ const RUN_FN = async (
   }
 
   // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО —
-  // дискриминирующий юнион AUTHOR_RULE_FN канонизирует его: у close
-  // полей lock/stop нет по построению (они НЕ влияют на бан-лист и в
-  // ключ не входят), reach несёт lock/stop своей точки, reach с
-  // lock=0 деградирует в close ещё в билдере
+  // AUTHOR_RULE_FN канонизирует его: цель достижимости = lock точки,
+  // а у lock=0 — её же стоп (симметричный грейд), поэтому точки с
+  // одинаковым разрешённым правилом делят одну тренировку
   const filterByRule = new Map<string, IAuthorFilterContext>();
   const getFilter = (point: ISimulatorGridPoint): IAuthorFilterContext => {
     const rule = AUTHOR_RULE_FN(point);
-    const key =
-      rule.metric === "reach"
-        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
-        : `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
+    const key = `${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`;
     let filter = filterByRule.get(key);
     if (!filter) {
       filter = TRAIN_AUTHOR_FILTER_FN(profiles, rule);

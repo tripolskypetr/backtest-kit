@@ -68,7 +68,6 @@ test("SIM: reach hit counts follow the point's stop — two trainings for H=[3,5
       minAuthorTrack: [5],
       minAuthorHitRate: [0.5],
       profitLockPercent: [2.5],
-      authorMetric: ["reach"],
     },
     callbacks: {
       onAuthorsTrained: (_symbol, stats) => trainings.push(stats),

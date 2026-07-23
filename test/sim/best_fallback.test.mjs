@@ -62,7 +62,6 @@ test("SIM: with no point above the anti-fluke floor the fallback picks the BEST 
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
   });
 

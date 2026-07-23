@@ -58,13 +58,13 @@ test("SIM: profitable series with no losing day yields infinite Sortino", async 
     simulatorName: "sim_sortino",
     exchangeName: "sim-sortino-exchange",
     gridAxes: {
-      hardStopPercent: [50],
+      // стоп 1% = симметричная цель достижимости, покрыта всплеском
+      hardStopPercent: [1],
       trailingTakePercent: [100],
       holdMinutes: [60],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
     callbacks: {},
   });
@@ -123,13 +123,13 @@ test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictl
     simulatorName: "sim_boundary",
     exchangeName: "sim-boundary-exchange",
     gridAxes: {
-      hardStopPercent: [50],
+      // стоп 0.5% = цель достижимости, покрыта дрейфом горизонта (0.72%)
+      hardStopPercent: [0.5],
       trailingTakePercent: [100],
       holdMinutes: [60],
       minAuthorTrack: [4],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
     callbacks: {},
   });

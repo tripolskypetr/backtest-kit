@@ -61,7 +61,6 @@ const runSingle = async (simulatorName, exchangeName, gridAxes) => {
 const AXES = {
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
-  authorMetric: ["close"],
   holdMinutes: [240],
 };
 

@@ -46,7 +46,6 @@ const AXES = {
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
   profitLockPercent: [0],
-  authorMetric: ["close"],
 };
 
 const IDEAS = [{ id: 1, ts: START, symbol: "TESTUSDT", direction: "LONG", author: "solo" }];

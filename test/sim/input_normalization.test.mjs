@@ -18,7 +18,7 @@ const CYCLE = 481;
 const priceAt = (timestamp) => {
   const m = Math.floor((timestamp - START) / MINUTE);
   if (m < 0) return 1000;
-  // дрейф вверх — LONG close-hit к горизонту (иначе rate 0.5 банит)
+  // дрейф вверх + всплеск +1%: LONG-достижимость цели 1% (иначе бан)
   const base = 1000 * (1 + 1e-6 * m);
   const p = m % CYCLE;
   if (p >= 2 && p <= 61) return base * 1.01;
@@ -26,13 +26,12 @@ const priceAt = (timestamp) => {
 };
 
 const AXES = {
-  hardStopPercent: [50],
+  hardStopPercent: [1],
   trailingTakePercent: [100],
   holdMinutes: [60],
   minAuthorTrack: [3],
   minAuthorHitRate: [0.5],
   profitLockPercent: [0],
-  authorMetric: ["close"],
 };
 
 test("SIM: reversed feed with mid-minute timestamps is bit-identical to the clean one", async ({ pass, fail }) => {

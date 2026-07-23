@@ -40,7 +40,7 @@ const validateIdea = (idea: any, line: number): string | null => {
 const pointLabel = (point: any): string =>
   `H=${point.hardStopPercent} TT=${point.trailingTakePercent} hold=${point.holdMinutes / 60}h ` +
   `track=${point.minAuthorTrack} rate=${point.minAuthorHitRate} ` +
-  `lock=${point.profitLockPercent} metric=${point.authorMetric}`;
+  `lock=${point.profitLockPercent}`;
 
 const fmtRatio = (value: number): string =>
   Number.isFinite(value) ? value.toFixed(2) : "inf";
@@ -230,7 +230,6 @@ export const main = async () => {
       minAuthorTrack: [2, 3, 5],
       minAuthorHitRate: [0.5, 0.6],
       profitLockPercent: [0, 1.5, 2.5],
-      authorMetric: ["close", "reach"],
       banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",

@@ -46,7 +46,6 @@ test("SIM: hold beyond the profile horizon clamps to time_expired at the horizon
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       profitLockPercent: [0],
-      authorMetric: ["close"],
     },
   });
 

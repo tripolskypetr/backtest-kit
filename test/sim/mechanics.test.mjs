@@ -36,7 +36,6 @@ const PERMISSIVE_FILTER = {
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
   profitLockPercent: [0],
-  authorMetric: ["close"],
 };
 
 const singleIdea = () => [
