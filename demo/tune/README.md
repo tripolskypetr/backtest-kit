@@ -22,14 +22,14 @@ The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https
   {
     "config": "tune_default",
     "by": "sharpe",
-    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 wilson=0 W=0 lock=2.5 metric=close",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2.5 metric=close",
     "train": { "trades": 9, "pnl": 12.22, "wr": 0.89, "dd": 1.31, "sharpe": 2.44, "sortino": 9.34 }
   },
   { "config": "tune_default", "by": "sortino", "point": "H=5 TT=2 hold=72h ... lock=2.5 metric=close", "train": "..." },
   {
     "config": "tune_default",
     "by": "pnl",
-    "point": "H=3 TT=4 hold=72h N=1 track=2 rate=0.5 wilson=0 W=0 lock=0 metric=close",
+    "point": "H=3 TT=4 hold=72h track=2 rate=0.5 lock=0 metric=close",
     "train": { "trades": 8, "pnl": 17.4, "wr": 0.75, "dd": 5.63, "sharpe": 1.25, "sortino": 4.31 }
   },
   { "config": "tune_default", "by": "recovery", "point": "H=5 TT=2 hold=72h ... lock=2.5 metric=close", "train": "..." },
@@ -43,28 +43,33 @@ The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https
   },
   {
     "config": "tune_shorthold",
-    "by": "sharpe",
-    "point": "H=3 TT=1.5 hold=48h N=1 track=5 rate=0.5 wilson=0 W=0.6 lock=2 metric=close",
-    "train": { "trades": 9, "pnl": 8.7, "wr": 0.78, "dd": 1.92, "sharpe": 1.83, "sortino": 3.76 }
+    "by": "sharpe | sortino | recovery",
+    "point": "H=2 TT=1 hold=4h track=2 rate=0.6 lock=2 metric=reach",
+    "train": { "trades": 14, "pnl": 3.6, "wr": 0.64, "dd": 1.26, "sharpe": 1.09, "sortino": 1.99 }
   },
-  { "config": "tune_shorthold", "by": "sortino | pnl | recovery", "point": "the same point", "train": "..." },
   {
-    "config": "tune_lockrich",
-    "by": "sharpe",
-    "point": "H=5 TT=3 hold=72h N=1 track=3 rate=0.5 wilson=0 W=0.6 lock=2.5 metric=close",
-    "train": { "trades": 9, "pnl": 12.82, "wr": 0.89, "dd": 2.84, "sharpe": 2.15, "sortino": 4.52 }
-  },
-  { "config": "tune_lockrich", "by": "sortino | recovery", "point": "H=5 TT=3 hold=72h ... rate=0.6 W=0.6 lock=3 metric=close", "train": "..." },
-  {
-    "config": "tune_lockrich",
+    "config": "tune_shorthold",
     "by": "pnl",
-    "point": "H=5 TT=3 hold=72h N=1 track=2 rate=0.6 wilson=0 W=0.6 lock=3 metric=reach",
-    "train": { "trades": 10, "pnl": 16.08, "wr": 0.9, "dd": 5.3, "sharpe": 1.87, "sortino": 3.03 }
+    "point": "H=5 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=close",
+    "train": { "trades": 10, "pnl": 7.01, "wr": 0.6, "dd": 5, "sharpe": 0.7, "sortino": 1.3 }
+  },
+  {
+    "config": "tune_lockrich",
+    "by": "sharpe",
+    "point": "H=3 TT=3 hold=72h track=2 rate=0.6 lock=2.5 metric=close",
+    "train": { "trades": 12, "pnl": 13.46, "wr": 0.83, "dd": 6.61, "sharpe": 1.63, "sortino": 2.88 }
+  },
+  { "config": "tune_lockrich", "by": "sortino", "point": "H=5 TT=3 hold=72h track=2 rate=0.5 lock=3 metric=close", "train": "..." },
+  {
+    "config": "tune_lockrich",
+    "by": "pnl | recovery",
+    "point": "H=5 TT=3 hold=72h track=2 rate=0.5 lock=0 metric=close",
+    "train": { "trades": 9, "pnl": 15.61, "wr": 0.89, "dd": 5.29, "sharpe": 1.42, "sortino": 2.95 }
   },
   {
     "config": "tune_wide",
     "by": "sharpe",
-    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 wilson=0 W=0 lock=2 metric=close",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2 metric=close",
     "train": { "trades": 9, "pnl": 9.21, "wr": 0.89, "dd": 1.31, "sharpe": 2.31, "sortino": 7.05 }
   },
   { "config": "tune_wide", "by": "sortino | recovery", "point": "the same point", "train": "..." },
@@ -74,12 +79,12 @@ The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https
 
 What to read out of this:
 
-- **Criteria convergence is the robustness signal.** Inside `tune_default`, three of four criteria (sharpe, sortino, recovery) land on ONE point — a point that wins one ranking may be a fluke of that metric, a point that wins three is a shape of the data. `tune_shorthold` converges 4/4, but on weaker numbers — convergence alone is not enough, read it together with the metrics.
+- **Criteria convergence is the robustness signal.** Inside `tune_default`, three of four criteria (sharpe, sortino, recovery) land on ONE point — a point that wins one ranking may be a fluke of that metric, a point that wins three is a shape of the data. `tune_shorthold` converges 3/4 too, but on much weaker numbers — convergence alone is not enough, read it together with the metrics.
 - **The same point re-emerges across independent configs.** The sharpe winners of `tune_default` and `tune_wide` are the identical point up to the ceiling of the lock axis (2.5 vs 2 — wide simply had no 2.5 in its list). When differently shaped grids keep electing one family — H=5, TT=2, hold=72h, strict track ≥ 5 — that family is not an artifact of axis choice.
-- **The profit lock is the watershed of the grid.** Every winner of every criterion except raw PnL takes `lock > 0`. The pnl criterion elects the same lock-free point in three configs out of four: +17.4% total, but dd 5.63 and sharpe 1.25. The lock gives up ~5 p.p. of PnL (17.4 → 12.22) and buys a 4× smaller drawdown (5.63 → 1.31) and a doubled sharpe (1.25 → 2.44). Sortino 9.34 on the winner means the train equity curve has almost no losing days.
-- **Shortening the hold does not pay.** `tune_shorthold` is uniformly worse (sharpe 1.83, pnl 8.7) even with the weighted-consensus crutch W=0.6 — the 72h hold dominates every shorter window on this feed.
-- **A strict ban beats a soft ban with a weight gate.** Wherever track ≥ 5 is available, it wins with W=0; W=0.6 appears only in configs whose ban axes stop at track 2–3 — the weighted consensus compensates for the softer rule, not improves on the strict one.
-- **`authorStats` is the artifact to freeze.** Raw `author/ideas/hits` only — the whitelist is NOT part of the output on purpose: `Simulator.test` re-derives banned flags and consensus weights from these numbers under the rule of whatever point you freeze, and an author absent from the list is banned by default.
+- **The profit lock is the watershed of the grid.** Every sharpe and sortino winner of every config takes `lock > 0`; lock-free points win only raw-PnL rankings (and the lockrich recovery). The pnl criterion elects the same lock-free point in default and wide: +17.4% total, but dd 5.63 and sharpe 1.25. The lock gives up ~5 p.p. of PnL (17.4 → 12.22) and buys a 4× smaller drawdown (5.63 → 1.31) and a doubled sharpe (1.25 → 2.44). Sortino 9.34 on the winner means the train equity curve has almost no losing days.
+- **Shortening the hold does not pay.** `tune_shorthold` is uniformly worse: its best point is a 4h reach-lock curiosity (sharpe 1.09, pnl 3.6) — the 72h hold dominates every shorter window on this feed.
+- **A strict ban beats a soft ban.** Wherever track ≥ 5 is available (default, wide), it wins every risk-adjusted ranking; configs whose ban axes stop at track 2–3 (shorthold, lockrich) produce uniformly weaker winners — softer evidence requirements let regime-lucky authors into the whitelist.
+- **`authorStats` is the artifact to freeze.** Raw `author/ideas/hits` only — the whitelist is NOT part of the output on purpose: `Simulator.test` re-derives banned flags from these numbers under the rule of whatever point you freeze, and an author absent from the list is banned by default.
 
 ### Selected candidate
 
@@ -89,21 +94,20 @@ The sharpe winners of the four configs, side by side:
 |---|---|---|---|---|---|
 | **tune_default** | H=5 TT=2 72h track5 **lock=2.5** | **2.44** | **9.34** | **12.22** | **1.31** |
 | tune_wide | same point, lock=2 | 2.31 | 7.05 | 9.21 | 1.31 |
-| tune_lockrich | H=5 TT=3, track3 W=0.6, lock=2.5 | 2.15 | 4.52 | 12.82 | 2.84 |
-| tune_shorthold | H=3 TT=1.5 48h, lock=2 | 1.83 | 3.76 | 8.70 | 1.92 |
+| tune_lockrich | H=3 TT=3 72h track2 rate.6, lock=2.5 | 1.63 | 2.88 | 13.46 | 6.61 |
+| tune_shorthold | H=2 TT=1 4h track2, lock=2 (reach) | 1.09 | 1.99 | 3.60 | 1.26 |
 
-The training elects the `tune_default` sharpe winner — it dominates every risk-adjusted metric at once: the best sharpe, the best sortino, more PnL than the same family point at lock=2 (wide) at the identical 1.31 drawdown, a 3-of-4 criteria convergence (sharpe + sortino + recovery on this exact point), 9 trades (above the anti-fluke floor), and the strictest author rule available. The only bigger numbers anywhere are raw-PnL ones (12.82 lockrich, 17.4 the lock-free pnl winner) — both pay with a 2–4× deeper drawdown and a third worse sharpe. Its parameters, frozen into `src/test.mjs`:
+The training elects the `tune_default` sharpe winner — it dominates every risk-adjusted metric at once: the best sharpe, the best sortino, more PnL than the same family point at lock=2 (wide) at the identical 1.31 drawdown, a 3-of-4 criteria convergence (sharpe + sortino + recovery on this exact point), 9 trades (above the anti-fluke floor), and the strictest author rule available. The only bigger numbers anywhere are raw-PnL ones (13.46 lockrich, 15.61 its lock-free pnl winner, 17.4 the default lock-free pnl winner) — all pay with a 4–5× deeper drawdown and a much worse sharpe. Its parameters, frozen into `src/test.mjs`:
 
 | Parameter | Value | Meaning |
 |---|---|---|
 | `hardStopPercent` | **5** | hard stop 5% from entry |
 | `trailingTakePercent` | **2** | trailing take, 2% pullback from peak |
 | `holdMinutes` | **4320** (72h) | maximum hold |
-| `minIdeasAligned` | **1** | one unbanned aligned author is enough to enter |
 | `minAuthorTrack` | **5** | author needs ≥ 5 fully observed ideas |
 | `minAuthorHitRate` | **0.5** | ...at hit rate ≥ 0.5 to be allowed |
-| `minWeightAligned` | **0** | weighted consensus gate disabled |
 | `profitLockPercent` | **2.5** | profit lock: floor armed at +2.5%, exit on pullback to it |
+| `authorMetric` | **"close"** | author hits graded by the 5-day horizon close |
 
 ## Step 2 — Out-of-sample (`npm test`)
 
