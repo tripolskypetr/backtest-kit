@@ -17,9 +17,9 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  * Grid axes applied per-axis when the schema omits them (schema
  * gridAxes are merged over these defaults, so a schema may override
  * only the axes it cares about). Values are trading parameters, not
- * sentinels, and every rule dimension is actually SWEPT by default —
- * no axis is a degenerate single value that silently disables its
- * mechanism.
+ * sentinels, and every rule dimension is SWEPT by default — the one
+ * deliberate exception is authorMetric, pinned to the single default
+ * grading (see its bullet below); close/reach are opt-in.
  *
  * Chosen from the empirical evidence of the reference runs:
  * - stops below ~2% sit inside the median whale shakeout (p25 of
@@ -37,11 +37,13 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   run that dumps gives everything back without a lock); 0 keeps
  *   the lock-free baseline, runners are untouched — above the lock
  *   the trailing floor is higher and fills first;
- * - author metric: "close" grades authors by horizon close (feeds
- *   long-hold points), "reach" by lock-reachability of their ideas
- *   (feeds lock points), "retain" by level FIXATION — median move at
- *   or above the lock, a time-window-free grading (feeds points that
- *   need the level to hold) — the sweep decides which grading wins;
+ * - author metric: the DEFAULT is "retain" alone — level FIXATION,
+ *   median move at or above the lock, the only time-window-free
+ *   grading (close depends on the arbitrary horizon-end snapshot);
+ *   with lock = 0 it structurally degenerates into "close". "close"
+ *   (horizon close) and "reach" (lock-reachability) are opt-in via
+ *   the schema for feeds where transient spikes or horizon closes
+ *   are the signal;
  * - ban criteria (NOT a swept axis — run() aggregation config): all
  *   four ranking winners feed the run-level author artifact by
  *   default; a schema pins ["sharpe"] to restore the pre-union
@@ -54,7 +56,7 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minAuthorTrack: [2, 3, 5],
   minAuthorHitRate: [0.5, 0.6],
   profitLockPercent: [0, 1.5, 2.5],
-  authorMetric: ["close", "reach", "retain"],
+  authorMetric: ["retain"],
   banCriteria: ["sharpe", "pnl"],
 };
 

@@ -230,7 +230,7 @@ export const main = async () => {
       minAuthorTrack: [2, 3, 5],
       minAuthorHitRate: [0.5, 0.6],
       profitLockPercent: [0, 1.5, 2.5],
-      authorMetric: ["close", "reach", "retain"],
+      authorMetric: ["retain"],
       banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",

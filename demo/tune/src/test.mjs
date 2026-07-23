@@ -31,36 +31,36 @@ addSimulatorSchema({
   exchangeName: "ccxt_exchange",
   gridAxes: {
     hardStopPercent: [5],
-    trailingTakePercent: [2],
+    trailingTakePercent: [3],
     holdMinutes: [3 * 24 * 60],
-    minAuthorTrack: [5],
+    minAuthorTrack: [2],
     minAuthorHitRate: [0.5],
-    profitLockPercent: [2.5],
-    authorMetric: ["close"],
+    profitLockPercent: [0],
+    authorMetric: ["retain"],
     banCriteria: ["sharpe"],
   },
   reportOrder: "sharpe",
 });
 
-// точка, выявленная тренировкой (src/index.mjs, tune_default):
-// лучший sharpe всех конфигов 2.44, сходимость sharpe/sortino/recovery,
-// sortino 9.34, dd 1.31, 9 сделок, строжайшее правило авторов
+// точка, выявленная тренировкой (src/index.mjs): сходимость на ней
+// у lockrich 4/4, sharpe-победитель default и wide (sharpe 1.42,
+// 9 сделок, dd 5.29). Метрика retain при lock=0 структурно
+// канонизируется в close-грейдинг — трек ниже посчитан по close
 const POINT = {
   hardStopPercent: 5,
-  trailingTakePercent: 2,
+  trailingTakePercent: 3,
   holdMinutes: 3 * 24 * 60,
-  minAuthorTrack: 5,
+  minAuthorTrack: 2,
   minAuthorHitRate: 0.5,
-  profitLockPercent: 2.5,
-  authorMetric: "close",
+  profitLockPercent: 0,
+  authorMetric: "retain",
 };
 
 // результат обучения: сырой трек-рекорд авторов train-окна.
-// Белый список НЕ хардкодится отдельно — test() сам выводит его из
-// этих цифр под правило точки (ideas >= 5, hitRate >= 0.5):
-// допущены TradingShot, Apex_Legends, Cryptollica,
-// MarketStrategysignals, melikatrader94, PremiumTrader57,
-// InvestingScope; все остальные и все невиданные — в бане.
+// Белый список НЕ хардкодится — test() выводит его из цифр под
+// правило точки (ideas >= 2, hitRate >= 0.5): допущены
+// TradingShot, Apex_Legends, Cryptollica, MarketStrategysignals, melikatrader94, PremiumTrader57, InvestingScope, XAUxBTC_Pro, Alpha_Trade_Scope, PRIMEALPHA-FX;
+// все остальные и все невиданные — в бане.
 const AUTHOR_STATS = [
   { author: "MasterAnanda", ideas: 16, hits: 7 },
   { author: "TradingShot", ideas: 10, hits: 6 },

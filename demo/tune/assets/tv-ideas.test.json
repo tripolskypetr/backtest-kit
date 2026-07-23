@@ -6,127 +6,94 @@
   "truncatedCount": 0,
   "point": {
     "hardStopPercent": 5,
-    "trailingTakePercent": 2,
+    "trailingTakePercent": 3,
     "holdMinutes": 4320,
-    "minAuthorTrack": 5,
+    "minAuthorTrack": 2,
     "minAuthorHitRate": 0.5,
-    "profitLockPercent": 2.5,
-    "authorMetric": "close"
+    "profitLockPercent": 0,
+    "authorMetric": "retain"
   },
   "report": {
     "point": {
       "hardStopPercent": 5,
-      "trailingTakePercent": 2,
+      "trailingTakePercent": 3,
       "holdMinutes": 4320,
-      "minAuthorTrack": 5,
+      "minAuthorTrack": 2,
       "minAuthorHitRate": 0.5,
-      "profitLockPercent": 2.5,
-      "authorMetric": "close"
+      "profitLockPercent": 0,
+      "authorMetric": "retain"
     },
-    "trades": 7,
-    "skippedBusy": 8,
-    "totalPnlPercent": 6.982308772756628,
-    "avgPnlPercent": 0.9974726818223755,
-    "winRate": 0.5714285714285714,
-    "profitFactor": 4.820289044822701,
-    "maxSeriesDrawdownPercent": 1.5589264523981434,
-    "calmarRatio": 116.77187474274224,
-    "recoveryFactor": 4.478921223009292,
-    "avgHoldMinutes": 1255.7142857142858,
+    "trades": 3,
+    "skippedBusy": 16,
+    "totalPnlPercent": 0.9086657630275314,
+    "avgPnlPercent": 0.3028885876758438,
+    "winRate": 0.3333333333333333,
+    "profitFactor": 1.2443162260538856,
+    "maxSeriesDrawdownPercent": 3.7192198721468412,
+    "calmarRatio": 6.369673036404877,
+    "recoveryFactor": 0.24431622605388567,
+    "avgHoldMinutes": 4122.666666666667,
     "p95HoldMinutes": 4320,
     "p99HoldMinutes": 4320,
-    "sharpe": 1.6505488624610558,
-    "sortino": 4.456465164847715,
+    "sharpe": 0.1700530143426951,
+    "sortino": 0.3387842978254109,
     "exitReasons": {
       "hard_stop": 0,
-      "trailing_take": 2,
-      "profit_lock": 4,
-      "time_expired": 1,
+      "trailing_take": 1,
+      "profit_lock": 0,
+      "time_expired": 2,
       "data_truncated": 0
     }
   },
   "trades": [
     {
-      "ideaId": 22231425,
-      "direction": "LONG",
-      "entryTimestamp": 1782115380000,
-      "exitTimestamp": 1782155340000,
-      "exitReason": "trailing_take",
-      "holdMinutesActual": 667,
-      "pnlPercent": -0.15669622759175927,
-      "absorbedIdeaIds": [
-        22232197
-      ]
-    },
-    {
-      "ideaId": 22238875,
+      "ideaId": 22230893,
       "direction": "SHORT",
-      "entryTimestamp": 1782207600000,
-      "exitTimestamp": 1782315060000,
-      "exitReason": "profit_lock",
-      "holdMinutesActual": 1792,
-      "pnlPercent": 2.2025000000000166,
+      "entryTimestamp": 1782109440000,
+      "exitTimestamp": 1782333060000,
+      "exitReason": "trailing_take",
+      "holdMinutesActual": 3728,
+      "pnlPercent": 4.627885635174373,
       "absorbedIdeaIds": [
+        22231425,
+        22232197,
+        22238875,
         22238891,
         22239264
       ]
     },
     {
-      "ideaId": 22252503,
-      "direction": "SHORT",
-      "entryTimestamp": 1782381120000,
-      "exitTimestamp": 1782395100000,
-      "exitReason": "profit_lock",
-      "holdMinutesActual": 234,
-      "pnlPercent": 2.202500000000013,
-      "absorbedIdeaIds": [
-        22252915,
-        22253145
-      ]
-    },
-    {
-      "ideaId": 22255426,
-      "direction": "SHORT",
-      "entryTimestamp": 1782411600000,
-      "exitTimestamp": 1782445140000,
-      "exitReason": "trailing_take",
-      "holdMinutesActual": 560,
-      "pnlPercent": -0.11206854725352632,
-      "absorbedIdeaIds": []
-    },
-    {
-      "ideaId": 22258808,
-      "direction": "SHORT",
-      "entryTimestamp": 1782465120000,
-      "exitTimestamp": 1782480000000,
-      "exitReason": "profit_lock",
-      "holdMinutesActual": 249,
-      "pnlPercent": 2.2025000000000143,
-      "absorbedIdeaIds": []
-    },
-    {
-      "ideaId": 22262063,
-      "direction": "SHORT",
-      "entryTimestamp": 1782505620000,
-      "exitTimestamp": 1782764760000,
+      "ideaId": 22250608,
+      "direction": "LONG",
+      "entryTimestamp": 1782359880000,
+      "exitTimestamp": 1782619020000,
       "exitReason": "time_expired",
       "holdMinutesActual": 4320,
-      "pnlPercent": -1.5589264523981432,
+      "pnlPercent": -1.4870790743673044,
       "absorbedIdeaIds": [
-        22269287,
-        22274172,
-        22274828
+        22251220,
+        22252503,
+        22252915,
+        22253145,
+        22255426,
+        22258808,
+        22262063,
+        22263804
       ]
     },
     {
-      "ideaId": 22280460,
-      "direction": "SHORT",
-      "entryTimestamp": 1782810420000,
-      "exitTimestamp": 1782868440000,
-      "exitReason": "profit_lock",
-      "holdMinutesActual": 968,
-      "pnlPercent": 2.2025000000000126,
-      "absorbedIdeaIds": []
+      "ideaId": 22269287,
+      "direction": "LONG",
+      "entryTimestamp": 1782654300000,
+      "exitTimestamp": 1782913440000,
+      "exitReason": "time_expired",
+      "holdMinutesActual": 4320,
+      "pnlPercent": -2.232140797779537,
+      "absorbedIdeaIds": [
+        22274172,
+        22274828,
+        22280460
+      ]
     }
   ],
   "authorStats": [
@@ -212,7 +179,7 @@
       "ideas": 4,
       "hits": 3,
       "hitRate": 0.75,
-      "banned": true
+      "banned": false
     },
     {
       "author": "CobraVanguard",
@@ -240,14 +207,14 @@
       "ideas": 2,
       "hits": 1,
       "hitRate": 0.5,
-      "banned": true
+      "banned": false
     },
     {
       "author": "PRIMEALPHA-FX",
       "ideas": 2,
       "hits": 1,
       "hitRate": 0.5,
-      "banned": true
+      "banned": false
     },
     {
       "author": "tomas_jntx",
@@ -432,19 +399,19 @@
     "MarketStrategysignals",
     "melikatrader94",
     "PremiumTrader57",
-    "InvestingScope"
+    "InvestingScope",
+    "XAUxBTC_Pro",
+    "Alpha_Trade_Scope",
+    "PRIMEALPHA-FX"
   ],
   "bannedAuthors": [
     "MasterAnanda",
     "BitCoinGuide",
     "ExpertTraderASK",
     "CryptoSkullSignal",
-    "XAUxBTC_Pro",
     "CobraVanguard",
     "coinpediamarkets",
     "salahuddin20041",
-    "Alpha_Trade_Scope",
-    "PRIMEALPHA-FX",
     "tomas_jntx",
     "JupahduhX",
     "Rowland-Australia",
@@ -583,7 +550,7 @@
     "DanelFadejev",
     "TopTradingSignals"
   ],
-  "avgHoldMinutes": 1255.7142857142858,
+  "avgHoldMinutes": 4122.666666666667,
   "p95HoldMinutes": 4320,
   "p99HoldMinutes": 4320
 }

@@ -195,7 +195,8 @@ export const main = async () => {
       minAuthorTrack: [3, 5],
       minAuthorHitRate: [0.5, 0.6],
       profitLockPercent: [0],
-      authorMetric: ["close"],
+      // retain при lock=0 канонизируется в close-грейдинг (структурно)
+      authorMetric: ["retain"],
       banCriteria: ["sharpe", "pnl"],
     },
     reportOrder: "sharpe",

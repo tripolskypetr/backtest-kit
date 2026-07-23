@@ -174,7 +174,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 10,
       "skippedBusy": 44,
@@ -206,7 +206,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 9,
       "skippedBusy": 33,
@@ -238,7 +238,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 9,
       "skippedBusy": 33,
@@ -270,7 +270,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 9,
       "skippedBusy": 33,
@@ -302,7 +302,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 10,
       "skippedBusy": 60,
@@ -334,7 +334,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 10,
       "skippedBusy": 44,
@@ -366,7 +366,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 10,
       "skippedBusy": 44,
@@ -398,7 +398,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 10,
       "skippedBusy": 60,
@@ -430,7 +430,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 9,
       "skippedBusy": 45,
@@ -462,7 +462,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 9,
       "skippedBusy": 45,
@@ -494,7 +494,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 12,
       "skippedBusy": 30,
@@ -526,7 +526,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 13,
       "skippedBusy": 41,
@@ -558,7 +558,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 12,
       "skippedBusy": 42,
@@ -590,7 +590,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 12,
       "skippedBusy": 42,
@@ -622,7 +622,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 22,
       "skippedBusy": 32,
@@ -654,7 +654,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 22,
       "skippedBusy": 32,
@@ -686,7 +686,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 11,
       "skippedBusy": 31,
@@ -718,7 +718,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 11,
       "skippedBusy": 31,
@@ -750,7 +750,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 13,
       "skippedBusy": 41,
@@ -782,7 +782,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 12,
       "skippedBusy": 30,
@@ -814,7 +814,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 13,
       "skippedBusy": 57,
@@ -846,7 +846,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 22,
       "skippedBusy": 32,
@@ -878,7 +878,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 12,
       "skippedBusy": 42,
@@ -910,7 +910,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 15,
       "skippedBusy": 27,
@@ -942,7 +942,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 14,
       "skippedBusy": 56,
@@ -974,7 +974,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 15,
       "skippedBusy": 39,
@@ -1006,7 +1006,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 13,
       "skippedBusy": 41,
@@ -1038,7 +1038,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 15,
       "skippedBusy": 55,
@@ -1070,7 +1070,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 14,
       "skippedBusy": 56,
@@ -1102,7 +1102,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 21,
       "skippedBusy": 21,
@@ -1134,7 +1134,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 21,
       "skippedBusy": 21,
@@ -1166,7 +1166,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 15,
       "skippedBusy": 39,
@@ -1198,7 +1198,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 13,
       "skippedBusy": 41,
@@ -1230,7 +1230,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 21,
       "skippedBusy": 21,
@@ -1262,7 +1262,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 23,
       "skippedBusy": 31,
@@ -1294,7 +1294,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 20,
       "skippedBusy": 50,
@@ -1326,7 +1326,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 19,
       "skippedBusy": 35,
@@ -1358,7 +1358,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 15,
       "skippedBusy": 39,
@@ -1390,7 +1390,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 18,
       "skippedBusy": 52,
@@ -1422,7 +1422,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.6,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 23,
       "skippedBusy": 19,
@@ -1454,7 +1454,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 21,
       "skippedBusy": 33,
@@ -1486,7 +1486,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 21,
       "skippedBusy": 33,
@@ -1518,7 +1518,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 22,
       "skippedBusy": 48,
@@ -1550,7 +1550,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 22,
       "skippedBusy": 48,
@@ -1582,7 +1582,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 22,
       "skippedBusy": 32,
@@ -1614,7 +1614,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 24,
       "skippedBusy": 46,
@@ -1646,7 +1646,7 @@
         "minAuthorTrack": 5,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 25,
       "skippedBusy": 29,
@@ -1678,7 +1678,7 @@
         "minAuthorTrack": 3,
         "minAuthorHitRate": 0.5,
         "profitLockPercent": 0,
-        "authorMetric": "close"
+        "authorMetric": "retain"
       },
       "trades": 26,
       "skippedBusy": 44,
@@ -1714,7 +1714,7 @@
           "minAuthorTrack": 5,
           "minAuthorHitRate": 0.5,
           "profitLockPercent": 0,
-          "authorMetric": "close"
+          "authorMetric": "retain"
         },
         "trades": 10,
         "skippedBusy": 44,
@@ -3143,7 +3143,7 @@
           "minAuthorTrack": 5,
           "minAuthorHitRate": 0.6,
           "profitLockPercent": 0,
-          "authorMetric": "close"
+          "authorMetric": "retain"
         },
         "trades": 9,
         "skippedBusy": 33,
@@ -4550,7 +4550,7 @@
           "minAuthorTrack": 5,
           "minAuthorHitRate": 0.5,
           "profitLockPercent": 0,
-          "authorMetric": "close"
+          "authorMetric": "retain"
         },
         "trades": 10,
         "skippedBusy": 44,
@@ -5979,7 +5979,7 @@
           "minAuthorTrack": 5,
           "minAuthorHitRate": 0.6,
           "profitLockPercent": 0,
-          "authorMetric": "close"
+          "authorMetric": "retain"
         },
         "trades": 9,
         "skippedBusy": 33,
