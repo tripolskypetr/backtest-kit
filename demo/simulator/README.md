@@ -25,7 +25,7 @@ One `Simulator.run` over the whole feed: each idea gets ONE asynchronous candle 
 
 ### 2. How much does the window cut?
 
-Before any trading logic runs, the feed passes the honesty filters: NEUTRAL ideas dropped, flood deduplicated (at most one idea per author per direction per 8 hours — reposting a call must not inflate a track record, retrigger entries or keep a consensus vote alive). The probe reports the cut explicitly: **421 BTCUSDT ideas → 300 directional survivors**. A feed that mostly evaporates here is a feed of reposts, not signals.
+Before any trading logic runs, the feed passes the honesty filters: NEUTRAL ideas dropped, flood deduplicated (at most one idea per author per direction per 8 hours — reposting a call must not inflate a track record or retrigger entries). The probe reports the cut explicitly: **421 BTCUSDT ideas → 300 directional survivors**. A feed that mostly evaporates here is a feed of reposts, not signals.
 
 ### 3. Does anyone survive the ban?
 
@@ -33,11 +33,11 @@ Ban is the **default**: an author is allowed only when his correctness is unambi
 
 ### 4. The mechanics are deliberately primitive
 
-The probe must not try to EARN — that is `demo/tune`'s territory. Every profit-harvesting mechanism is pinned off: `profitLockPercent: [0]`, the trailing take is inert (`[100]` never arms), the weighted consensus and the Wilson bound are disabled, one proven aligned author is enough to enter. What remains swept is only what the feasibility question needs: the catastrophe stop (2–7%), the hold (24–72h) and the ban rule (track 3/5 × rate 0.5/0.6). A probe that tunes the harvest on its own training range would overfit the very question it is asking.
+The probe must not try to EARN — that is `demo/tune`'s territory. Every profit-harvesting mechanism is pinned off: `profitLockPercent: [0]`, the trailing take is inert (`[100]` never arms); any idea of a proven author triggers an entry — the engine grades authors strictly in isolation, no interaction metrics exist. What remains swept is only what the feasibility question needs: the catastrophe stop (2–7%), the hold (24–72h) and the ban rule (track 3/5 × rate 0.5/0.6). A probe that tunes the harvest on its own training range would overfit the very question it is asking.
 
 ### 5. The probe answers a boolean, tune finds the edge
 
-The result still carries ranking winners (time-based Sharpe/Sortino over daily equity increments — frozen capital is not free — plus total PnL and recovery factor) with full trade lists, hold-time tail percentiles and per-trade `absorbedIdeaIds` — but they are **evidence for the verdict, not candidates**. The parameter search (the lock, the trailing, the consensus, the rule arithmetic) belongs to `demo/tune` with its walk-forward split, and the final arbiter for anything picked there is always a real engine backtest (`Backtest.run`).
+The result still carries ranking winners (time-based Sharpe/Sortino over daily equity increments — frozen capital is not free — plus total PnL and recovery factor) with full trade lists, hold-time tail percentiles and per-trade `absorbedIdeaIds` — but they are **evidence for the verdict, not candidates**. The parameter search (the lock, the trailing, the rule arithmetic) belongs to `demo/tune` with its walk-forward split, and the final arbiter for anything picked there is always a real engine backtest (`Backtest.run`).
 
 ## Actual Results (June 2026, BTCUSDT, full feed)
 
@@ -107,13 +107,9 @@ addSimulatorSchema({
     // инертен: проба не собирает прибыль, выход — по времени или стопу
     trailingTakePercent: [100],
     holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-    // одного проверенного автора достаточно — консенсус не перебираем
-    minIdeasAligned: [1],
     // правило бана — единственная перебираемая "умность" пробы
     minAuthorTrack: [3, 5],
     minAuthorHitRate: [0.5, 0.6],
-    minAuthorWilson: [0],
-    minWeightAligned: [0],
     profitLockPercent: [0],
     authorMetric: ["close"],
     banCriteria: ["sharpe", "pnl"],
