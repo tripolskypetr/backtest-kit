@@ -37,9 +37,10 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
- * - the hit is REACHABILITY, free of any day count: MFE reached the
- *   point's lock (lock-free points grade against the symmetric stop
- *   target) before the pre-peak pullback touched the point's stop.
+ * - authorMetric — hit definition: "close" = 5-day horizon close
+ *   (lock/stop do NOT affect ban training), "reach" =
+ *   lock-reachability against the point's lock/stop; reach with
+ *   lock = 0 falls back to close.
  *
  * Run-level aggregation (not swept, ignored by test()):
  * - banCriteria — which ranking winners feed result.allowedAuthors

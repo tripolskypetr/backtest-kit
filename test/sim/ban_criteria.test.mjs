@@ -55,6 +55,7 @@ const AXES = {
   minAuthorTrack: [2, 9],
   minAuthorHitRate: [0],
   profitLockPercent: [0],
+  authorMetric: ["close"],
 };
 
 const registerWorld = (exchangeName) => {

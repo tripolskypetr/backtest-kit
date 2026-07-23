@@ -56,14 +56,13 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
     simulatorName: "sim_nogood",
     exchangeName: "sim-nogood-exchange",
     gridAxes: {
-      // 0.5% — достижимая цель (дрейф горизонта 0.72%): rookie прав,
-      // но недоказан; 50% — недостижимая: у всех hits 0
-      hardStopPercent: [0.5, 50],
+      hardStopPercent: [5, 50],
       trailingTakePercent: [2, 100],
       holdMinutes: [60],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
+      authorMetric: ["close"],
     },
     callbacks: {
       onGridPoint: (_symbol, report) => pointReports.push(report),

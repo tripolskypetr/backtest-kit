@@ -47,6 +47,7 @@ const GRID_AXES = {
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
   profitLockPercent: [0],
+  authorMetric: ["close"],
 };
 
 test("SIM: empty ideas feed resolves structurally — zero counters, zero grid, rankings intact", async ({ pass, fail }) => {

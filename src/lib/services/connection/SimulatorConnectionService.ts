@@ -37,9 +37,9 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   run that dumps gives everything back without a lock); 0 keeps
  *   the lock-free baseline, runners are untouched — above the lock
  *   the trailing floor is higher and fills first;
- * - the author hit is REACHABILITY only — no day count: MFE reached
- *   the point's lock (or, for lock-free points, the symmetric stop
- *   target) before the pre-peak pullback touched the stop;
+ * - author metric: "close" grades authors by horizon close (feeds
+ *   long-hold points), "reach" by lock-reachability of their ideas
+ *   (feeds lock points) — the sweep decides which grading wins;
  * - ban criteria (NOT a swept axis — run() aggregation config): all
  *   four ranking winners feed the run-level author artifact by
  *   default; a schema pins ["sharpe"] to restore the pre-union
@@ -52,6 +52,7 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minAuthorTrack: [2, 3, 5],
   minAuthorHitRate: [0.5, 0.6],
   profitLockPercent: [0, 1.5, 2.5],
+  authorMetric: ["close", "reach"],
   banCriteria: ["sharpe", "pnl"],
 };
 

@@ -67,6 +67,7 @@ test("SIM: profit lock catches the +2.5%-then-dump bleed the trailing take never
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       profitLockPercent: [0, 2],
+      authorMetric: ["close"],
     },
     callbacks: {
       onGridPoint: (_symbol, report, trades) => {
@@ -149,6 +150,7 @@ test("SIM: profit lock never cuts a runner — the trailing floor above it fills
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       profitLockPercent: [2],
+      authorMetric: ["close"],
     },
     callbacks: {},
   });

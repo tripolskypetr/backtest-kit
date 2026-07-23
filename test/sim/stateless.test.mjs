@@ -48,13 +48,13 @@ test("SIM: repeated run on the memoized client is bit-for-bit identical", async 
     simulatorName: "sim_stateless",
     exchangeName: "sim-stateless-exchange",
     gridAxes: {
-      // стоп 1% = достижимая цель (всплеск +1%); 50 — недостижимая, точки пусты
-      hardStopPercent: [1, 50],
+      hardStopPercent: [5, 50],
       trailingTakePercent: [2, 100],
       holdMinutes: [60, 7200],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       profitLockPercent: [0],
+      authorMetric: ["close"],
     },
     callbacks: {},
   });

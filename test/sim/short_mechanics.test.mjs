@@ -31,6 +31,7 @@ const PERMISSIVE = {
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
   profitLockPercent: [0],
+  authorMetric: ["close"],
 };
 
 const shortIdea = () => [

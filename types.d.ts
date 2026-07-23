@@ -6012,6 +6012,8 @@ interface ISimulatorIdeaProfile {
     entryPrice: number;
     /** Candle trajectory of the idea horizon (shared chunk references). */
     candles: ICandleData[];
+    /** Idea correctness: horizon return in its direction is positive. */
+    hit: boolean;
     /** Timestamp when the idea outcome becomes known (horizon end). */
     outcomeKnownAt: number;
     /** Horizon was truncated by end of data, not by the trim constant. */
@@ -6028,6 +6030,19 @@ interface ISimulatorIdeaProfile {
     shakeoutMaePercent: number;
 }
 /**
+ * Metric that defines an author's "hit" for the ban filter:
+ * - "close" — the idea's 5-day horizon close moved in its direction
+ *   (rewards authors whose calls survive a long hold);
+ * - "reach" — the idea's MFE reached the point's profit-lock level
+ *   before its pre-peak MAE reached the hard stop (rewards authors
+ *   whose calls are HARVESTABLE by the lock machinery, even when the
+ *   horizon close goes against them). With profitLockPercent = 0 the
+ *   reach metric falls back to "close".
+ * The right metric depends on the exit style being ranked: close-hit
+ * authors feed long-hold points, reach-hit authors feed lock points.
+ */
+type SimulatorAuthorMetric = "close" | "reach";
+/**
  * Value lists per grid axis. The grid is the cartesian product of
  * all axes EXCEPT banCriteria (run-level aggregation config, never
  * swept); windows and author-ban thresholds are swept the same way
@@ -6043,10 +6058,10 @@ interface ISimulatorGridAxes {
      * Tunes: the catastrophe exit — how deep a position may sink
      * before a forced loss; the stop WINS when the stop and any profit
      * floor are reachable inside one candle (pessimism contract). Also
-     * the shakeout bound of the author-hit grading, and its SYMMETRIC
-     * reach target for lock-free points (see SimulatorAuthorRule).
-     * Ignored: never — every trade checks it and every ban rule
-     * grades against it.
+     * the shakeout bound of the "reach" author metric.
+     * Ignored: never for trading — every trade checks it. For BAN
+     * TRAINING it is ignored under authorMetric "close": only the
+     * "reach" rule grades authors against it (see SimulatorAuthorRule).
      */
     hardStopPercent: number[];
     /**
@@ -6056,7 +6071,7 @@ interface ISimulatorGridAxes {
      * worse than entry (peak >= entry/(1 - r)).
      * Ignored: inert for any trade whose peak never reaches the arm
      * level — such trades exit by stop, lock, or the hold cap. Never
-     * affects ban training.
+     * affects ban training under any metric.
      */
     trailingTakePercent: number[];
     /**
@@ -6066,8 +6081,8 @@ interface ISimulatorGridAxes {
      * holds trade less often; the cap is the worst-case exit
      * (time_expired) when neither stop nor floor fires.
      * Ignored: never for trading. Ban training does NOT use it — an
-     * author's hit is graded on the idea's profile trajectory, not on
-     * the point's hold.
+     * author's hit is graded on the idea's full 5-day profile horizon,
+     * not on the point's hold.
      */
     holdMinutes: number[];
     /**
@@ -6075,19 +6090,18 @@ interface ISimulatorGridAxes {
      * outcome an author needs before he can be allowed (fewer ->
      * banned by default; truncated profiles prove nothing).
      * Tunes: how much evidence "proven" requires.
-     * Ignored: never.
+     * Ignored: never — the rule trains under both author metrics;
+     * WHAT counts as a hit is decided by authorMetric.
      */
     minAuthorTrack: number[];
     /**
      * Author ban rule to sweep: minimum hit rate (0..1) an author
      * needs to be allowed. The ban is STRICTLY below the threshold —
-     * an author exactly at it stays allowed. A hit is REACHABILITY
-     * (see SimulatorAuthorRule): MFE reached the point's reach target
-     * before the pre-peak pullback touched the point's stop — no day
-     * count is involved.
+     * an author exactly at it stays allowed.
      * Tunes: required author quality; on the reference data quality
      * mattered more than track length on every ranking.
-     * Ignored: never.
+     * Ignored: never — trains under both metrics; the hit definition
+     * follows authorMetric.
      */
     minAuthorHitRate: number[];
     /**
@@ -6099,12 +6113,25 @@ interface ISimulatorGridAxes {
      * Covers the zone where the trailing take is not armed yet (peak
      * below entry/(1 - r)) and profit would otherwise bleed back.
      * Tunes: harvesting the crowd-liquidity step without cutting
-     * runners. Also the reach target of the author-hit grading.
-     * Ignored: 0 DISABLES the lock for trading; ban grading then
-     * falls back to the SYMMETRIC reach target — the point's own
-     * hardStopPercent (see SimulatorAuthorRule).
+     * runners. Also the grading level of the "reach" author metric.
+     * Ignored: 0 DISABLES the mechanism for trading AND degenerates
+     * the "reach" metric into "close". Under authorMetric "close" the
+     * level never affects ban training — trading only.
      */
     profitLockPercent: number[];
+    /**
+     * Author-hit metrics to sweep for the ban filter — a rule
+     * parameter like the thresholds.
+     * Tunes: which author grading feeds which exit style — "close"
+     * (5-day horizon close) rewards authors whose calls survive a long
+     * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
+     * rewards the authors a lock point actually earns on; the same
+     * author has different hit counts under different metrics.
+     * Ignored: with "close" the point's lock/stop never affect ban
+     * training; "reach" with profitLockPercent = 0 falls back to
+     * "close" (see SimulatorAuthorRule — the fallback is structural).
+     */
+    authorMetric: SimulatorAuthorMetric[];
     /**
      * NOT a swept axis — run() aggregation config: ranking criteria
      * whose winners feed the run-level author artifact
@@ -6143,6 +6170,8 @@ interface ISimulatorGridPoint {
      * entry, exit on pullback to the floor; 0 = disabled.
      */
     profitLockPercent: number;
+    /** Author-hit metric of the ban filter for this point. */
+    authorMetric: SimulatorAuthorMetric;
 }
 /**
  * Why a simulated trade was closed.
@@ -6243,10 +6272,10 @@ interface ISimulatorAuthorStat {
     /** Directional ideas with a KNOWN outcome (truncated ones excluded). */
     ideas: number;
     /**
-     * Number of the author's REACHABILITY hits under the rule: MFE
-     * reached the rule's reach target before the pre-peak pullback
-     * touched its stop — the same author has different hit counts
-     * under rules with different target/stop levels.
+     * Number of the author's hits UNDER THE RULE'S METRIC: horizon
+     * close in the idea direction for "close", lock-reachability for
+     * "reach" — the same author has different hit counts under
+     * different rules.
      */
     hits: number;
     /** hits / ideas, 0..1; zero when the author has no known outcomes. */
@@ -6283,9 +6312,10 @@ interface ISimulatorBest {
     /**
      * Per-author track records under THIS winner's rule — the ONLY
      * source of the author artifact in a run result. Hits are counted
-     * against the rule's reach target and stop, so even the raw
-     * numbers differ between winners with different rules — a single
-     * run-level list cannot represent them. Empty when report is null.
+     * by the rule's metric (authorMetric + the lock/stop levels the
+     * "reach" metric grades against), so even the raw numbers differ
+     * between winners with different rules — a single run-level list
+     * cannot represent them. Empty when report is null.
      */
     authorStats: ISimulatorAuthorStat[];
     /** Whitelist under THIS winner's ban rule. */
@@ -6296,7 +6326,7 @@ interface ISimulatorBest {
 /**
  * Final result of a simulation run: grid reports, four ranking
  * winners; the author artifact is per-winner in best[] — hits are
- * rule-dependent, a run-level list would lie to other criteria.
+ * metric-dependent, a run-level list would lie to other criteria.
  */
 interface ISimulatorResult {
     /** Trading pair symbol the simulation ran for. */
@@ -6395,6 +6425,7 @@ interface ISimulatorTestResult {
  * - gridAxes — PER-AXIS override merged over the engine defaults:
  *   an omitted axis takes the default LIST and is therefore swept;
  *   a single-value list freezes an axis. Pinning examples:
+ *   authorMetric: ["close"] restores pre-reach ban training,
  *   banCriteria: ["sharpe"] restores the Sharpe-only run artifact,
  *   profitLockPercent: [0] disables the lock. Each axis documents
  *   its own tune/ignore conditions in ISimulatorGridAxes.
@@ -19890,9 +19921,10 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
- * - the hit is REACHABILITY, free of any day count: MFE reached the
- *   point's lock (lock-free points grade against the symmetric stop
- *   target) before the pre-peak pullback touched the point's stop.
+ * - authorMetric — hit definition: "close" = 5-day horizon close
+ *   (lock/stop do NOT affect ban training), "reach" =
+ *   lock-reachability against the point's lock/stop; reach with
+ *   lock = 0 falls back to close.
  *
  * Run-level aggregation (not swept, ignored by test()):
  * - banCriteria — which ranking winners feed result.allowedAuthors

@@ -61,6 +61,7 @@ test("SIM: out-of-sample with a reach point — frozen reach stats, no recount, 
       minAuthorTrack: [5],
       minAuthorHitRate: [0.5],
       profitLockPercent: [2.5],
+      authorMetric: ["reach"],
     },
   });
 
@@ -72,9 +73,9 @@ test("SIM: out-of-sample with a reach point — frozen reach stats, no recount, 
   });
   const winner = train.best.find(({ criterion }) => criterion === "sharpe");
   const trainStat = winner.authorStats.find(({ author }) => author === "spiker");
-  // предусловие: hits — достижимость (спайк +5% >= замка 2.5 до
-  // пробоя стопа), хотя закрытие горизонта у спайкера всегда ниже входа
-  if (!trainStat || trainStat.hits !== 5 || trainStat.banned) {
+  // предусловие: hits посчитаны reach-метрикой (close дал бы 0 —
+  // закрытие 5-дневного горизонта у спайкера всегда ниже входа)
+  if (!trainStat || trainStat.hits !== 5 || trainStat.banned || winner.report.point.authorMetric !== "reach") {
     fail(`train precondition: spiker must be 5/5 by reach and allowed, got ${JSON.stringify(trainStat)}`);
     return;
   }

@@ -24,6 +24,7 @@ const SINGLE_POINT = {
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
   profitLockPercent: [0],
+  authorMetric: ["close"],
 };
 
 const TWO_POINTS = { ...SINGLE_POINT, holdMinutes: [60, 120] };
