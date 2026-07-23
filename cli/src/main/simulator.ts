@@ -200,7 +200,7 @@ export const main = async () => {
       minAuthorTrack: [3, 5],
       minAuthorHitRate: [0.5, 0.6],
       profitLockPercent: [0],
-      // retain при lock=0 канонизируется в close-грейдинг (структурно)
+      // retain от замка не зависит: фиксация выше входа (медиана > 0)
       authorMetric: ["retain"],
     },
     reportOrder: "sharpe",

@@ -4,10 +4,9 @@ import { addExchangeSchema, addSimulatorSchema, Simulator } from "../../build/in
 
 /**
  * Метрика "pnl" — фиксированный порог +1% MFE, независимый от lock:
- *  1) при lock=0 метрика НЕ деградирует в close (в отличие от
- *     reach/retain) и грейдит достижимость +1%: автор paying
- *     (спайк +1.5%) допущен, автор edge (спайк ровно +1.0%) банится
- *     — порог СТРОГО больше;
+ *  1) при lock=0 метрика грейдит достижимость +1% как есть: автор
+ *     paying (спайк +1.5%) допущен, автор edge (спайк ровно +1.0%)
+ *     банится — порог СТРОГО больше;
  *  2) словарь result.reports: единственная точка лежит в корзине
  *     "pnl", остальные корзины существуют и пусты.
  *
@@ -69,8 +68,7 @@ test("SIM: pnl metric grades the fixed +1% threshold independent of lock — str
       holdMinutes: [60],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      // lock=0: reach/retain здесь деградировали бы в close —
-      // pnl-метрика от замка не зависит и грейдит как есть
+      // lock=0: pnl-метрика от замка не зависит и грейдит как есть
       profitLockPercent: [0],
       authorMetric: ["pnl"],
     },

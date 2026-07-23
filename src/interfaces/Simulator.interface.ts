@@ -56,11 +56,11 @@ export interface ISimulatorIdeaProfile {
   /**
    * MEDIAN of the per-candle close moves from entry over the whole
    * horizon, percent in the idea's direction. The raw material of
-   * the "retain" author metric: median >= X means price sat at or
-   * above +X% for at least half the observed trajectory — a
-   * time-window-free fixation measure (the 50% share is the median's
-   * definition, not a tunable constant), insensitive to the exact
-   * horizon length unlike the close.
+   * the "retain" author metric: median > 0 means price sat ABOVE
+   * the entry for at least half the observed trajectory — a
+   * time-window-free, level-free fixation measure (the 50% share is
+   * the median's definition, not a tunable constant), insensitive
+   * to the exact horizon length unlike the close.
    */
   medianMovePercent: number;
 }
@@ -72,38 +72,34 @@ export interface ISimulatorIdeaProfile {
  * - "reach" — the idea's MFE reached the point's profit-lock level
  *   before its pre-peak MAE reached the hard stop (rewards authors
  *   whose calls are HARVESTABLE by the lock machinery, even when the
- *   horizon close goes against them). With profitLockPercent = 0 the
- *   reach metric falls back to "close";
- * - "retain" — the MEDIAN move of the idea's horizon reached the
- *   point's profit-lock level (price FIXED at/above the level for at
- *   least half the observed trajectory — the median is the 50%
- *   quantile by definition, no extra time window is involved) while
- *   the pre-peak shakeout stayed above the hard stop. The strictest
- *   grading: a transient spike (reach's hit) and a lucky last-day
- *   finish (close's hit) are both misses here. With
- *   profitLockPercent = 0 it falls back to "close", like reach;
+ *   horizon close goes against them). Requires a target: reach
+ *   points with profitLockPercent = 0 are excluded from the grid;
+ * - "retain" — FIXATION above the entry: the MEDIAN move of the
+ *   idea's horizon is strictly above the entry price, i.e. price sat
+ *   above the entry for at least half the observed trajectory (the
+ *   median is the 50% quantile by definition — no time window and
+ *   no level parameter are involved). A transient spike (reach's
+ *   hit) and a lucky last-day finish (close's hit) are both misses
+ *   here. Independent of the point's lock and stop by construction;
  * - "pnl" — the idea's MFE grew by MORE than the fixed +1% threshold
  *   at any moment of the horizon, INDEPENDENT of the point's lock
- *   and stop. The only lock-free level grading: unlike reach/retain
- *   it never degenerates on lock = 0 points, so a primitive
- *   lock-free grid can still grade "did the call ever pay".
+ *   and stop. Complements "retain": pnl asks "did it ever pay",
+ *   retain asks "did it hold above the entry".
  * The right metric depends on the exit style being ranked: close-hit
  * authors feed long-hold points, reach-hit authors feed lock points,
- * retain-hit authors feed points that need the level to HOLD.
+ * retain-hit authors feed points that need the move to HOLD.
  */
 export type SimulatorAuthorMetric = "close" | "reach" | "retain" | "pnl";
 
 /**
  * Discriminated union of the ban-filter rule derived from a grid
  * point. The discriminator makes the dependency EXPLICIT at the type
- * level: the "close" rule carries no lock/stop fields — with
- * authorMetric: "close" the point's profitLockPercent and
- * hardStopPercent do not affect ban-list training in any way. Only
- * the "reach" and "retain" rules grade authors against the point's
- * lock/stop levels, and a reach/retain point with
- * profitLockPercent = 0 degenerates into the "close" rule
- * structurally (in the rule builder), not via a scattered runtime
- * branch.
+ * level: only the "reach" rule carries lock/stop fields — the other
+ * metrics never depend on the point's levels, so those fields do
+ * not exist on their rules. There is NO fallback of any kind: a
+ * reach point with profitLockPercent = 0 is excluded from the grid
+ * (a rule without a target does not exist — it never silently
+ * becomes another rule).
  */
 export type SimulatorAuthorRule =
   | {
@@ -127,16 +123,12 @@ export type SimulatorAuthorRule =
       hardStopPercent: number;
     }
   | {
-      /** Discriminator: grade authors by level FIXATION (median). */
+      /** Discriminator: grade authors by FIXATION above the entry. */
       metric: "retain";
       /** Minimum known-outcome ideas to be allowed. */
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
       minAuthorHitRate: number;
-      /** Level the median move is graded against (always > 0). */
-      profitLockPercent: number;
-      /** Stop level the pre-peak shakeout is graded against. */
-      hardStopPercent: number;
     }
   | {
       /**
@@ -165,10 +157,9 @@ export interface ISimulatorGridAxes {
    * Tunes: the catastrophe exit — how deep a position may sink
    * before a forced loss; the stop WINS when the stop and any profit
    * floor are reachable inside one candle (pessimism contract). Also
-   * the shakeout bound of the "reach"/"retain" author metrics.
+   * the shakeout bound of the "reach" author metric.
    * Ignored: never for trading — every trade checks it. For BAN
-   * TRAINING it is ignored under authorMetric "close" and "pnl":
-   * only the "reach"/"retain" rules grade authors against it (see
+   * TRAINING only the "reach" rule grades authors against it (see
    * SimulatorAuthorRule).
    */
   hardStopPercent: number[];
@@ -221,12 +212,12 @@ export interface ISimulatorGridAxes {
    * Covers the zone where the trailing take is not armed yet (peak
    * below entry/(1 - r)) and profit would otherwise bleed back.
    * Tunes: harvesting the crowd-liquidity step without cutting
-   * runners. Also the grading level of the "reach" and "retain"
-   * author metrics.
-   * Ignored: 0 DISABLES the mechanism for trading AND degenerates
-   * the "reach"/"retain" metrics into "close". Under authorMetric
-   * "close" and "pnl" the level never affects ban training —
-   * trading only.
+   * runners. Also the grading level of the "reach" author metric.
+   * Ignored: 0 DISABLES the mechanism for trading, and reach points
+   * with lock = 0 DO NOT EXIST — the combination is excluded from
+   * the cartesian product (a rule without a target is not a rule).
+   * Under "close"/"retain"/"pnl" the level never affects ban
+   * training — trading only.
    */
   profitLockPercent: number[];
   /**
@@ -238,14 +229,14 @@ export interface ISimulatorGridAxes {
    * (5-day horizon close) rewards authors whose calls survive a long
    * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
    * rewards the authors a lock point actually earns on, "retain"
-   * (median move at/above the point's lock — window-free level
-   * fixation) rewards authors whose levels HOLD, "pnl" (fixed +1%
-   * MFE threshold) grades lock/stop-independent; the same author
+   * (median move above the ENTRY — window-free, level-free
+   * fixation) rewards authors whose moves HOLD, "pnl" (fixed +1%
+   * MFE threshold) asks "did the call ever pay"; the same author
    * has different hit counts under different metrics.
-   * Ignored: with "close"/"pnl" the point's lock/stop never affect
-   * ban training; "reach"/"retain" with profitLockPercent = 0 fall
-   * back to "close" (see SimulatorAuthorRule — the fallback is
-   * structural).
+   * Ignored: with "close"/"retain"/"pnl" the point's lock/stop
+   * never affect ban training; "reach" requires lock > 0 — the
+   * lock-free combination is excluded from the grid, never silently
+   * regraded.
    */
   authorMetric: SimulatorAuthorMetric[];
 }
@@ -445,9 +436,9 @@ export interface ISimulatorRuleBans {
   minAuthorTrack: number;
   /** Minimum hit rate (0..1) the rule requires. */
   minAuthorHitRate: number;
-  /** Reach/fixation target; present on reach/retain rules only. */
+  /** Reach target; present on reach rules only. */
   profitLockPercent?: number;
-  /** Shakeout stop bound; present on reach/retain rules only. */
+  /** Shakeout stop bound; present on reach rules only. */
   hardStopPercent?: number;
   /** Per-author track records under this rule (sorted by ideas). */
   authorStats: ISimulatorAuthorStat[];
@@ -479,9 +470,7 @@ export interface ISimulatorMetricReport {
    * Trained ban dictionaries of this bucket — one entry per unique
    * rule, identified by its own threshold/level fields (no
    * synthetic keys). Pure threshold arithmetic — which authors a
-   * rule allows does not depend on any ranking. NB: a reach/retain
-   * point with lock = 0 trains under the DEGENERATE close rule, so
-   * its dictionary lives in the close bucket's bans.
+   * rule allows does not depend on any ranking.
    */
   bans: ISimulatorRuleBans[];
 }

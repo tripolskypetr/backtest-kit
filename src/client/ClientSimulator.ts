@@ -61,9 +61,8 @@ const MIN_TRADES_FOR_BEST = 8;
 /**
  * Fixed MFE threshold of the "pnl" author metric, percent. A hit is
  * an idea whose PnL grew by MORE than this at any moment of the
- * horizon — independent of the point's lock and stop by design, so
- * the grading survives lock-free grids where reach/retain would
- * degenerate into "close".
+ * horizon — independent of the point's lock and stop by design;
+ * complements "retain" (median above entry) on lock-free grids.
  */
 const PNL_HIT_THRESHOLD_PERCENT = 1;
 
@@ -214,8 +213,8 @@ const BUILD_PROFILE_FN = async (
   }
 
   // медиана подписанных ходов close-ов от входа — сырьё метрики
-  // "retain": median >= X означает "цена простояла на/выше +X% не
-  // меньше половины горизонта" без единой новой временной константы
+  // "retain": median > 0 означает "цена простояла ВЫШЕ входа не
+  // меньше половины горизонта" — без окон и без уровней
   const moves = candles
     .map(({ close }) => (direction * (close - entryPrice) * 100) / entryPrice)
     .sort((a, b) => a - b);
@@ -258,19 +257,19 @@ interface IAuthorFilterContext {
 
 /**
  * Derives the ban-filter rule from a grid point as a discriminated
- * union — the ONLY place the metric fallback lives. The "close" rule
- * structurally carries no lock/stop fields: with authorMetric
- * "close" the point's profitLockPercent/hardStopPercent do not
- * affect ban-list training at all (see the filter cache key — they
- * are not part of it either). A reach/retain point with lock = 0
- * has nothing to grade against and degenerates into the "close"
- * rule here, not via scattered runtime branches.
+ * union. The "close"/"pnl" rules structurally carry no lock/stop
+ * fields — the point's levels do not affect their ban training (see
+ * the filter cache key — they are not part of it either). There is
+ * NO fallback of any kind: reach/retain points with lock = 0 are
+ * excluded from the grid by BUILD_GRID_FN (a rule without a target
+ * does not exist — it never silently becomes another rule), so this
+ * builder may assume every reach/retain point carries a target.
  *
  * @param point - Grid point carrying the rule fields
  * @returns Discriminated ban-filter rule
  */
 const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
-  if (point.authorMetric === "reach" && point.profitLockPercent > 0) {
+  if (point.authorMetric === "reach") {
     return {
       metric: "reach",
       minAuthorTrack: point.minAuthorTrack,
@@ -279,25 +278,8 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
       hardStopPercent: point.hardStopPercent,
     };
   }
-  if (point.authorMetric === "retain" && point.profitLockPercent > 0) {
-    return {
-      metric: "retain",
-      minAuthorTrack: point.minAuthorTrack,
-      minAuthorHitRate: point.minAuthorHitRate,
-      profitLockPercent: point.profitLockPercent,
-      hardStopPercent: point.hardStopPercent,
-    };
-  }
-  // "pnl" не зависит от lock/stop по построению — деградации нет
-  if (point.authorMetric === "pnl") {
-    return {
-      metric: "pnl",
-      minAuthorTrack: point.minAuthorTrack,
-      minAuthorHitRate: point.minAuthorHitRate,
-    };
-  }
   return {
-    metric: "close",
+    metric: point.authorMetric,
     minAuthorTrack: point.minAuthorTrack,
     minAuthorHitRate: point.minAuthorHitRate,
   };
@@ -341,11 +323,11 @@ const AUTHOR_HIT_FN = (
       profile.shakeoutMaePercent > -rule.hardStopPercent
     );
   }
+  // "retain": фиксация ВЫШЕ входа — медиана ходов строго больше
+  // нуля (цена простояла выше цены входа не меньше половины
+  // горизонта); от замка и стопа точки не зависит
   if (rule.metric === "retain") {
-    return (
-      profile.medianMovePercent >= rule.profitLockPercent &&
-      profile.shakeoutMaePercent > -rule.hardStopPercent
-    );
+    return profile.medianMovePercent > 0;
   }
   // "pnl": PnL идеи вырос БОЛЬШЕ фиксированного порога — строго
   // больше, независимо от замка и стопа точки
@@ -784,10 +766,15 @@ const EVALUATE_POINT_FN = (
 };
 
 /**
- * Builds the cartesian product of grid axes.
+ * Builds the cartesian product of grid axes. Meaningless
+ * combinations DO NOT EXIST: a reach/retain point with lock = 0 has
+ * no grading target — such a point is excluded here, it never
+ * silently trains under another metric's rule. A grid left empty by
+ * the exclusion is a configuration error and throws loudly in
+ * RUN_FN.
  *
  * @param axes - Value lists per axis
- * @returns All grid points
+ * @returns All valid grid points
  */
 const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
   axes.hardStopPercent.flatMap((hardStopPercent) =>
@@ -796,15 +783,20 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
         axes.minAuthorTrack.flatMap((minAuthorTrack) =>
           axes.minAuthorHitRate.flatMap((minAuthorHitRate) =>
             axes.profitLockPercent.flatMap((profitLockPercent) =>
-              axes.authorMetric.map((authorMetric) => ({
-                hardStopPercent,
-                trailingTakePercent,
-                holdMinutes,
-                minAuthorTrack,
-                minAuthorHitRate,
-                profitLockPercent,
-                authorMetric,
-              })),
+              axes.authorMetric
+                .filter(
+                  (authorMetric) =>
+                    profitLockPercent > 0 || authorMetric !== "reach",
+                )
+                .map((authorMetric) => ({
+                  hardStopPercent,
+                  trailingTakePercent,
+                  holdMinutes,
+                  minAuthorTrack,
+                  minAuthorHitRate,
+                  profitLockPercent,
+                  authorMetric,
+                })),
             ),
           ),
         ),
@@ -908,11 +900,10 @@ const RUN_FN = async (
     self.params.callbacks?.onProfiles(symbol, profiles, truncatedCount);
   }
 
-  // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО —
-  // дискриминирующий юнион AUTHOR_RULE_FN канонизирует его: у close
-  // полей lock/stop нет по построению (они НЕ влияют на бан-лист и в
-  // ключ не входят), reach/retain несут lock/stop своей точки, а с
-  // lock=0 деградируют в close ещё в билдере. Строковый ключ — деталь
+  // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО:
+  // lock/stop есть только у reach (и только они входят в его ключ),
+  // close/retain/pnl зависят лишь от порогов. Никаких деградаций:
+  // невалидные комбинации исключены сеткой. Строковый ключ — деталь
   // мемоизации, наружу правила выходят массивом bans с собственными
   // идентифицирующими полями
   const filterByRule = new Map<
@@ -922,9 +913,9 @@ const RUN_FN = async (
   const getFilter = (point: ISimulatorGridPoint): IAuthorFilterContext => {
     const rule = AUTHOR_RULE_FN(point);
     const key =
-      rule.metric === "close" || rule.metric === "pnl"
-        ? `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`
-        : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`;
+      rule.metric === "reach"
+        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
+        : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
     let entry = filterByRule.get(key);
     if (!entry) {
       entry = { rule, filter: TRAIN_AUTHOR_FILTER_FN(profiles, rule) };
@@ -952,6 +943,16 @@ const RUN_FN = async (
   const rangeDays = Math.max(1, Math.ceil((rangeEndTs - rangeStartTs) / DAY_MS));
 
   const points = BUILD_GRID_FN(self.params.gridAxes);
+  // сетка обязана быть непустой: пустота после исключения
+  // бессмысленных комбинаций (reach/retain без замка) — ошибка
+  // конфигурации, о которой нужно кричать, а не молча вернуть нули
+  if (!points.length) {
+    throw new Error(
+      `ClientSimulator ${self.params.simulatorName}: the grid is empty — ` +
+        `reach requires profitLockPercent > 0 (a rule without a target ` +
+        `does not exist); pin "close"/"retain"/"pnl" for lock-free grids`,
+    );
+  }
   const reports: ISimulatorPointReport[] = [];
   const tradesByReport = new Map<ISimulatorPointReport, ISimulatorTrade[]>();
   const allHoldMinutes: number[] = [];
@@ -1027,14 +1028,13 @@ const RUN_FN = async (
 
   // словари банов — чистая арифметика порогов правила, никакого
   // ранжирования: по одному словарю на уникальное правило, правило
-  // идентифицируется собственными полями. Правило деградировавшей
-  // reach/retain-точки (lock=0) — это close-правило, его словарь
-  // лежит в корзине close
+  // идентифицируется собственными полями и лежит в корзине СВОЕЙ
+  // метрики
   for (const { rule, filter } of filterByRule.values()) {
     reportsByMetric[rule.metric].bans.push({
       minAuthorTrack: rule.minAuthorTrack,
       minAuthorHitRate: rule.minAuthorHitRate,
-      ...(rule.metric === "reach" || rule.metric === "retain"
+      ...(rule.metric === "reach"
         ? {
             profitLockPercent: rule.profitLockPercent,
             hardStopPercent: rule.hardStopPercent,

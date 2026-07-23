@@ -41,8 +41,7 @@ addSimulatorSchema({
     minAuthorTrack: [3, 5],
     minAuthorHitRate: [0.5, 0.6],
     profitLockPercent: [0],
-    // retain при lock=0 структурно канонизируется в close-грейдинг —
-    // вердикт пробы не зависит от этого пина по построению
+    // retain от замка не зависит: фиксация выше входа (медиана > 0)
     authorMetric: ["retain"],
   },
   reportOrder: "sharpe",

@@ -3,15 +3,17 @@ import { test } from "worker-testbed";
 import { addExchangeSchema, addSimulatorSchema, Simulator } from "../../build/index.mjs";
 
 /**
- * Метрика "retain" — фиксация уровня без временного окна (медиана):
+ * Метрика "retain" — фиксация ВЫШЕ цены входа (медиана хода строго > 0),
+ * без уровней lock/stop по построению:
  *  1) спайкер (укол +3% на минуты, потом база) — hit по reach, но
- *     MISS по retain: медиана хода ~0, уровень не зафиксирован;
+ *     MISS по retain: медиана хода ~0, цена не удержалась над входом;
  *     фиксер (ступенька +3% и стоит до конца горизонта) — hit по
  *     обеим; ось authorMetric ["reach", "retain"] даёт ДВЕ тренировки
  *     с разными бан-листами и разным числом сделок;
  *  2) medianMovePercent профиля численно точен (сверка по миру);
- *  3) структурная деградация: retain с lock=0 канонизируется в close
- *     — точки ["close", "retain"] при lock=0 делят ОДНУ тренировку.
+ *  3) retain от замка не зависит: при lock=0 это самостоятельное
+ *     правило со своей тренировкой (никакой канонизации в close),
+ *     и его словарь банов не несёт уровней.
  *
  * Мир: цикл длиной ровно в горизонт (7200м). Чётные циклы — паттерн
  * спайкера (+3% на фазах 2..60, дальше база), нечётные — паттерн
@@ -134,7 +136,7 @@ test("SIM: retain metric bans the transient spiker where reach allows him — th
     return;
   }
 
-  // retain: спайкер 0/5 (медиана ~0 < 2.5) — бан; фиксер 5/5 — допуск
+  // retain: спайкер 0/5 (медиана ~0, не выше входа) — бан; фиксер 5/5 — допуск
   const retainStats = byAuthor(trained[1]);
   if (retainStats.spiker.hits !== 0 || !retainStats.spiker.banned) {
     fail(`retain must ban the spiker 0/5, got ${JSON.stringify(retainStats.spiker)}`);
@@ -162,21 +164,21 @@ test("SIM: retain metric bans the transient spiker where reach allows him — th
   );
 });
 
-test("SIM: retain with lock=0 degenerates into close — one shared training for close and retain points", async ({ pass, fail }) => {
-  registerExchange("sim-retain-degenerate");
+test("SIM: retain at lock=0 is its own rule — two trainings, no canonization, level-free bans entry", async ({ pass, fail }) => {
+  registerExchange("sim-retain-lockfree");
 
   const trained = [];
   addSimulatorSchema({
-    simulatorName: "sim_retain_degenerate",
-    exchangeName: "sim-retain-degenerate",
+    simulatorName: "sim_retain_lockfree",
+    exchangeName: "sim-retain-lockfree",
     gridAxes: {
       hardStopPercent: [5],
       trailingTakePercent: [100],
       holdMinutes: [60],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      // замка нет: retain-точке нечем грейдить — правило канонизируется
-      // в close, и обе точки обязаны разделить ОДНУ тренировку
+      // замка нет — retain от него не зависит: правило грейдит медиану
+      // относительно входа и тренируется отдельно от close
       profitLockPercent: [0],
       authorMetric: ["close", "retain"],
     },
@@ -187,18 +189,38 @@ test("SIM: retain with lock=0 degenerates into close — one shared training for
 
   const result = await Simulator.run({
     symbol: "TESTUSDT",
-    simulatorName: "sim_retain_degenerate",
+    simulatorName: "sim_retain_lockfree",
     ideas: IDEAS,
   });
 
-  if (Object.values(result.reports).flatMap((b) => b.reports).length !== 2) {
-    fail(`expected 2 grid points, got ${Object.values(result.reports).flatMap((b) => b.reports).length}`);
+  if (
+    result.reports.close.reports.length !== 1 ||
+    result.reports.retain.reports.length !== 1
+  ) {
+    fail(
+      `expected 1 point per bucket (close|retain), got ` +
+      `${result.reports.close.reports.length}/${result.reports.retain.reports.length}`,
+    );
     return;
   }
-  if (trained.length !== 1) {
-    fail(`lock=0 must canonize retain into close (1 shared training), got ${trained.length}`);
+  // два правила -> две независимые тренировки даже при lock=0
+  if (trained.length !== 2) {
+    fail(`retain at lock=0 must train its own rule (2 trainings), got ${trained.length}`);
     return;
   }
 
-  pass(`retain@lock=0 degenerated into close: 2 points, 1 shared filter training`);
+  // retain-вердикты не зависят от замка: спайкер (медиана ~0) забанен,
+  // фиксер (медиана ~3%) допущен
+  const [retainBan] = result.reports.retain.bans;
+  if (!retainBan || !retainBan.bannedAuthors.includes("spiker") || !retainBan.allowedAuthors.includes("fixer")) {
+    fail(`retain bans must ban spiker and allow fixer, got ${JSON.stringify(retainBan)}`);
+    return;
+  }
+  // словарь банов retain уровней не несёт — они есть только у reach
+  if ("profitLockPercent" in retainBan || "hardStopPercent" in retainBan) {
+    fail(`retain bans entry must be level-free, got ${JSON.stringify(retainBan)}`);
+    return;
+  }
+
+  pass(`retain@lock=0 stands alone: 2 points, 2 trainings, spiker banned / fixer allowed, level-free bans`);
 });
