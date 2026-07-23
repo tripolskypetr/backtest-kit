@@ -29,7 +29,7 @@ Before any trading logic runs, the feed passes the honesty filters: NEUTRAL idea
 
 ### 3. Does anyone survive the ban?
 
-Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate. The probe answers how many authors clear the bar: **7 of 154** under the winning rule (track ≥ 5, hit rate ≥ 0.5 — 147 banned, the long-posting crowd included). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
+Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate. Correctness here is graded by `retain` — a hit only when the median of the idea's 5-day trajectory sits above the entry price. The probe answers how many authors clear the bar: **8 of 154** under the winning rule (track ≥ 3, hit rate ≥ 0.6 — 146 banned, the long-posting crowd included). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
 
 ### 4. The mechanics are deliberately primitive
 

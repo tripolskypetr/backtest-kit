@@ -5,41 +5,41 @@
   "profileCount": 181,
   "truncatedCount": 0,
   "point": {
-    "hardStopPercent": 5,
-    "trailingTakePercent": 3,
+    "hardStopPercent": 4,
+    "trailingTakePercent": 4,
     "holdMinutes": 4320,
     "minAuthorTrack": 2,
-    "minAuthorHitRate": 0.5,
+    "minAuthorHitRate": 0.6,
     "profitLockPercent": 0,
     "authorMetric": "retain"
   },
   "report": {
     "point": {
-      "hardStopPercent": 5,
-      "trailingTakePercent": 3,
+      "hardStopPercent": 4,
+      "trailingTakePercent": 4,
       "holdMinutes": 4320,
       "minAuthorTrack": 2,
-      "minAuthorHitRate": 0.5,
+      "minAuthorHitRate": 0.6,
       "profitLockPercent": 0,
       "authorMetric": "retain"
     },
-    "trades": 3,
-    "skippedBusy": 16,
-    "totalPnlPercent": 0.9086657630275314,
-    "avgPnlPercent": 0.3028885876758438,
-    "winRate": 0.3333333333333333,
-    "profitFactor": 1.2443162260538856,
-    "maxSeriesDrawdownPercent": 3.7192198721468412,
-    "calmarRatio": 6.369673036404877,
-    "recoveryFactor": 0.24431622605388567,
-    "avgHoldMinutes": 4122.666666666667,
+    "trades": 4,
+    "skippedBusy": 8,
+    "totalPnlPercent": 0.6410455135984312,
+    "avgPnlPercent": 0.1602613783996078,
+    "winRate": 0.75,
+    "profitFactor": 1.3267356699224617,
+    "maxSeriesDrawdownPercent": 1.9619697896790977,
+    "calmarRatio": 8.518465680121322,
+    "recoveryFactor": 0.32673566992246167,
+    "avgHoldMinutes": 2916.75,
     "p95HoldMinutes": 4320,
     "p99HoldMinutes": 4320,
-    "sharpe": 0.1700530143426951,
-    "sortino": 0.3387842978254109,
+    "sharpe": 0.19742284651696834,
+    "sortino": 0.32673566992246167,
     "exitReasons": {
       "hard_stop": 0,
-      "trailing_take": 1,
+      "trailing_take": 2,
       "profit_lock": 0,
       "time_expired": 2,
       "data_truncated": 0
@@ -47,51 +47,53 @@
   },
   "trades": [
     {
-      "ideaId": 22230893,
+      "ideaId": 22239264,
       "direction": "SHORT",
-      "entryTimestamp": 1782109440000,
-      "exitTimestamp": 1782333060000,
+      "entryTimestamp": 1782211920000,
+      "exitTimestamp": 1782363720000,
       "exitReason": "trailing_take",
-      "holdMinutesActual": 3728,
-      "pnlPercent": 4.627885635174373,
-      "absorbedIdeaIds": [
-        22231425,
-        22232197,
-        22238875,
-        22238891,
-        22239264
-      ]
+      "holdMinutesActual": 2531,
+      "pnlPercent": 0.9017652503811129,
+      "absorbedIdeaIds": []
     },
     {
-      "ideaId": 22250608,
-      "direction": "LONG",
-      "entryTimestamp": 1782359880000,
-      "exitTimestamp": 1782619020000,
-      "exitReason": "time_expired",
-      "holdMinutesActual": 4320,
-      "pnlPercent": -1.4870790743673044,
+      "ideaId": 22251220,
+      "direction": "SHORT",
+      "entryTimestamp": 1782368280000,
+      "exitTimestamp": 1782397980000,
+      "exitReason": "trailing_take",
+      "holdMinutesActual": 496,
+      "pnlPercent": 1.6911828975164942,
       "absorbedIdeaIds": [
-        22251220,
         22252503,
-        22252915,
-        22253145,
-        22255426,
-        22258808,
-        22262063,
-        22263804
+        22252937,
+        22253145
       ]
     },
     {
-      "ideaId": 22269287,
-      "direction": "LONG",
-      "entryTimestamp": 1782654300000,
-      "exitTimestamp": 1782913440000,
+      "ideaId": 22258808,
+      "direction": "SHORT",
+      "entryTimestamp": 1782465120000,
+      "exitTimestamp": 1782724260000,
       "exitReason": "time_expired",
       "holdMinutesActual": 4320,
-      "pnlPercent": -2.232140797779537,
+      "pnlPercent": 0.01006715537992206,
       "absorbedIdeaIds": [
-        22274172,
-        22274828,
+        22260083,
+        22263804,
+        22267273,
+        22269287
+      ]
+    },
+    {
+      "ideaId": 22274172,
+      "direction": "SHORT",
+      "entryTimestamp": 1782726480000,
+      "exitTimestamp": 1782985620000,
+      "exitReason": "time_expired",
+      "holdMinutesActual": 4320,
+      "pnlPercent": -1.9619697896790977,
+      "absorbedIdeaIds": [
         22280460
       ]
     }
@@ -100,8 +102,8 @@
     {
       "author": "MasterAnanda",
       "ideas": 16,
-      "hits": 7,
-      "hitRate": 0.4375,
+      "hits": 8,
+      "hitRate": 0.5,
       "banned": true
     },
     {
@@ -114,15 +116,15 @@
     {
       "author": "Apex_Legends",
       "ideas": 7,
-      "hits": 4,
-      "hitRate": 0.5714285714285714,
-      "banned": false
+      "hits": 3,
+      "hitRate": 0.42857142857142855,
+      "banned": true
     },
     {
       "author": "BitCoinGuide",
       "ideas": 7,
-      "hits": 3,
-      "hitRate": 0.42857142857142855,
+      "hits": 1,
+      "hitRate": 0.14285714285714285,
       "banned": true
     },
     {
@@ -130,7 +132,7 @@
       "ideas": 6,
       "hits": 3,
       "hitRate": 0.5,
-      "banned": false
+      "banned": true
     },
     {
       "author": "MarketStrategysignals",
@@ -142,8 +144,8 @@
     {
       "author": "ExpertTraderASK",
       "ideas": 6,
-      "hits": 2,
-      "hitRate": 0.3333333333333333,
+      "hits": 1,
+      "hitRate": 0.16666666666666666,
       "banned": true
     },
     {
@@ -156,23 +158,23 @@
     {
       "author": "CryptoSkullSignal",
       "ideas": 5,
+      "hits": 3,
+      "hitRate": 0.6,
+      "banned": false
+    },
+    {
+      "author": "PremiumTrader57",
+      "ideas": 5,
       "hits": 2,
       "hitRate": 0.4,
       "banned": true
     },
     {
-      "author": "PremiumTrader57",
-      "ideas": 5,
-      "hits": 3,
-      "hitRate": 0.6,
-      "banned": false
-    },
-    {
       "author": "InvestingScope",
       "ideas": 5,
-      "hits": 3,
-      "hitRate": 0.6,
-      "banned": false
+      "hits": 2,
+      "hitRate": 0.4,
+      "banned": true
     },
     {
       "author": "XAUxBTC_Pro",
@@ -184,15 +186,15 @@
     {
       "author": "CobraVanguard",
       "ideas": 3,
-      "hits": 1,
-      "hitRate": 0.3333333333333333,
-      "banned": true
+      "hits": 2,
+      "hitRate": 0.6666666666666666,
+      "banned": false
     },
     {
       "author": "coinpediamarkets",
       "ideas": 3,
-      "hits": 1,
-      "hitRate": 0.3333333333333333,
+      "hits": 0,
+      "hitRate": 0,
       "banned": true
     },
     {
@@ -207,14 +209,14 @@
       "ideas": 2,
       "hits": 1,
       "hitRate": 0.5,
-      "banned": false
+      "banned": true
     },
     {
       "author": "PRIMEALPHA-FX",
       "ideas": 2,
       "hits": 1,
       "hitRate": 0.5,
-      "banned": false
+      "banned": true
     },
     {
       "author": "tomas_jntx",
@@ -275,8 +277,8 @@
     {
       "author": "Ifiok-Trades",
       "ideas": 1,
-      "hits": 1,
-      "hitRate": 1,
+      "hits": 0,
+      "hitRate": 0,
       "banned": true
     },
     {
@@ -303,36 +305,36 @@
     {
       "author": "Rendon1",
       "ideas": 1,
-      "hits": 0,
-      "hitRate": 0,
+      "hits": 1,
+      "hitRate": 1,
       "banned": true
     },
     {
       "author": "byggjan",
       "ideas": 1,
-      "hits": 0,
-      "hitRate": 0,
+      "hits": 1,
+      "hitRate": 1,
       "banned": true
     },
     {
       "author": "FXSMARTT",
       "ideas": 1,
-      "hits": 1,
-      "hitRate": 1,
-      "banned": true
-    },
-    {
-      "author": "pistissophiacapital",
-      "ideas": 1,
       "hits": 0,
       "hitRate": 0,
       "banned": true
     },
     {
-      "author": "DivergenceSeeker",
+      "author": "pistissophiacapital",
       "ideas": 1,
       "hits": 1,
       "hitRate": 1,
+      "banned": true
+    },
+    {
+      "author": "DivergenceSeeker",
+      "ideas": 1,
+      "hits": 0,
+      "hitRate": 0,
       "banned": true
     },
     {
@@ -359,15 +361,15 @@
     {
       "author": "propfirmwise",
       "ideas": 1,
-      "hits": 0,
-      "hitRate": 0,
+      "hits": 1,
+      "hitRate": 1,
       "banned": true
     },
     {
       "author": "TheTraderPhil",
       "ideas": 1,
-      "hits": 0,
-      "hitRate": 0,
+      "hits": 1,
+      "hitRate": 1,
       "banned": true
     },
     {
@@ -394,24 +396,24 @@
   ],
   "allowedAuthors": [
     "TradingShot",
-    "Apex_Legends",
-    "Cryptollica",
     "MarketStrategysignals",
     "melikatrader94",
-    "PremiumTrader57",
-    "InvestingScope",
+    "CryptoSkullSignal",
     "XAUxBTC_Pro",
-    "Alpha_Trade_Scope",
-    "PRIMEALPHA-FX"
+    "CobraVanguard"
   ],
   "bannedAuthors": [
     "MasterAnanda",
+    "Apex_Legends",
     "BitCoinGuide",
+    "Cryptollica",
     "ExpertTraderASK",
-    "CryptoSkullSignal",
-    "CobraVanguard",
+    "PremiumTrader57",
+    "InvestingScope",
     "coinpediamarkets",
     "salahuddin20041",
+    "Alpha_Trade_Scope",
+    "PRIMEALPHA-FX",
     "tomas_jntx",
     "JupahduhX",
     "Rowland-Australia",
@@ -550,7 +552,7 @@
     "DanelFadejev",
     "TopTradingSignals"
   ],
-  "avgHoldMinutes": 4122.666666666667,
+  "avgHoldMinutes": 2916.75,
   "p95HoldMinutes": 4320,
   "p99HoldMinutes": 4320
 }
