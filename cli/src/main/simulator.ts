@@ -35,7 +35,11 @@ const validateIdea = (idea: any, line: number): string | null => {
 };
 
 const toMarkdown = (result: ISimulatorResult): string => {
-  const profitable = Object.values(result.reports).flat().filter(
+  const buckets = Object.entries(result.reports).filter(
+    ([, bucket]) => bucket.reports.length > 0,
+  );
+  const allReports = buckets.flatMap(([, bucket]) => bucket.reports);
+  const profitable = allReports.filter(
     ({ totalPnlPercent }) => totalPnlPercent > 0,
   ).length;
   const lines: string[] = [];
@@ -45,35 +49,36 @@ const toMarkdown = (result: ISimulatorResult): string => {
   lines.push(`| --- | --- |`);
   lines.push(`| Ideas (total / directional) | ${result.ideasTotal} / ${result.ideasDirectional} |`);
   lines.push(`| Profiles (truncated) | ${result.profileCount} (${result.truncatedCount}) |`);
-  lines.push(`| Authors allowed / banned | ${result.allowedAuthors.length} / ${result.bannedAuthors.length} |`);
-  lines.push(`| Profitable corridor | ${profitable} / ${Object.values(result.reports).flat().length} grid points |`);
+  lines.push(`| Profitable corridor | ${profitable} / ${allReports.length} grid points |`);
   lines.push(`| Hold minutes avg / p95 / p99 | ${result.avgHoldMinutes.toFixed(0)} / ${result.p95HoldMinutes} / ${result.p99HoldMinutes} |`);
-  lines.push("");
-  lines.push(`## Ranking winners`);
-  lines.push("");
-  lines.push(`| Criterion | Stop% | Hold | Track | HitRate | Trades | PNL% | WinRate | Sharpe | Sortino |`);
-  lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
-  for (const best of result.best) {
-    if (!best.report) {
-      lines.push(`| ${best.criterion} | — | — | — | — | — | — | — | — | — |`);
-      continue;
+  // каждая метрика — самодостаточная корзина: свои победители и
+  // свои словари банов, между собой не склеиваются
+  for (const [metric, bucket] of buckets) {
+    lines.push("");
+    lines.push(`## Metric: ${metric}`);
+    lines.push("");
+    lines.push(`| Criterion | Stop% | Hold | Track | HitRate | Trades | PNL% | WinRate | Sharpe | Sortino |`);
+    lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
+    for (const best of bucket.best) {
+      if (!best.report) {
+        lines.push(`| ${best.criterion} | — | — | — | — | — | — | — | — | — |`);
+        continue;
+      }
+      const { point } = best.report;
+      lines.push(
+        `| ${best.criterion} | ${point.hardStopPercent} | ${point.holdMinutes / 60}h | ${point.minAuthorTrack} | ${point.minAuthorHitRate} | ` +
+          `${best.report.trades} | ${best.report.totalPnlPercent.toFixed(2)}% | ${(best.report.winRate * 100).toFixed(0)}% | ${best.report.sharpe.toFixed(2)} | ${best.report.sortino.toFixed(2)} |`,
+      );
     }
-    const { point } = best.report;
-    lines.push(
-      `| ${best.criterion} | ${point.hardStopPercent} | ${point.holdMinutes / 60}h | ${point.minAuthorTrack} | ${point.minAuthorHitRate} | ` +
-        `${best.report.trades} | ${best.report.totalPnlPercent.toFixed(2)}% | ${(best.report.winRate * 100).toFixed(0)}% | ${best.report.sharpe.toFixed(2)} | ${best.report.sortino.toFixed(2)} |`,
-    );
-  }
-  lines.push("");
-  lines.push(`## Allowed authors (whitelist of the sharpe winner rule)`);
-  lines.push("");
-  lines.push(`| Author | Ideas | Hits | HitRate |`);
-  lines.push(`| --- | --- | --- | --- |`);
-  // артефакт авторов живёт по-победительно в best[] — ран-левел
-  // authorStats в ISimulatorResult больше нет
-  const sharpeBest = result.best.find(({ criterion }) => criterion === "sharpe");
-  for (const stat of (sharpeBest?.authorStats ?? []).filter(({ banned }) => !banned)) {
-    lines.push(`| ${stat.author} | ${stat.ideas} | ${stat.hits} | ${(stat.hitRate * 100).toFixed(0)}% |`);
+    const sharpeBest = bucket.best.find(({ criterion }) => criterion === "sharpe");
+    lines.push("");
+    lines.push(`### Allowed authors (sharpe winner rule)`);
+    lines.push("");
+    lines.push(`| Author | Ideas | Hits | HitRate |`);
+    lines.push(`| --- | --- | --- | --- |`);
+    for (const stat of (sharpeBest?.authorStats ?? []).filter(({ banned }) => !banned)) {
+      lines.push(`| ${stat.author} | ${stat.ideas} | ${stat.hits} | ${(stat.hitRate * 100).toFixed(0)}% |`);
+    }
   }
   return lines.join("\n");
 };
@@ -197,7 +202,6 @@ export const main = async () => {
       profitLockPercent: [0],
       // retain при lock=0 канонизируется в close-грейдинг (структурно)
       authorMetric: ["retain"],
-      banCriteria: ["sharpe", "pnl"],
     },
     reportOrder: "sharpe",
     callbacks: {
@@ -251,7 +255,7 @@ export const main = async () => {
         if (values.verbose) {
           console.log("onDone", {
             symbol,
-            reports: Object.values(result.reports).flat().length,
+            reports: Object.values(result.reports).flatMap((bucket) => bucket.reports).length,
             allowedAuthors: result.allowedAuthors.length,
             bannedAuthors: result.bannedAuthors.length,
           });

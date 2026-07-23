@@ -55,11 +55,12 @@ const toMarkdown = (
   lines.push("");
   lines.push(`Walk-forward: train on the first ${Math.round(trainSplit * 100)}% of the feed time range, ONE out-of-sample shot of the frozen sharpe winner on the tail.`);
   lines.push("");
-  lines.push(`## Train (${train.ideasDirectional} directional ideas, ${Object.values(train.reports).flat().length} grid points)`);
+  lines.push(`## Train (${train.ideasDirectional} directional ideas, ${Object.values(train.reports).flatMap((bucket) => bucket.reports).length} grid points)`);
   lines.push("");
   lines.push(`| Criterion | Point | Trades | PNL% | WinRate | DD% | Sharpe | Sortino |`);
   lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- |`);
-  for (const best of train.best) {
+  // CLI-tune пинует authorMetric ["retain"] — корзина одна
+  for (const best of train.reports.retain.best) {
     if (!best.report) {
       lines.push(`| ${best.criterion} | — | — | — | — | — | — | — |`);
       continue;
@@ -231,7 +232,6 @@ export const main = async () => {
       minAuthorHitRate: [0.5, 0.6],
       profitLockPercent: [0, 1.5, 2.5],
       authorMetric: ["retain"],
-      banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
     callbacks: {
@@ -295,7 +295,7 @@ export const main = async () => {
     ideas: trainIdeas,
   });
 
-  const sharpeBest = train.best.find(({ criterion }) => criterion === "sharpe");
+  const sharpeBest = train.reports.retain.best.find(({ criterion }) => criterion === "sharpe");
   if (!sharpeBest?.report) {
     console.error("Error: training produced no sharpe winner — nothing to freeze for the out-of-sample shot");
     process.exit(1);

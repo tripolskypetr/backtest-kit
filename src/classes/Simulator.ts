@@ -40,17 +40,20 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop, "retain" =
- *   level fixation (median move >= the point's lock — window-free);
+ *   level fixation (median move >= the point's lock — window-free),
+ *   "pnl" = fixed +1% MFE threshold (lock/stop independent);
  *   reach/retain with lock = 0 fall back to close.
  *
- * Run-level aggregation (not swept, ignored by test()):
- * - banCriteria — which ranking winners feed result.allowedAuthors
- *   (union) / bannedAuthors (banned by all); a winner elected by a
- *   non-finite value (Infinity sortino/recovery) grants nothing.
- * - reportOrder — ranking criterion ordering result.reports
- *   buckets (descending, tie-guarded comparator); default "sharpe".
- *   Purely
- *   presentational: never affects winners, callbacks or ban lists.
+ * Run-level config (not swept, ignored by test()):
+ * - reportOrder — ranking criterion ordering each metric bucket's
+ *   reports (descending, tie-guarded comparator); default "sharpe".
+ *   Purely presentational: never affects winners or ban lists.
+ *
+ * The result is a per-metric dictionary: every swept authorMetric
+ * gets its own bucket with its own reports, its own four ranking
+ * winners and its own trained ban dictionaries (bans — one entry
+ * per unique rule, threshold arithmetic only). Nothing is ever
+ * aggregated across metrics.
  *
  * The simulator picks candidates — honest confirmation is a
  * walk-forward test() shot, and the final arbiter for the chosen
@@ -79,20 +82,19 @@ export class SimulatorUtils {
      * point of the cartesian product is evaluated arithmetically
      * from the same profiles; see ISimulatorGridAxes for each axis'
      * tune/ignore contract. Ranking winners honor the anti-fluke
-     * floor (a point below MIN_TRADES_FOR_BEST trades can win only
-     * when NO point clears the floor), and the run-level author
-     * lists aggregate ONLY the banCriteria winners with finite
-     * ranking values — an Infinity sortino/recovery winner grants
-     * no allowances.
+     * floor PER metric bucket (a point below MIN_TRADES_FOR_BEST
+     * trades can win only when NO point of its bucket clears the
+     * floor).
      *
      * @param dto.symbol - Trading pair symbol to simulate (e.g., "BTCUSDT")
      * @param dto.simulatorName - Registered simulator name
      * @param dto.ideas - Ideas feed; other symbols are filtered out,
      * so one shared feed can be passed for every symbol
-     * @returns Final simulation result (reports sorted by sharpe,
-     * four ranking winners each carrying authorStats /
-     * allowedAuthors / bannedAuthors under ITS OWN rule, run-level
-     * union lists per banCriteria, hold-time distribution)
+     * @returns Final simulation result: a bucket per author metric,
+     * each with its reports (sorted by reportOrder), its four
+     * ranking winners carrying authorStats / allowedAuthors /
+     * bannedAuthors under ITS OWN rule, and its trained ban
+     * dictionaries (bans); plus hold-time distribution
      * @throws Error when the simulator or its exchange is not registered
      *
      * @example
@@ -104,7 +106,7 @@ export class SimulatorUtils {
      *   simulatorName: "tv-ideas-simulator",
      *   ideas,
      * });
-     * // result.best -> winners by sharpe / sortino / pnl / recovery,
+     * // result.reports.close.best -> winners by sharpe/sortino/pnl/recovery,
      * // each with authorStats/allowedAuthors under ITS OWN rule
      * ```
      */
@@ -156,7 +158,7 @@ export class SimulatorUtils {
      *   simulatorName: "tv-ideas-simulator",
      *   ideas: juneIdeas,
      * });
-     * const winner = train.best.find(({ criterion }) => criterion === "sharpe");
+     * const winner = train.reports.close.best.find(({ criterion }) => criterion === "sharpe");
      *
      * // ...prove on July the training never saw
      * const test = await Simulator.test({

@@ -48,7 +48,6 @@ addSimulatorSchema({
         // обе метрики авторского hit'а — перебор решает, какая
         // арифметика кормит какой стиль выхода (BC не сохраняем)
         authorMetric: ["retain"],
-        banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
 });
@@ -66,7 +65,6 @@ addSimulatorSchema({
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 1, 2],
         authorMetric: ["retain"],
-        banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
 });
@@ -83,7 +81,6 @@ addSimulatorSchema({
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 0.5, 1, 1.5, 2, 2.5, 3],
         authorMetric: ["retain"],
-        banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
 });
@@ -100,7 +97,6 @@ addSimulatorSchema({
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 1, 2],
         authorMetric: ["retain"],
-        banCriteria: ["sharpe"],
     },
     reportOrder: "sharpe",
 });
@@ -115,7 +111,10 @@ const result = [];
 const runTune = async (simulatorName) => {
   const train = await Simulator.run({ symbol: "BTCUSDT", simulatorName, ideas: trainIdeas });
 
-  for (const best of train.best) {
+  // конфиги пинуют authorMetric: ["retain"] — работаем с его корзиной
+  const bucket = train.reports.retain;
+
+  for (const best of bucket.best) {
     if (!best.report) {
       continue;
     }
@@ -137,10 +136,9 @@ const runTune = async (simulatorName) => {
 
   }
 
-  // сырой трек-рекорд под правило Sharpe-победителя — источник
-  // для AUTHOR_STATS в src/test.mjs (артефакт авторов живёт
-  // по-победительно в best[], ран-левел authorStats больше нет)
-  const sharpeBest = train.best.find(({ criterion }) => criterion === "sharpe");
+  // сырой трек-рекорд под правило Sharpe-победителя корзины —
+  // источник для AUTHOR_STATS в src/test.mjs
+  const sharpeBest = bucket.best.find(({ criterion }) => criterion === "sharpe");
   result.push({
     config: simulatorName,
     authorStats: (sharpeBest?.authorStats ?? []).map(({ author, ideas, hits }) => ({ author, ideas, hits })),

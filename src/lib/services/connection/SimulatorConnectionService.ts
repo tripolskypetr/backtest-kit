@@ -44,10 +44,8 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   degenerates into close at lock = 0, like reach) and "pnl"
  *   (fixed +1% MFE threshold, lock/stop independent — the only
  *   level grading that survives lock-free points);
- * - ban criteria (NOT a swept axis — run() aggregation config): all
- *   four ranking winners feed the run-level author artifact by
- *   default; a schema pins ["sharpe"] to restore the pre-union
- *   Sharpe-only artifact.
+ * - every metric bucket carries its own winners and its own ban
+ *   dictionaries — nothing is aggregated across metrics.
  */
 const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
@@ -57,7 +55,6 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   minAuthorHitRate: [0.5, 0.6],
   profitLockPercent: [0, 1.5, 2.5],
   authorMetric: ["close", "reach", "retain", "pnl"],
-  banCriteria: ["sharpe", "pnl"],
 };
 
 /**

@@ -44,7 +44,6 @@ addSimulatorSchema({
     // retain при lock=0 структурно канонизируется в close-грейдинг —
     // вердикт пробы не зависит от этого пина по построению
     authorMetric: ["retain"],
-    banCriteria: ["sharpe", "pnl"],
   },
   reportOrder: "sharpe",
 });
@@ -53,7 +52,13 @@ const ideas = readFileSync("./assets/tv-ideas.normalized.jsonl", "utf-8")
   .split("\n").filter(Boolean).map((line) => JSON.parse(line));
 
 const result = await Simulator.run({ symbol: "BTCUSDT", simulatorName: "tv_simulator", ideas });
-const { reports, best, ...rest } = result;
 writeFileSync("./dump/simulator.done.json", JSON.stringify(result, null, 2));
-console.log("saved; profiles:", rest.profileCount, "allowed:", rest.allowedAuthors.length, "banned:", rest.bannedAuthors.length);
+// проба пинует authorMetric: ["retain"] — её точки в этой корзине;
+// белый список — у sharpe-победителя корзины, под правило его точки
+const sharpeBest = result.reports.retain.best.find(({ criterion }) => criterion === "sharpe");
+console.log(
+  "saved; profiles:", result.profileCount,
+  "allowed:", sharpeBest?.allowedAuthors.length ?? 0,
+  "banned:", sharpeBest?.bannedAuthors.length ?? 0,
+);
 process.exit(0);

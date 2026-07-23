@@ -152,9 +152,8 @@ export type SimulatorAuthorRule =
 
 /**
  * Value lists per grid axis. The grid is the cartesian product of
- * all axes EXCEPT banCriteria (run-level aggregation config, never
- * swept); windows and author-ban thresholds are swept the same way
- * as stop and trailing — rules are searched, not hardcoded.
+ * all axes; author-ban thresholds are swept the same way as stop
+ * and trailing — rules are searched, not hardcoded.
  *
  * Every field below states what it TUNES and under which conditions
  * it is IGNORED — no axis is allowed to be a silent no-op without
@@ -199,7 +198,7 @@ export interface ISimulatorGridAxes {
    * outcome an author needs before he can be allowed (fewer ->
    * banned by default; truncated profiles prove nothing).
    * Tunes: how much evidence "proven" requires.
-   * Ignored: never — the rule trains under both author metrics;
+   * Ignored: never — the rule trains under every author metric;
    * WHAT counts as a hit is decided by authorMetric.
    */
   minAuthorTrack: number[];
@@ -209,7 +208,7 @@ export interface ISimulatorGridAxes {
    * an author exactly at it stays allowed.
    * Tunes: required author quality; on the reference data quality
    * mattered more than track length on every ranking.
-   * Ignored: never — trains under both metrics; the hit definition
+   * Ignored: never — trains under every metric; the hit definition
    * follows authorMetric.
    */
   minAuthorHitRate: number[];
@@ -226,43 +225,29 @@ export interface ISimulatorGridAxes {
    * author metrics.
    * Ignored: 0 DISABLES the mechanism for trading AND degenerates
    * the "reach"/"retain" metrics into "close". Under authorMetric
-   * "close" the level never affects ban training — trading only.
+   * "close" and "pnl" the level never affects ban training —
+   * trading only.
    */
   profitLockPercent: number[];
   /**
    * Author-hit metrics to sweep for the ban filter — a rule
-   * parameter like the thresholds.
+   * parameter like the thresholds. Each metric is graded SEPARATELY:
+   * the sweep never glues incomparable hit counts together, it
+   * reports every grading as its own points and its own ban lists.
    * Tunes: which author grading feeds which exit style — "close"
    * (5-day horizon close) rewards authors whose calls survive a long
    * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
    * rewards the authors a lock point actually earns on, "retain"
    * (median move at/above the point's lock — window-free level
-   * fixation) rewards authors whose levels HOLD; the same author has
-   * different hit counts under different metrics.
-   * Ignored: with "close" the point's lock/stop never affect ban
-   * training; "reach"/"retain" with profitLockPercent = 0 fall back
-   * to "close" (see SimulatorAuthorRule — the fallback is
+   * fixation) rewards authors whose levels HOLD, "pnl" (fixed +1%
+   * MFE threshold) grades lock/stop-independent; the same author
+   * has different hit counts under different metrics.
+   * Ignored: with "close"/"pnl" the point's lock/stop never affect
+   * ban training; "reach"/"retain" with profitLockPercent = 0 fall
+   * back to "close" (see SimulatorAuthorRule — the fallback is
    * structural).
    */
   authorMetric: SimulatorAuthorMetric[];
-  /**
-   * NOT a swept axis — run() aggregation config: ranking criteria
-   * whose winners feed the run-level author artifact
-   * (allowedAuthors = union of their whitelists, bannedAuthors =
-   * banned by every one of them).
-   * Tunes: how conservative the run-level whitelist candidate set
-   * is; ["sharpe"] is the backward-compatibility knob making the
-   * run-level lists exactly the Sharpe winner's artifact.
-   * Ignored: by the cartesian product (never a point field); by
-   * test() entirely — a frozen point carries its own single rule;
-   * and a winner elected by a NON-FINITE ranking value (Infinity
-   * sortino/recovery on a drawdown-free curve — a grid-order tie
-   * representative, not a merit pick) is ignored for allowances:
-   * its authors join the pool and stay banned by default.
-   * Per-winner artifacts in best[] are always complete regardless
-   * of this list.
-   */
-  banCriteria: SimulatorRankingCriterion[];
 }
 
 /**
@@ -425,22 +410,21 @@ export type SimulatorRankingCriterion = "sharpe" | "sortino" | "pnl" | "recovery
  * Winner of one ranking criterion with its trade list and the author
  * artifact under ITS OWN ban rule. Different criteria may elect
  * points with different ban rules — the whitelist is a property of
- * the winning point, never a global of the run.
+ * the winning point, never a global of the run or the bucket.
  */
 export interface ISimulatorBest {
   /** The ranking criterion this winner belongs to. */
   criterion: SimulatorRankingCriterion;
-  /** Winning point report; null when the grid produced no reports. */
+  /** Winning point report; null when the bucket produced no reports. */
   report: ISimulatorPointReport | null;
   /** Trades of the winning point (empty when report is null). */
   trades: ISimulatorTrade[];
   /**
-   * Per-author track records under THIS winner's rule — the ONLY
-   * source of the author artifact in a run result. Hits are counted
-   * by the rule's metric (authorMetric + the lock/stop levels the
-   * "reach" metric grades against), so even the raw numbers differ
-   * between winners with different rules — a single run-level list
-   * cannot represent them. Empty when report is null.
+   * Per-author track records under THIS winner's rule. Hits are
+   * counted by the rule's metric and levels, so even the raw
+   * numbers differ between winners with different rules. Empty when
+   * report is null. The same dictionary sits in the bucket's bans
+   * entry carrying the same thresholds/levels.
    */
   authorStats: ISimulatorAuthorStat[];
   /** Whitelist under THIS winner's ban rule. */
@@ -450,9 +434,62 @@ export interface ISimulatorBest {
 }
 
 /**
- * Final result of a simulation run: grid reports, four ranking
- * winners; the author artifact is per-winner in best[] — hits are
- * metric-dependent, a run-level list would lie to other criteria.
+ * Trained ban dictionary of ONE rule: pure threshold arithmetic —
+ * an author is allowed exactly when his track under this rule's
+ * metric reaches minAuthorTrack ideas at minAuthorHitRate quality.
+ * No ranking is involved: bans are properties of rules, not of
+ * winners.
+ */
+export interface ISimulatorRuleBans {
+  /** Minimum known-outcome ideas the rule requires. */
+  minAuthorTrack: number;
+  /** Minimum hit rate (0..1) the rule requires. */
+  minAuthorHitRate: number;
+  /** Reach/fixation target; present on reach/retain rules only. */
+  profitLockPercent?: number;
+  /** Shakeout stop bound; present on reach/retain rules only. */
+  hardStopPercent?: number;
+  /** Per-author track records under this rule (sorted by ideas). */
+  authorStats: ISimulatorAuthorStat[];
+  /** Authors allowed by this rule. */
+  allowedAuthors: string[];
+  /** Authors banned by this rule (default-ban included). */
+  bannedAuthors: string[];
+}
+
+/**
+ * Self-contained result of ONE author metric: its grid points, its
+ * ranking winners and its trained ban dictionaries. Metrics are
+ * never glued together — each bucket answers its own question with
+ * its own numbers.
+ */
+export interface ISimulatorMetricReport {
+  /**
+   * Grid point reports of this metric, sorted descending by the
+   * schema's reportOrder criterion (default sharpe).
+   */
+  reports: ISimulatorPointReport[];
+  /**
+   * Winners of the four ranking criteria WITHIN this metric bucket
+   * (anti-fluke trades floor applies per bucket). Empty when the
+   * metric is not swept.
+   */
+  best: ISimulatorBest[];
+  /**
+   * Trained ban dictionaries of this bucket — one entry per unique
+   * rule, identified by its own threshold/level fields (no
+   * synthetic keys). Pure threshold arithmetic — which authors a
+   * rule allows does not depend on any ranking. NB: a reach/retain
+   * point with lock = 0 trains under the DEGENERATE close rule, so
+   * its dictionary lives in the close bucket's bans.
+   */
+  bans: ISimulatorRuleBans[];
+}
+
+/**
+ * Final result of a simulation run: per-metric buckets, each with
+ * its own reports, ranking winners and ban dictionaries — hits are
+ * metric-dependent, any cross-metric aggregate would lie.
  */
 export interface ISimulatorResult {
   /** Trading pair symbol the simulation ran for. */
@@ -465,19 +502,6 @@ export interface ISimulatorResult {
   profileCount: number;
   /** Profiles cut short by end of candle data. */
   truncatedCount: number;
-  /**
-   * Authors allowed by AT LEAST ONE ranking winner's rule (union
-   * over best[]). No criterion is privileged: with different rules
-   * among winners this is the honest run-level whitelist candidate
-   * set; which winner allows whom — in best[].allowedAuthors.
-   */
-  allowedAuthors: string[];
-  /**
-   * Authors banned by EVERY ranking winner's rule (complement of
-   * allowedAuthors over all authors seen in the run). Banned here
-   * means banned no matter which winner is taken to production.
-   */
-  bannedAuthors: string[];
   /** Mean holding time across all trades of every grid point, minutes. */
   avgHoldMinutes: number;
   /** 95th percentile of holding time across the whole grid, minutes. */
@@ -485,17 +509,11 @@ export interface ISimulatorResult {
   /** 99th percentile of holding time across the whole grid, minutes — eternal holds are visible right in the run result. */
   p99HoldMinutes: number;
   /**
-   * All grid point reports, keyed by the point's authorMetric.
-   * Every metric key is always present — a metric absent from the
-   * swept axis maps to an empty list. Each bucket is sorted
-   * descending by the schema's reportOrder criterion (default
-   * sharpe). Rankings and best[] are computed over ALL buckets
-   * together — the dictionary is a presentation grouping, not a
-   * per-metric tournament.
+   * Per-metric buckets keyed by the point's authorMetric. Every
+   * metric key is always present — a metric absent from the swept
+   * axis maps to an empty bucket.
    */
-  reports: Record<SimulatorAuthorMetric, ISimulatorPointReport[]>;
-  /** Winners of the rankings: sharpe, sortino, pnl, recovery. */
-  best: ISimulatorBest[];
+  reports: Record<SimulatorAuthorMetric, ISimulatorMetricReport>;
 }
 
 /**
@@ -558,10 +576,9 @@ export interface ISimulatorTestResult {
  * - gridAxes — PER-AXIS override merged over the engine defaults:
  *   an omitted axis takes the default LIST and is therefore swept;
  *   a single-value list freezes an axis. Pinning examples:
- *   authorMetric: ["close"] restores pre-reach ban training,
- *   banCriteria: ["sharpe"] restores the Sharpe-only run artifact,
- *   profitLockPercent: [0] disables the lock. Each axis documents
- *   its own tune/ignore conditions in ISimulatorGridAxes.
+ *   authorMetric: ["close"] grades authors by the horizon close
+ *   only, profitLockPercent: [0] disables the lock. Each axis
+ *   documents its own tune/ignore conditions in ISimulatorGridAxes.
  * - callbacks — all optional; an omitted callback is simply never
  *   fired (silent run). onAuthorsTrained fires once per unique ban
  *   RULE (not per grid point) and never fires during test().
@@ -577,15 +594,13 @@ export interface ISimulatorSchema {
      */
     gridAxes?: Partial<ISimulatorGridAxes>;
     /**
-     * Ranking criterion ordering each result.reports bucket
-     * (descending). The
-     * return value of run() is the consumer contract — callbacks are
-     * a side channel — so the order of the flat report list is
+     * Ranking criterion ordering each metric bucket's reports list
+     * (descending). The return value of run() is the consumer
+     * contract — callbacks are a side channel — so the order is
      * declared here, not derived. Sorting uses the tie-guarded
      * comparator (naive subtraction breaks on Infinity
-     * sortino/recovery of loss-free series). Default: "sharpe" —
-     * bit-identical to the pre-knob behavior. Does not affect
-     * best[], onRanking or banCriteria in any way.
+     * sortino/recovery of loss-free series). Default: "sharpe".
+     * Does not affect best[] or bans in any way.
      */
     reportOrder?: SimulatorRankingCriterion;
     /** Lifecycle callbacks (all optional). */
@@ -644,8 +659,10 @@ export interface ISimulatorCallbacks {
     trades: ISimulatorTrade[],
   ): void;
   /**
-   * Ranking computed: reports sorted by the criterion (descending)
-   * and the eligible winner (minimum-trades filter applied).
+   * Ranking computed WITHIN one metric bucket: the bucket's reports
+   * sorted by the criterion (descending) and the eligible winner
+   * (minimum-trades floor applied per bucket). Fires once per
+   * (swept metric x criterion).
    */
   onRanking(
     symbol: string,

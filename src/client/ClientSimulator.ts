@@ -6,6 +6,7 @@ import {
   ISimulatorBest,
   ISimulatorIdea,
   ISimulatorIdeaProfile,
+  ISimulatorMetricReport,
   ISimulator,
   ISimulatorGridAxes,
   ISimulatorGridPoint,
@@ -911,27 +912,32 @@ const RUN_FN = async (
   // дискриминирующий юнион AUTHOR_RULE_FN канонизирует его: у close
   // полей lock/stop нет по построению (они НЕ влияют на бан-лист и в
   // ключ не входят), reach/retain несут lock/stop своей точки, а с
-  // lock=0 деградируют в close ещё в билдере
-  const filterByRule = new Map<string, IAuthorFilterContext>();
+  // lock=0 деградируют в close ещё в билдере. Строковый ключ — деталь
+  // мемоизации, наружу правила выходят массивом bans с собственными
+  // идентифицирующими полями
+  const filterByRule = new Map<
+    string,
+    { rule: SimulatorAuthorRule; filter: IAuthorFilterContext }
+  >();
   const getFilter = (point: ISimulatorGridPoint): IAuthorFilterContext => {
     const rule = AUTHOR_RULE_FN(point);
     const key =
       rule.metric === "close" || rule.metric === "pnl"
         ? `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`
         : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`;
-    let filter = filterByRule.get(key);
-    if (!filter) {
-      filter = TRAIN_AUTHOR_FILTER_FN(profiles, rule);
-      filterByRule.set(key, filter);
+    let entry = filterByRule.get(key);
+    if (!entry) {
+      entry = { rule, filter: TRAIN_AUTHOR_FILTER_FN(profiles, rule) };
+      filterByRule.set(key, entry);
       if (self.params.callbacks?.onAuthorsTrained) {
         self.params.callbacks?.onAuthorsTrained(
           symbol,
-          filter.stats,
-          filter.bannedIdeas,
+          entry.filter.stats,
+          entry.filter.bannedIdeas,
         );
       }
     }
-    return filter;
+    return entry.filter;
   };
 
   // общее окно суточных корзин для time-based Sharpe/Sortino:
@@ -987,10 +993,6 @@ const RUN_FN = async (
     { criterion: "pnl", value: ({ totalPnlPercent }) => totalPnlPercent },
     { criterion: "recovery", value: ({ recoveryFactor }) => recoveryFactor },
   ];
-  const eligible = reports.filter(
-    ({ trades }) => trades >= MIN_TRADES_FOR_BEST,
-  );
-  const best: ISimulatorBest[] = [];
   // равенство проверяется до вычитания: Infinity - Infinity = NaN
   // ломает контракт компаратора (sortino/profitFactor бесконечны
   // на сериях без убытков)
@@ -1004,106 +1006,107 @@ const RUN_FN = async (
       }
       return vb - va;
     };
-  for (const ranking of rankings) {
-    const sorted = [...reports].sort(byRankingDesc(ranking.value));
-    const winner =
-      [...eligible].sort(byRankingDesc(ranking.value))[0] ??
-      sorted[0] ??
-      null;
-    // артефакт авторов — под правило бана ИМЕННО ЭТОГО победителя:
-    // критерии могут выбрать точки с разными правилами, и белый
-    // список — свойство точки, а не глобаль прогона
-    const winnerStats = winner ? getFilter(winner.point).stats : [];
-    const bestEntry: ISimulatorBest = {
-      criterion: ranking.criterion,
-      report: winner,
-      trades: winner ? (tradesByReport.get(winner) ?? []) : [],
-      authorStats: winnerStats,
-      allowedAuthors: winnerStats
-        .filter(({ banned }) => !banned)
-        .map(({ author }) => author),
-      bannedAuthors: winnerStats
-        .filter(({ banned }) => banned)
-        .map(({ author }) => author),
-    };
-    best.push(bestEntry);
-    if (self.params.callbacks?.onRanking) {
-      self.params.callbacks?.onRanking(
-        symbol,
-        ranking.criterion,
-        sorted,
-        bestEntry,
-      );
-    }
-  }
-  // порядок reports в результате — контракт потребителя run():
-  // критерий задаёт схема (reportOrder, дефолт подставлен на уровне
-  // params в connection-сервисе), компаратор — защищённый (наивное
-  // вычитание ломается на Infinity sortino/recovery серий без
-  // убытков)
   const orderValue =
     rankings.find(({ criterion }) => criterion === self.params.reportOrder)
       ?.value ?? rankings[0].value;
-  reports.sort(byRankingDesc(orderValue));
-  // словарь отчётов по метрике точки — презентационная группировка
-  // (рейтинги и best[] считаются по ВСЕМ корзинам вместе); каждый
-  // ключ существует всегда, невыметаемая метрика = пустой список
-  const reportsByMetric: Record<
-    SimulatorAuthorMetric,
-    ISimulatorPointReport[]
-  > = { close: [], reach: [], retain: [], pnl: [] };
+
+  // корзины по метрике: каждая метрика — самодостаточный результат
+  // со своими точками, СВОИМИ победителями и СВОИМИ словарями банов;
+  // метрики никогда не склеиваются. Невыметаемая метрика = пустая
+  // корзина (ключ существует всегда)
+  const reportsByMetric: Record<SimulatorAuthorMetric, ISimulatorMetricReport> =
+    {
+      close: { reports: [], best: [], bans: [] },
+      reach: { reports: [], best: [], bans: [] },
+      retain: { reports: [], best: [], bans: [] },
+      pnl: { reports: [], best: [], bans: [] },
+    };
   for (const report of reports) {
-    reportsByMetric[report.point.authorMetric].push(report);
+    reportsByMetric[report.point.authorMetric].reports.push(report);
   }
 
-  // ран-левел артефакт агрегируется по победителям критериев из
-  // gridAxes.banCriteria (конфиг прогона, не ось перебора): allowed =
-  // союз их белых списков, banned = забанен каждым из них. BC-ручка:
-  // схема с banCriteria ["sharpe"] получает прежний артефакт ровно по
-  // Sharpe-победителю. Полная разбивка — в best[].authorStats
-  const banCriteria = new Set(self.params.gridAxes.banCriteria);
-  const valueByCriterion = new Map(
-    rankings.map(({ criterion, value }) => [criterion, value]),
-  );
-  const allowedUnion = new Set<string>();
-  const everyAuthor = new Set<string>();
-  for (const bestEntry of best) {
-    if (!banCriteria.has(bestEntry.criterion)) {
-      continue;
-    }
-    for (const { author } of bestEntry.authorStats) {
-      everyAuthor.add(author);
-    }
-    // победитель с нефинитным значением рейтинга (Infinity у
-    // sortino/recovery на кривой без просадки, NaN) — представитель
-    // класса ничьих, выбранный порядком сетки, а не превосходством.
-    // Хуй-пойми-какое число — не основание раздавать допуски: его
-    // авторы учтены в пуле (дефолт-бан), но белый список не входит
-    const value = bestEntry.report
-      ? valueByCriterion.get(bestEntry.criterion)!(bestEntry.report)
-      : Number.NaN;
-    if (!Number.isFinite(value)) {
-      continue;
-    }
-    for (const author of bestEntry.allowedAuthors) {
-      allowedUnion.add(author);
-    }
+  // словари банов — чистая арифметика порогов правила, никакого
+  // ранжирования: по одному словарю на уникальное правило, правило
+  // идентифицируется собственными полями. Правило деградировавшей
+  // reach/retain-точки (lock=0) — это close-правило, его словарь
+  // лежит в корзине close
+  for (const { rule, filter } of filterByRule.values()) {
+    reportsByMetric[rule.metric].bans.push({
+      minAuthorTrack: rule.minAuthorTrack,
+      minAuthorHitRate: rule.minAuthorHitRate,
+      ...(rule.metric === "reach" || rule.metric === "retain"
+        ? {
+            profitLockPercent: rule.profitLockPercent,
+            hardStopPercent: rule.hardStopPercent,
+          }
+        : {}),
+      authorStats: filter.stats,
+      allowedAuthors: filter.stats
+        .filter(({ banned }) => !banned)
+        .map(({ author }) => author),
+      bannedAuthors: filter.stats
+        .filter(({ banned }) => banned)
+        .map(({ author }) => author),
+    });
   }
+
+  // рейтинги — ВНУТРИ каждой корзины: анти-флюк порог и победители
+  // пометричны, кросс-метричного турнира нет
+  for (const metric of Object.keys(reportsByMetric) as SimulatorAuthorMetric[]) {
+    const bucket = reportsByMetric[metric];
+    if (!bucket.reports.length) {
+      continue;
+    }
+    const eligible = bucket.reports.filter(
+      ({ trades }) => trades >= MIN_TRADES_FOR_BEST,
+    );
+    for (const ranking of rankings) {
+      const sorted = [...bucket.reports].sort(byRankingDesc(ranking.value));
+      const winner =
+        [...eligible].sort(byRankingDesc(ranking.value))[0] ??
+        sorted[0] ??
+        null;
+      // артефакт авторов — под правило бана ИМЕННО ЭТОГО победителя:
+      // критерии могут выбрать точки с разными правилами, и белый
+      // список — свойство точки, а не корзины
+      const winnerStats = winner ? getFilter(winner.point).stats : [];
+      const bestEntry: ISimulatorBest = {
+        criterion: ranking.criterion,
+        report: winner,
+        trades: winner ? (tradesByReport.get(winner) ?? []) : [],
+        authorStats: winnerStats,
+        allowedAuthors: winnerStats
+          .filter(({ banned }) => !banned)
+          .map(({ author }) => author),
+        bannedAuthors: winnerStats
+          .filter(({ banned }) => banned)
+          .map(({ author }) => author),
+      };
+      bucket.best.push(bestEntry);
+      if (self.params.callbacks?.onRanking) {
+        self.params.callbacks?.onRanking(
+          symbol,
+          ranking.criterion,
+          sorted,
+          bestEntry,
+        );
+      }
+    }
+    // порядок точек корзины — контракт потребителя run(): критерий
+    // задаёт схема (reportOrder), компаратор — защищённый
+    bucket.reports.sort(byRankingDesc(orderValue));
+  }
+
   const result: ISimulatorResult = {
     symbol,
     ideasTotal: ideas.length,
     ideasDirectional: directional.length,
     profileCount: profiles.length,
     truncatedCount,
-    allowedAuthors: [...allowedUnion],
-    bannedAuthors: [...everyAuthor].filter(
-      (author) => !allowedUnion.has(author),
-    ),
     avgHoldMinutes: holdStats.avgHoldMinutes,
     p95HoldMinutes: holdStats.p95HoldMinutes,
     p99HoldMinutes: holdStats.p99HoldMinutes,
     reports: reportsByMetric,
-    best,
   };
   if (self.params.callbacks?.onDone) {
     self.params.callbacks?.onDone(symbol, result);

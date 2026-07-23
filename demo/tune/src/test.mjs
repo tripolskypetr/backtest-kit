@@ -37,7 +37,6 @@ addSimulatorSchema({
     minAuthorHitRate: [0.5],
     profitLockPercent: [0],
     authorMetric: ["retain"],
-    banCriteria: ["sharpe"],
   },
   reportOrder: "sharpe",
 });
