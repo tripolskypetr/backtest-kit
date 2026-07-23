@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "baseUrl": "./",
+    "lib": [
+      "es2015",
+      "es2023",
+    ],
+    "moduleDetection": "force",
+    "module": "ES2022",
+    "target": "ES2022",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "downlevelIteration": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "isolatedModules": false,
+    "noPropertyAccessFromIndexSignature": false,
+  },
+  "exclude": [
+    "./types.d.ts",
+    "./scripts/fix.ts",
+    "./scripts/repl.ts"
+  ]
+}
