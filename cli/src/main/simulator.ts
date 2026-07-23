@@ -35,6 +35,9 @@ const validateIdea = (idea: any, line: number): string | null => {
 };
 
 const toMarkdown = (result: ISimulatorResult): string => {
+  const profitable = result.reports.filter(
+    ({ totalPnlPercent }) => totalPnlPercent > 0,
+  ).length;
   const lines: string[] = [];
   lines.push(`# Simulator Report — ${result.symbol}`);
   lines.push("");
@@ -43,30 +46,33 @@ const toMarkdown = (result: ISimulatorResult): string => {
   lines.push(`| Ideas (total / directional) | ${result.ideasTotal} / ${result.ideasDirectional} |`);
   lines.push(`| Profiles (truncated) | ${result.profileCount} (${result.truncatedCount}) |`);
   lines.push(`| Authors allowed / banned | ${result.allowedAuthors.length} / ${result.bannedAuthors.length} |`);
-  lines.push(`| Grid points | ${result.reports.length} |`);
+  lines.push(`| Profitable corridor | ${profitable} / ${result.reports.length} grid points |`);
   lines.push(`| Hold minutes avg / p95 / p99 | ${result.avgHoldMinutes.toFixed(0)} / ${result.p95HoldMinutes} / ${result.p99HoldMinutes} |`);
   lines.push("");
   lines.push(`## Ranking winners`);
   lines.push("");
-  lines.push(`| Criterion | Stop% | Trailing% | Hold | Aligned | Track | HitRate | Trades | PNL% | WinRate | Sharpe | Sortino |`);
-  lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
+  lines.push(`| Criterion | Stop% | Hold | Track | HitRate | Trades | PNL% | WinRate | Sharpe | Sortino |`);
+  lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
   for (const best of result.best) {
     if (!best.report) {
-      lines.push(`| ${best.criterion} | — | — | — | — | — | — | — | — | — | — | — |`);
+      lines.push(`| ${best.criterion} | — | — | — | — | — | — | — | — | — |`);
       continue;
     }
     const { point } = best.report;
     lines.push(
-      `| ${best.criterion} | ${point.hardStopPercent} | ${point.trailingTakePercent} | ${point.holdMinutes / 60}h | ${point.minIdeasAligned} | ${point.minAuthorTrack} | ${point.minAuthorHitRate} | ` +
+      `| ${best.criterion} | ${point.hardStopPercent} | ${point.holdMinutes / 60}h | ${point.minAuthorTrack} | ${point.minAuthorHitRate} | ` +
         `${best.report.trades} | ${best.report.totalPnlPercent.toFixed(2)}% | ${(best.report.winRate * 100).toFixed(0)}% | ${best.report.sharpe.toFixed(2)} | ${best.report.sortino.toFixed(2)} |`,
     );
   }
   lines.push("");
-  lines.push(`## Allowed authors (production whitelist)`);
+  lines.push(`## Allowed authors (whitelist of the sharpe winner rule)`);
   lines.push("");
   lines.push(`| Author | Ideas | Hits | HitRate |`);
   lines.push(`| --- | --- | --- | --- |`);
-  for (const stat of result.authorStats.filter(({ banned }) => !banned)) {
+  // артефакт авторов живёт по-победительно в best[] — ран-левел
+  // authorStats в ISimulatorResult больше нет
+  const sharpeBest = result.best.find(({ criterion }) => criterion === "sharpe");
+  for (const stat of (sharpeBest?.authorStats ?? []).filter(({ banned }) => !banned)) {
     lines.push(`| ${stat.author} | ${stat.ideas} | ${stat.hits} | ${(stat.hitRate * 100).toFixed(0)}% |`);
   }
   return lines.join("\n");
@@ -172,22 +178,31 @@ export const main = async () => {
 
   const symbol = <string>values.symbol || "BTCUSDT";
 
+  // Проба осуществимости, НЕ поиск заработка (подбор параметров — у
+  // --tune): собирающая прибыль механика выключена, остаётся вопрос
+  // "есть ли прибыльный коридор" по стопу x холду x правилу бана —
+  // 48 точек, быстрый вердикт
   addSimulatorSchema({
     simulatorName: SIMULATOR_NAME,
     exchangeName,
     gridAxes: {
-      hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
-      trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
+      // грубая шкала катастрофы: коридор должен быть широким, не точкой
+      hardStopPercent: [2, 3, 5, 7],
+      // инертен: проба не собирает прибыль, выход — по времени или стопу
+      trailingTakePercent: [100],
       holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-      minIdeasAligned: [1, 2, 3],
-      minAuthorTrack: [2, 3, 5],
+      // одного проверенного автора достаточно — консенсус не перебираем
+      minIdeasAligned: [1],
+      // правило бана — единственная перебираемая "умность" пробы
+      minAuthorTrack: [3, 5],
       minAuthorHitRate: [0.5, 0.6],
-      minWeightAligned: [0, 0.6, 1.2],
-      profitLockPercent: [0, 1.5, 2.5],
-      authorMetric: ["close", "reach"],
+      minAuthorWilson: [0],
+      minWeightAligned: [0],
+      profitLockPercent: [0],
+      authorMetric: ["close"],
       banCriteria: ["sharpe", "pnl"],
-      minAuthorWilson: [0, 0.6],
     },
+    reportOrder: "sharpe",
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {
         if (values.verbose) {

@@ -186,6 +186,19 @@ async function fetchFreeQty(exchange: Binance, symbol: string): Promise<number> 
   return parseFloat(String(balance?.free?.[base] ?? 0));
 }
 
+// Суммарный баланс монеты: free + залоченное в открытых ордерах. Отвечать на
+// вопрос «куплена ли позиция» можно ТОЛЬКО по нему: после успешного входа
+// монеты заморожены в OCO и free ≈ 0 — проверка по free путала купленную
+// позицию с раскрученной и покупала повторно (задвоение, поймано вторым
+// open'ом в тесте).
+async function fetchTotalQty(exchange: Binance, symbol: string): Promise<number> {
+  const balance = await exchange.fetchBalance();
+  const base = getBase(exchange, symbol);
+  const free = parseFloat(String(balance?.free?.[base] ?? 0));
+  const used = parseFloat(String(balance?.used?.[base] ?? 0));
+  return free + used;
+}
+
 // Отмена с обработкой гонки «филл против cancel»: ордер мог исполниться между
 // последним поллом и cancel — тогда cancel падает (-2011), и это ФИЛЛ, не отказ
 // (исходная версия превращала его в терминальный дроп реально купленного входа).
@@ -387,12 +400,20 @@ Broker.useBrokerAdapter(
 
         if (prior && prior.executedQty > 0) {
           // Прошлый POST исполнился (потерянный ответ / крэш до брекетов).
-          const freeQty = await fetchFreeQty(exchange, symbol);
-          if (freeQty * openPrice >= minNotional) {
-            await confirmWithBrackets();
+          // Куплена ли позиция — решает СУММАРНЫЙ баланс (free + used): после
+          // успешного входа монеты заморожены в OCO, free ≈ 0, и проверка по
+          // free срабатывала веткой «покупаем заново» — задвоение позиции.
+          const totalQty = await fetchTotalQty(exchange, symbol);
+          if (totalQty * openPrice >= minNotional) {
+            // Брекеты добрасываем только если живых ордеров нет: висящий OCO
+            // уже сторожит позицию, второй лёг бы поверх заморозки.
+            const { length: hasOrders } = await exchange.fetchOpenOrders(symbol);
+            if (!hasOrders) {
+              await confirmWithBrackets();
+            }
             return; // вход подтверждён по clientOrderId — покупку НЕ повторяем
           }
-          // остатка нет — прошлый вход уже раскручен (unwind), покупаем заново
+          // суммарного остатка нет — прошлый вход уже раскручен (unwind), покупаем заново
         } else if (prior && (prior.status === "NEW" || prior.status === "PARTIALLY_FILLED")) {
           // Живой ордер прошлой попытки: СНАЧАЛА снять (clientOrderId
           // освобождается — не будет -2010 duplicate), потом открывать заново.
