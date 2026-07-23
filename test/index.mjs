@@ -39,6 +39,7 @@ import "./e2e/short.test.mjs";
 import "./e2e/commit.test.mjs";
 import "./e2e/hardening.test.mjs";
 import "./e2e/retry.test.mjs";
+import "./e2e/fill_consume.test.mjs";
 import "./e2e/verdict.test.mjs";
 import "./e2e/broker_attempt.test.mjs";
 import "./e2e/verdict_cross.test.mjs";

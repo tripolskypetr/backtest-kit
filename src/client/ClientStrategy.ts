@@ -1612,6 +1612,14 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     }
     self._pendingSignal = pendingSignal;
 
+    // A restored position's id is consumed BY DEFINITION (mirror of the
+    // in-memory whipsaw guard at open): the strategy snapshot read above may be
+    // stale — persisted in the crash window between the pending write and the
+    // lastPendingId write — and trusting it let the deterministic strategy
+    // re-open the SAME id with a REAL order once this position closed
+    // (REPORT: fill cascade). The live position itself is the ground truth.
+    self._lastPendingId = pendingSignal.id;
+
     // Restore the commit queue only if the snapshot belongs to this exact pending
     // signal (pendingSignalId === restored id). The queue holds confirmed-but-not-yet
     // forwarded broker ops (average-buy / partial-* / trailing-* / breakeven) that are
@@ -2964,8 +2972,12 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 
   await self.setScheduledSignal(null);
 
-  // Whipsaw protection: record the id only after a successful open
+  // Whipsaw protection: record the id only after a successful open.
+  // Persisted immediately: the consumed id must survive a restart between this
+  // open and the eventual close, or the deterministic strategy re-opens the
+  // SAME id after the close (REPORT: fill cascade — mirrors OPEN_NEW_PENDING_SIGNAL_FN).
   self._lastPendingId = activatedSignal.id;
+  await PERSIST_STRATEGY_FN(self);
 
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
@@ -4166,19 +4178,26 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   // between the write and the confirmation.
   await self.setPendingSignal(signal, signal.priceOpen);
 
-  // The gate confirmed this id — the retry accounting for it is complete. Finish the
-  // write-ahead wipe of the retry slot (kept on disk until this durable outcome; a
-  // crash before this point replays the same id and reconciles on the exchange side).
-  if (self._retryOpenSignal?.id === signal.id) {
-    self._retryOpenSignal = null;
-    self._retryOpenCount = 0;
-    await PERSIST_STRATEGY_FN(self);
-  }
-
   // Whipsaw protection: record the id only after a successful open so a
   // rejected open can retry the same deterministic id on the next tick
   // (the interval throttle is rolled back on rejection — see above).
+  // Consumed BEFORE the persist below so the FILLED id reaches disk as part of
+  // the open transaction — the reverse order left a stale lastPendingId in the
+  // snapshot, and a restart between the fill and the close resurrected the
+  // stale guard: after the close the deterministic strategy re-opened the SAME
+  // id with one more REAL order per restart (REPORT: five-tranche fill cascade).
   self._lastPendingId = signal.id;
+
+  // The gate confirmed this id — the retry accounting for it is complete. Finish the
+  // write-ahead wipe of the retry slot (kept on disk until this durable outcome; a
+  // crash before this point replays the same id and reconciles on the exchange side).
+  // The persist is UNCONDITIONAL (not only when the slot was armed): the consumed
+  // lastPendingId above must reach disk even with CC_ORDER_OPEN_RETRY_ATTEMPTS = 0.
+  if (self._retryOpenSignal?.id === signal.id) {
+    self._retryOpenSignal = null;
+    self._retryOpenCount = 0;
+  }
+  await PERSIST_STRATEGY_FN(self);
 
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
@@ -8058,8 +8077,13 @@ export class ClientStrategy implements IStrategy {
 
       await this.setPendingSignal(pendingSignal, currentPrice);
 
-      // Whipsaw protection: record the id only after a successful open
+      // Whipsaw protection: record the id only after a successful open.
+      // Persisted immediately: the drain of _activatedSignal above already wrote
+      // the snapshot with the PRE-open lastPendingId — without this write a
+      // restart between the open and the close resurrects the stale guard and
+      // the deterministic strategy re-opens the SAME id (REPORT: fill cascade).
       this._lastPendingId = pendingSignal.id;
+      await PERSIST_STRATEGY_FN(this);
 
       await CALL_RISK_ADD_SIGNAL_FN(
         this,
