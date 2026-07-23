@@ -21,23 +21,34 @@ addExchangeSchema({
   },
 });
 
+// Проба осуществимости, НЕ поиск заработка: вся собирающая прибыль
+// механика выключена (замок, трейлинг, взвешенный консенсус, Вильсон,
+// reach-метрика — это территория demo/tune). Остаётся минимальный
+// вопрос: даёт ли удержание идей проверенных авторов прибыльный
+// КОРИДОР по стопу x холду x правилу бана — 48 точек вместо тысяч
 addSimulatorSchema({
   simulatorName: "tv_simulator",
   exchangeName: "ccxt_exchange",
   gridAxes: {
-    hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
-    trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
+    // грубая шкала катастрофы: коридор должен быть широким, не точкой
+    hardStopPercent: [2, 3, 5, 7],
+    // инертен (взводится с пика entry/(1-1) = бесконечность):
+    // проба не собирает прибыль, выход — по времени или стопу
+    trailingTakePercent: [100],
     holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-    minIdeasAligned: [1, 2, 3],
-    // правило бана авторов — тоже оси перебора
-    minAuthorTrack: [2, 3, 5],
+    // одного проверенного автора достаточно — консенсус не перебираем
+    minIdeasAligned: [1],
+    // правило бана — единственная перебираемая "умность" пробы:
+    // вопрос N3 — выживает ли кто-то в белом списке
+    minAuthorTrack: [3, 5],
     minAuthorHitRate: [0.5, 0.6],
-    minWeightAligned: [0, 0.6, 1.2],
-    profitLockPercent: [0, 1.5, 2.5],
-    minAuthorWilson: [0, 0.6],
-    // обе метрики авторского hit'а — перебор решает (BC не сохраняем)
-    authorMetric: ["close", "reach"],
+    minAuthorWilson: [0],
+    minWeightAligned: [0],
+    profitLockPercent: [0],
+    authorMetric: ["close"],
+    banCriteria: ["sharpe", "pnl"],
   },
+  reportOrder: "sharpe",
 });
 
 const ideas = readFileSync("./assets/tv-ideas.normalized.jsonl", "utf-8")
