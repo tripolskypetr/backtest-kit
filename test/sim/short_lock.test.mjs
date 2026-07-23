@@ -44,11 +44,8 @@ const registerWorld = (exchangeName, priceAt) => {
 };
 
 const AXES = {
-  minIdeasAligned: [1],
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
-  minWeightAligned: [0],
-  minAuthorWilson: [0],
   authorMetric: ["close"],
   holdMinutes: [240],
 };

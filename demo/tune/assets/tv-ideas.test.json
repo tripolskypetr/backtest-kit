@@ -8,11 +8,8 @@
     "hardStopPercent": 5,
     "trailingTakePercent": 2,
     "holdMinutes": 4320,
-    "minIdeasAligned": 1,
     "minAuthorTrack": 5,
     "minAuthorHitRate": 0.5,
-    "minAuthorWilson": 0,
-    "minWeightAligned": 0,
     "profitLockPercent": 2.5,
     "authorMetric": "close"
   },
@@ -21,11 +18,8 @@
       "hardStopPercent": 5,
       "trailingTakePercent": 2,
       "holdMinutes": 4320,
-      "minIdeasAligned": 1,
       "minAuthorTrack": 5,
       "minAuthorHitRate": 0.5,
-      "minAuthorWilson": 0,
-      "minWeightAligned": 0,
       "profitLockPercent": 2.5,
       "authorMetric": "close"
     },

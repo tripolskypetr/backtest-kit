@@ -37,8 +37,6 @@ export interface ISimulatorIdeaProfile {
   entryPrice: number;
   /** Candle trajectory of the idea horizon (shared chunk references). */
   candles: ICandleData[];
-  /** Unique aligned authors at entry minute (self included). */
-  alignedAtEntry: number;
   /** Idea correctness: horizon return in its direction is positive. */
   hit: boolean;
   /** Timestamp when the idea outcome becomes known (horizon end). */
@@ -90,8 +88,6 @@ export type SimulatorAuthorRule =
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
       minAuthorHitRate: number;
-      /** Minimum Wilson lower bound (0..1) to be allowed; 0 = off. */
-      minAuthorWilson: number;
     }
   | {
       /** Discriminator: grade authors by lock-reachability. */
@@ -100,8 +96,6 @@ export type SimulatorAuthorRule =
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
       minAuthorHitRate: number;
-      /** Minimum Wilson lower bound (0..1) to be allowed; 0 = off. */
-      minAuthorWilson: number;
       /** Lock level the reach hit is graded against (always > 0). */
       profitLockPercent: number;
       /** Stop level the pre-peak shakeout is graded against. */
@@ -152,15 +146,6 @@ export interface ISimulatorGridAxes {
    */
   holdMinutes: number[];
   /**
-   * Entry thresholds to sweep: minimum unique UNBANNED aligned
-   * authors within the 4h lookback window (the idea's own author
-   * counts, banned authors are invisible to the count).
-   * Tunes: binary crowd consensus required to enter; 1 = one proven
-   * author is enough.
-   * Ignored: never — the gate runs for every candidate entry.
-   */
-  minIdeasAligned: number[];
-  /**
    * Author ban rule to sweep: minimum ideas with a FULLY OBSERVED
    * outcome an author needs before he can be allowed (fewer ->
    * banned by default; truncated profiles prove nothing).
@@ -179,37 +164,6 @@ export interface ISimulatorGridAxes {
    * follows authorMetric.
    */
   minAuthorHitRate: number[];
-  /**
-   * Author ban rule to sweep: minimum LOWER BOUND of the Wilson 95%
-   * confidence interval of the author's hit rate. Unlike the
-   * minAuthorTrack x minAuthorHitRate pair, the bound prices the
-   * track length INTO the quality estimate: a 3/3 newcomer (LB ~
-   * 0.44) is banned where a 15/15 veteran (LB ~ 0.80) passes — the
-   * pair cannot tell them apart at equal hit rates. An author with
-   * zero known outcomes has LB 0 (default-ban preserved).
-   * Tunes: how much PROVEN quality (not observed quality) an author
-   * needs; sweeping it against the pair lets the grid decide which
-   * ban arithmetic wins.
-   * Ignored: 0 DISABLES the bound entirely — the pair alone decides,
-   * bit-identical to the pre-Wilson behavior; keep 0 in the list to
-   * sweep the baseline. To ban by the bound ALONE, pin the pair to
-   * its inert values: minAuthorTrack: [0], minAuthorHitRate: [0].
-   * Hits inherit authorMetric, like the rest of the ban rule.
-   */
-  minAuthorWilson: number[];
-  /**
-   * Weighted consensus thresholds to sweep. An author's vote weight
-   * is his Laplace-smoothed track record (hits+1)/(ideas+2) — a 2/2
-   * newcomer weighs less than a 15/15 veteran. Entry requires the
-   * SUM of weights of unique aligned unbanned authors in the rolling
-   * window to reach the threshold.
-   * Tunes: quality-weighted consensus on top of (or instead of) the
-   * binary count; weights inherit the authorMetric hit definition.
-   * Ignored: 0 DISABLES the gate entirely (binary minIdeasAligned
-   * counting only) — keep 0 in the list to sweep the unweighted
-   * baseline.
-   */
-  minWeightAligned: number[];
   /**
    * Profit lock levels to sweep, percent from entry. When price
    * TOUCHES +X% a fixed floor arms at that level and the trade exits
@@ -268,19 +222,10 @@ export interface ISimulatorGridPoint {
   trailingTakePercent: number;
   /** Maximum position hold duration, minutes. */
   holdMinutes: number;
-  /** Minimum unique aligned (unbanned) authors required to enter. */
-  minIdeasAligned: number;
   /** Author ban rule: minimum known-outcome ideas to be allowed. */
   minAuthorTrack: number;
   /** Author ban rule: minimum hit rate (0..1) to be allowed. */
   minAuthorHitRate: number;
-  /** Author ban rule: minimum Wilson lower bound (0..1); 0 = off. */
-  minAuthorWilson: number;
-  /**
-   * Weighted consensus threshold: required sum of Laplace-smoothed
-   * track-record weights of aligned unbanned authors; 0 = disabled.
-   */
-  minWeightAligned: number;
   /**
    * Profit lock: fixed floor armed when price touches +X% from
    * entry, exit on pullback to the floor; 0 = disabled.
@@ -408,9 +353,8 @@ export interface ISimulatorAuthorStat {
   /**
    * Author is banned under the ban rule these stats were computed
    * with. True when the track is too short to judge (ideas <
-   * minAuthorTrack) OR the hit rate is below minAuthorHitRate OR the
-   * Wilson lower bound of the hit rate is below minAuthorWilson
-   * (when that bound is enabled). Unproven correctness = banned.
+   * minAuthorTrack) OR the hit rate is below minAuthorHitRate.
+   * Unproven correctness = banned.
    */
   banned: boolean;
 }

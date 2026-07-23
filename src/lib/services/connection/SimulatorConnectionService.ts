@@ -29,14 +29,9 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   systematically too short for peaks that ripen for days;
  * - author QUALITY threshold (hit rate) mattered more than track
  *   length on every criterion — both are swept;
- * - Wilson lower bound: an alternative ban arithmetic that prices
- *   the track length into the quality estimate (3/3 newcomer ~0.44
- *   vs 15/15 veteran ~0.80 at the same observed rate); 0 keeps the
- *   pair-only baseline, 0.6 demands veteran-grade proof — the sweep
- *   decides which arithmetic wins;
- * - weighted consensus: 0 keeps the unweighted baseline in the
- *   sweep, 0.6 ~ a solo proven author (Laplace (hits+1)/(ideas+2)),
- *   1.2 ~ a pair — the sweep itself decides whether weighting helps;
+ * - authors are graded strictly in ISOLATION: interaction metrics
+ *   (consensus counting, vote weighting, Wilson bounds) were removed
+ *   by design — swarm ranking over long histories is userspace;
  * - profit lock: covers the bleed zone below the trailing arm level
  *   (trailing arms only from peak >= entry/(1-r), so a +1.5..2.5%
  *   run that dumps gives everything back without a lock); 0 keeps
@@ -54,11 +49,8 @@ const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
   trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
   holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-  minIdeasAligned: [1, 2, 3],
   minAuthorTrack: [2, 3, 5],
   minAuthorHitRate: [0.5, 0.6],
-  minAuthorWilson: [0, 0.6],
-  minWeightAligned: [0, 0.6, 1.2],
   profitLockPercent: [0, 1.5, 2.5],
   authorMetric: ["close", "reach"],
   banCriteria: ["sharpe", "pnl"],

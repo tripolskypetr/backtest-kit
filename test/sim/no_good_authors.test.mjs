@@ -59,12 +59,9 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
       hardStopPercent: [5, 50],
       trailingTakePercent: [2, 100],
       holdMinutes: [60],
-      minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

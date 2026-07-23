@@ -59,12 +59,9 @@ test("SIM: with no point above the anti-fluke floor the fallback picks the BEST 
       // худшая точка (hold=120) первой в сетке — fallback обязан её
       // ПЕРЕПРЫГНУТЬ, если берёт лучшую, а не первую
       holdMinutes: [120, 60],
-      minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
   });

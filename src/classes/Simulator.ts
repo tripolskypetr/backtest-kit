@@ -27,20 +27,16 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - holdMinutes — slot turnover cap; a busy slot absorbs qualified
  *   ideas (absorbedIdeaIds); time_expired is the worst-case exit.
  *
- * Entry gates (preprocessing of every candidate entry):
- * - minIdeasAligned — unique UNBANNED aligned authors in the 4h
- *   window; banned authors are invisible to the count.
- * - minWeightAligned — sum of Laplace weights (hits+1)/(ideas+2) of
- *   those authors; 0 disables the weighted gate.
+ * Entry gate (preprocessing of every candidate entry): any idea of
+ * an UNBANNED author triggers an entry. Authors are graded strictly
+ * in isolation — interaction metrics (consensus counting, vote
+ * weighting, Wilson bounds) do not exist here by design: swarm
+ * ranking over long histories is userspace.
  *
  * Ban rule (author filter, trained on the whole run range):
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
- * - minAuthorWilson — minimum Wilson 95% lower bound of the hit
- *   rate: proven quality that prices the track length in; 0
- *   disables (pair-only baseline), and with the pair pinned inert
- *   (track [0], rate [0]) the bound bans alone.
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop; reach with

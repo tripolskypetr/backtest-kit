@@ -191,13 +191,9 @@ export const main = async () => {
       // инертен: проба не собирает прибыль, выход — по времени или стопу
       trailingTakePercent: [100],
       holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-      // одного проверенного автора достаточно — консенсус не перебираем
-      minIdeasAligned: [1],
       // правило бана — единственная перебираемая "умность" пробы
       minAuthorTrack: [3, 5],
       minAuthorHitRate: [0.5, 0.6],
-      minAuthorWilson: [0],
-      minWeightAligned: [0],
       profitLockPercent: [0],
       authorMetric: ["close"],
       banCriteria: ["sharpe", "pnl"],

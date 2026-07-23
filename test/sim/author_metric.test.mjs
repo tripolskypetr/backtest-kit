@@ -72,12 +72,9 @@ test("SIM: reach metric allows the spiker the close metric bans — and the lock
       hardStopPercent: [5],
       trailingTakePercent: [100],
       holdMinutes: [240],
-      minIdeasAligned: [1],
       minAuthorTrack: [5],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [2.5],
-      minAuthorWilson: [0],
       authorMetric: ["close", "reach"],
     },
     callbacks: {

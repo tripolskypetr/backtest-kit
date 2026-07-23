@@ -6012,8 +6012,6 @@ interface ISimulatorIdeaProfile {
     entryPrice: number;
     /** Candle trajectory of the idea horizon (shared chunk references). */
     candles: ICandleData[];
-    /** Unique aligned authors at entry minute (self included). */
-    alignedAtEntry: number;
     /** Idea correctness: horizon return in its direction is positive. */
     hit: boolean;
     /** Timestamp when the idea outcome becomes known (horizon end). */
@@ -6088,15 +6086,6 @@ interface ISimulatorGridAxes {
      */
     holdMinutes: number[];
     /**
-     * Entry thresholds to sweep: minimum unique UNBANNED aligned
-     * authors within the 4h lookback window (the idea's own author
-     * counts, banned authors are invisible to the count).
-     * Tunes: binary crowd consensus required to enter; 1 = one proven
-     * author is enough.
-     * Ignored: never — the gate runs for every candidate entry.
-     */
-    minIdeasAligned: number[];
-    /**
      * Author ban rule to sweep: minimum ideas with a FULLY OBSERVED
      * outcome an author needs before he can be allowed (fewer ->
      * banned by default; truncated profiles prove nothing).
@@ -6115,37 +6104,6 @@ interface ISimulatorGridAxes {
      * follows authorMetric.
      */
     minAuthorHitRate: number[];
-    /**
-     * Author ban rule to sweep: minimum LOWER BOUND of the Wilson 95%
-     * confidence interval of the author's hit rate. Unlike the
-     * minAuthorTrack x minAuthorHitRate pair, the bound prices the
-     * track length INTO the quality estimate: a 3/3 newcomer (LB ~
-     * 0.44) is banned where a 15/15 veteran (LB ~ 0.80) passes — the
-     * pair cannot tell them apart at equal hit rates. An author with
-     * zero known outcomes has LB 0 (default-ban preserved).
-     * Tunes: how much PROVEN quality (not observed quality) an author
-     * needs; sweeping it against the pair lets the grid decide which
-     * ban arithmetic wins.
-     * Ignored: 0 DISABLES the bound entirely — the pair alone decides,
-     * bit-identical to the pre-Wilson behavior; keep 0 in the list to
-     * sweep the baseline. To ban by the bound ALONE, pin the pair to
-     * its inert values: minAuthorTrack: [0], minAuthorHitRate: [0].
-     * Hits inherit authorMetric, like the rest of the ban rule.
-     */
-    minAuthorWilson: number[];
-    /**
-     * Weighted consensus thresholds to sweep. An author's vote weight
-     * is his Laplace-smoothed track record (hits+1)/(ideas+2) — a 2/2
-     * newcomer weighs less than a 15/15 veteran. Entry requires the
-     * SUM of weights of unique aligned unbanned authors in the rolling
-     * window to reach the threshold.
-     * Tunes: quality-weighted consensus on top of (or instead of) the
-     * binary count; weights inherit the authorMetric hit definition.
-     * Ignored: 0 DISABLES the gate entirely (binary minIdeasAligned
-     * counting only) — keep 0 in the list to sweep the unweighted
-     * baseline.
-     */
-    minWeightAligned: number[];
     /**
      * Profit lock levels to sweep, percent from entry. When price
      * TOUCHES +X% a fixed floor arms at that level and the trade exits
@@ -6203,19 +6161,10 @@ interface ISimulatorGridPoint {
     trailingTakePercent: number;
     /** Maximum position hold duration, minutes. */
     holdMinutes: number;
-    /** Minimum unique aligned (unbanned) authors required to enter. */
-    minIdeasAligned: number;
     /** Author ban rule: minimum known-outcome ideas to be allowed. */
     minAuthorTrack: number;
     /** Author ban rule: minimum hit rate (0..1) to be allowed. */
     minAuthorHitRate: number;
-    /** Author ban rule: minimum Wilson lower bound (0..1); 0 = off. */
-    minAuthorWilson: number;
-    /**
-     * Weighted consensus threshold: required sum of Laplace-smoothed
-     * track-record weights of aligned unbanned authors; 0 = disabled.
-     */
-    minWeightAligned: number;
     /**
      * Profit lock: fixed floor armed when price touches +X% from
      * entry, exit on pullback to the floor; 0 = disabled.
@@ -6334,9 +6283,8 @@ interface ISimulatorAuthorStat {
     /**
      * Author is banned under the ban rule these stats were computed
      * with. True when the track is too short to judge (ideas <
-     * minAuthorTrack) OR the hit rate is below minAuthorHitRate OR the
-     * Wilson lower bound of the hit rate is below minAuthorWilson
-     * (when that bound is enabled). Unproven correctness = banned.
+     * minAuthorTrack) OR the hit rate is below minAuthorHitRate.
+     * Unproven correctness = banned.
      */
     banned: boolean;
 }
@@ -9462,7 +9410,6 @@ type TActionSchema = {
  *     hardStopPercent: [3, 5, 7],
  *     trailingTakePercent: [1.5, 2, 3],
  *     holdMinutes: [24 * 60, 48 * 60],
- *     minIdeasAligned: [2, 3],
  *   }, // Only narrow the grid, keep exchange and callbacks
  * };
  * ```
@@ -9690,7 +9637,6 @@ declare function overrideActionSchema(actionSchema: TActionSchema): Promise<IAct
  *     hardStopPercent: [3, 5, 7],
  *     trailingTakePercent: [1.5, 2, 3],
  *     holdMinutes: [24 * 60, 48 * 60],
- *     minIdeasAligned: [2, 3],
  *   }, // Only narrow the grid
  * });
  * ```
@@ -19965,20 +19911,16 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  * - holdMinutes — slot turnover cap; a busy slot absorbs qualified
  *   ideas (absorbedIdeaIds); time_expired is the worst-case exit.
  *
- * Entry gates (preprocessing of every candidate entry):
- * - minIdeasAligned — unique UNBANNED aligned authors in the 4h
- *   window; banned authors are invisible to the count.
- * - minWeightAligned — sum of Laplace weights (hits+1)/(ideas+2) of
- *   those authors; 0 disables the weighted gate.
+ * Entry gate (preprocessing of every candidate entry): any idea of
+ * an UNBANNED author triggers an entry. Authors are graded strictly
+ * in isolation — interaction metrics (consensus counting, vote
+ * weighting, Wilson bounds) do not exist here by design: swarm
+ * ranking over long histories is userspace.
  *
  * Ban rule (author filter, trained on the whole run range):
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
- * - minAuthorWilson — minimum Wilson 95% lower bound of the hit
- *   rate: proven quality that prices the track length in; 0
- *   disables (pair-only baseline), and with the pair pinned inert
- *   (track [0], rate [0]) the bound bans alone.
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop; reach with
@@ -42914,22 +42856,24 @@ declare class SimulatorSchemaService {
  * Parameter sweep engine over crowd trading ideas (the "Simulator").
  *
  * Finds production strategy parameters (hard stop, trailing take,
- * hold duration, entry consensus threshold) by simulating every idea
- * against every point of the grid — WITHOUT re-running a backtest per
- * point. The root iteration is over IDEAS, not candles and not grid
- * points:
+ * hold duration, author ban rule) by simulating every idea against
+ * every point of the grid — WITHOUT re-running a backtest per point.
+ * Authors are graded STRICTLY in isolation — no interaction metrics
+ * (consensus counting, vote weighting) exist here by design; swarm
+ * ranking over long histories is userspace. The root iteration is
+ * over IDEAS, not candles and not grid points:
  *
  * 1. Each idea gets ONE asynchronous forward candle pass from the
  *    minute after its publication, capped by a static horizon
  *    (IDEA_TRIM_DAYS). The pass produces a per-candle trajectory
- *    profile (MFE/MAE extremes, whale shakeout depth, aligned-authors
- *    count). Overlapping and sparse ideas are both supported: candle
- *    chunks are fetched lazily through the Exchange (persist cache
- *    first), gaps between ideas are never requested.
+ *    profile (MFE/MAE extremes, whale shakeout depth). Overlapping
+ *    and sparse ideas are both supported: candle chunks are fetched
+ *    lazily through the Exchange (persist cache first), gaps between
+ *    ideas are never requested.
  * 2. The author ban list is TRAINED on the whole range (lookahead
  *    inside train is deliberate): authors with enough ideas and a hit
- *    rate worse than a coin are excluded from triggers and votes.
- *    The list is part of the result — apply it in production as-is.
+ *    rate worse than a coin are excluded from entries. The list is
+ *    part of the result — apply it in production as-is.
  * 3. The outcome of every grid point is derived arithmetically from
  *    the profiles with production slot semantics (one position per
  *    symbol, busy-slot ideas skipped). Honesty contracts: entry at

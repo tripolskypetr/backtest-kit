@@ -33,12 +33,9 @@ test("SIM: cartesian grid emits every axis combination exactly once", async ({ p
     hardStopPercent: [5, 50],
     trailingTakePercent: [2, 100],
     holdMinutes: [60, 7200],
-    minIdeasAligned: [1, 2],
     minAuthorTrack: [1, 3],
     minAuthorHitRate: [0, 0.5],
-    minWeightAligned: [0],
-    profitLockPercent: [0],
-    minAuthorWilson: [0],
+    profitLockPercent: [0, 2],
     authorMetric: ["close"],
   };
 
@@ -64,7 +61,7 @@ test("SIM: cartesian grid emits every axis combination exactly once", async ({ p
   }
 
   const key = (p) =>
-    [p.hardStopPercent, p.trailingTakePercent, p.holdMinutes, p.minIdeasAligned, p.minAuthorTrack, p.minAuthorHitRate].join("|");
+    [p.hardStopPercent, p.trailingTakePercent, p.holdMinutes, p.minAuthorTrack, p.minAuthorHitRate, p.profitLockPercent].join("|");
   const uniq = new Set(seen.map(key));
   if (uniq.size !== 64) {
     fail(`grid points must be unique, got ${uniq.size} of 64`);
@@ -75,10 +72,10 @@ test("SIM: cartesian grid emits every axis combination exactly once", async ({ p
   for (const h of axes.hardStopPercent)
     for (const t of axes.trailingTakePercent)
       for (const hold of axes.holdMinutes)
-        for (const n of axes.minIdeasAligned)
-          for (const track of axes.minAuthorTrack)
-            for (const rate of axes.minAuthorHitRate) {
-              const k = [h, t, hold, n, track, rate].join("|");
+        for (const track of axes.minAuthorTrack)
+          for (const rate of axes.minAuthorHitRate)
+            for (const lock of axes.profitLockPercent) {
+              const k = [h, t, hold, track, rate, lock].join("|");
               if (!uniq.has(k)) {
                 fail(`missing grid combination: ${k}`);
                 return;

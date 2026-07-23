@@ -209,7 +209,6 @@ type TActionSchema = {
  *     hardStopPercent: [3, 5, 7],
  *     trailingTakePercent: [1.5, 2, 3],
  *     holdMinutes: [24 * 60, 48 * 60],
- *     minIdeasAligned: [2, 3],
  *   }, // Only narrow the grid, keep exchange and callbacks
  * };
  * ```
@@ -543,7 +542,6 @@ export async function overrideActionSchema(actionSchema: TActionSchema) {
  *     hardStopPercent: [3, 5, 7],
  *     trailingTakePercent: [1.5, 2, 3],
  *     holdMinutes: [24 * 60, 48 * 60],
- *     minIdeasAligned: [2, 3],
  *   }, // Only narrow the grid
  * });
  * ```

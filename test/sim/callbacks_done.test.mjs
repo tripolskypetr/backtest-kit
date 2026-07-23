@@ -44,12 +44,9 @@ test("SIM: onDone fires once and carries the exact result object", async ({ pass
       hardStopPercent: [50],
       trailingTakePercent: [100],
       holdMinutes: [60],
-      minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {

@@ -158,7 +158,7 @@ Simulator flags (--simulator):
   match the structure aborts the run with an error.
 
   A FEASIBILITY PROBE, not a parameter search (that is --tune): the profit-harvesting
-  machinery is off (no profit lock, inert trailing, no weighted consensus), and a
+  machinery is off (no profit lock, inert trailing), and a
   fast 48-point grid of hard stop x hold x ban rule answers one question — does the
   feed contain a profitable corridor at all. One 5-day candle pass per idea, flood
   dedupe (one idea per author per direction per 8h), default-ban author filter,
@@ -186,8 +186,8 @@ Tune flags (--tune):
   Positional: path to an ideas .jsonl file — same shape and validation as --simulator.
 
   The PARAMETER SEARCH counterpart of the --simulator probe: the full grid with the
-  profit-harvesting machinery on — profit lock, trailing take, weighted consensus,
-  Wilson-bound ban, both author-hit metrics (close/reach). Honesty is structural:
+    profit-harvesting machinery on — profit lock, trailing take, both author-hit
+  metrics (close/reach). Honesty is structural:
   training sees ONLY the head of the feed (--split of its time range), then the
   sharpe winner is frozen — point and raw author track record — and fired exactly
   once on the tail via Simulator.test. Nothing is trained on the tail; authors

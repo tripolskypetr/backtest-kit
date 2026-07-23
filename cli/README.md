@@ -453,7 +453,7 @@ The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--sym
 
 ### 🎛️ Simulator (`--simulator`)
 
-A **feasibility probe** over a feed of crowd trading ideas: does the feed contain a profitable corridor at all, or is there nothing to search? The probe deliberately does NOT try to earn — the profit-harvesting machinery is off (no profit lock, inert trailing take, no weighted consensus), and a fast **48-point grid** of hard stop × hold × ban rule is evaluated from one candle pass per idea. The parameter search itself is `--tune`'s job. Prints a Markdown report with the corridor share, four ranking winners as evidence, and the whitelist of the sharpe winner's ban rule.
+A **feasibility probe** over a feed of crowd trading ideas: does the feed contain a profitable corridor at all, or is there nothing to search? The probe deliberately does NOT try to earn — the profit-harvesting machinery is off (no profit lock, inert trailing take), and a fast **48-point grid** of hard stop × hold × ban rule is evaluated from one candle pass per idea. The parameter search itself is `--tune`'s job. Prints a Markdown report with the corridor share, four ranking winners as evidence, and the whitelist of the sharpe winner's ban rule.
 
 ```bash
 npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
@@ -481,7 +481,7 @@ Under the hood: 5-day candle horizon per idea (lazy chunked fetch through the ex
 
 ### 🔧 Tune (`--tune`)
 
-The **parameter search** counterpart of the `--simulator` probe: a walk-forward sweep of the full grid with the profit-harvesting machinery ON — profit lock, trailing take, weighted consensus, Wilson-bound ban, both author-hit metrics (close/reach). Honesty is structural: training sees only the head of the feed (`--split` of its time range, default 70%), then the sharpe winner is frozen — point and raw author track record — and fired **exactly once** on the tail via `Simulator.test`. Nothing is trained on the tail; authors unseen in training are banned by default.
+The **parameter search** counterpart of the `--simulator` probe: a walk-forward sweep of the full grid with the profit-harvesting machinery ON — profit lock, trailing take, both author-hit metrics (close/reach). Honesty is structural: training sees only the head of the feed (`--split` of its time range, default 70%), then the sharpe winner is frozen — point and raw author track record — and fired **exactly once** on the tail via `Simulator.test`. Nothing is trained on the tail; authors unseen in training are banned by default.
 
 ```bash
 npx @backtest-kit/cli --tune --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
@@ -504,7 +504,7 @@ npx @backtest-kit/cli --tune --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
 
 **Positional (required):** path to an ideas `.jsonl` file — same shape and validation as `--simulator`.
 
-The report carries the train winners of all four ranking criteria (full point labels including lock, Wilson bound and the author-hit metric), the out-of-sample result of the frozen sharpe winner with its trade list, and the **frozen author track record** — the raw `author/ideas/hits` numbers to hardcode for production `Simulator.test`: banned flags and vote weights are re-derived from them under the frozen point's rule, and an author absent from the list is banned by default. Exchange via `tune.module` (see convention above).
+The report carries the train winners of all four ranking criteria (full point labels including lock and the author-hit metric), the out-of-sample result of the frozen sharpe winner with its trade list, and the **frozen author track record** — the raw `author/ideas/hits` numbers to hardcode for production `Simulator.test`: banned flags are re-derived from them under the frozen point's rule, and an author absent from the list is banned by default. Exchange via `tune.module` (see convention above).
 
 A train-on-train winner is a ceiling, never a promise: the out-of-sample section is the honest number, and the final arbiter for any point picked here is a real engine backtest (`Backtest.run`).
 

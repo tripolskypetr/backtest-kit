@@ -43,12 +43,9 @@ test("SIM: hold beyond the profile horizon clamps to time_expired at the horizon
       hardStopPercent: [50],
       trailingTakePercent: [100],
       holdMinutes: [20 * 24 * 60],
-      minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
   });

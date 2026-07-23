@@ -49,12 +49,9 @@ test("SIM: profile MFE/MAE/shakeout are numerically exact and shakeout ignores p
       hardStopPercent: [50],
       trailingTakePercent: [100],
       holdMinutes: [60],
-      minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {
@@ -84,7 +81,6 @@ test("SIM: profile MFE/MAE/shakeout are numerically exact and shakeout ignores p
     ["maxMaePercent", p.maxMaePercent, -3],
     ["minutesToMae", p.minutesToMae, 69],
     ["shakeoutMaePercent", p.shakeoutMaePercent, -2],
-    ["alignedAtEntry", p.alignedAtEntry, 1],
     ["truncated", p.truncated, false],
     ["hit", p.hit, false],
   ];

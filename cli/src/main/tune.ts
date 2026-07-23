@@ -38,8 +38,8 @@ const validateIdea = (idea: any, line: number): string | null => {
 };
 
 const pointLabel = (point: any): string =>
-  `H=${point.hardStopPercent} TT=${point.trailingTakePercent} hold=${point.holdMinutes / 60}h N=${point.minIdeasAligned} ` +
-  `track=${point.minAuthorTrack} rate=${point.minAuthorHitRate} wilson=${point.minAuthorWilson} W=${point.minWeightAligned} ` +
+  `H=${point.hardStopPercent} TT=${point.trailingTakePercent} hold=${point.holdMinutes / 60}h ` +
+  `track=${point.minAuthorTrack} rate=${point.minAuthorHitRate} ` +
   `lock=${point.profitLockPercent} metric=${point.authorMetric}`;
 
 const fmtRatio = (value: number): string =>
@@ -216,9 +216,9 @@ export const main = async () => {
   const symbol = <string>values.symbol || "BTCUSDT";
 
   // Подбор параметров: полная сетка с собирающей прибыль механикой —
-  // замок, трейлинг, взвешенный консенсус, Вильсон, обе метрики бана.
-  // Честность обеспечивается сплитом: обучение видит только голову,
-  // хвост тратится на один выстрел замороженного sharpe-победителя
+  // замок, трейлинг, обе метрики бана. Честность обеспечивается
+  // сплитом: обучение видит только голову, хвост тратится на один
+  // выстрел замороженного sharpe-победителя
   addSimulatorSchema({
     simulatorName: SIMULATOR_NAME,
     exchangeName,
@@ -227,11 +227,8 @@ export const main = async () => {
       hardStopPercent: [2, 2.5, 3, 4, 5, 7],
       trailingTakePercent: [1, 1.5, 2, 3, 4],
       holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-      minIdeasAligned: [1, 2],
       minAuthorTrack: [2, 3, 5],
       minAuthorHitRate: [0.5, 0.6],
-      minAuthorWilson: [0, 0.6],
-      minWeightAligned: [0, 0.6, 1.2],
       profitLockPercent: [0, 1.5, 2.5],
       authorMetric: ["close", "reach"],
       banCriteria: ["sharpe"],

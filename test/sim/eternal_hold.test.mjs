@@ -86,12 +86,9 @@ const GRID_AXES = {
   hardStopPercent: [50],
   trailingTakePercent: [100],
   holdMinutes: [60, 7200],
-  minIdeasAligned: [1],
   minAuthorTrack: [3],
   minAuthorHitRate: [0.5],
-  minWeightAligned: [0],
   profitLockPercent: [0],
-  minAuthorWilson: [0],
   authorMetric: ["close"],
 };
 
