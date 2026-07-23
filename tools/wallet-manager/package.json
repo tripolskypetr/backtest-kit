@@ -1,5 +1,5 @@
 {
-  "name": "one",
+  "name": "wallet-manager",
   "version": "1.0.0",
   "private": true,
   "module": "build/index.mjs",
