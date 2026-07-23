@@ -6410,7 +6410,10 @@ interface ISimulatorResult {
     p95HoldMinutes: number;
     /** 99th percentile of holding time across the whole grid, minutes — eternal holds are visible right in the run result. */
     p99HoldMinutes: number;
-    /** All grid point reports, sorted by Sharpe descending. */
+    /**
+     * All grid point reports, sorted descending by the schema's
+     * reportOrder criterion (default sharpe).
+     */
     reports: ISimulatorPointReport[];
     /** Winners of the rankings: sharpe, sortino, pnl, recovery. */
     best: ISimulatorBest[];
@@ -6492,6 +6495,17 @@ interface ISimulatorSchema {
      * creation — a schema may override only the axes it cares about.
      */
     gridAxes?: Partial<ISimulatorGridAxes>;
+    /**
+     * Ranking criterion ordering result.reports (descending). The
+     * return value of run() is the consumer contract — callbacks are
+     * a side channel — so the order of the flat report list is
+     * declared here, not derived. Sorting uses the tie-guarded
+     * comparator (naive subtraction breaks on Infinity
+     * sortino/recovery of loss-free series). Default: "sharpe" —
+     * bit-identical to the pre-knob behavior. Does not affect
+     * best[], onRanking or banCriteria in any way.
+     */
+    reportOrder?: SimulatorRankingCriterion;
     /** Lifecycle callbacks (all optional). */
     callbacks?: Partial<ISimulatorCallbacks>;
 }
@@ -6550,6 +6564,8 @@ interface ISimulatorParams extends ISimulatorSchema {
     logger: ILogger;
     /** Grid axes with defaults applied (no longer optional). */
     gridAxes: ISimulatorGridAxes;
+    /** Report order with the default applied (no longer optional). */
+    reportOrder: SimulatorRankingCriterion;
 }
 /**
  * Public surface of a simulator client.
@@ -19972,6 +19988,9 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  * - banCriteria — which ranking winners feed result.allowedAuthors
  *   (union) / bannedAuthors (banned by all); a winner elected by a
  *   non-finite value (Infinity sortino/recovery) grants nothing.
+ * - reportOrder — ranking criterion ordering result.reports
+ *   (descending, tie-guarded comparator); default "sharpe". Purely
+ *   presentational: never affects winners, callbacks or ban lists.
  *
  * The simulator picks candidates — honest confirmation is a
  * walk-forward test() shot, and the final arbiter for the chosen
