@@ -33,12 +33,9 @@ const longPnl = (entryOpen, exitLevel) => {
 const approx = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
 
 const PERMISSIVE_FILTER = {
-  minIdeasAligned: [1],
   minAuthorTrack: [1],
   minAuthorHitRate: [0],
-  minWeightAligned: [0],
   profitLockPercent: [0],
-  minAuthorWilson: [0],
   authorMetric: ["close"],
 };
 

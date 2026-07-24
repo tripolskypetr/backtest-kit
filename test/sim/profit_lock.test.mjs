@@ -64,12 +64,9 @@ test("SIM: profit lock catches the +2.5%-then-dump bleed the trailing take never
       hardStopPercent: [5],
       trailingTakePercent: [3],
       holdMinutes: [240],
-      minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
-      minWeightAligned: [0],
       profitLockPercent: [0, 2],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {
@@ -122,8 +119,8 @@ test("SIM: profit lock catches the +2.5%-then-dump bleed the trailing take never
     fail(`lock must beat the bleed: ${lockTrade.pnlPercent} vs ${bareTrade.pnlPercent}`);
     return;
   }
-  if (result.reports.length !== 2) {
-    fail(`grid must have exactly 2 points, got ${result.reports.length}`);
+  if (Object.values(result.reports).flatMap((b) => b.reports).length !== 2) {
+    fail(`grid must have exactly 2 points, got ${Object.values(result.reports).flatMap((b) => b.reports).length}`);
     return;
   }
 
@@ -150,12 +147,9 @@ test("SIM: profit lock never cuts a runner — the trailing floor above it fills
       hardStopPercent: [5],
       trailingTakePercent: [3],
       holdMinutes: [240],
-      minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
-      minWeightAligned: [0],
       profitLockPercent: [2],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {},
@@ -167,8 +161,8 @@ test("SIM: profit lock never cuts a runner — the trailing floor above it fills
     ideas: [idea(1, 0, "LONG", "runner")],
   });
 
-  const [report] = result.reports;
-  const winner = result.best.find(({ criterion }) => criterion === "sharpe");
+  const [report] = Object.values(result.reports).flatMap((b) => b.reports);
+  const winner = result.reports.close.best.find(({ criterion }) => criterion === "sharpe");
   const [trade] = winner.trades;
   if (report.trades !== 1 || !trade) {
     fail(`expected exactly one trade, got ${report.trades}`);

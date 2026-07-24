@@ -6,6 +6,7 @@ import {
   ISimulatorBest,
   ISimulatorIdea,
   ISimulatorIdeaProfile,
+  ISimulatorMetricReport,
   ISimulator,
   ISimulatorGridAxes,
   ISimulatorGridPoint,
@@ -14,6 +15,7 @@ import {
   ISimulatorResult,
   ISimulatorTestResult,
   ISimulatorTrade,
+  SimulatorAuthorMetric,
   SimulatorAuthorRule,
   SimulatorExitReason,
   SimulatorRankingCriterion,
@@ -27,22 +29,34 @@ const MINUTE_MS = 60 * 1_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
 /**
- * Horizon trim per idea, days. Every idea gets its own forward
- * horizon regardless of frame boundaries — no cutoff artifacts.
+ * Forward horizon of an idea profile, minutes — the LONGEST hold of
+ * the schema's grid (max of the holdMinutes axis). Not an engine
+ * constant: the schema defines both what is traded and over what
+ * window authors are graded — no trade can outlive the longest hold,
+ * and grading the ideas further than the machinery can trade would
+ * judge authors on an event nobody harvests. Every idea gets its own
+ * forward horizon regardless of frame boundaries — no cutoff
+ * artifacts.
+ *
+ * @param axes - Grid axes carrying the holdMinutes list
+ * @returns Profile horizon in minutes
  */
-const IDEA_TRIM_DAYS = 5;
-const IDEA_TRIM_MINUTES = IDEA_TRIM_DAYS * 24 * 60;
-
-/**
- * Rolling window for counting aligned (same-direction) authors, minutes.
- */
-const ALIGNED_LOOKBACK_MINUTES = 4 * 60;
+const HORIZON_MINUTES_FN = (axes: ISimulatorGridAxes): number => {
+  const horizonMinutes = Math.max(...axes.holdMinutes);
+  if (!Number.isFinite(horizonMinutes) || horizonMinutes <= 0) {
+    throw new Error(
+      `ClientSimulator: holdMinutes axis must contain at least one ` +
+        `positive value — it defines the idea profile horizon`,
+    );
+  }
+  return horizonMinutes;
+};
 
 /**
  * Anti-flood window: an author may contribute at most one idea per
  * direction within this many minutes. A repeated post is a bump of
  * the same opinion, not new evidence — it must not inflate the
- * author track record, retrigger entries or refresh consensus votes.
+ * author track record or retrigger entries.
  */
 const AUTHOR_DEDUPE_MINUTES = 8 * 60;
 
@@ -62,35 +76,13 @@ const SORTINO_NO_LOSSES = Number.POSITIVE_INFINITY;
 const MIN_TRADES_FOR_BEST = 8;
 
 /**
- * z-score of the Wilson lower bound (95% confidence). A constant,
- * not an axis: the CONFIDENCE of the estimate is a methodology
- * choice, the required QUALITY is the swept threshold.
+ * Fixed MFE threshold of the "pnl" author metric, percent. A hit is
+ * an idea whose PnL grew by MORE than this at any moment of the
+ * horizon — independent of the point's lock and stop by design;
+ * complements "retain" (median above the point's lock) on lock-free
+ * grids.
  */
-const WILSON_Z = 1.96;
-
-/**
- * Lower bound of the Wilson score interval for a hit rate: the
- * proven-quality estimate that prices the track length in — a 3/3
- * newcomer (~0.44) sits far below a 15/15 veteran (~0.80) even
- * though both observe a 100% hit rate. Zero known outcomes -> 0
- * (default-ban preserved).
- *
- * @param hits - Author hits under the rule's metric
- * @param ideas - Author ideas with a known outcome
- * @returns Lower bound of the 95% Wilson interval, 0..1
- */
-const WILSON_LOWER_BOUND_FN = (hits: number, ideas: number): number => {
-  if (!ideas) {
-    return 0;
-  }
-  const p = hits / ideas;
-  const z2 = WILSON_Z * WILSON_Z;
-  const denominator = 1 + z2 / ideas;
-  const center = p + z2 / (2 * ideas);
-  const spread =
-    WILSON_Z * Math.sqrt((p * (1 - p)) / ideas + z2 / (4 * ideas * ideas));
-  return Math.max(0, (center - spread) / denominator);
-};
+const PNL_HIT_THRESHOLD_PERCENT = 1;
 
 async function* ITERATE_CANDLES_FN(
   self: ClientSimulator,
@@ -157,8 +149,8 @@ async function* ITERATE_CANDLES_FN(
  * Drops flood duplicates: for every author + direction pair only the
  * first idea of each AUTHOR_DEDUPE_MINUTES window survives. A kept
  * idea opens the window; posts inside it are discarded entirely —
- * they get no profile (no track record inflation), no entry trigger
- * and no consensus vote refresh.
+ * they get no profile (no track record inflation) and no entry
+ * trigger.
  *
  * @param ideas - Ideas sorted by publication time ascending
  * @returns Deduplicated ideas (order preserved)
@@ -182,99 +174,26 @@ const DEDUPE_IDEAS_FN = (ideas: ISimulatorIdea[]): ISimulatorIdea[] => {
 };
 
 /**
- * Counts unique same-direction authors within the rolling lookback
- * window (ts - ALIGNED_LOOKBACK_MINUTES, ts]. Ideas are anchored to
- * the minute FOLLOWING their publication (no lookahead).
- *
- * @param ideas - All ideas of the symbol
- * @param direction - Direction to count votes for
- * @param ts - Minute timestamp to count at
- * @param allowAuthor - Optional predicate to exclude authors (ban list)
- * @returns Number of unique aligned authors
- */
-const COUNT_ALIGNED_AUTHORS_FN = (
-  ideas: ISimulatorIdea[],
-  direction: "LONG" | "SHORT",
-  ts: number,
-  allowAuthor: (author: string) => boolean = () => true,
-): number => {
-  const authors = new Set<string>();
-  const from = ts - ALIGNED_LOOKBACK_MINUTES * MINUTE_MS;
-  for (const idea of ideas) {
-    if (idea.direction !== direction) {
-      continue;
-    }
-    const ideaTs = intervalStart(idea.ts, "1m") + MINUTE_MS;
-    if (ideaTs > ts || ideaTs <= from) {
-      continue;
-    }
-    if (!allowAuthor(idea.author)) {
-      continue;
-    }
-    authors.add(idea.author);
-  }
-  return authors.size;
-};
-
-/**
- * Sums Laplace-smoothed track-record weights of UNIQUE same-direction
- * unbanned authors within the rolling lookback window. The weight of
- * an author is (hits+1)/(ideas+2): a proven 15/15 veteran approaches
- * 1, a fresh 2/2 stays modest, a banned author contributes nothing.
- *
- * @param ideas - All ideas of the symbol
- * @param direction - Direction to sum votes for
- * @param ts - Minute timestamp to sum at
- * @param weightOf - Author weight resolver (0 for banned)
- * @returns Sum of unique aligned author weights
- */
-const SUM_ALIGNED_WEIGHT_FN = (
-  ideas: ISimulatorIdea[],
-  direction: "LONG" | "SHORT",
-  ts: number,
-  weightOf: (author: string) => number,
-): number => {
-  const authors = new Set<string>();
-  const from = ts - ALIGNED_LOOKBACK_MINUTES * MINUTE_MS;
-  for (const idea of ideas) {
-    if (idea.direction !== direction) {
-      continue;
-    }
-    const ideaTs = intervalStart(idea.ts, "1m") + MINUTE_MS;
-    if (ideaTs > ts || ideaTs <= from) {
-      continue;
-    }
-    authors.add(idea.author);
-  }
-  let sum = 0;
-  for (const author of authors) {
-    sum += weightOf(author);
-  }
-  return sum;
-};
-
-/**
  * Builds the per-candle trajectory profile of a single idea in ONE
- * asynchronous candle pass: entry basis, MFE/MAE extremes, whale
- * shakeout depth (worst MAE before the max-MFE candle) and the
- * aligned-authors count at entry. Outcomes of ANY grid point are
- * later derived from the profile arithmetically — candles are never
- * re-iterated per grid point.
+ * asynchronous candle pass: entry basis, MFE/MAE extremes and whale
+ * shakeout depth (worst MAE before the max-MFE candle). Outcomes of
+ * ANY grid point are later derived from the profile arithmetically —
+ * candles are never re-iterated per grid point.
  *
- * Ban-list dependent fields (alignedAtEntryFiltered, authorBanned)
- * are filled by TRAIN_AUTHOR_FILTER_FN afterwards.
+ * The ban-list dependent flag (authorBanned) is filled by
+ * TRAIN_AUTHOR_FILTER_FN afterwards.
  *
  * @param self - ClientSimulator instance reference
  * @param symbol - Trading pair symbol
  * @param idea - Idea to profile
- * @param ideas - All ideas of the symbol (for aligned counting)
+ * @param horizonMinutes - Forward horizon (the grid's longest hold)
  * @returns Profile or null when no candles exist for the horizon
  */
 const BUILD_PROFILE_FN = async (
   self: ClientSimulator,
   symbol: string,
   idea: ISimulatorIdea,
-  ideas: ISimulatorIdea[],
+  horizonMinutes: number,
 ): Promise<ISimulatorIdeaProfile | null> => {
   const entryTimestamp = intervalStart(idea.ts, "1m") + MINUTE_MS;
   const candles: ICandleData[] = [];
@@ -282,7 +201,7 @@ const BUILD_PROFILE_FN = async (
     self,
     symbol,
     entryTimestamp,
-    IDEA_TRIM_MINUTES,
+    horizonMinutes,
   )) {
     candles.push(candle);
   }
@@ -313,33 +232,39 @@ const BUILD_PROFILE_FN = async (
     }
   }
 
+  // медиана подписанных ходов close-ов от входа — сырьё метрики
+  // "retain": median > 0 означает "цена простояла ВЫШЕ входа не
+  // меньше половины горизонта" — без окон и без уровней
+  const moves = candles
+    .map(({ close }) => (direction * (close - entryPrice) * 100) / entryPrice)
+    .sort((a, b) => a - b);
+  const half = Math.floor(moves.length / 2);
+  const medianMovePercent =
+    moves.length % 2 === 1 ? moves[half] : (moves[half - 1] + moves[half]) / 2;
+
   const lastClose = candles[candles.length - 1].close;
   return {
     idea,
     entryTimestamp,
     entryPrice,
     candles,
-    alignedAtEntry: COUNT_ALIGNED_AUTHORS_FN(
-      ideas,
-      idea.direction as "LONG" | "SHORT",
-      entryTimestamp,
-    ),
     hit: direction * (lastClose - entryPrice) > 0,
     outcomeKnownAt: entryTimestamp + candles.length * MINUTE_MS,
-    truncated: candles.length < IDEA_TRIM_MINUTES,
+    truncated: candles.length < horizonMinutes,
     maxMfePercent,
     maxMaePercent,
     minutesToMfe,
     minutesToMae,
     shakeoutMaePercent,
+    medianMovePercent,
   };
 };
 
 /**
  * Ban-rule dependent filter context of one (minAuthorTrack,
  * minAuthorHitRate) pair: the trained stats, the banned set and the
- * per-profile aligned counts recomputed without banned authors.
- * Built once per unique ban-rule combination of the grid.
+ * per-profile banned flags. Built once per unique ban-rule
+ * combination of the grid.
  */
 interface IAuthorFilterContext {
   stats: ISimulatorAuthorStat[];
@@ -348,58 +273,96 @@ interface IAuthorFilterContext {
   bannedIdeas: number;
   /** authorBanned per profile index. */
   profileBanned: boolean[];
-  /** Aligned unbanned authors at entry per profile index. */
-  alignedFiltered: number[];
-  /**
-   * Sum of Laplace-smoothed track-record weights of aligned unbanned
-   * authors at entry per profile index (weighted consensus).
-   */
-  weightAligned: number[];
 }
 
 /**
  * Derives the ban-filter rule from a grid point as a discriminated
- * union — the ONLY place the metric fallback lives. The "close" rule
- * structurally carries no lock/stop fields: with authorMetric
- * "close" the point's profitLockPercent/hardStopPercent do not
- * affect ban-list training at all (see the filter cache key — they
- * are not part of it either). A reach point with lock = 0 has
- * nothing to grade reachability against and degenerates into the
- * "close" rule here, not via scattered runtime branches.
+ * union. EVERY rule carries the point's holdMinutes — the grading
+ * window: an author is judged inside exactly the window the point
+ * can trade, never on a farther event nobody harvests. On top of
+ * that the "close"/"pnl" rules structurally carry no lock/stop
+ * fields — the point's levels do not affect their ban training (see
+ * the filter cache key — they are not part of it either). "retain"
+ * carries the point's lock (its fixation level) but no stop;
+ * "reach" carries both. There is NO fallback of any kind: reach and
+ * retain points with lock = 0 are excluded from the grid by
+ * BUILD_GRID_FN (a rule without a target does not exist — it never
+ * silently becomes another rule), so this builder may assume every
+ * reach/retain point carries a target.
  *
  * @param point - Grid point carrying the rule fields
  * @returns Discriminated ban-filter rule
  */
 const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
-  if (point.authorMetric === "reach" && point.profitLockPercent > 0) {
+  if (point.authorMetric === "reach") {
     return {
       metric: "reach",
+      holdMinutes: point.holdMinutes,
       minAuthorTrack: point.minAuthorTrack,
       minAuthorHitRate: point.minAuthorHitRate,
-      minAuthorWilson: point.minAuthorWilson ?? 0,
       profitLockPercent: point.profitLockPercent,
       hardStopPercent: point.hardStopPercent,
     };
   }
+  if (point.authorMetric === "retain") {
+    return {
+      metric: "retain",
+      holdMinutes: point.holdMinutes,
+      minAuthorTrack: point.minAuthorTrack,
+      minAuthorHitRate: point.minAuthorHitRate,
+      profitLockPercent: point.profitLockPercent,
+    };
+  }
+  if (point.authorMetric === "trail") {
+    return {
+      metric: "trail",
+      holdMinutes: point.holdMinutes,
+      minAuthorTrack: point.minAuthorTrack,
+      minAuthorHitRate: point.minAuthorHitRate,
+      trailingTakePercent: point.trailingTakePercent,
+    };
+  }
   return {
-    metric: "close",
+    metric: point.authorMetric,
+    holdMinutes: point.holdMinutes,
     minAuthorTrack: point.minAuthorTrack,
     minAuthorHitRate: point.minAuthorHitRate,
-    minAuthorWilson: point.minAuthorWilson ?? 0,
   };
 };
 
 /**
- * Author "hit" under a discriminated ban-filter rule.
+ * Author "hit" under a discriminated ban-filter rule. ALL arithmetic
+ * runs inside the rule's grading window — the first holdMinutes
+ * candles of the idea's trajectory: the author is judged by exactly
+ * the window the point can trade. The profile's precomputed
+ * full-horizon aggregates (hit, maxMfePercent, medianMovePercent,
+ * shakeoutMaePercent) are diagnostics for the consumer — grading
+ * never reads them.
  *
- * "close" — the idea's horizon close moved in its direction (the
- * profile's precomputed hit); the rule has no lock/stop fields by
- * construction. "reach" — the idea was HARVESTABLE by the rule's
- * lock machinery: MFE reached the profit-lock level and the worst
- * pre-peak pullback (shakeout) stayed above the hard stop. An author
- * whose calls spike to the lock within hours and then die by the
- * horizon close is a miss for "close" and a hit for "reach" —
- * exactly the author a lock point earns on.
+ * "close" — the window's last close moved in the idea's direction;
+ * the rule has no lock/stop fields by construction. "reach" — the
+ * idea was HARVESTABLE by the rule's lock machinery inside the
+ * window: MFE reached the profit-lock level and the worst pre-peak
+ * pullback (shakeout) stayed above the hard stop. An author whose
+ * calls spike to the lock within hours and then die by the window
+ * close is a miss for "close" and a hit for "reach" — exactly the
+ * author a lock point earns on.
+ *
+ * "retain" — level FIXATION: the MEDIAN move of the window is
+ * strictly above the rule's lock level (price held above entry + X%
+ * for at least half the window — the 50% share is the median's
+ * definition, not a tunable constant). The strictest grading:
+ * reach's transient spike and close's lucky last-candle finish are
+ * both misses here. The point's stop plays no role.
+ *
+ * "pnl" — the window's MFE grew by MORE than the fixed +1%
+ * threshold (strictly greater), independent of the rule's levels.
+ *
+ * "trail" — the idea's favorable excursion inside the window
+ * reached the ARMING level of the rule's trailing take — the same
+ * formula the trade machinery uses (long: peak >= entry/(1 - r),
+ * short: peak <= entry/(1 + r)): the authors a trailing point
+ * actually earns on, the exact symmetry of "reach" for the lock.
  *
  * Same-candle ambiguity (lock and stop both reachable in the candle
  * of the MFE peak) reads as a hit here while SIMULATE_TRADE_FN gives
@@ -414,13 +377,71 @@ const AUTHOR_HIT_FN = (
   profile: ISimulatorIdeaProfile,
   rule: SimulatorAuthorRule,
 ): boolean => {
-  if (rule.metric === "reach") {
-    return (
-      profile.maxMfePercent >= rule.profitLockPercent &&
-      profile.shakeoutMaePercent > -rule.hardStopPercent
-    );
+  const { candles, entryPrice } = profile;
+  const direction = profile.idea.direction === "LONG" ? 1 : -1;
+  const window = Math.min(rule.holdMinutes, candles.length);
+  if (rule.metric === "close") {
+    const lastClose = candles[window - 1].close;
+    return direction * (lastClose - entryPrice) > 0;
   }
-  return profile.hit;
+  // "trail": лучшая экскурсия окна дотянулась до уровня ВЗВОДА
+  // трейлинга точки — та же формула, что в машинерии сделок:
+  // long peak >= entry/(1-r), short peak <= entry/(1+r)
+  if (rule.metric === "trail") {
+    const armLevel =
+      entryPrice / (1 - (direction * rule.trailingTakePercent) / 100);
+    for (let i = 0; i < window; i++) {
+      const favorable = direction > 0 ? candles[i].high : candles[i].low;
+      if (direction > 0 ? favorable >= armLevel : favorable <= armLevel) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // "retain": фиксация ВЫШЕ замка правила — медиана close-ходов
+  // ОКНА строго больше profitLockPercent; от стопа точки не зависит
+  if (rule.metric === "retain") {
+    const moves: number[] = [];
+    for (let i = 0; i < window; i++) {
+      moves.push(
+        (direction * (candles[i].close - entryPrice) * 100) / entryPrice,
+      );
+    }
+    moves.sort((a, b) => a - b);
+    const half = Math.floor(moves.length / 2);
+    const median =
+      moves.length % 2 === 1
+        ? moves[half]
+        : (moves[half - 1] + moves[half]) / 2;
+    return median > rule.profitLockPercent;
+  }
+  // "reach"/"pnl": MFE и встряска по фитилям внутри окна — та же
+  // формула, что у полногоризонтных полей профиля, но на префиксе
+  let maxMfePercent = 0;
+  let maxMaePercent = 0;
+  let shakeoutMaePercent = 0;
+  for (let i = 0; i < window; i++) {
+    const favorable = direction > 0 ? candles[i].high : candles[i].low;
+    const adverse = direction > 0 ? candles[i].low : candles[i].high;
+    const mfe = (direction * (favorable - entryPrice) * 100) / entryPrice;
+    const mae = (direction * (adverse - entryPrice) * 100) / entryPrice;
+    if (mfe > maxMfePercent) {
+      maxMfePercent = mfe;
+      shakeoutMaePercent = maxMaePercent;
+    }
+    if (mae < maxMaePercent) {
+      maxMaePercent = mae;
+    }
+  }
+  // "pnl": PnL идеи вырос БОЛЬШЕ фиксированного порога — строго
+  // больше, независимо от замка и стопа точки
+  if (rule.metric === "pnl") {
+    return maxMfePercent > PNL_HIT_THRESHOLD_PERCENT;
+  }
+  return (
+    maxMfePercent >= rule.profitLockPercent &&
+    shakeoutMaePercent > -rule.hardStopPercent
+  );
 };
 
 /**
@@ -430,27 +451,27 @@ const AUTHOR_HIT_FN = (
  * validation, not by causality inside the train range).
  *
  * Ban is the default: when the author's correctness cannot be proven
- * unambiguously under the given rule, he is banned. Only ideas with
- * a fully observed horizon count as evidence — truncated profiles
- * prove nothing.
+ * unambiguously under the given rule, he is banned. Only ideas whose
+ * GRADING WINDOW is fully observed count as evidence — an idea cut
+ * by the data edge before the rule's holdMinutes proves nothing for
+ * that rule (a shorter-window rule may still count it).
  *
  * @param profiles - Profiles of all directional ideas
  * @param ideas - All ideas of the symbol
- * @param rule - Discriminated ban-filter rule: thresholds + metric;
- * lock/stop levels exist ONLY on the "reach" variant — a "close"
- * rule cannot depend on them by construction
+ * @param rule - Discriminated ban-filter rule: window + thresholds +
+ * metric; lock/stop levels exist ONLY on the "reach"/"retain"
+ * variants — a "close" rule cannot depend on them by construction
  * @returns Filter context for the rule (stats sorted by idea count)
  */
 const TRAIN_AUTHOR_FILTER_FN = (
   profiles: ISimulatorIdeaProfile[],
-  ideas: ISimulatorIdea[],
   rule: SimulatorAuthorRule,
 ): IAuthorFilterContext => {
-  const { minAuthorTrack, minAuthorHitRate, minAuthorWilson } = rule;
+  const { minAuthorTrack, minAuthorHitRate } = rule;
   const byAuthor = new Map<string, { ideas: number; hits: number }>();
   for (const profile of profiles) {
     const stat = byAuthor.get(profile.idea.author) ?? { ideas: 0, hits: 0 };
-    if (!profile.truncated) {
+    if (profile.candles.length >= rule.holdMinutes) {
       stat.ideas += 1;
       if (AUTHOR_HIT_FN(profile, rule)) {
         stat.hits += 1;
@@ -465,45 +486,17 @@ const TRAIN_AUTHOR_FILTER_FN = (
     hitRate: stat.ideas ? stat.hits / stat.ideas : 0,
     banned:
       stat.ideas < minAuthorTrack ||
-      stat.hits / stat.ideas < minAuthorHitRate ||
-      (minAuthorWilson > 0 &&
-        WILSON_LOWER_BOUND_FN(stat.hits, stat.ideas) < minAuthorWilson),
+      stat.hits / stat.ideas < minAuthorHitRate,
   }));
   const banned = new Set(
     stats.filter(({ banned }) => banned).map(({ author }) => author),
   );
-  // вес голоса автора — сглаженная по Лапласу правота (hits+1)/(ideas+2):
-  // новичок 2/2 весит меньше ветерана 15/15, забаненный — ноль
-  const weightByAuthor = new Map<string, number>(
-    stats
-      .filter(({ banned }) => !banned)
-      .map(({ author, ideas: n, hits }) => [author, (hits + 1) / (n + 2)]),
-  );
-  const weightOf = (author: string) => weightByAuthor.get(author) ?? 0;
   const profileBanned = profiles.map(({ idea }) => banned.has(idea.author));
-  const alignedFiltered = profiles.map((profile) =>
-    COUNT_ALIGNED_AUTHORS_FN(
-      ideas,
-      profile.idea.direction as "LONG" | "SHORT",
-      profile.entryTimestamp,
-      (author) => !banned.has(author),
-    ),
-  );
-  const weightAligned = profiles.map((profile) =>
-    SUM_ALIGNED_WEIGHT_FN(
-      ideas,
-      profile.idea.direction as "LONG" | "SHORT",
-      profile.entryTimestamp,
-      weightOf,
-    ),
-  );
   return {
     stats: stats.sort((a, b) => b.ideas - a.ideas),
     banned,
     bannedIdeas: profileBanned.filter(Boolean).length,
     profileBanned,
-    alignedFiltered,
-    weightAligned,
   };
 };
 
@@ -516,14 +509,13 @@ const TRAIN_AUTHOR_FILTER_FN = (
  *
  * Default-ban semantics survive freezing: an author present in the
  * test feed but absent from the frozen stats has proven nothing on
- * the train range — banned, zero vote weight.
+ * the train range — banned.
  *
  * @param profiles - Profiles of the TEST ideas
- * @param ideas - All test ideas of the symbol (for aligned counting)
+ * @param ideas - All test ideas of the symbol (for the banned union)
  * @param authorStats - Frozen per-author track record from a train run
  * @param minAuthorTrack - Minimum known-outcome ideas to be allowed
  * @param minAuthorHitRate - Minimum hit rate (0..1) to be allowed
- * @param minAuthorWilson - Minimum Wilson lower bound (0..1); 0 = off
  * @returns Filter context with frozen stats (sorted by idea count)
  */
 const FREEZE_AUTHOR_FILTER_FN = (
@@ -532,7 +524,6 @@ const FREEZE_AUTHOR_FILTER_FN = (
   authorStats: ISimulatorAuthorStat[],
   minAuthorTrack: number,
   minAuthorHitRate: number,
-  minAuthorWilson: number,
 ): IAuthorFilterContext => {
   const stats: ISimulatorAuthorStat[] = authorStats.map(
     ({ author, ideas: n, hits }) => ({
@@ -540,11 +531,7 @@ const FREEZE_AUTHOR_FILTER_FN = (
       ideas: n,
       hits,
       hitRate: n ? hits / n : 0,
-      banned:
-        n < minAuthorTrack ||
-        hits / n < minAuthorHitRate ||
-        (minAuthorWilson > 0 &&
-          WILSON_LOWER_BOUND_FN(hits, n) < minAuthorWilson),
+      banned: n < minAuthorTrack || hits / n < minAuthorHitRate,
     }),
   );
   const allowed = new Set(
@@ -558,36 +545,12 @@ const FREEZE_AUTHOR_FILTER_FN = (
       ...ideas.map(({ author }) => author),
     ].filter((author) => !allowed.has(author)),
   );
-  const weightByAuthor = new Map<string, number>(
-    stats
-      .filter(({ banned }) => !banned)
-      .map(({ author, ideas: n, hits }) => [author, (hits + 1) / (n + 2)]),
-  );
-  const weightOf = (author: string) => weightByAuthor.get(author) ?? 0;
   const profileBanned = profiles.map(({ idea }) => !allowed.has(idea.author));
-  const alignedFiltered = profiles.map((profile) =>
-    COUNT_ALIGNED_AUTHORS_FN(
-      ideas,
-      profile.idea.direction as "LONG" | "SHORT",
-      profile.entryTimestamp,
-      (author) => allowed.has(author),
-    ),
-  );
-  const weightAligned = profiles.map((profile) =>
-    SUM_ALIGNED_WEIGHT_FN(
-      ideas,
-      profile.idea.direction as "LONG" | "SHORT",
-      profile.entryTimestamp,
-      weightOf,
-    ),
-  );
   return {
     stats: stats.sort((a, b) => b.ideas - a.ideas),
     banned,
     bannedIdeas: profileBanned.filter(Boolean).length,
     profileBanned,
-    alignedFiltered,
-    weightAligned,
   };
 };
 
@@ -751,8 +714,8 @@ const COMPUTE_HOLD_STATS_FN = (
 /**
  * Evaluates one grid point with production slot semantics: one
  * position per symbol, ideas arriving while the slot is busy are
- * skipped, entry requires minIdeasAligned unbanned aligned authors.
- * The trained author filter is preprocessing and is always applied.
+ * skipped, any unbanned author's idea triggers an entry. The trained
+ * author filter is preprocessing and is always applied.
  *
  * Sharpe/Sortino are TIME-BASED: computed over daily equity
  * increments across the whole simulated range (idle days included,
@@ -793,14 +756,6 @@ const EVALUATE_POINT_FN = (
   for (let index = 0; index < profiles.length; index++) {
     const profile = profiles[index];
     if (filter.profileBanned[index]) {
-      continue;
-    }
-    if (filter.alignedFiltered[index] < point.minIdeasAligned) {
-      continue;
-    }
-    // взвешенный консенсус: сумма Лаплас-весов однонаправленных
-    // незабаненных авторов окна; 0 = гейт выключен
-    if (filter.weightAligned[index] < point.minWeightAligned) {
       continue;
     }
     if (profile.entryTimestamp < busyUntil) {
@@ -919,36 +874,42 @@ const EVALUATE_POINT_FN = (
 };
 
 /**
- * Builds the cartesian product of grid axes.
+ * Builds the cartesian product of grid axes. Meaningless
+ * combinations DO NOT EXIST: a reach or retain point with lock = 0
+ * has no grading target, a trail point with trailing outside
+ * (0, 100) has no arming level — such points are excluded here,
+ * they never silently train under another metric's rule. A grid
+ * left empty by the exclusion is a configuration error and throws
+ * loudly in RUN_FN.
  *
  * @param axes - Value lists per axis
- * @returns All grid points
+ * @returns All valid grid points
  */
 const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
   axes.hardStopPercent.flatMap((hardStopPercent) =>
     axes.trailingTakePercent.flatMap((trailingTakePercent) =>
       axes.holdMinutes.flatMap((holdMinutes) =>
-        axes.minIdeasAligned.flatMap((minIdeasAligned) =>
-          axes.minAuthorTrack.flatMap((minAuthorTrack) =>
-            axes.minAuthorHitRate.flatMap((minAuthorHitRate) =>
-              axes.minAuthorWilson.flatMap((minAuthorWilson) =>
-                axes.minWeightAligned.flatMap((minWeightAligned) =>
-                  axes.profitLockPercent.flatMap((profitLockPercent) =>
-                    axes.authorMetric.map((authorMetric) => ({
-                      hardStopPercent,
-                      trailingTakePercent,
-                      holdMinutes,
-                      minIdeasAligned,
-                      minAuthorTrack,
-                      minAuthorHitRate,
-                      minAuthorWilson,
-                      minWeightAligned,
-                      profitLockPercent,
-                      authorMetric,
-                    })),
-                  ),
-                ),
-              ),
+        axes.minAuthorTrack.flatMap((minAuthorTrack) =>
+          axes.minAuthorHitRate.flatMap((minAuthorHitRate) =>
+            axes.profitLockPercent.flatMap((profitLockPercent) =>
+              axes.authorMetric
+                .filter(
+                  (authorMetric) =>
+                    (profitLockPercent > 0 ||
+                      (authorMetric !== "reach" &&
+                        authorMetric !== "retain")) &&
+                    (authorMetric !== "trail" ||
+                      (trailingTakePercent > 0 && trailingTakePercent < 100)),
+                )
+                .map((authorMetric) => ({
+                  hardStopPercent,
+                  trailingTakePercent,
+                  holdMinutes,
+                  minAuthorTrack,
+                  minAuthorHitRate,
+                  profitLockPercent,
+                  authorMetric,
+                })),
             ),
           ),
         ),
@@ -1032,13 +993,14 @@ const RUN_FN = async (
     self.params.callbacks?.onIdeas(symbol, ideas.length, directional.length);
   }
 
+  const horizonMinutes = HORIZON_MINUTES_FN(self.params.gridAxes);
   const profiles: ISimulatorIdeaProfile[] = [];
   for (let index = 0; index < directional.length; index++) {
     const profile = await BUILD_PROFILE_FN(
       self,
       symbol,
       directional[index],
-      directional,
+      horizonMinutes,
     );
     if (profile) {
       profiles.push(profile);
@@ -1057,31 +1019,40 @@ const RUN_FN = async (
     self.params.callbacks?.onProfiles(symbol, profiles, truncatedCount);
   }
 
-  // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО —
-  // дискриминирующий юнион AUTHOR_RULE_FN канонизирует его: у close
-  // полей lock/stop нет по построению (они НЕ влияют на бан-лист и в
-  // ключ не входят), reach несёт lock/stop своей точки, reach с
-  // lock=0 деградирует в close ещё в билдере
-  const filterByRule = new Map<string, IAuthorFilterContext>();
+  // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО:
+  // окно грейдинга (холд точки) входит в ключ у ВСЕХ метрик; у reach
+  // сверх того lock+stop, у retain — только lock (его уровень
+  // фиксации), close/pnl зависят лишь от окна и порогов. Никаких
+  // деградаций: невалидные комбинации исключены сеткой. Строковый
+  // ключ — деталь мемоизации, наружу правила выходят массивом bans
+  // с собственными идентифицирующими полями
+  const filterByRule = new Map<
+    string,
+    { rule: SimulatorAuthorRule; filter: IAuthorFilterContext }
+  >();
   const getFilter = (point: ISimulatorGridPoint): IAuthorFilterContext => {
     const rule = AUTHOR_RULE_FN(point);
     const key =
       rule.metric === "reach"
-        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.minAuthorWilson}:${rule.profitLockPercent}:${rule.hardStopPercent}`
-        : `close:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.minAuthorWilson}`;
-    let filter = filterByRule.get(key);
-    if (!filter) {
-      filter = TRAIN_AUTHOR_FILTER_FN(profiles, directional, rule);
-      filterByRule.set(key, filter);
+        ? `reach:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
+        : rule.metric === "retain"
+          ? `retain:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}`
+          : rule.metric === "trail"
+            ? `trail:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.trailingTakePercent}`
+            : `${rule.metric}:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
+    let entry = filterByRule.get(key);
+    if (!entry) {
+      entry = { rule, filter: TRAIN_AUTHOR_FILTER_FN(profiles, rule) };
+      filterByRule.set(key, entry);
       if (self.params.callbacks?.onAuthorsTrained) {
         self.params.callbacks?.onAuthorsTrained(
           symbol,
-          filter.stats,
-          filter.bannedIdeas,
+          entry.filter.stats,
+          entry.filter.bannedIdeas,
         );
       }
     }
-    return filter;
+    return entry.filter;
   };
 
   // общее окно суточных корзин для time-based Sharpe/Sortino:
@@ -1096,6 +1067,17 @@ const RUN_FN = async (
   const rangeDays = Math.max(1, Math.ceil((rangeEndTs - rangeStartTs) / DAY_MS));
 
   const points = BUILD_GRID_FN(self.params.gridAxes);
+  // сетка обязана быть непустой: пустота после исключения
+  // бессмысленных комбинаций (reach/retain без замка) — ошибка
+  // конфигурации, о которой нужно кричать, а не молча вернуть нули
+  if (!points.length) {
+    throw new Error(
+      `ClientSimulator ${self.params.simulatorName}: the grid is empty — ` +
+        `reach and retain require profitLockPercent > 0, trail requires ` +
+        `trailingTakePercent in (0, 100) (a rule without a target does ` +
+        `not exist); pin "close"/"pnl" for level-free grids`,
+    );
+  }
   const reports: ISimulatorPointReport[] = [];
   const tradesByReport = new Map<ISimulatorPointReport, ISimulatorTrade[]>();
   const allHoldMinutes: number[] = [];
@@ -1137,10 +1119,6 @@ const RUN_FN = async (
     { criterion: "pnl", value: ({ totalPnlPercent }) => totalPnlPercent },
     { criterion: "recovery", value: ({ recoveryFactor }) => recoveryFactor },
   ];
-  const eligible = reports.filter(
-    ({ trades }) => trades >= MIN_TRADES_FOR_BEST,
-  );
-  const best: ISimulatorBest[] = [];
   // равенство проверяется до вычитания: Infinity - Infinity = NaN
   // ломает контракт компаратора (sortino/profitFactor бесконечны
   // на сериях без убытков)
@@ -1154,96 +1132,112 @@ const RUN_FN = async (
       }
       return vb - va;
     };
-  for (const ranking of rankings) {
-    const sorted = [...reports].sort(byRankingDesc(ranking.value));
-    const winner =
-      [...eligible].sort(byRankingDesc(ranking.value))[0] ??
-      sorted[0] ??
-      null;
-    // артефакт авторов — под правило бана ИМЕННО ЭТОГО победителя:
-    // критерии могут выбрать точки с разными правилами, и белый
-    // список — свойство точки, а не глобаль прогона
-    const winnerStats = winner ? getFilter(winner.point).stats : [];
-    const bestEntry: ISimulatorBest = {
-      criterion: ranking.criterion,
-      report: winner,
-      trades: winner ? (tradesByReport.get(winner) ?? []) : [],
-      authorStats: winnerStats,
-      allowedAuthors: winnerStats
-        .filter(({ banned }) => !banned)
-        .map(({ author }) => author),
-      bannedAuthors: winnerStats
-        .filter(({ banned }) => banned)
-        .map(({ author }) => author),
-    };
-    best.push(bestEntry);
-    if (self.params.callbacks?.onRanking) {
-      self.params.callbacks?.onRanking(
-        symbol,
-        ranking.criterion,
-        sorted,
-        bestEntry,
-      );
-    }
-  }
-  // порядок reports в результате — контракт потребителя run():
-  // критерий задаёт схема (reportOrder, дефолт подставлен на уровне
-  // params в connection-сервисе), компаратор — защищённый (наивное
-  // вычитание ломается на Infinity sortino/recovery серий без
-  // убытков)
   const orderValue =
     rankings.find(({ criterion }) => criterion === self.params.reportOrder)
       ?.value ?? rankings[0].value;
-  reports.sort(byRankingDesc(orderValue));
 
-  // ран-левел артефакт агрегируется по победителям критериев из
-  // gridAxes.banCriteria (конфиг прогона, не ось перебора): allowed =
-  // союз их белых списков, banned = забанен каждым из них. BC-ручка:
-  // схема с banCriteria ["sharpe"] получает прежний артефакт ровно по
-  // Sharpe-победителю. Полная разбивка — в best[].authorStats
-  const banCriteria = new Set(self.params.gridAxes.banCriteria);
-  const valueByCriterion = new Map(
-    rankings.map(({ criterion, value }) => [criterion, value]),
-  );
-  const allowedUnion = new Set<string>();
-  const everyAuthor = new Set<string>();
-  for (const bestEntry of best) {
-    if (!banCriteria.has(bestEntry.criterion)) {
-      continue;
-    }
-    for (const { author } of bestEntry.authorStats) {
-      everyAuthor.add(author);
-    }
-    // победитель с нефинитным значением рейтинга (Infinity у
-    // sortino/recovery на кривой без просадки, NaN) — представитель
-    // класса ничьих, выбранный порядком сетки, а не превосходством.
-    // Хуй-пойми-какое число — не основание раздавать допуски: его
-    // авторы учтены в пуле (дефолт-бан), но белый список не входит
-    const value = bestEntry.report
-      ? valueByCriterion.get(bestEntry.criterion)!(bestEntry.report)
-      : Number.NaN;
-    if (!Number.isFinite(value)) {
-      continue;
-    }
-    for (const author of bestEntry.allowedAuthors) {
-      allowedUnion.add(author);
-    }
+  // корзины по метрике: каждая метрика — самодостаточный результат
+  // со своими точками, СВОИМИ победителями и СВОИМИ словарями банов;
+  // метрики никогда не склеиваются. Невыметаемая метрика = пустая
+  // корзина (ключ существует всегда)
+  const reportsByMetric: Record<SimulatorAuthorMetric, ISimulatorMetricReport> =
+    {
+      close: { reports: [], best: [], bans: [] },
+      reach: { reports: [], best: [], bans: [] },
+      retain: { reports: [], best: [], bans: [] },
+      pnl: { reports: [], best: [], bans: [] },
+      trail: { reports: [], best: [], bans: [] },
+    };
+  for (const report of reports) {
+    reportsByMetric[report.point.authorMetric].reports.push(report);
   }
+
+  // словари банов — чистая арифметика порогов правила, никакого
+  // ранжирования: по одному словарю на уникальное правило, правило
+  // идентифицируется собственными полями и лежит в корзине СВОЕЙ
+  // метрики
+  for (const { rule, filter } of filterByRule.values()) {
+    reportsByMetric[rule.metric].bans.push({
+      holdMinutes: rule.holdMinutes,
+      minAuthorTrack: rule.minAuthorTrack,
+      minAuthorHitRate: rule.minAuthorHitRate,
+      ...(rule.metric === "reach"
+        ? {
+            profitLockPercent: rule.profitLockPercent,
+            hardStopPercent: rule.hardStopPercent,
+          }
+        : rule.metric === "retain"
+          ? { profitLockPercent: rule.profitLockPercent }
+          : rule.metric === "trail"
+            ? { trailingTakePercent: rule.trailingTakePercent }
+            : {}),
+      authorStats: filter.stats,
+      allowedAuthors: filter.stats
+        .filter(({ banned }) => !banned)
+        .map(({ author }) => author),
+      bannedAuthors: filter.stats
+        .filter(({ banned }) => banned)
+        .map(({ author }) => author),
+    });
+  }
+
+  // рейтинги — ВНУТРИ каждой корзины: анти-флюк порог и победители
+  // пометричны, кросс-метричного турнира нет
+  for (const metric of Object.keys(reportsByMetric) as SimulatorAuthorMetric[]) {
+    const bucket = reportsByMetric[metric];
+    if (!bucket.reports.length) {
+      continue;
+    }
+    const eligible = bucket.reports.filter(
+      ({ trades }) => trades >= MIN_TRADES_FOR_BEST,
+    );
+    for (const ranking of rankings) {
+      const sorted = [...bucket.reports].sort(byRankingDesc(ranking.value));
+      const winner =
+        [...eligible].sort(byRankingDesc(ranking.value))[0] ??
+        sorted[0] ??
+        null;
+      // артефакт авторов — под правило бана ИМЕННО ЭТОГО победителя:
+      // критерии могут выбрать точки с разными правилами, и белый
+      // список — свойство точки, а не корзины
+      const winnerStats = winner ? getFilter(winner.point).stats : [];
+      const bestEntry: ISimulatorBest = {
+        criterion: ranking.criterion,
+        report: winner,
+        trades: winner ? (tradesByReport.get(winner) ?? []) : [],
+        authorStats: winnerStats,
+        allowedAuthors: winnerStats
+          .filter(({ banned }) => !banned)
+          .map(({ author }) => author),
+        bannedAuthors: winnerStats
+          .filter(({ banned }) => banned)
+          .map(({ author }) => author),
+      };
+      bucket.best.push(bestEntry);
+      if (self.params.callbacks?.onRanking) {
+        self.params.callbacks?.onRanking(
+          symbol,
+          ranking.criterion,
+          sorted,
+          bestEntry,
+        );
+      }
+    }
+    // порядок точек корзины — контракт потребителя run(): критерий
+    // задаёт схема (reportOrder), компаратор — защищённый
+    bucket.reports.sort(byRankingDesc(orderValue));
+  }
+
   const result: ISimulatorResult = {
     symbol,
     ideasTotal: ideas.length,
     ideasDirectional: directional.length,
     profileCount: profiles.length,
     truncatedCount,
-    allowedAuthors: [...allowedUnion],
-    bannedAuthors: [...everyAuthor].filter(
-      (author) => !allowedUnion.has(author),
-    ),
     avgHoldMinutes: holdStats.avgHoldMinutes,
     p95HoldMinutes: holdStats.p95HoldMinutes,
     p99HoldMinutes: holdStats.p99HoldMinutes,
-    reports,
-    best,
+    reports: reportsByMetric,
   };
   if (self.params.callbacks?.onDone) {
     self.params.callbacks?.onDone(symbol, result);
@@ -1284,13 +1278,14 @@ const TEST_FN = async (
     self.params.callbacks?.onIdeas(symbol, ideas.length, directional.length);
   }
 
+  const horizonMinutes = HORIZON_MINUTES_FN(self.params.gridAxes);
   const profiles: ISimulatorIdeaProfile[] = [];
   for (let index = 0; index < directional.length; index++) {
     const profile = await BUILD_PROFILE_FN(
       self,
       symbol,
       directional[index],
-      directional,
+      horizonMinutes,
     );
     if (profile) {
       profiles.push(profile);
@@ -1317,8 +1312,6 @@ const TEST_FN = async (
     authorStats,
     point.minAuthorTrack,
     point.minAuthorHitRate,
-    // замороженные точки старых артефактов не несут поля — 0 = выкл
-    point.minAuthorWilson ?? 0,
   );
 
   // окно суточных корзин — по тестовому диапазону: метрики отчёта
@@ -1378,22 +1371,26 @@ const TEST_FN = async (
  * Parameter sweep engine over crowd trading ideas (the "Simulator").
  *
  * Finds production strategy parameters (hard stop, trailing take,
- * hold duration, entry consensus threshold) by simulating every idea
- * against every point of the grid — WITHOUT re-running a backtest per
- * point. The root iteration is over IDEAS, not candles and not grid
- * points:
+ * hold duration, author ban rule) by simulating every idea against
+ * every point of the grid — WITHOUT re-running a backtest per point.
+ * Authors are graded STRICTLY in isolation — no interaction metrics
+ * (consensus counting, vote weighting) exist here by design; swarm
+ * ranking over long histories is userspace. The root iteration is
+ * over IDEAS, not candles and not grid points:
  *
  * 1. Each idea gets ONE asynchronous forward candle pass from the
- *    minute after its publication, capped by a static horizon
- *    (IDEA_TRIM_DAYS). The pass produces a per-candle trajectory
- *    profile (MFE/MAE extremes, whale shakeout depth, aligned-authors
- *    count). Overlapping and sparse ideas are both supported: candle
- *    chunks are fetched lazily through the Exchange (persist cache
- *    first), gaps between ideas are never requested.
+ *    minute after its publication, capped by the grid's longest
+ *    hold (max of the holdMinutes axis — the schema defines the
+ *    horizon, not an engine constant). The pass produces a
+ *    per-candle trajectory
+ *    profile (MFE/MAE extremes, whale shakeout depth). Overlapping
+ *    and sparse ideas are both supported: candle chunks are fetched
+ *    lazily through the Exchange (persist cache first), gaps between
+ *    ideas are never requested.
  * 2. The author ban list is TRAINED on the whole range (lookahead
  *    inside train is deliberate): authors with enough ideas and a hit
- *    rate worse than a coin are excluded from triggers and votes.
- *    The list is part of the result — apply it in production as-is.
+ *    rate worse than a coin are excluded from entries. The list is
+ *    part of the result — apply it in production as-is.
  * 3. The outcome of every grid point is derived arithmetically from
  *    the profiles with production slot semantics (one position per
  *    symbol, busy-slot ideas skipped). Honesty contracts: entry at
@@ -1440,7 +1437,8 @@ export class ClientSimulator implements ISimulator {
    *
    * @param symbol - Trading pair symbol to simulate (e.g., "BTCUSDT")
    * @param ideas - Ideas feed (other symbols are filtered out)
-   * @returns Final result: all grid point reports (sorted by Sharpe),
+   * @returns Final result: grid reports keyed by author metric (each
+   * bucket sorted by reportOrder),
    * winners of the four rankings with their trade lists, and the
    * trained author filter artifact (stats + ban list)
    * @throws Error when a grid point produces a trade violating the

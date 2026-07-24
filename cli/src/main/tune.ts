@@ -1,5 +1,5 @@
 import { addSimulatorSchema, Simulator, listExchangeSchema, overrideExchangeSchema } from "backtest-kit";
-import type { ISimulatorIdea, ISimulatorResult, ISimulatorTestResult } from "backtest-kit";
+import type { ISimulatorIdea, ISimulatorTestResult, ISimulatorGridAxes, ISimulatorSchema } from "backtest-kit";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
 import { getArgs } from "../helpers/getArgs";
@@ -10,8 +10,32 @@ import dotenv from "dotenv";
 
 const SIMULATOR_NAME = "cli_tune";
 
-/** Доля времени фида, уходящая в обучение; хвост — один OOS-выстрел. */
-const DEFAULT_TRAIN_SPLIT = 0.7;
+type SimulatorPoint = ISimulatorTestResult["point"];
+type SimulatorAuthorStats = ISimulatorTestResult["authorStats"];
+
+/**
+ * Замороженный артефакт обучения, который потребитель передаёт
+ * позиционным JSON-конфигом: точка и сырой трек-рекорд авторов.
+ * Оси сетки и порядок отчёта опциональны — без них оси зеркалят
+ * точку одноточечно, порядок берётся из дефолтов движка.
+ */
+interface ITuneConfig {
+  point?: SimulatorPoint;
+  authorStats?: SimulatorAuthorStats;
+  gridAxes?: ISimulatorGridAxes;
+  reportOrder?: ISimulatorSchema["reportOrder"];
+}
+
+const CONFIG_KEYS = ["point", "authorStats", "gridAxes", "reportOrder"];
+
+const POINT_NUMBER_FIELDS = [
+  "hardStopPercent",
+  "trailingTakePercent",
+  "holdMinutes",
+  "minAuthorTrack",
+  "minAuthorHitRate",
+  "profitLockPercent",
+];
 
 const IDEA_DIRECTIONS = ["LONG", "SHORT", "NEUTRAL"];
 
@@ -37,42 +61,72 @@ const validateIdea = (idea: any, line: number): string | null => {
   return null;
 };
 
+const validateConfig = (config: any): string | null => {
+  if (typeof config !== "object" || config === null || Array.isArray(config)) {
+    return "config must be a JSON object";
+  }
+  for (const key of Object.keys(config)) {
+    if (!CONFIG_KEYS.includes(key)) {
+      return `unknown key "${key}" (expected: ${CONFIG_KEYS.join(", ")})`;
+    }
+  }
+  if (typeof config.point !== "object" || config.point === null) {
+    return `"point" is required — the frozen grid point of a training run`;
+  }
+  for (const field of POINT_NUMBER_FIELDS) {
+    if (typeof config.point[field] !== "number") {
+      return `"point.${field}" must be a number, got ${typeof config.point[field]}`;
+    }
+  }
+  if (typeof config.point.authorMetric !== "string") {
+    return `"point.authorMetric" must be a string, got ${typeof config.point.authorMetric}`;
+  }
+  if (!Array.isArray(config.authorStats) || !config.authorStats.length) {
+    return `"authorStats" is required — the frozen raw track record (non-empty array)`;
+  }
+  for (let i = 0; i < config.authorStats.length; i++) {
+    const stat = config.authorStats[i];
+    if (
+      typeof stat !== "object" ||
+      stat === null ||
+      typeof stat.author !== "string" ||
+      typeof stat.ideas !== "number" ||
+      typeof stat.hits !== "number"
+    ) {
+      return `"authorStats[${i}]" must be { author: string, ideas: number, hits: number }`;
+    }
+  }
+  return null;
+};
+
+/** Одноточечные оси, зеркалящие замороженную точку — сетка инертна. */
+const axesFromPoint = (point: SimulatorPoint): ISimulatorGridAxes => ({
+  hardStopPercent: [point.hardStopPercent],
+  trailingTakePercent: [point.trailingTakePercent],
+  holdMinutes: [point.holdMinutes],
+  minAuthorTrack: [point.minAuthorTrack],
+  minAuthorHitRate: [point.minAuthorHitRate],
+  profitLockPercent: [point.profitLockPercent],
+  authorMetric: [point.authorMetric],
+});
+
 const pointLabel = (point: any): string =>
-  `H=${point.hardStopPercent} TT=${point.trailingTakePercent} hold=${point.holdMinutes / 60}h N=${point.minIdeasAligned} ` +
-  `track=${point.minAuthorTrack} rate=${point.minAuthorHitRate} wilson=${point.minAuthorWilson} W=${point.minWeightAligned} ` +
+  `H=${point.hardStopPercent} TT=${point.trailingTakePercent} hold=${point.holdMinutes / 60}h ` +
+  `track=${point.minAuthorTrack} rate=${point.minAuthorHitRate} ` +
   `lock=${point.profitLockPercent} metric=${point.authorMetric}`;
 
 const fmtRatio = (value: number): string =>
   Number.isFinite(value) ? value.toFixed(2) : "inf";
 
-const toMarkdown = (
-  train: ISimulatorResult,
-  test: ISimulatorTestResult,
-  trainSplit: number,
-): string => {
+const toMarkdown = (test: ISimulatorTestResult): string => {
   const lines: string[] = [];
-  lines.push(`# Tune Report — ${train.symbol}`);
+  lines.push(`# Tune Report — ${test.symbol}`);
   lines.push("");
-  lines.push(`Walk-forward: train on the first ${Math.round(trainSplit * 100)}% of the feed time range, ONE out-of-sample shot of the frozen sharpe winner on the tail.`);
-  lines.push("");
-  lines.push(`## Train (${train.ideasDirectional} directional ideas, ${train.reports.length} grid points)`);
-  lines.push("");
-  lines.push(`| Criterion | Point | Trades | PNL% | WinRate | DD% | Sharpe | Sortino |`);
-  lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- |`);
-  for (const best of train.best) {
-    if (!best.report) {
-      lines.push(`| ${best.criterion} | — | — | — | — | — | — | — |`);
-      continue;
-    }
-    lines.push(
-      `| ${best.criterion} | ${pointLabel(best.report.point)} | ${best.report.trades} | ${best.report.totalPnlPercent.toFixed(2)}% | ` +
-        `${(best.report.winRate * 100).toFixed(0)}% | ${best.report.maxSeriesDrawdownPercent.toFixed(2)} | ${fmtRatio(best.report.sharpe)} | ${fmtRatio(best.report.sortino)} |`,
-    );
-  }
-  lines.push("");
-  lines.push(`## Out-of-sample (frozen sharpe winner, ${test.ideasDirectional} tail ideas)`);
+  lines.push(`ONE out-of-sample shot of a FROZEN training artifact: nothing is trained here — the point and the raw author track record come from the input config verbatim, bans are re-derived from the frozen numbers under the point's rule, unseen authors are banned by default.`);
   lines.push("");
   lines.push(`Frozen point: ${pointLabel(test.point)}`);
+  lines.push("");
+  lines.push(`## Out-of-sample (${test.ideasDirectional} directional ideas)`);
   lines.push("");
   lines.push(`| Metric | Value |`);
   lines.push(`| --- | --- |`);
@@ -95,9 +149,7 @@ const toMarkdown = (
     );
   }
   lines.push("");
-  lines.push(`## Frozen author track record (train range, sharpe winner rule)`);
-  lines.push("");
-  lines.push(`Freeze these raw numbers for production \`Simulator.test\` — banned flags and vote weights are re-derived from them under the frozen point's rule; an author absent from the list is banned by default.`);
+  lines.push(`## Frozen author track record (re-derived bans under the point's rule)`);
   lines.push("");
   lines.push(`| Author | Ideas | Hits | Banned |`);
   lines.push(`| --- | --- | --- | --- |`);
@@ -124,6 +176,36 @@ export const main = async () => {
   if (!ideasPath) {
     console.error("Error: positional path to an ideas .jsonl file is required");
     process.exit(1);
+  }
+
+  // конфиг — позиционный JSON; без него подтягивается пустой объект
+  // (и валидация честно скажет, что замороженной точки нет)
+  const [configPath = null] = positionals.filter(
+    (value) => value.endsWith(".json") && !value.endsWith(".jsonl"),
+  );
+  let config: ITuneConfig = {};
+  if (configPath) {
+    let content: string;
+    try {
+      content = await readFile(resolve(configPath), "utf-8");
+    } catch (error) {
+      console.error(`Error: cannot read config file: ${configPath}`);
+      process.exit(1);
+    }
+    try {
+      config = JSON.parse(content);
+    } catch {
+      console.error(`Error: invalid JSON in config file: ${configPath}`);
+      process.exit(1);
+    }
+  }
+  {
+    const problem = validateConfig(config);
+    if (problem) {
+      console.error(`Error: tune config does not match the structure — ${problem}`);
+      console.error(`Expected shape: { "point": ISimulatorGridPoint, "authorStats": [{ "author", "ideas", "hits" }], "gridAxes"?, "reportOrder"? }`);
+      process.exit(1);
+    }
   }
 
   let ideas: ISimulatorIdea[] = [];
@@ -156,14 +238,6 @@ export const main = async () => {
       }
       ideas.push(idea);
     }
-  }
-
-  const trainSplit = values.split
-    ? parseFloat(<string>values.split)
-    : DEFAULT_TRAIN_SPLIT;
-  if (!Number.isFinite(trainSplit) || trainSplit <= 0 || trainSplit >= 1) {
-    console.error(`Error: --split must be a fraction between 0 and 1, got ${values.split}`);
-    process.exit(1);
   }
 
   {
@@ -215,28 +289,13 @@ export const main = async () => {
 
   const symbol = <string>values.symbol || "BTCUSDT";
 
-  // Подбор параметров: полная сетка с собирающей прибыль механикой —
-  // замок, трейлинг, взвешенный консенсус, Вильсон, обе метрики бана.
-  // Честность обеспечивается сплитом: обучение видит только голову,
-  // хвост тратится на один выстрел замороженного sharpe-победителя
+  // сетка для test() инертна (оценивается ровно замороженная точка):
+  // без явных осей в конфиге они одноточечно зеркалят точку
   addSimulatorSchema({
     simulatorName: SIMULATOR_NAME,
     exchangeName,
-    gridAxes: {
-      // стопы < 2% сидят внутри медианного шейкаута и не выигрывают
-      hardStopPercent: [2, 2.5, 3, 4, 5, 7],
-      trailingTakePercent: [1, 1.5, 2, 3, 4],
-      holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-      minIdeasAligned: [1, 2],
-      minAuthorTrack: [2, 3, 5],
-      minAuthorHitRate: [0.5, 0.6],
-      minAuthorWilson: [0, 0.6],
-      minWeightAligned: [0, 0.6, 1.2],
-      profitLockPercent: [0, 1.5, 2.5],
-      authorMetric: ["close", "reach"],
-      banCriteria: ["sharpe"],
-    },
-    reportOrder: "sharpe",
+    gridAxes: config.gridAxes ?? axesFromPoint(config.point!),
+    ...(config.reportOrder ? { reportOrder: config.reportOrder } : {}),
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {
         if (values.verbose) {
@@ -253,26 +312,6 @@ export const main = async () => {
           console.log("onProfiles", { symbol, profiles: profiles.length, truncatedCount });
         }
       },
-      onAuthorsTrained: (symbol, stats, bannedIdeas) => {
-        if (values.verbose) {
-          console.log("onAuthorsTrained", {
-            symbol,
-            authors: stats.length,
-            banned: stats.filter(({ banned }) => banned).length,
-            bannedIdeas,
-          });
-        }
-      },
-      onRanking: (symbol, criterion, _sorted, best) => {
-        if (values.verbose) {
-          console.log("onRanking", {
-            symbol,
-            criterion,
-            point: best.report?.point ?? null,
-            pnl: best.report ? +best.report.totalPnlPercent.toFixed(2) : null,
-          });
-        }
-      },
       onTestDone: (symbol, result) => {
         if (values.verbose) {
           console.log("onTestDone", {
@@ -285,34 +324,15 @@ export const main = async () => {
     },
   });
 
-  // обучение видит ТОЛЬКО голову ленты; хвост — один OOS-выстрел
-  const sorted = [...ideas].sort((a, b) => a.ts - b.ts);
-  const cutoff =
-    sorted[0].ts + (sorted[sorted.length - 1].ts - sorted[0].ts) * trainSplit;
-  const trainIdeas = sorted.filter(({ ts }) => ts < cutoff);
-  const testIdeas = sorted.filter(({ ts }) => ts >= cutoff);
-
-  const train = await Simulator.run({
-    symbol,
-    simulatorName: SIMULATOR_NAME,
-    ideas: trainIdeas,
-  });
-
-  const sharpeBest = train.best.find(({ criterion }) => criterion === "sharpe");
-  if (!sharpeBest?.report) {
-    console.error("Error: training produced no sharpe winner — nothing to freeze for the out-of-sample shot");
-    process.exit(1);
-  }
-
-  // заморозка: точка и трек-рекорд sharpe-победителя как есть — из
-  // замороженных статов test() читает только author/ideas/hits и сам
-  // перевыводит баны и веса под правило точки
+  // только out-of-sample: обучения нет, точка и трек-рекорд приходят
+  // из конфига verbatim — test() перевыводит баны под правило точки,
+  // невиданные авторы забанены по умолчанию
   const test = await Simulator.test({
     symbol,
     simulatorName: SIMULATOR_NAME,
-    ideas: testIdeas,
-    point: sharpeBest.report.point,
-    authorStats: sharpeBest.authorStats,
+    ideas,
+    point: config.point!,
+    authorStats: config.authorStats!,
   });
 
   const dumpName = <string>values.output || `tune_${symbol}_${Date.now()}`;
@@ -321,11 +341,7 @@ export const main = async () => {
   if (values.json) {
     const filePath = resolve(dumpDir, `${dumpName}.json`);
     await mkdir(dumpDir, { recursive: true });
-    await writeFile(
-      filePath,
-      JSON.stringify({ trainSplit, train, test }, null, 2),
-      "utf-8",
-    );
+    await writeFile(filePath, JSON.stringify(test, null, 2), "utf-8");
     console.log(`Saved: ${filePath}`);
     process.exit(0);
   }
@@ -333,12 +349,12 @@ export const main = async () => {
   if (values.markdown) {
     const filePath = resolve(dumpDir, `${dumpName}.md`);
     await mkdir(dumpDir, { recursive: true });
-    await writeFile(filePath, toMarkdown(train, test, trainSplit), "utf-8");
+    await writeFile(filePath, toMarkdown(test), "utf-8");
     console.log(`Saved: ${filePath}`);
     process.exit(0);
   }
 
-  console.log(toMarkdown(train, test, trainSplit));
+  console.log(toMarkdown(test));
   process.exit(0);
 };
 

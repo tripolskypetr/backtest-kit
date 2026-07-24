@@ -59,12 +59,9 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
       hardStopPercent: [5, 50],
       trailingTakePercent: [2, 100],
       holdMinutes: [60],
-      minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {
@@ -91,21 +88,21 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
   }
 
   // белый список пуст, в бане все трое
-  if (result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.length !== 0) {
-    fail(`allowedAuthors must be empty, got ${JSON.stringify(result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors)}`);
+  if (result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.length !== 0) {
+    fail(`allowedAuthors must be empty, got ${JSON.stringify(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors)}`);
     return;
   }
-  const banned = new Set(result.best.find(({ criterion }) => criterion === "sharpe").bannedAuthors);
+  const banned = new Set(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").bannedAuthors);
   for (const author of ["wrong1", "wrong2", "rookie"]) {
     if (!banned.has(author)) {
-      fail(`${author} must be banned, bannedAuthors=${JSON.stringify(result.best.find(({ criterion }) => criterion === "sharpe").bannedAuthors)}`);
+      fail(`${author} must be banned, bannedAuthors=${JSON.stringify(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").bannedAuthors)}`);
       return;
     }
   }
 
   // статистика авторов честная: у wrong-авторов нулевая правота,
   // у rookie — правота есть, трека нет
-  const stats = Object.fromEntries(result.best.find(({ criterion }) => criterion === "sharpe").authorStats.map((s) => [s.author, s]));
+  const stats = Object.fromEntries(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").authorStats.map((s) => [s.author, s]));
   if (stats.wrong1.hitRate !== 0 || stats.wrong2.hitRate !== 0) {
     fail(`wrong authors must have hitRate 0, got ${stats.wrong1.hitRate}/${stats.wrong2.hitRate}`);
     return;
@@ -138,8 +135,8 @@ test("SIM: dataset with no good author — everyone banned, zero trades, no cras
   }
 
   // победители рейтингов существуют (нулевая точка), прогон не падает
-  if (result.best.length !== 4 || result.best.some((b) => !b.report || b.report.trades !== 0)) {
-    fail(`rankings must resolve to a zero-trade point, got ${JSON.stringify(result.best.map((b) => b.report?.trades))}`);
+  if (result.reports.close.best.length !== 4 || result.reports.close.best.some((b) => !b.report || b.report.trades !== 0)) {
+    fail(`rankings must resolve to a zero-trade point, got ${JSON.stringify(result.reports.close.best.map((b) => b.report?.trades))}`);
     return;
   }
 

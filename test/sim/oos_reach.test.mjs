@@ -58,12 +58,9 @@ test("SIM: out-of-sample with a reach point — frozen reach stats, no recount, 
       hardStopPercent: [5],
       trailingTakePercent: [100],
       holdMinutes: [240],
-      minIdeasAligned: [1],
       minAuthorTrack: [5],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [2.5],
-      minAuthorWilson: [0],
       authorMetric: ["reach"],
     },
   });
@@ -74,7 +71,7 @@ test("SIM: out-of-sample with a reach point — frozen reach stats, no recount, 
     simulatorName: "sim_oosreach",
     ideas: Array.from({ length: 5 }, (_, k) => idea(1 + k, k * CYCLE, "spiker")),
   });
-  const winner = train.best.find(({ criterion }) => criterion === "sharpe");
+  const winner = train.reports.reach.best.find(({ criterion }) => criterion === "sharpe");
   const trainStat = winner.authorStats.find(({ author }) => author === "spiker");
   // предусловие: hits посчитаны reach-метрикой (close дал бы 0 —
   // закрытие 5-дневного горизонта у спайкера всегда ниже входа)

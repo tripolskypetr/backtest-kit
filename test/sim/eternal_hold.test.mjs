@@ -86,12 +86,9 @@ const GRID_AXES = {
   hardStopPercent: [50],
   trailingTakePercent: [100],
   holdMinutes: [60, 7200],
-  minIdeasAligned: [1],
   minAuthorTrack: [3],
   minAuthorHitRate: [0.5],
-  minWeightAligned: [0],
   profitLockPercent: [0],
-  minAuthorWilson: [0],
   authorMetric: ["close"],
 };
 
@@ -110,21 +107,21 @@ test("SIM: time-based Sharpe punishes eternal hold in favor of normal entries", 
     ideas: makeIdeas(),
   });
 
-  if (result.reports.length !== 2) {
-    fail(`expected 2 grid points, got ${result.reports.length}`);
+  if (Object.values(result.reports).flatMap((b) => b.reports).length !== 2) {
+    fail(`expected 2 grid points, got ${Object.values(result.reports).flatMap((b) => b.reports).length}`);
     return;
   }
 
-  const short = result.reports.find(({ point }) => point.holdMinutes === 60);
-  const eternal = result.reports.find(({ point }) => point.holdMinutes === 7200);
+  const short = Object.values(result.reports).flatMap((b) => b.reports).find(({ point }) => point.holdMinutes === 60);
+  const eternal = Object.values(result.reports).flatMap((b) => b.reports).find(({ point }) => point.holdMinutes === 7200);
   if (!short || !eternal) {
     fail("short/eternal hold reports not found");
     return;
   }
 
   // автор должен пройти фильтр: 90 идей, все hit
-  if (result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.length !== 1 || result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors[0] !== "prophet") {
-    fail(`expected prophet allowed, got ${JSON.stringify(result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors)}`);
+  if (result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.length !== 1 || result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors[0] !== "prophet") {
+    fail(`expected prophet allowed, got ${JSON.stringify(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors)}`);
     return;
   }
 
@@ -150,7 +147,7 @@ test("SIM: time-based Sharpe punishes eternal hold in favor of normal entries", 
 
   // победители всех рейтингов — короткий холд (вечный ещё и не проходит
   // анти-флюк порог по числу сделок)
-  for (const best of result.best) {
+  for (const best of result.reports.close.best) {
     if (!best.report || best.report.point.holdMinutes !== 60) {
       fail(`ranking ${best.criterion} must pick hold=60, got ${best.report?.point.holdMinutes}`);
       return;

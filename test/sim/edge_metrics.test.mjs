@@ -61,12 +61,9 @@ test("SIM: profitable series with no losing day yields infinite Sortino", async 
       hardStopPercent: [50],
       trailingTakePercent: [100],
       holdMinutes: [60],
-      minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {},
@@ -78,7 +75,7 @@ test("SIM: profitable series with no losing day yields infinite Sortino", async 
     ideas: Array.from({ length: CYCLES }, (_, k) => idea(1 + k, k * 481, "LONG", "prophet")),
   });
 
-  const [report] = result.reports;
+  const [report] = Object.values(result.reports).flatMap((b) => b.reports);
   if (report.trades !== CYCLES || report.totalPnlPercent <= 0) {
     fail(`expected ${CYCLES} profitable trades, got ${report.trades} / ${report.totalPnlPercent}`);
     return;
@@ -129,12 +126,9 @@ test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictl
       hardStopPercent: [50],
       trailingTakePercent: [100],
       holdMinutes: [60],
-      minIdeasAligned: [1],
       minAuthorTrack: [4],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {},
@@ -157,7 +151,7 @@ test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictl
     ],
   });
 
-  const stats = Object.fromEntries(result.best.find(({ criterion }) => criterion === "sharpe").authorStats.map((s) => [s.author, s]));
+  const stats = Object.fromEntries(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").authorStats.map((s) => [s.author, s]));
   if (stats.coin.hitRate !== 0.5 || stats.coin.ideas !== 4) {
     fail(`coin must have exactly 0.5 on 4 ideas, got ${JSON.stringify(stats.coin)}`);
     return;
@@ -170,8 +164,8 @@ test("SIM: hitRate exactly at the threshold stays allowed — the ban is strictl
     fail(`quarter (0.25) must be banned, got ${JSON.stringify(stats.quarter)}`);
     return;
   }
-  if (!result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.includes("coin") || result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.includes("quarter")) {
-    fail(`whitelist must include coin and exclude quarter, got ${JSON.stringify(result.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors)}`);
+  if (!result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.includes("coin") || result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors.includes("quarter")) {
+    fail(`whitelist must include coin and exclude quarter, got ${JSON.stringify(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").allowedAuthors)}`);
     return;
   }
 

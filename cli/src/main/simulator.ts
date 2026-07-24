@@ -1,5 +1,5 @@
 import { addSimulatorSchema, Simulator, listExchangeSchema, overrideExchangeSchema } from "backtest-kit";
-import type { ISimulatorIdea, ISimulatorResult } from "backtest-kit";
+import type { ISimulatorIdea, ISimulatorResult, ISimulatorGridAxes, ISimulatorSchema } from "backtest-kit";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
 import { getArgs } from "../helpers/getArgs";
@@ -9,6 +9,30 @@ import path from "path";
 import dotenv from "dotenv";
 
 const SIMULATOR_NAME = "cli_simulator";
+
+/**
+ * Позиционный JSON-конфиг пробы: оси сетки и порядок отчёта. Оба
+ * поля опциональны — пустой конфиг (или его отсутствие) подтягивает
+ * дефолты движка из connection-сервиса.
+ */
+interface IProbeConfig {
+  gridAxes?: ISimulatorGridAxes;
+  reportOrder?: ISimulatorSchema["reportOrder"];
+}
+
+const CONFIG_KEYS = ["gridAxes", "reportOrder"];
+
+const validateConfig = (config: any): string | null => {
+  if (typeof config !== "object" || config === null || Array.isArray(config)) {
+    return "config must be a JSON object";
+  }
+  for (const key of Object.keys(config)) {
+    if (!CONFIG_KEYS.includes(key)) {
+      return `unknown key "${key}" (expected: ${CONFIG_KEYS.join(", ")})`;
+    }
+  }
+  return null;
+};
 
 const IDEA_DIRECTIONS = ["LONG", "SHORT", "NEUTRAL"];
 
@@ -35,7 +59,11 @@ const validateIdea = (idea: any, line: number): string | null => {
 };
 
 const toMarkdown = (result: ISimulatorResult): string => {
-  const profitable = result.reports.filter(
+  const buckets = Object.entries(result.reports).filter(
+    ([, bucket]) => bucket.reports.length > 0,
+  );
+  const allReports = buckets.flatMap(([, bucket]) => bucket.reports);
+  const profitable = allReports.filter(
     ({ totalPnlPercent }) => totalPnlPercent > 0,
   ).length;
   const lines: string[] = [];
@@ -45,35 +73,36 @@ const toMarkdown = (result: ISimulatorResult): string => {
   lines.push(`| --- | --- |`);
   lines.push(`| Ideas (total / directional) | ${result.ideasTotal} / ${result.ideasDirectional} |`);
   lines.push(`| Profiles (truncated) | ${result.profileCount} (${result.truncatedCount}) |`);
-  lines.push(`| Authors allowed / banned | ${result.allowedAuthors.length} / ${result.bannedAuthors.length} |`);
-  lines.push(`| Profitable corridor | ${profitable} / ${result.reports.length} grid points |`);
+  lines.push(`| Profitable corridor | ${profitable} / ${allReports.length} grid points |`);
   lines.push(`| Hold minutes avg / p95 / p99 | ${result.avgHoldMinutes.toFixed(0)} / ${result.p95HoldMinutes} / ${result.p99HoldMinutes} |`);
-  lines.push("");
-  lines.push(`## Ranking winners`);
-  lines.push("");
-  lines.push(`| Criterion | Stop% | Hold | Track | HitRate | Trades | PNL% | WinRate | Sharpe | Sortino |`);
-  lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
-  for (const best of result.best) {
-    if (!best.report) {
-      lines.push(`| ${best.criterion} | — | — | — | — | — | — | — | — | — |`);
-      continue;
+  // каждая метрика — самодостаточная корзина: свои победители и
+  // свои словари банов, между собой не склеиваются
+  for (const [metric, bucket] of buckets) {
+    lines.push("");
+    lines.push(`## Metric: ${metric}`);
+    lines.push("");
+    lines.push(`| Criterion | Stop% | Hold | Track | HitRate | Trades | PNL% | WinRate | Sharpe | Sortino |`);
+    lines.push(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`);
+    for (const best of bucket.best) {
+      if (!best.report) {
+        lines.push(`| ${best.criterion} | — | — | — | — | — | — | — | — | — |`);
+        continue;
+      }
+      const { point } = best.report;
+      lines.push(
+        `| ${best.criterion} | ${point.hardStopPercent} | ${point.holdMinutes / 60}h | ${point.minAuthorTrack} | ${point.minAuthorHitRate} | ` +
+          `${best.report.trades} | ${best.report.totalPnlPercent.toFixed(2)}% | ${(best.report.winRate * 100).toFixed(0)}% | ${best.report.sharpe.toFixed(2)} | ${best.report.sortino.toFixed(2)} |`,
+      );
     }
-    const { point } = best.report;
-    lines.push(
-      `| ${best.criterion} | ${point.hardStopPercent} | ${point.holdMinutes / 60}h | ${point.minAuthorTrack} | ${point.minAuthorHitRate} | ` +
-        `${best.report.trades} | ${best.report.totalPnlPercent.toFixed(2)}% | ${(best.report.winRate * 100).toFixed(0)}% | ${best.report.sharpe.toFixed(2)} | ${best.report.sortino.toFixed(2)} |`,
-    );
-  }
-  lines.push("");
-  lines.push(`## Allowed authors (whitelist of the sharpe winner rule)`);
-  lines.push("");
-  lines.push(`| Author | Ideas | Hits | HitRate |`);
-  lines.push(`| --- | --- | --- | --- |`);
-  // артефакт авторов живёт по-победительно в best[] — ран-левел
-  // authorStats в ISimulatorResult больше нет
-  const sharpeBest = result.best.find(({ criterion }) => criterion === "sharpe");
-  for (const stat of (sharpeBest?.authorStats ?? []).filter(({ banned }) => !banned)) {
-    lines.push(`| ${stat.author} | ${stat.ideas} | ${stat.hits} | ${(stat.hitRate * 100).toFixed(0)}% |`);
+    const sharpeBest = bucket.best.find(({ criterion }) => criterion === "sharpe");
+    lines.push("");
+    lines.push(`### Allowed authors (sharpe winner rule)`);
+    lines.push("");
+    lines.push(`| Author | Ideas | Hits | HitRate |`);
+    lines.push(`| --- | --- | --- | --- |`);
+    for (const stat of (sharpeBest?.authorStats ?? []).filter(({ banned }) => !banned)) {
+      lines.push(`| ${stat.author} | ${stat.ideas} | ${stat.hits} | ${(stat.hitRate * 100).toFixed(0)}% |`);
+    }
   }
   return lines.join("\n");
 };
@@ -95,6 +124,34 @@ export const main = async () => {
   if (!ideasPath) {
     console.error("Error: positional path to an ideas .jsonl file is required");
     process.exit(1);
+  }
+
+  // конфиг — позиционный JSON; без него подтягивается пустой объект
+  // и схема живёт на дефолтах движка (оси, порядок отчёта)
+  const [configPath = null] = positionals.filter(
+    (value) => value.endsWith(".json") && !value.endsWith(".jsonl"),
+  );
+  let config: IProbeConfig = {};
+  if (configPath) {
+    let content: string;
+    try {
+      content = await readFile(resolve(configPath), "utf-8");
+    } catch (error) {
+      console.error(`Error: cannot read config file: ${configPath}`);
+      process.exit(1);
+    }
+    try {
+      config = JSON.parse(content);
+    } catch {
+      console.error(`Error: invalid JSON in config file: ${configPath}`);
+      process.exit(1);
+    }
+    const problem = validateConfig(config);
+    if (problem) {
+      console.error(`Error: simulator config does not match the structure — ${problem}`);
+      console.error(`Expected shape: { "gridAxes"?: ISimulatorGridAxes, "reportOrder"?: "sharpe"|"sortino"|"pnl"|"recovery" }`);
+      process.exit(1);
+    }
   }
 
   let ideas: ISimulatorIdea[] = [];
@@ -178,31 +235,13 @@ export const main = async () => {
 
   const symbol = <string>values.symbol || "BTCUSDT";
 
-  // Проба осуществимости, НЕ поиск заработка (подбор параметров — у
-  // --tune): собирающая прибыль механика выключена, остаётся вопрос
-  // "есть ли прибыльный коридор" по стопу x холду x правилу бана —
-  // 48 точек, быстрый вердикт
+  // оси и порядок отчёта приходят позиционным конфигом потребителя;
+  // пустой конфиг — дефолтная сетка движка из connection-сервиса
   addSimulatorSchema({
     simulatorName: SIMULATOR_NAME,
     exchangeName,
-    gridAxes: {
-      // грубая шкала катастрофы: коридор должен быть широким, не точкой
-      hardStopPercent: [2, 3, 5, 7],
-      // инертен: проба не собирает прибыль, выход — по времени или стопу
-      trailingTakePercent: [100],
-      holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-      // одного проверенного автора достаточно — консенсус не перебираем
-      minIdeasAligned: [1],
-      // правило бана — единственная перебираемая "умность" пробы
-      minAuthorTrack: [3, 5],
-      minAuthorHitRate: [0.5, 0.6],
-      minAuthorWilson: [0],
-      minWeightAligned: [0],
-      profitLockPercent: [0],
-      authorMetric: ["close"],
-      banCriteria: ["sharpe", "pnl"],
-    },
-    reportOrder: "sharpe",
+    ...(config.gridAxes ? { gridAxes: config.gridAxes } : {}),
+    ...(config.reportOrder ? { reportOrder: config.reportOrder } : {}),
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {
         if (values.verbose) {
@@ -254,9 +293,8 @@ export const main = async () => {
         if (values.verbose) {
           console.log("onDone", {
             symbol,
-            reports: result.reports.length,
-            allowedAuthors: result.allowedAuthors.length,
-            bannedAuthors: result.bannedAuthors.length,
+            reports: Object.values(result.reports).flatMap((bucket) => bucket.reports).length,
+            bans: Object.values(result.reports).flatMap((bucket) => bucket.bans).length,
           });
         }
       },
