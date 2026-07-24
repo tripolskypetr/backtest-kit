@@ -51,13 +51,13 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   dictionaries — nothing is aggregated across metrics.
  */
 const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
-  hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
-  trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
-  holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-  minAuthorTrack: [2, 3, 5],
-  minAuthorHitRate: [0.5, 0.6],
-  profitLockPercent: [0, 1.5, 2.5],
-  authorMetric: ["close", "reach", "retain", "pnl", "trail"],
+  hardStopPercent: [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7],
+  trailingTakePercent: [0.5, 1, 1.5, 2, 2.5, 3],
+  holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60, 4 * 24 * 60, 5 * 24 * 60],
+  minAuthorTrack: [3, 5, 7, 9, 11],
+  minAuthorHitRate: [0.55, 0.6, 0.7, 0.8],
+  profitLockPercent: [0, 1.5, 2.5, 3.5, 5],
+  authorMetric: ["retain", "trail"],
 };
 
 /**
