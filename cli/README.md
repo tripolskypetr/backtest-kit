@@ -104,8 +104,8 @@ Every invocation is **one mode** (a primary flag) + a positional strategy/entry 
 | **Candle Dump** | `--dump` | Fetch & save raw OHLCV candles to a file |
 | **PnL Debug** | `--pnldebug` | Simulate per-minute PnL for a given entry price & direction |
 | **Broker Debug** | `--brokerdebug` | Fire a single broker commit against the live adapter |
-| **Simulator** | `--simulator` | Feasibility probe over a crowd-ideas feed: is there a profitable corridor at all |
-| **Tune** | `--tune` | Walk-forward parameter search over a crowd-ideas feed: train on the head, one frozen shot on the tail |
+| **Simulator** | `--simulator` | Grid sweep over a crowd-ideas feed: axes from a positional JSON config, engine defaults without one |
+| **Tune** | `--tune` | ONE out-of-sample shot of a frozen training artifact (point + author track record) via `Simulator.test` |
 | **Flush** | `--flush` | Delete report/log/markdown/agent folders from a strategy dump dir |
 | **Init** | `--init` | Scaffold a new project |
 | **Docker** | `--docker` | Scaffold a self-contained Docker workspace |
@@ -453,11 +453,12 @@ The CLI loads `./modules/brokerdebug.module`, fetches the last candle for `--sym
 
 ### 🎛️ Simulator (`--simulator`)
 
-A **feasibility probe** over a feed of crowd trading ideas: does the feed contain a profitable corridor at all, or is there nothing to search? The probe deliberately does NOT try to earn — the profit-harvesting machinery is off (no profit lock, inert trailing take), and a fast **48-point grid** of hard stop × hold × ban rule is evaluated from one candle pass per idea. The parameter search itself is `--tune`'s job. Prints a Markdown report with the corridor share, four ranking winners as evidence, and the whitelist of the sharpe winner's ban rule.
+A **grid sweep** over a feed of crowd trading ideas: the grid axes come from a positional JSON config of the consumer — from a lock-free feasibility probe to a full parameter search. Without a config the engine defaults apply (the full default axes of the connection service with all five author metrics, ordered by sharpe). Prints a Markdown report with the corridor share and, per metric bucket, the ranking winners and the whitelist of the sharpe winner's ban rule.
 
 ```bash
 npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
-# → verdict summary to stdout; add --json / --markdown to save into ./dump/
+# → engine-default grid; add a config to shape the sweep:
+npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl ./assets/probe.config.json
 ```
 
 <details>
@@ -465,7 +466,7 @@ npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/tv-ideas.normalized.
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--simulator` | boolean | Enable the feasibility probe |
+| `--simulator` | boolean | Enable the grid sweep |
 | `--symbol` | string | Trading pair to simulate (default `"BTCUSDT"`) |
 | `--exchange` | string | Exchange (default: first registered, falls back to CCXT Binance) |
 | `--output` | string | Output base name (default `simulator_{SYMBOL}_{TIMESTAMP}`) |
@@ -473,19 +474,19 @@ npx @backtest-kit/cli --simulator --symbol BTCUSDT ./assets/tv-ideas.normalized.
 | `--markdown` | boolean | Save the summary report to `./dump/<output>.md` |
 | `--verbose` | boolean | Log every simulator lifecycle callback to the console |
 
-**Positional (required):** path to an ideas `.jsonl` file — one idea per line, exact shape `{ "id": number, "ts": number, "symbol": string, "direction": "LONG"|"SHORT"|"NEUTRAL", "author": string }`. The file is validated **before any work starts** — the first line that does not match the structure aborts the run with an error naming the line and the field. Ideas of other symbols are filtered out by the engine, so one shared feed serves any `--symbol`.
+**Positionals:** path to an ideas `.jsonl` file (required) — one idea per line, exact shape `{ "id": number, "ts": number, "symbol": string, "direction": "LONG"|"SHORT"|"NEUTRAL", "author": string }` — and an **optional config `.json`** with the shape `{ "gridAxes"?: ISimulatorGridAxes, "reportOrder"?: "sharpe"|"sortino"|"pnl"|"recovery" }`. Both files are validated **before any work starts** — a structure mismatch (including an unknown config key) aborts the run with an error naming the field. No config → an empty object → the engine defaults. Ideas of other symbols are filtered out by the engine, so one shared feed serves any `--symbol`.
 
-Under the hood: 5-day candle horizon per idea (lazy chunked fetch through the exchange, persist cache first), flood dedupe (one idea per author per direction per 8h), default-ban author filter (track/hit-rate thresholds swept — unproven author = banned), production slot semantics, time-based Sharpe/Sortino over daily equity buckets. A position is entered on a proven author's idea and exits by time or catastrophe stop, nothing else — if even this primitive corridor is unprofitable on its own training range, the feed carries no extractable signal. With `--verbose` every lifecycle callback (`onIdeas`, `onProfiles`, `onAuthorsTrained`, `onGridPoint`, `onRanking`, `onDone`) is logged to the console as it fires, so long runs show progress. Exchange via `simulator.module` (see convention above).
+Under the hood: one candle pass per idea to the grid's longest hold (lazy chunked fetch through the exchange, persist cache first), flood dedupe (one idea per author per direction per 8h), default-ban author filter graded **inside each point's own hold window** (track/hit-rate thresholds swept — unproven author = banned), production slot semantics, time-based Sharpe/Sortino over daily equity buckets, per-metric buckets with their own winners and ban dictionaries — nothing is aggregated across metrics. With `--verbose` every lifecycle callback (`onIdeas`, `onProfiles`, `onAuthorsTrained`, `onGridPoint`, `onRanking`, `onDone`) is logged to the console as it fires, so long runs show progress. Exchange via `simulator.module` (see convention above).
 
 </details>
 
 ### 🔧 Tune (`--tune`)
 
-The **parameter search** counterpart of the `--simulator` probe: a walk-forward sweep of the full grid with the profit-harvesting machinery ON — profit lock, trailing take, all three author-hit metrics (close/reach/retain). Honesty is structural: training sees only the head of the feed (`--split` of its time range, default 70%), then the sharpe winner is frozen — point and raw author track record — and fired **exactly once** on the tail via `Simulator.test`. Nothing is trained on the tail; authors unseen in training are banned by default.
+**ONE out-of-sample shot of a frozen training artifact — no training happens here.** Pick your candidate elsewhere (a `Simulator.run` sweep of your own), freeze its point and raw author track record into a JSON config, and fire it exactly once on an unseen feed via `Simulator.test`. Bans are re-derived from the frozen numbers under the point's rule; authors unseen in the config are banned by default.
 
 ```bash
-npx @backtest-kit/cli --tune --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
-# → train winners + one out-of-sample shot; add --json / --markdown to save into ./dump/
+npx @backtest-kit/cli --tune --symbol BTCUSDT ./assets/tail.jsonl ./assets/tune.config.json
+# → one out-of-sample shot; add --json / --markdown to save into ./dump/
 ```
 
 <details>
@@ -493,20 +494,19 @@ npx @backtest-kit/cli --tune --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--tune` | boolean | Enable the walk-forward parameter search |
-| `--symbol` | string | Trading pair to tune (default `"BTCUSDT"`) |
+| `--tune` | boolean | Enable the out-of-sample shot |
+| `--symbol` | string | Trading pair to test (default `"BTCUSDT"`) |
 | `--exchange` | string | Exchange (default: first registered, falls back to CCXT Binance) |
-| `--split` | string | Train share of the feed time range, 0..1 (default `0.7`) |
 | `--output` | string | Output base name (default `tune_{SYMBOL}_{TIMESTAMP}`) |
-| `--json` | boolean | Save `{ trainSplit, train, test }` to `./dump/<output>.json` |
-| `--markdown` | boolean | Save the walk-forward report to `./dump/<output>.md` |
+| `--json` | boolean | Save the full `ISimulatorTestResult` to `./dump/<output>.json` |
+| `--markdown` | boolean | Save the out-of-sample report to `./dump/<output>.md` |
 | `--verbose` | boolean | Log simulator lifecycle callbacks to the console |
 
-**Positional (required):** path to an ideas `.jsonl` file — same shape and validation as `--simulator`.
+**Positionals:** path to an ideas `.jsonl` file (same shape and validation as `--simulator`) and a config `.json` carrying the **frozen training artifact**: `{ "point": ISimulatorGridPoint, "authorStats": [{ "author", "ideas", "hits" }], "gridAxes"?, "reportOrder"? }`. The `point` and `authorStats` are REQUIRED — without them there is nothing to test and the run aborts with an error. `gridAxes` are optional: by default they mirror the frozen point one value per axis (the grid is inert for a test).
 
-The report carries the train winners of all four ranking criteria (full point labels including lock and the author-hit metric), the out-of-sample result of the frozen sharpe winner with its trade list, and the **frozen author track record** — the raw `author/ideas/hits` numbers to hardcode for production `Simulator.test`: banned flags are re-derived from them under the frozen point's rule, and an author absent from the list is banned by default. Exchange via `tune.module` (see convention above).
+The report carries the out-of-sample result with the trade list and the **frozen author track record** with ban flags re-derived under the point's rule. Feed it the tail your training never saw — the honesty of the shot is YOUR split discipline, the CLI just refuses to train. Exchange via `tune.module` (see convention above).
 
-A train-on-train winner is a ceiling, never a promise: the out-of-sample section is the honest number, and the final arbiter for any point picked here is a real engine backtest (`Backtest.run`).
+A train-on-train winner is a ceiling, never a promise: this shot is the honest number, and the final arbiter for any point tested here is a real engine backtest (`Backtest.run`).
 
 </details>
 
