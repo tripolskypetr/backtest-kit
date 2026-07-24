@@ -45,9 +45,8 @@ addSimulatorSchema({
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 1.5, 2.5],
-        // обе метрики авторского hit'а — перебор решает, какая
-        // арифметика кормит какой стиль выхода (BC не сохраняем)
-        authorMetric: ["retain"],
+        // close: hit — закрытие 5-дневного горизонта в сторону идеи
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -64,7 +63,7 @@ addSimulatorSchema({
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 1, 2],
-        authorMetric: ["retain"],
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -80,7 +79,7 @@ addSimulatorSchema({
         minAuthorTrack: [2, 3],
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 0.5, 1, 1.5, 2, 2.5, 3],
-        authorMetric: ["retain"],
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -96,7 +95,7 @@ addSimulatorSchema({
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
         profitLockPercent: [0, 1, 2],
-        authorMetric: ["retain"],
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -111,8 +110,8 @@ const result = [];
 const runTune = async (simulatorName) => {
   const train = await Simulator.run({ symbol: "BTCUSDT", simulatorName, ideas: trainIdeas });
 
-  // конфиги пинуют authorMetric: ["retain"] — работаем с его корзиной
-  const bucket = train.reports.retain;
+  // конфиги пинуют authorMetric: ["close"] — работаем с его корзиной
+  const bucket = train.reports.close;
 
   for (const best of bucket.best) {
     if (!best.report) {

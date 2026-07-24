@@ -30,53 +30,54 @@ addSimulatorSchema({
   simulatorName: "tv_simulator",
   exchangeName: "ccxt_exchange",
   gridAxes: {
-    hardStopPercent: [4],
-    trailingTakePercent: [4],
+    hardStopPercent: [5],
+    trailingTakePercent: [2],
     holdMinutes: [3 * 24 * 60],
-    minAuthorTrack: [2],
-    minAuthorHitRate: [0.6],
-    profitLockPercent: [0],
-    authorMetric: ["retain"],
+    minAuthorTrack: [5],
+    minAuthorHitRate: [0.5],
+    profitLockPercent: [2.5],
+    authorMetric: ["close"],
   },
   reportOrder: "sharpe",
 });
 
-// точка, выявленная тренировкой (src/index.mjs): единогласный
-// победитель tune_default по всем 4 критериям (sharpe 1.11, 8 сделок,
-// +17.01%, dd 4.79); tune_wide сошёлся на том же ядре (72h, track 2,
-// rate 0.6, lock 0, TT 4), разойдясь только в стопе (5 vs 4).
-// Метрика retain — фиксация выше входа: медиана хода строго > 0
+// точка, выявленная тренировкой (src/index.mjs, tune_default):
+// лучший sharpe всех конфигов 2.44, сходимость sharpe/sortino/recovery
+// внутри default и переизбрание ядра (H=5 TT=2 72h track=5 rate=0.5 +
+// замок) всеми тремя теми же критериями tune_wide; sortino 9.34,
+// dd 1.31, 9 сделок, строжайшее правило авторов.
+// Метрика close — закрытие 5-дневного горизонта в сторону идеи
 const POINT = {
-  hardStopPercent: 4,
-  trailingTakePercent: 4,
+  hardStopPercent: 5,
+  trailingTakePercent: 2,
   holdMinutes: 3 * 24 * 60,
-  minAuthorTrack: 2,
-  minAuthorHitRate: 0.6,
-  profitLockPercent: 0,
-  authorMetric: "retain",
+  minAuthorTrack: 5,
+  minAuthorHitRate: 0.5,
+  profitLockPercent: 2.5,
+  authorMetric: "close",
 };
 
 // результат обучения: сырой трек-рекорд авторов train-окна,
-// hit'ы посчитаны по retain (медиана хода > 0). Белый список НЕ
-// хардкодится — test() выводит его из цифр под правило точки
-// (ideas >= 2, hitRate >= 0.6): допущены TradingShot,
-// MarketStrategysignals, melikatrader94, CryptoSkullSignal,
-// XAUxBTC_Pro, CobraVanguard; все остальные и все невиданные — в бане.
+// hit'ы посчитаны по close. Белый список НЕ хардкодится — test()
+// выводит его из цифр под правило точки (ideas >= 5, hitRate >= 0.5):
+// допущены TradingShot, Apex_Legends, Cryptollica,
+// MarketStrategysignals, melikatrader94, PremiumTrader57,
+// InvestingScope; все остальные и все невиданные — в бане.
 const AUTHOR_STATS = [
-  { author: "MasterAnanda", ideas: 16, hits: 8 },
+  { author: "MasterAnanda", ideas: 16, hits: 7 },
   { author: "TradingShot", ideas: 10, hits: 6 },
-  { author: "Apex_Legends", ideas: 7, hits: 3 },
-  { author: "BitCoinGuide", ideas: 7, hits: 1 },
+  { author: "Apex_Legends", ideas: 7, hits: 4 },
+  { author: "BitCoinGuide", ideas: 7, hits: 3 },
   { author: "Cryptollica", ideas: 6, hits: 3 },
   { author: "MarketStrategysignals", ideas: 6, hits: 4 },
-  { author: "ExpertTraderASK", ideas: 6, hits: 1 },
+  { author: "ExpertTraderASK", ideas: 6, hits: 2 },
   { author: "melikatrader94", ideas: 5, hits: 3 },
-  { author: "CryptoSkullSignal", ideas: 5, hits: 3 },
-  { author: "PremiumTrader57", ideas: 5, hits: 2 },
-  { author: "InvestingScope", ideas: 5, hits: 2 },
+  { author: "CryptoSkullSignal", ideas: 5, hits: 2 },
+  { author: "PremiumTrader57", ideas: 5, hits: 3 },
+  { author: "InvestingScope", ideas: 5, hits: 3 },
   { author: "XAUxBTC_Pro", ideas: 4, hits: 3 },
-  { author: "CobraVanguard", ideas: 3, hits: 2 },
-  { author: "coinpediamarkets", ideas: 3, hits: 0 },
+  { author: "CobraVanguard", ideas: 3, hits: 1 },
+  { author: "coinpediamarkets", ideas: 3, hits: 1 },
   { author: "salahuddin20041", ideas: 2, hits: 0 },
   { author: "Alpha_Trade_Scope", ideas: 2, hits: 1 },
   { author: "PRIMEALPHA-FX", ideas: 2, hits: 1 },
@@ -88,20 +89,20 @@ const AUTHOR_STATS = [
   { author: "EbonyFalcon", ideas: 1, hits: 0 },
   { author: "NastyPipz", ideas: 1, hits: 1 },
   { author: "isahebdadi", ideas: 1, hits: 1 },
-  { author: "Ifiok-Trades", ideas: 1, hits: 0 },
+  { author: "Ifiok-Trades", ideas: 1, hits: 1 },
   { author: "TheCryptagon", ideas: 1, hits: 0 },
   { author: "MohsenNirumand", ideas: 1, hits: 1 },
   { author: "ProfittoPath", ideas: 1, hits: 1 },
-  { author: "Rendon1", ideas: 1, hits: 1 },
-  { author: "byggjan", ideas: 1, hits: 1 },
-  { author: "FXSMARTT", ideas: 1, hits: 0 },
-  { author: "pistissophiacapital", ideas: 1, hits: 1 },
-  { author: "DivergenceSeeker", ideas: 1, hits: 0 },
+  { author: "Rendon1", ideas: 1, hits: 0 },
+  { author: "byggjan", ideas: 1, hits: 0 },
+  { author: "FXSMARTT", ideas: 1, hits: 1 },
+  { author: "pistissophiacapital", ideas: 1, hits: 0 },
+  { author: "DivergenceSeeker", ideas: 1, hits: 1 },
   { author: "davidjulien369", ideas: 1, hits: 0 },
   { author: "mrsignalll", ideas: 1, hits: 0 },
   { author: "VasilyTrader", ideas: 1, hits: 0 },
-  { author: "propfirmwise", ideas: 1, hits: 1 },
-  { author: "TheTraderPhil", ideas: 1, hits: 1 },
+  { author: "propfirmwise", ideas: 1, hits: 0 },
+  { author: "TheTraderPhil", ideas: 1, hits: 0 },
   { author: "JRnehco", ideas: 1, hits: 0 },
   { author: "Expert_Travis", ideas: 1, hits: 0 },
   { author: "BIGBULL-RUN", ideas: 1, hits: 1 },

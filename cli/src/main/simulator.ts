@@ -200,8 +200,9 @@ export const main = async () => {
       minAuthorTrack: [3, 5],
       minAuthorHitRate: [0.5, 0.6],
       profitLockPercent: [0],
-      // retain от замка не зависит: фиксация выше входа (медиана > 0)
-      authorMetric: ["retain"],
+      // close: закрытие 5-дневного горизонта в сторону идеи — у пробы
+      // замок выключен (lock=0), уровневым метрикам грейдить нечем
+      authorMetric: ["close"],
     },
     reportOrder: "sharpe",
     callbacks: {

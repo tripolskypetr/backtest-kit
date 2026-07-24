@@ -3,17 +3,20 @@ import { test } from "worker-testbed";
 import { addExchangeSchema, addSimulatorSchema, Simulator } from "../../build/index.mjs";
 
 /**
- * Метрика "retain" — фиксация ВЫШЕ цены входа (медиана хода строго > 0),
- * без уровней lock/stop по построению:
- *  1) спайкер (укол +3% на минуты, потом база) — hit по reach, но
- *     MISS по retain: медиана хода ~0, цена не удержалась над входом;
- *     фиксер (ступенька +3% и стоит до конца горизонта) — hit по
- *     обеим; ось authorMetric ["reach", "retain"] даёт ДВЕ тренировки
- *     с разными бан-листами и разным числом сделок;
+ * Метрика "retain" — фиксация ВЫШЕ замка точки: медиана хода строго
+ * больше profitLockPercent (при lock=0 — выше самой цены входа);
+ * от стопа не зависит:
+ *  1) спайкер (укол +3% на минуты, потом база) — hit по reach
+ *     (MFE дотянулась до замка 2.5), но MISS по retain (медиана ~0
+ *     не выше 2.5); фиксер (ступенька +3% и стоит до конца
+ *     горизонта) — hit по обеим (медиана ~3 > 2.5); ось
+ *     authorMetric ["reach", "retain"] даёт ДВЕ тренировки с
+ *     разными бан-листами и разным числом сделок;
  *  2) medianMovePercent профиля численно точен (сверка по миру);
- *  3) retain от замка не зависит: при lock=0 это самостоятельное
- *     правило со своей тренировкой (никакой канонизации в close),
- *     и его словарь банов не несёт уровней.
+ *  3) retain без замка не существует: комбинации retain x lock=0
+ *     исключаются из сетки (никакой канонизации в close) — смешанный
+ *     грид теряет retain-точку молча, чисто retain-грид падает
+ *     громко пустым.
  *
  * Мир: цикл длиной ровно в горизонт (7200м). Чётные циклы — паттерн
  * спайкера (+3% на фазах 2..60, дальше база), нечётные — паттерн
@@ -136,7 +139,8 @@ test("SIM: retain metric bans the transient spiker where reach allows him — th
     return;
   }
 
-  // retain: спайкер 0/5 (медиана ~0, не выше входа) — бан; фиксер 5/5 — допуск
+  // retain: спайкер 0/5 (медиана ~0 не выше замка 2.5) — бан;
+  // фиксер 5/5 (медиана ~3 > 2.5) — допуск
   const retainStats = byAuthor(trained[1]);
   if (retainStats.spiker.hits !== 0 || !retainStats.spiker.banned) {
     fail(`retain must ban the spiker 0/5, got ${JSON.stringify(retainStats.spiker)}`);
@@ -164,21 +168,21 @@ test("SIM: retain metric bans the transient spiker where reach allows him — th
   );
 });
 
-test("SIM: retain at lock=0 is its own rule — two trainings, no canonization, level-free bans entry", async ({ pass, fail }) => {
-  registerExchange("sim-retain-lockfree");
+test("SIM: retain without a lock does not exist — excluded from a mixed grid, retain-only grid throws", async ({ pass, fail }) => {
+  registerExchange("sim-retain-lockless");
 
   const trained = [];
   addSimulatorSchema({
-    simulatorName: "sim_retain_lockfree",
-    exchangeName: "sim-retain-lockfree",
+    simulatorName: "sim_retain_lockless_mixed",
+    exchangeName: "sim-retain-lockless",
     gridAxes: {
       hardStopPercent: [5],
       trailingTakePercent: [100],
       holdMinutes: [60],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      // замка нет — retain от него не зависит: правило грейдит медиану
-      // относительно входа и тренируется отдельно от close
+      // замка нет: retain-точке нечем грейдить фиксацию — комбинация
+      // исключается из декартова произведения, остаётся только close
       profitLockPercent: [0],
       authorMetric: ["close", "retain"],
     },
@@ -189,38 +193,57 @@ test("SIM: retain at lock=0 is its own rule — two trainings, no canonization, 
 
   const result = await Simulator.run({
     symbol: "TESTUSDT",
-    simulatorName: "sim_retain_lockfree",
+    simulatorName: "sim_retain_lockless_mixed",
     ideas: IDEAS,
   });
 
   if (
     result.reports.close.reports.length !== 1 ||
-    result.reports.retain.reports.length !== 1
+    result.reports.retain.reports.length !== 0
   ) {
     fail(
-      `expected 1 point per bucket (close|retain), got ` +
-      `${result.reports.close.reports.length}/${result.reports.retain.reports.length}`,
+      `lock=0 must keep only the close point (retain excluded), got ` +
+      `close=${result.reports.close.reports.length}/retain=${result.reports.retain.reports.length}`,
     );
     return;
   }
-  // два правила -> две независимые тренировки даже при lock=0
-  if (trained.length !== 2) {
-    fail(`retain at lock=0 must train its own rule (2 trainings), got ${trained.length}`);
+  // retain-точки нет — нет и её тренировки со словарём банов
+  if (trained.length !== 1 || result.reports.retain.bans.length !== 0) {
+    fail(
+      `expected 1 training and an empty retain bans list, got ` +
+      `${trained.length}/${result.reports.retain.bans.length}`,
+    );
     return;
   }
 
-  // retain-вердикты не зависят от замка: спайкер (медиана ~0) забанен,
-  // фиксер (медиана ~3%) допущен
-  const [retainBan] = result.reports.retain.bans;
-  if (!retainBan || !retainBan.bannedAuthors.includes("spiker") || !retainBan.allowedAuthors.includes("fixer")) {
-    fail(`retain bans must ban spiker and allow fixer, got ${JSON.stringify(retainBan)}`);
-    return;
+  // чисто retain-грид при lock=0 обязан упасть пустым, громко
+  addSimulatorSchema({
+    simulatorName: "sim_retain_lockless_only",
+    exchangeName: "sim-retain-lockless",
+    gridAxes: {
+      hardStopPercent: [5],
+      trailingTakePercent: [100],
+      holdMinutes: [60],
+      minAuthorTrack: [3],
+      minAuthorHitRate: [0.5],
+      profitLockPercent: [0],
+      authorMetric: ["retain"],
+    },
+  });
+  let error = null;
+  try {
+    await Simulator.run({
+      symbol: "TESTUSDT",
+      simulatorName: "sim_retain_lockless_only",
+      ideas: IDEAS,
+    });
+  } catch (e) {
+    error = e;
   }
-  // словарь банов retain уровней не несёт — они есть только у reach
-  if ("profitLockPercent" in retainBan || "hardStopPercent" in retainBan) {
-    fail(`retain bans entry must be level-free, got ${JSON.stringify(retainBan)}`);
+  if (!error || !String(error.message ?? error).includes("the grid is empty")) {
+    fail(`retain-only grid with lock=[0] must throw the empty-grid error, got: ${error?.message ?? "no error"}`);
     return;
   }
 
-  pass(`retain@lock=0 stands alone: 2 points, 2 trainings, spiker banned / fixer allowed, level-free bans`);
+  pass(`retain x lock=0 excluded: mixed grid keeps close only (1 training), retain-only grid throws loudly`);
 });

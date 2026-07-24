@@ -6031,11 +6031,12 @@ interface ISimulatorIdeaProfile {
     /**
      * MEDIAN of the per-candle close moves from entry over the whole
      * horizon, percent in the idea's direction. The raw material of
-     * the "retain" author metric: median > 0 means price sat ABOVE
-     * the entry for at least half the observed trajectory — a
-     * time-window-free, level-free fixation measure (the 50% share is
-     * the median's definition, not a tunable constant), insensitive
-     * to the exact horizon length unlike the close.
+     * the "retain" author metric: median > X means price sat ABOVE
+     * entry + X% for at least half the observed trajectory — a
+     * time-window-free fixation measure (the 50% share is the
+     * median's definition, not a tunable constant), insensitive to
+     * the exact horizon length unlike the close. The field itself is
+     * level-free; the retain rule grades it against the point's lock.
      */
     medianMovePercent: number;
 }
@@ -6048,17 +6049,19 @@ interface ISimulatorIdeaProfile {
  *   whose calls are HARVESTABLE by the lock machinery, even when the
  *   horizon close goes against them). Requires a target: reach
  *   points with profitLockPercent = 0 are excluded from the grid;
- * - "retain" — FIXATION above the entry: the MEDIAN move of the
- *   idea's horizon is strictly above the entry price, i.e. price sat
- *   above the entry for at least half the observed trajectory (the
- *   median is the 50% quantile by definition — no time window and
- *   no level parameter are involved). A transient spike (reach's
- *   hit) and a lucky last-day finish (close's hit) are both misses
- *   here. Independent of the point's lock and stop by construction;
+ * - "retain" — FIXATION above the point's profit-lock level: the
+ *   MEDIAN move of the idea's horizon is strictly above
+ *   profitLockPercent, i.e. price sat above entry + lock for at
+ *   least half the observed trajectory (the median is the 50%
+ *   quantile by definition — no time window is involved). Requires
+ *   a target like reach: retain points with profitLockPercent = 0
+ *   are excluded from the grid. A transient spike (reach's hit) and
+ *   a lucky last-day finish (close's hit) are both misses here.
+ *   Independent of the point's stop;
  * - "pnl" — the idea's MFE grew by MORE than the fixed +1% threshold
  *   at any moment of the horizon, INDEPENDENT of the point's lock
  *   and stop. Complements "retain": pnl asks "did it ever pay",
- *   retain asks "did it hold above the entry".
+ *   retain asks "did it hold above the level".
  * The right metric depends on the exit style being ranked: close-hit
  * authors feed long-hold points, reach-hit authors feed lock points,
  * retain-hit authors feed points that need the move to HOLD.
@@ -6134,12 +6137,12 @@ interface ISimulatorGridAxes {
      * Covers the zone where the trailing take is not armed yet (peak
      * below entry/(1 - r)) and profit would otherwise bleed back.
      * Tunes: harvesting the crowd-liquidity step without cutting
-     * runners. Also the grading level of the "reach" author metric.
-     * Ignored: 0 DISABLES the mechanism for trading, and reach points
-     * with lock = 0 DO NOT EXIST — the combination is excluded from
-     * the cartesian product (a rule without a target is not a rule).
-     * Under "close"/"retain"/"pnl" the level never affects ban
-     * training — trading only.
+     * runners. Also the grading level of the "reach" and "retain"
+     * author metrics. Ignored: 0 DISABLES the mechanism for trading,
+     * and reach/retain points with lock = 0 DO NOT EXIST — the
+     * combination is excluded from the cartesian product (a rule
+     * without a target is not a rule). Under "close"/"pnl" the level
+     * never affects ban training — trading only.
      */
     profitLockPercent: number[];
     /**
@@ -6151,14 +6154,14 @@ interface ISimulatorGridAxes {
      * (5-day horizon close) rewards authors whose calls survive a long
      * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
      * rewards the authors a lock point actually earns on, "retain"
-     * (median move above the ENTRY — window-free, level-free
-     * fixation) rewards authors whose moves HOLD, "pnl" (fixed +1%
-     * MFE threshold) asks "did the call ever pay"; the same author
-     * has different hit counts under different metrics.
-     * Ignored: with "close"/"retain"/"pnl" the point's lock/stop
-     * never affect ban training; "reach" requires lock > 0 — the
-     * lock-free combination is excluded from the grid, never silently
-     * regraded.
+     * (median move above THE POINT'S lock) rewards authors whose
+     * moves HOLD the level, "pnl" (fixed +1% MFE threshold) asks "did
+     * the call ever pay"; the same author has different hit counts
+     * under different metrics.
+     * Ignored: with "close"/"pnl" the point's lock/stop never affect
+     * ban training; "retain" ignores only the stop; "reach"/"retain"
+     * require lock > 0 — the lock-free combinations are excluded from
+     * the grid, never silently regraded.
      */
     authorMetric: SimulatorAuthorMetric[];
 }
@@ -6345,7 +6348,7 @@ interface ISimulatorRuleBans {
     minAuthorTrack: number;
     /** Minimum hit rate (0..1) the rule requires. */
     minAuthorHitRate: number;
-    /** Reach target; present on reach rules only. */
+    /** Grading level; present on reach and retain rules only. */
     profitLockPercent?: number;
     /** Shakeout stop bound; present on reach rules only. */
     hardStopPercent?: number;
@@ -19969,9 +19972,10 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop, "retain" =
- *   fixation above the entry (median move > 0 — window-free,
- *   level-free), "pnl" = fixed +1% MFE threshold; reach requires
- *   lock > 0 — the lock-free combination is excluded from the grid.
+ *   fixation above the point's lock (median move strictly above
+ *   profitLockPercent), "pnl" = fixed +1% MFE threshold; reach and
+ *   retain require lock > 0 — the lock-free combinations are
+ *   excluded from the grid.
  *
  * Run-level config (not swept, ignored by test()):
  * - reportOrder — ranking criterion ordering each metric bucket's

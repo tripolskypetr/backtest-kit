@@ -2,53 +2,53 @@
   {
     "config": "tune_default",
     "by": "sharpe",
-    "point": "H=4 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2.5 metric=close",
     "train": {
-      "trades": 8,
-      "pnl": 17.01,
-      "wr": 0.63,
-      "dd": 4.79,
-      "sharpe": 1.11,
-      "sortino": 3.07
+      "trades": 9,
+      "pnl": 12.22,
+      "wr": 0.89,
+      "dd": 1.31,
+      "sharpe": 2.44,
+      "sortino": 9.34
     }
   },
   {
     "config": "tune_default",
     "by": "sortino",
-    "point": "H=4 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2.5 metric=close",
     "train": {
-      "trades": 8,
-      "pnl": 17.01,
-      "wr": 0.63,
-      "dd": 4.79,
-      "sharpe": 1.11,
-      "sortino": 3.07
+      "trades": 9,
+      "pnl": 12.22,
+      "wr": 0.89,
+      "dd": 1.31,
+      "sharpe": 2.44,
+      "sortino": 9.34
     }
   },
   {
     "config": "tune_default",
     "by": "pnl",
-    "point": "H=4 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=3 TT=4 hold=72h track=2 rate=0.5 lock=0 metric=close",
     "train": {
       "trades": 8,
-      "pnl": 17.01,
-      "wr": 0.63,
-      "dd": 4.79,
-      "sharpe": 1.11,
-      "sortino": 3.07
+      "pnl": 17.4,
+      "wr": 0.75,
+      "dd": 5.63,
+      "sharpe": 1.25,
+      "sortino": 4.31
     }
   },
   {
     "config": "tune_default",
     "by": "recovery",
-    "point": "H=4 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2.5 metric=close",
     "train": {
-      "trades": 8,
-      "pnl": 17.01,
-      "wr": 0.63,
-      "dd": 4.79,
-      "sharpe": 1.11,
-      "sortino": 3.07
+      "trades": 9,
+      "pnl": 12.22,
+      "wr": 0.89,
+      "dd": 1.31,
+      "sharpe": 2.44,
+      "sortino": 9.34
     }
   },
   {
@@ -57,7 +57,7 @@
       {
         "author": "MasterAnanda",
         "ideas": 16,
-        "hits": 8
+        "hits": 7
       },
       {
         "author": "TradingShot",
@@ -67,12 +67,12 @@
       {
         "author": "Apex_Legends",
         "ideas": 7,
-        "hits": 3
+        "hits": 4
       },
       {
         "author": "BitCoinGuide",
         "ideas": 7,
-        "hits": 1
+        "hits": 3
       },
       {
         "author": "Cryptollica",
@@ -87,7 +87,7 @@
       {
         "author": "ExpertTraderASK",
         "ideas": 6,
-        "hits": 1
+        "hits": 2
       },
       {
         "author": "melikatrader94",
@@ -97,17 +97,17 @@
       {
         "author": "CryptoSkullSignal",
         "ideas": 5,
-        "hits": 3
+        "hits": 2
       },
       {
         "author": "PremiumTrader57",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "InvestingScope",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "XAUxBTC_Pro",
@@ -117,12 +117,12 @@
       {
         "author": "CobraVanguard",
         "ideas": 3,
-        "hits": 2
+        "hits": 1
       },
       {
         "author": "coinpediamarkets",
         "ideas": 3,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "salahuddin20041",
@@ -182,7 +182,7 @@
       {
         "author": "Ifiok-Trades",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "TheCryptagon",
@@ -202,27 +202,27 @@
       {
         "author": "Rendon1",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "byggjan",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "FXSMARTT",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "pistissophiacapital",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "DivergenceSeeker",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "davidjulien369",
@@ -242,12 +242,12 @@
       {
         "author": "propfirmwise",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "TheTraderPhil",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "JRnehco",
@@ -269,53 +269,53 @@
   {
     "config": "tune_shorthold",
     "by": "sharpe",
-    "point": "H=3 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=3 TT=2 hold=24h track=5 rate=0.6 lock=2 metric=close",
     "train": {
-      "trades": 11,
-      "pnl": 7.14,
-      "wr": 0.55,
-      "dd": 3.3,
-      "sharpe": 0.83,
-      "sortino": 2.08
+      "trades": 18,
+      "pnl": 5.85,
+      "wr": 0.61,
+      "dd": 5.98,
+      "sharpe": 0.95,
+      "sortino": 1.73
     }
   },
   {
     "config": "tune_shorthold",
     "by": "sortino",
-    "point": "H=3 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=3 TT=2 hold=24h track=5 rate=0.6 lock=2 metric=close",
     "train": {
-      "trades": 11,
-      "pnl": 7.14,
-      "wr": 0.55,
-      "dd": 3.3,
-      "sharpe": 0.83,
-      "sortino": 2.08
+      "trades": 18,
+      "pnl": 5.85,
+      "wr": 0.61,
+      "dd": 5.98,
+      "sharpe": 0.95,
+      "sortino": 1.73
     }
   },
   {
     "config": "tune_shorthold",
     "by": "pnl",
-    "point": "H=3 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=close",
     "train": {
-      "trades": 11,
-      "pnl": 7.14,
-      "wr": 0.55,
-      "dd": 3.3,
-      "sharpe": 0.83,
-      "sortino": 2.08
+      "trades": 10,
+      "pnl": 7.01,
+      "wr": 0.6,
+      "dd": 5,
+      "sharpe": 0.7,
+      "sortino": 1.3
     }
   },
   {
     "config": "tune_shorthold",
     "by": "recovery",
-    "point": "H=3 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=close",
     "train": {
-      "trades": 11,
-      "pnl": 7.14,
-      "wr": 0.55,
-      "dd": 3.3,
-      "sharpe": 0.83,
-      "sortino": 2.08
+      "trades": 10,
+      "pnl": 7.01,
+      "wr": 0.6,
+      "dd": 5,
+      "sharpe": 0.7,
+      "sortino": 1.3
     }
   },
   {
@@ -324,7 +324,7 @@
       {
         "author": "MasterAnanda",
         "ideas": 16,
-        "hits": 8
+        "hits": 7
       },
       {
         "author": "TradingShot",
@@ -334,12 +334,12 @@
       {
         "author": "Apex_Legends",
         "ideas": 7,
-        "hits": 3
+        "hits": 4
       },
       {
         "author": "BitCoinGuide",
         "ideas": 7,
-        "hits": 1
+        "hits": 3
       },
       {
         "author": "Cryptollica",
@@ -354,7 +354,7 @@
       {
         "author": "ExpertTraderASK",
         "ideas": 6,
-        "hits": 1
+        "hits": 2
       },
       {
         "author": "melikatrader94",
@@ -364,17 +364,17 @@
       {
         "author": "CryptoSkullSignal",
         "ideas": 5,
-        "hits": 3
+        "hits": 2
       },
       {
         "author": "PremiumTrader57",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "InvestingScope",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "XAUxBTC_Pro",
@@ -384,12 +384,12 @@
       {
         "author": "CobraVanguard",
         "ideas": 3,
-        "hits": 2
+        "hits": 1
       },
       {
         "author": "coinpediamarkets",
         "ideas": 3,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "salahuddin20041",
@@ -449,7 +449,7 @@
       {
         "author": "Ifiok-Trades",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "TheCryptagon",
@@ -469,27 +469,27 @@
       {
         "author": "Rendon1",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "byggjan",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "FXSMARTT",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "pistissophiacapital",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "DivergenceSeeker",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "davidjulien369",
@@ -509,12 +509,12 @@
       {
         "author": "propfirmwise",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "TheTraderPhil",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "JRnehco",
@@ -536,53 +536,53 @@
   {
     "config": "tune_lockrich",
     "by": "sharpe",
-    "point": "H=3 TT=3 hold=72h track=2 rate=0.6 lock=3 metric=retain",
+    "point": "H=3 TT=3 hold=72h track=2 rate=0.6 lock=2.5 metric=close",
     "train": {
       "trades": 12,
-      "pnl": 11.49,
-      "wr": 0.75,
+      "pnl": 13.46,
+      "wr": 0.83,
       "dd": 6.61,
-      "sharpe": 1.41,
-      "sortino": 2.44
+      "sharpe": 1.63,
+      "sortino": 2.88
     }
   },
   {
     "config": "tune_lockrich",
     "by": "sortino",
-    "point": "H=3 TT=3 hold=72h track=2 rate=0.6 lock=3 metric=retain",
+    "point": "H=5 TT=3 hold=72h track=2 rate=0.5 lock=3 metric=close",
     "train": {
-      "trades": 12,
-      "pnl": 11.49,
-      "wr": 0.75,
-      "dd": 6.61,
-      "sharpe": 1.41,
-      "sortino": 2.44
+      "trades": 10,
+      "pnl": 11,
+      "wr": 0.7,
+      "dd": 5.45,
+      "sharpe": 1.53,
+      "sortino": 3.14
     }
   },
   {
     "config": "tune_lockrich",
     "by": "pnl",
-    "point": "H=3 TT=3 hold=72h track=2 rate=0.6 lock=3 metric=retain",
+    "point": "H=5 TT=3 hold=72h track=2 rate=0.5 lock=0 metric=close",
     "train": {
-      "trades": 12,
-      "pnl": 11.49,
-      "wr": 0.75,
-      "dd": 6.61,
-      "sharpe": 1.41,
-      "sortino": 2.44
+      "trades": 9,
+      "pnl": 15.61,
+      "wr": 0.89,
+      "dd": 5.29,
+      "sharpe": 1.42,
+      "sortino": 2.95
     }
   },
   {
     "config": "tune_lockrich",
     "by": "recovery",
-    "point": "H=3 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=3 hold=72h track=2 rate=0.5 lock=0 metric=close",
     "train": {
-      "trades": 11,
-      "pnl": 7.14,
-      "wr": 0.55,
-      "dd": 3.3,
-      "sharpe": 0.83,
-      "sortino": 2.08
+      "trades": 9,
+      "pnl": 15.61,
+      "wr": 0.89,
+      "dd": 5.29,
+      "sharpe": 1.42,
+      "sortino": 2.95
     }
   },
   {
@@ -591,7 +591,7 @@
       {
         "author": "MasterAnanda",
         "ideas": 16,
-        "hits": 8
+        "hits": 7
       },
       {
         "author": "TradingShot",
@@ -601,12 +601,12 @@
       {
         "author": "Apex_Legends",
         "ideas": 7,
-        "hits": 3
+        "hits": 4
       },
       {
         "author": "BitCoinGuide",
         "ideas": 7,
-        "hits": 1
+        "hits": 3
       },
       {
         "author": "Cryptollica",
@@ -621,7 +621,7 @@
       {
         "author": "ExpertTraderASK",
         "ideas": 6,
-        "hits": 1
+        "hits": 2
       },
       {
         "author": "melikatrader94",
@@ -631,17 +631,17 @@
       {
         "author": "CryptoSkullSignal",
         "ideas": 5,
-        "hits": 3
+        "hits": 2
       },
       {
         "author": "PremiumTrader57",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "InvestingScope",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "XAUxBTC_Pro",
@@ -651,12 +651,12 @@
       {
         "author": "CobraVanguard",
         "ideas": 3,
-        "hits": 2
+        "hits": 1
       },
       {
         "author": "coinpediamarkets",
         "ideas": 3,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "salahuddin20041",
@@ -716,7 +716,7 @@
       {
         "author": "Ifiok-Trades",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "TheCryptagon",
@@ -736,27 +736,27 @@
       {
         "author": "Rendon1",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "byggjan",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "FXSMARTT",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "pistissophiacapital",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "DivergenceSeeker",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "davidjulien369",
@@ -776,12 +776,12 @@
       {
         "author": "propfirmwise",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "TheTraderPhil",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "JRnehco",
@@ -803,53 +803,53 @@
   {
     "config": "tune_wide",
     "by": "sharpe",
-    "point": "H=5 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2 metric=close",
     "train": {
-      "trades": 8,
-      "pnl": 16.01,
-      "wr": 0.63,
-      "dd": 5.3,
-      "sharpe": 1.02,
-      "sortino": 2.52
+      "trades": 9,
+      "pnl": 9.21,
+      "wr": 0.89,
+      "dd": 1.31,
+      "sharpe": 2.31,
+      "sortino": 7.05
     }
   },
   {
     "config": "tune_wide",
     "by": "sortino",
-    "point": "H=5 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2 metric=close",
     "train": {
-      "trades": 8,
-      "pnl": 16.01,
-      "wr": 0.63,
-      "dd": 5.3,
-      "sharpe": 1.02,
-      "sortino": 2.52
+      "trades": 9,
+      "pnl": 9.21,
+      "wr": 0.89,
+      "dd": 1.31,
+      "sharpe": 2.31,
+      "sortino": 7.05
     }
   },
   {
     "config": "tune_wide",
     "by": "pnl",
-    "point": "H=5 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=3 TT=4 hold=72h track=2 rate=0.5 lock=0 metric=close",
     "train": {
       "trades": 8,
-      "pnl": 16.01,
-      "wr": 0.63,
-      "dd": 5.3,
-      "sharpe": 1.02,
-      "sortino": 2.52
+      "pnl": 17.4,
+      "wr": 0.75,
+      "dd": 5.63,
+      "sharpe": 1.25,
+      "sortino": 4.31
     }
   },
   {
     "config": "tune_wide",
     "by": "recovery",
-    "point": "H=5 TT=4 hold=72h track=2 rate=0.6 lock=0 metric=retain",
+    "point": "H=5 TT=2 hold=72h track=5 rate=0.5 lock=2 metric=close",
     "train": {
-      "trades": 8,
-      "pnl": 16.01,
-      "wr": 0.63,
-      "dd": 5.3,
-      "sharpe": 1.02,
-      "sortino": 2.52
+      "trades": 9,
+      "pnl": 9.21,
+      "wr": 0.89,
+      "dd": 1.31,
+      "sharpe": 2.31,
+      "sortino": 7.05
     }
   },
   {
@@ -858,7 +858,7 @@
       {
         "author": "MasterAnanda",
         "ideas": 16,
-        "hits": 8
+        "hits": 7
       },
       {
         "author": "TradingShot",
@@ -868,12 +868,12 @@
       {
         "author": "Apex_Legends",
         "ideas": 7,
-        "hits": 3
+        "hits": 4
       },
       {
         "author": "BitCoinGuide",
         "ideas": 7,
-        "hits": 1
+        "hits": 3
       },
       {
         "author": "Cryptollica",
@@ -888,7 +888,7 @@
       {
         "author": "ExpertTraderASK",
         "ideas": 6,
-        "hits": 1
+        "hits": 2
       },
       {
         "author": "melikatrader94",
@@ -898,17 +898,17 @@
       {
         "author": "CryptoSkullSignal",
         "ideas": 5,
-        "hits": 3
+        "hits": 2
       },
       {
         "author": "PremiumTrader57",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "InvestingScope",
         "ideas": 5,
-        "hits": 2
+        "hits": 3
       },
       {
         "author": "XAUxBTC_Pro",
@@ -918,12 +918,12 @@
       {
         "author": "CobraVanguard",
         "ideas": 3,
-        "hits": 2
+        "hits": 1
       },
       {
         "author": "coinpediamarkets",
         "ideas": 3,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "salahuddin20041",
@@ -983,7 +983,7 @@
       {
         "author": "Ifiok-Trades",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "TheCryptagon",
@@ -1003,27 +1003,27 @@
       {
         "author": "Rendon1",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "byggjan",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "FXSMARTT",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "pistissophiacapital",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "DivergenceSeeker",
         "ideas": 1,
-        "hits": 0
+        "hits": 1
       },
       {
         "author": "davidjulien369",
@@ -1043,12 +1043,12 @@
       {
         "author": "propfirmwise",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "TheTraderPhil",
         "ideas": 1,
-        "hits": 1
+        "hits": 0
       },
       {
         "author": "JRnehco",

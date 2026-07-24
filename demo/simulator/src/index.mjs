@@ -41,8 +41,9 @@ addSimulatorSchema({
     minAuthorTrack: [3, 5],
     minAuthorHitRate: [0.5, 0.6],
     profitLockPercent: [0],
-    // retain от замка не зависит: фиксация выше входа (медиана > 0)
-    authorMetric: ["retain"],
+    // close: закрытие 5-дневного горизонта в сторону идеи — у пробы
+    // замок выключен (lock=0), уровневым метрикам грейдить нечем
+    authorMetric: ["close"],
   },
   reportOrder: "sharpe",
 });
@@ -52,9 +53,9 @@ const ideas = readFileSync("./assets/tv-ideas.normalized.jsonl", "utf-8")
 
 const result = await Simulator.run({ symbol: "BTCUSDT", simulatorName: "tv_simulator", ideas });
 writeFileSync("./dump/simulator.done.json", JSON.stringify(result, null, 2));
-// проба пинует authorMetric: ["retain"] — её точки в этой корзине;
+// проба пинует authorMetric: ["close"] — её точки в этой корзине;
 // белый список — у sharpe-победителя корзины, под правило его точки
-const sharpeBest = result.reports.retain.best.find(({ criterion }) => criterion === "sharpe");
+const sharpeBest = result.reports.close.best.find(({ criterion }) => criterion === "sharpe");
 console.log(
   "saved; profiles:", result.profileCount,
   "allowed:", sharpeBest?.allowedAuthors.length ?? 0,

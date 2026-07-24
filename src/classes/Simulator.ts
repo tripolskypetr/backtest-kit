@@ -40,9 +40,10 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - authorMetric — hit definition: "close" = 5-day horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop, "retain" =
- *   fixation above the entry (median move > 0 — window-free,
- *   level-free), "pnl" = fixed +1% MFE threshold; reach requires
- *   lock > 0 — the lock-free combination is excluded from the grid.
+ *   fixation above the point's lock (median move strictly above
+ *   profitLockPercent), "pnl" = fixed +1% MFE threshold; reach and
+ *   retain require lock > 0 — the lock-free combinations are
+ *   excluded from the grid.
  *
  * Run-level config (not swept, ignored by test()):
  * - reportOrder — ranking criterion ordering each metric bucket's

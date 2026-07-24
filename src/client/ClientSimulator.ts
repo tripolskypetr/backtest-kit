@@ -62,7 +62,8 @@ const MIN_TRADES_FOR_BEST = 8;
  * Fixed MFE threshold of the "pnl" author metric, percent. A hit is
  * an idea whose PnL grew by MORE than this at any moment of the
  * horizon — independent of the point's lock and stop by design;
- * complements "retain" (median above entry) on lock-free grids.
+ * complements "retain" (median above the point's lock) on lock-free
+ * grids.
  */
 const PNL_HIT_THRESHOLD_PERCENT = 1;
 
@@ -259,11 +260,13 @@ interface IAuthorFilterContext {
  * Derives the ban-filter rule from a grid point as a discriminated
  * union. The "close"/"pnl" rules structurally carry no lock/stop
  * fields — the point's levels do not affect their ban training (see
- * the filter cache key — they are not part of it either). There is
- * NO fallback of any kind: reach/retain points with lock = 0 are
- * excluded from the grid by BUILD_GRID_FN (a rule without a target
- * does not exist — it never silently becomes another rule), so this
- * builder may assume every reach/retain point carries a target.
+ * the filter cache key — they are not part of it either). "retain"
+ * carries the point's lock (its fixation level) but no stop;
+ * "reach" carries both. There is NO fallback of any kind: reach and
+ * retain points with lock = 0 are excluded from the grid by
+ * BUILD_GRID_FN (a rule without a target does not exist — it never
+ * silently becomes another rule), so this builder may assume every
+ * reach/retain point carries a target.
  *
  * @param point - Grid point carrying the rule fields
  * @returns Discriminated ban-filter rule
@@ -276,6 +279,14 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
       minAuthorHitRate: point.minAuthorHitRate,
       profitLockPercent: point.profitLockPercent,
       hardStopPercent: point.hardStopPercent,
+    };
+  }
+  if (point.authorMetric === "retain") {
+    return {
+      metric: "retain",
+      minAuthorTrack: point.minAuthorTrack,
+      minAuthorHitRate: point.minAuthorHitRate,
+      profitLockPercent: point.profitLockPercent,
     };
   }
   return {
@@ -297,12 +308,12 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
  * horizon close is a miss for "close" and a hit for "reach" —
  * exactly the author a lock point earns on.
  *
- * "retain" — level FIXATION: the MEDIAN move of the horizon sat at
- * or above the rule's level (price held +X% for at least half the
- * trajectory — the 50% share is the median's definition, not a
- * window) while the pre-peak shakeout stayed above the stop. The
- * strictest grading: reach's transient spike and close's lucky
- * last-day finish are both misses here.
+ * "retain" — level FIXATION: the MEDIAN move of the horizon is
+ * strictly above the rule's lock level (price held above entry + X%
+ * for at least half the trajectory — the 50% share is the median's
+ * definition, not a window). The strictest grading: reach's
+ * transient spike and close's lucky last-day finish are both misses
+ * here. The point's stop plays no role.
  *
  * Same-candle ambiguity (lock and stop both reachable in the candle
  * of the MFE peak) reads as a hit here while SIMULATE_TRADE_FN gives
@@ -323,11 +334,10 @@ const AUTHOR_HIT_FN = (
       profile.shakeoutMaePercent > -rule.hardStopPercent
     );
   }
-  // "retain": фиксация ВЫШЕ входа — медиана ходов строго больше
-  // нуля (цена простояла выше цены входа не меньше половины
-  // горизонта); от замка и стопа точки не зависит
+  // "retain": фиксация ВЫШЕ замка правила — медиана ходов строго
+  // больше profitLockPercent; от стопа точки не зависит
   if (rule.metric === "retain") {
-    return profile.medianMovePercent > 0;
+    return profile.medianMovePercent > rule.profitLockPercent;
   }
   // "pnl": PnL идеи вырос БОЛЬШЕ фиксированного порога — строго
   // больше, независимо от замка и стопа точки
@@ -767,8 +777,8 @@ const EVALUATE_POINT_FN = (
 
 /**
  * Builds the cartesian product of grid axes. Meaningless
- * combinations DO NOT EXIST: a reach/retain point with lock = 0 has
- * no grading target — such a point is excluded here, it never
+ * combinations DO NOT EXIST: a reach or retain point with lock = 0
+ * has no grading target — such a point is excluded here, it never
  * silently trains under another metric's rule. A grid left empty by
  * the exclusion is a configuration error and throws loudly in
  * RUN_FN.
@@ -786,7 +796,8 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
               axes.authorMetric
                 .filter(
                   (authorMetric) =>
-                    profitLockPercent > 0 || authorMetric !== "reach",
+                    profitLockPercent > 0 ||
+                    (authorMetric !== "reach" && authorMetric !== "retain"),
                 )
                 .map((authorMetric) => ({
                   hardStopPercent,
@@ -901,8 +912,8 @@ const RUN_FN = async (
   }
 
   // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО:
-  // lock/stop есть только у reach (и только они входят в его ключ),
-  // close/retain/pnl зависят лишь от порогов. Никаких деградаций:
+  // у reach в ключе lock+stop, у retain — только lock (его уровень
+  // фиксации), close/pnl зависят лишь от порогов. Никаких деградаций:
   // невалидные комбинации исключены сеткой. Строковый ключ — деталь
   // мемоизации, наружу правила выходят массивом bans с собственными
   // идентифицирующими полями
@@ -915,7 +926,9 @@ const RUN_FN = async (
     const key =
       rule.metric === "reach"
         ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
-        : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
+        : rule.metric === "retain"
+          ? `retain:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}`
+          : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
     let entry = filterByRule.get(key);
     if (!entry) {
       entry = { rule, filter: TRAIN_AUTHOR_FILTER_FN(profiles, rule) };
@@ -949,8 +962,8 @@ const RUN_FN = async (
   if (!points.length) {
     throw new Error(
       `ClientSimulator ${self.params.simulatorName}: the grid is empty — ` +
-        `reach requires profitLockPercent > 0 (a rule without a target ` +
-        `does not exist); pin "close"/"retain"/"pnl" for lock-free grids`,
+        `reach and retain require profitLockPercent > 0 (a rule without ` +
+        `a target does not exist); pin "close"/"pnl" for lock-free grids`,
     );
   }
   const reports: ISimulatorPointReport[] = [];
@@ -1039,7 +1052,9 @@ const RUN_FN = async (
             profitLockPercent: rule.profitLockPercent,
             hardStopPercent: rule.hardStopPercent,
           }
-        : {}),
+        : rule.metric === "retain"
+          ? { profitLockPercent: rule.profitLockPercent }
+          : {}),
       authorStats: filter.stats,
       allowedAuthors: filter.stats
         .filter(({ banned }) => !banned)

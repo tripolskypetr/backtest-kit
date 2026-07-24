@@ -41,9 +41,9 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   (horizon close, feeds long-hold points), "reach"
  *   (lock-reachability, feeds lock points; requires lock > 0 —
  *   lock-free reach points are excluded from the grid), "retain"
- *   (FIXATION above the entry: median move > 0 — window-free,
- *   level-free) and "pnl" (fixed +1% MFE threshold — did the call
- *   ever pay);
+ *   (FIXATION above the point's lock: median move strictly above
+ *   profitLockPercent; requires lock > 0 like reach) and "pnl"
+ *   (fixed +1% MFE threshold — did the call ever pay);
  * - every metric bucket carries its own winners and its own ban
  *   dictionaries — nothing is aggregated across metrics.
  */
