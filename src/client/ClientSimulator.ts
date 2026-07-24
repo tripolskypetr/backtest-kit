@@ -313,6 +313,15 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
       profitLockPercent: point.profitLockPercent,
     };
   }
+  if (point.authorMetric === "trail") {
+    return {
+      metric: "trail",
+      holdMinutes: point.holdMinutes,
+      minAuthorTrack: point.minAuthorTrack,
+      minAuthorHitRate: point.minAuthorHitRate,
+      trailingTakePercent: point.trailingTakePercent,
+    };
+  }
   return {
     metric: point.authorMetric,
     holdMinutes: point.holdMinutes,
@@ -349,6 +358,12 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
  * "pnl" — the window's MFE grew by MORE than the fixed +1%
  * threshold (strictly greater), independent of the rule's levels.
  *
+ * "trail" — the idea's favorable excursion inside the window
+ * reached the ARMING level of the rule's trailing take — the same
+ * formula the trade machinery uses (long: peak >= entry/(1 - r),
+ * short: peak <= entry/(1 + r)): the authors a trailing point
+ * actually earns on, the exact symmetry of "reach" for the lock.
+ *
  * Same-candle ambiguity (lock and stop both reachable in the candle
  * of the MFE peak) reads as a hit here while SIMULATE_TRADE_FN gives
  * that candle to the stop — the filter metric is slightly more
@@ -368,6 +383,20 @@ const AUTHOR_HIT_FN = (
   if (rule.metric === "close") {
     const lastClose = candles[window - 1].close;
     return direction * (lastClose - entryPrice) > 0;
+  }
+  // "trail": лучшая экскурсия окна дотянулась до уровня ВЗВОДА
+  // трейлинга точки — та же формула, что в машинерии сделок:
+  // long peak >= entry/(1-r), short peak <= entry/(1+r)
+  if (rule.metric === "trail") {
+    const armLevel =
+      entryPrice / (1 - (direction * rule.trailingTakePercent) / 100);
+    for (let i = 0; i < window; i++) {
+      const favorable = direction > 0 ? candles[i].high : candles[i].low;
+      if (direction > 0 ? favorable >= armLevel : favorable <= armLevel) {
+        return true;
+      }
+    }
+    return false;
   }
   // "retain": фиксация ВЫШЕ замка правила — медиана close-ходов
   // ОКНА строго больше profitLockPercent; от стопа точки не зависит
@@ -847,10 +876,11 @@ const EVALUATE_POINT_FN = (
 /**
  * Builds the cartesian product of grid axes. Meaningless
  * combinations DO NOT EXIST: a reach or retain point with lock = 0
- * has no grading target — such a point is excluded here, it never
- * silently trains under another metric's rule. A grid left empty by
- * the exclusion is a configuration error and throws loudly in
- * RUN_FN.
+ * has no grading target, a trail point with trailing outside
+ * (0, 100) has no arming level — such points are excluded here,
+ * they never silently train under another metric's rule. A grid
+ * left empty by the exclusion is a configuration error and throws
+ * loudly in RUN_FN.
  *
  * @param axes - Value lists per axis
  * @returns All valid grid points
@@ -865,8 +895,11 @@ const BUILD_GRID_FN = (axes: ISimulatorGridAxes): ISimulatorGridPoint[] =>
               axes.authorMetric
                 .filter(
                   (authorMetric) =>
-                    profitLockPercent > 0 ||
-                    (authorMetric !== "reach" && authorMetric !== "retain"),
+                    (profitLockPercent > 0 ||
+                      (authorMetric !== "reach" &&
+                        authorMetric !== "retain")) &&
+                    (authorMetric !== "trail" ||
+                      (trailingTakePercent > 0 && trailingTakePercent < 100)),
                 )
                 .map((authorMetric) => ({
                   hardStopPercent,
@@ -1004,7 +1037,9 @@ const RUN_FN = async (
         ? `reach:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
         : rule.metric === "retain"
           ? `retain:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}`
-          : `${rule.metric}:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
+          : rule.metric === "trail"
+            ? `trail:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.trailingTakePercent}`
+            : `${rule.metric}:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
     let entry = filterByRule.get(key);
     if (!entry) {
       entry = { rule, filter: TRAIN_AUTHOR_FILTER_FN(profiles, rule) };
@@ -1038,8 +1073,9 @@ const RUN_FN = async (
   if (!points.length) {
     throw new Error(
       `ClientSimulator ${self.params.simulatorName}: the grid is empty — ` +
-        `reach and retain require profitLockPercent > 0 (a rule without ` +
-        `a target does not exist); pin "close"/"pnl" for lock-free grids`,
+        `reach and retain require profitLockPercent > 0, trail requires ` +
+        `trailingTakePercent in (0, 100) (a rule without a target does ` +
+        `not exist); pin "close"/"pnl" for level-free grids`,
     );
   }
   const reports: ISimulatorPointReport[] = [];
@@ -1110,6 +1146,7 @@ const RUN_FN = async (
       reach: { reports: [], best: [], bans: [] },
       retain: { reports: [], best: [], bans: [] },
       pnl: { reports: [], best: [], bans: [] },
+      trail: { reports: [], best: [], bans: [] },
     };
   for (const report of reports) {
     reportsByMetric[report.point.authorMetric].reports.push(report);
@@ -1131,7 +1168,9 @@ const RUN_FN = async (
           }
         : rule.metric === "retain"
           ? { profitLockPercent: rule.profitLockPercent }
-          : {}),
+          : rule.metric === "trail"
+            ? { trailingTakePercent: rule.trailingTakePercent }
+            : {}),
       authorStats: filter.stats,
       allowedAuthors: filter.stats
         .filter(({ banned }) => !banned)

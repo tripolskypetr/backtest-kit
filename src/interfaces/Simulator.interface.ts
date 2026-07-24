@@ -96,12 +96,21 @@ export interface ISimulatorIdeaProfile {
  * - "pnl" — the window's MFE grew by MORE than the fixed +1%
  *   threshold, INDEPENDENT of the point's lock and stop.
  *   Complements "retain": pnl asks "did it ever pay", retain asks
- *   "did it hold above the level".
+ *   "did it hold above the level";
+ * - "trail" — the idea's favorable excursion inside the window
+ *   reached the ARMING level of the point's trailing take (peak at
+ *   entry/(1 - r) — the same formula the trade machinery uses):
+ *   rewards the authors a trailing point actually earns on, the
+ *   exact symmetry of "reach" for the lock. Requires a live
+ *   trailing: trail points with trailingTakePercent outside
+ *   (0, 100) are excluded from the grid (an inert trailing has no
+ *   arming level to grade).
  * The right metric depends on the exit style being ranked: close-hit
  * authors feed long-hold points, reach-hit authors feed lock points,
- * retain-hit authors feed points that need the move to HOLD.
+ * retain-hit authors feed points that need the move to HOLD,
+ * trail-hit authors feed trailing points.
  */
-export type SimulatorAuthorMetric = "close" | "reach" | "retain" | "pnl";
+export type SimulatorAuthorMetric = "close" | "reach" | "retain" | "pnl" | "trail";
 
 /**
  * Discriminated union of the ban-filter rule derived from a grid
@@ -170,6 +179,21 @@ export type SimulatorAuthorRule =
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
       minAuthorHitRate: number;
+    }
+  | {
+      /**
+       * Discriminator: grade authors by trailing-take arming
+       * reachability inside the window.
+       */
+      metric: "trail";
+      /** Grading window, minutes — the point's own hold. */
+      holdMinutes: number;
+      /** Minimum known-outcome ideas to be allowed. */
+      minAuthorTrack: number;
+      /** Minimum hit rate (0..1) to be allowed. */
+      minAuthorHitRate: number;
+      /** Trailing pullback the arming level derives from (0..100). */
+      trailingTakePercent: number;
     };
 
 /**
@@ -197,10 +221,14 @@ export interface ISimulatorGridAxes {
    * Trailing take pullback levels to sweep, percent from the peak.
    * Tunes: how much of a runner's peak is given back. Arms only from
    * PREVIOUS-candle peaks and only when the locked level is not
-   * worse than entry (peak >= entry/(1 - r)).
+   * worse than entry (peak >= entry/(1 - r)). Also the grading
+   * level of the "trail" author metric (arming reachability inside
+   * the point's window).
    * Ignored: inert for any trade whose peak never reaches the arm
-   * level — such trades exit by stop, lock, or the hold cap. Never
-   * affects ban training under any metric.
+   * level — such trades exit by stop, lock, or the hold cap. Under
+   * "close"/"reach"/"retain"/"pnl" it never affects ban training;
+   * trail points with a value outside (0, 100) DO NOT EXIST — an
+   * inert trailing has no arming level to grade.
    */
   trailingTakePercent: number[];
   /**
@@ -265,13 +293,16 @@ export interface ISimulatorGridAxes {
    * rewards the authors a lock point actually earns on, "retain"
    * (median move above THE POINT'S lock) rewards authors whose
    * moves HOLD the level, "pnl" (fixed +1% MFE threshold) asks "did
-   * the call ever pay"; every grading runs inside THE POINT'S hold
-   * window, and the same author has different hit counts under
-   * different metrics and different windows.
+   * the call ever pay", "trail" (arming reachability of THE POINT'S
+   * trailing take) rewards the authors a trailing point actually
+   * earns on; every grading runs inside THE POINT'S hold window,
+   * and the same author has different hit counts under different
+   * metrics and different windows.
    * Ignored: with "close"/"pnl" the point's lock/stop never affect
    * ban training; "retain" ignores only the stop; "reach"/"retain"
-   * require lock > 0 — the lock-free combinations are excluded from
-   * the grid, never silently regraded.
+   * require lock > 0 and "trail" requires trailing in (0, 100) —
+   * the inert combinations are excluded from the grid, never
+   * silently regraded.
    */
   authorMetric: SimulatorAuthorMetric[];
 }
@@ -477,6 +508,8 @@ export interface ISimulatorRuleBans {
   profitLockPercent?: number;
   /** Shakeout stop bound; present on reach rules only. */
   hardStopPercent?: number;
+  /** Arming pullback; present on trail rules only. */
+  trailingTakePercent?: number;
   /** Per-author track records under this rule (sorted by ideas). */
   authorStats: ISimulatorAuthorStat[];
   /** Authors allowed by this rule. */

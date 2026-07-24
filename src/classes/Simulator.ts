@@ -42,8 +42,10 @@ const METHOD_NAME_TEST = "Simulator.test";
  *   affect ban training), "reach" = lock-reachability against the
  *   point's lock/stop, "retain" = fixation above the point's lock
  *   (median move strictly above profitLockPercent), "pnl" = fixed
- *   +1% MFE threshold; reach and retain require lock > 0 — the
- *   lock-free combinations are excluded from the grid.
+ *   +1% MFE threshold, "trail" = arming reachability of the point's
+ *   trailing take; reach and retain require lock > 0, trail
+ *   requires trailing in (0, 100) — the inert combinations are
+ *   excluded from the grid.
  *
  * Run-level config (not swept, ignored by test()):
  * - reportOrder — ranking criterion ordering each metric bucket's
