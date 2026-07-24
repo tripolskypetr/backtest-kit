@@ -69,12 +69,9 @@ test("SIM: end-of-data truncation — data_truncated exit and no track credit fo
       hardStopPercent: [50],
       trailingTakePercent: [100],
       holdMinutes: [7200],
-      minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {
@@ -102,7 +99,7 @@ test("SIM: end-of-data truncation — data_truncated exit and no track credit fo
     return;
   }
 
-  const stats = Object.fromEntries(result.best.find(({ criterion }) => criterion === "sharpe").authorStats.map((s) => [s.author, s]));
+  const stats = Object.fromEntries(result.reports.close.best.find(({ criterion }) => criterion === "sharpe").authorStats.map((s) => [s.author, s]));
   // cut: только 3 полных идеи в треке (обрезанная — не доказательство)
   if (stats.cut.ideas !== 3 || stats.cut.banned) {
     fail(`cut must have track=3 (truncated idea excluded) and be allowed, got ${JSON.stringify(stats.cut)}`);

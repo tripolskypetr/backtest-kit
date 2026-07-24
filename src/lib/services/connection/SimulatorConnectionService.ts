@@ -8,7 +8,7 @@ import { ClientSimulator } from "../../../client/ClientSimulator";
 
 /**
  * Report order applied when the schema omits reportOrder: the flat
- * result.reports list is sorted by Sharpe descending — the pre-knob
+ * result.reports buckets are sorted by Sharpe descending — the
  * canonical order.
  */
 const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
@@ -29,39 +29,35 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   systematically too short for peaks that ripen for days;
  * - author QUALITY threshold (hit rate) mattered more than track
  *   length on every criterion — both are swept;
- * - Wilson lower bound: an alternative ban arithmetic that prices
- *   the track length into the quality estimate (3/3 newcomer ~0.44
- *   vs 15/15 veteran ~0.80 at the same observed rate); 0 keeps the
- *   pair-only baseline, 0.6 demands veteran-grade proof — the sweep
- *   decides which arithmetic wins;
- * - weighted consensus: 0 keeps the unweighted baseline in the
- *   sweep, 0.6 ~ a solo proven author (Laplace (hits+1)/(ideas+2)),
- *   1.2 ~ a pair — the sweep itself decides whether weighting helps;
+ * - authors are graded strictly in ISOLATION: interaction metrics
+ *   (consensus counting, vote weighting, Wilson bounds) were removed
+ *   by design — swarm ranking over long histories is userspace;
  * - profit lock: covers the bleed zone below the trailing arm level
  *   (trailing arms only from peak >= entry/(1-r), so a +1.5..2.5%
  *   run that dumps gives everything back without a lock); 0 keeps
  *   the lock-free baseline, runners are untouched — above the lock
  *   the trailing floor is higher and fills first;
- * - author metric: "close" grades authors by horizon close (feeds
- *   long-hold points), "reach" by lock-reachability of their ideas
- *   (feeds lock points) — the sweep decides which grading wins;
- * - ban criteria (NOT a swept axis — run() aggregation config): all
- *   four ranking winners feed the run-level author artifact by
- *   default; a schema pins ["sharpe"] to restore the pre-union
- *   Sharpe-only artifact.
+ * - author metric: all five gradings compete in the sweep, each
+ *   computed inside THE POINT'S OWN hold window — "close" (window
+ *   close, feeds long-hold points), "reach" (lock-reachability,
+ *   feeds lock points; requires lock > 0 — lock-free reach points
+ *   are excluded from the grid), "retain" (FIXATION above the
+ *   point's lock: median move strictly above profitLockPercent;
+ *   requires lock > 0 like reach), "pnl" (fixed +1% MFE threshold —
+ *   did the call ever pay) and "trail" (arming reachability of the
+ *   point's trailing take — feeds trailing points; requires
+ *   trailing in (0, 100));
+ * - every metric bucket carries its own winners and its own ban
+ *   dictionaries — nothing is aggregated across metrics.
  */
 const DEFAULT_GRID_AXES: ISimulatorGridAxes = {
   hardStopPercent: [1, 1.5, 2, 2.5, 3, 4, 5, 7],
   trailingTakePercent: [0.5, 1, 1.5, 2, 3, 4],
   holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-  minIdeasAligned: [1, 2, 3],
   minAuthorTrack: [2, 3, 5],
   minAuthorHitRate: [0.5, 0.6],
-  minAuthorWilson: [0, 0.6],
-  minWeightAligned: [0, 0.6, 1.2],
   profitLockPercent: [0, 1.5, 2.5],
-  authorMetric: ["close", "reach"],
-  banCriteria: ["sharpe", "pnl"],
+  authorMetric: ["close", "reach", "retain", "pnl", "trail"],
 };
 
 /**

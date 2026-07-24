@@ -42,16 +42,11 @@ addSimulatorSchema({
         trailingTakePercent: [1, 1.5, 2, 3, 4],
         holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
         // N=3 не выигрывал нигде: побеждают 1 (соло проверенного) и 2
-        minIdeasAligned: [1, 2],
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
-        minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1.5, 2.5],
-        minAuthorWilson: [0, 0.6],
-        // обе метрики авторского hit'а — перебор решает, какая
-        // арифметика кормит какой стиль выхода (BC не сохраняем)
-        authorMetric: ["close", "reach"],
-        banCriteria: ["sharpe"],
+        // close: hit — закрытие 5-дневного горизонта в сторону идеи
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -65,14 +60,10 @@ addSimulatorSchema({
         hardStopPercent: [2, 3, 5, 7],
         trailingTakePercent: [1, 1.5, 2, 3],
         holdMinutes: [4 * 60, 8 * 60, 12 * 60, 24 * 60, 2 * 24 * 60],
-        minIdeasAligned: [1, 2],
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
-        minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1, 2],
-        minAuthorWilson: [0, 0.6],
-        authorMetric: ["close", "reach"],
-        banCriteria: ["sharpe"],
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -85,14 +76,10 @@ addSimulatorSchema({
         hardStopPercent: [2, 3, 5],
         trailingTakePercent: [1.5, 3],
         holdMinutes: [12 * 60, 24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-        minIdeasAligned: [1],
         minAuthorTrack: [2, 3],
         minAuthorHitRate: [0.5, 0.6],
-        minWeightAligned: [0, 0.6],
         profitLockPercent: [0, 0.5, 1, 1.5, 2, 2.5, 3],
-        minAuthorWilson: [0, 0.6],
-        authorMetric: ["close", "reach"],
-        banCriteria: ["sharpe"],
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -105,14 +92,10 @@ addSimulatorSchema({
         hardStopPercent: [2, 3, 5, 7],
         trailingTakePercent: [1, 2, 3, 4],
         holdMinutes: [4 * 60, 8 * 60, 24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-        minIdeasAligned: [1, 2],
         minAuthorTrack: [2, 3, 5],
         minAuthorHitRate: [0.5, 0.6],
-        minWeightAligned: [0, 0.6, 1.2],
         profitLockPercent: [0, 1, 2],
-        minAuthorWilson: [0, 0.6],
-        authorMetric: ["close", "reach"],
-        banCriteria: ["sharpe"],
+        authorMetric: ["close"],
     },
     reportOrder: "sharpe",
 });
@@ -127,7 +110,10 @@ const result = [];
 const runTune = async (simulatorName) => {
   const train = await Simulator.run({ symbol: "BTCUSDT", simulatorName, ideas: trainIdeas });
 
-  for (const best of train.best) {
+  // конфиги пинуют authorMetric: ["close"] — работаем с его корзиной
+  const bucket = train.reports.close;
+
+  for (const best of bucket.best) {
     if (!best.report) {
       continue;
     }
@@ -136,7 +122,7 @@ const runTune = async (simulatorName) => {
     result.push({
       config: simulatorName,
       by: best.criterion,
-      point: `H=${p.hardStopPercent} TT=${p.trailingTakePercent} hold=${p.holdMinutes / 60}h N=${p.minIdeasAligned} track=${p.minAuthorTrack} rate=${p.minAuthorHitRate} wilson=${p.minAuthorWilson} W=${p.minWeightAligned} lock=${p.profitLockPercent} metric=${p.authorMetric}`,
+      point: `H=${p.hardStopPercent} TT=${p.trailingTakePercent} hold=${p.holdMinutes / 60}h track=${p.minAuthorTrack} rate=${p.minAuthorHitRate} lock=${p.profitLockPercent} metric=${p.authorMetric}`,
       train: {
         trades: best.report.trades,
         pnl: fmt(best.report.totalPnlPercent),
@@ -149,10 +135,9 @@ const runTune = async (simulatorName) => {
 
   }
 
-  // сырой трек-рекорд под правило Sharpe-победителя — источник
-  // для AUTHOR_STATS в src/test.mjs (артефакт авторов живёт
-  // по-победительно в best[], ран-левел authorStats больше нет)
-  const sharpeBest = train.best.find(({ criterion }) => criterion === "sharpe");
+  // сырой трек-рекорд под правило Sharpe-победителя корзины —
+  // источник для AUTHOR_STATS в src/test.mjs
+  const sharpeBest = bucket.best.find(({ criterion }) => criterion === "sharpe");
   result.push({
     config: simulatorName,
     authorStats: (sharpeBest?.authorStats ?? []).map(({ author, ideas, hits }) => ({ author, ideas, hits })),

@@ -22,10 +22,10 @@ addExchangeSchema({
 });
 
 // Проба осуществимости, НЕ поиск заработка: вся собирающая прибыль
-// механика выключена (замок, трейлинг, взвешенный консенсус, Вильсон,
-// reach-метрика — это территория demo/tune). Остаётся минимальный
-// вопрос: даёт ли удержание идей проверенных авторов прибыльный
-// КОРИДОР по стопу x холду x правилу бана — 48 точек вместо тысяч
+// механика выключена (замок, трейлинг, reach-метрика — территория
+// demo/tune). Остаётся минимальный вопрос: даёт ли удержание идей
+// проверенных авторов прибыльный КОРИДОР по стопу x холду x правилу
+// бана — 48 точек вместо тысяч
 addSimulatorSchema({
   simulatorName: "tv_simulator",
   exchangeName: "ccxt_exchange",
@@ -36,17 +36,14 @@ addSimulatorSchema({
     // проба не собирает прибыль, выход — по времени или стопу
     trailingTakePercent: [100],
     holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-    // одного проверенного автора достаточно — консенсус не перебираем
-    minIdeasAligned: [1],
     // правило бана — единственная перебираемая "умность" пробы:
     // вопрос N3 — выживает ли кто-то в белом списке
     minAuthorTrack: [3, 5],
     minAuthorHitRate: [0.5, 0.6],
-    minAuthorWilson: [0],
-    minWeightAligned: [0],
     profitLockPercent: [0],
+    // close: закрытие 5-дневного горизонта в сторону идеи — у пробы
+    // замок выключен (lock=0), уровневым метрикам грейдить нечем
     authorMetric: ["close"],
-    banCriteria: ["sharpe", "pnl"],
   },
   reportOrder: "sharpe",
 });
@@ -55,7 +52,13 @@ const ideas = readFileSync("./assets/tv-ideas.normalized.jsonl", "utf-8")
   .split("\n").filter(Boolean).map((line) => JSON.parse(line));
 
 const result = await Simulator.run({ symbol: "BTCUSDT", simulatorName: "tv_simulator", ideas });
-const { reports, best, ...rest } = result;
 writeFileSync("./dump/simulator.done.json", JSON.stringify(result, null, 2));
-console.log("saved; profiles:", rest.profileCount, "allowed:", rest.allowedAuthors.length, "banned:", rest.bannedAuthors.length);
+// проба пинует authorMetric: ["close"] — её точки в этой корзине;
+// белый список — у sharpe-победителя корзины, под правило его точки
+const sharpeBest = result.reports.close.best.find(({ criterion }) => criterion === "sharpe");
+console.log(
+  "saved; profiles:", result.profileCount,
+  "allowed:", sharpeBest?.allowedAuthors.length ?? 0,
+  "banned:", sharpeBest?.bannedAuthors.length ?? 0,
+);
 process.exit(0);

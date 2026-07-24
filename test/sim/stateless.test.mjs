@@ -51,12 +51,9 @@ test("SIM: repeated run on the memoized client is bit-for-bit identical", async 
       hardStopPercent: [5, 50],
       trailingTakePercent: [2, 100],
       holdMinutes: [60, 7200],
-      minIdeasAligned: [1],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {},
@@ -74,11 +71,11 @@ test("SIM: repeated run on the memoized client is bit-for-bit identical", async 
   const second = await Simulator.run({ symbol: "TESTUSDT", simulatorName: "sim_stateless", ideas });
 
   // содержательность: прогон не вырожден
-  if (first.reports.length !== 8 || first.best.some((b) => !b.report)) {
-    fail(`run must be non-degenerate: reports=${first.reports.length}`);
+  if (Object.values(first.reports).flatMap((b) => b.reports).length !== 8 || first.reports.close.best.some((b) => !b.report)) {
+    fail(`run must be non-degenerate: reports=${Object.values(first.reports).flatMap((b) => b.reports).length}`);
     return;
   }
-  const hasTrades = first.reports.some(({ trades }) => trades > 0);
+  const hasTrades = Object.values(first.reports).flatMap((b) => b.reports).some(({ trades }) => trades > 0);
   if (!hasTrades) {
     fail("run must produce trades to make the comparison meaningful");
     return;

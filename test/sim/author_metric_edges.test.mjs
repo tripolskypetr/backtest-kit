@@ -10,13 +10,14 @@ import { addExchangeSchema, addSimulatorSchema, Simulator } from "../../build/in
  *       +2.49% — miss;
  *     - hit требует shakeoutMaePercent > -stop (СТРОГО): просадка до
  *       пика ровно -5% при стопе 5 — miss, -4.9% — hit.
- *     Каждый паттерн — СВОЙ мир и свой прогон: 5-дневный горизонт
- *     идеи накрывает ~15 циклов, и смешение паттернов в одной ленте
- *     отравило бы shakeout всем (проверено — отравляет). Миры без
- *     дрейфа (база 1000) — проценты точны в плавучке.
- *  2) lock=0 деградирует reach в close: спайкер (+4% за полчаса,
- *     -3% к горизонту) при metric="reach" и lock=0 банится так же,
- *     как по close — 0 hits, 0 сделок.
+ *     Каждый паттерн — СВОЙ мир и свой прогон: смешение паттернов в
+ *     одной ленте отравило бы shakeout всем (проверено — отравляет).
+ *     Горизонт профиля = max(holdMinutes) = 120м — один паттерн
+ *     внутри одного цикла. Миры без дрейфа (база 1000) — проценты
+ *     точны в плавучке.
+ *  2) reach без замка не существует: комбинации reach x lock=0
+ *     исключаются из сетки, и грид из одной такой точки обязан
+ *     громко упасть пустым, а не молча грейдить чем-то другим.
  */
 
 const START = 1704067200000;
@@ -94,13 +95,12 @@ test("SIM: reach thresholds are exact — >= on the lock touch, strictly > on th
       gridAxes: {
         hardStopPercent: [5],
         trailingTakePercent: [100],
-        holdMinutes: [60],
-        minIdeasAligned: [1],
+        // горизонт профиля = max(holdMinutes): 120м накрывает и яму
+        // встряски (фаза 30), и восстановление к пику (фаза 100)
+        holdMinutes: [120],
         minAuthorTrack: [5],
         minAuthorHitRate: [0.5],
-        minWeightAligned: [0],
         profitLockPercent: [2.5],
-        minAuthorWilson: [0],
         authorMetric: ["reach"],
       },
       callbacks: {
@@ -125,9 +125,9 @@ test("SIM: reach thresholds are exact — >= on the lock touch, strictly > on th
   pass("reach edges exact: +2.5 hit / +2.49 miss (>= lock), shakeout -4.9 hit / -5.0 miss (strictly > -stop)");
 });
 
-test("SIM: reach with lock=0 degrades to the close metric — the spiker stays banned", async ({ pass, fail }) => {
+test("SIM: reach without a lock does not exist — reach-only grid with lock=[0] throws loudly", async ({ pass, fail }) => {
   // спайкер: +4% за полчаса, к горизонту -3% (все циклы одинаковы)
-  registerWorld("sim-reach-fallback-exchange", (timestamp) => {
+  registerWorld("sim-reach-lockless-exchange", (timestamp) => {
     const m = Math.floor((timestamp - START) / MINUTE);
     if (m < 0) return 1000;
     const p = m % CYCLE;
@@ -139,45 +139,41 @@ test("SIM: reach with lock=0 degrades to the close metric — the spiker stays b
     return 1000 * f;
   });
 
-  const trainedStats = [];
   addSimulatorSchema({
-    simulatorName: "sim_reach_fallback",
-    exchangeName: "sim-reach-fallback-exchange",
+    simulatorName: "sim_reach_lockless",
+    exchangeName: "sim-reach-lockless-exchange",
     gridAxes: {
       hardStopPercent: [5],
       trailingTakePercent: [100],
       holdMinutes: [240],
-      minIdeasAligned: [1],
       minAuthorTrack: [5],
       minAuthorHitRate: [0.5],
-      minWeightAligned: [0],
+      // reach без замка — не правило: такие комбинации исключаются из
+      // сетки, и грид из одной reach-точки при lock=0 обязан быть пустым
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["reach"],
     },
-    callbacks: {
-      onAuthorsTrained: (_symbol, stats) => trainedStats.push(stats),
-    },
   });
 
-  const result = await Simulator.run({
-    symbol: "TESTUSDT",
-    simulatorName: "sim_reach_fallback",
-    ideas: Array.from({ length: 5 }, (_, k) => idea(1 + k, k * CYCLE, "spiker")),
-  });
-
-  const spiker = trainedStats[0]?.find(({ author }) => author === "spiker");
-  // MFE +4% есть у каждой идеи, но lock=0: reach обязан деградировать
-  // в close (горизонт -3% = miss), а не считать всё подряд hit'ом
-  if (!spiker || spiker.hits !== 0 || !spiker.banned) {
-    fail(`lock=0 must fall back to close (0/5 hits, banned), got ${JSON.stringify(spiker)}`);
-    return;
-  }
-  const [report] = result.reports;
-  if (report.trades !== 0) {
-    fail(`banned spiker must produce 0 trades, got ${report.trades}`);
-    return;
+  let error = null;
+  try {
+    await Simulator.run({
+      symbol: "TESTUSDT",
+      simulatorName: "sim_reach_lockless",
+      ideas: Array.from({ length: 5 }, (_, k) => idea(1 + k, k * CYCLE, "spiker")),
+    });
+  } catch (e) {
+    error = e;
   }
 
-  pass("lock=0 fallback exact: reach counts the spiker 0/5 by close semantics, banned, zero trades");
+  if (!error) {
+    fail("reach-only grid with lock=[0] must throw (empty grid), but run succeeded");
+    return;
+  }
+  if (!String(error.message ?? error).includes("the grid is empty")) {
+    fail(`expected the empty-grid error, got: ${error.message ?? error}`);
+    return;
+  }
+
+  pass("reach x lock=0 is excluded from the grid and an all-excluded grid throws loudly");
 });

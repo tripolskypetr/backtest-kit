@@ -41,12 +41,9 @@ test("SIM: onProgress streams both stages; foreign symbols and NEUTRAL are filte
       hardStopPercent: [50],
       trailingTakePercent: [100],
       holdMinutes: [60, 120],
-      minIdeasAligned: [1],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
-      minWeightAligned: [0],
       profitLockPercent: [0],
-      minAuthorWilson: [0],
       authorMetric: ["close"],
     },
     callbacks: {
