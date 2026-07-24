@@ -7,7 +7,7 @@
     "test": "node ./src/test.mjs"
   },
   "dependencies": {
-    "backtest-kit": "16.6.0",
+    "backtest-kit": "17.0.0",
     "ccxt": "4.5.24"
   },
   "devDependencies": {

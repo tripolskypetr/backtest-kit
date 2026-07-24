@@ -6,7 +6,7 @@
     "start": "dotenv -e .env -- node ./src/index.mjs"
   },
   "dependencies": {
-    "backtest-kit": "16.6.0",
+    "backtest-kit": "17.0.0",
     "ccxt": "4.5.24",
     "functools-kit": "5.0.0",
     "ollama": "0.6.3",
