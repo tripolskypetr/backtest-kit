@@ -29,7 +29,7 @@ Before any trading logic runs, the feed passes the honesty filters: NEUTRAL idea
 
 ### 3. Does anyone survive the ban?
 
-Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate. Correctness here is graded by `close` — the idea's horizon closed in its direction, where the horizon is the grid's longest hold, 72h (the probe runs lock-free, and the level-graded metrics `reach`/`retain` require a lock by construction). The probe answers how many authors clear the bar: **9 of 154** under the winning rule (track ≥ 3, hit rate ≥ 0.6 — 145 banned, the long-posting crowd included). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
+Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate. Correctness here is graded by `close` inside each point's OWN hold window — a 24h point judges its authors by the 24h close, a 72h point by the 72h close: the author is graded on exactly the event the point trades (the probe runs lock-free, and the level-graded metrics `reach`/`retain` require a lock by construction). The probe answers how many authors clear the bar: **8 of 154** under the winning rule (48h window, track ≥ 5, hit rate ≥ 0.5 — 146 banned, the long-posting crowd included). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
 
 ### 4. The mechanics are deliberately primitive
 
@@ -47,20 +47,20 @@ The committed artifact is [`assets/simulator.done.json`](https://github.com/trip
 |---|---|
 | Ideas in feed (BTCUSDT) | 421 total → 300 after NEUTRAL + flood dedupe |
 | Profiles built | 300, none truncated |
-| Author filter | **9 allowed / 145 banned** (winning rule: track ≥ 3, hit rate ≥ 0.6, close grading on the 72h horizon) |
+| Author filter | **8 allowed / 146 banned** (winning rule: 48h window, track ≥ 5, hit rate ≥ 0.5) — 12 ban dictionaries total, one per window × rule |
 | Grid | 48 points (stop 4 × hold 3 × track 2 × rate 2), harvesting machinery off |
-| Profitable corridor | **32 of 48 points**; by hold: 6/16 @ 24h → **14/16 @ 48h** → 12/16 @ 72h |
+| Profitable corridor | **41 of 48 points**; by hold: 14/16 @ 24h → **15/16 @ 48h** → 12/16 @ 72h |
 
-The four ranking winners (the `close` bucket — the probe's single swept metric) — a FULL 4/4 convergence on one point:
+The four ranking winners (the `close` bucket — the probe's single swept metric):
 
 | Criterion | Point | Trades | PnL | Win rate | DD | Sharpe | Sortino |
 |---|---|---|---|---|---|---|---|
-| Sharpe | H=3 72h track≥3 rate≥0.6 | 10 | **+23.30%** | **80%** | **3.30%** | **1.50** | **4.99** |
-| Sortino | the same point | 10 | +23.30% | 80% | 3.30% | 1.50 | 4.99 |
-| PnL | the same point | 10 | +23.30% | 80% | 3.30% | 1.50 | 4.99 |
-| Recovery | the same point | 10 | +23.30% | 80% | 3.30% | 1.50 | 4.99 |
+| Sharpe | H=3 48h track≥5 rate≥0.5 | 14 | +19.32% | 71% | 5.52% | **1.69** | 4.85 |
+| Sortino | H=3 72h track≥3 rate≥0.6 | 10 | **+23.30%** | **80%** | **3.30%** | 1.50 | **4.99** |
+| PnL | the same 72h point | 10 | +23.30% | 80% | 3.30% | 1.50 | 4.99 |
+| Recovery | the same 72h point | 10 | +23.30% | 80% | 3.30% | 1.50 | 4.99 |
 
-The verdict for this feed: **`true` — there is an edge to search.** Not because +23.3% is money anyone will earn (train-on-train, a ceiling by construction), but because the evidence stacks with the harvesting machinery OFF: two thirds of the primitive grid is profitable (32/48), and the corridor lives in the multi-day holds — 14/16 at 48h and 12/16 at 72h against 6/16 at 24h. The signal is the direction of the ideas, not exit engineering: 8 of the sharpe winner's 10 exits are the plain hold cap (`time_expired`), two are the stop. All four criteria converge on ONE point — hold = 72h, stop 3%, track ≥ 3 at rate ≥ 0.6 — and 9 authors survive that scrutiny — a population worth whitelisting: TradingShot 9/15, MarketStrategysignals 5/8, XAUxBTC_Pro 5/6, CandleKing09 4/5, melikatrader94 3/5, CobraVanguard 2/3, Alpha_Trade_Scope 2/3, KennyYenKen 2/3, Prime_X_Trader 2/3.
+The verdict for this feed: **`true` — there is an edge to search.** Not because +23.3% is money anyone will earn (train-on-train, a ceiling by construction), but because the evidence stacks with the harvesting machinery OFF: 41 of 48 points are profitable, and the corridor covers EVERY hold once authors are judged by the window their point actually trades — 14/16 at 24h, 15/16 at 48h, 12/16 at 72h (under the old shared-horizon grading the short holds looked dead only because their authors were graded on a 72h event). The signal is the direction of the ideas, not exit engineering: 12 of the sharpe winner's 14 exits are the plain hold cap (`time_expired`), two are the stop. The rankings split between two honest shapes — faster turnover on the strictest track (48h, track ≥ 5: sharpe 1.69 on 14 trades) and a calmer 72h point (track ≥ 3, rate ≥ 0.6: +23.3% at dd 3.3) — and 8 authors survive the winner's scrutiny: TradingShot 10/15, XAUxBTC_Pro 5/6, CryptoSkullSignal 4/8, Cryptollica 3/6, InvestingScope 3/6, melikatrader94 3/5, CandleKing09 3/5, Vili_Wealth_Plan 3/5.
 
 ## Project Structure
 

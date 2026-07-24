@@ -63,7 +63,7 @@ The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https
 
 What to read out of this:
 
-- **Grading now happens on the traded horizon.** The profile horizon is the grid's longest hold — 72h for every config except `tune_shorthold` (48h). Authors are judged by exactly the window the machinery can trade, not by an engine constant nobody harvests.
+- **Grading happens inside each point's own hold window.** A 12h point judges its authors by the 12h close, a 72h point by the 72h close — the author is graded on exactly the event the point trades, never on an engine constant nobody harvests (the grid's longest hold only sets the candle fetch depth). The window is part of the ban rule and of every `bans` dictionary.
 - **One core re-emerges across grids.** H=3 TT=4 hold=72h rate=0.5 lock=0 wins sharpe AND sortino of `tune_wide` plus sortino of `tune_default` at track=2 (sharpe 1.57), and its track=3 twin takes the pnl and recovery rankings of both configs. A core elected by differently shaped grids is not an artifact of axis choice.
 - **The big sharpes cannot re-emerge — and that disqualifies them.** `tune_default`'s sharpe winner (H=7 TT=2 lock=2.5, 1.91) and `tune_lockrich`'s (lock=3, 1.88) carry locks that simply do not exist in the other grids' axes: their cross-config test never ran, so a single-grid election is all they have. Convergence beats a lone number.
 - **Hold = 72h dominates.** Every config whose axes reach 72h elects it; `tune_shorthold` stays uniformly worse — the ideas need days, not hours.
@@ -90,7 +90,7 @@ The training elects the re-emergent core — `tune_wide`'s sharpe/sortino winner
 | `minAuthorTrack` | **2** | author needs ≥ 2 fully observed ideas |
 | `minAuthorHitRate` | **0.5** | ...at hit rate ≥ 0.5 to be allowed |
 | `profitLockPercent` | **0** | profit lock disabled |
-| `authorMetric` | **"close"** | hit = the 72h horizon (the grid's longest hold) closes in the idea's direction |
+| `authorMetric` | **"close"** | hit = the close of the point's own 72h hold window is in the idea's direction |
 
 ## Step 2 — Out-of-sample (`npm test`)
 
@@ -98,7 +98,7 @@ The training elects the re-emergent core — `tune_wide`'s sharpe/sortino winner
 
 ### Out-of-sample result
 
-181 tail profiles (June 22–30, none truncated, graded on the point's own 72h horizon), the frozen whitelist resolves to 8 authors under the close rule (ideas ≥ 2, hit rate ≥ 0.5), 146 logins banned — including every author the training never saw:
+181 tail profiles (June 22–30, none truncated, graded inside the point's own 72h hold window), the frozen whitelist resolves to 8 authors under the close rule (ideas ≥ 2, hit rate ≥ 0.5), 146 logins banned — including every author the training never saw:
 
 | Metric | Train (Jun 1–21) | Test (Jun 22–30) |
 |---|---|---|

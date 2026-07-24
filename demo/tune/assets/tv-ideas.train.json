@@ -575,14 +575,14 @@
   {
     "config": "tune_lockrich",
     "by": "recovery",
-    "point": "H=5 TT=3 hold=48h track=2 rate=0.6 lock=3 metric=close",
+    "point": "H=5 TT=3 hold=72h track=2 rate=0.6 lock=3 metric=close",
     "train": {
-      "trades": 11,
-      "pnl": 14.59,
-      "wr": 0.82,
-      "dd": 4.42,
-      "sharpe": 1.62,
-      "sortino": 2.62
+      "trades": 10,
+      "pnl": 16.08,
+      "wr": 0.9,
+      "dd": 5.3,
+      "sharpe": 1.88,
+      "sortino": 3.03
     }
   },
   {
