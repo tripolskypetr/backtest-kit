@@ -37,7 +37,7 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
- * - authorMetric — hit definition: "close" = 5-day horizon close
+ * - authorMetric — hit definition: "close" = horizon close
  *   (lock/stop do NOT affect ban training), "reach" =
  *   lock-reachability against the point's lock/stop, "retain" =
  *   fixation above the point's lock (median move strictly above

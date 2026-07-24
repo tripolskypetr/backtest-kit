@@ -86,7 +86,9 @@ test("SIM: retain metric bans the transient spiker where reach allows him — th
     gridAxes: {
       hardStopPercent: [5],
       trailingTakePercent: [100],
-      holdMinutes: [60],
+      // горизонт профиля = max(holdMinutes) = ровно один цикл мира:
+      // медиана фиксера считается по всей ступеньке, спайкера — по базе
+      holdMinutes: [7200],
       minAuthorTrack: [3],
       minAuthorHitRate: [0.5],
       profitLockPercent: [2.5],

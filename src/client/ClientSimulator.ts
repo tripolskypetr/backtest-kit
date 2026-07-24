@@ -29,11 +29,28 @@ const MINUTE_MS = 60 * 1_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
 /**
- * Horizon trim per idea, days. Every idea gets its own forward
- * horizon regardless of frame boundaries — no cutoff artifacts.
+ * Forward horizon of an idea profile, minutes — the LONGEST hold of
+ * the schema's grid (max of the holdMinutes axis). Not an engine
+ * constant: the schema defines both what is traded and over what
+ * window authors are graded — no trade can outlive the longest hold,
+ * and grading the ideas further than the machinery can trade would
+ * judge authors on an event nobody harvests. Every idea gets its own
+ * forward horizon regardless of frame boundaries — no cutoff
+ * artifacts.
+ *
+ * @param axes - Grid axes carrying the holdMinutes list
+ * @returns Profile horizon in minutes
  */
-const IDEA_TRIM_DAYS = 5;
-const IDEA_TRIM_MINUTES = IDEA_TRIM_DAYS * 24 * 60;
+const HORIZON_MINUTES_FN = (axes: ISimulatorGridAxes): number => {
+  const horizonMinutes = Math.max(...axes.holdMinutes);
+  if (!Number.isFinite(horizonMinutes) || horizonMinutes <= 0) {
+    throw new Error(
+      `ClientSimulator: holdMinutes axis must contain at least one ` +
+        `positive value — it defines the idea profile horizon`,
+    );
+  }
+  return horizonMinutes;
+};
 
 /**
  * Anti-flood window: an author may contribute at most one idea per
@@ -169,12 +186,14 @@ const DEDUPE_IDEAS_FN = (ideas: ISimulatorIdea[]): ISimulatorIdea[] => {
  * @param self - ClientSimulator instance reference
  * @param symbol - Trading pair symbol
  * @param idea - Idea to profile
+ * @param horizonMinutes - Forward horizon (the grid's longest hold)
  * @returns Profile or null when no candles exist for the horizon
  */
 const BUILD_PROFILE_FN = async (
   self: ClientSimulator,
   symbol: string,
   idea: ISimulatorIdea,
+  horizonMinutes: number,
 ): Promise<ISimulatorIdeaProfile | null> => {
   const entryTimestamp = intervalStart(idea.ts, "1m") + MINUTE_MS;
   const candles: ICandleData[] = [];
@@ -182,7 +201,7 @@ const BUILD_PROFILE_FN = async (
     self,
     symbol,
     entryTimestamp,
-    IDEA_TRIM_MINUTES,
+    horizonMinutes,
   )) {
     candles.push(candle);
   }
@@ -231,7 +250,7 @@ const BUILD_PROFILE_FN = async (
     candles,
     hit: direction * (lastClose - entryPrice) > 0,
     outcomeKnownAt: entryTimestamp + candles.length * MINUTE_MS,
-    truncated: candles.length < IDEA_TRIM_MINUTES,
+    truncated: candles.length < horizonMinutes,
     maxMfePercent,
     maxMaePercent,
     minutesToMfe,
@@ -891,9 +910,15 @@ const RUN_FN = async (
     self.params.callbacks?.onIdeas(symbol, ideas.length, directional.length);
   }
 
+  const horizonMinutes = HORIZON_MINUTES_FN(self.params.gridAxes);
   const profiles: ISimulatorIdeaProfile[] = [];
   for (let index = 0; index < directional.length; index++) {
-    const profile = await BUILD_PROFILE_FN(self, symbol, directional[index]);
+    const profile = await BUILD_PROFILE_FN(
+      self,
+      symbol,
+      directional[index],
+      horizonMinutes,
+    );
     if (profile) {
       profiles.push(profile);
     }
@@ -1162,9 +1187,15 @@ const TEST_FN = async (
     self.params.callbacks?.onIdeas(symbol, ideas.length, directional.length);
   }
 
+  const horizonMinutes = HORIZON_MINUTES_FN(self.params.gridAxes);
   const profiles: ISimulatorIdeaProfile[] = [];
   for (let index = 0; index < directional.length; index++) {
-    const profile = await BUILD_PROFILE_FN(self, symbol, directional[index]);
+    const profile = await BUILD_PROFILE_FN(
+      self,
+      symbol,
+      directional[index],
+      horizonMinutes,
+    );
     if (profile) {
       profiles.push(profile);
     }
@@ -1257,8 +1288,10 @@ const TEST_FN = async (
  * over IDEAS, not candles and not grid points:
  *
  * 1. Each idea gets ONE asynchronous forward candle pass from the
- *    minute after its publication, capped by a static horizon
- *    (IDEA_TRIM_DAYS). The pass produces a per-candle trajectory
+ *    minute after its publication, capped by the grid's longest
+ *    hold (max of the holdMinutes axis — the schema defines the
+ *    horizon, not an engine constant). The pass produces a
+ *    per-candle trajectory
  *    profile (MFE/MAE extremes, whale shakeout depth). Overlapping
  *    and sparse ideas are both supported: candle chunks are fetched
  *    lazily through the Exchange (persist cache first), gaps between

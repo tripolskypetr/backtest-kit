@@ -68,8 +68,11 @@ export interface ISimulatorIdeaProfile {
 
 /**
  * Metric that defines an author's "hit" for the ban filter:
- * - "close" — the idea's 5-day horizon close moved in its direction
- *   (rewards authors whose calls survive a long hold);
+ * - "close" — the idea's horizon close moved in its direction
+ *   (rewards authors whose calls survive a long hold). The horizon
+ *   is the grid's LONGEST hold — max(holdMinutes) — for every
+ *   metric here: the schema defines the grading window, not an
+ *   engine constant;
  * - "reach" — the idea's MFE reached the point's profit-lock level
  *   before its pre-peak MAE reached the hard stop (rewards authors
  *   whose calls are HARVESTABLE by the lock machinery, even when the
@@ -107,7 +110,7 @@ export type SimulatorAuthorMetric = "close" | "reach" | "retain" | "pnl";
  */
 export type SimulatorAuthorRule =
   | {
-      /** Discriminator: grade authors by the 5-day horizon close. */
+      /** Discriminator: grade authors by the horizon close. */
       metric: "close";
       /** Minimum known-outcome ideas to be allowed. */
       minAuthorTrack: number;
@@ -188,9 +191,11 @@ export interface ISimulatorGridAxes {
    * ABSORBS qualified ideas (per-trade absorbedIdeaIds), so longer
    * holds trade less often; the cap is the worst-case exit
    * (time_expired) when neither stop nor floor fires.
-   * Ignored: never for trading. Ban training does NOT use it — an
-   * author's hit is graded on the idea's full 5-day profile horizon,
-   * not on the point's hold.
+   * Ignored: never for trading. Ban training does not use the
+   * POINT'S hold — an author's hit is graded on the idea's full
+   * profile horizon, which is this axis's MAXIMUM: the longest hold
+   * declared here defines every idea's forward candle window (the
+   * schema owns the horizon, the engine has no hidden constant).
    */
   holdMinutes: number[];
   /**
@@ -235,7 +240,7 @@ export interface ISimulatorGridAxes {
    * the sweep never glues incomparable hit counts together, it
    * reports every grading as its own points and its own ban lists.
    * Tunes: which author grading feeds which exit style — "close"
-   * (5-day horizon close) rewards authors whose calls survive a long
+   * (horizon close) rewards authors whose calls survive a long
    * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
    * rewards the authors a lock point actually earns on, "retain"
    * (median move above THE POINT'S lock) rewards authors whose

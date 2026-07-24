@@ -10,7 +10,8 @@ import { addExchangeSchema, addSimulatorSchema, Simulator } from "../../build/in
  *  - shakeoutMaePercent: худшая просадка ДО свечи максимального
  *    пика ("встряска китов") — просадка ПОСЛЕ пика в неё не входит.
  *
- * Траектория (LONG, вход м1 @1000, мир иначе плоский):
+ * Траектория (LONG, вход м1 @1000, мир иначе плоский; горизонт
+ * профиля = max(holdMinutes) = 120м и накрывает все три события):
  *  - м10: нижний фитиль 980  -> MAE -2% (индекс 9) — встряска;
  *  - м50: верхний фитиль 1050 -> MFE +5% (индекс 49);
  *  - м70: нижний фитиль 970  -> MAE -3% (индекс 69), уже ПОСЛЕ пика.
@@ -48,7 +49,7 @@ test("SIM: profile MFE/MAE/shakeout are numerically exact and shakeout ignores p
     gridAxes: {
       hardStopPercent: [50],
       trailingTakePercent: [100],
-      holdMinutes: [60],
+      holdMinutes: [120],
       minAuthorTrack: [1],
       minAuthorHitRate: [0],
       profitLockPercent: [0],
