@@ -7,79 +7,68 @@ group: other/tune
 
 > Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune)
 
-A two-step walk-forward protocol for tuning `Simulator` grid parameters over crowd trading ideas (TradingView scrape, June 2026, BTC −20.4%). The honesty is structural, enforced by the file split: **`src/index.mjs` trains and never loads the test tail; `src/test.mjs` tests and never trains.** Training sees only the head of the feed — the first 70% of its time range. The tail exists for exactly one out-of-sample shot with a hardcoded training artifact: pick the candidate by train metrics, freeze it, fire once. No re-picking after seeing the tail.
+A two-step walk-forward protocol for tuning `Simulator` grid parameters over crowd trading ideas — a TradingView scrape of June 2026, a month where BTC fell −20.4%. The honesty is structural, enforced by the file split: **`src/index.mjs` trains and never loads the test tail; `src/test.mjs` tests and never trains.** Training sees only the head of the feed — the first 70% of its time range. The tail exists for exactly one out-of-sample shot with a hardcoded training artifact: pick the candidate by train metrics, freeze it, fire once. No re-picking after seeing the tail.
 
-## Step 1 — Training (`npm start`)
+Author grading happens inside each point's OWN hold window: a 12-hour point judges its authors by the 12-hour close, a 72-hour point by the 72-hour close — the author is graded on exactly the event the point trades. The window is part of the ban rule and of every ban dictionary; the grid's longest hold only sets the candle fetch depth.
 
-`src/index.mjs` declares four simulator schemas — four grid-axis profiles, each an explicit `addSimulatorSchema` at the top of the file: `tune_default` (baseline axes), `tune_shorthold` (4h–48h holds), `tune_lockrich` (dense profit-lock sweep 0–3%), `tune_wide` (4h–72h holds compromise). Every config trains on the same `trainIdeas` — the head of the feed.
+## Step 1 — Training via `npm start`
+
+`src/index.mjs` declares four simulator schemas — four grid-axis profiles, each an explicit `addSimulatorSchema` at the top of the file: `tune_default` with baseline axes, `tune_shorthold` with 4h–48h holds, `tune_lockrich` with a dense profit-lock sweep 0–3%, `tune_wide` as a 4h–72h compromise. Every config pins `authorMetric: ["close"]` and trains on the same `trainIdeas` — the head of the feed.
 
 ### Training output
 
-The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune/assets/tv-ideas.train.json): **one row per (config × ranking criterion)** — four winners tagged with the same `config` name, since different criteria may elect different points — plus one `authorStats` row per config with the raw track record:
+The result is a flat list of rows, saved to [`assets/tv-ideas.train.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune/assets/tv-ideas.train.json): **one row per config × ranking criterion** — different criteria may elect different points — plus one `authorStats` row per config with the raw track record:
 
 ```json
 [
   {
     "config": "tune_default",
     "by": "sharpe",
-    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 wilson=0 W=0 lock=2.5 metric=close",
-    "train": { "trades": 9, "pnl": 12.22, "wr": 0.89, "dd": 1.31, "sharpe": 2.44, "sortino": 9.34 }
+    "point": "H=7 TT=2 hold=72h track=2 rate=0.6 lock=2.5 metric=close",
+    "train": { "trades": 10, "pnl": 13.51, "wr": 0.9, "dd": 4.35, "sharpe": 1.91, "sortino": 3.11 }
   },
-  { "config": "tune_default", "by": "sortino", "point": "H=5 TT=2 hold=72h ... lock=2.5 metric=close", "train": "..." },
   {
     "config": "tune_default",
-    "by": "pnl",
-    "point": "H=3 TT=4 hold=72h N=1 track=2 rate=0.5 wilson=0 W=0 lock=0 metric=close",
-    "train": { "trades": 8, "pnl": 17.4, "wr": 0.75, "dd": 5.63, "sharpe": 1.25, "sortino": 4.31 }
+    "by": "sortino",
+    "point": "H=3 TT=4 hold=72h track=2 rate=0.5 lock=0 metric=close",
+    "train": { "trades": 9, "pnl": 19.08, "wr": 0.78, "dd": 3.3, "sharpe": 1.57, "sortino": 4.09 }
   },
-  { "config": "tune_default", "by": "recovery", "point": "H=5 TT=2 hold=72h ... lock=2.5 metric=close", "train": "..." },
   {
     "config": "tune_default",
     "authorStats": [
-      { "author": "MasterAnanda", "ideas": 16, "hits": 7 },
+      { "author": "MasterAnanda", "ideas": 16, "hits": 9 },
       { "author": "TradingShot", "ideas": 10, "hits": 6 },
       "..."
     ]
   },
   {
     "config": "tune_shorthold",
-    "by": "sharpe",
-    "point": "H=3 TT=1.5 hold=48h N=1 track=5 rate=0.5 wilson=0 W=0.6 lock=2 metric=close",
-    "train": { "trades": 9, "pnl": 8.7, "wr": 0.78, "dd": 1.92, "sharpe": 1.83, "sortino": 3.76 }
+    "by": "sharpe | sortino | pnl | recovery",
+    "point": "H=5 TT=3 hold=48h track=2 rate=0.6 lock=0 metric=close",
+    "train": { "trades": 9, "pnl": 11.48, "wr": 0.78, "dd": 5.3, "sharpe": 1.19, "sortino": 2.17 }
   },
-  { "config": "tune_shorthold", "by": "sortino | pnl | recovery", "point": "the same point", "train": "..." },
   {
     "config": "tune_lockrich",
-    "by": "sharpe",
-    "point": "H=5 TT=3 hold=72h N=1 track=3 rate=0.5 wilson=0 W=0.6 lock=2.5 metric=close",
-    "train": { "trades": 9, "pnl": 12.82, "wr": 0.89, "dd": 2.84, "sharpe": 2.15, "sortino": 4.52 }
-  },
-  { "config": "tune_lockrich", "by": "sortino | recovery", "point": "H=5 TT=3 hold=72h ... rate=0.6 W=0.6 lock=3 metric=close", "train": "..." },
-  {
-    "config": "tune_lockrich",
-    "by": "pnl",
-    "point": "H=5 TT=3 hold=72h N=1 track=2 rate=0.6 wilson=0 W=0.6 lock=3 metric=reach",
-    "train": { "trades": 10, "pnl": 16.08, "wr": 0.9, "dd": 5.3, "sharpe": 1.87, "sortino": 3.03 }
+    "by": "sharpe | sortino | pnl | recovery",
+    "point": "H=5 TT=3 hold=72h track=2 rate=0.6 lock=3 metric=close",
+    "train": { "trades": 10, "pnl": 16.08, "wr": 0.9, "dd": 5.3, "sharpe": 1.88, "sortino": 3.03 }
   },
   {
     "config": "tune_wide",
-    "by": "sharpe",
-    "point": "H=5 TT=2 hold=72h N=1 track=5 rate=0.5 wilson=0 W=0 lock=2 metric=close",
-    "train": { "trades": 9, "pnl": 9.21, "wr": 0.89, "dd": 1.31, "sharpe": 2.31, "sortino": 7.05 }
+    "by": "sharpe | sortino",
+    "point": "H=3 TT=4 hold=72h track=2 rate=0.5 lock=0 metric=close",
+    "train": { "trades": 9, "pnl": 19.08, "wr": 0.78, "dd": 3.3, "sharpe": 1.57, "sortino": 4.09 }
   },
-  { "config": "tune_wide", "by": "sortino | recovery", "point": "the same point", "train": "..." },
   "..."
 ]
 ```
 
 What to read out of this:
 
-- **Criteria convergence is the robustness signal.** Inside `tune_default`, three of four criteria (sharpe, sortino, recovery) land on ONE point — a point that wins one ranking may be a fluke of that metric, a point that wins three is a shape of the data. `tune_shorthold` converges 4/4, but on weaker numbers — convergence alone is not enough, read it together with the metrics.
-- **The same point re-emerges across independent configs.** The sharpe winners of `tune_default` and `tune_wide` are the identical point up to the ceiling of the lock axis (2.5 vs 2 — wide simply had no 2.5 in its list). When differently shaped grids keep electing one family — H=5, TT=2, hold=72h, strict track ≥ 5 — that family is not an artifact of axis choice.
-- **The profit lock is the watershed of the grid.** Every winner of every criterion except raw PnL takes `lock > 0`. The pnl criterion elects the same lock-free point in three configs out of four: +17.4% total, but dd 5.63 and sharpe 1.25. The lock gives up ~5 p.p. of PnL (17.4 → 12.22) and buys a 4× smaller drawdown (5.63 → 1.31) and a doubled sharpe (1.25 → 2.44). Sortino 9.34 on the winner means the train equity curve has almost no losing days.
-- **Shortening the hold does not pay.** `tune_shorthold` is uniformly worse (sharpe 1.83, pnl 8.7) even with the weighted-consensus crutch W=0.6 — the 72h hold dominates every shorter window on this feed.
-- **A strict ban beats a soft ban with a weight gate.** Wherever track ≥ 5 is available, it wins with W=0; W=0.6 appears only in configs whose ban axes stop at track 2–3 — the weighted consensus compensates for the softer rule, not improves on the strict one.
-- **`authorStats` is the artifact to freeze.** Raw `author/ideas/hits` only — the whitelist is NOT part of the output on purpose: `Simulator.test` re-derives banned flags and consensus weights from these numbers under the rule of whatever point you freeze, and an author absent from the list is banned by default.
+- **One core re-emerges across grids.** H=3 TT=4 hold=72h rate=0.5 lock=0 wins sharpe AND sortino of `tune_wide` plus sortino of `tune_default` at track=2, and its track=3 twin takes the pnl and recovery rankings of both configs. A core elected by differently shaped grids is not an artifact of axis choice.
+- **The big sharpes cannot re-emerge — and that disqualifies them.** The sharpe winner of `tune_default` at lock=2.5 with sharpe 1.91 and the winner of `tune_lockrich` at lock=3 with sharpe 1.88 carry lock values that simply do not exist in the other grids' axes: their cross-config test never ran, so a single-grid election is all they have. Convergence beats a lone number.
+- **Hold = 72h dominates.** Every config whose axes reach 72h elects it; `tune_shorthold` stays uniformly worse — the ideas need days, not hours.
+- **`authorStats` is the artifact to freeze.** Raw `author/ideas/hits` only — the whitelist is NOT part of the output on purpose: `Simulator.test` re-derives banned flags from these numbers under the rule of whatever point you freeze, and an author absent from the list is banned by default.
 
 ### Selected candidate
 
@@ -87,55 +76,53 @@ The sharpe winners of the four configs, side by side:
 
 | Config | Point | Sharpe | Sortino | PnL | DD |
 |---|---|---|---|---|---|
-| **tune_default** | H=5 TT=2 72h track5 **lock=2.5** | **2.44** | **9.34** | **12.22** | **1.31** |
-| tune_wide | same point, lock=2 | 2.31 | 7.05 | 9.21 | 1.31 |
-| tune_lockrich | H=5 TT=3, track3 W=0.6, lock=2.5 | 2.15 | 4.52 | 12.82 | 2.84 |
-| tune_shorthold | H=3 TT=1.5 48h, lock=2 | 1.83 | 3.76 | 8.70 | 1.92 |
+| tune_default | H=7 TT=2 72h track2 rate0.6, lock=2.5 | **1.91** | 3.11 | 13.51 | 4.35 |
+| tune_lockrich | H=5 TT=3 72h track2 rate0.6, lock=3 | 1.88 | 3.03 | 16.08 | 5.30 |
+| **tune_wide** | H=3 TT=4 72h track2 rate0.5, lock=0 | 1.57 | **4.09** | **19.08** | **3.30** |
+| tune_shorthold | H=5 TT=3 48h track2 rate0.6, lock=0 | 1.19 | 2.17 | 11.48 | 5.30 |
 
-The training elects the `tune_default` sharpe winner — it dominates every risk-adjusted metric at once: the best sharpe, the best sortino, more PnL than the same family point at lock=2 (wide) at the identical 1.31 drawdown, a 3-of-4 criteria convergence (sharpe + sortino + recovery on this exact point), 9 trades (above the anti-fluke floor), and the strictest author rule available. The only bigger numbers anywhere are raw-PnL ones (12.82 lockrich, 17.4 the lock-free pnl winner) — both pay with a 2–4× deeper drawdown and a third worse sharpe. Its parameters, frozen into `src/test.mjs`:
+The training elects the re-emergent core — the sharpe and sortino winner of `tune_wide`, re-elected by the sortino of `tune_default`, 9 trades above the anti-fluke floor, at the shallowest drawdown and the biggest PnL of the table. The two nominally higher sharpes are lock-carrying singles whose lock values are absent from every other grid's axes — no re-emergence, no trust. Its parameters, frozen into `src/test.mjs`:
 
 | Parameter | Value | Meaning |
 |---|---|---|
-| `hardStopPercent` | **5** | hard stop 5% from entry |
-| `trailingTakePercent` | **2** | trailing take, 2% pullback from peak |
-| `holdMinutes` | **4320** (72h) | maximum hold |
-| `minIdeasAligned` | **1** | one unbanned aligned author is enough to enter |
-| `minAuthorTrack` | **5** | author needs ≥ 5 fully observed ideas |
+| `hardStopPercent` | **3** | hard stop 3% from entry |
+| `trailingTakePercent` | **4** | trailing take, 4% pullback from peak |
+| `holdMinutes` | **4320** | maximum hold, 72 hours |
+| `minAuthorTrack` | **2** | author needs ≥ 2 fully observed ideas |
 | `minAuthorHitRate` | **0.5** | ...at hit rate ≥ 0.5 to be allowed |
-| `minWeightAligned` | **0** | weighted consensus gate disabled |
-| `profitLockPercent` | **2.5** | profit lock: floor armed at +2.5%, exit on pullback to it |
+| `profitLockPercent` | **0** | profit lock disabled |
+| `authorMetric` | **"close"** | hit = the close of the point's own 72h hold window is in the idea's direction |
 
-## Step 2 — Out-of-sample (`npm test`)
+## Step 2 — Out-of-sample via `npm test`
 
-`src/test.mjs` hardcodes the chosen candidate — the frozen `POINT` and the raw `AUTHOR_STATS` from Step 1 — loads ONLY the tail of the feed (the 30% the training never saw) and calls `Simulator.test` once. No training happens on the tail: `onAuthorsTrained` never fires, unseen authors are banned as unproven. The full result is saved to [`assets/tv-ideas.test.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune/assets/tv-ideas.test.json).
+`src/test.mjs` hardcodes the chosen candidate — the frozen `POINT` and the raw `AUTHOR_STATS` from Step 1 — loads ONLY the tail of the feed, the 30% the training never saw, and calls `Simulator.test` once. No training happens on the tail: `onAuthorsTrained` never fires, unseen authors are banned as unproven. The full result is saved to [`assets/tv-ideas.test.json`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune/assets/tv-ideas.test.json).
 
 ### Out-of-sample result
 
-181 tail profiles (June 22–30, none truncated), the frozen whitelist resolves to the same 7 authors, 147 logins banned — including every author the training never saw:
+181 tail profiles for June 22–30, none truncated, graded inside the point's own 72-hour hold window. The frozen whitelist resolves to 8 authors under the close rule — ideas ≥ 2, hit rate ≥ 0.5 — and 146 logins are banned, including every author the training never saw:
 
-| Metric | Train (Jun 1–21) | Test (Jun 22–30) |
+| Metric | Train, Jun 1–21 | Test, Jun 22–30 |
 |---|---|---|
-| Trades | 9 | 7 (8 qualified ideas absorbed by busy slot) |
-| PnL | +12.22% | **+6.98%** |
-| PnL per day | 0.58%/day | **0.78%/day** |
-| Win rate | 89% | 57% |
-| Profit factor | — | 4.82 |
-| Sharpe | 2.44 | **1.65** |
-| Sortino | 9.34 | 4.46 |
-| Max series drawdown | 1.31% | 1.56% |
+| Trades | 9 | 4, plus 7 qualified ideas absorbed by a busy slot |
+| PnL | +19.08% | **+3.44%** |
+| PnL per day | 0.91%/day | 0.38%/day |
+| Win rate | 78% | 75% |
+| Profit factor | — | **2.75** |
+| Sharpe | 1.57 | **0.61** |
+| Sortino | 4.09 | 1.75 |
+| Max series drawdown | 3.30% | 1.96% |
 
-The seven test trades, in order: LONG trailing −0.16% (11h), SHORT lock +2.20% (30h), SHORT lock +2.20% (4h), SHORT trailing −0.11% (9h), SHORT lock +2.20% (4h), SHORT expired −1.56% (72h), SHORT lock +2.20% (16h).
+The four test trades, in order — all SHORT, all from the frozen whitelist: trailing **+3.70%** after 71 hours, trailing **+1.69%** after 8 hours, expired +0.01% at the 72-hour cap, expired **−1.96%** at the 72-hour cap.
 
-What to read out of this:
+What to read out of this — honestly:
 
-- **The edge survives the tail.** Sharpe retains 68% of its train value (2.44 → 1.65), the drawdown stays in the same 1.3–1.6% band, and PnL per calendar day is actually HIGHER out-of-sample (0.78 vs 0.58 %/day) — the total looks smaller only because the tail is 9 days against 21.
-- **The profit lock is the scoring mechanism, not a decoration.** Four of seven exits are `profit_lock` at exactly +2.20% each (2.5% minus fees and slippage), most within hours — the crowd's ideas keep reaching +2.5% on the tail, they just don't keep it for 72 hours. On the train window the same pattern held 8 of 9 trades.
-- **The trailing-take arm guarantee converts would-be losers into breakeven.** The two `trailing_take` exits close at −0.16% and −0.11% — the trailing floor arms only when its locked level is not worse than entry, so a reversal after a small run costs only the round-trip fees instead of a stop.
-- **Exactly one real loss:** a SHORT that never reached +2.5%, rode the full 72h hold and expired at −1.56% — the hold cap, not the hard stop, is the actual worst-case boundary on this feed (zero `hard_stop` exits on either window).
-- **The whitelist transfers.** All seven trades come from the frozen 7-author whitelist; the tail's own crowd (147 banned logins, everyone unproven on train) contributed nothing but absorbed-idea noise.
-- **Read Calmar with care.** The report's `calmarRatio` of ~117 is an annualization artifact of a 9-day bucket window; `recoveryFactor` 4.48 (PnL over drawdown, no annualization) is the honest cousin.
+- **The candidate transfers, modestly.** +3.44% on nine unseen days at profit factor 2.75, the win rate holding at train level and the drawdown well inside train scale — but sharpe 0.61 is a fraction of the train's 1.57. A positive, believable carry-over; not yet proof of an edge.
+- **One trade carried the window.** The +3.70% trailing exit after a 71-hour ride is most of the PnL; the two expiries netted out to roughly zero. With no lock and TT=4 the winners must run far before anything is banked — that is the shape the train elected, and the tail confirmed both its upside and its patience cost.
+- **The whitelist transfers structurally.** All four trades come from the frozen 8-author list; the tail's own crowd of 146 banned logins contributed nothing — default-ban semantics carry the edge across the split.
+- **No re-picking.** The tail has been seen; selecting a different candidate now would be curve-fitting. The honest continuation is a fresh month of data for a new one-shot.
+- **Read Calmar with care.** `calmarRatio` annualizes a two-week bucket window; `recoveryFactor` 1.75 — PnL over drawdown, no annualization — is the honest cousin.
 
-Two honest caveats. Seven trades is a thin sample — this demo certifies the *protocol*, not a production edge. And the final arbiter for any point picked here is still a real engine backtest (`Backtest.run`) — the simulator makes the search cheap, it does not replace the engine.
+Two honest caveats. Four trades is a thin sample — this demo certifies the *protocol* and a modest transfer, not a production edge. And the final arbiter for any point picked here is still a real engine backtest via `Backtest.run` — the simulator makes the search cheap, it does not replace the engine.
 
 ## License
 
