@@ -21,23 +21,23 @@ This project exists for the concrete checks below.
 
 ### 1. Is there a profitable corridor at all?
 
-One `Simulator.run` over the whole feed: each idea gets ONE asynchronous candle pass from the minute after its publication (the horizon is the grid's longest hold — 72h here, no hidden engine constant; wick-honest execution — exits by high/low, never close-to-close, stop wins inside an ambiguous candle, fees and slippage on both legs), and the outcome of **any** grid point is derived from the profiles arithmetically. The grid is deliberately small — **48 points of hard stop × hold × ban rule** — because the profit-harvesting machinery is switched off: a position is entered on a proven author's idea and exits by time or catastrophe stop, nothing else. If no point of even this primitive corridor is profitable on its own training range, the feed carries no extractable signal — full stop.
+One `Simulator.run` over the whole feed: each idea gets ONE asynchronous candle pass from the minute after its publication (5-day horizon, wick-honest execution — exits by high/low, never close-to-close, stop wins inside an ambiguous candle, fees and slippage on both legs), and the outcome of **any** grid point is derived from the profiles arithmetically. The grid is deliberately small — **48 points of hard stop × hold × ban rule** — because the profit-harvesting machinery is switched off: a position is entered on a proven author's idea and exits by time or catastrophe stop, nothing else. If no point of even this primitive corridor is profitable on its own training range, the feed carries no extractable signal — full stop.
 
 ### 2. How much does the window cut?
 
-Before any trading logic runs, the feed passes the honesty filters: NEUTRAL ideas dropped, flood deduplicated (at most one idea per author per direction per 8 hours — reposting a call must not inflate a track record or retrigger entries). The probe reports the cut explicitly: **421 BTCUSDT ideas → 300 directional survivors**. A feed that mostly evaporates here is a feed of reposts, not signals.
+Before any trading logic runs, the feed passes the honesty filters: NEUTRAL ideas dropped, flood deduplicated (at most one idea per author per direction per 8 hours — reposting a call must not inflate a track record, retrigger entries or keep a consensus vote alive). The probe reports the cut explicitly: **421 BTCUSDT ideas → 300 directional survivors**. A feed that mostly evaporates here is a feed of reposts, not signals.
 
 ### 3. Does anyone survive the ban?
 
-Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate. Correctness here is graded by `close` inside each point's OWN hold window — a 24h point judges its authors by the 24h close, a 72h point by the 72h close: the author is graded on exactly the event the point trades (the probe runs lock-free, and the level-graded metrics `reach`/`retain` require a lock by construction). The probe answers how many authors clear the bar: **8 of 154** under the winning rule (48h window, track ≥ 5, hit rate ≥ 0.5 — 146 banned, the long-posting crowd included). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
+Ban is the **default**: an author is allowed only when his correctness is unambiguously proven — enough ideas with a fully observed outcome at a sufficient hit rate. The probe answers how many authors clear the bar: **7 of 154** under the winning rule (track ≥ 5, hit rate ≥ 0.5 — 147 banned, the long-posting crowd included). An empty whitelist is a disqualifying verdict no parameter sweep can fix.
 
 ### 4. The mechanics are deliberately primitive
 
-The probe must not try to EARN — that is `demo/tune`'s territory. Every profit-harvesting mechanism is pinned off: `profitLockPercent: [0]`, the trailing take is inert (`[100]` never arms); any idea of a proven author triggers an entry — the engine grades authors strictly in isolation, no interaction metrics exist. What remains swept is only what the feasibility question needs: the catastrophe stop (2–7%), the hold (24–72h) and the ban rule (track 3/5 × rate 0.5/0.6). A probe that tunes the harvest on its own training range would overfit the very question it is asking.
+The probe must not try to EARN — that is `demo/tune`'s territory. Every profit-harvesting mechanism is pinned off: `profitLockPercent: [0]`, the trailing take is inert (`[100]` never arms), the weighted consensus and the Wilson bound are disabled, one proven aligned author is enough to enter. What remains swept is only what the feasibility question needs: the catastrophe stop (2–7%), the hold (24–72h) and the ban rule (track 3/5 × rate 0.5/0.6). A probe that tunes the harvest on its own training range would overfit the very question it is asking.
 
 ### 5. The probe answers a boolean, tune finds the edge
 
-The result still carries ranking winners (time-based Sharpe/Sortino over daily equity increments — frozen capital is not free — plus total PnL and recovery factor) with full trade lists, hold-time tail percentiles and per-trade `absorbedIdeaIds` — but they are **evidence for the verdict, not candidates**. The parameter search (the lock, the trailing, the rule arithmetic) belongs to `demo/tune` with its walk-forward split, and the final arbiter for anything picked there is always a real engine backtest (`Backtest.run`).
+The result still carries ranking winners (time-based Sharpe/Sortino over daily equity increments — frozen capital is not free — plus total PnL and recovery factor) with full trade lists, hold-time tail percentiles and per-trade `absorbedIdeaIds` — but they are **evidence for the verdict, not candidates**. The parameter search (the lock, the trailing, the consensus, the rule arithmetic) belongs to `demo/tune` with its walk-forward split, and the final arbiter for anything picked there is always a real engine backtest (`Backtest.run`).
 
 ## Actual Results (June 2026, BTCUSDT, full feed)
 
@@ -47,20 +47,20 @@ The committed artifact is [`assets/simulator.done.json`](https://github.com/trip
 |---|---|
 | Ideas in feed (BTCUSDT) | 421 total → 300 after NEUTRAL + flood dedupe |
 | Profiles built | 300, none truncated |
-| Author filter | **8 allowed / 146 banned** (winning rule: 48h window, track ≥ 5, hit rate ≥ 0.5) — 12 ban dictionaries total, one per window × rule |
+| Author filter | **7 allowed / 147 banned** (winning rule: track ≥ 5, hit rate ≥ 0.5) |
 | Grid | 48 points (stop 4 × hold 3 × track 2 × rate 2), harvesting machinery off |
-| Profitable corridor | **41 of 48 points**; by hold: 14/16 @ 24h → **15/16 @ 48h** → 12/16 @ 72h |
+| Profitable corridor | **24 of 48 points**; by hold: 3/16 @ 24h → 7/16 @ 48h → **14/16 @ 72h** |
 
-The four ranking winners (the `close` bucket — the probe's single swept metric):
+The four ranking winners:
 
 | Criterion | Point | Trades | PnL | Win rate | DD | Sharpe | Sortino |
 |---|---|---|---|---|---|---|---|
-| Sharpe | H=3 48h track≥5 rate≥0.5 | 14 | +19.32% | 71% | 5.52% | **1.69** | 4.85 |
-| Sortino | H=3 72h track≥3 rate≥0.6 | 10 | **+23.30%** | **80%** | **3.30%** | 1.50 | **4.99** |
-| PnL | the same 72h point | 10 | +23.30% | 80% | 3.30% | 1.50 | 4.99 |
-| Recovery | the same 72h point | 10 | +23.30% | 80% | 3.30% | 1.50 | 4.99 |
+| Sharpe | H=5 72h track≥5 rate≥0.5 | 10 | **+19.77%** | 70% | 5.29% | **1.36** | 3.29 |
+| PnL | the same point | 10 | +19.77% | 70% | 5.29% | 1.36 | 3.29 |
+| Sortino | H=5 72h track≥5 rate≥0.6 | 9 | +18.01% | 78% | 3.89% | 1.23 | **4.02** |
+| Recovery | H=3 72h track≥5 rate≥0.6 | 9 | +17.52% | 78% | **3.30%** | 1.19 | 3.76 |
 
-The verdict for this feed: **`true` — there is an edge to search.** Not because +23.3% is money anyone will earn (train-on-train, a ceiling by construction), but because the evidence stacks with the harvesting machinery OFF: 41 of 48 points are profitable, and the corridor covers EVERY hold once authors are judged by the window their point actually trades — 14/16 at 24h, 15/16 at 48h, 12/16 at 72h (under the old shared-horizon grading the short holds looked dead only because their authors were graded on a 72h event). The signal is the direction of the ideas, not exit engineering: 12 of the sharpe winner's 14 exits are the plain hold cap (`time_expired`), two are the stop. The rankings split between two honest shapes — faster turnover on the strictest track (48h, track ≥ 5: sharpe 1.69 on 14 trades) and a calmer 72h point (track ≥ 3, rate ≥ 0.6: +23.3% at dd 3.3) — and 8 authors survive the winner's scrutiny: TradingShot 10/15, XAUxBTC_Pro 5/6, CryptoSkullSignal 4/8, Cryptollica 3/6, InvestingScope 3/6, melikatrader94 3/5, CandleKing09 3/5, Vili_Wealth_Plan 3/5.
+The verdict for this feed: **`true` — there is an edge to search.** Not because +19.8% is money anyone will earn (train-on-train, a ceiling by construction), but because the evidence stacks with the harvesting machinery OFF: half the primitive grid is profitable, and the corridor widens monotonically with the hold — 14 of 16 points at 72h. The signal is the direction of the ideas, not exit engineering: 9 of the sharpe winner's 10 exits are the plain hold cap (`time_expired`), one is the stop. All four criteria converge on hold = 72h and the strictest track ≥ 5, and 7 authors survive that scrutiny — a population worth whitelisting: TradingShot 9/15, MarketStrategysignals 5/8, PremiumTrader57 5/8, XAUxBTC_Pro 4/6, Cryptollica 3/6, InvestingScope 3/6, melikatrader94 3/5.
 
 ## Project Structure
 
@@ -107,13 +107,16 @@ addSimulatorSchema({
     // инертен: проба не собирает прибыль, выход — по времени или стопу
     trailingTakePercent: [100],
     holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
+    // одного проверенного автора достаточно — консенсус не перебираем
+    minIdeasAligned: [1],
     // правило бана — единственная перебираемая "умность" пробы
     minAuthorTrack: [3, 5],
     minAuthorHitRate: [0.5, 0.6],
+    minAuthorWilson: [0],
+    minWeightAligned: [0],
     profitLockPercent: [0],
-    // close: закрытие 5-дневного горизонта в сторону идеи — у пробы
-    // замок выключен (lock=0), уровневым метрикам грейдить нечем
     authorMetric: ["close"],
+    banCriteria: ["sharpe", "pnl"],
   },
   reportOrder: "sharpe",
 });
@@ -127,7 +130,7 @@ The probe's answer is a single boolean, assembled from three checks in order of 
 
 1. **The whitelist size** (`allowedAuthors`). Zero → **`false`** immediately, regardless of anything else — nobody survives proof, nothing to follow. `authorStats` behind it carries the raw evidence (ideas with known outcome, hits, hit rate).
 2. **The window cut** (`ideasTotal` → `ideasDirectional`). A feed that mostly evaporates into reposts and NEUTRAL noise → **`false`**: not enough workable signals to ever clear the anti-fluke floors.
-3. **The profitable corridor** (`reports` — a dictionary keyed by the point's author metric, every bucket sorted by Sharpe; the probe's single-metric grid lands entirely in one bucket: count the positive-PnL share and how it distributes over the hold axis; `best` — ranking winners with full trade lists as the corridor's evidence; `p95/p99HoldMinutes` — eternal holds pinned at the cap are visible instantly). Train-on-train by construction — an upper bound, never a promise of earnings. Its only legitimate reading: if even this primitive, harvest-free ceiling is unprofitable → **`false`**, stop here.
+3. **The profitable corridor** (`reports` — every point of the primitive grid, sorted by Sharpe: count the positive-PnL share and how it distributes over the hold axis; `best` — ranking winners with full trade lists as the corridor's evidence; `p95/p99HoldMinutes` — eternal holds pinned at the cap are visible instantly). Train-on-train by construction — an upper bound, never a promise of earnings. Its only legitimate reading: if even this primitive, harvest-free ceiling is unprofitable → **`false`**, stop here.
 
 All three pass → **`true`**: the feed graduates to [`demo/tune`](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/tune) — walk-forward training on the head of the feed and one frozen out-of-sample shot on the tail. A `false` is an answer too, and a much cheaper one than a month of forward testing on a dead feed.
 
