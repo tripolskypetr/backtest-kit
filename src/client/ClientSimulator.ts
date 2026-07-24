@@ -277,7 +277,10 @@ interface IAuthorFilterContext {
 
 /**
  * Derives the ban-filter rule from a grid point as a discriminated
- * union. The "close"/"pnl" rules structurally carry no lock/stop
+ * union. EVERY rule carries the point's holdMinutes — the grading
+ * window: an author is judged inside exactly the window the point
+ * can trade, never on a farther event nobody harvests. On top of
+ * that the "close"/"pnl" rules structurally carry no lock/stop
  * fields — the point's levels do not affect their ban training (see
  * the filter cache key — they are not part of it either). "retain"
  * carries the point's lock (its fixation level) but no stop;
@@ -294,6 +297,7 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
   if (point.authorMetric === "reach") {
     return {
       metric: "reach",
+      holdMinutes: point.holdMinutes,
       minAuthorTrack: point.minAuthorTrack,
       minAuthorHitRate: point.minAuthorHitRate,
       profitLockPercent: point.profitLockPercent,
@@ -303,6 +307,7 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
   if (point.authorMetric === "retain") {
     return {
       metric: "retain",
+      holdMinutes: point.holdMinutes,
       minAuthorTrack: point.minAuthorTrack,
       minAuthorHitRate: point.minAuthorHitRate,
       profitLockPercent: point.profitLockPercent,
@@ -310,29 +315,39 @@ const AUTHOR_RULE_FN = (point: ISimulatorGridPoint): SimulatorAuthorRule => {
   }
   return {
     metric: point.authorMetric,
+    holdMinutes: point.holdMinutes,
     minAuthorTrack: point.minAuthorTrack,
     minAuthorHitRate: point.minAuthorHitRate,
   };
 };
 
 /**
- * Author "hit" under a discriminated ban-filter rule.
+ * Author "hit" under a discriminated ban-filter rule. ALL arithmetic
+ * runs inside the rule's grading window — the first holdMinutes
+ * candles of the idea's trajectory: the author is judged by exactly
+ * the window the point can trade. The profile's precomputed
+ * full-horizon aggregates (hit, maxMfePercent, medianMovePercent,
+ * shakeoutMaePercent) are diagnostics for the consumer — grading
+ * never reads them.
  *
- * "close" — the idea's horizon close moved in its direction (the
- * profile's precomputed hit); the rule has no lock/stop fields by
- * construction. "reach" — the idea was HARVESTABLE by the rule's
- * lock machinery: MFE reached the profit-lock level and the worst
- * pre-peak pullback (shakeout) stayed above the hard stop. An author
- * whose calls spike to the lock within hours and then die by the
- * horizon close is a miss for "close" and a hit for "reach" —
- * exactly the author a lock point earns on.
+ * "close" — the window's last close moved in the idea's direction;
+ * the rule has no lock/stop fields by construction. "reach" — the
+ * idea was HARVESTABLE by the rule's lock machinery inside the
+ * window: MFE reached the profit-lock level and the worst pre-peak
+ * pullback (shakeout) stayed above the hard stop. An author whose
+ * calls spike to the lock within hours and then die by the window
+ * close is a miss for "close" and a hit for "reach" — exactly the
+ * author a lock point earns on.
  *
- * "retain" — level FIXATION: the MEDIAN move of the horizon is
+ * "retain" — level FIXATION: the MEDIAN move of the window is
  * strictly above the rule's lock level (price held above entry + X%
- * for at least half the trajectory — the 50% share is the median's
- * definition, not a window). The strictest grading: reach's
- * transient spike and close's lucky last-day finish are both misses
- * here. The point's stop plays no role.
+ * for at least half the window — the 50% share is the median's
+ * definition, not a tunable constant). The strictest grading:
+ * reach's transient spike and close's lucky last-candle finish are
+ * both misses here. The point's stop plays no role.
+ *
+ * "pnl" — the window's MFE grew by MORE than the fixed +1%
+ * threshold (strictly greater), independent of the rule's levels.
  *
  * Same-candle ambiguity (lock and stop both reachable in the candle
  * of the MFE peak) reads as a hit here while SIMULATE_TRADE_FN gives
@@ -347,23 +362,57 @@ const AUTHOR_HIT_FN = (
   profile: ISimulatorIdeaProfile,
   rule: SimulatorAuthorRule,
 ): boolean => {
-  if (rule.metric === "reach") {
-    return (
-      profile.maxMfePercent >= rule.profitLockPercent &&
-      profile.shakeoutMaePercent > -rule.hardStopPercent
-    );
+  const { candles, entryPrice } = profile;
+  const direction = profile.idea.direction === "LONG" ? 1 : -1;
+  const window = Math.min(rule.holdMinutes, candles.length);
+  if (rule.metric === "close") {
+    const lastClose = candles[window - 1].close;
+    return direction * (lastClose - entryPrice) > 0;
   }
-  // "retain": фиксация ВЫШЕ замка правила — медиана ходов строго
-  // больше profitLockPercent; от стопа точки не зависит
+  // "retain": фиксация ВЫШЕ замка правила — медиана close-ходов
+  // ОКНА строго больше profitLockPercent; от стопа точки не зависит
   if (rule.metric === "retain") {
-    return profile.medianMovePercent > rule.profitLockPercent;
+    const moves: number[] = [];
+    for (let i = 0; i < window; i++) {
+      moves.push(
+        (direction * (candles[i].close - entryPrice) * 100) / entryPrice,
+      );
+    }
+    moves.sort((a, b) => a - b);
+    const half = Math.floor(moves.length / 2);
+    const median =
+      moves.length % 2 === 1
+        ? moves[half]
+        : (moves[half - 1] + moves[half]) / 2;
+    return median > rule.profitLockPercent;
+  }
+  // "reach"/"pnl": MFE и встряска по фитилям внутри окна — та же
+  // формула, что у полногоризонтных полей профиля, но на префиксе
+  let maxMfePercent = 0;
+  let maxMaePercent = 0;
+  let shakeoutMaePercent = 0;
+  for (let i = 0; i < window; i++) {
+    const favorable = direction > 0 ? candles[i].high : candles[i].low;
+    const adverse = direction > 0 ? candles[i].low : candles[i].high;
+    const mfe = (direction * (favorable - entryPrice) * 100) / entryPrice;
+    const mae = (direction * (adverse - entryPrice) * 100) / entryPrice;
+    if (mfe > maxMfePercent) {
+      maxMfePercent = mfe;
+      shakeoutMaePercent = maxMaePercent;
+    }
+    if (mae < maxMaePercent) {
+      maxMaePercent = mae;
+    }
   }
   // "pnl": PnL идеи вырос БОЛЬШЕ фиксированного порога — строго
   // больше, независимо от замка и стопа точки
   if (rule.metric === "pnl") {
-    return profile.maxMfePercent > PNL_HIT_THRESHOLD_PERCENT;
+    return maxMfePercent > PNL_HIT_THRESHOLD_PERCENT;
   }
-  return profile.hit;
+  return (
+    maxMfePercent >= rule.profitLockPercent &&
+    shakeoutMaePercent > -rule.hardStopPercent
+  );
 };
 
 /**
@@ -373,15 +422,16 @@ const AUTHOR_HIT_FN = (
  * validation, not by causality inside the train range).
  *
  * Ban is the default: when the author's correctness cannot be proven
- * unambiguously under the given rule, he is banned. Only ideas with
- * a fully observed horizon count as evidence — truncated profiles
- * prove nothing.
+ * unambiguously under the given rule, he is banned. Only ideas whose
+ * GRADING WINDOW is fully observed count as evidence — an idea cut
+ * by the data edge before the rule's holdMinutes proves nothing for
+ * that rule (a shorter-window rule may still count it).
  *
  * @param profiles - Profiles of all directional ideas
  * @param ideas - All ideas of the symbol
- * @param rule - Discriminated ban-filter rule: thresholds + metric;
- * lock/stop levels exist ONLY on the "reach" variant — a "close"
- * rule cannot depend on them by construction
+ * @param rule - Discriminated ban-filter rule: window + thresholds +
+ * metric; lock/stop levels exist ONLY on the "reach"/"retain"
+ * variants — a "close" rule cannot depend on them by construction
  * @returns Filter context for the rule (stats sorted by idea count)
  */
 const TRAIN_AUTHOR_FILTER_FN = (
@@ -392,7 +442,7 @@ const TRAIN_AUTHOR_FILTER_FN = (
   const byAuthor = new Map<string, { ideas: number; hits: number }>();
   for (const profile of profiles) {
     const stat = byAuthor.get(profile.idea.author) ?? { ideas: 0, hits: 0 };
-    if (!profile.truncated) {
+    if (profile.candles.length >= rule.holdMinutes) {
       stat.ideas += 1;
       if (AUTHOR_HIT_FN(profile, rule)) {
         stat.hits += 1;
@@ -937,11 +987,12 @@ const RUN_FN = async (
   }
 
   // фильтр авторов обучается по разу на каждое уникальное ПРАВИЛО:
-  // у reach в ключе lock+stop, у retain — только lock (его уровень
-  // фиксации), close/pnl зависят лишь от порогов. Никаких деградаций:
-  // невалидные комбинации исключены сеткой. Строковый ключ — деталь
-  // мемоизации, наружу правила выходят массивом bans с собственными
-  // идентифицирующими полями
+  // окно грейдинга (холд точки) входит в ключ у ВСЕХ метрик; у reach
+  // сверх того lock+stop, у retain — только lock (его уровень
+  // фиксации), close/pnl зависят лишь от окна и порогов. Никаких
+  // деградаций: невалидные комбинации исключены сеткой. Строковый
+  // ключ — деталь мемоизации, наружу правила выходят массивом bans
+  // с собственными идентифицирующими полями
   const filterByRule = new Map<
     string,
     { rule: SimulatorAuthorRule; filter: IAuthorFilterContext }
@@ -950,10 +1001,10 @@ const RUN_FN = async (
     const rule = AUTHOR_RULE_FN(point);
     const key =
       rule.metric === "reach"
-        ? `reach:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
+        ? `reach:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}:${rule.hardStopPercent}`
         : rule.metric === "retain"
-          ? `retain:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}`
-          : `${rule.metric}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
+          ? `retain:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}:${rule.profitLockPercent}`
+          : `${rule.metric}:${rule.holdMinutes}:${rule.minAuthorTrack}:${rule.minAuthorHitRate}`;
     let entry = filterByRule.get(key);
     if (!entry) {
       entry = { rule, filter: TRAIN_AUTHOR_FILTER_FN(profiles, rule) };
@@ -1070,6 +1121,7 @@ const RUN_FN = async (
   // метрики
   for (const { rule, filter } of filterByRule.values()) {
     reportsByMetric[rule.metric].bans.push({
+      holdMinutes: rule.holdMinutes,
       minAuthorTrack: rule.minAuthorTrack,
       minAuthorHitRate: rule.minAuthorHitRate,
       ...(rule.metric === "reach"

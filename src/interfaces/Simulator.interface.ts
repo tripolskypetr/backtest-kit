@@ -67,30 +67,33 @@ export interface ISimulatorIdeaProfile {
 }
 
 /**
- * Metric that defines an author's "hit" for the ban filter:
- * - "close" — the idea's horizon close moved in its direction
- *   (rewards authors whose calls survive a long hold). The horizon
- *   is the grid's LONGEST hold — max(holdMinutes) — for every
- *   metric here: the schema defines the grading window, not an
- *   engine constant;
- * - "reach" — the idea's MFE reached the point's profit-lock level
- *   before its pre-peak MAE reached the hard stop (rewards authors
- *   whose calls are HARVESTABLE by the lock machinery, even when the
- *   horizon close goes against them). Requires a target: reach
- *   points with profitLockPercent = 0 are excluded from the grid;
+ * Metric that defines an author's "hit" for the ban filter. EVERY
+ * metric is graded inside the POINT'S OWN hold window — the first
+ * holdMinutes of the idea's trajectory: the author is judged by
+ * exactly the window the point can trade, never on a farther event
+ * nobody harvests (the profile itself is built to the grid's
+ * longest hold — that is the candle fetch depth, not the grading
+ * window):
+ * - "close" — the window's last close moved in the idea's direction
+ *   (rewards authors whose calls survive the hold);
+ * - "reach" — the idea's MFE inside the window reached the point's
+ *   profit-lock level before its pre-peak MAE reached the hard stop
+ *   (rewards authors whose calls are HARVESTABLE by the lock
+ *   machinery, even when the window close goes against them).
+ *   Requires a target: reach points with profitLockPercent = 0 are
+ *   excluded from the grid;
  * - "retain" — FIXATION above the point's profit-lock level: the
- *   MEDIAN move of the idea's horizon is strictly above
- *   profitLockPercent, i.e. price sat above entry + lock for at
- *   least half the observed trajectory (the median is the 50%
- *   quantile by definition — no time window is involved). Requires
- *   a target like reach: retain points with profitLockPercent = 0
- *   are excluded from the grid. A transient spike (reach's hit) and
- *   a lucky last-day finish (close's hit) are both misses here.
- *   Independent of the point's stop;
- * - "pnl" — the idea's MFE grew by MORE than the fixed +1% threshold
- *   at any moment of the horizon, INDEPENDENT of the point's lock
- *   and stop. Complements "retain": pnl asks "did it ever pay",
- *   retain asks "did it hold above the level".
+ *   MEDIAN move of the window is strictly above profitLockPercent,
+ *   i.e. price sat above entry + lock for at least half the window
+ *   (the median is the 50% quantile by definition — not a tunable
+ *   constant). Requires a target like reach: retain points with
+ *   profitLockPercent = 0 are excluded from the grid. A transient
+ *   spike (reach's hit) and a lucky last-candle finish (close's
+ *   hit) are both misses here. Independent of the point's stop;
+ * - "pnl" — the window's MFE grew by MORE than the fixed +1%
+ *   threshold, INDEPENDENT of the point's lock and stop.
+ *   Complements "retain": pnl asks "did it ever pay", retain asks
+ *   "did it hold above the level".
  * The right metric depends on the exit style being ranked: close-hit
  * authors feed long-hold points, reach-hit authors feed lock points,
  * retain-hit authors feed points that need the move to HOLD.
@@ -99,7 +102,11 @@ export type SimulatorAuthorMetric = "close" | "reach" | "retain" | "pnl";
 
 /**
  * Discriminated union of the ban-filter rule derived from a grid
- * point. The discriminator makes the dependency EXPLICIT at the type
+ * point. EVERY rule carries holdMinutes — its grading window: an
+ * author is judged inside exactly the window the point can trade
+ * (the idea's trajectory is cut to the point's hold before any hit
+ * arithmetic), never on a farther event nobody harvests. The
+ * discriminator makes the level dependency EXPLICIT at the type
  * level: "reach" carries lock AND stop, "retain" carries only the
  * lock (its fixation level), while "close"/"pnl" never depend on
  * the point's levels, so those fields do not exist on their rules.
@@ -110,8 +117,10 @@ export type SimulatorAuthorMetric = "close" | "reach" | "retain" | "pnl";
  */
 export type SimulatorAuthorRule =
   | {
-      /** Discriminator: grade authors by the horizon close. */
+      /** Discriminator: grade authors by the window close. */
       metric: "close";
+      /** Grading window, minutes — the point's own hold. */
+      holdMinutes: number;
       /** Minimum known-outcome ideas to be allowed. */
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
@@ -120,6 +129,8 @@ export type SimulatorAuthorRule =
   | {
       /** Discriminator: grade authors by lock-reachability. */
       metric: "reach";
+      /** Grading window, minutes — the point's own hold. */
+      holdMinutes: number;
       /** Minimum known-outcome ideas to be allowed. */
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
@@ -135,6 +146,8 @@ export type SimulatorAuthorRule =
        * lock level.
        */
       metric: "retain";
+      /** Grading window, minutes — the point's own hold. */
+      holdMinutes: number;
       /** Minimum known-outcome ideas to be allowed. */
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
@@ -148,6 +161,8 @@ export type SimulatorAuthorRule =
        * — lock/stop independent by construction (no such fields).
        */
       metric: "pnl";
+      /** Grading window, minutes — the point's own hold. */
+      holdMinutes: number;
       /** Minimum known-outcome ideas to be allowed. */
       minAuthorTrack: number;
       /** Minimum hit rate (0..1) to be allowed. */
@@ -446,6 +461,8 @@ export interface ISimulatorBest {
  * winners.
  */
 export interface ISimulatorRuleBans {
+  /** Grading window of the rule, minutes — the point's own hold. */
+  holdMinutes: number;
   /** Minimum known-outcome ideas the rule requires. */
   minAuthorTrack: number;
   /** Minimum hit rate (0..1) the rule requires. */
