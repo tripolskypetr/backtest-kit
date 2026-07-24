@@ -1,5 +1,5 @@
 import { addSimulatorSchema, Simulator, listExchangeSchema, overrideExchangeSchema } from "backtest-kit";
-import type { ISimulatorIdea, ISimulatorResult } from "backtest-kit";
+import type { ISimulatorIdea, ISimulatorResult, ISimulatorGridAxes, ISimulatorSchema } from "backtest-kit";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join, resolve } from "path";
 import { getArgs } from "../helpers/getArgs";
@@ -9,6 +9,30 @@ import path from "path";
 import dotenv from "dotenv";
 
 const SIMULATOR_NAME = "cli_simulator";
+
+/**
+ * Позиционный JSON-конфиг пробы: оси сетки и порядок отчёта. Оба
+ * поля опциональны — пустой конфиг (или его отсутствие) подтягивает
+ * дефолты движка из connection-сервиса.
+ */
+interface IProbeConfig {
+  gridAxes?: ISimulatorGridAxes;
+  reportOrder?: ISimulatorSchema["reportOrder"];
+}
+
+const CONFIG_KEYS = ["gridAxes", "reportOrder"];
+
+const validateConfig = (config: any): string | null => {
+  if (typeof config !== "object" || config === null || Array.isArray(config)) {
+    return "config must be a JSON object";
+  }
+  for (const key of Object.keys(config)) {
+    if (!CONFIG_KEYS.includes(key)) {
+      return `unknown key "${key}" (expected: ${CONFIG_KEYS.join(", ")})`;
+    }
+  }
+  return null;
+};
 
 const IDEA_DIRECTIONS = ["LONG", "SHORT", "NEUTRAL"];
 
@@ -102,6 +126,34 @@ export const main = async () => {
     process.exit(1);
   }
 
+  // конфиг — позиционный JSON; без него подтягивается пустой объект
+  // и схема живёт на дефолтах движка (оси, порядок отчёта)
+  const [configPath = null] = positionals.filter(
+    (value) => value.endsWith(".json") && !value.endsWith(".jsonl"),
+  );
+  let config: IProbeConfig = {};
+  if (configPath) {
+    let content: string;
+    try {
+      content = await readFile(resolve(configPath), "utf-8");
+    } catch (error) {
+      console.error(`Error: cannot read config file: ${configPath}`);
+      process.exit(1);
+    }
+    try {
+      config = JSON.parse(content);
+    } catch {
+      console.error(`Error: invalid JSON in config file: ${configPath}`);
+      process.exit(1);
+    }
+    const problem = validateConfig(config);
+    if (problem) {
+      console.error(`Error: simulator config does not match the structure — ${problem}`);
+      console.error(`Expected shape: { "gridAxes"?: ISimulatorGridAxes, "reportOrder"?: "sharpe"|"sortino"|"pnl"|"recovery" }`);
+      process.exit(1);
+    }
+  }
+
   let ideas: ISimulatorIdea[] = [];
   {
     let content: string;
@@ -183,28 +235,13 @@ export const main = async () => {
 
   const symbol = <string>values.symbol || "BTCUSDT";
 
-  // Проба осуществимости, НЕ поиск заработка (подбор параметров — у
-  // --tune): собирающая прибыль механика выключена, остаётся вопрос
-  // "есть ли прибыльный коридор" по стопу x холду x правилу бана —
-  // 48 точек, быстрый вердикт
+  // оси и порядок отчёта приходят позиционным конфигом потребителя;
+  // пустой конфиг — дефолтная сетка движка из connection-сервиса
   addSimulatorSchema({
     simulatorName: SIMULATOR_NAME,
     exchangeName,
-    gridAxes: {
-      // грубая шкала катастрофы: коридор должен быть широким, не точкой
-      hardStopPercent: [2, 3, 5, 7],
-      // инертен: проба не собирает прибыль, выход — по времени или стопу
-      trailingTakePercent: [100],
-      holdMinutes: [24 * 60, 2 * 24 * 60, 3 * 24 * 60],
-      // правило бана — единственная перебираемая "умность" пробы
-      minAuthorTrack: [3, 5],
-      minAuthorHitRate: [0.5, 0.6],
-      profitLockPercent: [0],
-      // close: закрытие 5-дневного горизонта в сторону идеи — у пробы
-      // замок выключен (lock=0), уровневым метрикам грейдить нечем
-      authorMetric: ["close"],
-    },
-    reportOrder: "sharpe",
+    ...(config.gridAxes ? { gridAxes: config.gridAxes } : {}),
+    ...(config.reportOrder ? { reportOrder: config.reportOrder } : {}),
     callbacks: {
       onProgress: (symbol, stage, processed, total) => {
         if (values.verbose) {

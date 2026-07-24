@@ -165,10 +165,6 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
-      split: {
-        type: "string",
-        default: "",
-      },
       commit: {
         type: "string",
         default: "",

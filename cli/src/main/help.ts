@@ -21,8 +21,8 @@ Modes:
   --dump                Fetch and save raw OHLCV candles
   --pnldebug            Simulate PnL per minute for a given entry price and direction
   --brokerdebug         Fire a single broker commit against the live broker adapter
-  --simulator <ideas.jsonl>  Feasibility probe over crowd ideas: is there a profitable corridor at all
-  --tune      <ideas.jsonl>  Walk-forward parameter search: train on the head, one frozen shot on the tail
+  --simulator <ideas.jsonl> [config.json]  Feasibility probe over crowd ideas: is there a profitable corridor at all
+  --tune      <ideas.jsonl> <config.json>   ONE out-of-sample shot of a frozen training artifact (point + author track)
   --flush  <entry...>   Delete report/log/markdown/agent folders from strategy dump dir
   --init                Scaffold a new project in the current directory
   --docker              Scaffold a Docker workspace for running strategies in a container
@@ -152,19 +152,22 @@ Simulator flags (--simulator):
   --markdown               Save summary report to ./dump/<output>.md
   --verbose                Log every simulator lifecycle callback to the console
 
-  Positional: path to an ideas .jsonl file — one idea per line with the exact shape
+  Positionals: path to an ideas .jsonl file — one idea per line with the exact shape
   { "id": number, "ts": number, "symbol": string, "direction": "LONG"|"SHORT"|"NEUTRAL",
-  "author": string }. The file is validated BEFORE any work; a line that does not
-  match the structure aborts the run with an error.
+  "author": string } — and an OPTIONAL config .json with the shape
+  { "gridAxes"?: ISimulatorGridAxes, "reportOrder"?: "sharpe"|"sortino"|"pnl"|"recovery" }.
+  Both files are validated BEFORE any work; a mismatch aborts the run with an error.
+  No config -> an empty object is used and the engine defaults apply (the full
+  default grid axes and reportOrder "sharpe" of the connection service).
 
-  A FEASIBILITY PROBE, not a parameter search (that is --tune): the profit-harvesting
-  machinery is off (no profit lock, inert trailing), and a
-  fast 48-point grid of hard stop x hold x ban rule answers one question — does the
-  feed contain a profitable corridor at all. One 5-day candle pass per idea, flood
-  dedupe (one idea per author per direction per 8h), default-ban author filter,
-  time-based Sharpe/Sortino, four ranking winners. The report carries the corridor
-  share and the whitelist of the sharpe winner's ban rule as evidence.
-  Ideas of other symbols are filtered out — one shared feed serves any --symbol.
+  A FEASIBILITY PROBE, not an out-of-sample shot (that is --tune): the grid from
+  the config (or the engine default) answers one question — does the feed contain
+  a profitable corridor at all. One candle pass per idea to the grid's longest
+  hold, flood dedupe (one idea per author per direction per 8h), default-ban
+  author filter graded inside each point's own hold window, time-based
+  Sharpe/Sortino, per-metric buckets with their own ranking winners and ban
+  dictionaries. Ideas of other symbols are filtered out — one shared feed serves
+  any --symbol.
 
   No output flag → print the Markdown summary to stdout. With --verbose every
   simulator lifecycle callback (onProgress, onIdeas, onProfiles, onAuthorsTrained,
@@ -175,25 +178,27 @@ Simulator flags (--simulator):
 
 Tune flags (--tune):
 
-  --symbol      <string>   Trading pair to tune (default: BTCUSDT)
+  --symbol      <string>   Trading pair to test (default: BTCUSDT)
   --exchange    <string>   Exchange name (default: first registered)
-  --split       <string>   Train share of the feed time range, 0..1 (default: 0.7)
   --output      <string>   Output file base name (default: tune_{SYMBOL}_{TIMESTAMP})
-  --json                   Save { trainSplit, train, test } to ./dump/<output>.json
-  --markdown               Save walk-forward report to ./dump/<output>.md
+  --json                   Save the full ISimulatorTestResult to ./dump/<output>.json
+  --markdown               Save the out-of-sample report to ./dump/<output>.md
   --verbose                Log simulator lifecycle callbacks to the console
 
-  Positional: path to an ideas .jsonl file — same shape and validation as --simulator.
+  Positionals: path to an ideas .jsonl file (same shape and validation as
+  --simulator) and a config .json carrying the FROZEN training artifact:
+  { "point": ISimulatorGridPoint, "authorStats": [{ "author", "ideas", "hits" }],
+  "gridAxes"?, "reportOrder"? }. The point and authorStats are REQUIRED — without
+  them there is nothing to test and the run aborts with an error. gridAxes are
+  optional: by default they mirror the frozen point one value per axis (the grid
+  is inert for a test).
 
-  The PARAMETER SEARCH counterpart of the --simulator probe: the full grid with the
-    profit-harvesting machinery on — profit lock, trailing take, all three author-hit
-  metrics (close/reach/retain). Honesty is structural:
-  training sees ONLY the head of the feed (--split of its time range), then the
-  sharpe winner is frozen — point and raw author track record — and fired exactly
-  once on the tail via Simulator.test. Nothing is trained on the tail; authors
-  unseen in training are banned by default. The report carries the train winners,
-  the out-of-sample result with the trade list, and the frozen author track record
-  to hardcode for production Simulator.test.
+  ONE OUT-OF-SAMPLE SHOT, no training: the CLI never runs the sweep — pick your
+  candidate elsewhere (a Simulator.run of your own), freeze its point and raw
+  author track record into the config, and fire it once here via Simulator.test.
+  Bans are re-derived from the frozen numbers under the point's rule; authors
+  unseen in the config are banned by default. The report carries the result with
+  the trade list and the frozen track record with re-derived ban flags.
 
   Module file ./modules/tune.module is loaded automatically if it exists
   (register your exchange there); without it CCXT Binance is used by default.
@@ -262,9 +267,9 @@ Examples:
   node ${ENTRY_PATH} --brokerdebug --commit signal-open --symbol BTCUSDT
   node ${ENTRY_PATH} --brokerdebug --commit partial-profit --symbol ETHUSDT
   node ${ENTRY_PATH} --simulator --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
-  node ${ENTRY_PATH} --simulator --symbol BTCUSDT --json --output jun_2026_probe ./assets/tv-ideas.normalized.jsonl
+  node ${ENTRY_PATH} --simulator --symbol BTCUSDT --json --output jun_2026_probe ./assets/tv-ideas.normalized.jsonl ./assets/probe.config.json
   node ${ENTRY_PATH} --tune --symbol BTCUSDT ./assets/tv-ideas.normalized.jsonl
-  node ${ENTRY_PATH} --tune --symbol BTCUSDT --split 0.7 --markdown --output jun_2026_tune ./assets/tv-ideas.normalized.jsonl
+  node ${ENTRY_PATH} --tune --symbol BTCUSDT --markdown --output jun_2026_tune ./assets/tv-ideas.normalized.jsonl ./assets/tune.config.json
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts
   node ${ENTRY_PATH} --flush ./content/feb_2026.strategy/feb_2026.strategy.ts ./content/feb_2026.strategy/feb_2026.test.ts
   node ${ENTRY_PATH} --init --output my-trading-bot
