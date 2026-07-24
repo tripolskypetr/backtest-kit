@@ -5,9 +5,13 @@ group: docs
 
 # ISimulatorIdeaProfile
 
-Per-candle trajectory profile of a single idea.
-The outcome of ANY grid point is computed arithmetically from the
-profile — candles are never re-iterated per grid point.
+Per-candle trajectory profile of a single idea, built to the
+grid's longest hold (the candle fetch depth). The outcome of ANY
+grid point is computed arithmetically from the profile — candles
+are never re-fetched per grid point. The aggregate fields below
+(hit, MFE/MAE, shakeout, median) are FULL-HORIZON diagnostics for
+the consumer; ban training never reads them — every rule grades
+the raw candle trajectory inside its own hold window.
 
 ## Properties
 
@@ -43,14 +47,6 @@ candles: ICandleData[]
 
 Candle trajectory of the idea horizon (shared chunk references).
 
-### alignedAtEntry
-
-```ts
-alignedAtEntry: number
-```
-
-Unique aligned authors at entry minute (self included).
-
 ### hit
 
 ```ts
@@ -73,7 +69,7 @@ Timestamp when the idea outcome becomes known (horizon end).
 truncated: boolean
 ```
 
-Horizon was truncated by end of data, not by the trim constant.
+Trajectory cut by the data edge before the full fetch depth.
 
 ### maxMfePercent
 
@@ -114,3 +110,17 @@ shakeoutMaePercent: number
 ```
 
 Worst MAE BEFORE the max-MFE candle — whale shakeout depth.
+
+### medianMovePercent
+
+```ts
+medianMovePercent: number
+```
+
+MEDIAN of the per-candle close moves from entry over the whole
+horizon, percent in the idea's direction: median &gt; X means
+price sat ABOVE entry + X% for at least half the observed
+trajectory (the 50% share is the median's definition, not a
+tunable constant). Full-horizon diagnostic twin of the "retain"
+grading — the rule itself recomputes the median inside its own
+hold window.

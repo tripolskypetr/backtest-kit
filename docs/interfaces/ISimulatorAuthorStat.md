@@ -56,6 +56,5 @@ banned: boolean
 
 Author is banned under the ban rule these stats were computed
 with. True when the track is too short to judge (ideas &lt;
-minAuthorTrack) OR the hit rate is below minAuthorHitRate OR the
-Wilson lower bound of the hit rate is below minAuthorWilson
-(when that bound is enabled). Unproven correctness = banned.
+minAuthorTrack) OR the hit rate is below minAuthorHitRate.
+Unproven correctness = banned.

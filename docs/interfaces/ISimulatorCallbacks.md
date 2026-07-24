@@ -62,8 +62,10 @@ One grid point evaluated.
 onRanking: (symbol: string, criterion: SimulatorRankingCriterion, sorted: ISimulatorPointReport[], best: ISimulatorBest) => void
 ```
 
-Ranking computed: reports sorted by the criterion (descending)
-and the eligible winner (minimum-trades filter applied).
+Ranking computed WITHIN one metric bucket: the bucket's reports
+sorted by the criterion (descending) and the eligible winner
+(minimum-trades floor applied per bucket). Fires once per
+(swept metric x criterion).
 
 ### onDone
 

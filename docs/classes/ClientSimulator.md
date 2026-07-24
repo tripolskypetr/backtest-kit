@@ -10,22 +10,26 @@ Implements `ISimulator`
 Parameter sweep engine over crowd trading ideas (the "Simulator").
 
 Finds production strategy parameters (hard stop, trailing take,
-hold duration, entry consensus threshold) by simulating every idea
-against every point of the grid — WITHOUT re-running a backtest per
-point. The root iteration is over IDEAS, not candles and not grid
-points:
+hold duration, author ban rule) by simulating every idea against
+every point of the grid — WITHOUT re-running a backtest per point.
+Authors are graded STRICTLY in isolation — no interaction metrics
+(consensus counting, vote weighting) exist here by design; swarm
+ranking over long histories is userspace. The root iteration is
+over IDEAS, not candles and not grid points:
 
 1. Each idea gets ONE asynchronous forward candle pass from the
-   minute after its publication, capped by a static horizon
-   (IDEA_TRIM_DAYS). The pass produces a per-candle trajectory
-   profile (MFE/MAE extremes, whale shakeout depth, aligned-authors
-   count). Overlapping and sparse ideas are both supported: candle
-   chunks are fetched lazily through the Exchange (persist cache
-   first), gaps between ideas are never requested.
+   minute after its publication, capped by the grid's longest
+   hold (max of the holdMinutes axis — the schema defines the
+   horizon, not an engine constant). The pass produces a
+   per-candle trajectory
+   profile (MFE/MAE extremes, whale shakeout depth). Overlapping
+   and sparse ideas are both supported: candle chunks are fetched
+   lazily through the Exchange (persist cache first), gaps between
+   ideas are never requested.
 2. The author ban list is TRAINED on the whole range (lookahead
    inside train is deliberate): authors with enough ideas and a hit
-   rate worse than a coin are excluded from triggers and votes.
-   The list is part of the result — apply it in production as-is.
+   rate worse than a coin are excluded from entries. The list is
+   part of the result — apply it in production as-is.
 3. The outcome of every grid point is derived arithmetically from
    the profiles with production slot semantics (one position per
    symbol, busy-slot ideas skipped). Honesty contracts: entry at

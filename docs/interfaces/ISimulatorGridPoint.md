@@ -33,14 +33,6 @@ holdMinutes: number
 
 Maximum position hold duration, minutes.
 
-### minIdeasAligned
-
-```ts
-minIdeasAligned: number
-```
-
-Minimum unique aligned (unbanned) authors required to enter.
-
 ### minAuthorTrack
 
 ```ts
@@ -56,23 +48,6 @@ minAuthorHitRate: number
 ```
 
 Author ban rule: minimum hit rate (0..1) to be allowed.
-
-### minAuthorWilson
-
-```ts
-minAuthorWilson: number
-```
-
-Author ban rule: minimum Wilson lower bound (0..1); 0 = off.
-
-### minWeightAligned
-
-```ts
-minWeightAligned: number
-```
-
-Weighted consensus threshold: required sum of Laplace-smoothed
-track-record weights of aligned unbanned authors; 0 = disabled.
 
 ### profitLockPercent
 

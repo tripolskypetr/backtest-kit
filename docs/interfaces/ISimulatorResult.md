@@ -5,9 +5,9 @@ group: docs
 
 # ISimulatorResult
 
-Final result of a simulation run: grid reports, four ranking
-winners; the author artifact is per-winner in best[] — hits are
-metric-dependent, a run-level list would lie to other criteria.
+Final result of a simulation run: per-metric buckets, each with
+its own reports, ranking winners and ban dictionaries — hits are
+metric-dependent, any cross-metric aggregate would lie.
 
 ## Properties
 
@@ -51,27 +51,6 @@ truncatedCount: number
 
 Profiles cut short by end of candle data.
 
-### allowedAuthors
-
-```ts
-allowedAuthors: string[]
-```
-
-Authors allowed by AT LEAST ONE ranking winner's rule (union
-over best[]). No criterion is privileged: with different rules
-among winners this is the honest run-level whitelist candidate
-set; which winner allows whom — in best[].allowedAuthors.
-
-### bannedAuthors
-
-```ts
-bannedAuthors: string[]
-```
-
-Authors banned by EVERY ranking winner's rule (complement of
-allowedAuthors over all authors seen in the run). Banned here
-means banned no matter which winner is taken to production.
-
 ### avgHoldMinutes
 
 ```ts
@@ -99,16 +78,9 @@ p99HoldMinutes: number
 ### reports
 
 ```ts
-reports: ISimulatorPointReport[]
+reports: Record<SimulatorAuthorMetric, ISimulatorMetricReport>
 ```
 
-All grid point reports, sorted descending by the schema's
-reportOrder criterion (default sharpe).
-
-### best
-
-```ts
-best: ISimulatorBest[]
-```
-
-Winners of the rankings: sharpe, sortino, pnl, recovery.
+Per-metric buckets keyed by the point's authorMetric. Every
+metric key is always present — a metric absent from the swept
+axis maps to an empty bucket.

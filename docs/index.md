@@ -531,6 +531,8 @@ group: docs
 - [ISimulatorPointReport](interfaces/ISimulatorPointReport.md)
 - [ISimulatorAuthorStat](interfaces/ISimulatorAuthorStat.md)
 - [ISimulatorBest](interfaces/ISimulatorBest.md)
+- [ISimulatorRuleBans](interfaces/ISimulatorRuleBans.md)
+- [ISimulatorMetricReport](interfaces/ISimulatorMetricReport.md)
 - [ISimulatorResult](interfaces/ISimulatorResult.md)
 - [ISimulatorTestResult](interfaces/ISimulatorTestResult.md)
 - [ISimulatorSchema](interfaces/ISimulatorSchema.md)

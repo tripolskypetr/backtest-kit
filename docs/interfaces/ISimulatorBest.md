@@ -8,7 +8,7 @@ group: docs
 Winner of one ranking criterion with its trade list and the author
 artifact under ITS OWN ban rule. Different criteria may elect
 points with different ban rules — the whitelist is a property of
-the winning point, never a global of the run.
+the winning point, never a global of the run or the bucket.
 
 ## Properties
 
@@ -26,7 +26,7 @@ The ranking criterion this winner belongs to.
 report: ISimulatorPointReport
 ```
 
-Winning point report; null when the grid produced no reports.
+Winning point report; null when the bucket produced no reports.
 
 ### trades
 
@@ -42,12 +42,11 @@ Trades of the winning point (empty when report is null).
 authorStats: ISimulatorAuthorStat[]
 ```
 
-Per-author track records under THIS winner's rule — the ONLY
-source of the author artifact in a run result. Hits are counted
-by the rule's metric (authorMetric + the lock/stop levels the
-"reach" metric grades against), so even the raw numbers differ
-between winners with different rules — a single run-level list
-cannot represent them. Empty when report is null.
+Per-author track records under THIS winner's rule. Hits are
+counted by the rule's metric and levels, so even the raw
+numbers differ between winners with different rules. Empty when
+report is null. The same dictionary sits in the bucket's bans
+entry carrying the same thresholds/levels.
 
 ### allowedAuthors
 
