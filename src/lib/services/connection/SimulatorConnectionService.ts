@@ -37,13 +37,14 @@ const DEFAULT_REPORT_ORDER: SimulatorRankingCriterion = "sharpe";
  *   run that dumps gives everything back without a lock); 0 keeps
  *   the lock-free baseline, runners are untouched — above the lock
  *   the trailing floor is higher and fills first;
- * - author metric: all four gradings compete in the sweep — "close"
- *   (horizon close, feeds long-hold points), "reach"
- *   (lock-reachability, feeds lock points; requires lock > 0 —
- *   lock-free reach points are excluded from the grid), "retain"
- *   (FIXATION above the point's lock: median move strictly above
- *   profitLockPercent; requires lock > 0 like reach) and "pnl"
- *   (fixed +1% MFE threshold — did the call ever pay);
+ * - author metric: all four gradings compete in the sweep, each
+ *   computed inside THE POINT'S OWN hold window — "close" (window
+ *   close, feeds long-hold points), "reach" (lock-reachability,
+ *   feeds lock points; requires lock > 0 — lock-free reach points
+ *   are excluded from the grid), "retain" (FIXATION above the
+ *   point's lock: median move strictly above profitLockPercent;
+ *   requires lock > 0 like reach) and "pnl" (fixed +1% MFE
+ *   threshold — did the call ever pay);
  * - every metric bucket carries its own winners and its own ban
  *   dictionaries — nothing is aggregated across metrics.
  */

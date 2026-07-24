@@ -5999,9 +5999,13 @@ interface ISimulatorIdea {
     author: string;
 }
 /**
- * Per-candle trajectory profile of a single idea.
- * The outcome of ANY grid point is computed arithmetically from the
- * profile — candles are never re-iterated per grid point.
+ * Per-candle trajectory profile of a single idea, built to the
+ * grid's longest hold (the candle fetch depth). The outcome of ANY
+ * grid point is computed arithmetically from the profile — candles
+ * are never re-fetched per grid point. The aggregate fields below
+ * (hit, MFE/MAE, shakeout, median) are FULL-HORIZON diagnostics for
+ * the consumer; ban training never reads them — every rule grades
+ * the raw candle trajectory inside its own hold window.
  */
 interface ISimulatorIdeaProfile {
     /** The idea this profile belongs to. */
@@ -6016,7 +6020,7 @@ interface ISimulatorIdeaProfile {
     hit: boolean;
     /** Timestamp when the idea outcome becomes known (horizon end). */
     outcomeKnownAt: number;
-    /** Horizon was truncated by end of data, not by the trim constant. */
+    /** Trajectory cut by the data edge before the full fetch depth. */
     truncated: boolean;
     /** Maximum favorable excursion from entry, percent (by wicks). */
     maxMfePercent: number;
@@ -6030,41 +6034,43 @@ interface ISimulatorIdeaProfile {
     shakeoutMaePercent: number;
     /**
      * MEDIAN of the per-candle close moves from entry over the whole
-     * horizon, percent in the idea's direction. The raw material of
-     * the "retain" author metric: median > X means price sat ABOVE
-     * entry + X% for at least half the observed trajectory — a
-     * time-window-free fixation measure (the 50% share is the
-     * median's definition, not a tunable constant), insensitive to
-     * the exact horizon length unlike the close. The field itself is
-     * level-free; the retain rule grades it against the point's lock.
+     * horizon, percent in the idea's direction: median > X means
+     * price sat ABOVE entry + X% for at least half the observed
+     * trajectory (the 50% share is the median's definition, not a
+     * tunable constant). Full-horizon diagnostic twin of the "retain"
+     * grading — the rule itself recomputes the median inside its own
+     * hold window.
      */
     medianMovePercent: number;
 }
 /**
- * Metric that defines an author's "hit" for the ban filter:
- * - "close" — the idea's horizon close moved in its direction
- *   (rewards authors whose calls survive a long hold). The horizon
- *   is the grid's LONGEST hold — max(holdMinutes) — for every
- *   metric here: the schema defines the grading window, not an
- *   engine constant;
- * - "reach" — the idea's MFE reached the point's profit-lock level
- *   before its pre-peak MAE reached the hard stop (rewards authors
- *   whose calls are HARVESTABLE by the lock machinery, even when the
- *   horizon close goes against them). Requires a target: reach
- *   points with profitLockPercent = 0 are excluded from the grid;
+ * Metric that defines an author's "hit" for the ban filter. EVERY
+ * metric is graded inside the POINT'S OWN hold window — the first
+ * holdMinutes of the idea's trajectory: the author is judged by
+ * exactly the window the point can trade, never on a farther event
+ * nobody harvests (the profile itself is built to the grid's
+ * longest hold — that is the candle fetch depth, not the grading
+ * window):
+ * - "close" — the window's last close moved in the idea's direction
+ *   (rewards authors whose calls survive the hold);
+ * - "reach" — the idea's MFE inside the window reached the point's
+ *   profit-lock level before its pre-peak MAE reached the hard stop
+ *   (rewards authors whose calls are HARVESTABLE by the lock
+ *   machinery, even when the window close goes against them).
+ *   Requires a target: reach points with profitLockPercent = 0 are
+ *   excluded from the grid;
  * - "retain" — FIXATION above the point's profit-lock level: the
- *   MEDIAN move of the idea's horizon is strictly above
- *   profitLockPercent, i.e. price sat above entry + lock for at
- *   least half the observed trajectory (the median is the 50%
- *   quantile by definition — no time window is involved). Requires
- *   a target like reach: retain points with profitLockPercent = 0
- *   are excluded from the grid. A transient spike (reach's hit) and
- *   a lucky last-day finish (close's hit) are both misses here.
- *   Independent of the point's stop;
- * - "pnl" — the idea's MFE grew by MORE than the fixed +1% threshold
- *   at any moment of the horizon, INDEPENDENT of the point's lock
- *   and stop. Complements "retain": pnl asks "did it ever pay",
- *   retain asks "did it hold above the level".
+ *   MEDIAN move of the window is strictly above profitLockPercent,
+ *   i.e. price sat above entry + lock for at least half the window
+ *   (the median is the 50% quantile by definition — not a tunable
+ *   constant). Requires a target like reach: retain points with
+ *   profitLockPercent = 0 are excluded from the grid. A transient
+ *   spike (reach's hit) and a lucky last-candle finish (close's
+ *   hit) are both misses here. Independent of the point's stop;
+ * - "pnl" — the window's MFE grew by MORE than the fixed +1%
+ *   threshold, INDEPENDENT of the point's lock and stop.
+ *   Complements "retain": pnl asks "did it ever pay", retain asks
+ *   "did it hold above the level".
  * The right metric depends on the exit style being ranked: close-hit
  * authors feed long-hold points, reach-hit authors feed lock points,
  * retain-hit authors feed points that need the move to HOLD.
@@ -6107,11 +6113,13 @@ interface ISimulatorGridAxes {
      * ABSORBS qualified ideas (per-trade absorbedIdeaIds), so longer
      * holds trade less often; the cap is the worst-case exit
      * (time_expired) when neither stop nor floor fires.
-     * Ignored: never for trading. Ban training does not use the
-     * POINT'S hold — an author's hit is graded on the idea's full
-     * profile horizon, which is this axis's MAXIMUM: the longest hold
-     * declared here defines every idea's forward candle window (the
-     * schema owns the horizon, the engine has no hidden constant).
+     * Ignored: never — the hold serves BOTH layers: it caps the trade
+     * AND is the grading window of the point's ban rule (every author
+     * metric is computed inside the first holdMinutes of the idea's
+     * trajectory — the window the point actually trades). This axis's
+     * MAXIMUM additionally defines the candle fetch depth of every
+     * idea profile (the schema owns the horizon, the engine has no
+     * hidden constant).
      */
     holdMinutes: number[];
     /**
@@ -6156,13 +6164,14 @@ interface ISimulatorGridAxes {
      * the sweep never glues incomparable hit counts together, it
      * reports every grading as its own points and its own ban lists.
      * Tunes: which author grading feeds which exit style — "close"
-     * (horizon close) rewards authors whose calls survive a long
-     * hold, "reach" (lock-reachability against THE POINT'S lock/stop)
+     * (window close) rewards authors whose calls survive the hold,
+     * "reach" (lock-reachability against THE POINT'S lock/stop)
      * rewards the authors a lock point actually earns on, "retain"
      * (median move above THE POINT'S lock) rewards authors whose
      * moves HOLD the level, "pnl" (fixed +1% MFE threshold) asks "did
-     * the call ever pay"; the same author has different hit counts
-     * under different metrics.
+     * the call ever pay"; every grading runs inside THE POINT'S hold
+     * window, and the same author has different hit counts under
+     * different metrics and different windows.
      * Ignored: with "close"/"pnl" the point's lock/stop never affect
      * ban training; "retain" ignores only the stop; "reach"/"retain"
      * require lock > 0 — the lock-free combinations are excluded from
@@ -6349,6 +6358,8 @@ interface ISimulatorBest {
  * winners.
  */
 interface ISimulatorRuleBans {
+    /** Grading window of the rule, minutes — the point's own hold. */
+    holdMinutes: number;
     /** Minimum known-outcome ideas the rule requires. */
     minAuthorTrack: number;
     /** Minimum hit rate (0..1) the rule requires. */
@@ -19974,13 +19985,13 @@ declare const PersistSessionAdapter: PersistSessionUtils;
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
- * - authorMetric — hit definition: "close" = horizon close
- *   (lock/stop do NOT affect ban training), "reach" =
- *   lock-reachability against the point's lock/stop, "retain" =
- *   fixation above the point's lock (median move strictly above
- *   profitLockPercent), "pnl" = fixed +1% MFE threshold; reach and
- *   retain require lock > 0 — the lock-free combinations are
- *   excluded from the grid.
+ * - authorMetric — hit definition, ALWAYS graded inside the point's
+ *   own hold window: "close" = window close (lock/stop do NOT
+ *   affect ban training), "reach" = lock-reachability against the
+ *   point's lock/stop, "retain" = fixation above the point's lock
+ *   (median move strictly above profitLockPercent), "pnl" = fixed
+ *   +1% MFE threshold; reach and retain require lock > 0 — the
+ *   lock-free combinations are excluded from the grid.
  *
  * Run-level config (not swept, ignored by test()):
  * - reportOrder — ranking criterion ordering each metric bucket's

@@ -37,13 +37,13 @@ const METHOD_NAME_TEST = "Simulator.test";
  * - minAuthorTrack / minAuthorHitRate — default-ban thresholds;
  *   truncated profiles prove nothing; the ban is strictly below the
  *   rate threshold.
- * - authorMetric — hit definition: "close" = horizon close
- *   (lock/stop do NOT affect ban training), "reach" =
- *   lock-reachability against the point's lock/stop, "retain" =
- *   fixation above the point's lock (median move strictly above
- *   profitLockPercent), "pnl" = fixed +1% MFE threshold; reach and
- *   retain require lock > 0 — the lock-free combinations are
- *   excluded from the grid.
+ * - authorMetric — hit definition, ALWAYS graded inside the point's
+ *   own hold window: "close" = window close (lock/stop do NOT
+ *   affect ban training), "reach" = lock-reachability against the
+ *   point's lock/stop, "retain" = fixation above the point's lock
+ *   (median move strictly above profitLockPercent), "pnl" = fixed
+ *   +1% MFE threshold; reach and retain require lock > 0 — the
+ *   lock-free combinations are excluded from the grid.
  *
  * Run-level config (not swept, ignored by test()):
  * - reportOrder — ranking criterion ordering each metric bucket's
