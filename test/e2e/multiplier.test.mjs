@@ -21,7 +21,7 @@ import {
 //   1) поле из getSignal-DTO попадает в ISignalRow, персистится и удваивает
 //      pnlPercentage закрытия (pnlCost следует за ним, pnlEntries не скейлится);
 //      нотификации signal.opened / signal.closed несут то же значение;
-//   2) сигнал БЕЗ поля получает дефолт CC_SIGNAL_MULTIPLIER = 1, дефолт
+//   2) сигнал БЕЗ поля получает дефолт CC_SIGNAL_LEVERAGE_MULTIPLIER = 1, дефолт
 //      переживает рестарт, а старый персист-снапшот без поля читается с
 //      back-compat дефолтом;
 //   3) hard stop по leveraged PNL: позиция 100x закрывается МАНУАЛЬНО из
@@ -216,7 +216,7 @@ test("MULTIPLIER: omitted field defaults to 1, survives a restart and back-compa
     addStrategySchema({
       strategyName: context.strategyName,
       interval: "1m",
-      // multiplier намеренно опущен — должен примениться CC_SIGNAL_MULTIPLIER = 1
+      // multiplier намеренно опущен — должен примениться CC_SIGNAL_LEVERAGE_MULTIPLIER = 1
       getSignal: async () => ({
         position: "long",
         note: "multiplier default",

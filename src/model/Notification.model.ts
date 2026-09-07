@@ -46,7 +46,7 @@ export interface SignalOpenedNotification {
   totalPartials: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
@@ -139,7 +139,7 @@ export interface SignalClosedNotification {
   totalPartials: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
@@ -232,7 +232,7 @@ export interface PartialProfitAvailableNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -325,7 +325,7 @@ export interface PartialLossAvailableNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -416,7 +416,7 @@ export interface BreakevenAvailableNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -509,7 +509,7 @@ export interface PartialProfitCommitNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -602,7 +602,7 @@ export interface PartialLossCommitNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -693,7 +693,7 @@ export interface BreakevenCommitNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -770,7 +770,7 @@ export interface AverageBuyCommitNotification {
   currentPrice: number;
   /** Cost of this averaging entry in USD */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Averaged (effective) entry price after this addition */
   effectivePriceOpen: number;
@@ -877,7 +877,7 @@ export interface ActivateScheduledCommitNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -972,7 +972,7 @@ export interface TrailingStopCommitNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -1065,7 +1065,7 @@ export interface TrailingTakeCommitNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -1186,7 +1186,7 @@ export interface OrderSyncOpenNotification {
   maxDrawdownEntries: number;
   /** Cost of the position entry in USD */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
@@ -1293,7 +1293,7 @@ export interface OrderSyncCloseNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -1361,7 +1361,7 @@ export interface OrderSyncCheckNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -1467,7 +1467,7 @@ export interface OrderContinueCheckNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -1574,7 +1574,7 @@ export interface OrderStopCheckNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -1699,7 +1699,7 @@ export interface OrderFillOpenNotification {
   maxDrawdownEntries: number;
   /** Cost of the position entry in USD */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
@@ -1812,7 +1812,7 @@ export interface OrderFillCloseNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -1906,7 +1906,7 @@ export interface OrderRejectOpenNotification {
   maxDrawdownEntries: number;
   /** Cost of the position entry in USD */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
@@ -2021,7 +2021,7 @@ export interface OrderRejectCloseNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -2078,7 +2078,7 @@ export interface RiskRejectionNotification {
   priceStopLoss: number;
   /** Expected duration in minutes before time_expired */
   minuteEstimatedTime: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Optional human-readable description of signal reason */
   signalNote?: string;
@@ -2127,7 +2127,7 @@ export interface SignalScheduledNotification {
   totalPartials: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
@@ -2214,7 +2214,7 @@ export interface SignalCancelledNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -2399,7 +2399,7 @@ export interface CancelScheduledCommitNotification {
   pendingAt: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
@@ -2494,7 +2494,7 @@ export interface ClosePendingCommitNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (first entry, not DCA) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
@@ -2581,7 +2581,7 @@ export interface SignalInfoNotification {
   originalPriceOpen: number;
   /** Cost of the initial position entry in USD (from signal.cost) */
   cost: number;
-  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+  /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;

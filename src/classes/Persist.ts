@@ -768,7 +768,7 @@ export class PersistSignalInstance implements IPersistSignalInstance {
       // Back-compat: rows persisted before the multiplier field existed read
       // back without it — restore the config default.
       if (signalRow && signalRow.multiplier == null) {
-        signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+        signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
       return signalRow;
     }
@@ -1351,7 +1351,7 @@ export class PersistScheduleInstance implements IPersistScheduleInstance {
       // Back-compat: rows persisted before the multiplier field existed read
       // back without it — restore the config default.
       if (scheduledRow && scheduledRow.multiplier == null) {
-        scheduledRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+        scheduledRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
       return scheduledRow;
     }
@@ -1737,7 +1737,7 @@ export class PersistStrategyInstance implements IPersistStrategyInstance {
         // Back-compat: rows persisted before the multiplier field existed read
         // back without it — restore the config default.
         if (signal && signal.multiplier == null) {
-          signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+          signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
         }
       }
       return strategyData;
@@ -3018,7 +3018,7 @@ export class PersistStorageInstance implements IPersistStorageInstance {
       // Back-compat: rows persisted before the multiplier field existed read
       // back without it — restore the config default.
       if (signal && signal.multiplier == null) {
-        signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+        signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
       signals.push(signal);
     }
@@ -3292,7 +3292,7 @@ export class PersistNotificationInstance implements IPersistNotificationInstance
         "cost" in notification &&
         (notification as { multiplier?: number | null }).multiplier == null
       ) {
-        (notification as { multiplier: number }).multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+        (notification as { multiplier: number }).multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
       notifications.push(notification);
     }
@@ -4987,7 +4987,7 @@ export class PersistRecentInstance implements IPersistRecentInstance {
       // Back-compat: rows persisted before the multiplier field existed read
       // back without it — restore the config default.
       if (signalRow && signalRow.multiplier == null) {
-        signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+        signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
       return signalRow;
     }

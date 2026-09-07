@@ -8,7 +8,7 @@ const approxEqual = (a, b) => Math.abs(a - b) < EPS;
 // multiplier — PNL leverage semantics
 //
 // pnlPercentage is multiplied by signal.multiplier (default:
-// GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER = 1); pnlCost follows automatically
+// GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER = 1); pnlCost follows automatically
 // since pnlCost = pnlPercentage / 100 * pnlEntries. pnlEntries (invested
 // capital) stays unscaled.
 //
@@ -88,28 +88,28 @@ test("multiplier: pnlCost identity holds at x2, pnlEntries stays unscaled", ({ p
   pass(`pnlCost identity verified at 2x: ${pnl.pnlCost.toFixed(9)} USD`);
 });
 
-test("multiplier: CC_SIGNAL_MULTIPLIER config default applies when the field is omitted", ({ pass, fail }) => {
+test("multiplier: CC_SIGNAL_LEVERAGE_MULTIPLIER config default applies when the field is omitted", ({ pass, fail }) => {
   // setConfig mutates global state and the whole suite runs in one process —
   // restore in finally so later test files see the default again.
-  setConfig({ CC_SIGNAL_MULTIPLIER: 2 }, true);
+  setConfig({ CC_SIGNAL_LEVERAGE_MULTIPLIER: 2 }, true);
   try {
     const { pnlPercentage } = toProfitLossDto({ position: "long", priceOpen: 100 }, 110);
     const expected = 2 * 9.570439560;
     if (!approxEqual(pnlPercentage, expected)) { fail(`Expected ${expected}, got ${pnlPercentage}`); return; }
     pass(`config default 2x applied: pnl = ${pnlPercentage.toFixed(9)}%`);
   } finally {
-    setConfig({ CC_SIGNAL_MULTIPLIER: 1 }, true);
+    setConfig({ CC_SIGNAL_LEVERAGE_MULTIPLIER: 1 }, true);
   }
 });
 
-test("multiplier: setConfig rejects non-positive CC_SIGNAL_MULTIPLIER", ({ pass, fail }) => {
+test("multiplier: setConfig rejects non-positive CC_SIGNAL_LEVERAGE_MULTIPLIER", ({ pass, fail }) => {
   try {
-    setConfig({ CC_SIGNAL_MULTIPLIER: -1 });
-    fail("Should have thrown for negative CC_SIGNAL_MULTIPLIER");
+    setConfig({ CC_SIGNAL_LEVERAGE_MULTIPLIER: -1 });
+    fail("Should have thrown for negative CC_SIGNAL_LEVERAGE_MULTIPLIER");
   } catch (error) {
     // setConfig rolls the previous config back on validation failure
-    if (error.message.includes("CC_SIGNAL_MULTIPLIER")) {
-      pass("Correctly rejected negative CC_SIGNAL_MULTIPLIER");
+    if (error.message.includes("CC_SIGNAL_LEVERAGE_MULTIPLIER")) {
+      pass("Correctly rejected negative CC_SIGNAL_LEVERAGE_MULTIPLIER");
     } else {
       fail(`Wrong error message: ${error.message}`);
     }

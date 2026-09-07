@@ -365,7 +365,7 @@ export const GLOBAL_CONFIG = {
    * pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
    * Default: 1 (no scaling)
    */
-  CC_SIGNAL_MULTIPLIER: 1,
+  CC_SIGNAL_LEVERAGE_MULTIPLIER: 1,
 
   /**
    * Maximum number of open retries after the broker gate (onOrderSync / onOrderOpenCommit)

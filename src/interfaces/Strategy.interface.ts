@@ -167,7 +167,7 @@ export interface ISignalDto {
   /**
    * PNL multiplier (leverage) applied to pnlPercentage in PNL calculations.
    * pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
-   * Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER
+   * Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
    */
   multiplier?: number;
 }

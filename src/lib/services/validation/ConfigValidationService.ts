@@ -70,8 +70,8 @@ export class ConfigValidationService {
       errors.push(`CC_BREAKEVEN_THRESHOLD must be a non-negative number, got ${GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD}`);
     }
 
-    if (!Number.isFinite(GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER) || GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER <= 0) {
-      errors.push(`CC_SIGNAL_MULTIPLIER must be a positive finite number, got ${GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER}`);
+    if (!Number.isFinite(GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER) || GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER <= 0) {
+      errors.push(`CC_SIGNAL_LEVERAGE_MULTIPLIER must be a positive finite number, got ${GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER}`);
     }
 
     // Calculate minimum required TP distance to cover costs

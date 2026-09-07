@@ -53,7 +53,7 @@ export const toProfitLossDto = (
 
   // PNL multiplier (leverage): scales pnlPercentage, pnlCost follows since it
   // derives from pnlPercentage. pnlEntries (invested capital) stays unscaled.
-  const multiplier = signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+  const multiplier = signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
 
   const priceOpen = getEffectivePriceOpen(signal);
 

@@ -251,7 +251,7 @@ export const validateCommonSignal = (signal: ISignalDto) => {
   }
 
   // Валидация multiplier (плечо PNL). Валидатор получает уже задефолченное
-  // значение (multiplier ?? CC_SIGNAL_MULTIPLIER на кол-сайтах). В отличие от
+  // значение (multiplier ?? CC_SIGNAL_LEVERAGE_MULTIPLIER на кол-сайтах). В отличие от
   // minuteEstimatedTime дробные значения разрешены (0.5x, 2.5x — суть плеча),
   // а Infinity запрещён: он делает pnlPercentage/pnlCost бесконечными.
   {
