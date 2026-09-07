@@ -1,3 +1,30 @@
+# 📈 Signal-level leverage: the PNL multiplier (v19.0.0, 07/09/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/19.0.0)
+
+> 🚀 **New to backtest-kit?** The fastest way to get a real, production-ready setup is to clone the [reference implementation](https://github.com/tripolskypetr/backtest-kit/tree/master/example) — a fully working news-sentiment AI trading system with LLM forecasting, multi-timeframe data, and a documented February 2026 backtest. Start there instead of from scratch.
+
+This major teaches every signal to carry its own **leverage**. `ISignalDto` gains an optional **`multiplier`** — return `{ ..., multiplier: 2 }` from `getSignal` and the closed position's `pnlPercentage` is scaled ×2; `pnlCost` follows automatically (it derives as `pnlPercentage / 100 * pnlEntries`), while `pnlEntries` — the *invested capital* — stays deliberately unscaled. The multiplier is applied in `toProfitLossDto` **after** fees and slippage, in both PNL branches: the simple close and the weighted partial-close path. Fractional values are first-class (`0.5x`, `2.5x` — that is the nature of leverage); `Infinity`, zero and negatives are rejected by signal validation, and the config-level default is guarded by `ConfigValidationService` at startup.
+
+**One default, one field, no special cases downstream.** The global default is **`CC_SIGNAL_MULTIPLIER`** (`1` — a no-op, so existing strategies are untouched). `ClientStrategy` stamps the default into every `ISignalRow` it builds — pending, scheduled, restored — so the row-level field is *required* and consumers never see `undefined`. The same defaulting happens in the risk path: user risk validations reading `currentSignal.multiplier` see `1`, not a hole, because the risk DTO is normalized before `getSignal` row-defaults would run. Everything that renders a position knows about the field now: backtest and live report **Multiplier columns**, markdown reports, `TickEvent` in live statistics, and **every notification variant** — opened/closed/scheduled/cancelled, partial profit/loss (available + commit), breakeven, trailing stop/take, DCA average-buy, order sync/fill/reject/check, risk rejections, signal info — each carries `multiplier` end to end, all the way into the frontend field lists in all seven locales.
+
+**Leverage without a leveraged safety net is a footgun — so the engine's contract is explicit.** TP/SL still trigger on *price*: the multiplier scales the reported PNL, not the trigger geometry. At `100x` a small price move is a large leveraged move, and the distant engine stop-loss caps a catastrophe, not a drawdown — the intended pattern (covered by e2e) is a **manual hard stop from the lifecycle**: watch `getPositionPnlPercent` (already multiplier-scaled) inside `listenActivePing` and `commitClosePending` when the leveraged PNL pierces your threshold — the same pattern the reference strategy uses.
+
+**Persistence is back-compatible in both directions.** Rows and notifications persisted *before* the field existed read back with the config default restored — signal, scheduled, strategy (including the crash-recovery `retryOpenSignal`, which now also gets the `Infinity` restore for eternal holds), storage, recent and notification persist adapters all normalize on read. A `19.0.0` engine resumes a `18.x` live session without a migration; the e2e suite proves the field survives a full restart and that a legacy snapshot without it comes back as `1x`.
+
+**The MCP agent gets leverage too.** `IMCPSchema` accepts an optional **`multiplier`** — every position the LLM opens through `open_position` carries it (default: `CC_SIGNAL_MULTIPLIER`), alongside the existing `positionCost`. The agent still cannot override it per-call: leverage is rig configuration, computed engine-side, exactly like entry cost.
+
+## New Public API
+
+- `ISignalDto.multiplier` — optional per-signal PNL multiplier (leverage); `ISignalRow.multiplier` — required, defaults applied engine-side.
+- `CC_SIGNAL_MULTIPLIER` — global default multiplier (default `1`), validated at startup (positive finite; fractional allowed).
+- `IMCPSchema.multiplier` — leverage for MCP agent-opened positions (default: `CC_SIGNAL_MULTIPLIER`).
+- `multiplier` surfaced in: backtest/live report columns, markdown reports, `TickEvent`, and every `NotificationModel` variant.
+- Tests: `test/spec/multiplier.test.mjs` (PNL math, defaults, validation) and `test/e2e/multiplier.test.mjs` (live tick-cycle wiring, restart/back-compat, 100x manual hard stop).
+
+
+
+
 # 👾 MCP: Claude trades a live portfolio without human action (v18.0.0, 02/08/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/18.0.0)
