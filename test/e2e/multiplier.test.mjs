@@ -9,6 +9,9 @@ import {
   PersistRecentAdapter,
   Notification,
   toProfitLossDto,
+  listenActivePing,
+  commitClosePending,
+  getPositionPnlPercent,
   lib,
   MethodContextService,
 } from "../../build/index.mjs";
@@ -20,7 +23,11 @@ import {
 //      нотификации signal.opened / signal.closed несут то же значение;
 //   2) сигнал БЕЗ поля получает дефолт CC_SIGNAL_MULTIPLIER = 1, дефолт
 //      переживает рестарт, а старый персист-снапшот без поля читается с
-//      back-compat дефолтом.
+//      back-compat дефолтом;
+//   3) hard stop по leveraged PNL: позиция 100x закрывается МАНУАЛЬНО из
+//      жизненного цикла (listenActivePing → commitClosePending), когда
+//      getPositionPnlPercent (уже умноженный на 100) пробивает порог —
+//      паттерн example/content/jan_2026.strategy.
 // ---------------------------------------------------------------------------
 
 const MIN = 60_000;
@@ -273,5 +280,134 @@ test("MULTIPLIER: omitted field defaults to 1, survives a restart and back-compa
     PersistStrategyAdapter.useDummy();
     PersistScheduleAdapter.useDummy();
     PersistRecentAdapter.useDummy();
+  }
+});
+
+test("MULTIPLIER: 100x position is closed by a manual hard stop from the lifecycle (listenActivePing)", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  // Порог hard stop по LEVERAGED PNL (как HARD_STOP в jan_2026.strategy, но на
+  // плече): при 100x комиссии+слиппедж дают ~-39.96% сразу после открытия
+  // (цена не двигалась) — это ЕЩЁ НЕ пробой; падение цены всего на 0.2%
+  // опускает leveraged PNL до ~-59.9% — пробой.
+  const HARD_STOP = 50;
+  const t0 = new Date("2024-03-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "multiplier-hardstop-strategy",
+    exchangeName: "binance-multiplier-hardstop",
+    frameName: "",
+  };
+
+  let market = basePrice;
+  let signalGenerated = false;
+  let hardStopFired = false;
+
+  makeExchange(context.exchangeName, () => market);
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "100x hard stop",
+        // Широкие TP/SL: VWAP-мониторинг сам НЕ закроет позицию — закрытие
+        // обязано прийти из жизненного цикла (мануальный hard stop)
+        priceTakeProfit: basePrice * 1.1,
+        priceStopLoss: basePrice * 0.9,
+        minuteEstimatedTime: 60,
+        multiplier: 100,
+      };
+    },
+  });
+
+  // Мануальный hard stop из жизненного цикла — паттерн jan_2026.strategy:
+  // контексты унаследованы от tick, commit* работают как в продакшене
+  const unsubscribePing = listenActivePing(async (event) => {
+    if (event.strategyName !== context.strategyName) return;
+    const leveragedPnl = await getPositionPnlPercent(event.symbol);
+    if (leveragedPnl === null || leveragedPnl > -HARD_STOP) return;
+    hardStopFired = true;
+    await commitClosePending(event.symbol, {
+      id: "hard-stop-100x",
+      note: "# Позиция закрыта по hard stop (100x leveraged PNL)",
+    });
+  });
+
+  try {
+    const runTick = makeRunTick(context);
+
+    const tick1 = await runTick(new Date(t0));
+    if (tick1.action !== "opened") {
+      fail(`tick #1 expected "opened", got "${tick1.action}"`);
+      return;
+    }
+    if (tick1.signal.multiplier !== 100) {
+      fail(`tick #1 signal must carry multiplier 100, got ${tick1.signal.multiplier}`);
+      return;
+    }
+    const priceOpen = tick1.signal.priceOpen;
+
+    // Цена не двигалась: leveraged PNL ~-39.96% (только издержки) — выше порога
+    const tick2 = await runTick(new Date(t0 + 1 * MIN));
+    if (tick2.action !== "active") {
+      fail(`tick #2 expected "active", got "${tick2.action}"`);
+      return;
+    }
+    if (hardStopFired) {
+      fail(`hard stop must NOT fire while leveraged PNL is above -${HARD_STOP}% (costs-only drawdown)`);
+      return;
+    }
+
+    // Просадка цены всего на 0.2% → leveraged PNL ~-59.9% — пробой порога.
+    // Ping этого тика коммитит deferred-close; сам тик остаётся "active"
+    market = basePrice * 0.998;
+    const tick3 = await runTick(new Date(t0 + 2 * MIN));
+    if (tick3.action !== "active") {
+      fail(`tick #3 expected "active" (close is deferred to the next tick), got "${tick3.action}"`);
+      return;
+    }
+    if (!hardStopFired) {
+      fail(`hard stop must fire once leveraged PNL crossed -${HARD_STOP}%`);
+      return;
+    }
+
+    // Следующий тик дренит deferred-close: closeReason "closed", наш closeId
+    const tick4 = await runTick(new Date(t0 + 3 * MIN));
+    if (tick4.action !== "closed") {
+      fail(`tick #4 expected "closed" (manual hard stop drained), got "${tick4.action}"`);
+      return;
+    }
+    if (tick4.closeReason !== "closed") {
+      fail(`manual close must carry closeReason "closed", got "${tick4.closeReason}"`);
+      return;
+    }
+    if (tick4.closeId !== "hard-stop-100x") {
+      fail(`closed result must carry the hard-stop closeId, got "${tick4.closeId}"`);
+      return;
+    }
+
+    // PNL закрытия — ровно 100x безрычажного эталона, глубже порога hard stop
+    const reference = toProfitLossDto(
+      { position: "long", priceOpen, cost: tick4.signal.cost, multiplier: 1 },
+      tick4.currentPrice,
+    );
+    if (!approxEqual(tick4.pnl.pnlPercentage, 100 * reference.pnlPercentage)) {
+      fail(`closed pnlPercentage must be 100x the unleveraged reference: expected ${100 * reference.pnlPercentage}, got ${tick4.pnl.pnlPercentage}`);
+      return;
+    }
+    if (tick4.pnl.pnlPercentage > -HARD_STOP) {
+      fail(`closed leveraged PNL must be below -${HARD_STOP}%, got ${tick4.pnl.pnlPercentage}`);
+      return;
+    }
+    if (tick4.pnl.pnlEntries !== reference.pnlEntries) {
+      fail(`pnlEntries must stay unscaled: expected ${reference.pnlEntries}, got ${tick4.pnl.pnlEntries}`);
+      return;
+    }
+
+    pass(`100x position hard-stopped manually from the lifecycle at ${tick4.pnl.pnlPercentage.toFixed(4)}% (100x ${reference.pnlPercentage.toFixed(6)}%), closeId "hard-stop-100x"`);
+  } finally {
+    unsubscribePing();
   }
 });
