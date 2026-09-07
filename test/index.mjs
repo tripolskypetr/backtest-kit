@@ -78,6 +78,7 @@ import "./spec/backtest.test.mjs";
 import "./spec/pnl.test.mjs";
 import "./spec/dca.test.mjs";
 import "./spec/multiplier.test.mjs";
+import "./spec/multiplier_markdown.test.mjs";
 import "./spec/config.test.mjs"
 import "./spec/candle_cache.test.mjs"
 import "./spec/columns.test.mjs"
