@@ -213,6 +213,7 @@ export const LOCALE: Record<string, string> = {
   "Total Closes": "Всего закрытий",
   "PNL Details": "Детали PNL",
   "Cost": "Стоимость",
+  "Multiplier": "Плечо",
   "PNL %": "PNL %",
   "PNL ($)": "PNL (₽)",
   "Invested": "Вложено",
@@ -731,4 +732,7 @@ export const LOCALE: Record<string, string> = {
   "Cost of entering a position (in USD).": "Стоимость входа в позицию (в USD).",
   "This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy.": "Используется как значение по умолчанию для расчёта размера позиции и риск-менеджмента, когда стратегия не предоставляет данные о стоимости.",
   "Default: $100 per position.": "По умолчанию: $100 на позицию.",
+  "PNL multiplier (leverage) applied to the profit and loss percentage.": "Множитель PNL (плечо), применяемый к проценту прибыли и убытка.",
+  "Used as the default value when the multiplier is not provided by the strategy signal.": "Используется как значение по умолчанию, когда множитель не задан сигналом стратегии.",
+  "Default: 1 (no scaling).": "По умолчанию: 1 (без масштабирования).",
 };

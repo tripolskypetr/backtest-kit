@@ -213,6 +213,7 @@ export const LOCALE: Record<string, string> = {
   "Total Closes": "平仓总数",
   "PNL Details": "PNL 详情",
   "Cost": "成本",
+  "Multiplier": "杠杆倍数",
   "PNL %": "PNL %",
   "PNL ($)": "PNL ($)",
   "Invested": "投入",
@@ -731,4 +732,7 @@ export const LOCALE: Record<string, string> = {
   "Cost of entering a position (in USD).": "开仓成本（USD）。",
   "This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy.": "当策略未提供成本数据时，用作计算仓位大小和风险管理的默认值。",
   "Default: $100 per position.": "默认值：每个仓位 $100。",
+  "PNL multiplier (leverage) applied to the profit and loss percentage.": "应用于盈亏百分比的 PNL 倍数（杠杆）。",
+  "Used as the default value when the multiplier is not provided by the strategy signal.": "当策略信号未提供倍数时用作默认值。",
+  "Default: 1 (no scaling).": "默认值：1（不缩放）。",
 };

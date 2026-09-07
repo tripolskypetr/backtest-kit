@@ -732,6 +732,16 @@ const config_fields: TypedField[] = [
               t("Default: $100 per position."),
             ),
           }),
+          renderText({
+            idx: 43,
+            title: "CC_SIGNAL_MULTIPLIER",
+            name: "config.CC_SIGNAL_MULTIPLIER",
+            description: str.newline(
+              t("PNL multiplier (leverage) applied to the profit and loss percentage."),
+              t("Used as the default value when the multiplier is not provided by the strategy signal."),
+              t("Default: 1 (no scaling)."),
+            ),
+          }),
         ]
       },
       {

@@ -213,6 +213,7 @@ export const LOCALE: Record<string, string> = {
   "Total Closes": "Total Closes",
   "PNL Details": "PNL Details",
   "Cost": "Cost",
+  "Multiplier": "Multiplier",
   "PNL %": "PNL %",
   "PNL ($)": "PNL ($)",
   "Invested": "Invested",
@@ -731,4 +732,7 @@ export const LOCALE: Record<string, string> = {
   "Cost of entering a position (in USD).": "Cost of entering a position (in USD).",
   "This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy.": "This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy.",
   "Default: $100 per position.": "Default: $100 per position.",
+  "PNL multiplier (leverage) applied to the profit and loss percentage.": "PNL multiplier (leverage) applied to the profit and loss percentage.",
+  "Used as the default value when the multiplier is not provided by the strategy signal.": "Used as the default value when the multiplier is not provided by the strategy signal.",
+  "Default: 1 (no scaling).": "Default: 1 (no scaling).",
 };

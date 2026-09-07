@@ -42,7 +42,8 @@
     "CC_ENABLE_LONG_SIGNAL": true,
     "CC_ENABLE_SHORT_SIGNAL": true,
     "CC_ENABLE_TRAILING_EVERYWHERE": false,
-    "CC_POSITION_ENTRY_COST": 100
+    "CC_POSITION_ENTRY_COST": 100,
+    "CC_SIGNAL_MULTIPLIER": 1
   },
   "broker_enabled": false,
   "dump_enabled": true,

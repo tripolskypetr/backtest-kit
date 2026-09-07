@@ -9,6 +9,7 @@
     "priceTakeProfit": 46100,
     "priceStopLoss": 43800,
     "minuteEstimatedTime": 90,
+    "multiplier": 1,
     "cost": 100
   },
   "commitQueue": [
@@ -53,6 +54,7 @@
     "priceTakeProfit": 2405.25,
     "priceStopLoss": 2530.1,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "scheduledAt": 1708385400000,
     "pendingAt": 1708385400000,
     "timestamp": 1708385400000,
@@ -107,6 +109,7 @@
     "priceTakeProfit": 101.2,
     "priceStopLoss": 93.1,
     "minuteEstimatedTime": 120,
+    "multiplier": 1,
     "scheduledAt": 1708384200000,
     "pendingAt": 0,
     "timestamp": 1708384200000,
@@ -152,6 +155,7 @@
     "priceTakeProfit": 326.4,
     "priceStopLoss": 303.5,
     "minuteEstimatedTime": 75,
+    "multiplier": 1,
     "scheduledAt": 1708383000000,
     "pendingAt": 0,
     "timestamp": 1708383000000,

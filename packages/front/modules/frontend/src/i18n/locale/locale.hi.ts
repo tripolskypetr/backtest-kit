@@ -213,6 +213,7 @@ export const LOCALE: Record<string, string> = {
   "Total Closes": "कुल क्लोज़",
   "PNL Details": "PNL विवरण",
   "Cost": "लागत",
+  "Multiplier": "लीवरेज गुणक",
   "PNL %": "PNL %",
   "PNL ($)": "PNL ($)",
   "Invested": "निवेशित",
@@ -731,4 +732,7 @@ export const LOCALE: Record<string, string> = {
   "Cost of entering a position (in USD).": "पोज़िशन में प्रवेश की लागत (USD में)।",
   "This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy.": "जब स्ट्रैटेजी द्वारा लागत डेटा नहीं दिया गया हो, तो पोज़िशन साइज़ और रिस्क मैनेजमेंट की गणना के लिए डिफ़ॉल्ट मान के रूप में उपयोग होता है।",
   "Default: $100 per position.": "डिफ़ॉल्ट: $100 प्रति पोज़िशन।",
+  "PNL multiplier (leverage) applied to the profit and loss percentage.": "लाभ-हानि प्रतिशत पर लागू PNL गुणक (लीवरेज)।",
+  "Used as the default value when the multiplier is not provided by the strategy signal.": "जब रणनीति सिग्नल गुणक प्रदान नहीं करता है तो डिफ़ॉल्ट मान के रूप में उपयोग किया जाता है।",
+  "Default: 1 (no scaling).": "डिफ़ॉल्ट: 1 (कोई स्केलिंग नहीं)।",
 };

@@ -19,6 +19,7 @@
     "totalPartials": 0,
     "partialExecuted": 0,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 1.67,
       "priceOpen": 51800,
@@ -73,6 +74,7 @@
     "totalPartials": 2,
     "partialExecuted": 40,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": -1.2,
       "priceOpen": 45181.99,
@@ -149,6 +151,7 @@
     "totalPartials": 0,
     "partialExecuted": 0,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": -0.86,
       "priceOpen": 47378.01,
@@ -203,6 +206,7 @@
     "totalPartials": 0,
     "partialExecuted": 0,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 1.83,
       "priceOpen": 42969.86,
@@ -257,6 +261,7 @@
     "totalPartials": 0,
     "partialExecuted": 0,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 1.79,
       "priceOpen": 51088,
@@ -311,6 +316,7 @@
     "totalPartials": 0,
     "partialExecuted": 0,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": -1.71,
       "priceOpen": 44614.48,
@@ -365,6 +371,7 @@
     "totalPartials": 0,
     "partialExecuted": 0,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 2.89,
       "priceOpen": 48604,
@@ -419,6 +426,7 @@
     "totalPartials": 0,
     "partialExecuted": 0,
     "minuteEstimatedTime": 60,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": -0.64,
       "priceOpen": 50957.94,

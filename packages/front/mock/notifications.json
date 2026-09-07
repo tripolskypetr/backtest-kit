@@ -67,7 +67,8 @@
     "maxDrawdownPriceClose": 51277.2,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.cancelled",
@@ -95,6 +96,7 @@
     "createdAt": 1708876600000,
     "currentPrice": 3280.5,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 0,
@@ -148,7 +150,8 @@
     "priceOpen": 3245.67,
     "priceTakeProfit": 3342.64,
     "priceStopLoss": 3180.76,
-    "createdAt": 1708876000000
+    "createdAt": 1708876000000,
+    "multiplier": 1
   },
   {
     "type": "signal.closed",
@@ -197,6 +200,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51685.30894301844
   },
   {
@@ -245,7 +249,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "order_sync.check",
@@ -292,7 +297,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "order_fill.open",
@@ -340,7 +346,8 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "attempt": 0,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "order_fill.close",
@@ -389,7 +396,8 @@
     "maxDrawdownEntries": 100,
     "attempt": 0,
     "closeReason": "take_profit",
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "order_reject.open",
@@ -438,6 +446,7 @@
     "maxDrawdownEntries": 100,
     "attempt": 0,
     "cost": 100,
+    "multiplier": 1,
     "message": "binance {\"code\":-1013,\"msg\":\"Filter failure: NOTIONAL\"}"
   },
   {
@@ -488,7 +497,8 @@
     "attempt": 1,
     "closeReason": "time_expired",
     "message": "binance {\"code\":-2010,\"msg\":\"Account has insufficient balance\"}",
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "order_continue.check",
@@ -536,7 +546,8 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "attempt": 2,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "order_stop.check",
@@ -585,7 +596,8 @@
     "maxDrawdownEntries": 100,
     "attempt": 3,
     "reason": "exhausted",
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.commit",
@@ -632,7 +644,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -679,7 +692,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "trailing_take.commit",
@@ -726,7 +740,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "trailing_stop.commit",
@@ -773,7 +788,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "breakeven.commit",
@@ -818,7 +834,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "breakeven.available",
@@ -864,7 +881,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_profit.commit",
@@ -910,7 +928,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "average_buy.commit",
@@ -923,6 +942,7 @@
     "signalId": "d56caee8-46c7-4000-a77f-cb0434f35000",
     "currentPrice": 51680,
     "cost": 100,
+    "multiplier": 1,
     "effectivePriceOpen": 51717,
     "totalEntries": 2,
     "totalPartials": 0,
@@ -1004,7 +1024,8 @@
     "maxDrawdownPriceClose": 51132.95,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -1027,6 +1048,7 @@
     "totalEntries": 1,
     "totalPartials": 0,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51754,
@@ -1076,6 +1098,7 @@
     "pnlCost": 0,
     "pnlEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "position": "long",
     "priceOpen": 51754,
     "priceTakeProfit": 53306.62,
@@ -1123,6 +1146,7 @@
     "pnlCost": 0,
     "pnlEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "position": "long",
     "priceOpen": 51754,
     "priceTakeProfit": 53306.62,
@@ -1193,6 +1217,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51658.38716022372
   },
   {
@@ -1217,6 +1242,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51677.02,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51677.02,
@@ -1288,6 +1314,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51696.42673346863
   },
   {
@@ -1312,6 +1339,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51617.56,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51617.56,
@@ -1383,6 +1411,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51557.14480786588
   },
   {
@@ -1407,6 +1436,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51624.99,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51624.99,
@@ -1478,6 +1508,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51581.2659122087
   },
   {
@@ -1525,7 +1556,8 @@
     "maxDrawdownPriceClose": 51074.88,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -1549,6 +1581,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51695.22,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51695.22,
@@ -1595,6 +1628,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51695.22,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.12,
       "priceOpen": 51695.22,
@@ -1665,6 +1699,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51755.37138327176
   },
   {
@@ -1712,7 +1747,8 @@
     "maxDrawdownPriceClose": 51000.05,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -1759,7 +1795,8 @@
     "maxDrawdownPriceClose": 51000.05,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -1783,6 +1820,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51619.48,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51619.48,
@@ -1854,6 +1892,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51147.29174634819
   },
   {
@@ -1878,6 +1917,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51088,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51088,
@@ -1924,6 +1964,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51088,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.07,
       "priceOpen": 51088,
@@ -1994,6 +2035,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51123.376318928415
   },
   {
@@ -2018,6 +2060,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51094.52,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51094.52,
@@ -2089,6 +2132,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 50861.0242377258
   },
   {
@@ -2136,7 +2180,8 @@
     "maxDrawdownPriceClose": 51589.73,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -2160,6 +2205,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 50977.99,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 50977.99,
@@ -2206,6 +2252,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 50977.99,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.12,
       "priceOpen": 50977.99,
@@ -2276,6 +2323,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 50918.45105553351
   },
   {
@@ -2323,7 +2371,8 @@
     "maxDrawdownPriceClose": 51527,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -2370,7 +2419,8 @@
     "maxDrawdownPriceClose": 51527,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -2417,7 +2467,8 @@
     "maxDrawdownPriceClose": 51527,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -2441,6 +2492,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 50916.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 50916.01,
@@ -2512,6 +2564,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51771.80443655523
   },
   {
@@ -2559,7 +2612,8 @@
     "maxDrawdownPriceClose": 50997.31,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -2583,6 +2637,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51616.71,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51616.71,
@@ -2654,6 +2709,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51588.20405345147
   },
   {
@@ -2701,7 +2757,8 @@
     "maxDrawdownPriceClose": 51001.42,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -2725,6 +2782,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51620.87,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51620.87,
@@ -2796,6 +2854,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51503.80803850643
   },
   {
@@ -2843,7 +2902,8 @@
     "maxDrawdownPriceClose": 52001.96,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -2867,6 +2927,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51385.34,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51385.34,
@@ -2913,6 +2974,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51385.34,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.04,
       "priceOpen": 51385.34,
@@ -2983,6 +3045,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51363.58111709624
   },
   {
@@ -3030,7 +3093,8 @@
     "maxDrawdownPriceClose": 51569.44,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -3077,7 +3141,8 @@
     "maxDrawdownPriceClose": 51569.44,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -3124,7 +3189,8 @@
     "maxDrawdownPriceClose": 51569.44,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -3148,6 +3214,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 50957.94,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 50957.94,
@@ -3194,6 +3261,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 50957.94,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.03,
       "priceOpen": 50957.94,
@@ -3264,6 +3332,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51614.11386594473
   },
   {
@@ -3311,7 +3380,8 @@
     "maxDrawdownPriceClose": 52421.6,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -3335,6 +3405,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51800,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51800,
@@ -3381,6 +3452,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51800,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.02,
       "priceOpen": 51800,
@@ -3451,6 +3523,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 51790.73439011578
   },
   {
@@ -3498,7 +3571,8 @@
     "maxDrawdownPriceClose": 52444,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -3522,6 +3596,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 51822.13,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 51822.13,
@@ -3593,6 +3668,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 52368.40183391254
   },
   {
@@ -3640,7 +3716,8 @@
     "maxDrawdownPriceClose": 51798.19,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -3664,6 +3741,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 52427.32,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 52427.32,
@@ -3735,6 +3813,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 52224.491188523825
   },
   {
@@ -3782,7 +3861,8 @@
     "maxDrawdownPriceClose": 51728.73,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -3806,6 +3886,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 52357.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 52357.01,
@@ -3877,6 +3958,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 52359.88169848502
   },
   {
@@ -3901,6 +3983,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 52200.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 52200.01,
@@ -3947,6 +4030,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 52200.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.03,
       "priceOpen": 52200.01,
@@ -4017,6 +4101,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 52214.10540623115
   },
   {
@@ -4064,7 +4149,8 @@
     "maxDrawdownPriceClose": 51453.06,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -4088,6 +4174,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 52078,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 52078,
@@ -4134,6 +4221,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 52078,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.1,
       "priceOpen": 52078,
@@ -4204,6 +4292,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 49773.090233467585
   },
   {
@@ -4251,7 +4340,8 @@
     "maxDrawdownPriceClose": 48973.19,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -4275,6 +4365,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 49568.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 49568.01,
@@ -4321,6 +4412,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 49568.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.08,
       "priceOpen": 49568.01,
@@ -4391,6 +4483,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 49606.85203357287
   },
   {
@@ -4415,6 +4508,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 49524.64,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 49524.64,
@@ -4461,6 +4555,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 49524.64,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 49524.64,
@@ -4531,6 +4626,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 47974.67761803693
   },
   {
@@ -4578,7 +4674,8 @@
     "maxDrawdownPriceClose": 48455.49,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -4602,6 +4699,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 47880.92,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 47880.92,
@@ -4673,6 +4771,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 47986.34632448641
   },
   {
@@ -4697,6 +4796,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 48114.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 48114.01,
@@ -4768,6 +4868,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 48415.761194629704
   },
   {
@@ -4815,7 +4916,8 @@
     "maxDrawdownPriceClose": 48020.75,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -4862,7 +4964,8 @@
     "maxDrawdownPriceClose": 48020.75,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -4886,6 +4989,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 48604,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 48604,
@@ -4932,6 +5036,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 48604,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.02,
       "priceOpen": 48604,
@@ -5002,6 +5107,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 48615.39414973843
   },
   {
@@ -5049,7 +5155,8 @@
     "maxDrawdownPriceClose": 47720.39,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "breakeven.available",
@@ -5095,7 +5202,8 @@
     "maxDrawdownPriceClose": 47720.39,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_profit.available",
@@ -5142,7 +5250,8 @@
     "maxDrawdownPriceClose": 47720.39,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -5189,7 +5298,8 @@
     "maxDrawdownPriceClose": 47720.39,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -5213,6 +5323,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 48299.99,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 48299.99,
@@ -5284,6 +5395,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 48119.34714871467
   },
   {
@@ -5331,7 +5443,8 @@
     "maxDrawdownPriceClose": 47704.59,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -5355,6 +5468,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 48284,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 48284,
@@ -5401,6 +5515,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 48284,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.03,
       "priceOpen": 48284,
@@ -5471,6 +5586,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 48299.63674674899
   },
   {
@@ -5518,7 +5634,8 @@
     "maxDrawdownPriceClose": 47702.83,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -5542,6 +5659,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 48282.22,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 48282.22,
@@ -5613,6 +5731,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 47770.70350025848
   },
   {
@@ -5660,7 +5779,8 @@
     "maxDrawdownPriceClose": 46809.44,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "breakeven.available",
@@ -5706,7 +5826,8 @@
     "maxDrawdownPriceClose": 46809.44,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_profit.available",
@@ -5753,7 +5874,8 @@
     "maxDrawdownPriceClose": 46809.44,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -5800,7 +5922,8 @@
     "maxDrawdownPriceClose": 46809.44,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -5824,6 +5947,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 47377.98,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 47377.98,
@@ -5895,6 +6019,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 47254.59506687113
   },
   {
@@ -5942,7 +6067,8 @@
     "maxDrawdownPriceClose": 46809.47,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -5966,6 +6092,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 47378.01,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 47378.01,
@@ -6037,6 +6164,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 45119.308804858745
   },
   {
@@ -6084,7 +6212,8 @@
     "maxDrawdownPriceClose": 44639.81,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -6131,7 +6260,8 @@
     "maxDrawdownPriceClose": 44639.81,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -6155,6 +6285,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 45181.99,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 45181.99,
@@ -6226,6 +6357,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 44970.07948879169
   },
   {
@@ -6273,7 +6405,8 @@
     "maxDrawdownPriceClose": 44261.86,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "partial_loss.available",
@@ -6320,7 +6453,8 @@
     "maxDrawdownPriceClose": 44261.86,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -6344,6 +6478,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 44799.45,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 44799.45,
@@ -6415,6 +6550,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 44699.067574011075
   },
   {
@@ -6439,6 +6575,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 44624.15,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 44624.15,
@@ -6485,6 +6622,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 44624.15,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.21,
       "priceOpen": 44624.15,
@@ -6555,6 +6693,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 44718.045209230186
   },
   {
@@ -6579,6 +6718,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 44614.48,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 44614.48,
@@ -6650,6 +6790,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 43097.72901789697
   },
   {
@@ -6697,7 +6838,8 @@
     "maxDrawdownPriceClose": 43454.99,
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "signal.opened",
@@ -6721,6 +6863,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 42939.71,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 42939.71,
@@ -6767,6 +6910,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 42939.71,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.05,
       "priceOpen": 42939.71,
@@ -6837,6 +6981,7 @@
     "maxDrawdownCost": 1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 42917.28753843722
   },
   {
@@ -6861,6 +7006,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 42969.86,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 42969.86,
@@ -6907,6 +7053,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 42969.86,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.21,
       "priceOpen": 42969.86,
@@ -6977,6 +7124,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 43128.18457831416
   },
   {
@@ -7001,6 +7149,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 43148.41,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 43148.41,
@@ -7047,6 +7196,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 43148.41,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0.02,
       "priceOpen": 43148.41,
@@ -7117,6 +7267,7 @@
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
     "cost": 100,
+    "multiplier": 1,
     "currentPrice": 43157.55515625796
   },
   {
@@ -7141,6 +7292,7 @@
     "totalPartials": 0,
     "originalPriceOpen": 43122.48,
     "cost": 100,
+    "multiplier": 1,
     "pnl": {
       "pnlPercentage": 0,
       "priceOpen": 43122.48,
@@ -7211,7 +7363,8 @@
     "maxDrawdownPriceClose": 51277.2,
     "maxDrawdownCost": -1.2,
     "maxDrawdownEntries": 100,
-    "cost": 100
+    "cost": 100,
+    "multiplier": 1
   },
   {
     "type": "close_pending.commit",
@@ -7234,6 +7387,7 @@
     "totalPartials": 1,
     "originalPriceOpen": 51754,
     "cost": 100,
+    "multiplier": 1,
     "scheduledAt": 1708875240000,
     "pendingAt": 1708871700000,
     "pnl": {
@@ -7295,6 +7449,7 @@
     "scheduledAt": 1708876599000,
     "pendingAt": 0,
     "cost": 100,
+    "multiplier": 1,
     "totalEntries": 1,
     "totalPartials": 0,
     "originalPriceOpen": 3280.5,
