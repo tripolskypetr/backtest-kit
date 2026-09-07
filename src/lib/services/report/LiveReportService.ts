@@ -95,6 +95,7 @@ export class LiveReportService {
         pendingAt: data.signal?.pendingAt,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        multiplier: data.signal?.multiplier,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "waiting") {
       await ReportWriter.writeData("live", {
@@ -113,6 +114,7 @@ export class LiveReportService {
         partialExecuted: data.signal?.partialExecuted,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        multiplier: data.signal?.multiplier,
         percentTp: data.percentTp,
         percentSl: data.percentSl,
         pnl: data.pnl.pnlPercentage,
@@ -152,6 +154,7 @@ export class LiveReportService {
         openTime: data.signal?.pendingAt,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        multiplier: data.signal?.multiplier,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "active") {
       await ReportWriter.writeData("live", {
@@ -171,6 +174,7 @@ export class LiveReportService {
         openTime: data.signal?.pendingAt,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        multiplier: data.signal?.multiplier,
         percentTp: data.percentTp,
         percentSl: data.percentSl,
         pnl: data.pnl.pnlPercentage,
@@ -212,6 +216,7 @@ export class LiveReportService {
         openTime: data.signal?.pendingAt,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        multiplier: data.signal?.multiplier,
         pnl: data.pnl.pnlPercentage,
         pnlCost: data.pnl.pnlCost,
         pnlEntries: data.pnl.pnlEntries,
@@ -251,6 +256,7 @@ export class LiveReportService {
         cost: data.signal?.cost,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        multiplier: data.signal?.multiplier,
         cancelReason: data.reason,
         closeTime: data.closeTimestamp,
       }, { ...searchOptions, signalId: data.signal?.id });

@@ -164,6 +164,12 @@ export interface ISignalDto {
   minuteEstimatedTime?: number;
   /** Cost of this entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
   cost?: number;
+  /**
+   * PNL multiplier (leverage) applied to pnlPercentage in PNL calculations.
+   * pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
+   * Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER
+   */
+  multiplier?: number;
 }
 
 /**
@@ -188,6 +194,8 @@ export interface ISignalRow extends ISignalDto {
   priceOpen: number;
   /** Expected duration in minutes before time_expired (required in row, defaults applied in ClientStrategy) */
   minuteEstimatedTime: number;
+  /** PNL multiplier (leverage) scaling pnlPercentage (required in row, defaults applied in ClientStrategy) */
+  multiplier: number;
   /** Unique exchange identifier for execution */
   exchangeName: ExchangeName;
   /** Unique strategy identifier for execution */

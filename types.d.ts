@@ -3325,6 +3325,12 @@ interface ISignalDto {
     minuteEstimatedTime?: number;
     /** Cost of this entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
     cost?: number;
+    /**
+     * PNL multiplier (leverage) applied to pnlPercentage in PNL calculations.
+     * pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
+     * Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER
+     */
+    multiplier?: number;
 }
 /**
  * Signal dto for IntervalUtils.fn which allows returning multiple signals in one getSignal call.
@@ -3347,6 +3353,8 @@ interface ISignalRow extends ISignalDto {
     priceOpen: number;
     /** Expected duration in minutes before time_expired (required in row, defaults applied in ClientStrategy) */
     minuteEstimatedTime: number;
+    /** PNL multiplier (leverage) scaling pnlPercentage (required in row, defaults applied in ClientStrategy) */
+    multiplier: number;
     /** Unique exchange identifier for execution */
     exchangeName: ExchangeName;
     /** Unique strategy identifier for execution */
@@ -6689,6 +6697,8 @@ type MCPPermission = "getStatus" | "commitPositionOpen" | "commitPositionClose" 
  *   schema names one explicitly — ambiguity is an error, not a guess.
  * - positionCost — entry cost in USD for commitPositionOpen; defaults to
  *   GLOBAL_CONFIG.CC_POSITION_ENTRY_COST when omitted.
+ * - multiplier — PNL multiplier (leverage) for commitPositionOpen; defaults to
+ *   GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER when omitted.
  * - permissions — per-method grants for the agent-facing methods; defaults
  *   to ALL of them when omitted. Listing permissions explicitly narrows the
  *   agent to exactly those methods; a call to a method whose permission is
@@ -6705,6 +6715,8 @@ interface IMCPSchema {
     strategyName?: StrategyName;
     /** Entry cost in USD for opened positions. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
     positionCost?: number;
+    /** PNL multiplier (leverage) for opened positions. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier?: number;
     /** Estimated time in minutes for a position to reach its TP or SL. */
     minuteEstimatedTime?: number;
     /** Per-method grants for the agent; each permission name gates the agent-facing MCP (Model Context Protocol) method of the same name. Default: all of them */
@@ -8722,6 +8734,13 @@ declare const GLOBAL_CONFIG: {
      */
     CC_POSITION_ENTRY_COST: number;
     /**
+     * PNL multiplier (leverage) applied to pnlPercentage in toProfitLossDto.
+     * Used as the default when `multiplier` is not provided in ISignalDto.
+     * pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
+     * Default: 1 (no scaling)
+     */
+    CC_SIGNAL_MULTIPLIER: number;
+    /**
      * Maximum number of open retries after the broker gate (onOrderSync / onOrderOpenCommit)
      * rejected a signal-open. Each retry re-submits the SAME signal row with the SAME signalId
      * on the next tick, so a broker adapter that tags exchange orders with
@@ -8915,6 +8934,7 @@ declare function getConfig(): {
     CC_ENABLE_SHORT_SIGNAL: boolean;
     CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
+    CC_SIGNAL_MULTIPLIER: number;
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
@@ -8978,6 +8998,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_ENABLE_SHORT_SIGNAL: boolean;
     CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
+    CC_SIGNAL_MULTIPLIER: number;
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
@@ -9435,6 +9456,7 @@ declare function addSweepSchema(sweepSchema: ISweepSchema): void;
  * @param mcpSchema.mcpName - Unique MCP identifier
  * @param mcpSchema.strategyName - Strategy whose live instances the MCP observes and trades
  * @param mcpSchema.positionCost - Optional entry cost in USD (default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST)
+ * @param mcpSchema.multiplier - Optional PNL multiplier (leverage) for opened positions (default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER)
  * @param mcpSchema.getMessages - Optional portfolio renderer for the agent
  * @param mcpSchema.callbacks - Optional lifecycle callbacks
  *
@@ -14689,6 +14711,8 @@ interface SignalOpenedNotification {
     totalPartials: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
     /** Peak profit achieved during the life of this position up to the moment this public signal was created */
@@ -14779,6 +14803,8 @@ interface SignalClosedNotification {
     totalPartials: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Total PNL of the closed position (including all entries and partials) */
@@ -14869,6 +14895,8 @@ interface PartialProfitAvailableNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -14959,6 +14987,8 @@ interface PartialLossAvailableNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15047,6 +15077,8 @@ interface BreakevenAvailableNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15137,6 +15169,8 @@ interface PartialProfitCommitNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15227,6 +15261,8 @@ interface PartialLossCommitNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15315,6 +15351,8 @@ interface BreakevenCommitNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15389,6 +15427,8 @@ interface AverageBuyCommitNotification {
     currentPrice: number;
     /** Cost of this averaging entry in USD */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Averaged (effective) entry price after this addition */
     effectivePriceOpen: number;
     /** Total number of DCA entries after this addition */
@@ -15493,6 +15533,8 @@ interface ActivateScheduledCommitNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15585,6 +15627,8 @@ interface TrailingStopCommitNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15675,6 +15719,8 @@ interface TrailingTakeCommitNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15793,6 +15839,8 @@ interface OrderSyncOpenNotification {
     maxDrawdownEntries: number;
     /** Cost of the position entry in USD */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price at which the limit order was filled */
@@ -15897,6 +15945,8 @@ interface OrderSyncCloseNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15962,6 +16012,8 @@ interface OrderSyncCheckNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16065,6 +16117,8 @@ interface OrderContinueCheckNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16169,6 +16223,8 @@ interface OrderStopCheckNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16291,6 +16347,8 @@ interface OrderFillOpenNotification {
     maxDrawdownEntries: number;
     /** Cost of the position entry in USD */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (DCA-averaged when entries exist) */
@@ -16401,6 +16459,8 @@ interface OrderFillCloseNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16492,6 +16552,8 @@ interface OrderRejectOpenNotification {
     maxDrawdownEntries: number;
     /** Cost of the position entry in USD */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (DCA-averaged when entries exist) */
@@ -16604,6 +16666,8 @@ interface OrderRejectCloseNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16658,6 +16722,8 @@ interface RiskRejectionNotification {
     priceStopLoss: number;
     /** Expected duration in minutes before time_expired */
     minuteEstimatedTime: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Optional human-readable description of signal reason */
     signalNote?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -16704,6 +16770,8 @@ interface SignalScheduledNotification {
     totalPartials: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
     /** Peak profit achieved during the life of this position up to the moment this public signal was created */
@@ -16788,6 +16856,8 @@ interface SignalCancelledNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16966,6 +17036,8 @@ interface CancelScheduledCommitNotification {
     pendingAt: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -17058,6 +17130,8 @@ interface ClosePendingCommitNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (first entry, not DCA) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Position activation timestamp in milliseconds (when price reached priceOpen) */
@@ -17142,6 +17216,8 @@ interface SignalInfoNotification {
     originalPriceOpen: number;
     /** Cost of the initial position entry in USD (from signal.cost) */
     cost: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier: number;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -17258,6 +17334,8 @@ interface TickEvent {
     totalPartials?: number;
     /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
     partialExecuted?: number;
+    /** PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled) */
+    multiplier?: number;
     /** Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized) */
     pnlCost?: number;
     /** Total invested capital in USD */
@@ -36770,6 +36848,7 @@ declare const validateCandles: (candles: ICandleData[]) => void;
  * - price relationships are correct for position direction (TP/SL on correct sides of priceOpen)
  * - TP/SL distance constraints from GLOBAL_CONFIG
  * - minuteEstimatedTime is valid
+ * - multiplier is a finite positive number
  *
  * Does NOT check:
  * - currentPrice vs SL/TP (immediate close protection — handled by pending/scheduled validators)

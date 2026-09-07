@@ -261,6 +261,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       totalEntries: data.signal.totalEntries,
       totalPartials: data.signal.totalPartials,
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       pnl: data.signal.pnl,
       maxDrawdown: data.signal.maxDrawdown,
       peakProfit: data.signal.peakProfit,
@@ -301,6 +302,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       position: data.signal.position,
       currentPrice: data.currentPrice,
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       priceOpen: data.signal.priceOpen,
       priceClose: data.currentPrice,
       priceTakeProfit: data.signal.priceTakeProfit,
@@ -356,6 +358,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       totalEntries: data.signal.totalEntries,
       totalPartials: data.signal.totalPartials,
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       pnl: data.signal.pnl,
       maxDrawdown: data.signal.maxDrawdown,
       peakProfit: data.signal.peakProfit,
@@ -402,6 +405,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       originalPriceOpen: data.signal.originalPriceOpen,
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       totalEntries: data.signal.totalEntries,
       totalPartials: data.signal.totalPartials,
       // A scheduled signal cancelled before activation never held a position:
@@ -444,6 +448,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
 const CREATE_PARTIAL_PROFIT_NOTIFICATION_FN = (data: PartialProfitContract): NotificationModel => ({
   type: "partial_profit.available",
   cost: data.data.cost,
+  multiplier: data.data.multiplier,
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,
@@ -494,6 +499,7 @@ const CREATE_PARTIAL_PROFIT_NOTIFICATION_FN = (data: PartialProfitContract): Not
 const CREATE_PARTIAL_LOSS_NOTIFICATION_FN = (data: PartialLossContract): NotificationModel => ({
   type: "partial_loss.available",
   cost: data.data.cost,
+  multiplier: data.data.multiplier,
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,
@@ -544,6 +550,7 @@ const CREATE_PARTIAL_LOSS_NOTIFICATION_FN = (data: PartialLossContract): Notific
 const CREATE_BREAKEVEN_NOTIFICATION_FN = (data: BreakevenContract): NotificationModel => ({
   type: "breakeven.available",
   cost: data.data.cost,
+  multiplier: data.data.multiplier,
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,
@@ -597,6 +604,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
     return {
       type: "partial_profit.commit",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -643,6 +651,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
     return {
       type: "partial_loss.commit",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -689,6 +698,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
     return {
       type: "breakeven.commit",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -734,6 +744,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
     return {
       type: "trailing_stop.commit",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -780,6 +791,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
     return {
       type: "trailing_take.commit",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -826,6 +838,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
     return {
       type: "activate_scheduled.commit",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -880,6 +893,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       signalId: data.signalId,
       currentPrice: data.currentPrice,
       cost: data.cost,
+      multiplier: data.signal.multiplier,
       effectivePriceOpen: data.effectivePriceOpen,
       totalEntries: data.totalEntries,
       totalPartials: data.totalPartials,
@@ -939,6 +953,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       scheduledAt: data.signal.scheduledAt,
       pendingAt: data.signal.pendingAt,
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       totalEntries: data.totalEntries,
       totalPartials: data.totalPartials,
       originalPriceOpen: data.originalPriceOpen,
@@ -990,6 +1005,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       totalPartials: data.totalPartials,
       originalPriceOpen: data.originalPriceOpen,
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       scheduledAt: data.signal.scheduledAt,
       pendingAt: data.signal.pendingAt,
       pnl: data.signal.pnl,
@@ -1056,6 +1072,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
       maxDrawdownCost: data.signal.maxDrawdown.pnlCost,
       maxDrawdownEntries: data.signal.maxDrawdown.pnlEntries,
       cost: data.cost,
+      multiplier: data.signal.multiplier,
       position: data.position,
       priceOpen: data.priceOpen,
       priceTakeProfit: data.priceTakeProfit,
@@ -1075,6 +1092,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
     return {
       type: "order_sync.close",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -1129,6 +1147,7 @@ const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: OrderSyncContract): Notificati
 const CREATE_ORDER_CHECK_NOTIFICATION_FN = (data: OrderCheckContract): NotificationModel => ({
   type: "order_sync.check",
   cost: data.signal.cost,
+  multiplier: data.signal.multiplier,
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,
@@ -1181,6 +1200,7 @@ const CREATE_ORDER_CHECK_NOTIFICATION_FN = (data: OrderCheckContract): Notificat
 const CREATE_ORDER_CONTINUE_NOTIFICATION_FN = (data: OrderContinueContract): NotificationModel => ({
   type: "order_continue.check",
   cost: data.signal.cost,
+  multiplier: data.signal.multiplier,
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,
@@ -1235,6 +1255,7 @@ const CREATE_ORDER_CONTINUE_NOTIFICATION_FN = (data: OrderContinueContract): Not
 const CREATE_ORDER_STOP_NOTIFICATION_FN = (data: OrderStopContract): NotificationModel => ({
   type: "order_stop.check",
   cost: data.signal.cost,
+  multiplier: data.signal.multiplier,
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,
@@ -1319,6 +1340,7 @@ const CREATE_ORDER_FILL_NOTIFICATION_FN = (data: OrderFillContract): Notificatio
       maxDrawdownCost: data.signal.maxDrawdown.pnlCost,
       maxDrawdownEntries: data.signal.maxDrawdown.pnlEntries,
       cost: data.cost,
+      multiplier: data.signal.multiplier,
       position: data.position,
       priceOpen: data.priceOpen,
       priceTakeProfit: data.priceTakeProfit,
@@ -1338,6 +1360,7 @@ const CREATE_ORDER_FILL_NOTIFICATION_FN = (data: OrderFillContract): Notificatio
     return {
       type: "order_fill.close",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -1426,6 +1449,7 @@ const CREATE_ORDER_REJECT_NOTIFICATION_FN = (data: OrderRejectContract): Notific
       maxDrawdownCost: data.signal.maxDrawdown.pnlCost,
       maxDrawdownEntries: data.signal.maxDrawdown.pnlEntries,
       cost: data.cost,
+      multiplier: data.signal.multiplier,
       position: data.position,
       priceOpen: data.priceOpen,
       priceTakeProfit: data.priceTakeProfit,
@@ -1445,6 +1469,7 @@ const CREATE_ORDER_REJECT_NOTIFICATION_FN = (data: OrderRejectContract): Notific
     return {
       type: "order_reject.close",
       cost: data.signal.cost,
+      multiplier: data.signal.multiplier,
       id: CREATE_KEY_FN(),
       timestamp: data.timestamp,
       backtest: data.backtest,
@@ -1516,6 +1541,7 @@ const CREATE_RISK_NOTIFICATION_FN = (data: RiskContract): NotificationModel => (
   priceTakeProfit: data.currentSignal.priceTakeProfit,
   priceStopLoss: data.currentSignal.priceStopLoss,
   minuteEstimatedTime: data.currentSignal.minuteEstimatedTime,
+  multiplier: data.currentSignal.multiplier,
   signalNote: data.currentSignal.note,
   createdAt: data.timestamp,
 });
@@ -1567,6 +1593,7 @@ const CREATE_VALIDATION_ERROR_NOTIFICATION_FN = (error: Error): NotificationMode
 const CREATE_SIGNAL_INFO_NOTIFICATION_FN = (data: SignalInfoContract): NotificationModel => ({
   type: "signal.info",
   cost: data.data.cost,
+  multiplier: data.data.multiplier,
   id: CREATE_KEY_FN(),
   timestamp: data.timestamp,
   backtest: data.backtest,

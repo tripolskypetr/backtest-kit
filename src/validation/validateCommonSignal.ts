@@ -10,6 +10,7 @@ import { GLOBAL_CONFIG } from "../config/params";
  * - price relationships are correct for position direction (TP/SL on correct sides of priceOpen)
  * - TP/SL distance constraints from GLOBAL_CONFIG
  * - minuteEstimatedTime is valid
+ * - multiplier is a finite positive number
  *
  * Does NOT check:
  * - currentPrice vs SL/TP (immediate close protection — handled by pending/scheduled validators)
@@ -245,6 +246,23 @@ export const validateCommonSignal = (signal: ISignalDto) => {
         `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
           `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
           `Eternal signals block risk limits and prevent new trades.`
+      );
+    }
+  }
+
+  // Валидация multiplier (плечо PNL). Валидатор получает уже задефолченное
+  // значение (multiplier ?? CC_SIGNAL_MULTIPLIER на кол-сайтах). В отличие от
+  // minuteEstimatedTime дробные значения разрешены (0.5x, 2.5x — суть плеча),
+  // а Infinity запрещён: он делает pnlPercentage/pnlCost бесконечными.
+  {
+    if (typeof signal.multiplier !== "number" || !Number.isFinite(signal.multiplier)) {
+      errors.push(
+        `multiplier must be a finite number, got ${signal.multiplier} (${typeof signal.multiplier})`
+      );
+    }
+    if (signal.multiplier <= 0) {
+      errors.push(
+        `multiplier must be positive, got ${signal.multiplier}`
       );
     }
   }

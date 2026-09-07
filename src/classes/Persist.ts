@@ -23,6 +23,7 @@ import {
   IScheduledSignalActivateRow,
 } from "../interfaces/Strategy.interface";
 import { errorEmitter } from "../config/emitters";
+import { GLOBAL_CONFIG } from "../config/params";
 import { IRiskActivePosition, RiskName } from "../interfaces/Risk.interface";
 import { IPartialData } from "../interfaces/Partial.interface";
 import { IBreakevenData } from "../interfaces/Breakeven.interface";
@@ -764,6 +765,11 @@ export class PersistSignalInstance implements IPersistSignalInstance {
       if (signalRow && signalRow.minuteEstimatedTime == null) {
         signalRow.minuteEstimatedTime = Infinity;
       }
+      // Back-compat: rows persisted before the multiplier field existed read
+      // back without it — restore the config default.
+      if (signalRow && signalRow.multiplier == null) {
+        signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+      }
       return signalRow;
     }
     return null;
@@ -1342,6 +1348,11 @@ export class PersistScheduleInstance implements IPersistScheduleInstance {
       if (scheduledRow && scheduledRow.minuteEstimatedTime == null) {
         scheduledRow.minuteEstimatedTime = Infinity;
       }
+      // Back-compat: rows persisted before the multiplier field existed read
+      // back without it — restore the config default.
+      if (scheduledRow && scheduledRow.multiplier == null) {
+        scheduledRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+      }
       return scheduledRow;
     }
     return null;
@@ -1719,9 +1730,14 @@ export class PersistStrategyInstance implements IPersistStrategyInstance {
       }
       // JSON serializes Infinity as null, so an eternal-hold signal
       // (minuteEstimatedTime: Infinity) reads back as null — restore it.
-      for (const signal of [strategyData.closedSignal, strategyData.cancelledSignal, strategyData.activatedSignal, strategyData.takeProfitSignal, strategyData.stopLossSignal]) {
+      for (const signal of [strategyData.closedSignal, strategyData.cancelledSignal, strategyData.activatedSignal, strategyData.takeProfitSignal, strategyData.stopLossSignal, strategyData.retryOpenSignal]) {
         if (signal && signal.minuteEstimatedTime == null) {
           signal.minuteEstimatedTime = Infinity;
+        }
+        // Back-compat: rows persisted before the multiplier field existed read
+        // back without it — restore the config default.
+        if (signal && signal.multiplier == null) {
+          signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
         }
       }
       return strategyData;
@@ -2999,6 +3015,11 @@ export class PersistStorageInstance implements IPersistStorageInstance {
       if (signal && signal.minuteEstimatedTime == null) {
         signal.minuteEstimatedTime = Infinity;
       }
+      // Back-compat: rows persisted before the multiplier field existed read
+      // back without it — restore the config default.
+      if (signal && signal.multiplier == null) {
+        signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+      }
       signals.push(signal);
     }
     return signals;
@@ -3262,6 +3283,16 @@ export class PersistNotificationInstance implements IPersistNotificationInstance
         (notification as { minuteEstimatedTime: number | null }).minuteEstimatedTime == null
       ) {
         (notification as { minuteEstimatedTime: number }).minuteEstimatedTime = Infinity;
+      }
+      // Back-compat: notifications persisted before the multiplier field
+      // existed read back without it — restore the config default on the
+      // variants that carry the field.
+      if (
+        notification &&
+        "cost" in notification &&
+        (notification as { multiplier?: number | null }).multiplier == null
+      ) {
+        (notification as { multiplier: number }).multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
       }
       notifications.push(notification);
     }
@@ -4952,6 +4983,11 @@ export class PersistRecentInstance implements IPersistRecentInstance {
       // (minuteEstimatedTime: Infinity) reads back as null — restore it.
       if (signalRow && signalRow.minuteEstimatedTime == null) {
         signalRow.minuteEstimatedTime = Infinity;
+      }
+      // Back-compat: rows persisted before the multiplier field existed read
+      // back without it — restore the config default.
+      if (signalRow && signalRow.multiplier == null) {
+        signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
       }
       return signalRow;
     }

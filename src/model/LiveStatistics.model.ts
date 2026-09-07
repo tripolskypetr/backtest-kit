@@ -35,6 +35,8 @@ export interface TickEvent {
   totalPartials?: number;
   /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
   partialExecuted?: number;
+  /** PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled) */
+  multiplier?: number;
   /** Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized) */
   pnlCost?: number;
   /** Total invested capital in USD */

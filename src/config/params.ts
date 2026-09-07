@@ -360,6 +360,14 @@ export const GLOBAL_CONFIG = {
   CC_POSITION_ENTRY_COST: 100,
 
   /**
+   * PNL multiplier (leverage) applied to pnlPercentage in toProfitLossDto.
+   * Used as the default when `multiplier` is not provided in ISignalDto.
+   * pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
+   * Default: 1 (no scaling)
+   */
+  CC_SIGNAL_MULTIPLIER: 1,
+
+  /**
    * Maximum number of open retries after the broker gate (onOrderSync / onOrderOpenCommit)
    * rejected a signal-open. Each retry re-submits the SAME signal row with the SAME signalId
    * on the next tick, so a broker adapter that tags exchange orders with

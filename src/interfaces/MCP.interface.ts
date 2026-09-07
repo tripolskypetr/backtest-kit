@@ -183,6 +183,8 @@ export type MCPPermission =
  *   schema names one explicitly — ambiguity is an error, not a guess.
  * - positionCost — entry cost in USD for commitPositionOpen; defaults to
  *   GLOBAL_CONFIG.CC_POSITION_ENTRY_COST when omitted.
+ * - multiplier — PNL multiplier (leverage) for commitPositionOpen; defaults to
+ *   GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER when omitted.
  * - permissions — per-method grants for the agent-facing methods; defaults
  *   to ALL of them when omitted. Listing permissions explicitly narrows the
  *   agent to exactly those methods; a call to a method whose permission is
@@ -199,6 +201,8 @@ export interface IMCPSchema {
     strategyName?: StrategyName;
     /** Entry cost in USD for opened positions. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST */
     positionCost?: number;
+    /** PNL multiplier (leverage) for opened positions. Default: GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER */
+    multiplier?: number;
     /** Estimated time in minutes for a position to reach its TP or SL. */
     minuteEstimatedTime?: number;
     /** Per-method grants for the agent; each permission name gates the agent-facing MCP (Model Context Protocol) method of the same name. Default: all of them */
