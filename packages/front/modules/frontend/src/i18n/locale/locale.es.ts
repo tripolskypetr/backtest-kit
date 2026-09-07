@@ -210,6 +210,7 @@ export const LOCALE: Record<string, string> = {
   "Original Take Profit": "Take Profit original",
   "Original Entry": "Entrada original",
   "Total Entries": "Entradas totales",
+  "Total Entries / Multiplier": "Entradas totales / Multiplicador",
   "Total Closes": "Cierres totales",
   "PNL Details": "Detalles de PNL",
   "Cost": "Costo",

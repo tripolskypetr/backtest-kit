@@ -210,6 +210,7 @@ export const LOCALE: Record<string, string> = {
   "Original Take Profit": "原始止盈",
   "Original Entry": "原始入场",
   "Total Entries": "入场总数",
+  "Total Entries / Multiplier": "入场总数 / 杠杆倍数",
   "Total Closes": "平仓总数",
   "PNL Details": "PNL 详情",
   "Cost": "成本",

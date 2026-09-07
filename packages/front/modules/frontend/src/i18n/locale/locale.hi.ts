@@ -210,6 +210,7 @@ export const LOCALE: Record<string, string> = {
   "Original Take Profit": "मूल टेक प्रॉफिट",
   "Original Entry": "मूल एंट्री",
   "Total Entries": "कुल एंट्री",
+  "Total Entries / Multiplier": "कुल एंट्री / लीवरेज गुणक",
   "Total Closes": "कुल क्लोज़",
   "PNL Details": "PNL विवरण",
   "Cost": "लागत",

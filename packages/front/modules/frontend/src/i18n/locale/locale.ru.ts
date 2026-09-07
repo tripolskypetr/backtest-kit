@@ -210,6 +210,7 @@ export const LOCALE: Record<string, string> = {
   "Original Take Profit": "Исходный тейк-профит",
   "Original Entry": "Исходный вход",
   "Total Entries": "Всего входов",
+  "Total Entries / Multiplier": "Всего входов / Плечо",
   "Total Closes": "Всего закрытий",
   "PNL Details": "Детали PNL",
   "Cost": "Стоимость",

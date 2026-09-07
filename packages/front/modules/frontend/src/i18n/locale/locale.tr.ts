@@ -210,6 +210,7 @@ export const LOCALE: Record<string, string> = {
   "Original Take Profit": "Orijinal Kâr Al",
   "Original Entry": "Orijinal Giriş",
   "Total Entries": "Toplam Giriş",
+  "Total Entries / Multiplier": "Toplam Giriş / Kaldıraç çarpanı",
   "Total Closes": "Toplam Kapanış",
   "PNL Details": "PNL Ayrıntıları",
   "Cost": "Maliyet",
