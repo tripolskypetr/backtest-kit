@@ -12,6 +12,7 @@ export interface ISignal {
     buyPrice: number;
     originalBuyPrice: number;
     cost: number;
+    multiplier: number;
     totalEntries: number;
     totalPartials: number;
     partialExecuted: number;

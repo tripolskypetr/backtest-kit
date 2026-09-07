@@ -85,6 +85,7 @@ export class BreakevenReportService {
       pendingAt: data.data.pendingAt,
       scheduledAt: data.data.scheduledAt,
       minuteEstimatedTime: data.data.minuteEstimatedTime,
+      multiplier: data.data.multiplier,
       totalPartials: data.data.totalPartials,
       cost: data.data.cost,
       pnlPercentage: data.data.pnl.pnlPercentage,

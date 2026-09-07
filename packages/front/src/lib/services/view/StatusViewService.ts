@@ -122,6 +122,7 @@ export class StatusViewService {
       partialExecuted: pendingSignal.partialExecuted,
       pendingAt: pendingSignal.pendingAt,
       minuteEstimatedTime: pendingSignal.minuteEstimatedTime,
+      multiplier: pendingSignal.multiplier,
       timestamp,
       updatedAt,
       positionEntries,

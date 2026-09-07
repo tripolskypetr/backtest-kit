@@ -94,6 +94,10 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number, t
   return {
     ...structuredClone(signal) as ISignalRow,
     cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
+    // The DTO is risk-checked BEFORE GET_SIGNAL_FN applies row defaults, so
+    // apply the multiplier default here too (mirrors cost above) — user risk
+    // validations reading currentSignal.multiplier must see 1, not undefined.
+    multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER,
     timestamp: signal.timestamp ?? timestamp,
     totalEntries: 1,
     totalPartials: 0,

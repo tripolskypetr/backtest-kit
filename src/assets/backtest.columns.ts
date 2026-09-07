@@ -117,6 +117,12 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     isVisible: () => true,
   },
   {
+    key: "multiplier",
+    label: "Multiplier",
+    format: (data) => (data.signal.multiplier !== undefined ? `${data.signal.multiplier}x` : "N/A"),
+    isVisible: () => true,
+  },
+  {
     key: "pnl",
     label: "PNL (net)",
     format: (data) => {

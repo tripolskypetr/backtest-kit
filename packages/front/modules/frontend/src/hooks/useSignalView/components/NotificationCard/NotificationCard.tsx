@@ -588,6 +588,12 @@ const hasCost = (
   return "cost" in item;
 };
 
+const hasMultiplier = (
+  item: NotificationModel
+): item is NotificationModel & { multiplier: number } => {
+  return "multiplier" in item && item.multiplier !== 1;
+};
+
 const hasPnlDetails = (
   item: NotificationModel
 ): item is NotificationModel & {
@@ -830,6 +836,15 @@ export const NotificationCard = forwardRef(
                       size="small"
                       label={`${t("Cost")}: ${!!item.cost ? `${item.cost.toFixed(getPriceScale(item.cost))}${t("$")}` : t("N/A")}`}
                       variant="outlined"
+                    />
+                  )}
+                  {hasMultiplier(item) && (
+                    <Chip
+                      sx={{ mt: 1, mr: 1 }}
+                      size="small"
+                      label={`${t("Multiplier")}: ${item.multiplier}x`}
+                      variant="outlined"
+                      color="warning"
                     />
                   )}
                   {hasEffectivePriceOpen(item) && (

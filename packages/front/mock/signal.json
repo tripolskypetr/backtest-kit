@@ -13,6 +13,7 @@
   "originalPriceTakeProfit": 41651.5187,
   "originalPriceStopLoss": 43798.5042,
   "minuteEstimatedTime": 60,
+  "multiplier": 1,
   "scheduledAt": 1707308100000,
   "pendingAt": 1707308100000,
   "timestamp": 1707308100000,
@@ -21,10 +22,19 @@
   "totalEntries": 1,
   "totalPartials": 0,
   "_entry": [
-    { "price": 42939.71, "cost": 100, "timestamp": 1707308100000 }
+    {
+      "price": 42939.71,
+      "cost": 100,
+      "timestamp": 1707308100000
+    }
   ],
   "_partial": [],
-  "_peak": { "price": 42939.71, "timestamp": 1707308100000, "pnlPercentage": 0, "pnlCost": 0 },
+  "_peak": {
+    "price": 42939.71,
+    "timestamp": 1707308100000,
+    "pnlPercentage": 0,
+    "pnlCost": 0
+  },
   "pnl": {
     "pnlPercentage": 1.47,
     "priceOpen": 42939.71,

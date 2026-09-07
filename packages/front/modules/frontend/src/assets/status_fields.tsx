@@ -54,11 +54,15 @@ export const status_fields: TypedField[] = [
                 right: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ pnlPercentage, payload }) => (
+                    element: ({ pnlPercentage, multiplier, payload }) => (
                         <IndicatorValueWidget
                             outlinePaper={payload.outlinePaper}
                             color={pnlColor(pnlPercentage)}
-                            label={t("PNL %")}
+                            label={
+                                multiplier != null && multiplier !== 1
+                                    ? `${t("PNL %")} (${multiplier}x)`
+                                    : t("PNL %")
+                            }
                             value={`${pnlPercentage >= 0 ? "+" : ""}${pnlPercentage.toFixed(2)}%`}
                             icon={Analytics}
                         />
@@ -120,12 +124,12 @@ export const status_fields: TypedField[] = [
                 right: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ totalEntries, payload }) => (
+                    element: ({ totalEntries, multiplier, payload }) => (
                         <IndicatorValueWidget
                             outlinePaper={payload.outlinePaper}
                             color={COLOR_ORANGE}
-                            label={t("Total Entries")}
-                            value={totalEntries}
+                            label={t("Total Entries / Multiplier")}
+                            value={`${totalEntries} / ${multiplier}x`}
                             icon={Layers}
                         />
                     ),

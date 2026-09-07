@@ -79,6 +79,7 @@ export class SyncReportService {
       cost: data.signal?.cost,
       partialExecuted: data.signal?.partialExecuted,
       minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+      multiplier: data.signal?.multiplier,
       _partial: data.signal?._partial,
       pnlPercentage: data.pnl.pnlPercentage,
       pnlCost: data.pnl.pnlCost,

@@ -1096,7 +1096,7 @@ const GET_TARGET_MESSAGES_FN = async (
  * @throws Error when the symbol is not live-enabled or a pending signal exists
  */
 const COMMIT_POSITION_OPEN_FN = async (dto: IMCPPositionOpenCommand) => {
-  const { positionCost = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, minuteEstimatedTime = GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES } =
+  const { positionCost = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, minuteEstimatedTime = GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES, multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER } =
     backtest.mcpSchemaService.get(dto.mcpName);
   const strategyName = await GET_STRATEGY_NAME_FN(
     dto.mcpName,
@@ -1131,6 +1131,7 @@ const COMMIT_POSITION_OPEN_FN = async (dto: IMCPPositionOpenCommand) => {
       }),
       minuteEstimatedTime,
       cost: positionCost,
+      multiplier,
       note: dto.note,
     };
     const result = await Live.commitCreateSignal(

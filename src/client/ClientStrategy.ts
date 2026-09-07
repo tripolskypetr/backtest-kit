@@ -1038,6 +1038,10 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
     priceOpen: effectivePriceOpen,
+    // A raw DTO reaches this converter via the risk check BEFORE GET_SIGNAL_FN
+    // applies row defaults — default the multiplier so consumers never see
+    // undefined (rows built by GET_SIGNAL_FN already carry the value).
+    multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER,
     priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
     priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,
     originalPriceOpen: signal.priceOpen,
@@ -1215,6 +1219,7 @@ const GET_SIGNAL_FN = trycatch(
             ...userDto,
             priceOpen: userDto.priceOpen ?? currentPrice,
             minuteEstimatedTime: userDto.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
+            multiplier: userDto.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER,
           },
           currentPrice,
         )) {
@@ -1303,6 +1308,7 @@ const GET_SIGNAL_FN = trycatch(
           priceTakeProfit: signal.priceTakeProfit,
           priceStopLoss: signal.priceStopLoss,
           minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
+          multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER,
           symbol: self.params.execution.context.symbol,
           exchangeName: self.params.method.context.exchangeName,
           strategyName: self.params.method.context.strategyName,
@@ -1344,6 +1350,7 @@ const GET_SIGNAL_FN = trycatch(
         priceTakeProfit: signal.priceTakeProfit,
         priceStopLoss: signal.priceStopLoss,
         minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
+        multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER,
         symbol: self.params.execution.context.symbol,
         exchangeName: self.params.method.context.exchangeName,
         strategyName: self.params.method.context.strategyName,
@@ -1373,6 +1380,7 @@ const GET_SIGNAL_FN = trycatch(
       priceOpen: currentPrice,
       note: signal.note || "",
       minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
+      multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER,
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
       strategyName: self.params.method.context.strategyName,
@@ -1561,6 +1569,12 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       if (self._retryOpenSignal && self._retryOpenSignal.minuteEstimatedTime == null) {
         self._retryOpenSignal.minuteEstimatedTime = Infinity;
       }
+      // Back-compat: rows persisted before the multiplier field existed read
+      // back without it — restore the config default (consumption re-validation
+      // requires a finite positive number).
+      if (self._retryOpenSignal && self._retryOpenSignal.multiplier == null) {
+        self._retryOpenSignal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+      }
     }
   }
 
@@ -1609,6 +1623,11 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // time-expired on restore (guards custom persist adapters too).
     if (pendingSignal.minuteEstimatedTime == null) {
       pendingSignal.minuteEstimatedTime = Infinity;
+    }
+    // Back-compat: rows persisted before the multiplier field existed read back
+    // without it — restore the config default.
+    if (pendingSignal.multiplier == null) {
+      pendingSignal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
     }
     self._pendingSignal = pendingSignal;
 
@@ -1715,6 +1734,11 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // time-expired on activation (guards custom persist adapters too).
     if (scheduledSignal.minuteEstimatedTime == null) {
       scheduledSignal.minuteEstimatedTime = Infinity;
+    }
+    // Back-compat: rows persisted before the multiplier field existed read back
+    // without it — restore the config default.
+    if (scheduledSignal.multiplier == null) {
+      scheduledSignal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
     }
     self._scheduledSignal = scheduledSignal;
 
@@ -9300,6 +9324,7 @@ export class ClientStrategy implements IStrategy {
         ...dto,
         priceOpen: dto.priceOpen ?? currentPrice,
         minuteEstimatedTime: dto.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
+        multiplier: dto.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER,
       },
       currentPrice,
     )) {

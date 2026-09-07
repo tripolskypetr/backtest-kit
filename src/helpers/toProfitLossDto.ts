@@ -51,6 +51,10 @@ export const toProfitLossDto = (
     ? entries.reduce((s, e) => s + e.cost, 0)
     : signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
 
+  // PNL multiplier (leverage): scales pnlPercentage, pnlCost follows since it
+  // derives from pnlPercentage. pnlEntries (invested capital) stays unscaled.
+  const multiplier = signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_MULTIPLIER;
+
   const priceOpen = getEffectivePriceOpen(signal);
 
   // Calculate weighted PNL with partial closes
@@ -139,7 +143,7 @@ export const toProfitLossDto = (
         (priceCloseWithSlippage / remainingOpenWithSlippage);
     }
 
-    const pnlPercentage = totalWeightedPnl - totalFees;
+    const pnlPercentage = (totalWeightedPnl - totalFees) * multiplier;
 
     return {
       pnlPercentage,
@@ -177,6 +181,7 @@ export const toProfitLossDto = (
   }
 
   pnlPercentage -= totalFee;
+  pnlPercentage *= multiplier;
 
   return {
     pnlPercentage,

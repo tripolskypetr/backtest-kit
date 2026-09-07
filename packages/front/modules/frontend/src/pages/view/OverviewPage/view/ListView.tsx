@@ -328,6 +328,19 @@ export const ListView = ({
                                                 {t("Invested")}:
                                             </Box>
                                             {formatAmount(item.pnl.pnlEntries)}$
+                                            {item.multiplier !== 1 && (
+                                                <Box
+                                                    component="span"
+                                                    sx={{
+                                                        color: "magenta",
+                                                        fontWeight: "bold",
+                                                        ml: 0.5,
+                                                        fontSize: "0.85em",
+                                                    }}
+                                                >
+                                                    ({item.multiplier}x)
+                                                </Box>
+                                            )}
                                         </Typography>
                                     )}
                                     {"pnl" in item && (

@@ -224,6 +224,21 @@ export const signal_cancelled_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
+                        name: "multiplier",
+                        title: t("Multiplier"),
+                        readonly: true,
+                        isVisible: (obj) => obj.multiplier != null,
+                        compute: (obj) =>
+                            obj.multiplier != null
+                                ? `${obj.multiplier}x`
+                                : t("Not specified"),
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
                         name: "priceTakeProfit",
                         title: t("Take Profit"),
                         readonly: true,

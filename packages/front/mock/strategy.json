@@ -16,6 +16,7 @@
   "totalPartials": 1,
   "partialExecuted": 30,
   "minuteEstimatedTime": 60,
+  "multiplier": 1,
   "_trailingPriceStopLoss": 44597.5,
   "pnl": {
     "pnlPercentage": 1.58,
