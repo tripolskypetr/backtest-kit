@@ -509,3 +509,210 @@ test("MULTIPLIER MARKDOWN: Live reports carry exact leveraged PNL per symbol (BT
     PersistSignalAdapter.useDummy();
   }
 });
+
+test("MULTIPLIER MARKDOWN: Heat per-symbol ratios under mixed leverage — winRate invariant, PF/avgWin/avgLoss/stdDev/sharpe exactly leveraged", async ({ pass, fail }) => {
+  // HeatMarkdownService.calculateSymbolStats питается закрытыми pnl.pnlPercentage,
+  // которые уже leveraged. Здесь — сценарий с ПОБЕДАМИ И УБЫТКАМИ (пила ±5% по
+  // чётности минуты, TP/SL ±2%, направление чередуется long/short) и смешанным
+  // плечом [1x, 2x, 5x, 10x] на 12 сделках (≥ MIN_SIGNALS_FOR_RATIOS = 10):
+  //   - winRate ИНВАРИАНТЕН к плечу: положительный множитель не меняет знак
+  //     сделки — сверяем с winRate, посчитанным из БЕЗРЫЧАЖНЫХ эталонов;
+  //   - profitFactor НЕ инвариантен: плечо перевешивает победы/убытки —
+  //     сверяем точное leveraged значение И что оно отличается от 1x-эталона;
+  //   - avgWin/avgLoss/totalPnl/avgPnl/stdDev (Бессель, N−1)/sharpe — точная
+  //     сверка с формулами сервиса на leveraged рядах;
+  //   - equity maxDrawdown ≥ худшего одиночного leveraged-убытка (просадка от
+  //     пика не меньше величины самого убытка), но без blown-ветки (< 100);
+  //   - Heat.getReport не содержит NaN/Infinity.
+  const priceLow = 42000;
+  const priceHigh = 44100; // +5% — гарантированно пробивает TP/SL ±2% за минуту
+  const MULTIPLIERS = [1, 2, 5, 10];
+  const TOTAL_SIGNALS = 12;
+  const context = {
+    strategyName: "multiplier-md-heat-ratios-strategy",
+    exchangeName: "binance-multiplier-md-heat-ratios",
+    frameName: "multiplier-md-heat-ratios-frame",
+  };
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * MIN;
+        // Пила по чётности АБСОЛЮТНОЙ минуты — детерминирована и не зависит
+        // от точки входа в свечной запрос
+        const price = Math.floor(timestamp / MIN) % 2 === 0 ? priceLow : priceHigh;
+        candles.push({
+          timestamp,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let issued = 0;
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async (_symbol, _when, currentPrice) => {
+      if (issued >= TOTAL_SIGNALS) return null;
+      const multiplier = MULTIPLIERS[issued % MULTIPLIERS.length];
+      // Направление выбираем ОТ ФАЗЫ пилы: с priceLow следующий ход — вверх,
+      // с priceHigh — вниз. Чётный сигнал ставим ПО ходу (победа, TP), нечётный
+      // ПРОТИВ (убыток, SL) — ровно 6W/6L независимо от минуты входа.
+      const nextMoveUp = currentPrice < (priceLow + priceHigh) / 2;
+      const wantWin = issued % 2 === 0;
+      const position = wantWin === nextMoveUp ? "long" : "short";
+      issued += 1;
+      const tpOffset = currentPrice * 0.02;
+      return {
+        position,
+        note: `heat ratios ${multiplier}x ${position}`,
+        priceTakeProfit: position === "long" ? currentPrice + tpOffset : currentPrice - tpOffset,
+        priceStopLoss: position === "long" ? currentPrice - tpOffset : currentPrice + tpOffset,
+        minuteEstimatedTime: 10,
+        multiplier,
+      };
+    },
+  });
+
+  addFrameSchema({
+    frameName: context.frameName,
+    interval: "1m",
+    startDate: new Date("2024-03-01T00:00:00Z"),
+    endDate: new Date("2024-03-01T04:00:00Z"),
+  });
+
+  const closed = [];
+  for await (const result of Backtest.run("BTCUSDT", context)) {
+    if (result.action === "closed") closed.push(result);
+  }
+  if (closed.length !== TOTAL_SIGNALS) {
+    fail(`expected ${TOTAL_SIGNALS} closed trades, got ${closed.length}`);
+    return;
+  }
+
+  // 1) Каждое закрытие = m_i × безрычажный эталон на СВОЕЙ цене закрытия;
+  //    знак сделки инвариантен к плечу
+  const references = [];
+  for (let i = 0; i < TOTAL_SIGNALS; i++) {
+    const m = MULTIPLIERS[i % MULTIPLIERS.length];
+    const result = closed[i];
+    if (result.signal.multiplier !== m) {
+      fail(`closed #${i} must carry multiplier ${m}, got ${result.signal.multiplier}`);
+      return;
+    }
+    const reference = toProfitLossDto(
+      {
+        position: result.signal.position,
+        priceOpen: result.signal.originalPriceOpen,
+        cost: result.signal.cost,
+        multiplier: 1,
+      },
+      result.currentPrice,
+    );
+    references.push(reference.pnlPercentage);
+    if (!approxEqual(result.pnl.pnlPercentage, m * reference.pnlPercentage)) {
+      fail(`closed #${i} (${m}x ${result.signal.position}): expected pnl ${m * reference.pnlPercentage}, got ${result.pnl.pnlPercentage}`);
+      return;
+    }
+    if (Math.sign(result.pnl.pnlPercentage) !== Math.sign(reference.pnlPercentage)) {
+      fail(`closed #${i} (${m}x): a positive multiplier must never flip the trade sign`);
+      return;
+    }
+  }
+
+  const leveraged = closed.map(({ pnl }) => pnl.pnlPercentage);
+  const levWins = leveraged.filter((pnl) => pnl > 0);
+  const levLosses = leveraged.filter((pnl) => pnl < 0);
+  if (levWins.length === 0 || levLosses.length === 0) {
+    fail(`scenario must produce both wins and losses, got ${levWins.length} wins / ${levLosses.length} losses`);
+    return;
+  }
+
+  const stats = await Heat.getData(context, true);
+  const row = stats.symbols.find((s) => s.symbol === "BTCUSDT");
+  if (!row) {
+    fail("heatmap must contain a BTCUSDT row");
+    return;
+  }
+  if (row.totalTrades !== TOTAL_SIGNALS) {
+    fail(`heatmap totalTrades must be ${TOTAL_SIGNALS}, got ${row.totalTrades}`);
+    return;
+  }
+
+  // 2) winRate инвариантен к плечу — считаем его из БЕЗРЫЧАЖНЫХ эталонов
+  const refWinCount = references.filter((pnl) => pnl > 0).length;
+  const refLossCount = references.filter((pnl) => pnl < 0).length;
+  const refWinRate = (refWinCount / (refWinCount + refLossCount)) * 100;
+  if (!approxEqual(row.winRate, refWinRate)) {
+    fail(`winRate must be leverage-invariant: expected ${refWinRate} (from 1x references), got ${row.winRate}`);
+    return;
+  }
+
+  // 3) Линейные агрегаты — точные leveraged значения
+  const expectedTotal = leveraged.reduce((a, b) => a + b, 0);
+  const expectedAvg = expectedTotal / TOTAL_SIGNALS;
+  if (!approxEqual(row.totalPnl, expectedTotal) || !approxEqual(row.avgPnl, expectedAvg)) {
+    fail(`totalPnl/avgPnl mismatch: expected ${expectedTotal}/${expectedAvg}, got ${row.totalPnl}/${row.avgPnl}`);
+    return;
+  }
+  const expectedAvgWin = levWins.reduce((a, b) => a + b, 0) / levWins.length;
+  const expectedAvgLoss = levLosses.reduce((a, b) => a + b, 0) / levLosses.length;
+  if (!approxEqual(row.avgWin, expectedAvgWin) || !approxEqual(row.avgLoss, expectedAvgLoss)) {
+    fail(`avgWin/avgLoss mismatch: expected ${expectedAvgWin}/${expectedAvgLoss}, got ${row.avgWin}/${row.avgLoss}`);
+    return;
+  }
+
+  // 4) stdDev (выборочная, N−1) и sharpe = avgPnl / stdDev — на leveraged ряде
+  const variance = leveraged.reduce((acc, pnl) => acc + Math.pow(pnl - expectedAvg, 2), 0) / (TOTAL_SIGNALS - 1);
+  const expectedStdDev = Math.sqrt(variance);
+  if (!approxEqual(row.stdDev, expectedStdDev)) {
+    fail(`stdDev must be computed over leveraged pnl: expected ${expectedStdDev}, got ${row.stdDev}`);
+    return;
+  }
+  if (!approxEqual(row.sharpeRatio, expectedAvg / expectedStdDev)) {
+    fail(`sharpeRatio mismatch: expected ${expectedAvg / expectedStdDev}, got ${row.sharpeRatio}`);
+    return;
+  }
+
+  // 5) profitFactor: точное leveraged значение, И оно обязано ОТЛИЧАТЬСЯ от
+  //    1x-эталона — смешанное плечо перевешивает победы против убытков
+  const expectedPf = levWins.reduce((a, b) => a + b, 0) / Math.abs(levLosses.reduce((a, b) => a + b, 0));
+  if (!approxEqual(row.profitFactor, expectedPf)) {
+    fail(`profitFactor mismatch: expected ${expectedPf}, got ${row.profitFactor}`);
+    return;
+  }
+  const refPf = references.filter((pnl) => pnl > 0).reduce((a, b) => a + b, 0) /
+    Math.abs(references.filter((pnl) => pnl < 0).reduce((a, b) => a + b, 0));
+  if (Math.abs(expectedPf - refPf) / refPf < 1e-3) {
+    fail(`mixed leverage must reweight profitFactor: leveraged ${expectedPf} vs 1x reference ${refPf}`);
+    return;
+  }
+
+  // 6) Equity maxDrawdown: просадка от пика не меньше величины худшего
+  //    одиночного leveraged-убытка (equity ≤ peak перед ним), но аккаунт жив
+  const worstLoss = Math.abs(Math.min(...levLosses));
+  if (row.maxDrawdown < worstLoss - EPS || row.maxDrawdown >= 100) {
+    fail(`maxDrawdown must be in [${worstLoss}, 100): got ${row.maxDrawdown}`);
+    return;
+  }
+
+  // 7) Отчёт рендерится без NaN/Infinity
+  const heatReport = await Heat.getReport(context, true);
+  if (heatReport.includes("NaN") || heatReport.includes("Infinity")) {
+    fail("heat report must not contain NaN/Infinity under mixed leverage");
+    return;
+  }
+
+  pass(`heat ratios verified on ${levWins.length}W/${levLosses.length}L: winRate ${row.winRate.toFixed(1)}% (leverage-invariant), PF ${expectedPf.toFixed(3)} (1x ref ${refPf.toFixed(3)}), sharpe ${row.sharpeRatio.toFixed(3)}, maxDD ${row.maxDrawdown.toFixed(2)}%`);
+});
