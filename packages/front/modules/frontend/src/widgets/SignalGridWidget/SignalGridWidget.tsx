@@ -127,9 +127,10 @@ const columns: IGridColumn<GridItem>[] = [
   {
     field: "pnlEntries",
     label: t("Invested"),
-    minWidth: 80,
-    width: () => 80,
-    format: ({ pnlEntries }) => `${formatAmount(pnlEntries)}${t("$")}`,
+    minWidth: 145,
+    width: () => 145,
+    format: ({ pnlEntries, multiplier }) =>
+      `${formatAmount(pnlEntries)}${t("$")}${multiplier !== 1 ? ` (${multiplier}x)` : ""}`,
   },
   {
     field: "profitLossPercentage",
@@ -285,7 +286,8 @@ const signal_fields: TypedField[] = [
     name: "pnlEntries",
     title: t("Invested"),
     readonly: true,
-    compute: (obj) => `${formatAmount(obj.pnlEntries)}${t("$")}`,
+    compute: (obj) =>
+      `${formatAmount(obj.pnlEntries)}${t("$")}${obj.multiplier !== 1 ? ` (${obj.multiplier}x)` : ""}`,
   },
   {
     type: FieldType.Text,
