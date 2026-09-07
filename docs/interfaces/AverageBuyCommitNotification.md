@@ -90,6 +90,14 @@ cost: number
 
 Cost of this averaging entry in USD
 
+### multiplier
+
+```ts
+multiplier: number
+```
+
+PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
+
 ### effectivePriceOpen
 
 ```ts

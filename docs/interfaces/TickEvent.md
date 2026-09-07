@@ -138,6 +138,14 @@ partialExecuted: number
 
 Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled)
 
+### multiplier
+
+```ts
+multiplier: number
+```
+
+PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled)
+
 ### pnlCost
 
 ```ts

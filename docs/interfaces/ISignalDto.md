@@ -83,3 +83,13 @@ cost: number
 ```
 
 Cost of this entry in USD. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST
+
+### multiplier
+
+```ts
+multiplier: number
+```
+
+PNL multiplier (leverage) applied to pnlPercentage in PNL calculations.
+pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
+Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER

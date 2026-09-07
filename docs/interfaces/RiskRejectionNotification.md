@@ -146,6 +146,14 @@ minuteEstimatedTime: number
 
 Expected duration in minutes before time_expired
 
+### multiplier
+
+```ts
+multiplier: number
+```
+
+PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
+
 ### signalNote
 
 ```ts

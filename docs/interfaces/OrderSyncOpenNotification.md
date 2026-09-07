@@ -246,6 +246,14 @@ cost: number
 
 Cost of the position entry in USD
 
+### multiplier
+
+```ts
+multiplier: number
+```
+
+PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
+
 ### position
 
 ```ts

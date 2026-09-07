@@ -16,6 +16,8 @@ every live instance of that strategy.
   schema names one explicitly — ambiguity is an error, not a guess.
 - positionCost — entry cost in USD for commitPositionOpen; defaults to
   GLOBAL_CONFIG.CC_POSITION_ENTRY_COST when omitted.
+- multiplier — PNL multiplier (leverage) for commitPositionOpen; defaults to
+  GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER when omitted.
 - permissions — per-method grants for the agent-facing methods; defaults
   to ALL of them when omitted. Listing permissions explicitly narrows the
   agent to exactly those methods; a call to a method whose permission is
@@ -50,6 +52,14 @@ positionCost: number
 ```
 
 Entry cost in USD for opened positions. Default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST
+
+### multiplier
+
+```ts
+multiplier: number
+```
+
+PNL multiplier (leverage) for opened positions. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
 
 ### minuteEstimatedTime
 

@@ -171,6 +171,14 @@ cost: number
 
 Cost of the initial position entry in USD (from signal.cost)
 
+### multiplier
+
+```ts
+multiplier: number
+```
+
+PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
+
 ### totalEntries
 
 ```ts
