@@ -124,12 +124,12 @@ export const status_fields: TypedField[] = [
                 right: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ totalEntries, payload }) => (
+                    element: ({ totalEntries, multiplier, payload }) => (
                         <IndicatorValueWidget
                             outlinePaper={payload.outlinePaper}
                             color={COLOR_ORANGE}
-                            label={t("Total Entries")}
-                            value={totalEntries}
+                            label={t("Total Entries / Multiplier")}
+                            value={`${totalEntries} / ${multiplier}x`}
                             icon={Layers}
                         />
                     ),

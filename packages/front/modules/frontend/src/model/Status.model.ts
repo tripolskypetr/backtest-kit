@@ -39,6 +39,7 @@ export interface StatusModel {
     updatedAt: number;
     timestamp: number;
     minuteEstimatedTime: number;
+    multiplier: number;
     positionLevels: Level[];
     positionEntries: Entry[];
     positionPartials: Partial[];

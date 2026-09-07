@@ -80,6 +80,7 @@ export class StatusMockService {
       pnlEntries: status.pnl.pnlEntries,
       partialExecuted: status.partialExecuted,
       minuteEstimatedTime: status.minuteEstimatedTime,
+      multiplier: status.multiplier,
       pendingAt: status.pendingAt,
       timestamp: status.timestamp,
       updatedAt,
