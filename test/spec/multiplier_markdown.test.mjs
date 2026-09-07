@@ -217,6 +217,123 @@ test("MULTIPLIER MARKDOWN: Backtest report and Heat aggregate exact PNL for mixe
   pass(`mixed leverage verified: pnl = [${cells.join(", ")}] (1x/3x/10x of ${reference.pnlPercentage.toFixed(6)}%), heat totalPnl = ${totalPnlCell}`);
 });
 
+test("MULTIPLIER MARKDOWN: Heat equity math survives a leveraged blow-up (300x, pnl < -100%)", async ({ pass, fail }) => {
+  // Плечо делает pnlPercentage <= -100% практически достижимым (раньше — нет):
+  // 300x на неподвижной цене даёт ~300 × -0.3996% ≈ -119.88%. Equity-кривая
+  // обязана уйти в blown-ветку (equity <= 0 -> maxDrawdown = 100, без NaN),
+  // а линейный totalPnl — остаться точным leveraged значением.
+  const basePrice = 42000;
+  const MULTIPLIER = 300;
+  const context = {
+    strategyName: "multiplier-md-blown-strategy",
+    exchangeName: "binance-multiplier-md-blown",
+    frameName: "multiplier-md-blown-frame",
+  };
+
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        candles.push({
+          timestamp: alignedSince + i * MIN,
+          open: basePrice,
+          high: basePrice,
+          low: basePrice,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let issued = false;
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (issued) return null;
+      issued = true;
+      return {
+        position: "long",
+        note: "300x blown",
+        priceTakeProfit: basePrice + 15000,
+        priceStopLoss: basePrice - 15000,
+        minuteEstimatedTime: 3,
+        multiplier: MULTIPLIER,
+      };
+    },
+  });
+
+  addFrameSchema({
+    frameName: context.frameName,
+    interval: "1m",
+    startDate: new Date("2024-02-01T00:00:00Z"),
+    endDate: new Date("2024-02-01T00:20:00Z"),
+  });
+
+  const closed = [];
+  for await (const result of Backtest.run("BTCUSDT", context)) {
+    if (result.action === "closed") closed.push(result);
+  }
+  if (closed.length !== 1) {
+    fail(`expected exactly 1 closed trade, got ${closed.length}`);
+    return;
+  }
+
+  const reference = toProfitLossDto(
+    {
+      position: "long",
+      priceOpen: closed[0].signal.originalPriceOpen,
+      cost: closed[0].signal.cost,
+      multiplier: 1,
+    },
+    closed[0].currentPrice,
+  );
+  const expected = MULTIPLIER * reference.pnlPercentage;
+  if (expected >= -100) {
+    fail(`sanity: 300x costs-only PNL must be below -100%, got ${expected}`);
+    return;
+  }
+  if (!approxEqual(closed[0].pnl.pnlPercentage, expected)) {
+    fail(`closed pnl must be ${MULTIPLIER}x the reference: expected ${expected}, got ${closed[0].pnl.pnlPercentage}`);
+    return;
+  }
+
+  const stats = await Heat.getData(context, true);
+  const row = stats.symbols.find((s) => s.symbol === "BTCUSDT");
+  if (!row) {
+    fail("heatmap must contain a BTCUSDT row");
+    return;
+  }
+  // Линейный totalPnl — точное leveraged значение (< -100% допустимо)
+  if (!approxEqual(row.totalPnl, expected)) {
+    fail(`heatmap totalPnl must be the exact leveraged value ${expected}, got ${row.totalPnl}`);
+    return;
+  }
+  // Equity-кривая: (1 + pnl/100) <= 0 -> blown-ветка, maxDrawdown зафиксирован на 100
+  if (row.maxDrawdown !== 100) {
+    fail(`blown equity curve must fix maxDrawdown at 100, got ${row.maxDrawdown}`);
+    return;
+  }
+  // Никакой NaN/Infinity не просочился в отчёт (isUnsafe-гварды)
+  const heatReport = await Heat.getReport(context, true);
+  if (heatReport.includes("NaN") || heatReport.includes("Infinity")) {
+    fail("heat report must not contain NaN/Infinity after a leveraged blow-up");
+    return;
+  }
+  if (!heatReport.includes(` ${expected.toFixed(2)}% `)) {
+    fail(`heat report must render the exact leveraged Total PNL cell "${expected.toFixed(2)}%"`);
+    return;
+  }
+
+  pass(`300x blow-up handled: totalPnl = ${row.totalPnl.toFixed(2)}% (< -100%), maxDrawdown fixed at 100, no NaN in report`);
+});
+
 test("MULTIPLIER MARKDOWN: Live reports carry exact leveraged PNL per symbol (BTC 5x TP, ETH SHORT 2x SL)", async ({ pass, fail }) => {
   const btcPriceOpen = 95000;
   const btcPriceTakeProfit = btcPriceOpen + 1000;
