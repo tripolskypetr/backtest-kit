@@ -1,7 +1,7 @@
 {
   "name": "@backtest-kit/mcp",
   "type": "module",
-  "version": "18.8.0",
+  "version": "19.0.0",
   "description": "Model Context Protocol server for backtest-kit: lets an LLM agent observe the live trading portfolio and open or close positions through guarded tools",
   "keywords": [
     "mcp",
@@ -85,11 +85,11 @@
     "touch": "3.1.1",
     "@modelcontextprotocol/sdk": "1.8.0",
     "worker-testbed": "4.0.0",
-    "backtest-kit": "18.8.0",
+    "backtest-kit": "19.0.0",
     "zod": "3.25.76"
   },
   "peerDependencies": {
-    "backtest-kit": "^18.8.0",
+    "backtest-kit": "^19.0.0",
     "@modelcontextprotocol/sdk": "^1.8.0",
     "zod": "^3.25.76",
     "typescript": "^5.0.0"
