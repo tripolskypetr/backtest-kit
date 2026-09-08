@@ -484,6 +484,7 @@ export function addSweepSchema(sweepSchema: ISweepSchema) {
  * @param mcpSchema.strategyName - Strategy whose live instances the MCP observes and trades
  * @param mcpSchema.positionCost - Optional entry cost in USD (default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST)
  * @param mcpSchema.multiplier - Optional PNL multiplier (leverage) for opened positions (default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER)
+ * @param mcpSchema.isolated - Optional isolated-margin mode for opened positions (default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN)
  * @param mcpSchema.getMessages - Optional portfolio renderer for the agent
  * @param mcpSchema.callbacks - Optional lifecycle callbacks
  *

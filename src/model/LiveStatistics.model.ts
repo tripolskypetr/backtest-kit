@@ -37,6 +37,8 @@ export interface TickEvent {
   partialExecuted?: number;
   /** PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled) */
   multiplier?: number;
+  /** Isolated-margin mode: force-close at -100% leveraged PNL (only for scheduled/waiting/opened/active/closed/cancelled) */
+  isolated?: boolean;
   /** Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized) */
   pnlCost?: number;
   /** Total invested capital in USD */

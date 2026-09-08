@@ -170,6 +170,15 @@ export interface ISignalDto {
    * Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
    */
   multiplier?: number;
+  /**
+   * Isolated-margin mode: the position's margin is its own cost. Once the
+   * leveraged realizable PNL reaches -100% the position is force-closed with
+   * closeReason "liquidation" at the computed liquidation price (see
+   * getLiquidationPrice). With false (cross margin) PNL may go below -100%
+   * and the position keeps being monitored until TP/SL/time_expired.
+   * Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN
+   */
+  isolated?: boolean;
 }
 
 /**
@@ -196,6 +205,8 @@ export interface ISignalRow extends ISignalDto {
   minuteEstimatedTime: number;
   /** PNL multiplier (leverage) scaling pnlPercentage (required in row, defaults applied in ClientStrategy) */
   multiplier: number;
+  /** Isolated-margin mode: force-close at -100% leveraged PNL with closeReason "liquidation" (required in row, defaults applied in ClientStrategy) */
+  isolated: boolean;
   /** Unique exchange identifier for execution */
   exchangeName: ExchangeName;
   /** Unique strategy identifier for execution */
@@ -818,7 +829,7 @@ export interface IStrategySchema {
  * Reason why signal was closed.
  * Used in discriminated union for type-safe handling.
  */
-export type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss" | "closed";
+export type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss" | "liquidation" | "closed";
 
 /**
  * Reason why scheduled signal was cancelled.

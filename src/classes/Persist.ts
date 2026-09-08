@@ -770,6 +770,9 @@ export class PersistSignalInstance implements IPersistSignalInstance {
       if (signalRow && signalRow.multiplier == null) {
         signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
+      if (signalRow && signalRow.isolated == null) {
+        signalRow.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
+      }
       return signalRow;
     }
     return null;
@@ -1353,6 +1356,9 @@ export class PersistScheduleInstance implements IPersistScheduleInstance {
       if (scheduledRow && scheduledRow.multiplier == null) {
         scheduledRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
+      if (scheduledRow && scheduledRow.isolated == null) {
+        scheduledRow.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
+      }
       return scheduledRow;
     }
     return null;
@@ -1738,6 +1744,9 @@ export class PersistStrategyInstance implements IPersistStrategyInstance {
         // back without it — restore the config default.
         if (signal && signal.multiplier == null) {
           signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
+        }
+        if (signal && signal.isolated == null) {
+          signal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
         }
       }
       return strategyData;
@@ -3020,6 +3029,9 @@ export class PersistStorageInstance implements IPersistStorageInstance {
       if (signal && signal.multiplier == null) {
         signal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
+      if (signal && signal.isolated == null) {
+        signal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
+      }
       signals.push(signal);
     }
     return signals;
@@ -3293,6 +3305,13 @@ export class PersistNotificationInstance implements IPersistNotificationInstance
         (notification as { multiplier?: number | null }).multiplier == null
       ) {
         (notification as { multiplier: number }).multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
+      }
+      if (
+        notification &&
+        "cost" in notification &&
+        (notification as { isolated?: boolean | null }).isolated == null
+      ) {
+        (notification as { isolated: boolean }).isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
       }
       notifications.push(notification);
     }
@@ -4988,6 +5007,9 @@ export class PersistRecentInstance implements IPersistRecentInstance {
       // back without it — restore the config default.
       if (signalRow && signalRow.multiplier == null) {
         signalRow.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
+      }
+      if (signalRow && signalRow.isolated == null) {
+        signalRow.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
       }
       return signalRow;
     }

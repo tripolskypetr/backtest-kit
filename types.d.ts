@@ -3331,6 +3331,15 @@ interface ISignalDto {
      * Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
      */
     multiplier?: number;
+    /**
+     * Isolated-margin mode: the position's margin is its own cost. Once the
+     * leveraged realizable PNL reaches -100% the position is force-closed with
+     * closeReason "liquidation" at the computed liquidation price (see
+     * getLiquidationPrice). With false (cross margin) PNL may go below -100%
+     * and the position keeps being monitored until TP/SL/time_expired.
+     * Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN
+     */
+    isolated?: boolean;
 }
 /**
  * Signal dto for IntervalUtils.fn which allows returning multiple signals in one getSignal call.
@@ -3355,6 +3364,8 @@ interface ISignalRow extends ISignalDto {
     minuteEstimatedTime: number;
     /** PNL multiplier (leverage) scaling pnlPercentage (required in row, defaults applied in ClientStrategy) */
     multiplier: number;
+    /** Isolated-margin mode: force-close at -100% leveraged PNL with closeReason "liquidation" (required in row, defaults applied in ClientStrategy) */
+    isolated: boolean;
     /** Unique exchange identifier for execution */
     exchangeName: ExchangeName;
     /** Unique strategy identifier for execution */
@@ -3807,7 +3818,7 @@ interface IStrategySchema {
  * Reason why signal was closed.
  * Used in discriminated union for type-safe handling.
  */
-type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss" | "closed";
+type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss" | "liquidation" | "closed";
 /**
  * Reason why scheduled signal was cancelled.
  * Used in discriminated union for type-safe handling.
@@ -6721,6 +6732,8 @@ interface IMCPSchema {
     positionCost?: number;
     /** PNL multiplier (leverage) for opened positions. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier?: number;
+    /** Isolated-margin mode for opened positions (force-close at -100% leveraged PNL). Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated?: boolean;
     /** Estimated time in minutes for a position to reach its TP or SL. */
     minuteEstimatedTime?: number;
     /** Per-method grants for the agent; each permission name gates the agent-facing MCP (Model Context Protocol) method of the same name. Default: all of them */
@@ -8745,6 +8758,16 @@ declare const GLOBAL_CONFIG: {
      */
     CC_SIGNAL_LEVERAGE_MULTIPLIER: number;
     /**
+     * Isolated-margin mode default for signals (`isolated` in ISignalDto).
+     * When true, the position's margin is its own cost: once the leveraged
+     * realizable PNL reaches -100% the position is force-closed with
+     * closeReason "liquidation" at the computed liquidation price.
+     * When false (cross margin), PNL may go below -100% and the position
+     * keeps being monitored until TP/SL/time_expired.
+     * Default: false (cross margin)
+     */
+    CC_SIGNAL_ISOLATED_MARGIN: boolean;
+    /**
      * Maximum number of open retries after the broker gate (onOrderSync / onOrderOpenCommit)
      * rejected a signal-open. Each retry re-submits the SAME signal row with the SAME signalId
      * on the next tick, so a broker adapter that tags exchange orders with
@@ -8939,6 +8962,7 @@ declare function getConfig(): {
     CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
     CC_SIGNAL_LEVERAGE_MULTIPLIER: number;
+    CC_SIGNAL_ISOLATED_MARGIN: boolean;
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
@@ -9003,6 +9027,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
     CC_SIGNAL_LEVERAGE_MULTIPLIER: number;
+    CC_SIGNAL_ISOLATED_MARGIN: boolean;
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;
@@ -9461,6 +9486,7 @@ declare function addSweepSchema(sweepSchema: ISweepSchema): void;
  * @param mcpSchema.strategyName - Strategy whose live instances the MCP observes and trades
  * @param mcpSchema.positionCost - Optional entry cost in USD (default: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST)
  * @param mcpSchema.multiplier - Optional PNL multiplier (leverage) for opened positions (default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER)
+ * @param mcpSchema.isolated - Optional isolated-margin mode for opened positions (default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN)
  * @param mcpSchema.getMessages - Optional portfolio renderer for the agent
  * @param mcpSchema.callbacks - Optional lifecycle callbacks
  *
@@ -14717,6 +14743,8 @@ interface SignalOpenedNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
     /** Peak profit achieved during the life of this position up to the moment this public signal was created */
@@ -14809,6 +14837,8 @@ interface SignalClosedNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Total PNL of the closed position (including all entries and partials) */
@@ -14901,6 +14931,8 @@ interface PartialProfitAvailableNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -14993,6 +15025,8 @@ interface PartialLossAvailableNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15083,6 +15117,8 @@ interface BreakevenAvailableNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15175,6 +15211,8 @@ interface PartialProfitCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15267,6 +15305,8 @@ interface PartialLossCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15357,6 +15397,8 @@ interface BreakevenCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15433,6 +15475,8 @@ interface AverageBuyCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Averaged (effective) entry price after this addition */
     effectivePriceOpen: number;
     /** Total number of DCA entries after this addition */
@@ -15539,6 +15583,8 @@ interface ActivateScheduledCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15633,6 +15679,8 @@ interface TrailingStopCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15725,6 +15773,8 @@ interface TrailingTakeCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -15845,6 +15895,8 @@ interface OrderSyncOpenNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Entry price at which the limit order was filled */
@@ -15951,6 +16003,8 @@ interface OrderSyncCloseNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16018,6 +16072,8 @@ interface OrderSyncCheckNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16123,6 +16179,8 @@ interface OrderContinueCheckNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16229,6 +16287,8 @@ interface OrderStopCheckNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16353,6 +16413,8 @@ interface OrderFillOpenNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (DCA-averaged when entries exist) */
@@ -16465,6 +16527,8 @@ interface OrderFillCloseNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16558,6 +16622,8 @@ interface OrderRejectOpenNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
     /** Effective entry price (DCA-averaged when entries exist) */
@@ -16672,6 +16738,8 @@ interface OrderRejectCloseNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -16728,6 +16796,8 @@ interface RiskRejectionNotification {
     minuteEstimatedTime: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Optional human-readable description of signal reason */
     signalNote?: string;
     /** Unix timestamp in milliseconds when the notification was created */
@@ -16776,6 +16846,8 @@ interface SignalScheduledNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total PNL of the closed position (including all entries and partials) */
     pnl: IStrategyPnL;
     /** Peak profit achieved during the life of this position up to the moment this public signal was created */
@@ -16862,6 +16934,8 @@ interface SignalCancelledNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -17042,6 +17116,8 @@ interface CancelScheduledCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -17136,6 +17212,8 @@ interface ClosePendingCommitNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Position activation timestamp in milliseconds (when price reached priceOpen) */
@@ -17222,6 +17300,8 @@ interface SignalInfoNotification {
     cost: number;
     /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier: number;
+    /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated: boolean;
     /** Total number of DCA entries (_entry.length). 1 = no averaging. */
     totalEntries: number;
     /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -17340,6 +17420,8 @@ interface TickEvent {
     partialExecuted?: number;
     /** PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled) */
     multiplier?: number;
+    /** Isolated-margin mode: force-close at -100% leveraged PNL (only for scheduled/waiting/opened/active/closed/cancelled) */
+    isolated?: boolean;
     /** Absolute profit/loss in USD (for active/waiting: unrealized, for closed: realized) */
     pnlCost?: number;
     /** Total invested capital in USD */
@@ -36853,6 +36935,7 @@ declare const validateCandles: (candles: ICandleData[]) => void;
  * - TP/SL distance constraints from GLOBAL_CONFIG
  * - minuteEstimatedTime is valid
  * - multiplier is a finite positive number
+ * - isolated is a boolean
  *
  * Does NOT check:
  * - currentPrice vs SL/TP (immediate close protection — handled by pending/scheduled validators)
@@ -45086,7 +45169,7 @@ declare const backtest: {
     };
 };
 
-interface Signal$2 extends ISignalDto {
+interface Signal$3 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
@@ -45109,7 +45192,7 @@ interface Signal$2 extends ISignalDto {
  * @param priceClose - Actual close price at final exit
  * @returns PNL data with percentage, prices, and USD amounts
  */
-declare const toProfitLossDto: (signal: Signal$2, priceClose: number) => IStrategyPnL;
+declare const toProfitLossDto: (signal: Signal$3, priceClose: number) => IStrategyPnL;
 
 /**
  * Converts markdown content to plain text with minimal formatting
@@ -45118,7 +45201,7 @@ declare const toProfitLossDto: (signal: Signal$2, priceClose: number) => IStrate
  */
 declare const toPlainString: (content: string) => string;
 
-interface Signal$1 extends ISignalDto {
+interface Signal$2 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
@@ -45141,9 +45224,9 @@ interface Signal$1 extends ISignalDto {
  * @param signal - Signal row with _entry and optional _partial
  * @returns Effective entry price for PNL calculations
  */
-declare const getEffectivePriceOpen: (signal: Signal$1) => number;
+declare const getEffectivePriceOpen: (signal: Signal$2) => number;
 
-interface Signal extends ISignalDto {
+interface Signal$1 extends ISignalDto {
     priceOpen: number;
     _entry?: ISignalRow['_entry'];
     _partial?: ISignalRow['_partial'];
@@ -45164,10 +45247,42 @@ interface Signal extends ISignalDto {
  * @param signal - Signal row with _partial and _entry arrays
  * @returns Object with totalClosedPercent (0–100) and remainingCostBasis (USD still open)
  */
-declare const getTotalClosed: (signal: Signal) => {
+declare const getTotalClosed: (signal: Signal$1) => {
     totalClosedPercent: number;
     remainingCostBasis: number;
 };
+
+interface Signal extends ISignalDto {
+    priceOpen: number;
+    _entry?: ISignalRow['_entry'];
+    _partial?: ISignalRow['_partial'];
+}
+/**
+ * Computes the exact liquidation price for an isolated-margin position — the
+ * close price at which the leveraged realizable PNL (toProfitLossDto, i.e.
+ * slippage + fees + multiplier + DCA entries + partial-close replay included)
+ * equals exactly -100%.
+ *
+ * Method: pnlPercentage is LINEAR in priceClose for a fixed signal state —
+ * already-closed partials contribute a constant, the remaining position
+ * contributes a linear term, and the fee/slippage adjustments are linear too.
+ * Two evaluations of toProfitLossDto recover the line (slope k, intercept b),
+ * and the liquidation price is the solution of k * P + b = -100. This inverts
+ * the REAL production PNL calculator, so the formula can never drift from it
+ * (closing at the returned price yields exactly -100% by construction).
+ *
+ * Returns null when the PNL does not depend on the close price (k ≈ 0): the
+ * remaining position weight is zero (fully closed by partials) — nothing left
+ * to liquidate.
+ *
+ * NOTE: the returned price may be non-positive for low leverage (e.g. 1x
+ * cannot lose 100% before the price itself reaches ~0). Callers treat a
+ * non-positive result the same as null — liquidation unreachable.
+ *
+ * @param signal - Signal with position/priceOpen/multiplier and optional _entry/_partial
+ * @returns The exact liquidation price, or null when liquidation is unreachable
+ */
+declare const getLiquidationPrice: (signal: Signal) => number | null;
 
 /**
  * Derives the number of decimal places to show for a price based on its
@@ -45522,4 +45637,4 @@ declare class OrderTransientError extends Error {
     static fromError(error: object): OrderTransientError;
 }
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenActivePingPerSignal, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenBreakevenAvailablePerSignal, listenCheck, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenHighestProfitPerSignal, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenMaxDrawdownPerSignal, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderSchedulePerSignal, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialLossAvailablePerSignal, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPartialProfitAvailablePerSignal, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSchedulePingPerSignal, listenSignal, listenSignalActive, listenSignalActivePerSignal, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActivePerSignal, listenSignalBacktestCancelled, listenSignalBacktestCancelledPerSignal, listenSignalBacktestClosed, listenSignalBacktestClosedPerSignal, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedPerSignal, listenSignalBacktestPerSignal, listenSignalBacktestScheduled, listenSignalBacktestScheduledPerSignal, listenSignalBacktestWaiting, listenSignalBacktestWaitingPerSignal, listenSignalCancelled, listenSignalCancelledPerSignal, listenSignalClosed, listenSignalClosedPerSignal, listenSignalEvent, listenSignalEventOnce, listenSignalEventPerSignal, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActivePerSignal, listenSignalLiveCancelled, listenSignalLiveCancelledPerSignal, listenSignalLiveClosed, listenSignalLiveClosedPerSignal, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedPerSignal, listenSignalLivePerSignal, listenSignalLiveScheduled, listenSignalLiveScheduledPerSignal, listenSignalLiveWaiting, listenSignalLiveWaitingPerSignal, listenSignalNotify, listenSignalNotifyOnce, listenSignalNotifyPerSignal, listenSignalOnce, listenSignalOpened, listenSignalOpenedPerSignal, listenSignalPerSignal, listenSignalScheduled, listenSignalScheduledPerSignal, listenSignalWaiting, listenSignalWaitingPerSignal, listenStrategyCommit, listenStrategyCommitOnce, listenStrategyCommitPerSignal, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AfterEndContract, type AverageBuyCommit, type AverageBuyCommitNotification, BROKER_ORDER_VERDICT, Backtest, type BacktestStatisticsModel, type BeforeStartContract, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, type BreakevenEvent, type BreakevenStatisticsModel, Broker, type BrokerActivePingPayload, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerIdlePingPayload, type BrokerOrderCheckPayload, type BrokerOrderClosePayload, type BrokerOrderOpenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerPendingClosePayload, type BrokerPendingOpenPayload, type BrokerScheduleCancelledPayload, type BrokerScheduleOpenPayload, type BrokerSchedulePingPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CancelScheduledCommitNotification, type CandleData, type CandleInterval, type ClosePendingCommit, type ClosePendingCommitNotification, type ColumnConfig, type ColumnModel, type CommitPayload, Constant, type CriticalErrorNotification, Cron, type CronCallback, type CronEntry, type CronHandle, type DoneContract, Dump, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, HighestProfit, type HighestProfitContract, type HighestProfitEvent, type HighestProfitStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAgentLogger, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type IBrokerOrderVerdict, type ICandleData, type ICommitRow, type IDumpContext, type IDumpInstance, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMCPAverageBuyCommand, type IMCPContext, type IMCPImageMessage, type IMCPMessage, type IMCPPositionCloseCommand, type IMCPPositionOpenCommand, type IMCPSchema, type IMCPSignalNotifyCommand, type IMCPTextMessage, type IMarkdownDumpOptions, type IMemoryInstance, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPersistBreakevenInstance, type IPersistCandleInstance, type IPersistIntervalInstance, type IPersistLogInstance, type IPersistMeasureInstance, type IPersistMemoryInstance, type IPersistNotificationInstance, type IPersistPartialInstance, type IPersistRecentInstance, type IPersistRiskInstance, type IPersistScheduleInstance, type IPersistSessionInstance, type IPersistSignalInstance, type IPersistStateInstance, type IPersistStorageInstance, type IPersistStrategyInstance, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IRecentUtils, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IRuntimeInfo, type IRuntimeRange, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISessionInstance, type ISignalDto, type ISignalIntervalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStateInstance, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ISweepBest, type ISweepGridAxes, type ISweepGridPoint, type ISweepIdea, type ISweepMetricReport, type ISweepPointReport, type ISweepResult, type ISweepSchema, type ISweepTrack, type ISweepTrade, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type IdlePingContract, type InfoErrorNotification, Interval, type IntervalData, Live, type LiveStatisticsModel, Log, type LogData, Lookup, MCP, type MCPMessageId, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MarkdownWriter, MaxDrawdown, type MaxDrawdownContract, type MaxDrawdownEvent, type MaxDrawdownStatisticsModel, type MeasureData, Memory, MemoryBacktest, MemoryBacktestAdapter, type MemoryData, MemoryLive, MemoryLiveAdapter, type MessageModel, type MessageRole, type MessageToolCall, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, type OrderCheckContract, type OrderCloseContract, type OrderContinueContract, OrderDeletedError, type OrderFillCloseContract, type OrderFillContract, type OrderFillOpenContract, type OrderOpenContract, type OrderRejectCloseContract, type OrderRejectContract, type OrderRejectOpenContract, OrderRejectedError, type OrderStopContract, type OrderSyncCheckNotification, type OrderSyncCloseNotification, type OrderSyncContract, type OrderSyncOpenNotification, OrderTransientError, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, type PauseContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistBreakevenInstance, PersistCandleAdapter, PersistCandleInstance, PersistIntervalAdapter, PersistIntervalInstance, PersistLogAdapter, PersistLogInstance, PersistMeasureAdapter, PersistMeasureInstance, PersistMemoryAdapter, PersistMemoryInstance, PersistNotificationAdapter, PersistNotificationInstance, PersistPartialAdapter, PersistPartialInstance, PersistRecentAdapter, PersistRecentInstance, PersistRiskAdapter, PersistRiskInstance, PersistScheduleAdapter, PersistScheduleInstance, PersistSessionAdapter, PersistSessionInstance, PersistSignalAdapter, PersistSignalInstance, PersistStateAdapter, PersistStateInstance, PersistStorageAdapter, PersistStorageInstance, PersistStrategyAdapter, PersistStrategyInstance, Position, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Recent, RecentBacktest, type RecentData, RecentLive, Reflect, Report, ReportBase, type ReportName, ReportWriter, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, type RuntimeData, Schedule, type ScheduleData, type ScheduleEventContract, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, Session, SessionBacktest, type SessionData, SessionLive, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalEventContract, type SignalInfoContract, type SignalInfoNotification, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, State, StateBacktest, StateBacktestAdapter, type StateData, StateLive, StateLiveAdapter, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyData, type StrategyEvent, type StrategyPauseNotification, type StrategyStatisticsModel, type StrategyStatus, Sweep, Sync, type SyncEvent, type SyncStatisticsModel, System, type TBrokerCtor, type TDumpInstanceCtor, type TLogCtor, type TMarkdownBase, type TMemoryInstanceCtor, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TPersistBreakevenInstanceCtor, type TPersistCandleInstanceCtor, type TPersistIntervalInstanceCtor, type TPersistLogInstanceCtor, type TPersistMeasureInstanceCtor, type TPersistMemoryInstanceCtor, type TPersistNotificationInstanceCtor, type TPersistPartialInstanceCtor, type TPersistRecentInstanceCtor, type TPersistRiskInstanceCtor, type TPersistScheduleInstanceCtor, type TPersistSessionInstanceCtor, type TPersistSignalInstanceCtor, type TPersistStateInstanceCtor, type TPersistStorageInstanceCtor, type TPersistStrategyInstanceCtor, type TRecentUtilsCtor, type TReportBase, type TSessionInstanceCtor, type TStateInstanceCtor, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addMCPSchema, addRiskSchema, addSizingSchema, addStrategySchema, addSweepSchema, addWalkerSchema, alignToInterval, beginContext, beginTime, cacheCandles, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitCreateSignal, commitCreateStopLoss, commitCreateTakeProfit, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitSignalNotify, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, createSignalState, dumpAgentAnswer, dumpError, dumpJson, dumpMCPStatus, dumpRecord, dumpTable, dumpText, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getClosePrice, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getLatestSignal, getLiquidationPrice, getMCPSchema, getMaxDrawdownDistancePnlCost, getMaxDrawdownDistancePnlPercentage, getMinutesSinceLatestSignalCreated, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionActiveMinutes, getPositionCountdownMinutes, getPositionDrawdownMinutes, getPositionEffectivePrice, getPositionEntries, getPositionEntryOverlap, getPositionEstimateMinutes, getPositionHighestMaxDrawdownPnlCost, getPositionHighestMaxDrawdownPnlPercentage, getPositionHighestPnlCost, getPositionHighestPnlPercentage, getPositionHighestProfitBreakeven, getPositionHighestProfitDistancePnlCost, getPositionHighestProfitDistancePnlPercentage, getPositionHighestProfitMinutes, getPositionHighestProfitPrice, getPositionHighestProfitTimestamp, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionMaxDrawdownMinutes, getPositionMaxDrawdownPnlCost, getPositionMaxDrawdownPnlPercentage, getPositionMaxDrawdownPrice, getPositionMaxDrawdownTimestamp, getPositionPartialOverlap, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getPositionWaitingMinutes, getPriceScale, getRawCandles, getRemainingCostBasis, getRiskSchema, getRuntimeInfo, getScheduledSignal, getSessionData, getSignalState, getSizingSchema, getStrategyPaused, getStrategySchema, getStrategyStatus, getSweepSchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getTotalPercentHeld, getWalkerSchema, hasNoPendingSignal, hasNoScheduledSignal, hasTradeContext, intervalStart, intervalStepMs, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listMCPSchema, listMemory, listRiskSchema, listSizingSchema, listStrategySchema, listSweepSchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenActivePingPerSignal, listenAfterEnd, listenAfterEndOnce, listenBacktestProgress, listenBeforeStart, listenBeforeStartOnce, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenBreakevenAvailablePerSignal, listenCheck, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenHighestProfit, listenHighestProfitOnce, listenHighestProfitPerSignal, listenIdlePing, listenIdlePingOnce, listenMaxDrawdown, listenMaxDrawdownOnce, listenMaxDrawdownPerSignal, listenOrderContinue, listenOrderFill, listenOrderReject, listenOrderSchedule, listenOrderSchedulePerSignal, listenOrderStop, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialLossAvailablePerSignal, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPartialProfitAvailablePerSignal, listenPause, listenPauseOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSchedulePingPerSignal, listenSignal, listenSignalActive, listenSignalActivePerSignal, listenSignalBacktest, listenSignalBacktestActive, listenSignalBacktestActivePerSignal, listenSignalBacktestCancelled, listenSignalBacktestCancelledPerSignal, listenSignalBacktestClosed, listenSignalBacktestClosedPerSignal, listenSignalBacktestIdle, listenSignalBacktestOnce, listenSignalBacktestOpened, listenSignalBacktestOpenedPerSignal, listenSignalBacktestPerSignal, listenSignalBacktestScheduled, listenSignalBacktestScheduledPerSignal, listenSignalBacktestWaiting, listenSignalBacktestWaitingPerSignal, listenSignalCancelled, listenSignalCancelledPerSignal, listenSignalClosed, listenSignalClosedPerSignal, listenSignalEvent, listenSignalEventOnce, listenSignalEventPerSignal, listenSignalIdle, listenSignalLive, listenSignalLiveActive, listenSignalLiveActivePerSignal, listenSignalLiveCancelled, listenSignalLiveCancelledPerSignal, listenSignalLiveClosed, listenSignalLiveClosedPerSignal, listenSignalLiveIdle, listenSignalLiveOnce, listenSignalLiveOpened, listenSignalLiveOpenedPerSignal, listenSignalLivePerSignal, listenSignalLiveScheduled, listenSignalLiveScheduledPerSignal, listenSignalLiveWaiting, listenSignalLiveWaitingPerSignal, listenSignalNotify, listenSignalNotifyOnce, listenSignalNotifyPerSignal, listenSignalOnce, listenSignalOpened, listenSignalOpenedPerSignal, listenSignalPerSignal, listenSignalScheduled, listenSignalScheduledPerSignal, listenSignalWaiting, listenSignalWaitingPerSignal, listenStrategyCommit, listenStrategyCommitOnce, listenStrategyCommitPerSignal, listenSync, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideMCPSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideSweepSchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, readMemory, removeMemory, roundTicks, runInMockContext, searchMemory, set, setColumns, setConfig, setLogger, setSessionData, setSignalState, setStrategyPaused, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toPlainString, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, validateCandles, validateCommonSignal, validatePendingSignal, validateScheduledSignal, validateSignal, waitForCandle, waitForReady, warmCandles, writeMemory };

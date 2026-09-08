@@ -838,6 +838,7 @@ export { toProfitLossDto } from "./helpers/toProfitLossDto";
 export { toPlainString } from "./helpers/toPlainString";
 export { getEffectivePriceOpen } from "./helpers/getEffectivePriceOpen";
 export { getTotalClosed } from "./helpers/getTotalClosed";
+export { getLiquidationPrice } from "./helpers/getLiquidationPrice";
 export { getPriceScale } from "./helpers/getPriceScale";
 
 export { OrderDeletedError } from "./error/OrderDeletedError";

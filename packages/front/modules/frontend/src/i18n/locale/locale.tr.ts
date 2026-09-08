@@ -449,6 +449,8 @@ export const LOCALE: Record<string, string> = {
   "Avg Loss Duration": "Ort. Kayıp Süresi",
   "Avg Consecutive Win PNL": "Ort. Ardışık Kazanç PNL",
   "Avg Consecutive Loss PNL": "Ort. Ardışık Kayıp PNL",
+  "Avg Consecutive Win PNL Per Symbol": "Sembol Başına Ort. Ardışık Kazanç PNL",
+  "Avg Consecutive Loss PNL Per Symbol": "Sembol Başına Ort. Ardışık Kayıp PNL",
   "Unit": "birim",
   "Take profit": "Kâr al",
   "Stop loss": "Zarar durdur",

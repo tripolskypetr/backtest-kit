@@ -48,6 +48,8 @@ export interface SignalOpenedNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
   /** Peak profit achieved during the life of this position up to the moment this public signal was created */
@@ -141,6 +143,8 @@ export interface SignalClosedNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Total PNL of the closed position (including all entries and partials) */
@@ -234,6 +238,8 @@ export interface PartialProfitAvailableNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -327,6 +333,8 @@ export interface PartialLossAvailableNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -418,6 +426,8 @@ export interface BreakevenAvailableNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -511,6 +521,8 @@ export interface PartialProfitCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -604,6 +616,8 @@ export interface PartialLossCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -695,6 +709,8 @@ export interface BreakevenCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -772,6 +788,8 @@ export interface AverageBuyCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Averaged (effective) entry price after this addition */
   effectivePriceOpen: number;
   /** Total number of DCA entries after this addition */
@@ -879,6 +897,8 @@ export interface ActivateScheduledCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -974,6 +994,8 @@ export interface TrailingStopCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -1067,6 +1089,8 @@ export interface TrailingTakeCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -1188,6 +1212,8 @@ export interface OrderSyncOpenNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Entry price at which the limit order was filled */
@@ -1295,6 +1321,8 @@ export interface OrderSyncCloseNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -1363,6 +1391,8 @@ export interface OrderSyncCheckNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -1469,6 +1499,8 @@ export interface OrderContinueCheckNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -1576,6 +1608,8 @@ export interface OrderStopCheckNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -1701,6 +1735,8 @@ export interface OrderFillOpenNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Effective entry price (DCA-averaged when entries exist) */
@@ -1814,6 +1850,8 @@ export interface OrderFillCloseNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -1908,6 +1946,8 @@ export interface OrderRejectOpenNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Effective entry price (DCA-averaged when entries exist) */
@@ -2023,6 +2063,8 @@ export interface OrderRejectCloseNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -2080,6 +2122,8 @@ export interface RiskRejectionNotification {
   minuteEstimatedTime: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Optional human-readable description of signal reason */
   signalNote?: string;
   /** Unix timestamp in milliseconds when the notification was created */
@@ -2129,6 +2173,8 @@ export interface SignalScheduledNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total PNL of the closed position (including all entries and partials) */
   pnl: IStrategyPnL;
   /** Peak profit achieved during the life of this position up to the moment this public signal was created */
@@ -2216,6 +2262,8 @@ export interface SignalCancelledNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -2401,6 +2449,8 @@ export interface CancelScheduledCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
@@ -2496,6 +2546,8 @@ export interface ClosePendingCommitNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Position activation timestamp in milliseconds (when price reached priceOpen) */
@@ -2583,6 +2635,8 @@ export interface SignalInfoNotification {
   cost: number;
   /** PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
   multiplier: number;
+  /** Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+  isolated: boolean;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
   /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */

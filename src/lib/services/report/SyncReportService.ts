@@ -80,6 +80,7 @@ export class SyncReportService {
       partialExecuted: data.signal?.partialExecuted,
       minuteEstimatedTime: data.signal?.minuteEstimatedTime,
       multiplier: data.signal?.multiplier,
+      isolated: data.signal?.isolated,
       _partial: data.signal?._partial,
       pnlPercentage: data.pnl.pnlPercentage,
       pnlCost: data.pnl.pnlCost,

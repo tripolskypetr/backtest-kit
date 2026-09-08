@@ -203,6 +203,8 @@ export interface IMCPSchema {
     positionCost?: number;
     /** PNL multiplier (leverage) for opened positions. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER */
     multiplier?: number;
+    /** Isolated-margin mode for opened positions (force-close at -100% leveraged PNL). Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN */
+    isolated?: boolean;
     /** Estimated time in minutes for a position to reach its TP or SL. */
     minuteEstimatedTime?: number;
     /** Per-method grants for the agent; each permission name gates the agent-facing MCP (Model Context Protocol) method of the same name. Default: all of them */

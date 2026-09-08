@@ -74,6 +74,10 @@ export class ConfigValidationService {
       errors.push(`CC_SIGNAL_LEVERAGE_MULTIPLIER must be a positive finite number, got ${GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER}`);
     }
 
+    if (typeof GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN !== "boolean") {
+      errors.push(`CC_SIGNAL_ISOLATED_MARGIN must be a boolean, got ${GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN}`);
+    }
+
     // Calculate minimum required TP distance to cover costs
     const slippageEffect = GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE * 2; // Applied twice (entry + exit)
     const feesTotal = GLOBAL_CONFIG.CC_PERCENT_FEE * 2; // Applied twice (entry + exit)

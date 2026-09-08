@@ -41,6 +41,7 @@ import "./e2e/hardening.test.mjs";
 import "./e2e/retry.test.mjs";
 import "./e2e/fill_consume.test.mjs";
 import "./e2e/multiplier.test.mjs";
+import "./e2e/liquidation.test.mjs";
 import "./e2e/verdict.test.mjs";
 import "./e2e/broker_attempt.test.mjs";
 import "./e2e/verdict_cross.test.mjs";
@@ -79,6 +80,7 @@ import "./spec/pnl.test.mjs";
 import "./spec/dca.test.mjs";
 import "./spec/multiplier.test.mjs";
 import "./spec/multiplier_markdown.test.mjs";
+import "./spec/liquidation.test.mjs";
 import "./spec/config.test.mjs"
 import "./spec/candle_cache.test.mjs"
 import "./spec/columns.test.mjs"

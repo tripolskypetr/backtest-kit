@@ -102,8 +102,8 @@ const toMarkdown = (data: StatusInfoModel): string => {
         `**${t("Avg Duration")}:** ${fmtMin(portfolioAvgDuration)}  `,
         `**${t("Avg Win Duration")}:** ${fmtMin(portfolioAvgWinDuration)}  `,
         `**${t("Avg Loss Duration")}:** ${fmtMin(portfolioAvgLossDuration)}  `,
-        `**${t("Avg Consecutive Win PNL")}:** ${fmt(portfolioAvgConsecutiveWinPnl)}  `,
-        `**${t("Avg Consecutive Loss PNL")}:** ${fmt(portfolioAvgConsecutiveLossPnl)}`,
+        `**${t("Avg Consecutive Win PNL Per Symbol")}:** ${fmt(portfolioAvgConsecutiveWinPnl)}  `,
+        `**${t("Avg Consecutive Loss PNL Per Symbol")}:** ${fmt(portfolioAvgConsecutiveLossPnl)}`,
         "",
     ];
 

@@ -449,6 +449,8 @@ export const LOCALE: Record<string, string> = {
   "Avg Loss Duration": "हार की औसत अवधि",
   "Avg Consecutive Win PNL": "औसत लगातार जीत PNL",
   "Avg Consecutive Loss PNL": "औसत लगातार हार PNL",
+  "Avg Consecutive Win PNL Per Symbol": "प्रति सिंबल औसत लगातार जीत PNL",
+  "Avg Consecutive Loss PNL Per Symbol": "प्रति सिंबल औसत लगातार हार PNL",
   "Unit": "इकाई",
   "Take profit": "टेक प्रॉफिट",
   "Stop loss": "स्टॉप लॉस",

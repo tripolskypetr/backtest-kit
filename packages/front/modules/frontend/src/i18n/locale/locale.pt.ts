@@ -449,6 +449,8 @@ export const LOCALE: Record<string, string> = {
   "Avg Loss Duration": "Duração média das perdas",
   "Avg Consecutive Win PNL": "PNL médio de ganhos consecutivos",
   "Avg Consecutive Loss PNL": "PNL médio de perdas consecutivas",
+  "Avg Consecutive Win PNL Per Symbol": "PNL médio de ganhos consecutivos por símbolo",
+  "Avg Consecutive Loss PNL Per Symbol": "PNL médio de perdas consecutivas por símbolo",
   "Unit": "un.",
   "Take profit": "Take profit",
   "Stop loss": "Stop loss",

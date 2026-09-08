@@ -97,6 +97,12 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "isolated",
+    label: "Margin",
+    format: (data) => (data.isolated !== undefined ? (data.isolated ? "isolated" : "cross") : "N/A"),
+    isVisible: () => true,
+  },
+  {
     key: "takeProfit",
     label: "Take Profit",
     format: (data) =>

@@ -36,6 +36,7 @@ import {
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
+import { getLiquidationPrice as GET_LIQUIDATION_PRICE } from "../helpers/getLiquidationPrice";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter, PersistRecentAdapter, PersistStrategyAdapter } from "../classes/Persist";
 import { ExecutionContextService } from "../lib/services/context/ExecutionContextService";
@@ -363,7 +364,7 @@ const CALL_ORDER_SYNC_CLOSE_FN = trycatch(
   async (
     timestamp: number,
     currentPrice: number,
-    closeReason: "time_expired" | "take_profit" | "stop_loss" | "closed",
+    closeReason: "time_expired" | "take_profit" | "stop_loss" | "liquidation" | "closed",
     signal: ISignalRow,
     self: ClientStrategy
   ): Promise<IBrokerOrderVerdict> => {
@@ -1042,6 +1043,7 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
     // applies row defaults — default the multiplier so consumers never see
     // undefined (rows built by GET_SIGNAL_FN already carry the value).
     multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER,
+    isolated: signal.isolated ?? GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN,
     priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
     priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,
     originalPriceOpen: signal.priceOpen,
@@ -1220,6 +1222,7 @@ const GET_SIGNAL_FN = trycatch(
             priceOpen: userDto.priceOpen ?? currentPrice,
             minuteEstimatedTime: userDto.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
             multiplier: userDto.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER,
+            isolated: userDto.isolated ?? GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN,
           },
           currentPrice,
         )) {
@@ -1309,6 +1312,7 @@ const GET_SIGNAL_FN = trycatch(
           priceStopLoss: signal.priceStopLoss,
           minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
           multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER,
+          isolated: signal.isolated ?? GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN,
           symbol: self.params.execution.context.symbol,
           exchangeName: self.params.method.context.exchangeName,
           strategyName: self.params.method.context.strategyName,
@@ -1351,6 +1355,7 @@ const GET_SIGNAL_FN = trycatch(
         priceStopLoss: signal.priceStopLoss,
         minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
         multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER,
+        isolated: signal.isolated ?? GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN,
         symbol: self.params.execution.context.symbol,
         exchangeName: self.params.method.context.exchangeName,
         strategyName: self.params.method.context.strategyName,
@@ -1381,6 +1386,7 @@ const GET_SIGNAL_FN = trycatch(
       note: signal.note || "",
       minuteEstimatedTime: signal.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
       multiplier: signal.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER,
+      isolated: signal.isolated ?? GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN,
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
       strategyName: self.params.method.context.strategyName,
@@ -1575,6 +1581,9 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
       if (self._retryOpenSignal && self._retryOpenSignal.multiplier == null) {
         self._retryOpenSignal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
       }
+      if (self._retryOpenSignal && self._retryOpenSignal.isolated == null) {
+        self._retryOpenSignal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
+      }
     }
   }
 
@@ -1628,6 +1637,9 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // without it — restore the config default.
     if (pendingSignal.multiplier == null) {
       pendingSignal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
+    }
+    if (pendingSignal.isolated == null) {
+      pendingSignal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
     }
     self._pendingSignal = pendingSignal;
 
@@ -1739,6 +1751,9 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     // without it — restore the config default.
     if (scheduledSignal.multiplier == null) {
       scheduledSignal.multiplier = GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER;
+    }
+    if (scheduledSignal.isolated == null) {
+      scheduledSignal.isolated = GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN;
     }
     self._scheduledSignal = scheduledSignal;
 
@@ -4312,25 +4327,38 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     );
   }
 
-  // Check stop loss (use trailing SL if set, otherwise original SL)
+  // Check stop loss (use trailing SL if set, otherwise original SL).
+  // Isolated margin: цена ликвидации (leveraged PNL = -100%, см.
+  // getLiquidationPrice) выступает вторым стоп-уровнем; срабатывает тот, что
+  // БЛИЖЕ к цене (для LONG — выше, для SHORT — ниже). Закрытие идёт по точной
+  // цене уровня, так что ликвидация даёт ровно -100% в toProfitLossDto.
   const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+  const liquidationPrice = signal.isolated ? GET_LIQUIDATION_PRICE(signal) : null;
 
-  if (signal.position === "long" && averagePrice <= effectiveStopLoss) {
-    return await CLOSE_PENDING_SIGNAL_FN(
-      self,
-      signal,
-      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
-      "stop_loss"
-    );
+  if (signal.position === "long") {
+    const useLiquidation = liquidationPrice !== null && liquidationPrice > effectiveStopLoss;
+    const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
+    if (averagePrice <= stopPrice) {
+      return await CLOSE_PENDING_SIGNAL_FN(
+        self,
+        signal,
+        stopPrice, // КРИТИЧНО: точная цена уровня (liquidation / trailing / original SL)
+        useLiquidation ? "liquidation" : "stop_loss"
+      );
+    }
   }
 
-  if (signal.position === "short" && averagePrice >= effectiveStopLoss) {
-    return await CLOSE_PENDING_SIGNAL_FN(
-      self,
-      signal,
-      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
-      "stop_loss"
-    );
+  if (signal.position === "short") {
+    const useLiquidation = liquidationPrice !== null && liquidationPrice < effectiveStopLoss;
+    const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
+    if (averagePrice >= stopPrice) {
+      return await CLOSE_PENDING_SIGNAL_FN(
+        self,
+        signal,
+        stopPrice, // КРИТИЧНО: точная цена уровня (liquidation / trailing / original SL)
+        useLiquidation ? "liquidation" : "stop_loss"
+      );
+    }
   }
 
   return null;
@@ -4340,7 +4368,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
   self: ClientStrategy,
   signal: ISignalRow,
   currentPrice: number,
-  closeReason: "time_expired" | "take_profit" | "stop_loss"
+  closeReason: "time_expired" | "take_profit" | "stop_loss" | "liquidation"
 ): Promise<IStrategyTickResultClosed | null> => {
   const currentTime = self.params.execution.context.when.getTime();
 
@@ -5202,7 +5230,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   self: ClientStrategy,
   signal: ISignalRow,
   averagePrice: number,
-  closeReason: "time_expired" | "take_profit" | "stop_loss",
+  closeReason: "time_expired" | "take_profit" | "stop_loss" | "liquidation",
   closeTimestamp: number
 ): Promise<IStrategyTickResultClosed | null> => {
   // Sync close: if external system rejects — skip close, retry on next candle
@@ -6147,7 +6175,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     let shouldClose = false;
-    let closeReason: "time_expired" | "take_profit" | "stop_loss" | undefined;
+    let closeReason: "time_expired" | "take_profit" | "stop_loss" | "liquidation" | undefined;
 
     // Check time expiration FIRST (КРИТИЧНО!)
     const signalTime = signal.pendingAt;
@@ -6162,38 +6190,48 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     // Check TP/SL only if not expired
     // КРИТИЧНО: используем averagePrice (VWAP) для проверки достижения TP/SL (как в live mode)
     // КРИТИЧНО: используем trailing SL и TP если установлены
+    // Isolated margin: цена ликвидации выступает вторым стоп-уровнем — срабатывает
+    // тот, что ближе к цене (зеркало live-ветки CHECK_PENDING_SIGNAL_COMPLETION_FN)
     const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
     const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+    const liquidationPrice = signal.isolated ? GET_LIQUIDATION_PRICE(signal) : null;
 
     if (!shouldClose && signal.position === "long") {
-      // Для LONG: TP срабатывает если VWAP >= TP, SL если VWAP <= SL
+      const useLiquidation = liquidationPrice !== null && liquidationPrice > effectiveStopLoss;
+      const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
+      // Для LONG: TP срабатывает если VWAP >= TP, стоп/ликвидация если VWAP <= уровень
       if (averagePrice >= effectiveTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (averagePrice <= effectiveStopLoss) {
+      } else if (averagePrice <= stopPrice) {
         shouldClose = true;
-        closeReason = "stop_loss";
+        closeReason = useLiquidation ? "liquidation" : "stop_loss";
       }
     }
 
     if (!shouldClose && signal.position === "short") {
-      // Для SHORT: TP срабатывает если VWAP <= TP, SL если VWAP >= SL
+      const useLiquidation = liquidationPrice !== null && liquidationPrice < effectiveStopLoss;
+      const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
+      // Для SHORT: TP срабатывает если VWAP <= TP, стоп/ликвидация если VWAP >= уровень
       if (averagePrice <= effectiveTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (averagePrice >= effectiveStopLoss) {
+      } else if (averagePrice >= stopPrice) {
         shouldClose = true;
-        closeReason = "stop_loss";
+        closeReason = useLiquidation ? "liquidation" : "stop_loss";
       }
     }
 
     if (shouldClose) {
-      // КРИТИЧНО: используем точную цену TP/SL для закрытия (как в live mode)
+      // КРИТИЧНО: используем точную цену уровня для закрытия (как в live mode):
+      // liquidation закрывается по liquidationPrice — toProfitLossDto даёт ровно -100%
       let closePrice: number;
       if (closeReason === "take_profit") {
         closePrice = effectiveTakeProfit; // используем trailing TP если установлен
       } else if (closeReason === "stop_loss") {
         closePrice = effectiveStopLoss;
+      } else if (closeReason === "liquidation") {
+        closePrice = liquidationPrice!;
       } else {
         closePrice = averagePrice; // time_expired uses VWAP
       }
@@ -9343,6 +9381,7 @@ export class ClientStrategy implements IStrategy {
         priceOpen: dto.priceOpen ?? currentPrice,
         minuteEstimatedTime: dto.minuteEstimatedTime ?? GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES,
         multiplier: dto.multiplier ?? GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER,
+        isolated: dto.isolated ?? GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN,
       },
       currentPrice,
     )) {

@@ -11,6 +11,7 @@ import { GLOBAL_CONFIG } from "../config/params";
  * - TP/SL distance constraints from GLOBAL_CONFIG
  * - minuteEstimatedTime is valid
  * - multiplier is a finite positive number
+ * - isolated is a boolean
  *
  * Does NOT check:
  * - currentPrice vs SL/TP (immediate close protection — handled by pending/scheduled validators)
@@ -263,6 +264,16 @@ export const validateCommonSignal = (signal: ISignalDto) => {
     if (signal.multiplier <= 0) {
       errors.push(
         `multiplier must be positive, got ${signal.multiplier}`
+      );
+    }
+  }
+
+  // Валидация isolated (режим маржи). Валидатор получает уже задефолченное
+  // значение (isolated ?? CC_SIGNAL_ISOLATED_MARGIN на кол-сайтах).
+  {
+    if (typeof signal.isolated !== "boolean") {
+      errors.push(
+        `isolated must be a boolean, got ${signal.isolated} (${typeof signal.isolated})`
       );
     }
   }

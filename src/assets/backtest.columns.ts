@@ -123,6 +123,12 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     isVisible: () => true,
   },
   {
+    key: "isolated",
+    label: "Margin",
+    format: (data) => (data.signal.isolated !== undefined ? (data.signal.isolated ? "isolated" : "cross") : "N/A"),
+    isVisible: () => true,
+  },
+  {
     key: "pnl",
     label: "PNL (net)",
     format: (data) => {

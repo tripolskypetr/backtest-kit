@@ -97,6 +97,7 @@ export class BacktestReportService {
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
         multiplier: data.signal?.multiplier,
+        isolated: data.signal?.isolated,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "active") {
       await ReportWriter.writeData("backtest", {
@@ -117,6 +118,7 @@ export class BacktestReportService {
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
         multiplier: data.signal?.multiplier,
+        isolated: data.signal?.isolated,
         percentTp: data.percentTp,
         percentSl: data.percentSl,
         pnl: data.pnl.pnlPercentage,
@@ -159,6 +161,7 @@ export class BacktestReportService {
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
         multiplier: data.signal?.multiplier,
+        isolated: data.signal?.isolated,
         pnl: data.pnl.pnlPercentage,
         pnlCost: data.pnl.pnlCost,
         pnlEntries: data.pnl.pnlEntries,

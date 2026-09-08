@@ -77,6 +77,7 @@ export class RiskReportService {
       scheduledAt: data.currentSignal?.scheduledAt,
       minuteEstimatedTime: data.currentSignal?.minuteEstimatedTime,
       multiplier: data.currentSignal?.multiplier,
+      isolated: data.currentSignal?.isolated,
       totalPartials: data.currentSignal?.totalPartials,
       cost: data.currentSignal?.cost,
       pnlPercentage: data.currentSignal?.pnl?.pnlPercentage,

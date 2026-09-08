@@ -449,6 +449,8 @@ export const LOCALE: Record<string, string> = {
   "Avg Loss Duration": "平均亏损时长",
   "Avg Consecutive Win PNL": "平均连胜 PNL",
   "Avg Consecutive Loss PNL": "平均连亏 PNL",
+  "Avg Consecutive Win PNL Per Symbol": "每交易对平均连胜 PNL",
+  "Avg Consecutive Loss PNL Per Symbol": "每交易对平均连亏 PNL",
   "Unit": "单位",
   "Take profit": "止盈",
   "Stop loss": "止损",
