@@ -1436,6 +1436,38 @@ const GET_SIGNAL_FN = trycatch(
 );
 
 /**
+ * Финальная точка экскурсии: цена закрытия — тоже точка кривой сделки.
+ *
+ * Тик закрывает позицию ДО блока обновления _peak/_fall, поэтому без этой
+ * дописи maxDrawdown ликвидированной сделки замирал на значении предыдущего
+ * тика и «не доходил» до -100% — хотя худшая точка сделки и есть сама
+ * ликвидация. Если реализуемый PNL на цене закрытия ХУЖЕ зафиксированного
+ * _fall (liquidation / stop_loss / просевший time_expired), _fall дописывается
+ * ПЕРЕД формированием результата — maxDrawdown в close-результате и
+ * нотификациях несёт финальную точку. Для take_profit условие просто не
+ * срабатывает. _peak симметрично НЕ дописывается: пик остаётся VWAP-историей,
+ * финальный профит и так лежит в result.pnl (задокументированное поведение).
+ */
+const RECORD_CLOSE_FALL_FN = (
+  signal: ISignalRow,
+  closePrice: number,
+  timestamp: number
+): void => {
+  const pnl = toProfitLossDto(signal, closePrice);
+  if (!signal._fall || pnl.pnlPercentage < signal._fall.pnlPercentage) {
+    signal._fall = {
+      price: closePrice,
+      timestamp,
+      pnlPercentage: pnl.pnlPercentage,
+      pnlCost: pnl.pnlCost,
+      pnlEntries: pnl.pnlEntries,
+      priceOpen: pnl.priceOpen,
+      priceClose: pnl.priceClose,
+    };
+  }
+};
+
+/**
  * Progress (0-100) of the covered distance toward TP/SL.
  *
  * A non-positive total distance is reachable (e.g. breakeven moved the SL exactly
@@ -4395,6 +4427,10 @@ const CLOSE_PENDING_SIGNAL_FN = async (
   // terminal rejection; RESOLVE_CLOSE_GATE_FN already screamed via errorEmitter and
   // the adapter/operator reconciles the real exchange position off the close event).
 
+  // Финальная точка экскурсии: maxDrawdown обязан дойти до цены закрытия
+  // (ликвидация -> ровно -100%), см. RECORD_CLOSE_FALL_FN
+  RECORD_CLOSE_FALL_FN(signal, currentPrice, currentTime);
+
   const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
 
   self.params.logger.info(`ClientStrategy signal ${closeReason}`, {
@@ -5253,6 +5289,10 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     return null;
   }
   // "allow" | "force" — proceed with the teardown (see RESOLVE_CLOSE_GATE_FN)
+
+  // Финальная точка экскурсии: maxDrawdown обязан дойти до цены закрытия
+  // (ликвидация -> ровно -100%), зеркало live-ветки — см. RECORD_CLOSE_FALL_FN
+  RECORD_CLOSE_FALL_FN(signal, averagePrice, closeTimestamp);
 
   const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
 

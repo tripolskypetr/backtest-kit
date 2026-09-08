@@ -142,8 +142,14 @@ test("LIQUIDATION: isolated 100x LONG is force-closed at the exact liquidation p
     fail(`liquidation pnlCost must equal -margin (-pnlEntries), got ${tick3.pnl.pnlCost} vs entries ${tick3.pnl.pnlEntries}`);
     return;
   }
+  // Финальная точка экскурсии: maxDrawdown обязан ДОЙТИ до -100% (закрытие —
+  // тоже точка кривой; без RECORD_CLOSE_FALL_FN он замирал на прошлом тике)
+  if (!approxEqual(tick3.signal.maxDrawdown.pnlPercentage, -100)) {
+    fail(`liquidated trade's maxDrawdown must reach exactly -100%, got ${tick3.signal.maxDrawdown.pnlPercentage}`);
+    return;
+  }
 
-  pass(`isolated 100x liquidated at ${tick3.currentPrice.toFixed(4)} (closeReason "liquidation"), pnl ${tick3.pnl.pnlPercentage.toFixed(6)}%, pnlCost ${tick3.pnl.pnlCost.toFixed(2)} USD`);
+  pass(`isolated 100x liquidated at ${tick3.currentPrice.toFixed(4)} (closeReason "liquidation"), pnl ${tick3.pnl.pnlPercentage.toFixed(6)}%, maxDrawdown ${tick3.signal.maxDrawdown.pnlPercentage.toFixed(2)}%, pnlCost ${tick3.pnl.pnlCost.toFixed(2)} USD`);
 });
 
 test("LIQUIDATION: cross margin (default) survives the same drawdown with pnl below -100%", async ({ pass, fail }) => {
@@ -352,6 +358,11 @@ test("LIQUIDATION: backtest candle loop liquidates an isolated position the same
     fail(`backtest liquidation pnl must be exactly -100%, got ${closed[0].pnl.pnlPercentage}`);
     return;
   }
+  // Финальная точка экскурсии (зеркало live-ассерта): maxDrawdown = -100%
+  if (!approxEqual(closed[0].signal.maxDrawdown.pnlPercentage, -100)) {
+    fail(`backtest liquidated trade's maxDrawdown must reach exactly -100%, got ${closed[0].signal.maxDrawdown.pnlPercentage}`);
+    return;
+  }
 
-  pass(`backtest liquidated at ${closed[0].currentPrice.toFixed(4)} with pnl ${closed[0].pnl.pnlPercentage.toFixed(6)}% (closeReason "liquidation")`);
+  pass(`backtest liquidated at ${closed[0].currentPrice.toFixed(4)} with pnl ${closed[0].pnl.pnlPercentage.toFixed(6)}%, maxDrawdown ${closed[0].signal.maxDrawdown.pnlPercentage.toFixed(2)}% (closeReason "liquidation")`);
 });
