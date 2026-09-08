@@ -123,6 +123,9 @@ test("multiplier: validateSignal rejects non-positive and Infinity multiplier", 
     priceTakeProfit: 110,
     priceStopLoss: 90,
     minuteEstimatedTime: 60,
+    // validateCommonSignal получает задефолченные значения (контракт кол-сайтов);
+    // isolated обязателен с появлением isolated-margin
+    isolated: false,
   };
   if (!validateSignal({ ...dto, multiplier: 2.5 }, 100)) {
     fail("fractional multiplier 2.5 must be valid");

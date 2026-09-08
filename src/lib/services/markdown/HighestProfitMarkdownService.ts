@@ -74,6 +74,11 @@ class ReportStorage {
    * Once the queue exceeds `GLOBAL_CONFIG.CC_MAX_HIGHEST_PROFIT_MARKDOWN_ROWS`
    * (250) entries, the oldest entry is dropped from the tail.
    *
+   * NOTE: the upstream `onHighestProfit` event fires only when the realizable
+   * PNL at the new favorable extreme is POSITIVE (a move that does not cover
+   * round-trip costs is not a peak — see the `_peak` gate in ClientStrategy).
+   * A trade that never turned profitable produces ZERO rows here.
+   *
    * @param data - Public signal row at the moment the new profit record was set;
    *   provides `symbol`, `strategyName`, `id`, `position`, `pnl`,
    *   `priceOpen`, `priceTakeProfit`, `priceStopLoss`
@@ -141,7 +146,7 @@ class ReportStorage {
    * **Total events:** N
    * ```
    * When no events have been recorded yet, returns a minimal header with
-   * `"No highest profit events recorded yet."`.
+   * `"No profitable peak recorded yet (peaks are recorded only when realizable PNL is positive)."`.
    *
    * Only columns whose `isVisible()` returns `true` are included.
    * Rows are ordered newest-first (same order as the internal queue).
@@ -163,7 +168,7 @@ class ReportStorage {
       return [
         `# Highest Profit Report: ${symbol}:${strategyName}`,
         "",
-        "No highest profit events recorded yet.",
+        "No profitable peak recorded yet (peaks are recorded only when realizable PNL is positive).",
       ].join("\n");
     }
 
