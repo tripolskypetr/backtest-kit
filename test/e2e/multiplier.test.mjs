@@ -283,6 +283,91 @@ test("MULTIPLIER: omitted field defaults to 1, survives a restart and back-compa
   }
 });
 
+test("MULTIPLIER: peakProfit records only positive realizable PNL (never negative)", async ({ pass, fail }) => {
+  // Цена выше входа, но издержки не покрыты (сырой ход +0.2% < ~0.4% издержек):
+  // реализуемый PNL отрицателен — это НЕ пик. Снапшот обязан остаться нулевым
+  // (не отрицательным!), а после покрытия издержек (+1%) — стать положительным.
+  const basePrice = 50000;
+  const t0 = new Date("2024-04-01T00:00:00Z").getTime();
+  const context = {
+    strategyName: "multiplier-peak-strategy",
+    exchangeName: "binance-multiplier-peak",
+    frameName: "",
+  };
+
+  let market = basePrice;
+  let signalGenerated = false;
+
+  makeExchange(context.exchangeName, () => market);
+
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      return {
+        position: "long",
+        note: "peak positive only",
+        priceTakeProfit: basePrice * 1.1,
+        priceStopLoss: basePrice * 0.9,
+        minuteEstimatedTime: 60,
+        multiplier: 100,
+      };
+    },
+  });
+
+  const runTick = makeRunTick(context);
+
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "opened") {
+    fail(`tick #1 expected "opened", got "${tick1.action}"`);
+    return;
+  }
+  if (tick1.signal.peakProfit.pnlPercentage !== 0) {
+    fail(`peakProfit at open must be the zero snapshot, got ${tick1.signal.peakProfit.pnlPercentage}`);
+    return;
+  }
+
+  // +0.2% сырого хода: реализуемый PNL ~100 × (0.2 - 0.4)% = -20% — НЕ пик
+  market = basePrice * 1.002;
+  const tick2 = await runTick(new Date(t0 + 1 * MIN));
+  if (tick2.action !== "active") {
+    fail(`tick #2 expected "active", got "${tick2.action}"`);
+    return;
+  }
+  if (tick2.signal.peakProfit.pnlPercentage !== 0) {
+    fail(`favorable move below cost coverage must NOT record a peak (expected 0), got ${tick2.signal.peakProfit.pnlPercentage}`);
+    return;
+  }
+  if (tick2.signal.pnl.pnlPercentage >= 0) {
+    fail(`sanity: realizable PNL at +0.2% raw must be negative under costs, got ${tick2.signal.pnl.pnlPercentage}`);
+    return;
+  }
+
+  // +1% сырого хода: реализуемый PNL положителен — пик записывается
+  market = basePrice * 1.01;
+  const tick3 = await runTick(new Date(t0 + 2 * MIN));
+  if (tick3.action !== "active") {
+    fail(`tick #3 expected "active", got "${tick3.action}"`);
+    return;
+  }
+  const expectedPeak = toProfitLossDto(
+    { position: "long", priceOpen: basePrice, cost: 100, multiplier: 100 },
+    market,
+  ).pnlPercentage;
+  if (expectedPeak <= 0) {
+    fail(`sanity: +1% raw at 100x must yield positive PNL, got ${expectedPeak}`);
+    return;
+  }
+  if (!approxEqual(tick3.signal.peakProfit.pnlPercentage, expectedPeak)) {
+    fail(`peak after covering costs must equal the leveraged realizable PNL ${expectedPeak}, got ${tick3.signal.peakProfit.pnlPercentage}`);
+    return;
+  }
+
+  pass(`peakProfit stayed 0 below cost coverage and recorded +${tick3.signal.peakProfit.pnlPercentage.toFixed(4)}% once realizable PNL turned positive`);
+});
+
 test("MULTIPLIER: 100x position is closed by a manual hard stop from the lifecycle (listenActivePing)", async ({ pass, fail }) => {
   const basePrice = 50000;
   // Порог hard stop по LEVERAGED PNL (как HARD_STOP в jan_2026.strategy, но на

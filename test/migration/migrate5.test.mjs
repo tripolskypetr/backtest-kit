@@ -722,8 +722,13 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
     return;
   }
 
-  if (onWriteCallsWithSignal !== 6) {
-    fail(`CONCURRENCY BUG: onWrite(signal) called ${onWriteCallsWithSignal} times, expected EXACTLY 1. Possible race condition or duplicate persist writes!`);
+  // 5 записей: активация + _fall-экстремумы. Раньше было 6 — первый VWAP-максимум
+  // выше входа записывал _peak с ОТРИЦАТЕЛЬНЫМ реализуемым PNL (ход +0.24% не
+  // покрывает издержки 0.4%); теперь пик пишется только при положительном PNL
+  // (см. гейт pnl > 0 в ClientStrategy и тест multiplier.test.mjs "peakProfit
+  // records only positive realizable PNL").
+  if (onWriteCallsWithSignal !== 5) {
+    fail(`CONCURRENCY BUG: onWrite(signal) called ${onWriteCallsWithSignal} times, expected EXACTLY 5. Possible race condition or duplicate persist writes!`);
     return;
   }
 

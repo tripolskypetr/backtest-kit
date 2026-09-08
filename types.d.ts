@@ -3438,8 +3438,12 @@ interface ISignalRow extends ISignalDto {
     _trailingPriceTakeProfit?: number;
     /**
      * Best price seen in profit direction during the life of this position.
-     * Initialized at position open with priceOpen/pendingAt.
-     * Updated on every tick/candle when price moves toward TP (currentDistance > 0).
+     * Initialized at position open with priceOpen/pendingAt and a ZERO pnl snapshot.
+     * Updated on every tick/candle when price moves toward TP (currentDistance > 0)
+     * AND the realizable PNL at that price is POSITIVE — a favorable move that does
+     * not cover round-trip costs (slippage + fees) is NOT a peak. A position that
+     * never reached positive realizable PNL keeps the zero snapshot, so peakProfit
+     * is never published as a negative number.
      * - For LONG: maximum VWAP price seen above effective entry
      * - For SHORT: minimum VWAP price seen below effective entry
      */

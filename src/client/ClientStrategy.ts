@@ -4568,27 +4568,33 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice > signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen};
-          if (self.params.callbacks?.onWrite) {
-            self.params.callbacks.onWrite(
-              signal.symbol,
+          // Пик — только реальный плюс: цена выше входа, но издержки не покрыты
+          // (реализуемый PNL <= 0) — НЕ пик. Снапшот остаётся нулевым («плюса
+          // не было»), отрицательный peakProfit наружу не публикуется, и
+          // onHighestProfit не фейрится без фактической прибыли.
+          if (pnl.pnlPercentage > 0) {
+            signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen};
+            if (self.params.callbacks?.onWrite) {
+              self.params.callbacks.onWrite(
+                signal.symbol,
+                signal,
+                currentPrice,
+                new Date(currentTime),
+                backtest
+              );
+            }
+            !backtest && await PersistSignalAdapter.writeSignalData(
               signal,
-              currentPrice,
-              new Date(currentTime),
-              backtest
+              self.params.execution.context.symbol,
+              self.params.strategyName,
+              self.params.exchangeName,
             );
+            await self.params.onHighestProfit(
+              TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
+              currentPrice,
+              currentTime,
+            )
           }
-          !backtest && await PersistSignalAdapter.writeSignalData(
-            signal,
-            self.params.execution.context.symbol,
-            self.params.strategyName,
-            self.params.exchangeName,
-          );
-          await self.params.onHighestProfit(
-            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
-            currentPrice,
-            currentTime,
-          )
         }
 
         await CALL_ACTIVE_PING_CALLBACKS_FN(
@@ -4687,27 +4693,31 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice < signal._peak.price) {
           const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
-          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
-          if (self.params.callbacks?.onWrite) {
-            self.params.callbacks.onWrite(
-              signal.symbol,
+          // Пик — только реальный плюс (зеркало LONG-ветки выше): реализуемый
+          // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
+          if (pnl.pnlPercentage > 0) {
+            signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceClose: pnl.priceClose, priceOpen: pnl.priceOpen };
+            if (self.params.callbacks?.onWrite) {
+              self.params.callbacks.onWrite(
+                signal.symbol,
+                signal,
+                currentPrice,
+                new Date(currentTime),
+                backtest
+              );
+            }
+            !backtest && await PersistSignalAdapter.writeSignalData(
               signal,
-              currentPrice,
-              new Date(currentTime),
-              backtest
+              self.params.execution.context.symbol,
+              self.params.strategyName,
+              self.params.exchangeName,
             );
+            await self.params.onHighestProfit(
+              TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
+              currentPrice,
+              currentTime,
+            )
           }
-          !backtest && await PersistSignalAdapter.writeSignalData(
-            signal,
-            self.params.execution.context.symbol,
-            self.params.strategyName,
-            self.params.exchangeName,
-          );
-          await self.params.onHighestProfit(
-            TO_PUBLIC_SIGNAL("pending", signal, currentPrice),
-            currentPrice,
-            currentTime,
-          )
         }
 
         await CALL_ACTIVE_PING_CALLBACKS_FN(
@@ -6227,21 +6237,25 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
           if (averagePrice > signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
-            if (self.params.callbacks?.onWrite) {
-              self.params.callbacks.onWrite(
-                signal.symbol,
-                signal,
+            // Пик — только реальный плюс (зеркало live-ветки): реализуемый
+            // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
+            if (pnl.pnlPercentage > 0) {
+              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+              if (self.params.callbacks?.onWrite) {
+                self.params.callbacks.onWrite(
+                  signal.symbol,
+                  signal,
+                  averagePrice,
+                  new Date(currentCandleTimestamp),
+                  true
+                );
+              }
+              await self.params.onHighestProfit(
+                TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
                 averagePrice,
-                new Date(currentCandleTimestamp),
-                true
+                currentCandleTimestamp
               );
             }
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
@@ -6312,21 +6326,25 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
           if (averagePrice < signal._peak.price) {
             const { pnl } = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
-            if (self.params.callbacks?.onWrite) {
-              self.params.callbacks.onWrite(
-                signal.symbol,
-                signal,
+            // Пик — только реальный плюс (зеркало live-ветки): реализуемый
+            // PNL <= 0 пиком не считается, снапшот остаётся нулевым.
+            if (pnl.pnlPercentage > 0) {
+              signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage, pnlEntries: pnl.pnlEntries, priceOpen: pnl.priceOpen, priceClose: pnl.priceClose };
+              if (self.params.callbacks?.onWrite) {
+                self.params.callbacks.onWrite(
+                  signal.symbol,
+                  signal,
+                  averagePrice,
+                  new Date(currentCandleTimestamp),
+                  true
+                );
+              }
+              await self.params.onHighestProfit(
+                TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
                 averagePrice,
-                new Date(currentCandleTimestamp),
-                true
+                currentCandleTimestamp
               );
             }
-            await self.params.onHighestProfit(
-              TO_PUBLIC_SIGNAL("pending", signal, averagePrice),
-              averagePrice,
-              currentCandleTimestamp
-            );
           }
 
           await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
