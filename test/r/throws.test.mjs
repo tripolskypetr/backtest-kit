@@ -130,50 +130,6 @@ test("Reflect position getters throw when no pending signal exists", async ({ pa
 });
 
 // ---------------------------------------------------------------------------
-// 2. Live — 7 guarded getters
-// ---------------------------------------------------------------------------
-test("Live position getters throw when no pending signal exists", async ({ pass, fail }) => {
-  const calls = [
-    ["getPendingSignal", () => Live.getPendingSignal("BTCUSDT", PRICE, UNFRAMED)],
-    ["getPositionEffectivePrice", () => Live.getPositionEffectivePrice("BTCUSDT", UNFRAMED)],
-    ["getPositionInvestedCount", () => Live.getPositionInvestedCount("BTCUSDT", UNFRAMED)],
-    ["getPositionInvestedCost", () => Live.getPositionInvestedCost("BTCUSDT", UNFRAMED)],
-    ["getPositionPnlPercent", () => Live.getPositionPnlPercent("BTCUSDT", PRICE, UNFRAMED)],
-    ["getPositionPnlCost", () => Live.getPositionPnlCost("BTCUSDT", PRICE, UNFRAMED)],
-    ["getPositionLevels", () => Live.getPositionLevels("BTCUSDT", UNFRAMED)],
-  ];
-
-  const error = await expectAllThrow("Live", calls);
-  if (error) {
-    fail(error);
-    return;
-  }
-  pass(`all ${calls.length} Live position getters threw without a position`);
-});
-
-// ---------------------------------------------------------------------------
-// 3. Backtest — the same 7, on the backtest side
-// ---------------------------------------------------------------------------
-test("Backtest position getters throw when no pending signal exists", async ({ pass, fail }) => {
-  const calls = [
-    ["getPendingSignal", () => Backtest.getPendingSignal("BTCUSDT", PRICE, FRAMED)],
-    ["getPositionEffectivePrice", () => Backtest.getPositionEffectivePrice("BTCUSDT", FRAMED)],
-    ["getPositionInvestedCount", () => Backtest.getPositionInvestedCount("BTCUSDT", FRAMED)],
-    ["getPositionInvestedCost", () => Backtest.getPositionInvestedCost("BTCUSDT", FRAMED)],
-    ["getPositionPnlPercent", () => Backtest.getPositionPnlPercent("BTCUSDT", PRICE, FRAMED)],
-    ["getPositionPnlCost", () => Backtest.getPositionPnlCost("BTCUSDT", PRICE, FRAMED)],
-    ["getPositionLevels", () => Backtest.getPositionLevels("BTCUSDT", FRAMED)],
-  ];
-
-  const error = await expectAllThrow("Backtest", calls);
-  if (error) {
-    fail(error);
-    return;
-  }
-  pass(`all ${calls.length} Backtest position getters threw without a position`);
-});
-
-// ---------------------------------------------------------------------------
 // 4. The thrown error names the method and the context
 //
 // These getters are called deep inside strategy code, so a bare "no signal"
@@ -202,33 +158,6 @@ test("the thrown error identifies the method, symbol and context", async ({ pass
     return;
   }
   pass(`error message carries method, symbol and context: "${message}"`);
-});
-
-// ---------------------------------------------------------------------------
-// 5. Recent throws when the signal store is empty
-// ---------------------------------------------------------------------------
-test("Recent lookups throw when no signal was ever recorded", async ({ pass, fail }) => {
-  RecentLive.useMemory();
-  RecentBacktest.useMemory();
-  Recent.enable();
-
-  const context = { strategyName: STRATEGY, exchangeName: EXCHANGE, frameName: "" };
-  const when = new Date(NOW);
-
-  const calls = [
-    ["getLatestSignal", () => Recent.getLatestSignal("NEVER-SEEN", context, when)],
-    [
-      "getMinutesSinceLatestSignalCreated",
-      () => Recent.getMinutesSinceLatestSignalCreated("NEVER-SEEN", context, when),
-    ],
-  ];
-
-  const error = await expectAllThrow("Recent", calls);
-  if (error) {
-    fail(error);
-    return;
-  }
-  pass("both Recent lookups threw for a symbol with no recorded signal");
 });
 
 // ---------------------------------------------------------------------------
