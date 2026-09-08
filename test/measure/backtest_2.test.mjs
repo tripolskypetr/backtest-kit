@@ -120,8 +120,8 @@ const computePoolReference = (rows) => {
 
   let expectedYearlyReturns = null;
   if (canAnnualize) {
-    if (blown) expectedYearlyReturns = -100;
-    else {
+    // blown -> null (N/A-on-blown contract: margin-based compounding is degenerate)
+    if (!blown) {
       const raw = (Math.pow(equityFinal, tradesPerYear / n) - 1) * 100;
       expectedYearlyReturns = Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
     }

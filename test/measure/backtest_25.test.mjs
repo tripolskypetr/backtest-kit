@@ -22,13 +22,14 @@ import { runBacktestPool, runLivePool, MAX_EXPECTED_YEARLY_RETURNS } from "../ut
 const POOL = "POOL-B25";
 
 const assertDeepNeg = (stats) => {
-  // Account is NOT blown (no single trade at -100%). blown sentinel would
-  // be expectedYearly = -100 exactly. We expect a real number < -99 > -100.
+  // Account is NOT blown (no single trade at -100%): blown now yields null
+  // (N/A-on-blown), so a computed real number here doubles as proof that blow
+  // detection did not misfire. We expect a real number < -99 > -100.
   if (stats.expectedYearlyReturns === null) {
-    return `expectedYearlyReturns must be computed (within ±${MAX_EXPECTED_YEARLY_RETURNS}% cap), got null`;
+    return `expectedYearlyReturns must be computed (not blown, within ±${MAX_EXPECTED_YEARLY_RETURNS}% cap), got null — blown detection may have misfired`;
   }
   if (stats.expectedYearlyReturns === -100) {
-    return `expectedYearlyReturns must NOT be the blown sentinel -100 (no -100% trade); got -100. Means blow detection misfired.`;
+    return `expectedYearlyReturns must be a real compound value, got exactly -100 (suspicious legacy sentinel)`;
   }
   if (stats.expectedYearlyReturns >= -90) {
     return `expectedYearlyReturns must be deeply negative (< -90), got ${stats.expectedYearlyReturns}`;

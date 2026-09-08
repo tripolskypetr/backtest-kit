@@ -6,11 +6,12 @@ import { runBacktestPool, runLivePool } from "../utils/measure_helpers.mjs";
 
 // Edge case: blown account.
 // 11 modest signals then one -150% (leveraged short going against position).
-// Expectation:
+// Expectation (N/A-on-blown contract: margin-based compounding is degenerate,
+// a single -100% trade zeroes the product regardless of every other trade):
 // - equity goes ≤ 0 → blown=true → equityMaxDrawdown = 100%
-// - expectedYearlyReturns = -100 (full wipeout, not null)
+// - expectedYearlyReturns = null (NOT the legacy -100 sentinel)
 // - recoveryFactor = null (ratio meaningless after blow-up)
-// - calmarRatio = expectedYearlyReturns / maxDD = -100/100 = -1
+// - calmarRatio = null (inherits the null yearly numerator)
 
 const POOL = "POOL-B10";
 
@@ -21,24 +22,24 @@ const assertBlown = (stats) => {
     // Doesn't matter to the blown-account assertion — leave it alone.
   }
   // equityMaxDrawdown is not exposed directly on the model; we infer via
-  // recoveryFactor=null + expectedYearlyReturns=-100, which only happens
-  // together when blown is true.
-  if (stats.expectedYearlyReturns !== -100) {
-    return `expectedYearlyReturns must be -100 when blown, got ${stats.expectedYearlyReturns}`;
+  // recoveryFactor=null + expectedYearlyReturns=null, which only happens
+  // together when blown is true (the annualization gates are all satisfied here).
+  if (stats.expectedYearlyReturns !== null) {
+    return `expectedYearlyReturns must be null when blown (N/A-on-blown), got ${stats.expectedYearlyReturns}`;
   }
   if (stats.recoveryFactor !== null) {
     return `recoveryFactor must be null when blown, got ${stats.recoveryFactor}`;
   }
-  if (stats.calmarRatio === null || Math.abs(stats.calmarRatio - (-1)) > 1e-9) {
-    return `calmarRatio must equal -1 (=-100/100) when blown, got ${stats.calmarRatio}`;
+  if (stats.calmarRatio !== null) {
+    return `calmarRatio must be null when blown (yearly numerator is null), got ${stats.calmarRatio}`;
   }
   return null;
 };
 
-test("backtest_10.json: blown account (r=-150%) — DD=100, expectedYearly=-100, recovery=null (Backtest)", async (ctx) => {
+test("backtest_10.json: blown account (r=-150%) — DD=100, expectedYearly=null, recovery=null (Backtest)", async (ctx) => {
   await runBacktestPool(lib.backtestMarkdownService, signals, POOL, "Backtest blown-account verified", ctx, assertBlown);
 });
 
-test("backtest_10.json: blown account (r=-150%) — DD=100, expectedYearly=-100, recovery=null (Live)", async (ctx) => {
+test("backtest_10.json: blown account (r=-150%) — DD=100, expectedYearly=null, recovery=null (Live)", async (ctx) => {
   await runLivePool(lib.liveMarkdownService, signals, POOL, "Live blown-account verified", ctx, assertBlown);
 });

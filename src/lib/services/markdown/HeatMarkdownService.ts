@@ -652,9 +652,11 @@ class HeatmapStorage {
         const rawTradesPerYear = (signals.length / calendarSpanDays) * 365;
         if (rawTradesPerYear <= MAX_TRADES_PER_YEAR) {
           tradesPerYear = rawTradesPerYear;
-          if (blown) {
-            expectedYearlyReturns = -100;
-          } else {
+          // Blown curve (a trade at/below -100%, e.g. a liquidation) -> null:
+          // margin-based compounding is degenerate there — a single -100% trade
+          // zeroes ∏(1 + r), so the annualized figure stops ranking leveraged
+          // strategies (same philosophy as the cap below).
+          if (!blown) {
             // If raw value exceeds MAX_EXPECTED_YEARLY_RETURNS, leave null rather than
             // show the cap — capped numbers mislead users into trusting them.
             const raw = (Math.pow(equityFinal, tradesPerYear / signals.length) - 1) * 100;
@@ -970,9 +972,8 @@ class HeatmapStorage {
         const rawTradesPerYear = (allReturns.length / poolSpanDays) * 365;
         if (rawTradesPerYear <= MAX_TRADES_PER_YEAR) {
           portfolioTradesPerYear = rawTradesPerYear;
-          if (blown) {
-            portfolioExpectedYearlyReturns = -100;
-          } else {
+          // Blown pooled curve -> null, not -100 (see the per-symbol branch above)
+          if (!blown) {
             const raw = (Math.pow(equityFinal, rawTradesPerYear / allReturns.length) - 1) * 100;
             portfolioExpectedYearlyReturns =
               Math.abs(raw) > MAX_EXPECTED_YEARLY_RETURNS ? null : raw;
@@ -1255,7 +1256,7 @@ class HeatmapStorage {
       `*Pooled Sharpe: pooled mean per-trade PNL divided by the pooled sample standard deviation (Bessel-corrected, N−1 denominator) of per-trade PNL, computed over the POOLED set of every closed signal of every symbol treated as one sample. UNITS: dimensionless ratio. NOT a Markowitz portfolio Sharpe — ignores cross-symbol correlations and capital allocation. Null when pooled trade count < ${MIN_SIGNALS_FOR_RATIOS} OR pooled standard deviation ≤ 1e-9. Rule of thumb: below 1.0 poor, 1.0–2.0 acceptable, above 2.0 strong.*`,
       `*Annualized Sharpe (portfolio): Pooled Sharpe × √(portfolio Trades Per Year). UNITS: dimensionless. Null when Pooled Sharpe is null OR portfolio Trades Per Year is null OR ≤ 0. Assumes returns are iid — autocorrelated strategies are overstated.*`,
       `*Certainty Ratio (portfolio): pooledAvgWin / |pooledAvgLoss| where pooledAvgWin = mean over pooled winning closed signals and pooledAvgLoss = mean over pooled losing closed signals. UNITS: dimensionless. Below 1.0 means the typical loss exceeds the typical win; above 1.5 is generally good. Null when pooled N < ${MIN_SIGNALS_FOR_RATIOS}, OR no losing trades in the pool, OR |pooledAvgLoss| < 1e-9.*`,
-      `*Expected Yearly Returns (portfolio): geometric annualisation of the pooled equity curve: (pooled final equity ^ (portfolio Trades Per Year / pooled trade count) − 1) × 100, where the pooled equity curve walks every closed signal of every symbol chronologically by close-time and compounds (1 + per-trade PNL / 100). UNITS: percent per year. Null when the pooled calendar span < ${MIN_CALENDAR_SPAN_DAYS} days, raw portfolio Trades Per Year > ${MAX_TRADES_PER_YEAR}, or |raw value| > ${MAX_EXPECTED_YEARLY_RETURNS}%. −100% if the pooled equity curve hits ≤ 0.*`,
+      `*Expected Yearly Returns (portfolio): geometric annualisation of the pooled equity curve: (pooled final equity ^ (portfolio Trades Per Year / pooled trade count) − 1) × 100, where the pooled equity curve walks every closed signal of every symbol chronologically by close-time and compounds (1 + per-trade PNL / 100). UNITS: percent per year. Null when the pooled calendar span < ${MIN_CALENDAR_SPAN_DAYS} days, raw portfolio Trades Per Year > ${MAX_TRADES_PER_YEAR}, or |raw value| > ${MAX_EXPECTED_YEARLY_RETURNS}%. N/A when the pooled equity curve blew (reached ≤ 0 — e.g. contains a liquidation at −100%): margin-based compounding is degenerate there.*`,
       `*Trades Per Year (portfolio): pooled trade count × 365 / pooled span in days, where pooled span = (latest close-time − earliest pending-time across the whole pool) / day. UNITS: trades / year. Null when pooled trade count < ${MIN_SIGNALS_FOR_RATIOS}, OR pooled span < ${MIN_CALENDAR_SPAN_DAYS} days, OR raw value > ${MAX_TRADES_PER_YEAR} (sample too clustered to extrapolate reliably). NOTE: portfolio Trades Per Year inherits the ratios-block sample-size gate (MIN_SIGNALS_FOR_RATIOS) on the pooled count, whereas the per-symbol Trades Per Year column uses the annualisation-block gate (MIN_SIGNALS_FOR_ANNUALIZATION) on the per-symbol count. The two constants are equal (${MIN_SIGNALS_FOR_RATIOS}) in this build, so this never produces a discrepancy in practice; should they ever diverge, portfolio Trades Per Year would surface earlier than per-symbol Trades Per Year, which is consistent with the rest of the portfolio block already being scoped under the ratios gate.*`,
       `*Total Trades (portfolio = portfolioTotalTrades): sum of per-symbol totalTrades over all tracked symbols. UNITS: integer count.*`,
       `*Avg Peak PNL (portfolio): trade-count-weighted mean of per-symbol Avg Peak PNL over symbols whose value is non-null. Weights are per-symbol Total Trades; symbols without any peak-snapshot signals don't contribute and don't dilute. UNITS: percent. Describes the portfolio's typical best-case unrealised excursion. NOT gated by MIN_SIGNALS at portfolio level — null only if every symbol's Avg Peak PNL is null.*`,
@@ -1288,7 +1289,7 @@ class HeatmapStorage {
       `*Sharpe Ratio (column): per-symbol Avg PNL / Standard Deviation (risk-free rate = 0). UNITS: dimensionless. Below 1.0 poor, 1.0–2.0 acceptable, above 2.0 strong. Null when that symbol's trade count < ${MIN_SIGNALS_FOR_RATIOS} OR Standard Deviation ≤ 1e-9 (identical-returns / float-artifact guard).*`,
       `*Annualized Sharpe (column): per-symbol Sharpe Ratio × √(per-symbol Trades Per Year), where Trades Per Year for that symbol = its trade count × 365 / its calendar span in days. UNITS: dimensionless. Null when per-symbol Sharpe Ratio is null, OR that symbol's Trades Per Year is null (requires trade count ≥ ${MIN_SIGNALS_FOR_ANNUALIZATION}, calendar span ≥ ${MIN_CALENDAR_SPAN_DAYS} days, raw frequency ≤ ${MAX_TRADES_PER_YEAR}). Assumes iid returns.*`,
       `*Certainty Ratio (column): per-symbol Avg Win / |Avg Loss|. UNITS: dimensionless. Below 1.0 = typical loss exceeds typical win; above 1.5 generally good. Null when that symbol's trade count < ${MIN_SIGNALS_FOR_RATIOS}, OR Avg Win / Avg Loss missing, OR Avg Loss ≥ 0, OR |Avg Loss| < 1e-9 (float-artifact loss guard).*`,
-      `*Expected Yearly Returns (column): per-symbol geometric annualisation of that symbol's equity curve — (final equity ^ (Trades Per Year / trade count) − 1) × 100, where final equity is the compounded product of (1 + per-trade PNL / 100) walked over that symbol's signals in chronological close order. UNITS: percent per year. Null when trade count < ${MIN_SIGNALS_FOR_ANNUALIZATION}, calendar span < ${MIN_CALENDAR_SPAN_DAYS} days, raw frequency > ${MAX_TRADES_PER_YEAR}, or |raw value| > ${MAX_EXPECTED_YEARLY_RETURNS}%. −100% when the symbol's equity curve hits ≤ 0.*`,
+      `*Expected Yearly Returns (column): per-symbol geometric annualisation of that symbol's equity curve — (final equity ^ (Trades Per Year / trade count) − 1) × 100, where final equity is the compounded product of (1 + per-trade PNL / 100) walked over that symbol's signals in chronological close order. UNITS: percent per year. Null when trade count < ${MIN_SIGNALS_FOR_ANNUALIZATION}, calendar span < ${MIN_CALENDAR_SPAN_DAYS} days, raw frequency > ${MAX_TRADES_PER_YEAR}, or |raw value| > ${MAX_EXPECTED_YEARLY_RETURNS}%. N/A when the symbol's equity curve blew (reached ≤ 0 — e.g. contains a liquidation at −100%): margin-based compounding is degenerate there.*`,
       `*Trades Per Year (column): per-symbol trade count × 365 / calendar span in days, where calendar span = (latest close-time − earliest pending-time for that symbol) / day. UNITS: trades / year. Null when trade count < ${MIN_SIGNALS_FOR_ANNUALIZATION}, calendar span < ${MIN_CALENDAR_SPAN_DAYS} days, or raw value > ${MAX_TRADES_PER_YEAR}.*`,
       `*Profit Factor (column): per-symbol Σ winning per-trade PNL / |Σ losing per-trade PNL|. UNITS: dimensionless. Below 1.0 means the symbol is net losing; above 1.5 is generally good. Null when there are no winning or no losing trades for that symbol, or when Σ|losing PNL| < 1e-9 (float-artifact guard).*`,
       `*Sortino Ratio (column): per-symbol Avg PNL / downside deviation, where downside deviation = √( Σ min(0, per-trade PNL)² / total trade count ) (canonical Sortino: MAR = 0, divide by N_total). UNITS: dimensionless. Null when that symbol's trade count < ${MIN_SIGNALS_FOR_RATIOS}, OR no losing trades, OR downside deviation ≤ 1e-9 (float-artifact guard).*`,

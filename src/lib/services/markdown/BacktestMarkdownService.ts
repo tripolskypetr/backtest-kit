@@ -510,12 +510,17 @@ class ReportStorage {
 
     // Compounded yearly return via geometric mean of equity curve.
     // equityFinal^(tradesPerYear / N) - 1 — accounts for volatility drag that
-    // arithmetic-mean compounding ((1+avgPnl)^N) misses. If account is blown, full loss.
+    // arithmetic-mean compounding ((1+avgPnl)^N) misses.
+    // Blown curve (a trade at/below -100%, e.g. a liquidation) -> null, not -100:
+    // margin-based compounding is degenerate there — a single -100% trade zeroes
+    // ∏(1 + r) regardless of every other trade, so the annualized figure stops
+    // ranking leveraged strategies (same philosophy as the cap below: don't show
+    // a number that misleads).
     // If the raw value would exceed MAX_EXPECTED_YEARLY_RETURNS, return null rather than
     // showing the cap as a real figure — capped numbers mislead users into trusting them.
     const expectedYearlyReturns: number | null = canAnnualize
       ? blown
-        ? -100
+        ? null
         : (() => {
             // Geometric annualization uses validSignals.length (same set that defined
             // tradesPerYear); using totalSignals here would mismatch numerator/denominator.
@@ -823,7 +828,7 @@ class ReportStorage {
       `*Sharpe Ratio: per-trade Sharpe = Average PNL / Standard Deviation Per Trade (risk-free rate = 0). UNITS: dimensionless ratio. Higher = better risk-adjusted return per trade. Rule of thumb: below 1.0 poor, 1.0–2.0 acceptable, above 2.0 strong. Null when the closed signal count < ${MIN_SIGNALS_FOR_RATIOS} OR Standard Deviation ≤ 1e-9 (identical-returns / float-artifact guard).*`,
       `*Annualized Sharpe Ratio: per-trade Sharpe × √(trades per year), where trades per year = closed signal count × 365 / calendar span in days. UNITS: dimensionless. Null when the closed signal count < ${MIN_SIGNALS_FOR_ANNUALIZATION}, OR calendar span < ${MIN_CALENDAR_SPAN_DAYS} days, OR raw frequency > ${MAX_TRADES_PER_YEAR} (clustered sample, annualisation unreliable). Assumes returns are iid — autocorrelated strategies are overstated.*`,
       `*Certainty Ratio: mean per-trade PNL over winning trades, divided by the absolute value of the mean per-trade PNL over losing trades. UNITS: dimensionless ratio. Below 1.0 means the typical loss exceeds the typical win; above 1.5 is generally good. Null when the closed signal count < ${MIN_SIGNALS_FOR_RATIOS}, OR there are no losing trades, OR the absolute mean losing PNL < 1e-9 (float-artifact loss guard).*`,
-      `*Expected Yearly Returns: geometric annualisation of the equity curve: (final equity ^ (trades per year / closed signal count) − 1) × 100, where final equity is the compounded product of (1 + per-trade PNL / 100) walked over all closed signals in chronological close order. UNITS: percent per year. Accounts for volatility drag (unlike a simple Σ × 365 / calendar-span projection). Null under the same closed-signal-count / calendar-span / frequency gates as Annualized Sharpe Ratio, AND null when |raw value| > ${MAX_EXPECTED_YEARLY_RETURNS}% (capped numbers mislead). −100% when the equity curve hits ≤ 0 (account blown).*`,
+      `*Expected Yearly Returns: geometric annualisation of the equity curve: (final equity ^ (trades per year / closed signal count) − 1) × 100, where final equity is the compounded product of (1 + per-trade PNL / 100) walked over all closed signals in chronological close order. UNITS: percent per year. Accounts for volatility drag (unlike a simple Σ × 365 / calendar-span projection). Null under the same closed-signal-count / calendar-span / frequency gates as Annualized Sharpe Ratio, AND null when |raw value| > ${MAX_EXPECTED_YEARLY_RETURNS}% (capped numbers mislead). N/A when the equity curve blew (reached ≤ 0 — e.g. contains a liquidation at −100%): margin-based compounding is degenerate there, a single −100% trade zeroes the product regardless of every other trade.*`,
       `*Avg Peak PNL: arithmetic mean of each closed signal's peak-PNL snapshot — the best mark-to-market PNL recorded while the position was open. Signals that never recorded such a snapshot are excluded from both numerator and denominator (no zero dilution). UNITS: percent. Describes the typical best-case unrealised excursion during the position's lifetime, not the realised close. NOT gated by MIN_SIGNALS — computed whenever at least one signal carries the snapshot; null only if no signal carries it.*`,
       `*Avg Max Drawdown PNL: arithmetic mean of each closed signal's trough-PNL snapshot — the worst mark-to-market PNL recorded while the position was open. Signals that never recorded such a snapshot are excluded (no zero dilution). UNITS: percent (negative for losing excursions). Describes the typical worst-case unrealised PNL during the position's lifetime; closer to 0 is better. NOT gated by MIN_SIGNALS — computed whenever at least one signal carries the snapshot.*`,
       `*Sortino Ratio: Average PNL / downside deviation, where downside deviation = √( Σ min(0, per-trade PNL)² / closed signal count ) (canonical Sortino 1991: MAR = 0, divide by N_total). UNITS: dimensionless. Penalises only downside volatility. Rule of thumb: below 1.0 poor, 1.0–2.0 acceptable, above 2.0 strong. Null when the closed signal count < ${MIN_SIGNALS_FOR_RATIOS}, OR there are no losing trades (downside is undefined — flawless ≠ infinitely good), OR downside deviation ≤ 1e-9 (float-artifact guard).*`,

@@ -97,14 +97,20 @@ test("markdown: computed metrics include '(higher is better)' suffix (Backtest, 
 });
 
 // ---------------------------------------------------------------------------
-// 3. Blown account: expectedYearlyReturns = -100 must render as "-100.00%",
-//    recoveryFactor = null must render as "N/A".
+// 3. Blown account (N/A-on-blown contract): expectedYearlyReturns = null must
+//    render as "N/A" (margin-based compounding is degenerate once a trade hits
+//    -100% — the legacy -100.00% sentinel is gone), recoveryFactor = null must
+//    render as "N/A".
 // ---------------------------------------------------------------------------
-test("markdown: blown account — expectedYearly = -100.00%, recoveryFactor = N/A (Backtest)", async ({ pass, fail }) => {
+test("markdown: blown account — expectedYearly = N/A, recoveryFactor = N/A (Backtest)", async ({ pass, fail }) => {
   const md = await feedAndReport(lib.backtestMarkdownService, "MD-BLOWN", signals10);
 
-  if (!/\*\*Expected Yearly Returns:\*\* -100\.00% \(higher is better\)/.test(md)) {
-    fail(`Expected Yearly Returns must render as -100.00% for blown account:\n${md.slice(0, 1200)}`);
+  if (!/\*\*Expected Yearly Returns:\*\* N\/A/.test(md)) {
+    fail(`Expected Yearly Returns must render as N/A for blown account (N/A-on-blown):\n${md.slice(0, 1200)}`);
+    return;
+  }
+  if (/\*\*Expected Yearly Returns:\*\* -100\.00%/.test(md)) {
+    fail(`Legacy -100.00% blown sentinel must not render anymore:\n${md.slice(0, 1200)}`);
     return;
   }
   if (!/\*\*Recovery Factor:\*\* N\/A/.test(md)) {
