@@ -484,6 +484,17 @@ test("MULTIPLIER MARKDOWN: Live reports carry exact leveraged PNL per symbol (BT
       }
     }
 
+    // Финальная точка экскурсии (RECORD_CLOSE_EXCURSION_FN): у BTC-закрытия по
+    // take_profit пик обязан ДОЙТИ до финального pnl (раньше замирал на VWAP
+    // ниже TP и «пик был меньше финала»)
+    {
+      const btc = closedBySymbol["BTCUSDT"];
+      if (!approxEqual(btc.signal.peakProfit.pnlPercentage, btc.pnl.pnlPercentage)) {
+        fail(`BTC take_profit close: peakProfit must reach the final pnl ${btc.pnl.pnlPercentage}, got ${btc.signal.peakProfit.pnlPercentage}`);
+        return;
+      }
+    }
+
     // 2) Каждый отчёт несёт СВОЮ точную PNL-ячейку и свой multiplier
     for (const { symbol, multiplier } of checks) {
       const report = await Live.getReport(symbol, {

@@ -1439,31 +1439,39 @@ const GET_SIGNAL_FN = trycatch(
  * Финальная точка экскурсии: цена закрытия — тоже точка кривой сделки.
  *
  * Тик закрывает позицию ДО блока обновления _peak/_fall, поэтому без этой
- * дописи maxDrawdown ликвидированной сделки замирал на значении предыдущего
- * тика и «не доходил» до -100% — хотя худшая точка сделки и есть сама
- * ликвидация. Если реализуемый PNL на цене закрытия ХУЖЕ зафиксированного
- * _fall (liquidation / stop_loss / просевший time_expired), _fall дописывается
- * ПЕРЕД формированием результата — maxDrawdown в close-результате и
- * нотификациях несёт финальную точку. Для take_profit условие просто не
- * срабатывает. _peak симметрично НЕ дописывается: пик остаётся VWAP-историей,
- * финальный профит и так лежит в result.pnl (задокументированное поведение).
+ * дописи оба экстремума замирали на значении предыдущего тика:
+ * - maxDrawdown ликвидированной сделки «не доходил» до -100% — хотя худшая
+ *   точка сделки и есть сама ликвидация (то же для stop_loss / просевшего
+ *   time_expired);
+ * - peakProfit take_profit-закрытия оставался НИЖЕ финального pnl (пик жил на
+ *   VWAP, закрытие идёт по точной TP-цене) — «пик меньше финала» читается как
+ *   противоречие (то же для выросшего time_expired).
+ *
+ * Оба снапшота дописываются ПЕРЕД формированием результата, так что
+ * close-результат и нотификации несут финальную точку. Peak сохраняет свой
+ * гейт «только реальный плюс» (pnl > 0). События onHighestProfit/onMaxDrawdown
+ * при финальной дописи НЕ эмитятся — позиция закрывается этим же тиком.
  */
-const RECORD_CLOSE_FALL_FN = (
+const RECORD_CLOSE_EXCURSION_FN = (
   signal: ISignalRow,
   closePrice: number,
   timestamp: number
 ): void => {
   const pnl = toProfitLossDto(signal, closePrice);
+  const point = {
+    price: closePrice,
+    timestamp,
+    pnlPercentage: pnl.pnlPercentage,
+    pnlCost: pnl.pnlCost,
+    pnlEntries: pnl.pnlEntries,
+    priceOpen: pnl.priceOpen,
+    priceClose: pnl.priceClose,
+  };
   if (!signal._fall || pnl.pnlPercentage < signal._fall.pnlPercentage) {
-    signal._fall = {
-      price: closePrice,
-      timestamp,
-      pnlPercentage: pnl.pnlPercentage,
-      pnlCost: pnl.pnlCost,
-      pnlEntries: pnl.pnlEntries,
-      priceOpen: pnl.priceOpen,
-      priceClose: pnl.priceClose,
-    };
+    signal._fall = { ...point };
+  }
+  if (pnl.pnlPercentage > 0 && (!signal._peak || pnl.pnlPercentage > signal._peak.pnlPercentage)) {
+    signal._peak = { ...point };
   }
 };
 
@@ -4428,8 +4436,8 @@ const CLOSE_PENDING_SIGNAL_FN = async (
   // the adapter/operator reconciles the real exchange position off the close event).
 
   // Финальная точка экскурсии: maxDrawdown обязан дойти до цены закрытия
-  // (ликвидация -> ровно -100%), см. RECORD_CLOSE_FALL_FN
-  RECORD_CLOSE_FALL_FN(signal, currentPrice, currentTime);
+  // (ликвидация -> ровно -100%), а peakProfit — до цены take_profit; см. RECORD_CLOSE_EXCURSION_FN
+  RECORD_CLOSE_EXCURSION_FN(signal, currentPrice, currentTime);
 
   const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, currentPrice);
 
@@ -5291,8 +5299,8 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   // "allow" | "force" — proceed with the teardown (see RESOLVE_CLOSE_GATE_FN)
 
   // Финальная точка экскурсии: maxDrawdown обязан дойти до цены закрытия
-  // (ликвидация -> ровно -100%), зеркало live-ветки — см. RECORD_CLOSE_FALL_FN
-  RECORD_CLOSE_FALL_FN(signal, averagePrice, closeTimestamp);
+  // (ликвидация -> ровно -100%), а peakProfit — до цены take_profit; зеркало live-ветки — см. RECORD_CLOSE_EXCURSION_FN
+  RECORD_CLOSE_EXCURSION_FN(signal, averagePrice, closeTimestamp);
 
   const publicSignal = TO_PUBLIC_SIGNAL("pending", signal, averagePrice);
 
