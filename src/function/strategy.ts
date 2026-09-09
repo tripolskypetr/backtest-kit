@@ -2966,9 +2966,9 @@ export async function commitCreateSignal(
 
 /**
  * Reports that the pending position's take-profit order was actually filled on the exchange
- * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+ * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
  *
- * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+ * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
  * but the real order may fill on high/low. The close is deferred and emitted with closeReason
  * "take_profit" on the next tick. No-op if no pending signal exists.
  *
@@ -3009,9 +3009,9 @@ export async function commitCreateTakeProfit(
 
 /**
  * Reports that the pending position's stop-loss order was actually filled on the exchange
- * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+ * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
  *
- * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+ * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
  * but the real order may fill on high/low. The close is deferred and emitted with closeReason
  * "stop_loss" on the next tick. No-op if no pending signal exists.
  *

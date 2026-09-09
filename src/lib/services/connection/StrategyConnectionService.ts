@@ -2493,7 +2493,7 @@ export class StrategyConnectionService implements TStrategy {
 
   /**
    * Reports that the pending position's take-profit order was actually filled on the exchange
-   * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+   * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
    *
    * Delegates to ClientStrategy.createTakeProfit(). The close is deferred and emitted with
    * closeReason "take_profit" on the next tick()/backtest(). Works out of the execution context.
@@ -2521,7 +2521,7 @@ export class StrategyConnectionService implements TStrategy {
 
   /**
    * Reports that the pending position's stop-loss order was actually filled on the exchange
-   * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+   * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
    *
    * Delegates to ClientStrategy.createStopLoss(). The close is deferred and emitted with
    * closeReason "stop_loss" on the next tick()/backtest(). Works out of the execution context.

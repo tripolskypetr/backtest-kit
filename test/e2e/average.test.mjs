@@ -275,7 +275,7 @@ test("AVERAGE BACKTEST: commitAverageBuy rejected when price above last entry (L
 
       // i=0..4:   Нейтральные выше priceOpen
       // i=5..9:   Активация LONG
-      // i=10..14: Рост выше priceOpen — усреднение должно быть отклонено
+      // i=10..14: Рост до 102000 (выше priceOpen, TP=104000 не задет) — усреднение должно быть отклонено
       // i=15..19: TP
       for (let i = 0; i < 20; i++) {
         const timestamp = startTime + i * intervalMs;
@@ -284,8 +284,7 @@ test("AVERAGE BACKTEST: commitAverageBuy rejected when price above last entry (L
         } else if (i < 10) {
           allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
         } else if (i < 15) {
-          const rise = (i - 9) * 200;
-          const price = basePrice + rise;
+          const price = basePrice + 2000;
           allCandles.push({ timestamp, open: price, high: price + 100, low: price - 100, close: price, volume: 100 });
         } else {
           const tpPrice = basePrice + 4000;
@@ -609,7 +608,7 @@ test("AVERAGE BACKTEST: commitAverageBuy for SHORT position (averaging up)", asy
 
       // i=0..4:   Нейтральные ниже priceOpen (SHORT не активируется)
       // i=5..9:   Активация SHORT: high >= priceOpen=100000
-      // i=10..14: Рост до 102000 (просадка для SHORT)
+      // i=10..14: Рост до 102500 (просадка для SHORT, SL=105000 не задет)
       // i=15..19: TP = 96000
       for (let i = 0; i < 20; i++) {
         const timestamp = startTime + i * intervalMs;
@@ -619,7 +618,7 @@ test("AVERAGE BACKTEST: commitAverageBuy for SHORT position (averaging up)", asy
           // Активация SHORT: high >= priceOpen
           allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
         } else if (i < 15) {
-          const price = 102000;
+          const price = 102500;
           allCandles.push({ timestamp, open: price, high: price + 100, low: price - 100, close: price, volume: 100 });
         } else {
           const tpPrice = 96000;

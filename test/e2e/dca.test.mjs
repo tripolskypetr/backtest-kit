@@ -1134,7 +1134,7 @@ test("DCA BACKTEST: DCA → DCA → partialProfit → partialLoss → TP (LONG)"
         if (i < 5) {
           allCandles.push({ timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100 });
         } else if (i < 10) {
-          allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 20, low: basePrice - 50, close: basePrice, volume: 100 });
         } else if (i < 15) {
           const p = 850;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
@@ -1144,7 +1144,7 @@ test("DCA BACKTEST: DCA → DCA → partialProfit → partialLoss → TP (LONG)"
         } else if (i < 30) {
           const p = 950;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
-        } else if (i < 35) {
+        } else if (i < 37) {
           // 800 < effectivePriceOpen (~851) → partialLoss válido
           const p = 800;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
@@ -1305,7 +1305,7 @@ test("DCA BACKTEST: partialProfit → partialLoss → partialProfit → TP no DC
         } else if (i < 20) {
           const p = 950;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
-        } else if (i < 25) {
+        } else if (i < 27) {
           const p = 1200;
           allCandles.push({ timestamp, open: p, high: p + 50, low: p - 30, close: p, volume: 100 });
         } else {
@@ -1456,7 +1456,7 @@ test("DCA BACKTEST: DCA → partialLoss → DCA → partialLoss → TP (LONG)", 
         if (i < 5) {
           allCandles.push({ timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100 });
         } else if (i < 10) {
-          allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 20, low: basePrice - 50, close: basePrice, volume: 100 });
         } else if (i < 15) {
           const p = 870;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
@@ -2803,7 +2803,7 @@ test("DCA BACKTEST: DCA×2 → partialProfit → verify pnlCost/pnlEntries ident
         if (i < 5) {
           allCandles.push({ timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100 });
         } else if (i < 10) {
-          allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 20, low: basePrice - 50, close: basePrice, volume: 100 });
         } else if (i < 15) {
           const p = 800;
           allCandles.push({ timestamp, open: p, high: p + 50, low: p - 50, close: p, volume: 100 });
@@ -2972,14 +2972,14 @@ test("DCA BACKTEST: DCA принимается только при новом а
         if (i < 5) {
           allCandles.push({ timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100 });
         } else if (i < 10) {
-          allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 20, low: basePrice - 50, close: basePrice, volume: 100 });
         } else if (i < 15) {
           const p = 800;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
         } else if (i < 20) {
           const p = 900;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
-        } else if (i < 25) {
+        } else if (i < 27) {
           const p = 750;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
         } else {
@@ -3153,7 +3153,7 @@ test("DCA BACKTEST: SHORT partialProfit → partialLoss → partialProfit → TP
         } else if (i < 20) {
           const p = 1080;
           allCandles.push({ timestamp, open: p, high: p + 50, low: p - 30, close: p, volume: 100 });
-        } else if (i < 25) {
+        } else if (i < 27) {
           const p = 750;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 50, close: p, volume: 100 });
         } else {
@@ -3502,7 +3502,7 @@ test("DCA BACKTEST: SHORT DCA принимается только при нов�
         } else if (i < 20) {
           const p = 1050;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
-        } else if (i < 25) {
+        } else if (i < 27) {
           const p = 1200;
           allCandles.push({ timestamp, open: p, high: p + 50, low: p - 30, close: p, volume: 100 });
         } else {
@@ -3875,7 +3875,7 @@ test("DCA BACKTEST: SHORT два partialProfit без DCA → SL убыток, 2
         } else if (i < 15) {
           const p = 850;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 50, close: p, volume: 100 });
-        } else if (i < 20) {
+        } else if (i < 22) {
           const p = 700;
           allCandles.push({ timestamp, open: p, high: p + 30, low: p - 50, close: p, volume: 100 });
         } else {
@@ -4077,8 +4077,8 @@ test("DCA BACKTEST: LONG PP→DCA→PL→DCA→PP→DCA→PP→TP (4 парти�
         { count: 5, price: 780 },                   // DCA#2
         { count: 5, price: 1050 },                  // PP#2
         { count: 5, price: 700 },                   // DCA#3
-        { count: 5, price: 1100 },                  // PP#3
-        { count: 45, price: 1500 },                 // TP
+        { count: 7, price: 1100 },                  // PP#3
+        { count: 43, price: 1500 },                 // TP
       ];
       let idx = 0;
       for (const { count, price } of phases) {
@@ -4284,8 +4284,8 @@ test("DCA BACKTEST: SHORT DCA→PP→DCA→PL→DCA→PP→PP→SL (4 парти
         { count: 5, price: 1130 },               // PL#1
         { count: 5, price: 1350 },               // DCA#3
         { count: 5, price: 800 },                // PP#2
-        { count: 5, price: 600 },                // PP#3
-        { count: 55, price: 1800 },              // SL
+        { count: 7, price: 600 },                // PP#3
+        { count: 53, price: 1800 },              // SL
       ];
       let idx = 0;
       for (const { count, price } of phases) {
@@ -4470,8 +4470,8 @@ test("DCA BACKTEST: LONG PP→PP→DCA→DCA→PL→PL→PP→TP (6 партиа
         { count:5,  price:1020 },   // bounce (выходим из 700-зоны перед PL)
         { count:5,  price:810  },   // PL#1 (< ep≈832 ✓)
         { count:5,  price:790  },   // PL#2 (< ep≈832 ✓)
-        { count:5,  price:1050 },   // PP#3
-        { count:55, price:1500 },   // TP
+        { count:7,  price:1050 },   // PP#3
+        { count:53, price:1500 },   // TP
       ];
       let idx = 0;
       for (const { count, price } of phases) {
@@ -4586,8 +4586,8 @@ test("DCA BACKTEST: SHORT PP→PP→DCA→PL→PL→DCA→DCA→PP→SL (6 па�
         { count:5,  price:1150 },   // PL#2 (>ep≈1091 ✓)
         { count:5,  price:1300 },   // DCA#2 (>max=1200 ✓)
         { count:5,  price:1450 },   // DCA#3 (>max=1300 ✓)
-        { count:5,  price:700  },   // PP#3
-        { count:60, price:1999 },   // SL
+        { count:7,  price:700  },   // PP#3
+        { count:58, price:1999 },   // SL
       ];
       let idx = 0;
       for (const { count, price } of phases) {
@@ -4700,8 +4700,8 @@ test("DCA BACKTEST: LONG DCA→DCA→DCA→PP→PP→PP→PL→PP→TP (5 пар
         { count:5,  price:920  },   // PP#2
         { count:5,  price:960  },   // PP#3
         { count:5,  price:830  },   // PL#1 (< ep≈834.9 ✓)
-        { count:5,  price:1100 },   // PP#4
-        { count:60, price:1500 },   // TP
+        { count:7,  price:1100 },   // PP#4
+        { count:58, price:1500 },   // TP
       ];
       let idx = 0;
       for (const { count, price } of phases) {
@@ -4817,8 +4817,8 @@ test("DCA BACKTEST: SHORT DCA→DCA→PP→PL→PL→DCA→PP→PP→PL→TP (6 
         { count:5,  price:1500 },   // DCA#3 (>max=1250 ✓)
         { count:5,  price:750  },   // PP#2 (SHORT профит)
         { count:5,  price:600  },   // PP#3 (SHORT профит)
-        { count:5,  price:1550 },   // PL#3 (>ep after DCA3≈1170 ✓)
-        { count:65, price:400  },   // TP
+        { count:7,  price:1550 },   // PL#3 (>ep after DCA3≈1170 ✓)
+        { count:63, price:400  },   // TP
       ];
       let idx = 0;
       for (const { count, price } of phases) {

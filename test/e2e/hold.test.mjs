@@ -1280,8 +1280,9 @@ test("HOLD: pending signal closed via commitClosePending in listenActivePing", a
       const result = [];
       for (let i = 0; i < limit; i++) {
         const timestamp = alignedSince + i * intervalMs;
-        // Цена всегда ниже priceOpen=42000 для LONG — активация никогда не произойдёт
-        result.push({ timestamp, open: 41000, high: 41500, low: 40900, close: 41000, volume: 100 });
+        // Цена ниже priceOpen=42000 (LONG активируется сразу), но строго между SL=41000 и TP=43000:
+        // low=41200 > SL — интра-свечное касание брекетов не происходит, закрытие только через commitClosePending
+        result.push({ timestamp, open: 41500, high: 41800, low: 41200, close: 41500, volume: 100 });
       }
       return result;
     },

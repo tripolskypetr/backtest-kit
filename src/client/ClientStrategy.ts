@@ -4326,17 +4326,32 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   return result;
 };
 
+/**
+ * TOUCH-EXECUTION (биржевая семантика): TP/SL/ликвидация срабатывают по
+ * КАСАНИЮ уровня внутрисвечными экстремумами (touchLow/touchHigh — low/high
+ * последней закрытой свечи в live, текущей свечи цикла в backtest), а не по
+ * сглаженному VWAP: реальная биржа исполняет стоп/ликвидацию по касанию
+ * mark/last, и 5-минутный VWAP прятал внутрисвечные шпильки (систематический
+ * оптимизм бэктеста). VWAP (averagePrice) остаётся ценой time_expired-закрытия
+ * и всей мониторинговой математики (_peak/_fall, percentTp/percentSl, пинги).
+ *
+ * ПЕССИМИСТИЧНЫЙ TIE-BREAK на одной свече (intrabar-путь неизвестен):
+ * liquidation > stop_loss > take_profit — зеркало «отмена приоритетнее
+ * активации» у scheduled-сигналов. Закрытие всегда по ТОЧНОЙ цене уровня.
+ */
 const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
   self: ClientStrategy,
   signal: ISignalRow,
-  averagePrice: number
+  averagePrice: number,
+  touchLow: number,
+  touchHigh: number
 ): Promise<IStrategyTickResultClosed | null> => {
   const currentTime = self.params.execution.context.when.getTime();
   const signalTime = signal.pendingAt; // КРИТИЧНО: используем pendingAt, а не scheduledAt!
   const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
   const elapsedTime = currentTime - signalTime;
 
-  // Check time expiration
+  // Check time expiration (закрывается по VWAP — не touch-событие)
   if (elapsedTime >= maxTimeToWait) {
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
@@ -4346,28 +4361,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     );
   }
 
-  // Check take profit (use trailing TP if set, otherwise original TP)
   const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-
-  if (signal.position === "long" && averagePrice >= effectiveTakeProfit) {
-    return await CLOSE_PENDING_SIGNAL_FN(
-      self,
-      signal,
-      effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
-      "take_profit"
-    );
-  }
-
-  if (signal.position === "short" && averagePrice <= effectiveTakeProfit) {
-    return await CLOSE_PENDING_SIGNAL_FN(
-      self,
-      signal,
-      effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
-      "take_profit"
-    );
-  }
-
-  // Check stop loss (use trailing SL if set, otherwise original SL).
   // Isolated margin: цена ликвидации (leveraged PNL = -100%, см.
   // getLiquidationPrice) выступает вторым стоп-уровнем; срабатывает тот, что
   // БЛИЖЕ к цене (для LONG — выше, для SHORT — ниже). Закрытие идёт по точной
@@ -4378,7 +4372,8 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
   if (signal.position === "long") {
     const useLiquidation = liquidationPrice !== null && liquidationPrice > effectiveStopLoss;
     const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
-    if (averagePrice <= stopPrice) {
+    // Пессимизм: стоп/ликвидация проверяются ПЕРЕД TP (см. док-коммент)
+    if (touchLow <= stopPrice) {
       return await CLOSE_PENDING_SIGNAL_FN(
         self,
         signal,
@@ -4386,17 +4381,34 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
         useLiquidation ? "liquidation" : "stop_loss"
       );
     }
+    if (touchHigh >= effectiveTakeProfit) {
+      return await CLOSE_PENDING_SIGNAL_FN(
+        self,
+        signal,
+        effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
+        "take_profit"
+      );
+    }
   }
 
   if (signal.position === "short") {
     const useLiquidation = liquidationPrice !== null && liquidationPrice < effectiveStopLoss;
     const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
-    if (averagePrice >= stopPrice) {
+    // Пессимизм: стоп/ликвидация проверяются ПЕРЕД TP (см. док-коммент)
+    if (touchHigh >= stopPrice) {
       return await CLOSE_PENDING_SIGNAL_FN(
         self,
         signal,
         stopPrice, // КРИТИЧНО: точная цена уровня (liquidation / trailing / original SL)
         useLiquidation ? "liquidation" : "stop_loss"
+      );
+    }
+    if (touchLow <= effectiveTakeProfit) {
+      return await CLOSE_PENDING_SIGNAL_FN(
+        self,
+        signal,
+        effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
+        "take_profit"
       );
     }
   }
@@ -5528,11 +5540,11 @@ const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
 /**
  * Closes a deferred broker-confirmed TP/SL fill (createTakeProfit / createStopLoss).
  *
- * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL against VWAP,
+ * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
  * but the real order may fill on candle high/low. When the broker confirms such a fill out of
  * context, the pending signal is snapshotted into _takeProfitSignal / _stopLossSignal and the next
  * tick()/backtest() drains it here, closing with the matching closeReason at the effective TP/SL
- * level (trailing override if set) — bypassing the VWAP completion check.
+ * level (trailing override if set) — bypassing the framework's touch-based completion check.
  *
  * Shared by live tick and backtest: the caller passes the close timestamp explicitly (execution
  * context when in live, candle timestamp in backtest). Mirrors CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN
@@ -6207,7 +6219,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     // КРИТИЧНО: Проверяем broker-confirmed TP fill через createTakeProfit() (напр. из onActivePing).
-    // Закрываем по эффективному уровню TP, минуя VWAP-проверку. Sync не пере-подтверждается.
+    // Закрываем по эффективному уровню TP, минуя штатный touch-чек. Sync не пере-подтверждается.
     if (self._takeProfitSignal) {
       const filledSignal = self._takeProfitSignal;
       self._takeProfitSignal = null;
@@ -6215,7 +6227,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     // КРИТИЧНО: Проверяем broker-confirmed SL fill через createStopLoss() (напр. из onActivePing).
-    // Закрываем по эффективному уровню SL, минуя VWAP-проверку. Sync не пере-подтверждается.
+    // Закрываем по эффективному уровню SL, минуя штатный touch-чек. Sync не пере-подтверждается.
     if (self._stopLossSignal) {
       const filledSignal = self._stopLossSignal;
       self._stopLossSignal = null;
@@ -6235,11 +6247,17 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       closeReason = "time_expired";
     }
 
-    // Check TP/SL only if not expired
-    // КРИТИЧНО: используем averagePrice (VWAP) для проверки достижения TP/SL (как в live mode)
-    // КРИТИЧНО: используем trailing SL и TP если установлены
+    // Check TP/SL only if not expired.
+    // TOUCH-EXECUTION (биржевая семантика, зеркало live-ветки
+    // CHECK_PENDING_SIGNAL_COMPLETION_FN): TP/SL/ликвидация срабатывают по
+    // КАСАНИЮ уровня экстремумами ТЕКУЩЕЙ свечи (low/high), а не по VWAP —
+    // VWAP сглаживал внутрисвечные шпильки и систематически завышал результат.
+    // VWAP (averagePrice) остаётся ценой time_expired и мониторинга.
+    // ПЕССИМИСТИЧНЫЙ TIE-BREAK на одной свече: liquidation > stop_loss >
+    // take_profit (intrabar-путь неизвестен; зеркало «отмена приоритетнее
+    // активации» у scheduled). КРИТИЧНО: используем trailing SL и TP если установлены.
     // Isolated margin: цена ликвидации выступает вторым стоп-уровнем — срабатывает
-    // тот, что ближе к цене (зеркало live-ветки CHECK_PENDING_SIGNAL_COMPLETION_FN)
+    // тот, что ближе к цене.
     const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
     const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
     const liquidationPrice = signal.isolated ? GET_LIQUIDATION_PRICE(signal) : null;
@@ -6247,26 +6265,26 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     if (!shouldClose && signal.position === "long") {
       const useLiquidation = liquidationPrice !== null && liquidationPrice > effectiveStopLoss;
       const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
-      // Для LONG: TP срабатывает если VWAP >= TP, стоп/ликвидация если VWAP <= уровень
-      if (averagePrice >= effectiveTakeProfit) {
-        shouldClose = true;
-        closeReason = "take_profit";
-      } else if (averagePrice <= stopPrice) {
+      // Для LONG: стоп/ликвидация если low <= уровень (пессимизм — первым), TP если high >= TP
+      if (currentCandle.low <= stopPrice) {
         shouldClose = true;
         closeReason = useLiquidation ? "liquidation" : "stop_loss";
+      } else if (currentCandle.high >= effectiveTakeProfit) {
+        shouldClose = true;
+        closeReason = "take_profit";
       }
     }
 
     if (!shouldClose && signal.position === "short") {
       const useLiquidation = liquidationPrice !== null && liquidationPrice < effectiveStopLoss;
       const stopPrice = useLiquidation ? liquidationPrice : effectiveStopLoss;
-      // Для SHORT: TP срабатывает если VWAP <= TP, стоп/ликвидация если VWAP >= уровень
-      if (averagePrice <= effectiveTakeProfit) {
-        shouldClose = true;
-        closeReason = "take_profit";
-      } else if (averagePrice >= stopPrice) {
+      // Для SHORT: стоп/ликвидация если high >= уровень (пессимизм — первым), TP если low <= TP
+      if (currentCandle.high >= stopPrice) {
         shouldClose = true;
         closeReason = useLiquidation ? "liquidation" : "stop_loss";
+      } else if (currentCandle.low <= effectiveTakeProfit) {
+        shouldClose = true;
+        closeReason = "take_profit";
       }
     }
 
@@ -6568,7 +6586,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
  * - Signal generation with interval throttling
  * - Automatic signal validation (prices, TP/SL logic, timestamps)
  * - Crash-safe persistence in live mode
- * - VWAP-based TP/SL monitoring
+ * - Touch-based TP/SL/liquidation execution (intra-candle high/low) with VWAP monitoring
  * - Fast backtest with candle array processing
  *
  * All methods use prototype functions for memory efficiency.
@@ -6619,14 +6637,14 @@ export class ClientStrategy implements IStrategy {
    * Deferred broker-confirmed take-profit fill (set via createTakeProfit). When non-null, the
    * exchange reported the TP order was actually filled (e.g. by candle high/low) — the next
    * tick()/backtest() drains it and closes the pending position with closeReason "take_profit"
-   * at the effective take-profit level, bypassing the VWAP-based TP check.
+   * at the effective take-profit level, bypassing the framework's touch-based TP check (closed-candle granularity).
    */
   _takeProfitSignal: ISignalCloseRow | null = null;
   /**
    * Deferred broker-confirmed stop-loss fill (set via createStopLoss). When non-null, the
    * exchange reported the SL order was actually filled (e.g. by candle high/low) — the next
    * tick()/backtest() drains it and closes the pending position with closeReason "stop_loss"
-   * at the effective stop-loss level, bypassing the VWAP-based SL check.
+   * at the effective stop-loss level, bypassing the framework's touch-based SL check (closed-candle granularity).
    */
   _stopLossSignal: ISignalCloseRow | null = null;
 
@@ -7748,7 +7766,7 @@ export class ClientStrategy implements IStrategy {
    * 1. If scheduled signal exists: check activation/cancellation
    * 2. If no pending/scheduled signal: call getSignal with throttling and validation
    * 3. If signal opened: trigger onOpen callback, persist state
-   * 4. If pending signal exists: check VWAP against TP/SL
+   * 4. If pending signal exists: check intra-candle touch (last closed candle low/high) against TP/SL/liquidation
    * 5. If TP/SL/time reached: close signal, trigger onClose, persist state
    *
    * Flow (BACKTEST mode):
@@ -8504,10 +8522,22 @@ export class ClientStrategy implements IStrategy {
       return await RETURN_IDLE_FN(this, currentPrice);
     }
 
-    // Monitor pending signal
-    const averagePrice = await this.params.exchange.getAveragePrice(
-      this.params.execution.context.symbol
+    // Monitor pending signal.
+    // Один фетч свечей вместо getAveragePrice: VWAP считается локально той же
+    // формулой (GET_AVG_PRICE_FN эквивалентен ClientExchange.getAveragePrice,
+    // включая zero-volume fallback; одинаковый limit -> тот же кэш-ключ), а
+    // low/high ПОСЛЕДНЕЙ ЗАКРЫТОЙ свечи дают touch-детект для TP/SL/ликвидации
+    // (биржевая семантика касания; гранулярность live — 1 минута).
+    const monitorCandles = await this.params.exchange.getCandles(
+      this.params.execution.context.symbol,
+      "1m",
+      GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT
     );
+    const averagePrice = GET_AVG_PRICE_FN(monitorCandles);
+    const lastMonitorCandle = monitorCandles[monitorCandles.length - 1];
+    // Пустой ответ адаптера деградирует к VWAP-поведению (touch = VWAP-точка)
+    const touchLow = lastMonitorCandle?.low ?? averagePrice;
+    const touchHigh = lastMonitorCandle?.high ?? averagePrice;
 
     // Pending-order ping: before evaluating TP/SL/time, confirm the order is STILL open on the
     // exchange. CALL_ORDER_CHECK_FN returns false when the listener returns false OR throws
@@ -8606,7 +8636,9 @@ export class ClientStrategy implements IStrategy {
     const closedResult = await CHECK_PENDING_SIGNAL_COMPLETION_FN(
       this,
       this._pendingSignal,
-      averagePrice
+      averagePrice,
+      touchLow,
+      touchHigh
     );
 
     if (closedResult) {
@@ -8641,10 +8673,13 @@ export class ClientStrategy implements IStrategy {
    *
    * For pending signals:
    * 1. Skips the first CC_AVG_PRICE_CANDLES_COUNT - 1 buffer candles (VWAP window)
-   * 2. Checks TP/SL against the VWAP of the last CC_AVG_PRICE_CANDLES_COUNT candles
-   *    (NOT candle high/low — only scheduled activation/cancellation uses low/high;
-   *    pending TP/SL uses VWAP, mirroring live monitoring)
-   * 3. Closes at the exact effective TP/SL level (trailing-aware) or by time_expired
+   * 2. Checks TP/SL/liquidation by INTRA-CANDLE TOUCH (candle high/low, exchange-style
+   *    execution — mirrors live monitoring which touches against the last closed
+   *    candle's extremes). Pessimistic same-candle tie-break: liquidation > stop_loss
+   *    > take_profit. VWAP of the last CC_AVG_PRICE_CANDLES_COUNT candles remains the
+   *    price basis for time_expired closes and all monitoring metrics
+   *    (percentTp/percentSl, _peak/_fall, pings)
+   * 3. Closes at the exact effective TP/SL/liquidation level (trailing-aware) or by time_expired
    *
    * @param candles - Array of candles to process
    * @returns Promise resolving to closed signal result with PNL
@@ -9472,10 +9507,9 @@ export class ClientStrategy implements IStrategy {
 
   /**
    * Reports that the pending position's take-profit order was actually filled on the exchange
-   * (e.g. by candle high/low), forcing a close that does not wait for the VWAP-based TP check.
+   * (e.g. by candle high/low), forcing a close that does not wait for the framework's touch-based TP check (closed-candle granularity).
    *
-   * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL against
-   * VWAP, but the real order may close on high/low. This bridges that gap — the broker confirms
+   * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live), but the real order may close on high/low. This bridges that gap — the broker confirms
    * the fill OUT of the async-hooks execution context, the current pending signal is snapshotted
    * into _takeProfitSignal and cleared, and the next tick()/backtest() drains it, closing the
    * position with closeReason "take_profit" at the effective take-profit level.
@@ -9525,10 +9559,9 @@ export class ClientStrategy implements IStrategy {
 
   /**
    * Reports that the pending position's stop-loss order was actually filled on the exchange
-   * (e.g. by candle high/low), forcing a close that does not wait for the VWAP-based SL check.
+   * (e.g. by candle high/low), forcing a close that does not wait for the framework's touch-based SL check (closed-candle granularity).
    *
-   * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL against
-   * VWAP, but the real order may close on high/low. This bridges that gap — the broker confirms
+   * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live), but the real order may close on high/low. This bridges that gap — the broker confirms
    * the fill OUT of the async-hooks execution context, the current pending signal is snapshotted
    * into _stopLossSignal and cleared, and the next tick()/backtest() drains it, closing the
    * position with closeReason "stop_loss" at the effective stop-loss level.
