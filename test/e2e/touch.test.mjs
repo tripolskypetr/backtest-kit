@@ -11,12 +11,15 @@ import {
 } from "../../build/index.mjs";
 
 // ---------------------------------------------------------------------------
-// TOUCH-EXECUTION (биржевая семантика): TP/SL/ликвидация срабатывают по
-// КАСАНИЮ уровня внутрисвечными экстремумами (high/low), а не по VWAP.
+// АСИММЕТРИЧНОЕ ИСПОЛНЕНИЕ (консервативная биржевая семантика):
+// stop_loss/ликвидация срабатывают по КАСАНИЮ уровня внутрисвечными
+// экстремумами (high/low — принудительные биржевые события), take_profit —
+// по VWAP (на низком объёме тень не цена: профит по манипулятивной шпильке,
+// которую рынок не удержал, не берём).
 //
-//   1) wick-TP: шпилька high касается TP при VWAP ниже уровня — закрытие
-//      take_profit по точной цене TP (при VWAP-семантике позиция жила бы);
-//   2) tie-break на одной свече: касание И TP, И SL — побеждает stop_loss
+//   1) wick-TP ИГНОРИРУЕТСЯ: шпилька high через TP при VWAP ниже уровня НЕ
+//      закрывает позицию; take_profit срабатывает позже, когда VWAP дойдёт;
+//   2) tie-break: SL-касание побеждает даже когда та же свеча коснулась TP
 //      (пессимизм: intrabar-путь неизвестен);
 //   3) tie-break с ликвидацией: low пробивает и SL, и liq-уровень — побеждает
 //      liquidation (ближний к цене уровень, для LONG liq выше SL при 100x);
@@ -96,24 +99,32 @@ const runBacktestScenario = async (name, { basePrice, signal, candleByMinute, fr
   return closed;
 };
 
-test("TOUCH: a wick through TP closes take_profit at the exact level while VWAP stays below", async ({ pass, fail }) => {
+test("TOUCH: a wick through TP is IGNORED — take_profit fires only when VWAP reaches the level", async ({ pass, fail }) => {
   const basePrice = 50000;
   const priceTakeProfit = basePrice + 1000;
+  const startTime = new Date("2024-06-01T00:00:00Z").getTime();
+
+  const candleByMinute = {
+    // Минута 3: шпилька high через TP при VWAP у базы — НЕ должна закрыть
+    3: { open: basePrice, high: priceTakeProfit + 200, low: basePrice - 50, close: basePrice + 50 },
+  };
+  // Минуты 6..14: цена устойчиво держится НА уровне TP — VWAP доходит до TP
+  // примерно к 10-й минуте (5-свечное окно целиком на уровне)
+  for (let m = 6; m <= 14; m++) {
+    candleByMinute[m] = { open: priceTakeProfit, high: priceTakeProfit, low: priceTakeProfit, close: priceTakeProfit };
+  }
 
   const closed = await runBacktestScenario("wick-tp", {
     basePrice,
     signal: {
       position: "long",
-      note: "wick tp",
+      note: "wick tp ignored",
       priceTakeProfit,
       priceStopLoss: basePrice - 2000,
       minuteEstimatedTime: 30,
       multiplier: 1,
     },
-    candleByMinute: {
-      // Минута 3: шпилька до TP+200 при типичной цене ~базы — VWAP далеко от TP
-      3: { open: basePrice, high: priceTakeProfit + 200, low: basePrice - 50, close: basePrice + 50 },
-    },
+    candleByMinute,
   });
 
   if (closed.length !== 1) {
@@ -121,15 +132,22 @@ test("TOUCH: a wick through TP closes take_profit at the exact level while VWAP 
     return;
   }
   if (closed[0].closeReason !== "take_profit") {
-    fail(`wick through TP must close take_profit, got "${closed[0].closeReason}"`);
+    fail(`expected an eventual VWAP take_profit, got "${closed[0].closeReason}"`);
     return;
   }
   if (!approxEqual(closed[0].currentPrice, priceTakeProfit)) {
-    fail(`touch close must use the exact TP price ${priceTakeProfit}, got ${closed[0].currentPrice}`);
+    fail(`TP close must use the exact TP price ${priceTakeProfit}, got ${closed[0].currentPrice}`);
+    return;
+  }
+  // Ключевой ассерт: закрытие НЕ на свече шпильки (минута 3), а после того,
+  // как VWAP реально дошёл до уровня (не раньше минуты 6)
+  const closeMinute = (closed[0].closeTimestamp - startTime) / MIN;
+  if (closeMinute <= 4) {
+    fail(`the wick candle must NOT close the position: closed at minute ${closeMinute} (wick was at minute 3)`);
     return;
   }
 
-  pass(`wick touched TP: closed take_profit @ ${closed[0].currentPrice} (VWAP never reached the level)`);
+  pass(`wick through TP ignored at minute 3; VWAP take_profit fired at minute ${closeMinute} @ ${closed[0].currentPrice}`);
 });
 
 test("TOUCH: same-candle TP+SL touch resolves pessimistically to stop_loss", async ({ pass, fail }) => {

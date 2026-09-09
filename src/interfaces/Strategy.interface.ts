@@ -63,7 +63,7 @@ export type StrategyStatus = {
   /**
    * Deferred broker-confirmed take-profit fill (createTakeProfit), or null if none pending.
    * Set when the external order management system reports the position's TP order was actually
-   * filled on the exchange (e.g. by candle high/low) — independent of the framework's touch-based TP check (closed-candle granularity).
+   * filled on the exchange (e.g. by candle high/low) — independent of the framework's VWAP-based TP check.
    * Drained on the next tick/backtest to close the position with closeReason "take_profit".
    */
   takeProfitSignal: ISignalCloseRow | null;
@@ -1394,9 +1394,9 @@ export interface IStrategy {
 
   /**
    * Reports that the pending position's take-profit order was actually filled on the exchange
-   * (e.g. by candle high/low), forcing a close that does not wait for the framework's touch-based TP check (closed-candle granularity).
+   * (e.g. by candle high/low), forcing a close that does not wait for the framework's VWAP-based TP check.
    *
-   * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live), but the real order may close on high/low. This method bridges that gap — the broker
+   * The exchange and the strategy are parallel states: ClientStrategy evaluates SL/liquidation by closed-candle touch and TP by VWAP, but the real order may close on high/low. This method bridges that gap — the broker
    * confirms the fill out of the async-hooks execution context, and the close is deferred:
    * a snapshot of the current pending signal is stored and drained on the next tick/backtest,
    * which closes the position with closeReason "take_profit" at the effective take-profit level.
@@ -1415,7 +1415,7 @@ export interface IStrategy {
    * Reports that the pending position's stop-loss order was actually filled on the exchange
    * (e.g. by candle high/low), forcing a close that does not wait for the framework's touch-based SL check (closed-candle granularity).
    *
-   * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live), but the real order may close on high/low. This method bridges that gap — the broker
+   * The exchange and the strategy are parallel states: ClientStrategy evaluates SL/liquidation by closed-candle touch and TP by VWAP, but the real order may close on high/low. This method bridges that gap — the broker
    * confirms the fill out of the async-hooks execution context, and the close is deferred:
    * a snapshot of the current pending signal is stored and drained on the next tick/backtest,
    * which closes the position with closeReason "stop_loss" at the effective stop-loss level.

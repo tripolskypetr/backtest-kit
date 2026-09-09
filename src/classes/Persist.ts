@@ -1589,7 +1589,7 @@ export type StrategyData = {
   /**
    * Deferred broker-confirmed take-profit fill (createTakeProfit), or null if none pending.
    * Set when the exchange reports the TP order was actually filled (e.g. by candle high/low),
-   * independent of the framework's touch-based TP check (closed-candle granularity). Drained on the next tick to close with "take_profit".
+   * independent of the framework's VWAP-based TP check. Drained on the next tick to close with "take_profit".
    */
   takeProfitSignal: ISignalCloseRow | null;
   /**

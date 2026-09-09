@@ -2493,7 +2493,7 @@ export class StrategyConnectionService implements TStrategy {
 
   /**
    * Reports that the pending position's take-profit order was actually filled on the exchange
-   * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
+   * (e.g. by candle high/low), forcing a close that bypasses the framework's VWAP-based TP check.
    *
    * Delegates to ClientStrategy.createTakeProfit(). The close is deferred and emitted with
    * closeReason "take_profit" on the next tick()/backtest(). Works out of the execution context.
