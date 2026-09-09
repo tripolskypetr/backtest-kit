@@ -369,14 +369,15 @@ export const GLOBAL_CONFIG = {
 
   /**
    * Isolated-margin mode default for signals (`isolated` in ISignalDto).
-   * When true, the position's margin is its own cost: once the leveraged
-   * realizable PNL reaches -100% the position is force-closed with
-   * closeReason "liquidation" at the computed liquidation price.
+   * When true (isolated margin), the position's margin is its own cost: once
+   * the leveraged realizable PNL reaches -100% the position is force-closed
+   * with closeReason "liquidation" at the computed liquidation price.
    * When false (cross margin), PNL may go below -100% and the position
    * keeps being monitored until TP/SL/time_expired.
-   * Default: false (cross margin)
+   * A signal opts out of the default explicitly via `isolated: false`.
+   * Default: true (isolated margin — liquidate at -100% leveraged PNL)
    */
-  CC_SIGNAL_ISOLATED_MARGIN: false,
+  CC_SIGNAL_ISOLATED_MARGIN: true,
 
   /**
    * Maximum number of open retries after the broker gate (onOrderSync / onOrderOpenCommit)

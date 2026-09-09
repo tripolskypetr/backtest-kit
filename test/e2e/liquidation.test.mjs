@@ -87,7 +87,7 @@ test("LIQUIDATION: isolated 100x LONG is force-closed at the exact liquidation p
         priceStopLoss: basePrice * 0.9,
         minuteEstimatedTime: 60,
         multiplier: 100,
-        isolated: true,
+        // isolated намеренно опущен: дефолт CC_SIGNAL_ISOLATED_MARGIN = true
       };
     },
   });
@@ -100,7 +100,7 @@ test("LIQUIDATION: isolated 100x LONG is force-closed at the exact liquidation p
     return;
   }
   if (tick1.signal.isolated !== true) {
-    fail(`opened signal must carry isolated: true, got ${tick1.signal.isolated}`);
+    fail(`omitted isolated must default to true (CC_SIGNAL_ISOLATED_MARGIN), got ${tick1.signal.isolated}`);
     return;
   }
 
@@ -152,7 +152,7 @@ test("LIQUIDATION: isolated 100x LONG is force-closed at the exact liquidation p
   pass(`isolated 100x liquidated at ${tick3.currentPrice.toFixed(4)} (closeReason "liquidation"), pnl ${tick3.pnl.pnlPercentage.toFixed(6)}%, maxDrawdown ${tick3.signal.maxDrawdown.pnlPercentage.toFixed(2)}%, pnlCost ${tick3.pnl.pnlCost.toFixed(2)} USD`);
 });
 
-test("LIQUIDATION: cross margin (default) survives the same drawdown with pnl below -100%", async ({ pass, fail }) => {
+test("LIQUIDATION: explicit cross margin (isolated: false) survives the same drawdown with pnl below -100%", async ({ pass, fail }) => {
   const basePrice = 50000;
   const t0 = new Date("2024-05-02T00:00:00Z").getTime();
   const context = {
@@ -169,7 +169,8 @@ test("LIQUIDATION: cross margin (default) survives the same drawdown with pnl be
   addStrategySchema({
     strategyName: context.strategyName,
     interval: "1m",
-    // isolated намеренно опущен — дефолт CC_SIGNAL_ISOLATED_MARGIN = false (cross)
+    // Явный cross-опт-аут: дефолт CC_SIGNAL_ISOLATED_MARGIN = true, поэтому
+    // cross-семантика теперь требует isolated: false в сигнале
     getSignal: async () => {
       if (signalGenerated) return null;
       signalGenerated = true;
@@ -180,6 +181,7 @@ test("LIQUIDATION: cross margin (default) survives the same drawdown with pnl be
         priceStopLoss: basePrice * 0.9,
         minuteEstimatedTime: 60,
         multiplier: 100,
+        isolated: false,
       };
     },
   });
@@ -192,7 +194,7 @@ test("LIQUIDATION: cross margin (default) survives the same drawdown with pnl be
     return;
   }
   if (tick1.signal.isolated !== false) {
-    fail(`omitted isolated must default to false, got ${tick1.signal.isolated}`);
+    fail(`explicit isolated: false must survive into the row, got ${tick1.signal.isolated}`);
     return;
   }
 

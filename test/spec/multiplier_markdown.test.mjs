@@ -267,6 +267,10 @@ test("MULTIPLIER MARKDOWN: Heat equity math survives a leveraged blow-up (300x, 
         priceStopLoss: basePrice - 15000,
         minuteEstimatedTime: 3,
         multiplier: MULTIPLIER,
+        // Явный cross: тест фиксирует именно CROSS-семантику blown (pnl < -100%
+        // при time_expired); с дефолтом CC_SIGNAL_ISOLATED_MARGIN = true позиция
+        // ликвидировалась бы мгновенно с pnl ровно -100
+        isolated: false,
       };
     },
   });
