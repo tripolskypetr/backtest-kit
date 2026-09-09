@@ -150,6 +150,95 @@ test("TOUCH: a wick through TP is IGNORED — take_profit fires only when VWAP r
   pass(`wick through TP ignored at minute 3; VWAP take_profit fired at minute ${closeMinute} @ ${closed[0].currentPrice}`);
 });
 
+test("TOUCH: a wick to SL closes stop_loss IMMEDIATELY while VWAP stays above the level", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceStopLoss = basePrice - 1000;
+  const startTime = new Date("2024-06-01T00:00:00Z").getTime();
+
+  const closed = await runBacktestScenario("wick-sl", {
+    basePrice,
+    signal: {
+      position: "long",
+      note: "wick sl fires",
+      priceTakeProfit: basePrice + 5000,
+      priceStopLoss,
+      minuteEstimatedTime: 30,
+      multiplier: 1,
+    },
+    candleByMinute: {
+      // Минута 3: шпилька low через SL при open/close у базы — VWAP далеко
+      // выше уровня. Асимметрия: в отличие от TP, стоп обязан сработать
+      // НЕМЕДЛЕННО на свече касания (принудительное биржевое событие)
+      3: { open: basePrice, high: basePrice + 50, low: priceStopLoss - 100, close: basePrice - 50 },
+    },
+  });
+
+  if (closed.length !== 1) {
+    fail(`expected exactly 1 closed trade, got ${closed.length}`);
+    return;
+  }
+  if (closed[0].closeReason !== "stop_loss") {
+    fail(`the wick must fire stop_loss, got "${closed[0].closeReason}"`);
+    return;
+  }
+  if (!approxEqual(closed[0].currentPrice, priceStopLoss)) {
+    fail(`stop must close at the exact SL price ${priceStopLoss}, got ${closed[0].currentPrice}`);
+    return;
+  }
+  const closeMinute = (closed[0].closeTimestamp - startTime) / MIN;
+  if (closeMinute !== 3) {
+    fail(`stop must fire ON the wick candle (minute 3), got minute ${closeMinute}`);
+    return;
+  }
+
+  pass(`wick to SL fired stop_loss immediately at minute 3 @ ${closed[0].currentPrice} (VWAP never reached the level — asymmetry vs the ignored TP wick)`);
+});
+
+test("TOUCH: SHORT mirror — a wick through TP is ignored, a later wick to SL closes stop_loss", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceTakeProfit = basePrice - 1000; // SHORT: TP ниже входа
+  const priceStopLoss = basePrice + 1000;   // SHORT: SL выше входа
+  const startTime = new Date("2024-06-01T00:00:00Z").getTime();
+
+  const closed = await runBacktestScenario("short-mirror", {
+    basePrice,
+    signal: {
+      position: "short",
+      note: "short asymmetry",
+      priceTakeProfit,
+      priceStopLoss,
+      minuteEstimatedTime: 30,
+      multiplier: 1,
+    },
+    candleByMinute: {
+      // Минута 3: шпилька LOW через SHORT-TP при VWAP у базы — игнорируется
+      3: { open: basePrice, high: basePrice + 50, low: priceTakeProfit - 200, close: basePrice - 50 },
+      // Минута 6: шпилька HIGH через SHORT-SL — стоп по касанию
+      6: { open: basePrice, high: priceStopLoss + 200, low: basePrice - 50, close: basePrice + 50 },
+    },
+  });
+
+  if (closed.length !== 1) {
+    fail(`expected exactly 1 closed trade, got ${closed.length}`);
+    return;
+  }
+  if (closed[0].closeReason !== "stop_loss") {
+    fail(`the SL wick must win (TP wick at minute 3 must be ignored), got "${closed[0].closeReason}"`);
+    return;
+  }
+  if (!approxEqual(closed[0].currentPrice, priceStopLoss)) {
+    fail(`stop must close at the exact SL price ${priceStopLoss}, got ${closed[0].currentPrice}`);
+    return;
+  }
+  const closeMinute = (closed[0].closeTimestamp - startTime) / MIN;
+  if (closeMinute !== 6) {
+    fail(`close must land on the SL-wick candle (minute 6, TP wick at 3 ignored), got minute ${closeMinute}`);
+    return;
+  }
+
+  pass(`SHORT mirror verified: TP wick at minute 3 ignored, SL wick fired stop_loss at minute 6 @ ${closed[0].currentPrice}`);
+});
+
 test("TOUCH: same-candle TP+SL touch resolves pessimistically to stop_loss", async ({ pass, fail }) => {
   const basePrice = 50000;
   const priceTakeProfit = basePrice + 1000;
@@ -282,6 +371,93 @@ test("TOUCH: a one-minute wick to the liquidation level liquidates while VWAP si
   }
 
   pass(`intra-candle wick liquidated the position @ ${closed[0].currentPrice.toFixed(4)} while VWAP stayed near the entry — the exact case VWAP smoothing used to hide`);
+});
+
+test("TOUCH: live tick mirrors the asymmetry — TP wick ignored, SL wick closes stop_loss", async ({ pass, fail }) => {
+  const basePrice = 50000;
+  const priceTakeProfit = basePrice + 1000;
+  const priceStopLoss = basePrice - 1000;
+  const t0 = new Date("2024-06-03T00:00:00Z").getTime();
+  const context = {
+    strategyName: "touch-live-asym-strategy",
+    exchangeName: "binance-touch-live-asym",
+    frameName: "",
+  };
+
+  // Управление ПОСЛЕДНЕЙ свечой ответа: "tp" — high-шпилька через TP,
+  // "sl" — low-шпилька через SL, иначе плоская база (VWAP всегда у входа)
+  let wickMode = "none";
+  addExchangeSchema({
+    exchangeName: context.exchangeName,
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = [];
+      for (let i = 0; i < limit; i++) {
+        const isLast = i === limit - 1;
+        const high = wickMode === "tp" && isLast ? priceTakeProfit + 200 : basePrice;
+        const low = wickMode === "sl" && isLast ? priceStopLoss - 200 : basePrice;
+        candles.push({
+          timestamp: alignedSince + i * MIN,
+          open: basePrice, high, low, close: basePrice, volume: 100,
+        });
+      }
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let issued = false;
+  addStrategySchema({
+    strategyName: context.strategyName,
+    interval: "1m",
+    getSignal: async () => {
+      if (issued) return null;
+      issued = true;
+      return {
+        position: "long",
+        note: "live asymmetry",
+        priceTakeProfit,
+        priceStopLoss,
+        minuteEstimatedTime: 60,
+        multiplier: 1,
+      };
+    },
+  });
+
+  const runTick = (when) =>
+    MethodContextService.runInContext(
+      async () => await lib.strategyCoreService.tick("BTCUSDT", when, false, context),
+      context,
+    );
+
+  const tick1 = await runTick(new Date(t0));
+  if (tick1.action !== "opened") {
+    fail(`tick #1 expected "opened", got "${tick1.action}"`);
+    return;
+  }
+
+  // TP-шпилька в последней свече: VWAP у входа — позиция обязана остаться active
+  wickMode = "tp";
+  const tick2 = await runTick(new Date(t0 + 1 * MIN));
+  if (tick2.action !== "active") {
+    fail(`live TP wick must be ignored (take_profit is VWAP-based), got "${tick2.action}"/"${tick2.closeReason}"`);
+    return;
+  }
+
+  // SL-шпилька в последней свече: стоп по касанию — немедленное закрытие
+  wickMode = "sl";
+  const tick3 = await runTick(new Date(t0 + 2 * MIN));
+  if (tick3.action !== "closed" || tick3.closeReason !== "stop_loss") {
+    fail(`live SL wick must close stop_loss immediately, got "${tick3.action}"/"${tick3.closeReason}"`);
+    return;
+  }
+  if (!approxEqual(tick3.currentPrice, priceStopLoss)) {
+    fail(`live stop must close at the exact SL price ${priceStopLoss}, got ${tick3.currentPrice}`);
+    return;
+  }
+
+  pass(`live asymmetry verified: TP wick ignored on tick #2, SL wick fired stop_loss @ ${tick3.currentPrice} on tick #3`);
 });
 
 test("TOUCH: live tick mirrors the wick detection via the last closed candle's low", async ({ pass, fail }) => {
