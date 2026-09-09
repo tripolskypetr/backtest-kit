@@ -3233,14 +3233,14 @@ type StrategyStatus = {
     /**
      * Deferred broker-confirmed take-profit fill (createTakeProfit), or null if none pending.
      * Set when the external order management system reports the position's TP order was actually
-     * filled on the exchange (e.g. by candle high/low) — independent of the VWAP-based TP check.
+     * filled on the exchange (e.g. by candle high/low) — independent of the framework's touch-based TP check (closed-candle granularity).
      * Drained on the next tick/backtest to close the position with closeReason "take_profit".
      */
     takeProfitSignal: ISignalCloseRow | null;
     /**
      * Deferred broker-confirmed stop-loss fill (createStopLoss), or null if none pending.
      * Set when the external order management system reports the position's SL order was actually
-     * filled on the exchange (e.g. by candle high/low) — independent of the VWAP-based SL check.
+     * filled on the exchange (e.g. by candle high/low) — independent of the framework's touch-based SL check (closed-candle granularity).
      * Drained on the next tick/backtest to close the position with closeReason "stop_loss".
      */
     stopLossSignal: ISignalCloseRow | null;
@@ -4354,10 +4354,9 @@ interface IStrategy {
     createSignal: (symbol: string, currentPrice: number, dto: ISignalDto) => Promise<void>;
     /**
      * Reports that the pending position's take-profit order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that does not wait for the VWAP-based TP check.
+     * (e.g. by candle high/low), forcing a close that does not wait for the framework's touch-based TP check (closed-candle granularity).
      *
-     * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL against
-     * VWAP, but the real order may close on high/low. This method bridges that gap — the broker
+     * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live), but the real order may close on high/low. This method bridges that gap — the broker
      * confirms the fill out of the async-hooks execution context, and the close is deferred:
      * a snapshot of the current pending signal is stored and drained on the next tick/backtest,
      * which closes the position with closeReason "take_profit" at the effective take-profit level.
@@ -4373,10 +4372,9 @@ interface IStrategy {
     createTakeProfit: (symbol: string, backtest: boolean, payload: Partial<CommitPayload>) => Promise<void>;
     /**
      * Reports that the pending position's stop-loss order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that does not wait for the VWAP-based SL check.
+     * (e.g. by candle high/low), forcing a close that does not wait for the framework's touch-based SL check (closed-candle granularity).
      *
-     * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL against
-     * VWAP, but the real order may close on high/low. This method bridges that gap — the broker
+     * The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live), but the real order may close on high/low. This method bridges that gap — the broker
      * confirms the fill out of the async-hooks execution context, and the close is deferred:
      * a snapshot of the current pending signal is stored and drained on the next tick/backtest,
      * which closes the position with closeReason "stop_loss" at the effective stop-loss level.
@@ -8265,9 +8263,9 @@ declare function commitSignalNotify(symbol: string, payload?: Partial<SignalNoti
 declare function commitCreateSignal(symbol: string, dto: ISignalDto): Promise<void>;
 /**
  * Reports that the pending position's take-profit order was actually filled on the exchange
- * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+ * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
  *
- * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+ * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
  * but the real order may fill on high/low. The close is deferred and emitted with closeReason
  * "take_profit" on the next tick. No-op if no pending signal exists.
  *
@@ -8288,9 +8286,9 @@ declare function commitCreateSignal(symbol: string, dto: ISignalDto): Promise<vo
 declare function commitCreateTakeProfit(symbol: string, payload?: Partial<CommitPayload>): Promise<void>;
 /**
  * Reports that the pending position's stop-loss order was actually filled on the exchange
- * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+ * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
  *
- * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+ * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
  * but the real order may fill on high/low. The close is deferred and emitted with closeReason
  * "stop_loss" on the next tick. No-op if no pending signal exists.
  *
@@ -18868,13 +18866,13 @@ type StrategyData = {
     /**
      * Deferred broker-confirmed take-profit fill (createTakeProfit), or null if none pending.
      * Set when the exchange reports the TP order was actually filled (e.g. by candle high/low),
-     * independent of the VWAP-based TP check. Drained on the next tick to close with "take_profit".
+     * independent of the framework's touch-based TP check (closed-candle granularity). Drained on the next tick to close with "take_profit".
      */
     takeProfitSignal: ISignalCloseRow | null;
     /**
      * Deferred broker-confirmed stop-loss fill (createStopLoss), or null if none pending.
      * Set when the exchange reports the SL order was actually filled (e.g. by candle high/low),
-     * independent of the VWAP-based SL check. Drained on the next tick to close with "stop_loss".
+     * independent of the framework's touch-based SL check (closed-candle granularity). Drained on the next tick to close with "stop_loss".
      */
     stopLossSignal: ISignalCloseRow | null;
     /**
@@ -23690,9 +23688,9 @@ declare class BacktestUtils {
     }, dto: ISignalDto) => Promise<void>;
     /**
      * Reports that the pending position's take-profit order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
      *
-     * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+     * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
      * but the real order may fill on high/low. The close is deferred and emitted with closeReason
      * "take_profit" on the next backtest tick. No-op if no pending signal exists.
      *
@@ -23718,9 +23716,9 @@ declare class BacktestUtils {
     }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Reports that the pending position's stop-loss order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
      *
-     * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+     * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
      * but the real order may fill on high/low. The close is deferred and emitted with closeReason
      * "stop_loss" on the next backtest tick. No-op if no pending signal exists.
      *
@@ -25303,9 +25301,9 @@ declare class LiveUtils {
     }, dto: ISignalDto) => Promise<void>;
     /**
      * Reports that the pending position's take-profit order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
      *
-     * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+     * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
      * but the real order may fill on high/low. The close is deferred and emitted with closeReason
      * "take_profit" on the next live tick. No-op if no pending signal exists.
      *
@@ -25320,9 +25318,9 @@ declare class LiveUtils {
     }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Reports that the pending position's stop-loss order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
      *
-     * The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+     * The exchange and the strategy are parallel states: the framework evaluates TP/SL by closed-candle touch (up to 1 minute of lag in live),
      * but the real order may fill on high/low. The close is deferred and emitted with closeReason
      * "stop_loss" on the next live tick. No-op if no pending signal exists.
      *
@@ -39261,7 +39259,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
     }) => Promise<void>;
     /**
      * Reports that the pending position's take-profit order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
      *
      * Delegates to ClientStrategy.createTakeProfit(). The close is deferred and emitted with
      * closeReason "take_profit" on the next tick()/backtest(). Works out of the execution context.
@@ -39279,7 +39277,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
     }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Reports that the pending position's stop-loss order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
      *
      * Delegates to ClientStrategy.createStopLoss(). The close is deferred and emitted with
      * closeReason "stop_loss" on the next tick()/backtest(). Works out of the execution context.
@@ -41064,7 +41062,7 @@ declare class StrategyCoreService implements TStrategy {
     }) => Promise<void>;
     /**
      * Reports that the pending position's take-profit order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based TP check (closed-candle granularity).
      *
      * Validates the context, then delegates to StrategyConnectionService.createTakeProfit().
      * The close is deferred and emitted with closeReason "take_profit" on the next tick/backtest.
@@ -41083,7 +41081,7 @@ declare class StrategyCoreService implements TStrategy {
     }, payload?: Partial<CommitPayload>) => Promise<void>;
     /**
      * Reports that the pending position's stop-loss order was actually filled on the exchange
-     * (e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+     * (e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
      *
      * Validates the context, then delegates to StrategyConnectionService.createStopLoss().
      * The close is deferred and emitted with closeReason "stop_loss" on the next tick/backtest.
