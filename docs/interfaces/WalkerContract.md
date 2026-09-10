@@ -105,3 +105,13 @@ totalStrategies: number
 ```
 
 Total number of strategies to test
+
+### when
+
+```ts
+when: Date
+```
+
+Virtual execution time as a `Date` instance: the last processed candle
+timestamp of the just-completed strategy backtest from `TimeMetaService`,
+falling back to the frame's planned start date. Never wall-clock time.

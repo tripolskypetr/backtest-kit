@@ -59,3 +59,13 @@ progress: number
 ```
 
 progress - Completion percentage from 0.0 to 1.0
+
+### when
+
+```ts
+when: Date
+```
+
+Virtual execution time as a `Date` instance: the timeframe being
+processed when this progress event was emitted (frame end time for the
+final 100% event). Never wall-clock time.

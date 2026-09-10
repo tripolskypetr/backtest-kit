@@ -67,3 +67,13 @@ progress: number
 ```
 
 progress - Completion percentage from 0.0 to 1.0
+
+### when
+
+```ts
+when: Date
+```
+
+Virtual execution time as a `Date` instance: the last processed candle
+timestamp of the just-completed strategy backtest from `TimeMetaService`,
+falling back to the frame's planned start date. Never wall-clock time.

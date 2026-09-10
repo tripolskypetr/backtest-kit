@@ -40,6 +40,18 @@ backtestLogicPublicService: BacktestLogicPublicService
 backtestMarkdownService: BacktestMarkdownService
 ```
 
+### timeMetaService
+
+```ts
+timeMetaService: TimeMetaService
+```
+
+### frameSchemaService
+
+```ts
+frameSchemaService: FrameSchemaService
+```
+
 ### walkerSchemaService
 
 ```ts

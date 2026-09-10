@@ -20,6 +20,16 @@ timestamp: number
 
 Timestamp when the metric was recorded (milliseconds since epoch)
 
+### when
+
+```ts
+when: Date
+```
+
+Event time as a `Date` instance. Backtest mode: virtual execution time —
+the timeframe/signal close time being processed (NOT wall-clock, unlike
+`timestamp` which records real profiling time). Live mode: tick time.
+
 ### previousTimestamp
 
 ```ts

@@ -99,6 +99,16 @@ timestamp: number
 
 Timestamp from execution context (tick's when)
 
+### when
+
+```ts
+when: Date
+```
+
+Event time as a `Date` instance. Backtest mode: virtual execution time
+(candle.timestamp of the processed candle); live mode: wall-clock tick time.
+Always equal to `new Date(timestamp)`.
+
 ### signal
 
 ```ts

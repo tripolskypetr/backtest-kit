@@ -98,6 +98,16 @@ timestamp: number
 
 Timestamp from execution context at the moment the gate rejected
 
+### when
+
+```ts
+when: Date
+```
+
+Event time as a `Date` instance. Backtest mode: virtual execution time
+(candle.timestamp of the processed candle); live mode: wall-clock time.
+Always equal to `new Date(timestamp)`.
+
 ### signal
 
 ```ts

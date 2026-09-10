@@ -37,6 +37,16 @@ timestamp: number
 
 Timestamp of the highest profit update (milliseconds since epoch)
 
+### when
+
+```ts
+when: Date
+```
+
+Event time as a `Date` instance. Backtest mode: virtual execution time
+(candle.timestamp of the processed candle); live mode: wall-clock time.
+Always equal to `new Date(timestamp)`.
+
 ### strategyName
 
 ```ts

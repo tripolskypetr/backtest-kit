@@ -103,3 +103,17 @@ Event timestamp in milliseconds since Unix epoch.
 Timing semantics:
 - Live mode: when.getTime() at the moment profit level was detected
 - Backtest mode: candle.timestamp of the candle that triggered the level
+
+### when
+
+```ts
+when: Date
+```
+
+Event time as a `Date` instance.
+
+- Backtest mode: virtual execution time — `candle.timestamp` of the candle
+  that triggered the level (not wall-clock time).
+- Live mode: wall-clock time at the moment the profit level was detected.
+
+Always equal to `new Date(timestamp)`.
