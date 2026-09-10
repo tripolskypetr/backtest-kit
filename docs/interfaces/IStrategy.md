@@ -290,10 +290,9 @@ createTakeProfit: (symbol: string, backtest: boolean, payload: Partial<CommitPay
 ```
 
 Reports that the pending position's take-profit order was actually filled on the exchange
-(e.g. by candle high/low), forcing a close that does not wait for the VWAP-based TP check.
+(e.g. by candle high/low), forcing a close that does not wait for the framework's VWAP-based TP check.
 
-The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL against
-VWAP, but the real order may close on high/low. This method bridges that gap — the broker
+The exchange and the strategy are parallel states: ClientStrategy evaluates SL/liquidation by closed-candle touch and TP by VWAP, but the real order may close on high/low. This method bridges that gap — the broker
 confirms the fill out of the async-hooks execution context, and the close is deferred:
 a snapshot of the current pending signal is stored and drained on the next tick/backtest,
 which closes the position with closeReason "take_profit" at the effective take-profit level.
@@ -308,10 +307,9 @@ createStopLoss: (symbol: string, backtest: boolean, payload: Partial<CommitPaylo
 ```
 
 Reports that the pending position's stop-loss order was actually filled on the exchange
-(e.g. by candle high/low), forcing a close that does not wait for the VWAP-based SL check.
+(e.g. by candle high/low), forcing a close that does not wait for the framework's touch-based SL check (closed-candle granularity).
 
-The exchange and the strategy are parallel states: ClientStrategy evaluates TP/SL against
-VWAP, but the real order may close on high/low. This method bridges that gap — the broker
+The exchange and the strategy are parallel states: ClientStrategy evaluates SL/liquidation by closed-candle touch and TP by VWAP, but the real order may close on high/low. This method bridges that gap — the broker
 confirms the fill out of the async-hooks execution context, and the close is deferred:
 a snapshot of the current pending signal is stored and drained on the next tick/backtest,
 which closes the position with closeReason "stop_loss" at the effective stop-loss level.

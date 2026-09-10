@@ -146,6 +146,14 @@ multiplier: number
 
 PNL multiplier (leverage) applied to pnlPercentage (only for scheduled/waiting/opened/active/closed/cancelled)
 
+### isolated
+
+```ts
+isolated: boolean
+```
+
+Isolated-margin mode: force-close at -100% leveraged PNL (only for scheduled/waiting/opened/active/closed/cancelled)
+
 ### pnlCost
 
 ```ts

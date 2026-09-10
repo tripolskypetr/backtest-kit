@@ -10,9 +10,9 @@ declare function commitCreateStopLoss(symbol: string, payload?: Partial<CommitPa
 ```
 
 Reports that the pending position's stop-loss order was actually filled on the exchange
-(e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+(e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
 
-The exchange and the strategy are parallel states: the framework evaluates TP/SL against VWAP,
+The exchange and the strategy are parallel states: the framework evaluates SL/liquidation by closed-candle touch and TP by VWAP,
 but the real order may fill on high/low. The close is deferred and emitted with closeReason
 "stop_loss" on the next tick. No-op if no pending signal exists.
 

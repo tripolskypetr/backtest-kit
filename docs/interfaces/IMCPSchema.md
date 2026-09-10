@@ -61,6 +61,14 @@ multiplier: number
 
 PNL multiplier (leverage) for opened positions. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
 
+### isolated
+
+```ts
+isolated: boolean
+```
+
+Isolated-margin mode for opened positions (force-close at -100% leveraged PNL). Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN
+
 ### minuteEstimatedTime
 
 ```ts

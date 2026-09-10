@@ -52,6 +52,7 @@ declare function getConfig(): {
     CC_ENABLE_TRAILING_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
     CC_SIGNAL_LEVERAGE_MULTIPLIER: number;
+    CC_SIGNAL_ISOLATED_MARGIN: boolean;
     CC_ORDER_OPEN_RETRY_ATTEMPTS: number;
     CC_ORDER_CHECK_RETRY_ATTEMPTS: number;
     CC_ORDER_CLOSE_RETRY_ATTEMPTS: number;

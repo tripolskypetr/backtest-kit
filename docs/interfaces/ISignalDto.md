@@ -93,3 +93,16 @@ multiplier: number
 PNL multiplier (leverage) applied to pnlPercentage in PNL calculations.
 pnlCost follows automatically (pnlCost = pnlPercentage / 100 * pnlEntries).
 Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
+
+### isolated
+
+```ts
+isolated: boolean
+```
+
+Isolated-margin mode: the position's margin is its own cost. Once the
+leveraged realizable PNL reaches -100% the position is force-closed with
+closeReason "liquidation" at the computed liquidation price (see
+getLiquidationPrice). With false (cross margin) PNL may go below -100%
+and the position keeps being monitored until TP/SL/time_expired.
+Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN

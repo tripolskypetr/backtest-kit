@@ -365,7 +365,7 @@ createTakeProfit: (backtest: boolean, symbol: string, context: { strategyName: s
 ```
 
 Reports that the pending position's take-profit order was actually filled on the exchange
-(e.g. by candle high/low), forcing a close that bypasses the VWAP-based TP check.
+(e.g. by candle high/low), forcing a close that bypasses the framework's VWAP-based TP check.
 
 Validates the context, then delegates to StrategyConnectionService.createTakeProfit().
 The close is deferred and emitted with closeReason "take_profit" on the next tick/backtest.
@@ -378,7 +378,7 @@ createStopLoss: (backtest: boolean, symbol: string, context: { strategyName: str
 ```
 
 Reports that the pending position's stop-loss order was actually filled on the exchange
-(e.g. by candle high/low), forcing a close that bypasses the VWAP-based SL check.
+(e.g. by candle high/low), forcing a close that bypasses the framework's touch-based SL check (closed-candle granularity).
 
 Validates the context, then delegates to StrategyConnectionService.createStopLoss().
 The close is deferred and emitted with closeReason "stop_loss" on the next tick/backtest.

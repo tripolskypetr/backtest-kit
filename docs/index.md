@@ -721,6 +721,7 @@ group: docs
 - [WalkerStopContract](interfaces/WalkerStopContract.md)
 - [IParseArgsParams](interfaces/IParseArgsParams.md)
 - [IParseArgsResult](interfaces/IParseArgsResult.md)
+- [Signal$3](interfaces/Signal$3.md)
 - [Signal$2](interfaces/Signal$2.md)
 - [Signal$1](interfaces/Signal$1.md)
 - [Signal](interfaces/Signal.md)

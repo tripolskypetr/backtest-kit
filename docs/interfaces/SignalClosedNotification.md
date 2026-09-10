@@ -178,6 +178,14 @@ multiplier: number
 
 PNL multiplier (leverage) applied to pnlPercentage. Default: GLOBAL_CONFIG.CC_SIGNAL_LEVERAGE_MULTIPLIER
 
+### isolated
+
+```ts
+isolated: boolean
+```
+
+Isolated-margin mode: position force-closes with closeReason "liquidation" at -100% leveraged PNL. Default: GLOBAL_CONFIG.CC_SIGNAL_ISOLATED_MARGIN
+
 ### pnlPercentage
 
 ```ts
